@@ -1,0 +1,60 @@
+name: Auto-Approve PR Based on Team Membership
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Team Membership and Approve PR as Bot
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const teamSlug = "outpost-review";
+            const org = "community-outpost";
+            const reviewer = context.payload.review.user.login;
+            const reviewState = context.payload.review.state;
+            const pullNumber = context.payload.pull_request.number;
+
+            console.log(`Review submitted by: ${reviewer}`);
+            console.log(`Review state: ${reviewState}`);
+
+            // Only proceed if the review is an approval
+            if (reviewState !== "approved") {
+              console.log("Review was not an approval. No action taken.");
+              return;
+            }
+
+            try {
+              console.log(`Checking if ${reviewer} is in team ${teamSlug}...`);
+              const { data: teamMembers } = await github.rest.teams.listMembersInOrg({
+                org,
+                team_slug: teamSlug
+              });
+
+              const isMember = teamMembers.some(member => member.login === reviewer);
+
+              if (isMember) {
+                console.log(`${reviewer} is a member of ${teamSlug}. Submitting bot approval for PR #${pullNumber}...`);
+                await github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pullNumber,
+                  event: "APPROVE",
+                  body: `✅ Auto-approved by GitHub Actions bot on behalf of ${reviewer}.`
+                });
+                console.log(`PR #${pullNumber} approved by bot.`);
+              } else {
+                console.log(`${reviewer} is NOT a member of ${teamSlug}. No bot approval given.`);
+              }
+            } catch (error) {
+              console.error("Error checking team membership:", error);
+              throw error;
+            }
