@@ -18,6 +18,7 @@
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Material.Icons.Avalonia" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="StyleCop.Analyzers" />
     </ItemGroup>
 
     <ItemGroup>

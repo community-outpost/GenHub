@@ -16,6 +16,7 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="StyleCop.Analyzers" />
     </ItemGroup>
 
     <ItemGroup>
