@@ -7,11 +7,17 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Linux;
 
-class Program
+/// <summary>
+/// Main class for main entry point.
+/// </summary>
+public class Program
 {
-    // Initialization code. Don't use any Avalonia, third-party APIs or any
-    // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-    // yet and stuff might break.
+    /// <summary>
+    /// Initialization code. Don't use any Avalonia, third-party APIs or any
+    /// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
+    /// yet and stuff might break.
+    /// </summary>
+    /// <param name="args">Program startup arguments.</param>
     [STAThread]
     public static void Main(string[] args)
     {
@@ -35,7 +41,13 @@ class Program
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
+    /// <summary>
+    /// Avalonia configuration.
+    /// </summary>
+    /// <returns>The <see cref="AppBuilder"/>.</returns>
+    /// <remarks>
+    /// Don't remove; also used by visual designer.
+    /// </remarks>
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()

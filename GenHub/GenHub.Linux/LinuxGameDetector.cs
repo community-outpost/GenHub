@@ -3,10 +3,13 @@ using GenHub.Core;
 
 namespace GenHub.Linux;
 
+/// <inheritdoc/>
 public class LinuxGameDetector : IGameDetector
 {
-    public List<IGameInstallation> Installations { get; private set; } = new();
+    /// <inheritdoc/>
+    public List<IGameInstallation> Installations { get; private set; } = [];
 
+    /// <inheritdoc/>
     public void Detect()
     {
         throw new System.NotImplementedException();

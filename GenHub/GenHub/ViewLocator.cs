@@ -5,8 +5,12 @@ using GenHub.ViewModels;
 
 namespace GenHub;
 
+/// <summary>
+/// ViewLocator is used to find the correct view for a given ViewModel.
+/// </summary>
 public class ViewLocator : IDataTemplate
 {
+    /// <inheritdoc/>
     public Control? Build(object? data)
     {
         if (data is null)
@@ -19,7 +23,7 @@ public class ViewLocator : IDataTemplate
         {
             return new TextBlock
             {
-                Text = "Couldn't find view: " + viewName
+                Text = "Couldn't find view: " + viewName,
             };
         }
 
@@ -28,6 +32,7 @@ public class ViewLocator : IDataTemplate
         return control;
     }
 
+    /// <inheritdoc/>
     public bool Match(object? data)
     {
         return data is ViewModelBase;

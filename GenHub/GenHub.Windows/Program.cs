@@ -11,21 +11,21 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Windows;
 
-class Program
+/// <summary>
+/// Main class for main entry point.
+/// </summary>
+public class Program
 {
-    private static Mutex? s_Mutex;
     private const string MutexName = "Global\\GenHub";
     private const int SW_RESTORE = 9; // Windows API constant to restore a window
+    private static Mutex? mutex;
 
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    // Initialization code. Don't use any Avalonia, third-party APIs or any
-    // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-    // yet and stuff might break.
+    /// <summary>
+    /// Initialization code. Don't use any Avalonia, third-party APIs or any
+    /// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
+    /// yet and stuff might break.
+    /// </summary>
+    /// <param name="args">Program startup arguments.</param>
     [STAThread]
     public static void Main(string[] args)
     {
@@ -56,20 +56,32 @@ class Program
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
+    /// <summary>
+    /// Avalonia configuration.
+    /// </summary>
+    /// <returns>The <see cref="AppBuilder"/>.</returns>
+    /// <remarks>
+    /// Don't remove; also used by visual designer.
+    /// </remarks>
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
 
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     /// <summary>
-    /// Checks if another instance is already running by attempting to acquire a named mutex.
+    /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex">.
     /// </summary>
-    /// <returns>True if another instance already owns the mutex</returns>
+    /// <returns>True if another instance already owns the <see cref="Mutex">.</returns>
     private static bool IsAnotherInstanceRunning()
     {
-        s_Mutex = new Mutex(true, MutexName, out bool createdNew);
+        mutex = new Mutex(true, MutexName, out bool createdNew);
         return !createdNew;
     }
 

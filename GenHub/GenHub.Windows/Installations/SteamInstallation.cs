@@ -6,24 +6,43 @@ using Microsoft.Win32;
 
 namespace GenHub.Windows.Installations;
 
+/// <inheritdoc/>
 public class SteamInstallation : IGameInstallation
 {
-    // IGameInstallation
-    public GameInstallationType InstallationType => GameInstallationType.Steam;
-    public bool IsVanillaInstalled { get; private set; }
-    public string VanillaGamePath { get; private set; } = "";
-    public bool IsZeroHourInstalled { get; private set; }
-    public string ZeroHourGamePath { get; private set; } = "";
-
-    //Steam specific
-    public bool IsSteamInstalled { get; private set; }
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SteamInstallation"/> class.
+    /// </summary>
+    /// <param name="fetch">Value indicating whether <see cref="Fetch"/> should be called while instantiation.</param>
     public SteamInstallation(bool fetch)
     {
-        if(fetch)
+        if (fetch)
             Fetch();
     }
 
+    /// <inheritdoc/>
+    public GameInstallationType InstallationType => GameInstallationType.Steam;
+
+    /// <inheritdoc/>
+    public bool IsVanillaInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public string VanillaGamePath { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
+    public bool IsZeroHourInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public string ZeroHourGamePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether Steam is installed successfully.
+    /// </summary>
+    /// <remarks>
+    /// Steam specific.
+    /// </remarks>
+    public bool IsSteamInstalled { get; private set; }
+
+    /// <inheritdoc/>
     public void Fetch()
     {
         IsSteamInstalled = DoesSteamPathExist();
@@ -125,9 +144,9 @@ public class SteamInstallation : IGameInstallation
     }
 
     /// <summary>
-    /// Checks if steam is installed by looking up the installation path of steam in the windows registry
+    /// Checks if steam is installed by looking up the installation path of steam in the windows registry.
     /// </summary>
-    /// <returns><c>true</c> if the steam registry key was found</returns>
+    /// <returns><c>true</c> if the steam registry key was found.</returns>
     private bool DoesSteamPathExist()
     {
         using var key = GetSteamRegistryKey();
@@ -137,8 +156,8 @@ public class SteamInstallation : IGameInstallation
     /// <summary>
     /// Tries to fetch the installation path of steam from the windows registry.
     /// </summary>
-    /// <param name="path">Returns the installation path if successful; otherwise, an empty string</param>
-    /// <returns><c>true</c> if the installation path of steam was found</returns>
+    /// <param name="path">Returns the installation path if successful; otherwise, an empty string.</param>
+    /// <returns><c>true</c> if the installation path of steam was found.</returns>
     private bool TryGetSteamPath(out string? path)
     {
         path = string.Empty;
@@ -163,9 +182,9 @@ public class SteamInstallation : IGameInstallation
     }
 
     /// <summary>
-    /// Returns a disposable RegistryKey. Caller is responsible for disposing it.
+    /// Returns a disposable <see cref="RegistryKey"/>. Caller is responsible for disposing it.
     /// </summary>
-    /// <returns>Disposable RegistryKey</returns>
+    /// <returns>A disposable <see cref="RegistryKey"/>.</returns>
     private RegistryKey? GetSteamRegistryKey()
     {
         // Check current user

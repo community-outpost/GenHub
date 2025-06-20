@@ -5,24 +5,43 @@ using Microsoft.Win32;
 
 namespace GenHub.Windows.Installations;
 
+/// <inheritdoc/>
 public class EaAppInstallation : IGameInstallation
 {
-    // IGameInstallation
-    public GameInstallationType InstallationType => GameInstallationType.EaApp;
-    public bool IsVanillaInstalled { get; private set; }
-    public string VanillaGamePath { get; private set; } = "";
-    public bool IsZeroHourInstalled { get; private set; }
-    public string ZeroHourGamePath { get; private set; } = "";
-
-    // EA App specific
-    public bool IsEaAppInstalled { get; private set; }
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EaAppInstallation"/> class.
+    /// </summary>
+    /// <param name="fetch">Value indicating whether <see cref="Fetch"/> should be called while instantiation.</param>
     public EaAppInstallation(bool fetch)
     {
-        if(fetch)
+        if (fetch)
             Fetch();
     }
 
+    /// <inheritdoc/>
+    public GameInstallationType InstallationType => GameInstallationType.EaApp;
+
+    /// <inheritdoc/>
+    public bool IsVanillaInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public string VanillaGamePath { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
+    public bool IsZeroHourInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public string ZeroHourGamePath { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether the EA App is installed successfully.
+    /// </summary>
+    /// <remarks>
+    /// EA App specific.
+    /// </remarks>
+    public bool IsEaAppInstalled { get; private set; }
+
+    /// <inheritdoc/>
     public void Fetch()
     {
         IsEaAppInstalled = IsEaAppInstallationSuccessful();
@@ -66,8 +85,8 @@ public class EaAppInstallation : IGameInstallation
     /// <summary>
     /// Tries to fetch the installation path of the EA App from the windows registry.
     /// </summary>
-    /// <param name="path">Returns the installation path if successful; otherwise, an empty string</param>
-    /// <returns><c>true</c> if the installation path of steam was found</returns>
+    /// <param name="path">Returns the installation path if successful; otherwise, an empty string.</param>
+    /// <returns><c>true</c> if the installation path of steam was found.</returns>
     private bool TryGetEaAppPath(out string? path)
     {
         path = string.Empty;
@@ -84,8 +103,8 @@ public class EaAppInstallation : IGameInstallation
     /// <summary>
     /// Tries to fetch the installation path of generals and ZH from the windows registry.
     /// </summary>
-    /// <param name="path">Returns the installation path if successful; otherwise, an empty string</param>
-    /// <returns><c>true</c> if the installation path of steam was found</returns>
+    /// <param name="path">Returns the installation path if successful; otherwise, an empty string.</param>
+    /// <returns><c>true</c> if the installation path of steam was found.</returns>
     private bool TryGetEaGamesGeneralsPath(out string? path)
     {
         path = string.Empty;
@@ -100,9 +119,9 @@ public class EaAppInstallation : IGameInstallation
     }
 
     /// <summary>
-    /// Checks if the Ea app was installed successfully via the registry
+    /// Checks if the Ea app was installed successfully via the registry.
     /// </summary>
-    /// <returns><c>True</c> if Ea App was installed successfully</returns>
+    /// <returns><c>True</c> if Ea App was installed successfully.</returns>
     private bool IsEaAppInstallationSuccessful()
     {
         using var key = GetEaAppRegistryKey();
@@ -117,9 +136,9 @@ public class EaAppInstallation : IGameInstallation
     }
 
     /// <summary>
-    /// Returns a disposable RegistryKey. Caller is responsible for disposing it.
+    /// Returns a disposable <see cref="RegistryKey"/>. Caller is responsible for disposing it.
     /// </summary>
-    /// <returns>Disposable RegistryKey</returns>
+    /// <returns>A disposable <see cref="RegistryKey"/>.</returns>
     private RegistryKey? GetEaAppRegistryKey()
     {
         // Check local machine
@@ -129,9 +148,9 @@ public class EaAppInstallation : IGameInstallation
     }
 
     /// <summary>
-    /// Returns a disposable RegistryKey. Caller is responsible for disposing it.
+    /// Returns a disposable <see cref="RegistryKey"/>. Caller is responsible for disposing it.
     /// </summary>
-    /// <returns>Disposable RegistryKey</returns>
+    /// <returns>A disposable <see cref="RegistryKey"/>.</returns>
     private RegistryKey? GetEaGamesGeneralsRegistryKey()
     {
         // Check local machine

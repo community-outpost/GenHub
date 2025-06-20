@@ -4,10 +4,13 @@ using GenHub.Windows.Installations;
 
 namespace GenHub.Windows;
 
+/// <inheritdoc/>
 public class WindowsGameDetector : IGameDetector
 {
-    public List<IGameInstallation> Installations { get; private set; } = new();
+    /// <inheritdoc/>
+    public List<IGameInstallation> Installations { get; private set; } = [];
 
+    /// <inheritdoc/>
     public void Detect()
     {
         Installations.Clear();
