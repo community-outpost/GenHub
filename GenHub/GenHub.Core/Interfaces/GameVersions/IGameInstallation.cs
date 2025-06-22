@@ -1,4 +1,6 @@
-﻿namespace GenHub.Core;
+﻿namespace GenHub.Core.Interfaces.GameVersions;
+
+using GenHub.Core.Models.Enums;
 
 public interface IGameInstallation
 {

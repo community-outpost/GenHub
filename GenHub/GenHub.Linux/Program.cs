@@ -1,9 +1,9 @@
 ﻿using System;
 using Avalonia;
-using GenHub.Core;
-using GenHub.Services;
-using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using GenHub.Features.GameVersions.Services;
+using GenHub.Core.Interfaces.GameVersions;
+using GenHub.Common.ViewModels;
 
 namespace GenHub.Linux;
 

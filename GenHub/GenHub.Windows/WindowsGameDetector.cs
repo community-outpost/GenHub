@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using GenHub.Core;
+using GenHub.Core.Interfaces.GameVersions;
+using GenHub.Core.Models.Enums;
 using GenHub.Windows.Installations;
 
 namespace GenHub.Windows;

@@ -1,4 +1,7 @@
-﻿namespace GenHub.Core;
+﻿using GenHub.Core.Interfaces.GameVersions;
+using GenHub.Core.Models.Enums;
+
+namespace GenHub.Core.Helpers;
 
 public class DummyGameDetector : IGameDetector
 {

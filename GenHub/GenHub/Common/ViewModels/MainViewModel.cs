@@ -1,9 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core;
-using GenHub.Services;
+using GenHub.Core.Helpers;
+using GenHub.Common.ViewModels;
+using GenHub.Features.GameVersions.Services;
 
-namespace GenHub.ViewModels;
+namespace GenHub.Common.ViewModels;
 
 public partial class MainViewModel(GameDetectionService gameDetectionService) : ViewModelBase
 {
