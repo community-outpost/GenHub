@@ -1,0 +1,220 @@
+name: GenHub CI
+
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches: [ main]
+  pull_request:
+    branches: [ main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  BUILD_CONFIGURATION: 'Release'
+  CORE_PROJECT: 'GenHub/GenHub.Core/GenHub.Core.csproj'
+  UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
+  WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
+  LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+  TEST_PROJECTS: 'GenHub/GenHub.Tests/**/*.csproj'
+  
+jobs:
+  detect-changes:
+    name: Detect File Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      ui: ${{ steps.filter.outputs.ui }}
+      windows: ${{ steps.filter.outputs.windows }}
+      linux: ${{ steps.filter.outputs.linux }}
+      tests: ${{ steps.filter.outputs.tests }}
+      any: ${{ steps.filter.outputs.any }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Filter Changed Paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            core:
+              - 'GenHub/GenHub.Core/**'
+            ui:
+              - 'GenHub/GenHub/**'
+            windows:
+              - 'GenHub/GenHub.Windows/**'
+            linux:
+              - 'GenHub/GenHub.Linux/**'
+            tests:
+              - 'GenHub/GenHub.Tests/**'
+            any:
+              - '**/*.cs'
+              - '**/*.axaml'
+              - '**/*.csproj'
+              - '**/*.sln'
+              - '.github/workflows/**'
+
+      - name: Changes Summary
+        run: |
+          echo "### 🔍 File Changes Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Core: ${{ steps.filter.outputs.core == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- UI: ${{ steps.filter.outputs.ui == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows: ${{ steps.filter.outputs.windows == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: ${{ steps.filter.outputs.linux == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+
+  build-windows:
+    name: Build Windows
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.windows == 'true' }}
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Build Projects
+        shell: pwsh
+        run: |
+          # Build projects in the correct order (core dependencies first)
+          Write-Host "Building Core project"
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+          
+          Write-Host "Building UI project"  
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+          
+          Write-Host "Building Windows project"
+          dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+      
+      - name: Publish Windows App
+        shell: pwsh
+        run: |
+          Write-Host "Publishing Windows application"
+          dotnet publish "${{ env.WINDOWS_PROJECT }}" `
+            -c ${{ env.BUILD_CONFIGURATION }} `
+            -r win-x64 `
+            --self-contained true `
+            -o "win-publish"
+      
+      - name: Run Tests
+        id: tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' }
+          if ($testProjects) {
+            foreach ($testProject in $testProjects) {
+              Write-Host "Testing $($testProject.FullName)"
+              dotnet test $testProject.FullName -c $env:BUILD_CONFIGURATION
+            }
+          } else {
+            Write-Host "No test projects found."
+          }
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genhub-windows
+          path: win-publish
+          if-no-files-found: error
+          
+  build-linux:
+    name: Build Linux
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.linux == 'true' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev
+          
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Build Projects
+        run: |
+          # Build projects, which will also restore dependencies
+          echo "Building Core project"
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+          
+          echo "Building UI project"
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+          
+          echo "Building Linux project"  
+          dotnet build "${{ env.LINUX_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }}
+      
+      - name: Publish Linux App
+        run: |
+          echo "Publishing Linux application"
+          dotnet publish "${{ env.LINUX_PROJECT }}" \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -r linux-x64 \
+            --self-contained true \
+            -o "linux-publish"
+      
+      - name: Run Tests
+        run: |
+          shopt -s globstar nullglob
+          for test_project in ${{ env.TEST_PROJECTS }}; do
+            [[ "$test_project" == *Windows* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+          done
+        
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: genhub-linux
+          path: linux-publish
+          if-no-files-found: error
+
+  summary:
+    name: Build Summary
+    needs: [build-windows, build-linux]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Summary
+        run: |
+          echo "### 🚀 GenHub Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
