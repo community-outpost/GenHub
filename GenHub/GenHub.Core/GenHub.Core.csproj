@@ -5,6 +5,6 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
     <ItemGroup>
-      <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="StyleCop.Analyzers" />
     </ItemGroup>
 </Project>
