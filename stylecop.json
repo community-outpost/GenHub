@@ -1,0 +1,76 @@
+{
+  "settings": {
+    "documentationRules": {
+      "companyName": "GenHub",
+      "documentExposedElements": true,
+      "documentInternalElements": false,
+      "documentPrivateElements": false,
+      "documentInterfaces": true,
+      "documentPrivateFields": false,
+      "fileNamingConvention": "metadata",
+      "xmlHeader": false
+    },
+    "orderingRules": {
+      "usingDirectivesPlacement": "outsideNamespace",
+      "systemUsingDirectivesFirst": false,
+      "blankLinesBetweenUsingGroups": "allow",
+      "elementOrder": [
+        "kind:nestedType",
+        "kind:field&static",
+        "kind:field",
+        "kind:constructor",
+        "kind:destructor",
+        "kind:property",
+        "kind:indexer",
+        "kind:event",
+        "kind:method&static",
+        "kind:method"
+      ],
+      "accessibilityOrder": [
+        "public",
+        "protected",
+        "internal",
+        "private"
+      ],
+      "usingDirectivesPlacementAlphabetical": true
+    },
+    "indentation": {
+      "useTabs": false,
+      "indentationSize": 4
+    },
+    "namingRules": {
+      "allowCommonHungarianPrefixes": true,
+      "includeInferredTupleElementNames": true,
+      "interfacePrefixes": [ "I" ],
+      "privateFieldNamingStyle": "_camelCase",
+      "publicFieldNamingStyle": "PascalCase",
+      "constantNamingStyle": "PascalCase"
+    },
+    "layoutRules": {
+      "newlineAtEndOfFile": "require",
+      "allowConsecutiveUsings": true,
+      "allowConsecutiveBlankLines": false
+    },
+    "readabilityRules": {
+      "allowBuiltInTypeAliases": true,
+      "allowFluentLinq": true
+    },
+    "maintainabilityRules": {
+      "topLevelTypes": [ "class", "interface", "enum", "struct", "delegate" ],
+      "oneTopLevelTypePerFile": true
+    },
+    "testRules": {
+      "allowUnderscoreTestMethodNames": true,
+      "allowPublicTestClasses": true
+    },
+    "braceRules": {
+      "allmanBraces": true,
+      "allowOmittedBracesForSingleLineStatements": true
+    },
+    "whitespaceRules": {
+      "spaceAroundBinaryOperators": true,
+      "noSpaceAfterMethodName": true,
+      "noSpaceBeforeCommaSemicolonColon": true
+    }
+  }
+}
