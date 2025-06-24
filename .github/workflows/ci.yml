@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '8.0.x'
   BUILD_CONFIGURATION: 'Release'
   CORE_PROJECT: 'GenHub/GenHub.Core/GenHub.Core.csproj'
   UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
