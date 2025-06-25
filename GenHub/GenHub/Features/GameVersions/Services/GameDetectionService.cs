@@ -1,6 +1,7 @@
 ﻿using GenHub.Core;
+using GenHub.Core.Interfaces.GameVersions;
 
-namespace GenHub.Services;
+namespace GenHub.Features.GameVersions.Services;
 
 public class GameDetectionService(IGameDetector gameDetector)
 {

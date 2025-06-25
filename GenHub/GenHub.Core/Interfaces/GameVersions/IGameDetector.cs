@@ -1,4 +1,5 @@
-﻿namespace GenHub.Core;
+﻿namespace GenHub.Core.Interfaces.GameVersions;
+
 
 public interface IGameDetector
 {

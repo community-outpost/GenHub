@@ -2,6 +2,8 @@
 using System.IO;
 using GenHub.Core;
 using Microsoft.Win32;
+using GenHub.Core.Interfaces.GameVersions;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Windows.Installations;
 

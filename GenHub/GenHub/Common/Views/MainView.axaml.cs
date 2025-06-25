@@ -2,7 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace GenHub.Views;
+namespace GenHub.Common.Views;
 
 public partial class MainView : UserControl
 {
