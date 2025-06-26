@@ -1,6 +1,7 @@
 ﻿using System;
 using Avalonia;
 using GenHub.Core;
+using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Services;
 using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,9 +33,8 @@ public class Program
         // Linux-specific DI
         services.AddSingleton<IGameDetector, LinuxGameDetector>();
 
-        // Core DI
-        services.AddSingleton<GameDetectionService>();
-        services.AddSingleton<MainViewModel>();
+        // Register shared services
+        services.ConfigureApplicationServices();
 
         var serviceProvider = services.BuildServiceProvider();
 
