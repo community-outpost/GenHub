@@ -1,11 +1,8 @@
-using GenHub.Common.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace GenHub.Infrastructure.DependencyInjection;
 
-/// <summary>
-/// Registers shared ViewModels for DI.
-/// </summary>
+using Microsoft.Extensions.DependencyInjection;
+using GenHub.Common.ViewModels;
+
 public static class SharedViewModelModule
 {
     /// <summary>
