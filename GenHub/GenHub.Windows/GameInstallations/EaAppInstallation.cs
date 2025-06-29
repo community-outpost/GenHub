@@ -3,7 +3,7 @@ using System.IO;
 using GenHub.Core;
 using Microsoft.Win32;
 
-namespace GenHub.Windows.Installations;
+namespace GenHub.Windows.GameInstallations;
 
 /// <inheritdoc/>
 public class EaAppInstallation : IGameInstallation

@@ -1,37 +1,52 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Core;
-using GenHub.Services;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Features.GameInstallations;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace GenHub.ViewModels;
 
 /// <summary>
 /// ViewModel for the main window of the application.
 /// </summary>
-/// <param name="gameDetectionService">A <see cref="GameDetectionService"/> to manage installations.</param>
-public partial class MainViewModel(GameDetectionService gameDetectionService)
+public partial class MainViewModel
     : ViewModelBase
 {
+    private readonly GameInstallationDetectionOrchestrator _installationOrchestrator;
+
     [ObservableProperty]
     private string? _vanillaGamePath;
 
     [ObservableProperty]
     private string? _zeroHourGamePath;
 
+    [ObservableProperty]
+    private List<GameInstallation> _installations = new();
+
     /// <summary>
-    /// Initializes a new instance of the <see cref="MainViewModel"/> class.<br/>
-    /// Design-time only constructor.
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// </summary>
+    /// <param name="installationOrchestrator">The orchestrator for installation detection.</param>
+    public MainViewModel(GameInstallationDetectionOrchestrator installationOrchestrator)
+    {
+        _installationOrchestrator = installationOrchestrator;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time only.
     /// </summary>
     public MainViewModel()
-        : this(new GameDetectionService(new DummyGameDetector()))
-    { }
+        : this(new GameInstallationDetectionOrchestrator([]))
+    {
+    }
 
     [RelayCommand]
-    private void Detect()
+    private async Task Detect()
     {
-        gameDetectionService.DetectGames();
-
-        VanillaGamePath = gameDetectionService.VanillaGamePath;
-        ZeroHourGamePath = gameDetectionService.ZerHourGamePath;
+        var detected = await _installationOrchestrator.GetDetectedInstallationsAsync();
+        Installations = detected;
+        VanillaGamePath = detected.Find(i => i.HasGenerals)?.GeneralsPath;
+        ZeroHourGamePath = detected.Find(i => i.HasZeroHour)?.ZeroHourPath;
     }
 }

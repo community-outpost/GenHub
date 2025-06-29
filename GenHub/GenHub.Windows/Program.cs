@@ -4,9 +4,10 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
-using GenHub.Core;
-using GenHub.Services;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Features.GameVersions;
 using GenHub.ViewModels;
+using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Windows;
@@ -45,10 +46,10 @@ public class Program
         var services = new ServiceCollection();
 
         // Windows-specific DI
-        services.AddSingleton<IGameDetector, WindowsGameDetector>();
+        services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
 
         // Core DI
-        services.AddSingleton<GameDetectionService>();
+        services.AddSingleton<GameVersionDetectionOrchestrator>();
         services.AddSingleton<MainViewModel>();
 
         var serviceProvider = services.BuildServiceProvider();
