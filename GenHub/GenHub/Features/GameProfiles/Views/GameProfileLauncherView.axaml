@@ -1,0 +1,275 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+    xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+    xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
+    xmlns:conv="clr-namespace:GenHub.GenHub.Infrastructure.Converters"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
+    x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView"
+    x:Name="ProfileLauncher"
+    x:DataType="vm:GameProfileLauncherViewModel"
+    Background="#1A1A1A">
+
+    <UserControl.Resources>
+        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
+        <conv:ProfileCoverConverter x:Key="ProfileCoverConverter" />
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:BoolToValueConverter x:Key="BoolToVisibilityConverter"
+            TrueValue="Visible"
+            FalseValue="Collapsed" />
+            
+        <conv:BoolToColorConverter x:Key="EditModeToggleBackgroundConverter" TrueColor="#1E88E5" FalseColor="#333333" />
+        <conv:BoolToValueConverter x:Key="NotConverter" TrueValue="False" FalseValue="True" />
+        <conv:NullSafePropertyConverter x:Key="NullSafeConverter"/>
+
+        <!-- Define default colors for Generals and Zero Hour -->
+        <SolidColorBrush x:Key="GeneralsColor" Color="#BD5A0F" /> <!-- Dark orange/yellow -->
+        <SolidColorBrush x:Key="ZeroHourColor" Color="#1B6575" /> <!-- Dark teal/blue -->
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Profile card styles -->
+        <Style Selector="Border.profile-card">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Margin" Value="0 0 20 20" />
+            <Setter Property="Width" Value="400" />
+            <Setter Property="Height" Value="300" />
+            <Setter Property="BoxShadow" Value="0 2 10 0 #30000000" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="Border.profile-card:pointerover">
+            <Setter Property="BoxShadow" Value="0 4 15 0 #40000000" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- Button styles -->
+        <Style Selector="Button.profile-action">
+            <Setter Property="Padding" Value="14 8" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="#44000000" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#50FFFFFF" />
+            <!-- Use Button Template with Border supporting BoxShadow -->
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border BoxShadow="0 1 3 #40000000"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.launch-button">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinWidth" Value="110" />
+            <Setter Property="Background" Value="#44000000" />
+        </Style>
+
+        <Style Selector="Button.edit-button">
+            <Setter Property="Background" Value="#44444444" />
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="5" />
+            <Setter Property="CornerRadius" Value="17" />
+            <Setter Property="ToolTip.Tip" Value="Edit profile" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#30FFFFFF" />
+            <!-- Use Button Template with Border supporting BoxShadow -->
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border BoxShadow="0 1 3 #40000000"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.2" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="Button.edit-button:pointerover">
+            <Setter Property="Background" Value="#66555555" />
+        </Style>
+
+        <!-- Plus button style -->
+        <Style Selector="Button.add-profile-button">
+            <Setter Property="Background" Value="#333333" />
+            <Setter Property="Width" Value="300" />
+            <Setter Property="Height" Value="200" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="BorderBrush" Value="#444444" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Margin" Value="0 0 20 20" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="Button.add-profile-button:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+            <Setter Property="Background" Value="#383838" />
+        </Style>
+
+        <!-- Delete button style - make it use accent red -->
+        <Style Selector="Button.delete-button">
+            <Setter Property="Background" Value="#EF4444" /> <!-- Red accent -->
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#B91C1C" /> <!-- Darker red border -->
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button.delete-button:pointerover">
+            <Setter Property="Background" Value="#B91C1C" /> <!-- Even darker red on hover -->
+        </Style>
+
+        <!-- Enhanced badge style for profile cards -->
+        <Style Selector="Border.profile-badge">
+            <Setter Property="Background" Value="#50000000" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="BorderBrush" Value="{Binding $parent[Border].Background}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 1 3 0 #20000000" />
+        </Style>
+
+        <Style Selector="TextBlock.badge-text">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Source badge styles -->
+        <Style Selector="Border.source-badge">
+            <Setter Property="Background" Value="#40000000" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="5,1" />
+            <Setter Property="Margin" Value="0,4,5,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header with Title and Actions -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20 20 20 10">
+            <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+                <TextBlock Text="Game Profiles" FontSize="20" FontWeight="SemiBold"
+                    Foreground="White" Margin="0 0 0 4" />
+                <TextBlock Text="Select a profile to launch or create a new one"
+                    Foreground="#AAAAAA" FontSize="13" />
+            </StackPanel>
+
+            <!-- Action buttons section in header -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                <!-- Edit Mode Toggle button -->
+               <Button Name="EditModeToggle"
+                    Command="{Binding ToggleEditModeCommand, Mode=OneWay}"
+                    Background="{Binding IsEditMode, Converter={StaticResource EditModeToggleBackgroundConverter}, Mode=OneWay}"
+                    ToolTip.Tip="Toggle Edit Mode"
+                    Width="42" Height="42"
+                    CornerRadius="21"
+                    Padding="0">
+                    <Grid>
+                        <!-- Use a different icon based on edit mode state -->
+                        <PathIcon
+                            Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                            Width="18" Height="18"
+                            Foreground="White"
+                            IsVisible="{Binding !IsEditMode, Mode=OneWay}" />
+                        <PathIcon
+                            Data="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,11V13H7V11H17M13,15V17H7V15H13Z"
+                            Width="18" Height="18"
+                            Foreground="White"
+                            IsVisible="{Binding IsEditMode, Mode=OneWay}" />
+                    </Grid>
+                </Button>                <!-- Save button, only visible in edit mode -->                <Button Command="{Binding SaveProfilesCommand}"
+                    Name="SaveButton"
+                    Background="{StaticResource AccentColor}"
+                    Foreground="White"
+                    ToolTip.Tip="Save Changes"
+                    Width="42" Height="42"
+                    CornerRadius="21"
+                    IsVisible="{Binding IsEditMode}">
+                    <PathIcon
+                        Data="M17,3H5C3.89,3 3,3.9 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19V7L17,3M19,19H5V5H16.17L19,7.83V19M12,12C10.34,12 9,13.34 9,15S10.34,18 12,18 15,16.66 15,15 13.66,12 12,12M6,6H15V10H6V6Z"
+                        Width="18" Height="18" />
+                </Button>
+
+                <!-- Scan button -->
+                <Button Content="Scan"
+                    Command="{Binding ScanForGamesCommand}"
+                    Background="#333333"
+                    Padding="16 8"
+                    CornerRadius="4" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Profiles Grid -->
+        <ScrollViewer Grid.Row="1" Padding="20 10 20 20">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding Profiles}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:GameProfileItemViewModel">
+                            <local:GameProfileCardView DataContext="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Add Profile button -->
+                <Button Classes="add-profile-button"
+                    Command="{Binding CreateNewProfileCommand}">
+                    <StackPanel>
+                        <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                            Foreground="#BBBBBB"
+                            Width="32"
+                            Height="32" />
+                        <TextBlock Text="Add New Profile"
+                            Foreground="#BBBBBB"
+                            Margin="0,10,0,0"
+                            FontSize="13" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
 using GenHub.Core;
+using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Services;
-using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Windows;
@@ -49,7 +49,9 @@ public class Program
 
         // Core DI
         services.AddSingleton<GameDetectionService>();
-        services.AddSingleton<MainViewModel>();
+
+        // Register all shared ViewModels and services
+        SharedViewModelModule.AddSharedViewModelModule(services);
 
         var serviceProvider = services.BuildServiceProvider();
 
