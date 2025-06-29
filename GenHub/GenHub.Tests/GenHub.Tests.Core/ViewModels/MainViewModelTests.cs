@@ -1,5 +1,9 @@
 using System.Threading.Tasks;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Enums;
+using GenHub.Features.Downloads.ViewModels;
+using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Settings.ViewModels;
 using Xunit;
 
 namespace GenHub.Tests.Core.ViewModels;
@@ -17,7 +21,10 @@ public class MainViewModelTests
     public async Task InitializeAsync_CompletesSuccessfully()
     {
         // Arrange
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(
+            new GameProfileLauncherViewModel(),
+            new DownloadsViewModel(),
+            new SettingsViewModel());
 
         // Act
         var task = vm.InitializeAsync();
@@ -33,12 +40,15 @@ public class MainViewModelTests
     /// </summary>
     /// <param name="tab">The tab to select.</param>
     [Theory]
-    [InlineData(GenHub.Common.Models.NavigationTab.GameProfiles)]
-    [InlineData(GenHub.Common.Models.NavigationTab.Downloads)]
-    [InlineData(GenHub.Common.Models.NavigationTab.Settings)]
-    public void SelectTabCommand_SetsSelectedTab(GenHub.Common.Models.NavigationTab tab)
+    [InlineData(NavigationTab.GameProfiles)]
+    [InlineData(NavigationTab.Downloads)]
+    [InlineData(NavigationTab.Settings)]
+    public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(
+            new GameProfileLauncherViewModel(),
+            new DownloadsViewModel(),
+            new SettingsViewModel());
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
     }
@@ -50,7 +60,10 @@ public class MainViewModelTests
     public void Constructor_CreatesValidInstance()
     {
         // Act
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(
+            new GameProfileLauncherViewModel(),
+            new DownloadsViewModel(),
+            new SettingsViewModel());
 
         // Assert
         Assert.NotNull(vm);
@@ -65,7 +78,10 @@ public class MainViewModelTests
     public async Task InitializeAsync_MultipleCallsAreSafe()
     {
         // Arrange
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(
+            new GameProfileLauncherViewModel(),
+            new DownloadsViewModel(),
+            new SettingsViewModel());
 
         // Act
         await vm.InitializeAsync();
@@ -75,14 +91,37 @@ public class MainViewModelTests
         Assert.NotNull(vm);
     }
 
+    /// <summary>
+    /// Tests that CurrentTabViewModel returns the correct ViewModel based on SelectedTab.
+    /// </summary>
+    /// <param name="tab">The tab to select.</param>
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public void SelectTabCommand_SetsSelectedTabIndex(int index)
+    [InlineData(NavigationTab.GameProfiles)]
+    [InlineData(NavigationTab.Downloads)]
+    [InlineData(NavigationTab.Settings)]
+    public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
-        var vm = new MainViewModel();
-        vm.SelectTabCommand.Execute(index);
-        Assert.Equal(index, vm.SelectedTabIndex);
+        var vm = new MainViewModel(
+            new GameProfileLauncherViewModel(),
+            new DownloadsViewModel(),
+            new SettingsViewModel());
+
+        vm.SelectTabCommand.Execute(tab);
+
+        var currentViewModel = vm.CurrentTabViewModel;
+        Assert.NotNull(currentViewModel);
+
+        switch (tab)
+        {
+            case NavigationTab.GameProfiles:
+                Assert.IsType<GameProfileLauncherViewModel>(currentViewModel);
+                break;
+            case NavigationTab.Downloads:
+                Assert.IsType<DownloadsViewModel>(currentViewModel);
+                break;
+            case NavigationTab.Settings:
+                Assert.IsType<SettingsViewModel>(currentViewModel);
+                break;
+        }
     }
 }

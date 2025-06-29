@@ -1,12 +1,11 @@
-namespace GenHub.Tests.Core.DependencyInjection;
-
 using GenHub.Common.ViewModels;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+
+namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Tests for SharedViewModelModule DI registration.

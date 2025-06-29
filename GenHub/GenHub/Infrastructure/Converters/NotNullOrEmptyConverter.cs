@@ -9,8 +9,17 @@ namespace GenHub.GenHub.Infrastructure.Converters;
 /// </summary>
 public class NotNullOrEmptyConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    /// <summary>
+    /// Converts a value to true if it is not null or, if a string, not empty.
+    /// </summary>
+    /// <inheritdoc />
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is string s ? !string.IsNullOrEmpty(s) : value != null;
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+
+    /// <summary>
+    /// Not implemented - throws NotImplementedException.
+    /// </summary>
+    /// <inheritdoc />
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }

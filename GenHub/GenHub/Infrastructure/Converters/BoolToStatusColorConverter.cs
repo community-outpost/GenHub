@@ -9,8 +9,11 @@ namespace GenHub.GenHub.Infrastructure.Converters;
 /// </summary>
 public class BoolToStatusColorConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    /// <inheritdoc />
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value is bool b && b ? "#4CAF50" : "#F44336";
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+
+    /// <inheritdoc />
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }
