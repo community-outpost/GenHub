@@ -6,4 +6,5 @@ namespace GenHub.ViewModels;
 /// Base class for ViewModels.
 /// </summary>
 public class ViewModelBase : ObservableObject
-{ }
+{
+}
