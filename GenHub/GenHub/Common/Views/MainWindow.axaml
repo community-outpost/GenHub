@@ -2,11 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:GenHub.Views"
+        xmlns:local="clr-namespace:GenHub.Common.Views"
+        xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-        x:Class="GenHub.Views.MainWindow"
-        Title="GenHub"
+        x:Class="GenHub.Common.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="GenHub Launcher"
+        Width="1100" Height="700"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True">
-    <local:MainView />
+    <ContentControl Content="{Binding}" />
 </Window>

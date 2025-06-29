@@ -14,4 +14,12 @@ public static class AppLocator
     /// Gets or sets service provider for dependency injection.
     /// </summary>
     public static IServiceProvider? Services { get; set; }
+
+    /// <summary>
+    /// Gets a service from the provider or returns default.
+    /// </summary>
+    public static T? GetServiceOrDefault<T>() where T : class
+    {
+        return Services?.GetService(typeof(T)) as T;
+    }
 }
