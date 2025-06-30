@@ -1,13 +1,13 @@
-﻿using System;
+﻿using Avalonia;
+using GenHub.Common.ViewModels;
+using GenHub.Core;
+using GenHub.Services;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Avalonia;
-using GenHub.Core;
-using GenHub.Services;
-using GenHub.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Windows;
 

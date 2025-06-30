@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             x:Class="GenHub.Common.Views.MainView"
+             x:DataType="vm:MainViewModel">
+    <Design.DataContext>
+        <vm:MainViewModel/>
+    </Design.DataContext>
+
+    <Grid Background="#1A1A1A">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tab strip -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#202020">
+            <Button Content="Game Profiles"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{Binding TabIndex0}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=0}"/>
+            <Button Content="Downloads"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{Binding TabIndex1}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=1}"/>
+            <Button Content="Settings"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{Binding TabIndex2}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=2}"/>
+        </StackPanel>
+
+        <!-- Tab content -->
+        <Grid Grid.Row="1">
+            <TextBlock Text="Game Profiles"
+                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=0}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="Downloads"
+                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=1}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="Settings"
+                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=2}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</UserControl>
