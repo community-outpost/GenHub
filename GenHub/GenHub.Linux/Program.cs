@@ -1,14 +1,15 @@
 ﻿using System;
 using Avalonia;
+using GenHub.Common.ViewModels;
 using GenHub.Core;
+using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Services;
-using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Linux;
 
 /// <summary>
-/// Main class for main entry point.
+/// Main class for the Linux entry point of the GenHub application.
 /// </summary>
 public class Program
 {
@@ -34,7 +35,9 @@ public class Program
 
         // Core DI
         services.AddSingleton<GameDetectionService>();
-        services.AddSingleton<MainViewModel>();
+
+        // Register all shared ViewModels and services
+        SharedViewModelModule.AddSharedViewModelModule(services);
 
         var serviceProvider = services.BuildServiceProvider();
 

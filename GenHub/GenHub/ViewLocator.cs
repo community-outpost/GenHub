@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using GenHub.ViewModels;
+using GenHub.Common.ViewModels;
 
 namespace GenHub;
 
@@ -17,7 +18,9 @@ public class ViewLocator : IDataTemplate
             return null;
 
         var viewName = data.GetType().FullName!.Replace("ViewModel", "View", StringComparison.InvariantCulture);
-        var type = Type.GetType(viewName);
+        var type = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .FirstOrDefault(t => t.FullName == viewName);
 
         if (type is null)
         {
@@ -35,6 +38,6 @@ public class ViewLocator : IDataTemplate
     /// <inheritdoc/>
     public bool Match(object? data)
     {
-        return data is ViewModelBase;
+        return data is ViewModelBase || (data?.GetType().Name.EndsWith("ViewModel") ?? false);
     }
 }
