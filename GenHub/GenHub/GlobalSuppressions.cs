@@ -3,12 +3,12 @@
 //  This file contains code analysis suppression attributes for the entire project.
 //  For more information on suppressing warnings, see the .NET documentation.
 //
-//  Please keep suppressions well-documented and justified. 
+//  Please keep suppressions well-documented and justified.
 //  When adding a new suppression, include a comment explaining the rationale.
 //
 //  See CONTRIBUTIONS.md for contribution guidelines.
 //
-//  Version: 2025-06-17
+//  Version: 2025-06-30
 // -----------------------------------------------------------------------------
 
 using System.Diagnostics.CodeAnalysis;
@@ -57,3 +57,13 @@ using System.Diagnostics.CodeAnalysis;
     "StyleCop.CSharp.DocumentationRules",
     "SA1633:File should have header",
     Justification = "Licensing and other information is provided in seperate files.")]
+
+[assembly: SuppressMessage(
+    "StyleCop.CSharp.SpacingRules",
+    "SA1011:Closing square brackets should be spaced correctly",
+    Justification = "Conflicts with SA1018")]
+
+[assembly: SuppressMessage(
+    "StyleCop.CSharp.SpacingRules",
+    "SA1009:Closing parenthesis should be spaced correctly",
+    Justification = "Conflicts with null-forgiving operator usage.")]

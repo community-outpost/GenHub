@@ -52,7 +52,7 @@ public class SteamInstallation : IGameInstallation
         if(!TryGetSteamLibraries(out var libraryPaths))
             return;
 
-        foreach (var lib in libraryPaths)
+        foreach (var lib in libraryPaths!)
         {
             if(string.IsNullOrEmpty(lib))
                 continue;

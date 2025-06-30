@@ -79,9 +79,9 @@ public class Program
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
     /// <summary>
-    /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex">.
+    /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex" />.
     /// </summary>
-    /// <returns>True if another instance already owns the <see cref="Mutex">.</returns>
+    /// <returns>True if another instance already owns the <see cref="Mutex" />.</returns>
     private static bool IsAnotherInstanceRunning()
     {
         mutex = new Mutex(true, MutexName, out bool createdNew);

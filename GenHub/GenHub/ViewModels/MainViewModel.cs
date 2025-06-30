@@ -24,7 +24,8 @@ public partial class MainViewModel(GameDetectionService gameDetectionService)
     /// </summary>
     public MainViewModel()
         : this(new GameDetectionService(new DummyGameDetector()))
-    { }
+    {
+    }
 
     [RelayCommand]
     private void Detect()
