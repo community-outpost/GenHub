@@ -59,4 +59,15 @@ public class MainViewModelTests
         // Assert
         Assert.NotNull(vm);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void SelectTabCommand_SetsSelectedTabIndex(int index)
+    {
+        var vm = new MainViewModel();
+        vm.SelectTabCommand.Execute(index);
+        Assert.Equal(index, vm.SelectedTabIndex);
+    }
 }
