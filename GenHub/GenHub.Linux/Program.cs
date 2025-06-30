@@ -1,9 +1,9 @@
 ﻿using System;
 using Avalonia;
+using GenHub.Common.ViewModels;
 using GenHub.Core;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Services;
-using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

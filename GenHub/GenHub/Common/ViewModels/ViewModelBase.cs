@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace GenHub.ViewModels;
+namespace GenHub.Common.ViewModels;
 
 /// <summary>
 /// Base class for ViewModels.

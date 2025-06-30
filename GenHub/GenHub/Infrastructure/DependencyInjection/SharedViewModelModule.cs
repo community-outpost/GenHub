@@ -1,21 +1,22 @@
-using GenHub.ViewModels;
+using GenHub.Common.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Microsoft.Extensions.DependencyInjection
+namespace GenHub.Infrastructure.DependencyInjection;
+
+/// <summary>
+/// Registers shared ViewModels for DI.
+/// </summary>
+public static class SharedViewModelModule
 {
     /// <summary>
-    /// Provides extension methods to register shared ViewModels in the dependency injection container.
+    /// Adds shared ViewModels to the DI container.
     /// </summary>
-    public static class SharedViewModelModule
+    /// <param name="services">The service collection.</param>
+    /// <returns>The updated service collection.</returns>
+    public static IServiceCollection AddSharedViewModelModule(this IServiceCollection services)
     {
-        /// <summary>
-        /// Registers shared ViewModels as singletons in the service collection.
-        /// </summary>
-        /// <param name="services">The service collection to add the ViewModels to.</param>
-        /// <returns>The updated service collection.</returns>
-        public static IServiceCollection AddSharedViewModelModule(this IServiceCollection services)
-        {
-            services.AddSingleton<MainViewModel>();
-            return services;
-        }
+        // Register MainViewModel (critical for app startup)
+        services.AddSingleton<MainViewModel>();
+        return services;
     }
 }
