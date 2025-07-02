@@ -18,7 +18,7 @@ public class GameDetectionService(IGameDetector gameDetector)
     public bool IsZeroHourInstalled => gameDetector.Installations[0].IsZeroHourInstalled;
 
     /// <inheritdoc cref="IGameInstallation.ZeroHourGamePath"/>
-    public string ZerHourGamePath => gameDetector.Installations[0].ZeroHourGamePath;
+    public string ZeroHourGamePath => gameDetector.Installations[0].ZeroHourGamePath;
 
     /// <summary>
     /// Detects several <see cref="IGameInstallation"/>s and adds them to the internal list of the <see cref="IGameDetector"/>.

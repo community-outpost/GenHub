@@ -33,6 +33,6 @@ public partial class MainViewModel(GameDetectionService gameDetectionService)
         gameDetectionService.DetectGames();
 
         VanillaGamePath = gameDetectionService.VanillaGamePath;
-        ZeroHourGamePath = gameDetectionService.ZerHourGamePath;
+        ZeroHourGamePath = gameDetectionService.ZeroHourGamePath;
     }
 }
