@@ -54,7 +54,7 @@ namespace GenHub.Features.GameInstallations
             CancellationToken cancellationToken = default)
         {
             var r = await DetectAllInstallationsAsync(cancellationToken);
-            return r.Success ? r.Items : new List<GameInstallation>();
+            return r.Success ? r.Items.ToList() : new List<GameInstallation>();
         }
     }
 }

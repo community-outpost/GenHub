@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -52,7 +52,7 @@ namespace GenHub.Features.GameVersions
             CancellationToken cancellationToken = default)
         {
             var vres = await DetectAllVersionsAsync(cancellationToken);
-            return vres.Success ? vres.Items : new List<GameVersion>();
+            return vres.Success ? vres.Items.ToList() : new List<GameVersion>();
         }
     }
 }
