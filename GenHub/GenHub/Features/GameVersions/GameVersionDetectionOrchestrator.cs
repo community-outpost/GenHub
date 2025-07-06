@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,39 +13,35 @@ namespace GenHub.Features.GameVersions
     /// <summary>
     /// Orchestrates installation detection and version detection.
     /// </summary>
-    public sealed class GameVersionDetectionOrchestrator : IGameVersionDetectionOrchestrator
+    /// <param name="installationOrchestrator">The installation orchestrator.</param>
+    /// <param name="versionDetector">The version detector.</param>
+    public sealed class GameVersionDetectionOrchestrator(
+        IGameInstallationDetectionOrchestrator installationOrchestrator,
+        IGameVersionDetector versionDetector)
+        : IGameVersionDetectionOrchestrator
     {
-        private readonly IGameInstallationDetectionOrchestrator _instOrchestrator;
-        private readonly IGameVersionDetector _verDetector;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GameVersionDetectionOrchestrator"/> class.
-        /// </summary>
-        /// <param name="instOrchestrator">The installation orchestrator.</param>
-        /// <param name="verDetector">The version detector.</param>
-        public GameVersionDetectionOrchestrator(
-            IGameInstallationDetectionOrchestrator instOrchestrator,
-            IGameVersionDetector verDetector)
-        {
-            _instOrchestrator = instOrchestrator;
-            _verDetector = verDetector;
-        }
-
         /// <inheritdoc/>
         public async Task<DetectionResult<GameVersion>> DetectAllVersionsAsync(
             CancellationToken cancellationToken = default)
         {
-            // 1) detect installations
-            var instRes = await _instOrchestrator.DetectAllInstallationsAsync(cancellationToken);
-            if (!instRes.Success)
-            {
-                return DetectionResult<GameVersion>.Failed(
-                    "Install detection errors: " + string.Join("; ", instRes.Errors));
-            }
+            var result = await installationOrchestrator.DetectAllInstallationsAsync(cancellationToken);
+            if (!result.Success)
+                return DetectionResult<GameVersion>.Failed(string.Join("; ", result.Errors));
 
-            // 2) detect versions from those installs
-            return await _verDetector.DetectVersionsFromInstallationsAsync(
-                instRes.Items, cancellationToken);
+            var allVersions = new List<GameVersion>();
+            var errors = new List<string>();
+            var sw = Stopwatch.StartNew();
+
+            var versionResult = await versionDetector.DetectVersionsFromInstallationsAsync(result.Items, cancellationToken);
+            if (versionResult.Success)
+                allVersions.AddRange(versionResult.Items);
+            else
+                errors.AddRange(versionResult.Errors);
+
+            sw.Stop();
+            return errors.Any()
+                ? DetectionResult<GameVersion>.Failed(string.Join("; ", errors))
+                : DetectionResult<GameVersion>.Succeeded(allVersions, sw.Elapsed);
         }
 
         /// <inheritdoc/>
