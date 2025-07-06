@@ -50,6 +50,8 @@ public class Program
         {
             bootstrapLogger.LogInformation("Starting GenHub Windows application");
 
+            var services = new ServiceCollection();
+
             // Register shared services
             services.ConfigureApplicationServices();
 
