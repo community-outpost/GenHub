@@ -12,7 +12,7 @@ namespace GenHub.Features.GameVersions
     /// <summary>
     /// Orchestrates installation detection and version detection.
     /// </summary>
-    public class GameVersionDetectionOrchestrator : IGameVersionDetectionOrchestrator
+    public sealed class GameVersionDetectionOrchestrator : IGameVersionDetectionOrchestrator
     {
         private readonly IGameInstallationDetectionOrchestrator _instOrchestrator;
         private readonly IGameVersionDetector _verDetector;

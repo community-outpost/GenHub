@@ -14,7 +14,7 @@ namespace GenHub.Features.GameInstallations
     /// Aggregates all IGameInstallationDetector implementations.
     /// </summary>
     /// <param name="detectors">The collection of installation detectors.</param>
-    public class GameInstallationDetectionOrchestrator(IEnumerable<IGameInstallationDetector> detectors)
+    public sealed class GameInstallationDetectionOrchestrator(IEnumerable<IGameInstallationDetector> detectors)
         : IGameInstallationDetectionOrchestrator
     {
         /// <inheritdoc/>
