@@ -1,6 +1,3 @@
-using GenHub.Core;
-using GenHub.Services;
-using GenHub.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection
