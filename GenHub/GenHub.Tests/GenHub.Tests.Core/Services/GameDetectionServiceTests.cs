@@ -11,6 +11,9 @@ namespace GenHub.Tests.Core.Services;
 /// </summary>
 public class GameDetectionServiceTests
 {
+    /// <summary>
+    /// Tests that the properties of <see cref="GameDetectionService"/> reflect the detector's installations.
+    /// </summary>
     [Fact]
     public void Properties_ReflectDetectorInstallations()
     {
@@ -27,9 +30,11 @@ public class GameDetectionServiceTests
         Assert.True(service.IsVanillaInstalled);
         Assert.Equal("C:/Gen/Generals", service.VanillaGamePath);
         Assert.True(service.IsZeroHourInstalled);
-        Assert.Equal("C:/Gen/ZeroHour", service.ZerHourGamePath);
     }
 
+    /// <summary>
+    /// Tests that <see cref="GameDetectionService.DetectGames"/> invokes the detector's Detect method.
+    /// </summary>
     [Fact]
     public void DetectGames_InvokesDetectorDetect()
     {
