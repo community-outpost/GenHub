@@ -25,13 +25,13 @@ namespace GenHub.Features.GameInstallations
             var all = new List<GameInstallation>();
             var errors = new List<string>();
 
-            foreach (var d in detectors.Where(d => d.CanDetectOnCurrentPlatform))
+            foreach (var detector in detectors.Where(detector => detector.CanDetectOnCurrentPlatform))
             {
-                var r = await d.DetectInstallationsAsync(cancellationToken);
-                if (r.Success)
-                    all.AddRange(r.Items);
+                var result = await detector.DetectInstallationsAsync(cancellationToken);
+                if (result.Success)
+                    all.AddRange(result.Items);
                 else
-                    errors.AddRange(r.Errors);
+                    errors.AddRange(result.Errors);
             }
 
             sw.Stop();
@@ -44,8 +44,8 @@ namespace GenHub.Features.GameInstallations
         public async Task<List<GameInstallation>> GetDetectedInstallationsAsync(
             CancellationToken cancellationToken = default)
         {
-            var r = await DetectAllInstallationsAsync(cancellationToken);
-            return r.Success ? r.Items.ToList() : new List<GameInstallation>();
+            var result = await DetectAllInstallationsAsync(cancellationToken);
+            return result.Success ? result.Items.ToList() : new List<GameInstallation>();
         }
     }
 }

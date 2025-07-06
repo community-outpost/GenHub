@@ -51,8 +51,8 @@ namespace GenHub.Features.GameVersions
         public async Task<List<GameVersion>> GetDetectedVersionsAsync(
             CancellationToken cancellationToken = default)
         {
-            var vres = await DetectAllVersionsAsync(cancellationToken);
-            return vres.Success ? vres.Items.ToList() : new List<GameVersion>();
+            var result = await DetectAllVersionsAsync(cancellationToken);
+            return result.Success ? result.Items.ToList() : new List<GameVersion>();
         }
     }
 }
