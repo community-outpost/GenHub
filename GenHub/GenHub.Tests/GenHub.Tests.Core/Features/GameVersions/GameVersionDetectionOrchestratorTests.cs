@@ -63,8 +63,7 @@ namespace GenHub.Tests.Core.Features.GameVersions
                     Name = "Generals (Steam)",
                     ExecutablePath = @"C:\\Games\\Generals\\generals.exe",
                     WorkingDirectory = @"C:\\Games\\Generals",
-                    GameType = "Generals",
-                    IsZeroHour = false,
+                    GameType = GameType.Generals,
                     BaseInstallationId = "I1",
                 },
             };
