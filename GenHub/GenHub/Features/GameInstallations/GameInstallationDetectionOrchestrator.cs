@@ -13,19 +13,10 @@ namespace GenHub.Features.GameInstallations
     /// <summary>
     /// Aggregates all IGameInstallationDetector implementations.
     /// </summary>
-    public class GameInstallationDetectionOrchestrator : IGameInstallationDetectionOrchestrator
+    /// <param name="detectors">The collection of installation detectors.</param>
+    public class GameInstallationDetectionOrchestrator(IEnumerable<IGameInstallationDetector> detectors)
+        : IGameInstallationDetectionOrchestrator
     {
-        private readonly IEnumerable<IGameInstallationDetector> _detectors;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GameInstallationDetectionOrchestrator"/> class.
-        /// </summary>
-        /// <param name="detectors">The collection of installation detectors.</param>
-        public GameInstallationDetectionOrchestrator(IEnumerable<IGameInstallationDetector> detectors)
-        {
-            _detectors = detectors;
-        }
-
         /// <inheritdoc/>
         public async Task<DetectionResult<GameInstallation>> DetectAllInstallationsAsync(
             CancellationToken cancellationToken = default)
@@ -34,7 +25,7 @@ namespace GenHub.Features.GameInstallations
             var all = new List<GameInstallation>();
             var errors = new List<string>();
 
-            foreach (var d in _detectors.Where(d => d.CanDetectOnCurrentPlatform))
+            foreach (var d in detectors.Where(d => d.CanDetectOnCurrentPlatform))
             {
                 var r = await d.DetectInstallationsAsync(cancellationToken);
                 if (r.Success)
