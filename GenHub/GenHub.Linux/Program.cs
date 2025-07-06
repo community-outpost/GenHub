@@ -1,5 +1,6 @@
 ﻿using System;
 using Avalonia;
+using GenHub.Common.ViewModels;
 using GenHub.Core;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
