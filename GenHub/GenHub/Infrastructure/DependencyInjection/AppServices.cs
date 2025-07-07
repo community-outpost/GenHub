@@ -19,6 +19,7 @@ namespace GenHub.Infrastructure.DependencyInjection
         {
             // Register shared services here via extension modules
             services.AddGameDetectionService();
+            services.AddLoggingModule();
             services.AddSharedViewModelModule();
 
             // Add more shared modules here as needed

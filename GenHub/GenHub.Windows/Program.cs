@@ -55,14 +55,6 @@ public class Program
             // Register shared services
             services.ConfigureApplicationServices();
 
-            // Windows-specific DI
-            services.AddSingleton<IGameDetector, WindowsGameDetector>();
-
-            // Core DI
-            services.AddSingleton<GameDetectionService>();
-            services.AddSingleton<MainViewModel>();
-
-            services.AddLoggingModule();
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 

@@ -1,4 +1,5 @@
 using GenHub.Services;
+using GenHub.Core;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection
@@ -16,6 +17,7 @@ namespace GenHub.Infrastructure.DependencyInjection
         public static IServiceCollection AddGameDetectionService(this IServiceCollection services)
         {
             services.AddSingleton<GameDetectionService>();
+            services.AddScoped<IGameDetector, DummyGameDetector>();
             return services;
         }
     }
