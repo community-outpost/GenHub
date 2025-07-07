@@ -22,6 +22,7 @@ public static class AppUpdateModule
         services.AddSingleton<IAppVersionService, AppVersionService>();
         services.AddSingleton<IVersionComparator, SemVerComparator>();
         services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
+        services.AddSingleton<IAppUpdateService, AppUpdateService>();
         services.AddSingleton(new GitHubClient(new ProductHeaderValue("GenHub")));
 
         return services;
