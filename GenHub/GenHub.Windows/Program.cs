@@ -4,10 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
-using GenHub.Core;
 using GenHub.Infrastructure.DependencyInjection;
-using GenHub.Services;
-using GenHub.Common.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

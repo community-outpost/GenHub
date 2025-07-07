@@ -1,7 +1,3 @@
-// <copyright file="MainViewModel.cs" company="GenHub">
-// Copyright (c) GenHub. All rights reserved.
-// </copyright>
-
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 
