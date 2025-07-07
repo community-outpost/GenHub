@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Octokit" />
   </ItemGroup>
 
 </Project>
