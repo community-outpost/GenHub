@@ -5,7 +5,7 @@ using GenHub.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
-namespace GenHub.Tests.Infrastructure;
+namespace GenHub.Tests.Infrastructure.Extensions;
 
 /// <summary>
 /// Tests for LoggerExtensions.
