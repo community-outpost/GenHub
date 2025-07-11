@@ -1,17 +1,17 @@
 namespace GenHub.Core.Models.GameVersions;
 
 /// <summary>
-/// Represents the type of Command & Conquer game.
+/// Represents the type of Command and Conquer game.
 /// </summary>
 public enum GameType
 {
     /// <summary>
-    /// Command & Conquer: Generals.
+    /// Command and Conquer: Generals.
     /// </summary>
     Generals,
 
     /// <summary>
-    /// Command & Conquer: Generals – Zero Hour.
+    /// Command and Conquer: Generals – Zero Hour.
     /// </summary>
     ZeroHour,
 }

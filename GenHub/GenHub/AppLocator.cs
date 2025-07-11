@@ -13,8 +13,6 @@ public static class AppLocator
     /// <summary>
     /// Gets or sets the service provider for dependency injection.
     /// </summary>
-    /// Gets or sets service provider for dependency injection.
-    /// </summary>
     public static IServiceProvider? Services { get; set; }
 
     /// <summary>

@@ -3,7 +3,7 @@
 //  This file contains code analysis suppression attributes for the entire project.
 //  For more information on suppressing warnings, see the .NET documentation.
 //
-//  Please keep suppressions well-documented and justified. 
+//  Please keep suppressions well-documented and justified.
 //  When adding a new suppression, include a comment explaining the rationale.
 //
 //  See CONTRIBUTIONS.md for contribution guidelines.
