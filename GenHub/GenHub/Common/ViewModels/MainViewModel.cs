@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Models;
 using System.Threading.Tasks;
 
 namespace GenHub.Common.ViewModels;
@@ -10,22 +11,30 @@ namespace GenHub.Common.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     [ObservableProperty]
-    private int _selectedTabIndex;
+    private NavigationTab _selectedTab = NavigationTab.GameProfiles;
 
     /// <summary>
-    /// Gets the tab index for Game Profiles.
+    /// Gets the available navigation tabs.
     /// </summary>
-    public int TabIndex0 => 0;
+    public NavigationTab[] AvailableTabs { get; } =
+    {
+        NavigationTab.GameProfiles,
+        NavigationTab.Downloads,
+        NavigationTab.Settings,
+    };
 
     /// <summary>
-    /// Gets the tab index for Downloads.
+    /// Gets the display name for a navigation tab.
     /// </summary>
-    public int TabIndex1 => 1;
-
-    /// <summary>
-    /// Gets the tab index for Settings.
-    /// </summary>
-    public int TabIndex2 => 2;
+    /// <param name="tab">The navigation tab.</param>
+    /// <returns>The display name.</returns>
+    public static string GetTabDisplayName(NavigationTab tab) => tab switch
+    {
+        NavigationTab.GameProfiles => "Game Profiles",
+        NavigationTab.Downloads => "Downloads",
+        NavigationTab.Settings => "Settings",
+        _ => tab.ToString(),
+    };
 
     /// <summary>
     /// Performs asynchronous startup work.
@@ -37,8 +46,11 @@ public partial class MainViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
-    /// <summary>Switches the active tab.</summary>
+    /// <summary>
+    /// Switches to the specified navigation tab.
+    /// </summary>
+    /// <param name="tab">The tab to navigate to.</param>
     [RelayCommand]
-    private void SelectTab(int tabIndex) =>
-        SelectedTabIndex = tabIndex;
+    private void SelectTab(NavigationTab tab) =>
+        SelectedTab = tab;
 }

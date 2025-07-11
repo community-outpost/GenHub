@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:models="clr-namespace:GenHub.Common.Models"
              x:Class="GenHub.Common.Views.MainView"
              x:DataType="vm:MainViewModel">
     <Design.DataContext>
@@ -18,31 +19,31 @@
         <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#202020">
             <Button Content="Game Profiles"
                     Command="{Binding SelectTabCommand}"
-                    CommandParameter="{Binding TabIndex0}"
+                    CommandParameter="{x:Static models:NavigationTab.GameProfiles}"
                     Classes="modern-tab"
-                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=0}"/>
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.GameProfiles}}"/>
             <Button Content="Downloads"
                     Command="{Binding SelectTabCommand}"
-                    CommandParameter="{Binding TabIndex1}"
+                    CommandParameter="{x:Static models:NavigationTab.Downloads}"
                     Classes="modern-tab"
-                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=1}"/>
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Downloads}}"/>
             <Button Content="Settings"
                     Command="{Binding SelectTabCommand}"
-                    CommandParameter="{Binding TabIndex2}"
+                    CommandParameter="{x:Static models:NavigationTab.Settings}"
                     Classes="modern-tab"
-                    Classes.active="{Binding SelectedTabIndex, Converter={x:Static conv:EqualityConverter.Instance}, ConverterParameter=2}"/>
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"/>
         </StackPanel>
 
         <!-- Tab content -->
         <Grid Grid.Row="1">
             <TextBlock Text="Game Profiles"
-                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=0}"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.GameProfiles}}"
                        Foreground="White" HorizontalAlignment="Center"/>
             <TextBlock Text="Downloads"
-                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=1}"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Downloads}}"
                        Foreground="White" HorizontalAlignment="Center"/>
             <TextBlock Text="Settings"
-                       IsVisible="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=2}"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"
                        Foreground="White" HorizontalAlignment="Center"/>
         </Grid>
     </Grid>
