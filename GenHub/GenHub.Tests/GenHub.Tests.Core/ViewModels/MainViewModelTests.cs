@@ -1,5 +1,8 @@
 using System.Threading.Tasks;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.GameInstallations;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.ViewModels;
@@ -10,32 +13,17 @@ namespace GenHub.Tests.Core.ViewModels;
 public class MainViewModelTests
 {
     /// <summary>
-    /// Tests that <see cref="MainViewModel.InitializeAsync"/> completes successfully.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task InitializeAsync_CompletesSuccessfully()
-    {
-        // Arrange
-        var vm = new MainViewModel();
-
-        // Act
-        var task = vm.InitializeAsync();
-        await task;
-
-        // Assert
-        Assert.True(task.IsCompletedSuccessfully);
-        Assert.NotNull(vm);
-    }
-
-    /// <summary>
     /// Tests that <see cref="MainViewModel"/> can be instantiated successfully.
     /// </summary>
     [Fact]
     public void Constructor_CreatesValidInstance()
     {
+        // Arrange
+        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
+        var logger = NullLogger<MainViewModel>.Instance;
+
         // Act
-        var vm = new MainViewModel();
+        var vm = new MainViewModel(mockOrchestrator.Object, logger);
 
         // Assert
         Assert.NotNull(vm);
@@ -43,20 +31,19 @@ public class MainViewModelTests
     }
 
     /// <summary>
-    /// Tests that multiple calls to <see cref="MainViewModel.InitializeAsync"/> are safe.
+    /// Verifies ScanForGamesAsync can be called.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task InitializeAsync_MultipleCallsAreSafe()
+    public async Task ScanForGamesAsync_CanBeCalled()
     {
         // Arrange
-        var vm = new MainViewModel();
+        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
+        var logger = NullLogger<MainViewModel>.Instance;
+        var viewModel = new MainViewModel(mockOrchestrator.Object, logger);
 
-        // Act
-        await vm.InitializeAsync();
-        await vm.InitializeAsync();
-
-        // Assert
-        Assert.NotNull(vm);
+        // Act & Assert
+        await viewModel.ScanForGamesAsync();
+        Assert.True(true); // Test passes if no exception is thrown
     }
 }

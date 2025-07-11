@@ -1,69 +1,87 @@
 using System;
 using System.IO;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
-namespace GenHub.Tests.Core.Models
+namespace GenHub.Tests.Core.Models.GameInstallations;
+
+/// <summary>
+/// Unit tests for <see cref="GameInstallation"/>.
+/// </summary>
+public class GameInstallationTests
 {
     /// <summary>
-    /// Unit tests for <see cref="GameInstallation"/>.
+    /// Verifies that default values are set correctly.
     /// </summary>
-    public class GameInstallationTests
+    [Fact]
+    public void GameInstallation_Defaults_AreSet()
     {
-        /// <summary>
-        /// Verifies that default values are set correctly.
-        /// </summary>
-        [Fact]
-        public void GameInstallation_Defaults_AreSet()
-        {
-            var inst = new GameInstallation();
-            Assert.False(string.IsNullOrEmpty(inst.Id));
-            Assert.Equal(default, inst.InstallationType);
-            Assert.Equal(string.Empty, inst.InstallationPath);
-            Assert.False(inst.HasGenerals);
-            Assert.Equal(string.Empty, inst.GeneralsPath);
-            Assert.False(inst.HasZeroHour);
-            Assert.Equal(string.Empty, inst.ZeroHourPath);
-            Assert.True((DateTime.UtcNow - inst.DetectedAt).TotalSeconds < 5);
-        }
+        var tempPath = Path.GetTempPath();
+        var installation = new GameInstallation(tempPath, GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
 
-        /// <summary>
-        /// Verifies IsValid returns true when no games are installed.
-        /// </summary>
-        [Fact]
-        public void GameInstallation_IsValid_ReturnsTrue_WhenNoGamesInstalled()
-        {
-            var inst = new GameInstallation { HasGenerals = false, HasZeroHour = false };
-            Assert.True(inst.IsValid);
-        }
+        Assert.False(string.IsNullOrEmpty(installation.Id));
+        Assert.Equal(GameInstallationType.Unknown, installation.InstallationType);
+        Assert.Equal(tempPath, installation.InstallationPath);
+        Assert.False(installation.HasGenerals);
+        Assert.Equal(string.Empty, installation.GeneralsPath);
+        Assert.False(installation.HasZeroHour);
+        Assert.Equal(string.Empty, installation.ZeroHourPath);
+        Assert.True((DateTime.UtcNow - installation.DetectedAt).TotalSeconds < 5);
+    }
 
-        /// <summary>
-        /// Verifies IsValid returns false when Generals path is missing.
-        /// </summary>
-        [Fact]
-        public void GameInstallation_IsValid_ReturnsFalse_WhenGeneralsPathMissing()
-        {
-            var inst = new GameInstallation { HasGenerals = true, GeneralsPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()) };
-            Assert.False(inst.IsValid);
-        }
+    /// <summary>
+    /// Verifies IsValid returns true when no games are installed.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_IsValid_ReturnsTrue_WhenNoGamesInstalled()
+    {
+        var installation = new GameInstallation(string.Empty, GameInstallationType.Unknown, NullLogger<GameInstallation>.Instance);
 
-        /// <summary>
-        /// Verifies IsValid returns true when Generals path exists.
-        /// </summary>
-        [Fact]
-        public void GameInstallation_IsValid_ReturnsTrue_WhenGeneralsPathExists()
+        Assert.True(installation.IsValid);
+    }
+
+    /// <summary>
+    /// Verifies IsValid returns false when Generals path is missing.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_IsValid_ReturnsFalse_WhenGeneralsPathMissing()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        var installation = new GameInstallation(missingPath, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance)
         {
-            var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempDir);
-            try
+            HasGenerals = true,
+            GeneralsPath = Path.Combine(missingPath, "Command and Conquer Generals"),
+        };
+
+        Assert.False(installation.IsValid);
+    }
+
+    /// <summary>
+    /// Verifies IsValid returns true when the Generals installation path exists.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_IsValid_ReturnsTrue_WhenGeneralsPathExists()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var generalsPath = Path.Combine(tempDir, "Command and Conquer Generals");
+            Directory.CreateDirectory(generalsPath);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance)
             {
-                var inst = new GameInstallation { HasGenerals = true, GeneralsPath = tempDir };
-                Assert.True(inst.IsValid);
-            }
-            finally
-            {
-                Directory.Delete(tempDir);
-            }
+                HasGenerals = true,
+                GeneralsPath = generalsPath,
+            };
+            Assert.True(installation.IsValid);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
         }
     }
 }

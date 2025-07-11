@@ -13,8 +13,8 @@ public sealed class DetectionResult<T>
     private DetectionResult()
     {
         Success = false;
-        Items = Array.Empty<T>();
-        Errors = Array.Empty<string>();
+        Items = [];
+        Errors = [];
         Elapsed = TimeSpan.Zero;
     }
 

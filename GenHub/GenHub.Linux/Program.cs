@@ -1,68 +1,67 @@
 ﻿using System;
 using Avalonia;
-using GenHub.Core;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Linux
+namespace GenHub.Linux;
+
+/// <summary>
+/// Main class for main entry point.
+/// </summary>
+public class Program
 {
     /// <summary>
-    /// Main class for main entry point.
+    /// Main entry point for the application.
     /// </summary>
-    public class Program
+    /// <param name="args">Program startup arguments.</param>
+    /// <remarks>
+    /// Initialization code. Don't use any Avalonia, third-party APIs or any
+    /// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
+    /// yet and stuff might break.
+    /// </remarks>
+    [STAThread]
+    public static void Main(string[] args)
     {
-        /// <summary>
-        /// Main entry point for the application.
-        /// </summary>
-        /// <param name="args">Program startup arguments.</param>
-        /// <remarks>
-        /// Initialization code. Don't use any Avalonia, third-party APIs or any
-        /// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-        /// yet and stuff might break.
-        /// </remarks>
-        [STAThread]
-        public static void Main(string[] args)
+        // TODO: Create lockfile to guarantee that only one instance is running on linux
+        using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
+        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+        try
         {
-            // TODO: Create lockfile to guarantee that only one instance is running on linux
-            using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
-            var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
-            try
-            {
-                bootstrapLogger.LogInformation("Starting GenHub Linux application");
+            bootstrapLogger.LogInformation("Starting GenHub Linux application");
 
-                var services = new ServiceCollection();
+            var services = new ServiceCollection();
 
-                // Linux-specific DI
-                services.AddSingleton<IGameDetector, LinuxGameDetector>();
+            // Register shared services
+            services.ConfigureApplicationServices();
 
-                // Register shared services
-                services.ConfigureApplicationServices();
+            // Linux-specific DI
+            services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
 
-                services.AddLoggingModule();
-                var serviceProvider = services.BuildServiceProvider();
-                AppLocator.Services = serviceProvider;
+            var serviceProvider = services.BuildServiceProvider();
+            AppLocator.Services = serviceProvider;
 
-                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-            }
-            catch (Exception ex)
-            {
-                bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
-                throw;
-            }
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
-
-        /// <summary>
-        /// Avalonia configuration.
-        /// </summary>
-        /// <returns>The <see cref="AppBuilder"/>.</returns>
-        /// <remarks>
-        /// Don't remove; also used by visual designer.
-        /// </remarks>
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
-                .WithInterFont()
-                .LogToTrace();
+        catch (Exception ex)
+        {
+            bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
+            throw;
+        }
     }
+
+    /// <summary>
+    /// Avalonia configuration.
+    /// </summary>
+    /// <returns>The <see cref="AppBuilder"/>.</returns>
+    /// <remarks>
+    /// Don't remove; also used by visual designer.
+    /// </remarks>
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
 }

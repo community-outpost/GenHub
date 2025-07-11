@@ -1,26 +1,25 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace GenHub.Infrastructure.DependencyInjection
+namespace GenHub.Infrastructure.DependencyInjection;
+
+/// <summary>
+/// Main module that orchestrates registration of all application services.
+/// </summary>
+public static class AppServices
 {
     /// <summary>
-    /// Main module that orchestrates registration of all application services.
+    /// Registers all core application services and modules required for GenHub.
     /// </summary>
-    public static class AppServices
+    /// <param name="services">The service collection to configure.</param>
+    /// <returns>The <see cref="IServiceCollection"/> with all GenHub services registered.</returns>
+    public static IServiceCollection ConfigureApplicationServices(this IServiceCollection services)
     {
-        /// <summary>
-        /// Registers all shared services (non-platform-specific).
-        /// </summary>
-        /// <param name="services">The service collection to which application services will be registered.</param>
-        /// <returns>The updated <see cref="IServiceCollection"/> with registered application services.</returns>
-        public static IServiceCollection ConfigureApplicationServices(this IServiceCollection services)
-        {
-            // Register shared services here via extension modules
-            services.AddGameDetectionService();
-            services.AddLoggingModule();
-            services.AddSharedViewModelModule();
+        // Register shared services via extension modules
+        services.AddGameDetectionService();
+        services.AddLoggingModule();
+        services.AddSharedViewModelModule();
 
-            // Add more shared modules here as needed
-            return services;
-        }
+        // Register additional shared modules as needed
+        return services;
     }
 }

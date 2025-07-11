@@ -1,4 +1,6 @@
-﻿namespace GenHub.Core;
+﻿using GenHub.Core.Models.Enums;
+
+namespace GenHub.Core.Interfaces.GameInstallations;
 
 /// <summary>
 /// Interface for a game installation.
@@ -8,30 +10,35 @@ public interface IGameInstallation
     /// <summary>
     /// Gets the type of game installation.
     /// </summary>
-    public GameInstallationType InstallationType { get; }
+    GameInstallationType InstallationType { get; }
 
     /// <summary>
-    /// Gets a value indicating whether the vanilla game is installed.
+    /// Gets the base installation directory path.
     /// </summary>
-    public bool IsVanillaInstalled { get; }
+    string InstallationPath { get; }
 
     /// <summary>
-    /// Gets the path of the vanilla game installation.
+    /// Gets a value indicating whether Generals (vanilla) is installed in this installation.
     /// </summary>
-    public string VanillaGamePath { get; }
+    bool HasGenerals { get; }
 
     /// <summary>
-    /// Gets a value indicating whether Zero Hour is installed.
+    /// Gets the path to Generals installation within this source.
     /// </summary>
-    public bool IsZeroHourInstalled { get; }
+    string GeneralsPath { get; }
 
     /// <summary>
-    /// Gets the path of the Zero Hour installation.
+    /// Gets a value indicating whether Zero Hour is installed in this installation.
     /// </summary>
-    public string ZeroHourGamePath { get; }
+    bool HasZeroHour { get; }
+
+    /// <summary>
+    /// Gets the path to Zero Hour installation within this source.
+    /// </summary>
+    string ZeroHourPath { get; }
 
     /// <summary>
     /// Fetch the game installations.
     /// </summary>
-    public void Fetch();
+    void Fetch();
 }
