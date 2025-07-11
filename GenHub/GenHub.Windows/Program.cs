@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
 using GenHub.Infrastructure.DependencyInjection;
@@ -16,7 +15,6 @@ namespace GenHub.Windows;
 public class Program
 {
     private const string MutexName = "Global\\GenHub";
-    private const int SW_RESTORE = 9; // Windows API constant to restore a window
     private static Mutex? mutex;
 
     /// <summary>
@@ -77,12 +75,6 @@ public class Program
             .WithInterFont()
             .LogToTrace();
 
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
     /// <summary>
     /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex" />.
     /// </summary>
@@ -107,7 +99,7 @@ public class Program
 
         // Restore the window if minimized and bring it to the foreground
         var windowHandle = process.MainWindowHandle;
-        ShowWindow(windowHandle, SW_RESTORE);
-        SetForegroundWindow(windowHandle);
+        NativeMethods.ShowWindow(windowHandle, NativeMethods.SW_RESTORE);
+        NativeMethods.SetForegroundWindow(windowHandle);
     }
 }
