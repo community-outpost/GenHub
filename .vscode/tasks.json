@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "type": "shell",
+            "label": "dotnet build GenHub.sln",
+            "command": "dotnet",
+            "args": [
+                "build",
+                ".\\GenHub\\GenHub.sln"
+            ],
+            "problemMatcher": [],
+            "group": "build",
+            "isBackground": false
+        }
+    ]
+}

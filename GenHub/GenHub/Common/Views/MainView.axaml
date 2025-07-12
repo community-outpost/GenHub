@@ -1,36 +1,50 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
-             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:models="clr-namespace:GenHub.Common.Models"
              x:Class="GenHub.Common.Views.MainView"
              x:DataType="vm:MainViewModel">
     <Design.DataContext>
         <vm:MainViewModel/>
     </Design.DataContext>
 
-    <Grid Background="{DynamicResource PrimaryBackground}" ColumnDefinitions="Auto, *" IsHitTestVisible="False">
-        <Border Grid.Column="0" Padding="0" BorderThickness="0 0 1 0" BorderBrush="{DynamicResource PrimaryBorder}" >
-            <Grid RowDefinitions="Auto, *, Auto">
-                <Border Padding="20">
-                    <StackPanel Spacing="48">
-                        <Image Source="avares://GenHub/Assets/Images/generals-logo.png" Width="64" Height="64" />
-                    </StackPanel>
-                </Border>
-                <StackPanel Grid.Row="1" Margin="0 48 0 0">
-                    <Button HorizontalAlignment="Stretch">
-                        <material:MaterialIcon Kind="ControllerVariantOutline" FontSize="32" Foreground="{DynamicResource PrimaryForeground}" />
-                    </Button>
-                    <Button HorizontalAlignment="Stretch">
-                        <material:MaterialIcon Kind="Internet" FontSize="32" Foreground="{DynamicResource PrimaryForeground}" />
-                    </Button>
-                    <Button HorizontalAlignment="Stretch">
-                        <material:MaterialIcon Kind="SettingsOutline" FontSize="32" Foreground="{DynamicResource PrimaryForeground}" />
-                    </Button>
-                    <Button HorizontalAlignment="Stretch">
-                        <material:MaterialIcon Kind="BellOutline" FontSize="32" Foreground="{DynamicResource PrimaryForeground}" />
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
+    <Grid Background="#1A1A1A">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tab strip -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Background="#202020">
+            <Button Content="Game Profiles"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static models:NavigationTab.GameProfiles}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.GameProfiles}}"/>
+            <Button Content="Downloads"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static models:NavigationTab.Downloads}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Downloads}}"/>
+            <Button Content="Settings"
+                    Command="{Binding SelectTabCommand}"
+                    CommandParameter="{x:Static models:NavigationTab.Settings}"
+                    Classes="modern-tab"
+                    Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"/>
+        </StackPanel>
+
+        <!-- Tab content -->
+        <Grid Grid.Row="1">
+            <TextBlock Text="Game Profiles"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.GameProfiles}}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="Downloads"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Downloads}}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="Settings"
+                       IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"
+                       Foreground="White" HorizontalAlignment="Center"/>
+        </Grid>
     </Grid>
 </UserControl>
