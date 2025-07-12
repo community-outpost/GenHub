@@ -1,11 +1,11 @@
-namespace GenHub.Tests.Infrastructure;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using GenHub.Infrastructure.Extensions;
 using Microsoft.Extensions.Logging;
 using Xunit;
+
+namespace GenHub.Tests.Infrastructure.Extensions;
 
 /// <summary>
 /// Tests for LoggerExtensions.

@@ -1,10 +1,10 @@
-namespace GenHub.Tests.Core.Infrastructure;
-
 using System.Collections.Generic;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
+
+namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Tests for LoggingModule.

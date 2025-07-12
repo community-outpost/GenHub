@@ -1,5 +1,5 @@
-using GenHub.Services;
 using GenHub.Core;
+using GenHub.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection
