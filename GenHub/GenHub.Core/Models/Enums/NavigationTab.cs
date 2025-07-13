@@ -1,4 +1,4 @@
-namespace GenHub.Core.Enums;
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Represents the available navigation tabs in the main application.

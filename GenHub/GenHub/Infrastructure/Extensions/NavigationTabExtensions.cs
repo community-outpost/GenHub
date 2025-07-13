@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using GenHub.Core.Enums;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Infrastructure.Extensions;
 

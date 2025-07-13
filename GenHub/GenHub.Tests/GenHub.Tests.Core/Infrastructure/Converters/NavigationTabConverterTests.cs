@@ -1,4 +1,4 @@
-using GenHub.Core.Enums;
+using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
 using Xunit;
 
