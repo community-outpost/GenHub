@@ -21,11 +21,12 @@ public static class AppServices
         services.AddLoggingModule();
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
+        services.AddManifestServices();
 
         // Register platform-specific services if provided
         platformSpecificServices?.Invoke(services);
 
-        // Register additional shared modules as needed
+        // Add more shared modules here as needed
         return services;
     }
 }
