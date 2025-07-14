@@ -11,7 +11,7 @@ public class UpdateCheckResult
     /// <summary>
     /// Gets or sets a value indicating whether an update is available.
     /// </summary>
-    public bool IsUpdateAvailable { get; set; }
+    public bool IsUpdateAvailable { get; set; } = false;
 
     /// <summary>
     /// Gets or sets the current application version.
@@ -26,17 +26,17 @@ public class UpdateCheckResult
     /// <summary>
     /// Gets or sets the URL to download or view the update.
     /// </summary>
-    public string? UpdateUrl { get; set; }
+    public string UpdateUrl { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the release notes for the update.
     /// </summary>
-    public string? ReleaseNotes { get; set; }
+    public string ReleaseNotes { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the title of the release for the update.
     /// </summary>
-    public string? ReleaseTitle { get; set; }
+    public string ReleaseTitle { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the list of error messages encountered during the check.
@@ -62,6 +62,8 @@ public class UpdateCheckResult
         return new UpdateCheckResult
         {
             IsUpdateAvailable = false,
+            ReleaseTitle = "No updates available",
+            ReleaseNotes = "Your application is up to date.",
         };
     }
 
@@ -75,10 +77,10 @@ public class UpdateCheckResult
         return new UpdateCheckResult
         {
             IsUpdateAvailable = true,
-            LatestVersion = release.TagName,
-            UpdateUrl = release.HtmlUrl,
-            ReleaseNotes = release.Body,
-            ReleaseTitle = release.Name,
+            LatestVersion = release.TagName ?? string.Empty,
+            UpdateUrl = release.HtmlUrl ?? string.Empty,
+            ReleaseNotes = release.Body ?? string.Empty,
+            ReleaseTitle = release.Name ?? string.Empty,
             Assets = release.Assets ?? new List<GitHubReleaseAsset>(),
         };
     }
@@ -98,6 +100,8 @@ public class UpdateCheckResult
             CurrentVersion = currentVersion,
             LatestVersion = latestVersion,
             UpdateUrl = updateUrl,
+            ReleaseTitle = "No updates available",
+            ReleaseNotes = "Your application is up to date.",
         };
     }
 
@@ -112,6 +116,8 @@ public class UpdateCheckResult
         {
             IsUpdateAvailable = false,
             ErrorMessages = new List<string> { errorMessage },
+            ReleaseTitle = "Update check failed",
+            ReleaseNotes = errorMessage,
         };
     }
 }
