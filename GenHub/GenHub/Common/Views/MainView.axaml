@@ -34,17 +34,17 @@
                     Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"/>
         </StackPanel>
 
-        <!-- Tab content -->
+        <!-- Tab content based on SelectedTab. Replace these TextBlocks with actual UserControls later. -->
         <Grid Grid.Row="1">
-            <TextBlock Text="Game Profiles"
+            <TextBlock Text="Game Profiles Content"
                        IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.GameProfiles}}"
-                       Foreground="White" HorizontalAlignment="Center"/>
-            <TextBlock Text="Downloads"
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="Downloads Content"
                        IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Downloads}}"
-                       Foreground="White" HorizontalAlignment="Center"/>
-            <TextBlock Text="Settings"
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="Settings Content"
                        IsVisible="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static models:NavigationTab.Settings}}"
-                       Foreground="White" HorizontalAlignment="Center"/>
+                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Grid>
     </Grid>
 </UserControl>
