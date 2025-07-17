@@ -7,8 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="GenHub Launcher"
-        Width="1100" Height="700"
+        Title="GenHub"
         WindowStartupLocation="CenterScreen"
         Icon="avares://GenHub/Assets/Icons/genhub-logo.png">
     <local:MainView x:Name="MainViewRoot" />

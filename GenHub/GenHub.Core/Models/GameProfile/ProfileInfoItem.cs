@@ -1,4 +1,4 @@
-namespace GenHub.Features.GameProfiles.Models;
+namespace GenHub.Core.Models.GameProfiles;
 
 /// <summary>
 /// Represents a profile information item for a game profile.

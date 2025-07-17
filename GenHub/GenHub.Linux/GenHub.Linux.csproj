@@ -21,6 +21,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <None Remove="Resources\update_genhub.sh" />
+        <EmbeddedResource Include="Resources\update_genhub.sh" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\GenHub\GenHub.csproj" />
         <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
     </ItemGroup>

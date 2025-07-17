@@ -3,7 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using GenHub.Features.GameProfiles.Models;
+using GenHub.Core.Models.GameProfiles;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -315,7 +315,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     [RelayCommand]
     private void OpenSettingsDialog()
     {
-        // Dummy implementation for PR3 integration
     }
 
     /// <summary>

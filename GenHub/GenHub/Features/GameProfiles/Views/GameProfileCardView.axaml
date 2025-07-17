@@ -303,19 +303,6 @@
                     IsEnabled="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsLaunching, Converter={StaticResource NotConverter}, FallbackValue=True}"
                     ToolTip.Tip="Launch this profile" />
 
-                <!-- Shortcut button -->
-                <Button Grid.Column="1" 
-                    Classes="action-button" 
-                    Name="ShortcutButton"
-                    Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateShortcutCommand}"
-                    CommandParameter="{Binding}"
-                    Margin="4,0,0,0" 
-                    ToolTip.Tip="Create desktop shortcut"
-                    IsVisible="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode}">
-                    <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" 
-                        Width="14" Height="14" />
-                </Button>
-
                 <!-- Edit button -->
                 <Button Grid.Column="2" 
                     Classes="action-button" 

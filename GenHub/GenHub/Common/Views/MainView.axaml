@@ -183,7 +183,7 @@
                         <TextBlock Text="C&amp;C Generals Launcher" FontSize="9" Foreground="#A0A0A0" FontWeight="Normal" HorizontalAlignment="Center" VerticalAlignment="Top" TextAlignment="Center" Margin="0,0,0,0" />
                     </StackPanel>
                     <!-- Update notification button -->
-                    <Button Grid.Column="1" Classes="update-notification" Command="{Binding ShowUpdateNotificationCommand}" IsVisible="{Binding HasUpdateAvailable}" ToolTip.Tip="Update available - click to download" VerticalAlignment="Center">
+                    <Button Grid.Column="1" Classes="update-notification" Command="{Binding ShowUpdateDialogCommand}" IsVisible="{Binding HasUpdateAvailable}" ToolTip.Tip="Update available - click to download" VerticalAlignment="Center">
                         <Panel>
                             <Ellipse Width="20" Height="20" Fill="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <PathIcon Data="M7,10L12,15L17,10H7Z" Width="12" Height="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />

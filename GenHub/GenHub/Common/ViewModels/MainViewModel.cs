@@ -1,10 +1,13 @@
+using Avalonia.Controls;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.ViewModels;
 
@@ -14,9 +17,12 @@ namespace GenHub.Common.ViewModels;
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
     DownloadsViewModel downloadsViewModel,
-    SettingsViewModel settingsViewModel
+    SettingsViewModel settingsViewModel,
+    ILogger<MainViewModel>? logger = null
 ) : ObservableObject
 {
+    private readonly ILogger<MainViewModel>? _logger = logger;
+
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
 
@@ -88,6 +94,16 @@ public partial class MainViewModel(
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
         await SettingsViewModel.InitializeAsync();
+        _logger?.LogInformation("MainViewModel initialized");
+        await Task.CompletedTask;
+    }
+
+    private static Window? GetMainWindow()
+    {
+        return Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime dt
+            ? dt.MainWindow
+            : null;
     }
 
     /// <summary>
@@ -100,4 +116,39 @@ public partial class MainViewModel(
 
     partial void OnSelectedTabChanged(NavigationTab value) =>
         OnPropertyChanged(nameof(CurrentTabViewModel));
+
+    /// <summary>
+    /// Shows the update notification dialog.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowUpdateDialogAsync()
+    {
+        try
+        {
+            _logger?.LogInformation("ShowUpdateDialogCommand executed");
+
+            var mainWindow = GetMainWindow();
+            if (mainWindow is not null)
+            {
+                _logger?.LogInformation("Opening update notification window");
+
+                var updateWindow = new UpdateNotificationWindow
+                {
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                };
+
+                await updateWindow.ShowDialog(mainWindow);
+
+                _logger?.LogInformation("Update notification window closed");
+            }
+            else
+            {
+                _logger?.LogWarning("Could not find main window to show update dialog");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show update notification window");
+        }
+    }
 }

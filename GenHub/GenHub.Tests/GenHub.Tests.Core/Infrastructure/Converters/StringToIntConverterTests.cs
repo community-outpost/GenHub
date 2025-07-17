@@ -8,6 +8,11 @@ namespace GenHub.Tests.Core.Infrastructure.Converters;
 /// </summary>
 public class StringToIntConverterTests
 {
+    /// <summary>
+    /// Tests that <see cref="StringToIntConverter.Convert"/> parses a string to int or returns the int value.
+    /// </summary>
+    /// <param name="value">The value to convert.</param>
+    /// <param name="expected">The expected integer result.</param>
     [Theory]
     [InlineData("0", 0)]
     [InlineData("42", 42)]
@@ -21,6 +26,11 @@ public class StringToIntConverterTests
         Assert.Equal(expected, result);
     }
 
+    /// <summary>
+    /// Tests that <see cref="StringToIntConverter.ConvertBack"/> returns the string representation of an integer.
+    /// </summary>
+    /// <param name="value">The integer value to convert back.</param>
+    /// <param name="expected">The expected string result.</param>
     [Theory]
     [InlineData(5, "5")]
     [InlineData(0, "0")]
