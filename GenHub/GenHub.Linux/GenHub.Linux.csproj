@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,6 +18,11 @@
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="StyleCop.Analyzers" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Resources\update_genhub.sh" />
+        <EmbeddedResource Include="Resources\update_genhub.sh" />
     </ItemGroup>
 
     <ItemGroup>

@@ -7,9 +7,38 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Title="GenHub Launcher"
-        Width="1100" Height="700"
+        Title="GenHub"
         WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True">
-    <ContentControl Content="{Binding}" />
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="35">
+    
+    <DockPanel>
+        <!-- Custom title bar with drag area -->
+        <Grid DockPanel.Dock="Top" Height="35" Background="#1E1E1E">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            
+            <!-- Draggable area (left side) - explicitly handle drag -->
+            <Border Grid.Column="0" 
+                    Background="Transparent" 
+                    Name="TitleBarDragArea"
+                    PointerPressed="OnTitleBarPointerPressed" />
+            
+            <!-- Menu (right side, non-draggable) -->
+            <Menu Grid.Column="1" VerticalAlignment="Center" Background="Transparent">
+                <MenuItem Header="_Help">
+                    <MenuItem Header="Check for _Updates..."
+                              Command="{Binding ShowUpdateDialogCommand}"/>
+                </MenuItem>
+            </Menu>
+        </Grid>
+        
+        <!-- Main content area -->
+        <Border DockPanel.Dock="Bottom" IsHitTestVisible="True">
+            <local:MainView />
+        </Border>
+    </DockPanel>
 </Window>

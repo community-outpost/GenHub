@@ -1,7 +1,9 @@
 ﻿using System;
 using Avalonia;
 using GenHub.Core;
+using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.AppUpdate;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +14,9 @@ namespace GenHub.Linux
     /// </summary>
     public class Program
     {
+        private const string UpdaterUserAgent = "GenHub-Updater/1.0";
+        private static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
+
         /// <summary>
         /// Main entry point for the application.
         /// </summary>
@@ -36,10 +41,18 @@ namespace GenHub.Linux
                 // Linux-specific DI
                 services.AddSingleton<IGameDetector, LinuxGameDetector>();
 
-                // Register shared services
-                services.ConfigureApplicationServices();
+                // Register shared services and pass in platform-specific registrations
+                services.ConfigureApplicationServices(s =>
+                {
+                    // Register Linux-specific services
+                    s.AddHttpClient<LinuxUpdateInstaller>(client =>
+                    {
+                        client.Timeout = UpdaterTimeout;
+                        client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
+                    });
+                    s.AddSingleton<IPlatformUpdateInstaller, LinuxUpdateInstaller>();
+                });
 
-                services.AddLoggingModule();
                 var serviceProvider = services.BuildServiceProvider();
                 AppLocator.Services = serviceProvider;
 

@@ -29,6 +29,21 @@ public class MainViewModelTests
     }
 
     /// <summary>
+    /// Tests that executing <see cref="MainViewModel.SelectTabCommand"/> sets the <see cref="MainViewModel.SelectedTab"/> property.
+    /// </summary>
+    /// <param name="tab">The tab to select.</param>
+    [Theory]
+    [InlineData(GenHub.Common.Models.NavigationTab.GameProfiles)]
+    [InlineData(GenHub.Common.Models.NavigationTab.Downloads)]
+    [InlineData(GenHub.Common.Models.NavigationTab.Settings)]
+    public void SelectTabCommand_SetsSelectedTab(GenHub.Common.Models.NavigationTab tab)
+    {
+        var vm = new MainViewModel();
+        vm.SelectTabCommand.Execute(tab);
+        Assert.Equal(tab, vm.SelectedTab);
+    }
+
+    /// <summary>
     /// Tests that <see cref="MainViewModel"/> can be instantiated successfully.
     /// </summary>
     [Fact]

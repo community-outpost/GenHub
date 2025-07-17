@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using Avalonia;
+using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Windows.Features.AppUpdate;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +17,8 @@ namespace GenHub.Windows;
 public class Program
 {
     private const string MutexName = "Global\\GenHub";
-    private const int SW_RESTORE = 9; // Windows API constant to restore a window
+    private const string UpdaterUserAgent = "GenHub-Updater/1.0";
+    private static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
     private static Mutex? mutex;
 
     /// <summary>
@@ -49,8 +51,17 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services
-            services.ConfigureApplicationServices();
+            // Register shared services and pass in platform-specific registrations
+            services.ConfigureApplicationServices(s =>
+            {
+                // Register Windows-specific services
+                s.AddHttpClient<WindowsUpdateInstaller>(client =>
+                {
+                    client.Timeout = UpdaterTimeout;
+                    client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
+                });
+                s.AddSingleton<IPlatformUpdateInstaller, WindowsUpdateInstaller>();
+            });
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
@@ -77,12 +88,6 @@ public class Program
             .WithInterFont()
             .LogToTrace();
 
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
     /// <summary>
     /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex" />.
     /// </summary>
@@ -107,7 +112,7 @@ public class Program
 
         // Restore the window if minimized and bring it to the foreground
         var windowHandle = process.MainWindowHandle;
-        ShowWindow(windowHandle, SW_RESTORE);
-        SetForegroundWindow(windowHandle);
+        NativeMethods.ShowWindow(windowHandle, NativeMethods.SW_RESTORE);
+        NativeMethods.SetForegroundWindow(windowHandle);
     }
 }
