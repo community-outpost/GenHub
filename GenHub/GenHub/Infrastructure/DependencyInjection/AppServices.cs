@@ -1,3 +1,4 @@
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection
@@ -18,6 +19,7 @@ namespace GenHub.Infrastructure.DependencyInjection
             services.AddGameDetectionService();
             services.AddLoggingModule();
             services.AddSharedViewModelModule();
+            services.AddDownloadServices();
 
             // Add more shared modules here as needed
             return services;
