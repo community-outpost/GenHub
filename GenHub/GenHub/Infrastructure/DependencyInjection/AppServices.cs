@@ -1,4 +1,5 @@
 using System;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection
@@ -14,15 +15,21 @@ namespace GenHub.Infrastructure.DependencyInjection
         /// <param name="services">The service collection to which application services will be registered.</param>
         /// <param name="platformSpecificServices">An action to register platform-specific services.</param>
         /// <returns>The updated <see cref="IServiceCollection"/> with registered application services.</returns>
-        public static IServiceCollection ConfigureApplicationServices(this IServiceCollection services, Action<IServiceCollection>? platformSpecificServices = null)
+        public static IServiceCollection ConfigureApplicationServices(
+            this IServiceCollection services,
+            Action<IServiceCollection>? platformSpecificServices = null
+        )
         {
             // Register shared services here via extension modules
             services.AddGameDetectionService();
             services.AddLoggingModule();
             services.AddSharedViewModelModule();
-            services.AddAppUpdateModule();
 
-            // Register platform-specific services if provided
+            // Include both feature and main branch specific registrations
+            services.AddDownloadServices(); // From feat/download-service
+            services.AddAppUpdateModule(); // From main
+
+            // Register platform-specific services if provided (from main)
             platformSpecificServices?.Invoke(services);
 
             // Add more shared modules here as needed
