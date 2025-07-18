@@ -1,4 +1,4 @@
-namespace GenHub.Core.Models.GameVersions;
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Represents the type of Command and Conquer game.
