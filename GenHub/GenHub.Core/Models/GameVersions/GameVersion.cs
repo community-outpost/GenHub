@@ -3,31 +3,70 @@ using System;
 namespace GenHub.Core.Models.GameVersions;
 
 /// <summary>
-/// A runnable executable or patch: vanilla exe, modded exe, GitHub build, etc.
+/// Represents a specific version of a game, mod, or patch.
 /// </summary>
 public class GameVersion
 {
-    /// <summary>Gets or sets the unique identifier for this game version.</summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-
-    /// <summary>Gets or sets the display name (e.g. "Generals v1.04", "Community Patch", "GitHub Build #123").</summary>
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>Gets or sets the full path to the executable file.</summary>
+    /// <summary>
+    /// Gets or sets the executable path for this game version (for test compatibility).
+    /// </summary>
     public string ExecutablePath { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the working directory for launching (usually the executable's directory).</summary>
+    /// <summary>
+    /// Gets or sets the working directory for this game version (for test compatibility).
+    /// </summary>
     public string WorkingDirectory { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the game type.</summary>
-    public GameType GameType { get; set; }
-
-    /// <summary>Gets or sets the ID of the GameInstallation this version belongs to (if any).</summary>
+    /// <summary>
+    /// Gets or sets the base installation ID for this game version (for test compatibility).
+    /// </summary>
     public string? BaseInstallationId { get; set; }
 
-    /// <summary>Gets or sets the date and time when this version was added/detected.</summary>
+    /// <summary>
+    /// Gets or sets the creation timestamp for this game version (for test compatibility).
+    /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>Gets a value indicating whether this executable file exists and is accessible.</summary>
-    public bool IsValid => System.IO.File.Exists(this.ExecutablePath);
+    /// <summary>
+    /// Gets a value indicating whether the game version is valid (for test compatibility).
+    /// </summary>
+    public bool IsValid
+    {
+        get
+        {
+            // If ExecutablePath is not set, not valid
+            if (string.IsNullOrEmpty(ExecutablePath))
+            {
+                return false;
+            }
+
+            // If file does not exist, not valid
+            return System.IO.File.Exists(ExecutablePath);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the display name for this game version.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the unique identifier for this game version.
+    /// </summary>
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    /// <summary>
+    /// Gets or sets the version string (e.g. "1.04").
+    /// </summary>
+    public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the game type.
+    /// </summary>
+    public GameType GameType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the content source type (BaseGame or StandaloneVersion).
+    /// </summary>
+    public GenHub.Core.Models.Enums.ContentType SourceType { get; set; }
 }
