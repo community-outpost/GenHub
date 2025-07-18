@@ -54,17 +54,22 @@ public class GameManifest
     /// <summary>
     /// Gets or sets the dependencies required for this content to function.
     /// </summary>
-    public List<ContentDependency> Dependencies { get; set; } = new();
+    public List<ContentDependency> Dependencies { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets content references for cross-publisher linking.
+    /// </summary>
+    public List<ContentReference> ContentReferences { get; set; } = [];
 
     /// <summary>
     /// Gets or sets all files included in this content package.
     /// </summary>
-    public List<ManifestFile> Files { get; set; } = new();
+    public List<ManifestFile> Files { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the required directory structure.
     /// </summary>
-    public List<string> RequiredDirectories { get; set; } = new();
+    public List<string> RequiredDirectories { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the installation instructions and hooks.

@@ -109,30 +109,72 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// </summary>
     /// <param name="id">Dependency ID.</param>
     /// <param name="name">Dependency name.</param>
+    /// <param name="dependencyType">Dependency type.</param>
+    /// <param name="installBehavior">Install behavior (single source of truth for required/optional).</param>
     /// <param name="minVersion">Minimum version.</param>
     /// <param name="maxVersion">Maximum version.</param>
-    /// <param name="isRequired">Is required.</param>
-    /// <param name="dependencyType">Dependency type.</param>
+    /// <param name="compatibleVersions">List of compatible versions.</param>
+    /// <param name="isExclusive">Is exclusive.</param>
+    /// <param name="conflictsWith">Conflicting dependency IDs.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder AddDependency(
         string id,
         string name,
+        ContentType dependencyType,
+        DependencyInstallBehavior installBehavior,
         string minVersion = "",
         string maxVersion = "",
-        bool isRequired = true,
-        ContentType dependencyType = ContentType.BaseGame)
+        List<string>? compatibleVersions = null,
+        bool isExclusive = false,
+        List<string>? conflictsWith = null)
     {
         var dependency = new ContentDependency
         {
             Id = id,
             Name = name,
+            DependencyType = dependencyType,
             MinVersion = minVersion,
             MaxVersion = maxVersion,
-            IsRequired = isRequired,
-            DependencyType = dependencyType,
+            CompatibleVersions = compatibleVersions ?? new List<string>(),
+            IsExclusive = isExclusive,
+            ConflictsWith = conflictsWith ?? new List<string>(),
+            InstallBehavior = installBehavior,
         };
         _manifest.Dependencies.Add(dependency);
-        _logger.LogDebug("Added dependency: {DependencyId} (Required: {IsRequired})", id, isRequired);
+        _logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a content reference for cross-publisher linking.
+    /// </summary>
+    /// <param name="contentId">Content ID.</param>
+    /// <param name="publisherId">Publisher ID.</param>
+    /// <param name="contentType">Content type.</param>
+    /// <param name="minVersion">Minimum version.</param>
+    /// <param name="maxVersion">Maximum version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder AddContentReference(
+        string contentId,
+        string publisherId,
+        ContentType contentType,
+        string minVersion = "",
+        string maxVersion = "")
+    {
+        var reference = new ContentReference
+        {
+            ContentId = contentId,
+            PublisherId = publisherId,
+            ContentType = contentType,
+            MinVersion = minVersion,
+            MaxVersion = maxVersion,
+        };
+
+        _manifest.ContentReferences.Add(reference);
+        _logger.LogDebug(
+            "Added content reference: {ContentId} from publisher {PublisherId}",
+            contentId,
+            publisherId);
         return this;
     }
 

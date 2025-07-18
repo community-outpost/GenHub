@@ -105,7 +105,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GenHub",
             "Manifests");
-        await DiscoverFileSystemManifestsAsync(new[] { localManifestDir }, cancellationToken);
+        await DiscoverFileSystemManifestsAsync([localManifestDir], cancellationToken);
 
         _logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", _manifestCache.GetAllManifests().Count());
     }
@@ -120,9 +120,9 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         GameManifest manifest,
         Dictionary<string, GameManifest> availableManifests)
     {
-        foreach (var dependency in manifest.Dependencies.Where(d => d.IsRequired))
+        foreach (var dependency in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
         {
-            if (!availableManifests.ContainsKey(dependency.Id))
+            if (!availableManifests.TryGetValue(dependency.Id, out GameManifest? dependencyManifest))
             {
                 _logger.LogWarning(
                     "Missing required dependency {DependencyId} for manifest {ManifestId}",
@@ -131,7 +131,6 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 return false;
             }
 
-            var dependencyManifest = availableManifests[dependency.Id];
             if (!IsVersionCompatible(
                 dependencyManifest.Version,
                 dependency.MinVersion,

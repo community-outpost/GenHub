@@ -1,12 +1,13 @@
 using System;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameVersions;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Core.Models.GameInstallations;
 
 /// <summary>
-/// Represents a game installation.
+/// Represents a detected or user-registered game installation (Steam, EA, Origin, etc).
 /// </summary>
 public class GameInstallation : IGameInstallation
 {
@@ -40,22 +41,25 @@ public class GameInstallation : IGameInstallation
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets the installation type (for backward compatibility).</summary>
     public GameInstallationType InstallationType { get; set; }
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets the available versions for this installation.</summary>
+    public List<GameVersion> AvailableVersions { get; set; } = [];
+
+    /// <summary>Gets or sets the base installation directory path.</summary>
     public string InstallationPath { get; set; } = string.Empty;
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets a value indicating whether the vanilla game is installed.</summary>
     public bool HasGenerals { get; set; }
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets the path of the vanilla game installation.</summary>
     public string GeneralsPath { get; set; } = string.Empty;
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets a value indicating whether Zero Hour is installed.</summary>
     public bool HasZeroHour { get; set; }
 
-    /// <inheritdoc/>
+    /// <summary>Gets or sets the path of the Zero Hour installation.</summary>
     public string ZeroHourPath { get; set; } = string.Empty;
 
     /// <summary>

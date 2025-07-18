@@ -67,7 +67,7 @@ public partial class ManifestDiscoveryServiceTests(Mock<ILogger<ManifestDiscover
             Id = "test",
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "missing-dep", IsRequired = true }
+                new() { Id = "missing-dep", InstallBehavior = DependencyInstallBehavior.RequireExisting }
             }
         };
         var availableManifests = new Dictionary<string, GameManifest>();
@@ -88,8 +88,8 @@ public partial class ManifestDiscoveryServiceTests(Mock<ILogger<ManifestDiscover
             Id = "test",
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "dep1", IsRequired = true },
-                new() { Id = "dep2", IsRequired = false }
+                new() { Id = "dep1", InstallBehavior = DependencyInstallBehavior.RequireExisting },
+                new() { Id = "dep2", InstallBehavior = DependencyInstallBehavior.Suggest }
             }
         };
         var availableManifests = new Dictionary<string, GameManifest>

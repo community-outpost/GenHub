@@ -54,12 +54,24 @@ public interface IContentManifestBuilder
     /// </summary>
     /// <param name="id">Dependency ID.</param>
     /// <param name="name">Dependency name.</param>
+    /// <param name="dependencyType">The type of dependency.</param>
+    /// <param name="installBehavior">Defines the requirement and installation action for this dependency.</param>
     /// <param name="minVersion">Minimum required version.</param>
     /// <param name="maxVersion">Maximum allowed version.</param>
-    /// <param name="isRequired">Whether the dependency is required.</param>
-    /// <param name="dependencyType">The type of dependency.</param>
+    /// <param name="compatibleVersions">List of compatible versions.</param>
+    /// <param name="isExclusive">Whether the dependency is exclusive.</param>
+    /// <param name="conflictsWith">List of conflicting dependency IDs.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddDependency(string id, string name, string minVersion = "", string maxVersion = "", bool isRequired = true, ContentType dependencyType = ContentType.BaseGame);
+    IContentManifestBuilder AddDependency(
+        string id,
+        string name,
+        ContentType dependencyType,
+        DependencyInstallBehavior installBehavior,
+        string minVersion = "",
+        string maxVersion = "",
+        List<string>? compatibleVersions = null,
+        bool isExclusive = false,
+        List<string>? conflictsWith = null);
 
     /// <summary>
     /// Scans a directory and adds files with the specified source type.
@@ -117,6 +129,22 @@ public interface IContentManifestBuilder
     /// <param name="requiresElevation">Whether elevation is required.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPostInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+
+    /// <summary>
+    /// Adds a content reference for cross-publisher linking.
+    /// </summary>
+    /// <param name="contentId">The referenced content ID.</param>
+    /// <param name="publisherId">The publisher ID.</param>
+    /// <param name="contentType">The content type of the reference.</param>
+    /// <param name="minVersion">The minimum compatible version.</param>
+    /// <param name="maxVersion">The maximum compatible version.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddContentReference(
+        string contentId,
+        string publisherId,
+        ContentType contentType,
+        string minVersion = "",
+        string maxVersion = "");
 
     /// <summary>
     /// Builds the final GameManifest.

@@ -1,8 +1,9 @@
+using System.Threading.Tasks;
 using GenHub.Core;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
-using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Manifest;
 
@@ -22,39 +23,24 @@ public interface IManifestGenerationService
     Task<IContentManifestBuilder> CreateBaseGameManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, string version);
 
     /// <summary>
-    /// Creates a manifest builder for a mod.
+    /// Creates a manifest builder for any content type (mod, patch, addon, etc).
     /// </summary>
-    /// <param name="modDirectory">Path to the mod directory.</param>
-    /// <param name="modId">Unique mod identifier.</param>
-    /// <param name="modName">Mod display name.</param>
-    /// <param name="modVersion">Mod version.</param>
+    /// <param name="contentDirectory">Path to the content directory.</param>
+    /// <param name="contentId">Unique content identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="contentVersion">Content version.</param>
+    /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
     /// <param name="targetGame">Target game type.</param>
-    /// <param name="baseGameDependencies">Required base game versions.</param>
+    /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateModManifestAsync(string modDirectory, string modId, string modName, string modVersion, GameType targetGame, params string[] baseGameDependencies);
-
-    /// <summary>
-    /// Creates a manifest builder for an addon/utility.
-    /// </summary>
-    /// <param name="addonDirectory">Path to the addon directory.</param>
-    /// <param name="addonId">Unique addon identifier.</param>
-    /// <param name="addonName">Addon display name.</param>
-    /// <param name="addonVersion">Addon version.</param>
-    /// <param name="targetGame">Target game type.</param>
-    /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateAddonManifestAsync(string addonDirectory, string addonId, string addonName, string addonVersion, GameType targetGame);
-
-    /// <summary>
-    /// Creates a manifest builder for a patch.
-    /// </summary>
-    /// <param name="patchDirectory">Path to the patch directory.</param>
-    /// <param name="patchId">Unique patch identifier.</param>
-    /// <param name="patchName">Patch display name.</param>
-    /// <param name="patchVersion">Patch version.</param>
-    /// <param name="targetContent">What this patch applies to.</param>
-    /// <param name="targetVersion">Version of the target content.</param>
-    /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreatePatchManifestAsync(string patchDirectory, string patchId, string patchName, string patchVersion, string targetContent, string targetVersion);
+    Task<IContentManifestBuilder> CreateContentManifestAsync(
+        string contentDirectory,
+        string contentId,
+        string contentName,
+        string contentVersion,
+        ContentType contentType,
+        GameType targetGame,
+        params ContentDependency[] dependencies);
 
     /// <summary>
     /// Creates a manifest builder for a standalone game version.
@@ -74,4 +60,20 @@ public interface IManifestGenerationService
     /// <param name="outputPath">The output file path.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveManifestAsync(GameManifest manifest, string outputPath);
+
+    /// <summary>
+    /// Creates a content bundle from multiple content items.
+    /// </summary>
+    /// <param name="bundleId">The bundle identifier.</param>
+    /// <param name="bundleName">The bundle name.</param>
+    /// <param name="bundleVersion">The bundle version.</param>
+    /// <param name="publisher">The publisher information.</param>
+    /// <param name="items">The bundle items.</param>
+    /// <returns>A task that returns the created content bundle.</returns>
+    Task<ContentBundle> CreateContentBundleAsync(
+        string bundleId,
+        string bundleName,
+        string bundleVersion,
+        PublisherInfo publisher,
+        params BundleItem[] items);
 }

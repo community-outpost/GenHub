@@ -5,33 +5,39 @@ namespace GenHub.Core.Models.Enums;
 /// </summary>
 public enum ContentType
 {
-    /// <summary>
-    /// Base game installation (Steam, EA App).
-    /// </summary>
+    // Foundation types (detected/installed)
+
+    /// <summary>EA/Steam/Origin installation.</summary>
     BaseGame,
 
-    /// <summary>
-    /// Total conversion or major modification.
-    /// </summary>
+    /// <summary>Independent game executable.</summary>
+    StandaloneVersion,
+
+    // Content types (built on foundation)
+
+    /// <summary>Major gameplay changes.</summary>
     Mod,
 
-    /// <summary>
-    /// Utility or enhancement tool.
-    /// </summary>
-    Addon,
-
-    /// <summary>
-    /// Balance or configuration changes.
-    /// </summary>
+    /// <summary>Balance/configuration changes.</summary>
     Patch,
 
-    /// <summary>
-    /// Map pack or additional content.
-    /// </summary>
+    /// <summary>Utilities/tools.</summary>
+    Addon,
+
+    /// <summary>Map collections.</summary>
     MapPack,
 
-    /// <summary>
-    /// Standalone game version with custom executable.
-    /// </summary>
-    StandaloneVersion,
+    /// <summary>Localization.</summary>
+    LanguagePack,
+
+    // Meta types
+
+    /// <summary>Collection of multiple contents.</summary>
+    ContentBundle,
+
+    /// <summary>Link to other publisher content.</summary>
+    PublisherReferral,
+
+    /// <summary>Link to specific content.</summary>
+    ContentReferral,
 }
