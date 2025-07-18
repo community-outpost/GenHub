@@ -1,13 +1,9 @@
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
+using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Features.Validation;
 
@@ -41,7 +37,7 @@ public class FileSystemValidatorTests
         var logger = new Mock<ILogger>().Object;
         var validator = new TestFileSystemValidator(logger);
         var files = new List<ManifestFile> { new() { RelativePath = "..\\evil.txt", Size = 0, Hash = string.Empty } };
-        await Assert.ThrowsAsync<GenHub.Infrastructure.Exceptions.ManifestValidationException>(async () =>
+        await Assert.ThrowsAsync<ManifestValidationException>(async () =>
             await validator.ValidateFilesAsync(Directory.GetCurrentDirectory(), files, CancellationToken.None));
     }
 
