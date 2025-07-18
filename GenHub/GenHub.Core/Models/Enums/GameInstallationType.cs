@@ -1,4 +1,4 @@
-﻿namespace GenHub.Core;
+﻿namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Type of Game Installation.
@@ -39,4 +39,14 @@ public enum GameInstallationType
     /// CD ISO installation of the game.
     /// </summary>
     CDISO = 6,
+
+    /// <summary>
+    /// Wine/Proton installation on Linux.
+    /// </summary>
+    Wine = 7,
+
+    /// <summary>
+    /// Manual/retail installation.
+    /// </summary>
+    Retail = 8,
 }

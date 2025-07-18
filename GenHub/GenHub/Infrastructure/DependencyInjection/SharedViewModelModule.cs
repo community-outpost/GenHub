@@ -13,7 +13,7 @@ namespace GenHub.Infrastructure.DependencyInjection;
 public static class SharedViewModelModule
 {
     /// <summary>
-    /// Adds shared ViewModels and Services to the DI container.
+    /// Adds shared view model services to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The updated service collection.</returns>

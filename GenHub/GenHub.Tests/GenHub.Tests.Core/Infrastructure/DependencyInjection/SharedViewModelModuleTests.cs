@@ -8,23 +8,35 @@ using Microsoft.Extensions.DependencyInjection;
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Tests for SharedViewModelModule DI registration.
+/// Contains tests for the <see cref="SharedViewModelModule"/> dependency injection.
 /// </summary>
 public class SharedViewModelModuleTests
 {
     /// <summary>
-    /// Ensures all shared ViewModels are registered in DI.
+    /// Verifies that all ViewModels registered in the <see cref="SharedViewModelModule"/>
+    /// can be successfully resolved from the service provider.
     /// </summary>
     [Fact]
     public void AllViewModels_Registered()
     {
-        var services = new ServiceCollection()
-            .AddSharedViewModelModule()
-            .BuildServiceProvider();
+        // Arrange
+        var services = new ServiceCollection();
 
-        Assert.NotNull(services.GetService<MainViewModel>());
-        Assert.NotNull(services.GetService<GameProfileLauncherViewModel>());
-        Assert.NotNull(services.GetService<DownloadsViewModel>());
-        Assert.NotNull(services.GetService<SettingsViewModel>());
+        // Register the SharedViewModelModule
+        services.AddSharedViewModelModule();
+
+        // Register other modules that MainViewModel (and other ViewModels) depend on.
+        // This simulates the full application service registration.
+        services.AddGameDetectionService(); // Registers IGameInstallationDetectionOrchestrator
+        services.AddLoggingModule();       // Registers ILogger<T>
+
+        // Build the service provider
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Act & Assert: Try to resolve each ViewModel
+        Assert.NotNull(serviceProvider.GetService<MainViewModel>());
+        Assert.NotNull(serviceProvider.GetService<GameProfileLauncherViewModel>());
+        Assert.NotNull(serviceProvider.GetService<DownloadsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
     }
 }

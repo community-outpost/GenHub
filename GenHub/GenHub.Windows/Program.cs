@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading;
 using Avalonia;
 using GenHub.Core.Interfaces.AppUpdate;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Features.AppUpdate;
+using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -63,6 +65,9 @@ public class Program
                 s.AddSingleton<IPlatformUpdateInstaller, WindowsUpdateInstaller>();
             });
 
+            // Windows-specific DI
+            services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
+
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 
@@ -107,7 +112,7 @@ public class Program
         var process = Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).FirstOrDefault();
 
         // If no process is found, we can't restore it
-        if(process == null)
+        if (process == null)
             return;
 
         // Restore the window if minimized and bring it to the foreground
