@@ -1,4 +1,4 @@
-using GenHub.Common.Models;
+using GenHub.Core.Models.Enums;
 using Xunit;
 
 namespace GenHub.Tests.Core.Common.Models;

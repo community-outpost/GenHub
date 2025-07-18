@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
-using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;

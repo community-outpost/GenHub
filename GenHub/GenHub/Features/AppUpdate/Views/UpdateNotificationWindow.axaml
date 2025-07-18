@@ -1,0 +1,115 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:GenHub.Features.AppUpdate.Views"
+        xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
+        x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationWindow"
+        Width="580" Height="800"
+        MinWidth="500" MinHeight="580"
+        Title="GenHub Updates"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="BorderOnly"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        CanResize="True"
+        x:DataType="vm:UpdateNotificationViewModel">
+    
+    <Window.Styles>
+        <Style Selector="Grid.TitleBarArea">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
+    </Window.Styles>
+    
+    <Grid>
+        <!-- Background with corner radius -->
+        <Border CornerRadius="8" BoxShadow="0 4 20 0 #50000000">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#242938" Offset="0" />
+                    <GradientStop Color="#1e2430" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+        
+        <!-- Main content -->
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Custom title bar -->
+            <Grid Grid.Row="0" Height="40" Margin="8,8,8,0"
+                  ColumnDefinitions="Auto,*,Auto"
+                  Classes="TitleBarArea"
+                  x:Name="TitleBarGrid"
+                  PointerPressed="TitleBar_PointerPressed">
+                  
+                <!-- App icon and title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <!-- App icon  -->
+                    <Border Width="28" Height="28" 
+                            Background="#3399FF" 
+                            CornerRadius="6"
+                            Margin="8,0,0,0">
+                        <Viewbox Width="14" Height="14"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center">
+                            <Path Data="M12,8A3,3 0 0,0 9,11A3,3 0 0,0 12,14A3,3 0 0,0 15,11A3,3 0 0,0 12,8M12,2L13.09,8.26L22,9L15,14L17,21L12,18L7,21L9,14L2,9L10.91,8.26L12,2Z" 
+                                  Fill="White" 
+                                  Stretch="Uniform" />
+                        </Viewbox>
+                    </Border>
+                    
+                    <TextBlock Text="GenHub Updates" 
+                              VerticalAlignment="Center"
+                              FontSize="16" FontWeight="SemiBold"
+                              Foreground="White" />
+                </StackPanel>
+                
+                <!-- Window Controls-->
+                <Button Grid.Column="2"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        Background="Transparent"
+                        Foreground="#CCCCCC"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        AutomationProperties.Name="Close"
+                        AutomationProperties.AccessKey="Alt+F4"
+                        ToolTip.Tip="Close window"
+                        Click="CloseButton_Click">
+                    <Viewbox Width="12" Height="12"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center">
+                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                              Fill="{Binding $parent[Button].Foreground}"
+                              Stretch="Uniform" />
+                    </Viewbox>
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#40FF0000"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                        <Style Selector="Button:pressed">
+                            <Setter Property="Background" Value="#60FF0000"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+
+            <!-- Main content area -->
+            <Border Grid.Row="1" Margin="12,0,12,0">
+                <views:UpdateNotificationView DataContext="{Binding}" />
+            </Border>
+
+            <!-- Bottom bar with app info -->
+            <Grid Grid.Row="2" Height="40" Margin="12">
+                <TextBlock Text="{Binding CurrentAppVersion, StringFormat={}GenHub v{0}}"
+                          Opacity="0.7"
+                          FontSize="12"
+                          Foreground="White"
+                          HorizontalAlignment="Right"
+                          VerticalAlignment="Center" />
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Light theme colors -->
+    <Color x:Key="WindowBackgroundLight">#F7F7F9</Color>
+    <Color x:Key="TitleBarBackgroundLight">#EAEAEF</Color>
+    <Color x:Key="SidebarBackgroundLight">#F0F0F4</Color>
+    <Color x:Key="DetailsBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="StatusBarBackgroundLight">#EAEAEF</Color>
+    <Color x:Key="TreeViewBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="BorderBrushLight">#D0D0D8</Color>
+    <Color x:Key="ComboBoxBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="TextBoxBackgroundLight">#FFFFFF</Color>
+    <Color x:Key="ButtonBackgroundLight">#F0F0F4</Color>
+    <Color x:Key="PrimaryButtonBackgroundLight">#0078D7</Color>
+    
+    <!-- Dark theme colors -->
+    <Color x:Key="WindowBackgroundDark">#1F1F1F</Color>
+    <Color x:Key="TitleBarBackgroundDark">#2A2A2A</Color>
+    <Color x:Key="SidebarBackgroundDark">#252525</Color>
+    <Color x:Key="DetailsBackgroundDark">#2D2D2D</Color>
+    <Color x:Key="StatusBarBackgroundDark">#2A2A2A</Color>
+    <Color x:Key="TreeViewBackgroundDark">#303030</Color>
+    <Color x:Key="BorderBrushDark">#404040</Color>
+    <Color x:Key="ComboBoxBackgroundDark">#3A3A3A</Color>
+    <Color x:Key="TextBoxBackgroundDark">#3A3A3A</Color>
+    <Color x:Key="ButtonBackgroundDark">#3A3A3A</Color>
+    <Color x:Key="PrimaryButtonBackgroundDark">#0078D7</Color>
+    
+    <!-- Default theme resources -->
+    <!-- Using dark theme colors as application default -->
+    <SolidColorBrush x:Key="WindowBackground" Color="{DynamicResource WindowBackgroundDark}" />
+    <SolidColorBrush x:Key="TitleBarBackground" Color="{DynamicResource TitleBarBackgroundDark}" />
+    <SolidColorBrush x:Key="TitleBarForeground" Color="White" />
+    <SolidColorBrush x:Key="SidebarBackground" Color="{DynamicResource SidebarBackgroundDark}" />
+    <SolidColorBrush x:Key="DetailsBackground" Color="{DynamicResource DetailsBackgroundDark}" />
+    <SolidColorBrush x:Key="MainContentBackground" Color="{DynamicResource WindowBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusBarBackground" Color="{DynamicResource StatusBarBackgroundDark}" />
+    <SolidColorBrush x:Key="StatusBarForeground" Color="White" />
+    <SolidColorBrush x:Key="EmptyStateForeground" Color="White" />
+    <SolidColorBrush x:Key="TreeViewBackground" Color="{DynamicResource TreeViewBackgroundDark}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderBrushDark}" />
+    <SolidColorBrush x:Key="ComboBoxBackground" Color="{DynamicResource ComboBoxBackgroundDark}" />
+    <SolidColorBrush x:Key="TextBoxBackground" Color="{DynamicResource TextBoxBackgroundDark}" />
+    <SolidColorBrush x:Key="ButtonBackground" Color="{DynamicResource ButtonBackgroundDark}" />
+    <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />
+    <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
+    <SolidColorBrush x:Key="CardBackground" Color="#333333" />
+    <SolidColorBrush x:Key="AccentColor" Color="#0078D7" />
+</ResourceDictionary>

@@ -21,6 +21,11 @@
     </ItemGroup>
 
     <ItemGroup>
+        <None Remove="Resources\update_genhub.ps1" />
+        <EmbeddedResource Include="Resources\update_genhub.ps1" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\GenHub\GenHub.csproj" />
         <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
     </ItemGroup>
