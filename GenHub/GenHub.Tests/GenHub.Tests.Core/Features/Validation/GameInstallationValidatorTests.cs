@@ -1,16 +1,11 @@
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
-using GenHub.Tests.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Features.Validation;
 
@@ -52,8 +47,14 @@ public class GameInstallationValidatorTests
                 new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default)).ReturnsAsync(manifest);
-        var installation = new GameInstallation { InstallationPath = tempDir.FullName };
+        _manifestProviderMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+            .ReturnsAsync(manifest);
+
+        var installation = new GameInstallation(
+            tempDir.FullName,
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
 
         var progressReports = new List<ValidationProgress>();
         var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
@@ -103,8 +104,14 @@ public class GameInstallationValidatorTests
     public async Task ValidateAsync_ManifestNotFound_AddsIssue()
     {
         // Arrange
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>())).ReturnsAsync((GameManifest?)null);
-        var installation = new GameInstallation { InstallationPath = "path" };
+        _manifestProviderMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameManifest?)null);
+
+        var installation = new GameInstallation(
+            "path",
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
 
         // Act
         var result = await _validator.ValidateAsync(installation, null, default);
@@ -130,8 +137,14 @@ public class GameInstallationValidatorTests
                 new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default)).ReturnsAsync(manifest);
-        var installation = new GameInstallation { InstallationPath = Directory.GetCurrentDirectory() };
+        _manifestProviderMock
+            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+            .ReturnsAsync(manifest);
+
+        var installation = new GameInstallation(
+            Directory.GetCurrentDirectory(),
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
 
         // Act
         var result = await _validator.ValidateAsync(installation, null, default);
@@ -151,9 +164,14 @@ public class GameInstallationValidatorTests
         // Arrange
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        var installation = new GameInstallation { InstallationPath = "path" };
+
+        var installation = new GameInstallation(
+            "path",
+            GameInstallationType.Steam,
+            new Mock<ILogger<GameInstallation>>().Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _validator.ValidateAsync(installation, null, cts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            _validator.ValidateAsync(installation, null, cts.Token));
     }
 }

@@ -53,12 +53,12 @@ public class WindowsUpdateInstallerTests : IDisposable
         using var installer = new WindowsUpdateInstaller(this.httpClient, this.mockLogger.Object);
 
         // Act
-        var result = installer.GetPlatformDownloadUrl(new List<GitHubReleaseAsset>
-            {
+        var result = installer.GetPlatformDownloadUrl(
+            [
                 new () { Name = "app-linux.tar.gz", BrowserDownloadUrl = "https://example.com/linux" },
                 new () { Name = "app-windows.zip", BrowserDownloadUrl = "https://example.com/windows" },
                 new () { Name = "app-mac.dmg", BrowserDownloadUrl = "https://example.com/mac" },
-            });
+            ]);
 
         // Assert
         result.Should().Be("https://example.com/windows");

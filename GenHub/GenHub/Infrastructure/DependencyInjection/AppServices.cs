@@ -20,8 +20,9 @@ public static class AppServices
         services.AddGameDetectionService();
         services.AddLoggingModule();
         services.AddSharedViewModelModule();
-        services.AddAppUpdateModule();
+        services.AddValidationServices();
         services.AddManifestServices();
+        services.AddAppUpdateModule();
 
         // Register platform-specific services if provided
         platformSpecificServices?.Invoke(services);
