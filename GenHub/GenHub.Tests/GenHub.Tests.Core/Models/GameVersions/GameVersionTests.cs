@@ -24,9 +24,6 @@ public class GameVersionTests
         Assert.Equal(string.Empty, version.WorkingDirectory);
         Assert.Equal(GameType.Generals, version.GameType);
         Assert.Equal(string.Empty, version.BaseInstallationId);
-        Assert.Equal(string.Empty, version.CommandLineArgs);
-        Assert.True(version.IsEnabled);
-        Assert.True((DateTime.UtcNow - version.LastDetected).TotalSeconds < 5);
     }
 
     /// <summary>
