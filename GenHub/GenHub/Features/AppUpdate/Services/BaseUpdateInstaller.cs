@@ -1,44 +1,30 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.AppUpdate;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.GitHub;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.AppUpdate.Services;
 
 /// <summary>
-/// Abstract base class for platform-specific update installers.
+/// Abstract base class for platform-specific update installers implementing the Platform Adaptation pattern.
+/// Orchestrates the download and installation process using the centralized download service.
 /// </summary>
-public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger) : IUpdateInstaller, IDisposable
+public abstract class BaseUpdateInstaller(
+    IDownloadService downloadService,
+    ILogger logger) : IUpdateInstaller, IDisposable
 {
-    /// <summary>
-    /// The HTTP client used for downloading updates.
-    /// </summary>
-    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-
-    /// <summary>
-    /// The logger instance for this installer.
-    /// </summary>
+    private readonly IDownloadService _downloadService = downloadService ?? throw new ArgumentNullException(nameof(downloadService));
     private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     private bool _disposed;
-
-    /// <summary>
-    /// Disposes the resources used by this installer.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
 
     /// <inheritdoc/>
     public async Task<bool> DownloadAndInstallAsync(
@@ -55,18 +41,14 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         {
             _logger.LogInformation("Starting update download from: {DownloadUrl}", downloadUrl);
 
-            progress?.Report(new UpdateProgress
-            {
-                Status = "Preparing download...",
-                PercentComplete = 0,
-            });
+            ReportProgress(progress, "Preparing download...", 0);
 
             var tempDir = Path.Combine(Path.GetTempPath(), "GenHubUpdate", Guid.NewGuid().ToString());
             Directory.CreateDirectory(tempDir);
 
             try
             {
-                var downloadPath = await DownloadFileAsync(downloadUrl, tempDir, progress, cancellationToken);
+                var downloadPath = await DownloadUpdateFileAsync(downloadUrl, tempDir, progress, cancellationToken);
                 if (string.IsNullOrEmpty(downloadPath) || !File.Exists(downloadPath))
                 {
                     _logger.LogError("Download failed or file not found: {DownloadPath}", downloadPath);
@@ -83,12 +65,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         catch (Exception ex)
         {
             _logger.LogError(ex, "Update installation failed");
-            progress?.Report(new UpdateProgress
-            {
-                Status = $"Installation failed: {ex.Message}",
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
+            ReportProgress(progress, $"Installation failed: {ex.Message}", 0, true, ex.Message);
             return false;
         }
     }
@@ -102,7 +79,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         }
 
         var assetList = assets.ToList();
-        if (!assetList.Any())
+        if (assetList.Count == 0)
         {
             return null;
         }
@@ -129,6 +106,15 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Disposes the resources used by this installer.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -182,25 +168,6 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
     }
 
     /// <summary>
-    /// Formats a byte count into a human-readable string.
-    /// </summary>
-    /// <param name="bytes">The number of bytes.</param>
-    /// <returns>A formatted string representation of the byte count.</returns>
-    protected static string FormatBytes(long bytes)
-    {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-        double len = bytes;
-        int order = 0;
-        while (len >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            len /= 1024;
-        }
-
-        return $"{len:0.##} {sizes[order]}";
-    }
-
-    /// <summary>
     /// Disposes the resources used by this installer.
     /// </summary>
     /// <param name="disposing">True if disposing managed resources.</param>
@@ -208,19 +175,21 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
     {
         if (!_disposed && disposing)
         {
-            _httpClient?.Dispose();
+            // DownloadService is injected via DI, don't dispose it here
             _disposed = true;
         }
     }
 
     /// <summary>
     /// Gets platform-specific asset name patterns for download selection.
+    /// Must be implemented by platform-specific installers.
     /// </summary>
     /// <returns>List of patterns to match asset names.</returns>
     protected abstract List<string> GetPlatformAssetPatterns();
 
     /// <summary>
     /// Creates and launches a platform-specific external updater.
+    /// Must be implemented by platform-specific installers.
     /// </summary>
     /// <param name="sourceDirectory">Directory containing the new files.</param>
     /// <param name="targetDirectory">Target application directory.</param>
@@ -232,49 +201,6 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         string targetDirectory,
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Installs the downloaded update file.
-    /// </summary>
-    /// <param name="updateFilePath">Path to the update file.</param>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if installation was successful.</returns>
-    protected virtual async Task<bool> InstallUpdateAsync(
-        string updateFilePath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        progress?.Report(new UpdateProgress
-        {
-            Status = "Preparing installation...",
-            PercentComplete = 90,
-        });
-
-        var fileExtension = Path.GetExtension(updateFilePath).ToLowerInvariant();
-
-        try
-        {
-            return fileExtension switch
-            {
-                ".exe" => await InstallExecutableAsync(updateFilePath, progress, cancellationToken),
-                ".msi" => await InstallMsiAsync(updateFilePath, progress, cancellationToken),
-                ".zip" => await InstallZipAsync(updateFilePath, progress, cancellationToken),
-                _ => await HandleUnsupportedFormat(updateFilePath, progress, cancellationToken),
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Installation failed for file: {UpdateFilePath}", updateFilePath);
-            progress?.Report(new UpdateProgress
-            {
-                Status = $"Installation failed: {ex.Message}",
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
-            return false;
-        }
-    }
 
     /// <summary>
     /// Handles installation of executable files. Override for platform-specific behavior.
@@ -289,111 +215,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         CancellationToken cancellationToken)
     {
         _logger.LogWarning("Executable installation not implemented for this platform: {ExePath}", exePath);
-        return Task.FromResult(false);
-    }
-
-    /// <summary>
-    /// Handles installation of MSI files. Override for platform-specific behavior.
-    /// </summary>
-    /// <param name="msiPath">Path to the MSI file.</param>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if installation was successful.</returns>
-    protected virtual Task<bool> InstallMsiAsync(
-        string msiPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        _logger.LogWarning("MSI installation not supported on this platform: {MsiPath}", msiPath);
-        return Task.FromResult(false);
-    }
-
-    /// <summary>
-    /// Handles installation of ZIP files using external updater.
-    /// </summary>
-    /// <param name="zipPath">Path to the ZIP file.</param>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if installation was successful.</returns>
-    protected virtual async Task<bool> InstallZipAsync(
-        string zipPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        progress?.Report(new UpdateProgress
-        {
-            Status = "Preparing ZIP update...",
-            PercentComplete = 95,
-        });
-
-        try
-        {
-            var appDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-            var stagingDirectory = Path.Combine(Path.GetTempPath(), "GenHubStaging", Guid.NewGuid().ToString());
-            Directory.CreateDirectory(stagingDirectory);
-
-            try
-            {
-                await ExtractZipFileAsync(zipPath, stagingDirectory, progress, cancellationToken);
-                var sourceRoot = FindApplicationSourceDirectory(stagingDirectory);
-
-                if (!ValidateUpdateFiles(sourceRoot))
-                {
-                    return false;
-                }
-
-                var success = await CreateAndLaunchExternalUpdaterAsync(sourceRoot, appDirectory, progress, cancellationToken);
-
-                if (success)
-                {
-                    progress?.Report(new UpdateProgress
-                    {
-                        Status = "Application will restart to complete installation.",
-                        PercentComplete = 100,
-                        IsCompleted = true,
-                    });
-                }
-
-                return success;
-            }
-            finally
-            {
-                // External updater will clean up staging directory
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "ZIP update preparation failed");
-            progress?.Report(new UpdateProgress
-            {
-                Status = $"Update preparation failed: {ex.Message}",
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Handles unsupported file formats.
-    /// </summary>
-    /// <param name="filePath">Path to the unsupported file.</param>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if installation was successful.</returns>
-    protected virtual Task<bool> HandleUnsupportedFormat(
-        string filePath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        _logger.LogWarning("Unsupported update file format: {Extension}", Path.GetExtension(filePath));
-        progress?.Report(new UpdateProgress
-        {
-            Status = "Unsupported update file format",
-            HasError = true,
-            ErrorMessage = "The update file format is not supported on this platform.",
-        });
+        ReportProgress(progress, "Executable installation not supported on this platform", 0, true, "Platform not supported");
         return Task.FromResult(false);
     }
 
@@ -422,6 +244,221 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// Handles installation of MSI files. Override for platform-specific behavior.
+    /// </summary>
+    /// <param name="msiPath">Path to the MSI file.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if installation was successful.</returns>
+    protected virtual Task<bool> InstallMsiAsync(
+        string msiPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogWarning("MSI installation not supported on this platform: {MsiPath}", msiPath);
+        ReportProgress(progress, "MSI installation not supported on this platform", 0, true, "Platform not supported");
+        return Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// Handles installation of ZIP files using external updater.
+    /// </summary>
+    /// <param name="zipPath">Path to the ZIP file.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if installation was successful.</returns>
+    protected virtual async Task<bool> InstallZipAsync(
+        string zipPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ReportProgress(progress, "Preparing ZIP update...", 95);
+
+        try
+        {
+            var appDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+            var stagingDirectory = Path.Combine(Path.GetTempPath(), "GenHubStaging", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(stagingDirectory);
+
+            try
+            {
+                await ExtractZipFileAsync(zipPath, stagingDirectory, progress, cancellationToken);
+                var sourceRoot = FindApplicationSourceDirectory(stagingDirectory);
+
+                if (!ValidateUpdateFiles(sourceRoot))
+                {
+                    ReportProgress(progress, "No valid update files found in archive", 0, true, "Invalid update package");
+                    return false;
+                }
+
+                var success = await CreateAndLaunchExternalUpdaterAsync(sourceRoot, appDirectory, progress, cancellationToken);
+
+                if (success)
+                {
+                    ReportProgress(progress, "Application will restart to complete installation.", 100, false);
+                }
+
+                return success;
+            }
+            finally
+            {
+                // External updater will clean up staging directory
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ZIP update preparation failed");
+            ReportProgress(progress, $"Update preparation failed: {ex.Message}", 0, true, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Handles unsupported file formats.
+    /// </summary>
+    /// <param name="filePath">Path to the unsupported file.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if installation was successful.</returns>
+    protected virtual Task<bool> HandleUnsupportedFormat(
+        string filePath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogWarning("Unsupported update file format: {Extension}", Path.GetExtension(filePath));
+        ReportProgress(progress, "Unsupported update file format", 0, true, "The update file format is not supported on this platform.");
+        return Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// Reports progress with standardized format.
+    /// </summary>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="status">Status message.</param>
+    /// <param name="percentComplete">Completion percentage.</param>
+    /// <param name="hasError">Whether there's an error.</param>
+    /// <param name="errorMessage">Error message if any.</param>
+    private static void ReportProgress(
+        IProgress<UpdateProgress>? progress,
+        string status,
+        int percentComplete,
+        bool hasError = false,
+        string? errorMessage = null)
+    {
+        progress?.Report(new UpdateProgress
+        {
+            Status = status,
+            PercentComplete = percentComplete,
+            HasError = hasError,
+            ErrorMessage = errorMessage,
+            IsCompleted = percentComplete >= 100 && !hasError,
+        });
+    }
+
+    /// <summary>
+    /// Downloads the update file using the centralized download service.
+    /// </summary>
+    /// <param name="downloadUrl">The URL to download from.</param>
+    /// <param name="destinationDir">The destination directory.</param>
+    /// <param name="progress">Progress reporter for update progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The path to the downloaded file.</returns>
+    private async Task<string> DownloadUpdateFileAsync(
+        string downloadUrl,
+        string destinationDir,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var fileName = GetFileNameFromUrl(downloadUrl) ?? $"GenHubUpdate_{DateTime.Now:yyyyMMdd_HHmmss}.exe";
+        var filePath = Path.Combine(destinationDir, fileName);
+
+        // Create progress adapter to convert DownloadProgress to UpdateProgress
+        var downloadProgress = progress != null ? new Progress<DownloadProgress>(dp =>
+        {
+            progress.Report(new UpdateProgress
+            {
+                Status = $"Downloading... {dp.FormattedProgress} ({dp.FormattedSpeed})",
+                PercentComplete = (int)dp.Percentage,
+                BytesDownloaded = dp.BytesReceived,
+                TotalBytes = dp.TotalBytes,
+                BytesPerSecond = dp.BytesPerSecond,
+            });
+        }) : null;
+
+        // Use the centralized download service
+        var downloadConfig = new DownloadConfiguration
+        {
+            Url = downloadUrl,
+            DestinationPath = filePath,
+            MaxRetryAttempts = 3,
+            Timeout = TimeSpan.FromMinutes(30), // Allow long downloads for large updates
+        };
+
+        var result = await _downloadService.DownloadFileAsync(
+            downloadConfig,
+            progress: downloadProgress,
+            cancellationToken: cancellationToken);
+
+        if (!result.Success)
+        {
+            _logger.LogError("Download failed: {Error}", result.ErrorMessage);
+            throw new InvalidOperationException($"Download failed: {result.ErrorMessage}");
+        }
+
+        _logger.LogInformation(
+            "Download completed: {FilePath} ({FormattedSize}) in {ElapsedSeconds}s at {FormattedSpeed}",
+            result.FilePath,
+            result.FormattedBytesDownloaded,
+            result.ElapsedSeconds,
+            result.FormattedSpeed);
+
+        return result.FilePath!;
+    }
+
+    /// <summary>
+    /// Installs the downloaded update file based on its type.
+    /// </summary>
+    /// <param name="updateFilePath">Path to the update file.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if installation was successful.</returns>
+    private async Task<bool> InstallUpdateAsync(
+        string updateFilePath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ReportProgress(progress, "Preparing installation...", 90);
+
+        var fileExtension = Path.GetExtension(updateFilePath).ToLowerInvariant();
+
+        try
+        {
+            return fileExtension switch
+            {
+                ".exe" => await InstallExecutableAsync(updateFilePath, progress, cancellationToken),
+                ".msi" => await InstallMsiAsync(updateFilePath, progress, cancellationToken),
+                ".zip" => await InstallZipAsync(updateFilePath, progress, cancellationToken),
+                _ => await HandleUnsupportedFormat(updateFilePath, progress, cancellationToken),
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Installation failed for file: {UpdateFilePath}", updateFilePath);
+            ReportProgress(progress, $"Installation failed: {ex.Message}", 0, true, ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Extracts ZIP file contents to staging directory.
+    /// </summary>
+    /// <param name="zipPath">Path to ZIP file.</param>
+    /// <param name="stagingDirectory">Destination directory.</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Completed task.</returns>
     private Task ExtractZipFileAsync(
         string zipPath,
         string stagingDirectory,
@@ -429,7 +466,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         CancellationToken cancellationToken)
     {
         return Task.Run(
-        () =>
+            () =>
         {
             using var archive = ZipFile.OpenRead(zipPath);
             var totalEntries = archive.Entries.Count;
@@ -444,21 +481,27 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
                 if (!string.IsNullOrEmpty(entry.Name))
                 {
                     var destinationPath = Path.Combine(stagingDirectory, entry.FullName);
-                    Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+                    var directoryPath = Path.GetDirectoryName(destinationPath);
+                    if (directoryPath != null)
+                    {
+                        Directory.CreateDirectory(directoryPath);
+                    }
+
                     entry.ExtractToFile(destinationPath, true);
                 }
 
                 processedEntries++;
-                var extractProgress = (double)processedEntries / totalEntries * 30;
-                progress?.Report(new UpdateProgress
-                {
-                    Status = $"Extracting files... {processedEntries}/{totalEntries}",
-                    PercentComplete = (int)(95 + (extractProgress * 0.05)),
-                });
+                var extractProgress = (double)processedEntries / totalEntries * 5; // 5% of overall progress
+                ReportProgress(progress, $"Extracting files... {processedEntries}/{totalEntries}", (int)(95 + extractProgress));
             }
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Finds the application source directory within extracted files.
+    /// </summary>
+    /// <param name="stagingDirectory">The staging directory to search.</param>
+    /// <returns>Path to the application source directory.</returns>
     private string FindApplicationSourceDirectory(string stagingDirectory)
     {
         var allExtractedFiles = Directory.GetFiles(stagingDirectory, "*", SearchOption.AllDirectories);
@@ -467,7 +510,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
             Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (executableFiles.Any())
+        if (executableFiles.Count != 0)
         {
             var executableDirs = executableFiles.Select(f => Path.GetDirectoryName(f)!).Distinct().ToList();
             var appSourceDir = executableDirs
@@ -482,6 +525,11 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         return stagingDirectory;
     }
 
+    /// <summary>
+    /// Validates that update files are present and valid.
+    /// </summary>
+    /// <param name="sourceRoot">Root directory to validate.</param>
+    /// <returns>True if valid update files are found.</returns>
     private bool ValidateUpdateFiles(string sourceRoot)
     {
         var filesToUpdate = Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories)
@@ -490,7 +538,7 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
 
         _logger.LogInformation("Found {FileCount} files to update from source: {SourceRoot}", filesToUpdate.Count, sourceRoot);
 
-        if (!filesToUpdate.Any())
+        if (filesToUpdate.Count == 0)
         {
             _logger.LogWarning("No files found to update in the package");
             return false;
@@ -499,56 +547,10 @@ public abstract class BaseUpdateInstaller(HttpClient httpClient, ILogger logger)
         return true;
     }
 
-    private async Task<string> DownloadFileAsync(
-        string downloadUrl,
-        string destinationDir,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        var fileName = GetFileNameFromUrl(downloadUrl) ?? $"GenHubUpdate_{DateTime.Now:yyyyMMdd_HHmmss}.exe";
-        var filePath = Path.Combine(destinationDir, fileName);
-
-        using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? 0;
-        var downloadedBytes = 0L;
-        var buffer = new byte[81920];
-        var stopwatch = Stopwatch.StartNew();
-
-        using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, buffer.Length, true);
-
-        int bytesRead;
-        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
-        {
-            await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
-            downloadedBytes += bytesRead;
-
-            if (stopwatch.ElapsedMilliseconds > 100 || downloadedBytes == totalBytes)
-            {
-                var percentComplete = totalBytes > 0 ? (double)downloadedBytes / totalBytes * 100 : 0;
-                var bytesPerSecond = stopwatch.ElapsedMilliseconds > 0
-                    ? (long)(downloadedBytes / (stopwatch.ElapsedMilliseconds / 1000.0))
-                    : 0;
-
-                progress?.Report(new UpdateProgress
-                {
-                    Status = $"Downloading... {FormatBytes(downloadedBytes)} / {FormatBytes(totalBytes)}",
-                    PercentComplete = (int)percentComplete,
-                    BytesDownloaded = downloadedBytes,
-                    TotalBytes = totalBytes,
-                    BytesPerSecond = bytesPerSecond,
-                });
-
-                stopwatch.Restart();
-            }
-        }
-
-        _logger.LogInformation("Download completed: {FilePath}", filePath);
-        return filePath;
-    }
-
+    /// <summary>
+    /// Cleans up temporary directory.
+    /// </summary>
+    /// <param name="directory">Directory to clean up.</param>
     private void CleanupDirectory(string directory)
     {
         try

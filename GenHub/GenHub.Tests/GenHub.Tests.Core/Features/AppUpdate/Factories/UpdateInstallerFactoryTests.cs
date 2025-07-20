@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Interfaces.AppUpdate;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Factories;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +24,7 @@ public class UpdateInstallerFactoryTests : IDisposable
 {
     private readonly ServiceCollection _services;
     private readonly Mock<ILogger<UpdateInstallerFactory>> _mockLogger;
-    private readonly HttpClient _httpClient;
+    private readonly Mock<IDownloadService> _mockDownloadService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateInstallerFactoryTests"/> class.
@@ -31,7 +33,14 @@ public class UpdateInstallerFactoryTests : IDisposable
     {
         _services = new ServiceCollection();
         _mockLogger = new Mock<ILogger<UpdateInstallerFactory>>();
-        _httpClient = new HttpClient();
+        _mockDownloadService = new Mock<IDownloadService>();
+
+        // Setup mock download service with successful download
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateSuccess("test-path", 1024, TimeSpan.FromSeconds(1)));
     }
 
     /// <summary>
@@ -84,7 +93,7 @@ public class UpdateInstallerFactoryTests : IDisposable
         var testLogger = loggerFactory.CreateLogger<TestPlatformUpdateInstaller>();
 
         _services.AddSingleton<IPlatformUpdateInstaller>(
-            new TestPlatformUpdateInstaller(_httpClient, testLogger));
+            new TestPlatformUpdateInstaller(_mockDownloadService.Object, testLogger));
         var serviceProvider = _services.BuildServiceProvider();
         var factory = new UpdateInstallerFactory(serviceProvider, _mockLogger.Object);
 
@@ -119,25 +128,17 @@ public class UpdateInstallerFactoryTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        _httpClient?.Dispose();
         GC.SuppressFinalize(this);
     }
 
     /// <summary>
     /// Test implementation of IPlatformUpdateInstaller for testing purposes.
     /// </summary>
-    public class TestPlatformUpdateInstaller : BaseUpdateInstaller, IPlatformUpdateInstaller
+    public class TestPlatformUpdateInstaller(
+        IDownloadService downloadService,
+        ILogger<TestPlatformUpdateInstaller> logger)
+        : BaseUpdateInstaller(downloadService, logger), IPlatformUpdateInstaller
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TestPlatformUpdateInstaller"/> class.
-        /// </summary>
-        /// <param name="httpClient">The HTTP client.</param>
-        /// <param name="logger">The logger.</param>
-        public TestPlatformUpdateInstaller(HttpClient httpClient, ILogger<TestPlatformUpdateInstaller> logger)
-            : base(httpClient, logger)
-        {
-        }
-
         /// <inheritdoc/>
         protected override List<string> GetPlatformAssetPatterns()
         {

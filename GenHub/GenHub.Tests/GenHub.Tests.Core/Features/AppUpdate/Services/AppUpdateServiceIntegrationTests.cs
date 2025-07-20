@@ -1,14 +1,23 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Interfaces.AppUpdate;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Factories;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Moq.Protected;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -17,47 +26,31 @@ namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 /// </summary>
 public class AppUpdateServiceIntegrationTests : IDisposable
 {
-    private readonly Mock<ILogger<AppUpdateService>> mockAppUpdateLogger;
-    private readonly Mock<ILogger<AppVersionService>> mockVersionLogger;
-    private readonly Mock<ILogger<SemVerComparator>> mockComparatorLogger;
-    private readonly Mock<ILogger<UpdateInstallerFactory>> mockFactoryLogger;
-    private readonly Mock<IGitHubApiClient> mockGitHubApiClient;
-    private readonly HttpClient httpClient;
-    private readonly ServiceCollection services;
+    private readonly Mock<ILogger<AppUpdateService>> _mockAppUpdateLogger;
+    private readonly Mock<ILogger<AppVersionService>> _mockVersionLogger;
+    private readonly Mock<ILogger<SemVerComparator>> _mockComparatorLogger;
+    private readonly Mock<ILogger<UpdateInstallerFactory>> _mockFactoryLogger;
+    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
+    private readonly Mock<IDownloadService> _mockDownloadService;
+    private readonly ServiceCollection _services;
+    private readonly string _testDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AppUpdateServiceIntegrationTests"/> class.
     /// </summary>
     public AppUpdateServiceIntegrationTests()
     {
-        this.mockAppUpdateLogger = new Mock<ILogger<AppUpdateService>>();
-        this.mockVersionLogger = new Mock<ILogger<AppVersionService>>();
-        this.mockComparatorLogger = new Mock<ILogger<SemVerComparator>>();
-        this.mockFactoryLogger = new Mock<ILogger<UpdateInstallerFactory>>();
-        this.mockGitHubApiClient = new Mock<IGitHubApiClient>();
+        _mockAppUpdateLogger = new Mock<ILogger<AppUpdateService>>();
+        _mockVersionLogger = new Mock<ILogger<AppVersionService>>();
+        _mockComparatorLogger = new Mock<ILogger<SemVerComparator>>();
+        _mockFactoryLogger = new Mock<ILogger<UpdateInstallerFactory>>();
+        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
+        _mockDownloadService = new Mock<IDownloadService>();
+        _services = new ServiceCollection();
+        _testDirectory = Path.Combine(Path.GetTempPath(), "GenHubIntegrationTests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_testDirectory);
 
-        var mockHttpHandler = new Mock<HttpMessageHandler>();
-        mockHttpHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = System.Net.HttpStatusCode.OK,
-                Content = new StringContent("test content"),
-            });
-
-        // Setup Dispose method to avoid strict mock failures
-        mockHttpHandler
-            .Protected()
-            .Setup("Dispose", ItExpr.IsAny<bool>());
-
-        this.httpClient = new HttpClient(mockHttpHandler.Object);
-
-        this.services = new ServiceCollection();
-        this.SetupServices();
+        SetupServices();
     }
 
     /// <summary>
@@ -68,41 +61,37 @@ public class AppUpdateServiceIntegrationTests : IDisposable
     public async Task FullUpdateFlow_WithValidRelease_ShouldCompleteSuccessfully()
     {
         // Arrange
-        var serviceProvider = this.services.BuildServiceProvider();
-
-        // Mock the version service to return a predictable lower version
+        var serviceProvider = _services.BuildServiceProvider();
         var mockVersionService = new Mock<IAppVersionService>();
         mockVersionService.Setup(x => x.GetCurrentVersion()).Returns("1.0.0");
-
-        var versionComparator = new SemVerComparator(this.mockComparatorLogger.Object);
+        var versionComparator = new SemVerComparator(_mockComparatorLogger.Object);
         var installerFactory = serviceProvider.GetRequiredService<UpdateInstallerFactory>();
         var installer = installerFactory.CreateInstaller();
         var updateService = new AppUpdateService(
-            this.mockGitHubApiClient.Object,
+            _mockGitHubApiClient.Object,
             mockVersionService.Object,
             versionComparator,
-            this.mockAppUpdateLogger.Object);
+            _mockAppUpdateLogger.Object);
 
-        // Create mock GitHub release
         var mockRelease = new GitHubRelease
         {
             TagName = "v2.0.0",
             HtmlUrl = "https://github.com/test/repo/releases/tag/v2.0.0",
             Name = "Version 2.0.0",
             Body = "New features and bug fixes",
-            Assets = new List<GitHubReleaseAsset>
+            Assets =
+            [
+                new ()
                 {
-                    new ()
-                    {
-                        Name = "app-windows.zip",
-                        BrowserDownloadUrl = "https://github.com/test/repo/releases/download/v2.0.0/app.zip",
-                        Size = 1024,
-                        ContentType = "application/zip",
-                    },
+                    Name = "app-windows.zip",
+                    BrowserDownloadUrl = "https://github.com/test/repo/releases/download/v2.0.0/app.zip",
+                    Size = 1024,
+                    ContentType = "application/zip",
                 },
+            ],
         };
 
-        this.mockGitHubApiClient.Setup(x => x.GetLatestReleaseAsync("test", "repo", It.IsAny<CancellationToken>()))
+        _mockGitHubApiClient.Setup(x => x.GetLatestReleaseAsync("test", "repo", It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockRelease);
 
         // Act
@@ -115,8 +104,6 @@ public class AppUpdateServiceIntegrationTests : IDisposable
         result.CurrentVersion.Should().Be("1.0.0");
         result.HasErrors.Should().BeFalse();
         result.Assets.Should().HaveCount(1);
-
-        // Verify installer was created successfully
         installer.Should().NotBeNull();
         installer.Should().BeOfType<TestPlatformUpdateInstaller>();
     }
@@ -128,19 +115,17 @@ public class AppUpdateServiceIntegrationTests : IDisposable
     public void ServiceComposition_ShouldWorkCorrectly()
     {
         // Arrange & Act
-        var serviceProvider = this.services.BuildServiceProvider();
-
+        var serviceProvider = _services.BuildServiceProvider();
         var mockVersionService = new Mock<IAppVersionService>();
         mockVersionService.Setup(x => x.GetCurrentVersion()).Returns("1.0.0");
-
-        var versionComparator = new SemVerComparator(this.mockComparatorLogger.Object);
+        var versionComparator = new SemVerComparator(_mockComparatorLogger.Object);
         var installerFactory = serviceProvider.GetRequiredService<UpdateInstallerFactory>();
         var installer = installerFactory.CreateInstaller();
         var updateService = new AppUpdateService(
-            this.mockGitHubApiClient.Object,
+            _mockGitHubApiClient.Object,
             mockVersionService.Object,
             versionComparator,
-            this.mockAppUpdateLogger.Object);
+            _mockAppUpdateLogger.Object);
 
         // Assert
         mockVersionService.Object.Should().NotBeNull();
@@ -148,14 +133,8 @@ public class AppUpdateServiceIntegrationTests : IDisposable
         installer.Should().NotBeNull();
         updateService.Should().NotBeNull();
         installerFactory.Should().NotBeNull();
-
-        // Verify version service works
-        var currentVersion = mockVersionService.Object.GetCurrentVersion();
-        currentVersion.Should().NotBeNullOrEmpty();
-
-        // Verify version comparator works
-        var isNewer = versionComparator.IsNewer("1.0.0", "2.0.0");
-        isNewer.Should().BeTrue();
+        mockVersionService.Object.GetCurrentVersion().Should().NotBeNullOrEmpty();
+        versionComparator.IsNewer("1.0.0", "2.0.0").Should().BeTrue();
     }
 
     /// <summary>
@@ -168,14 +147,14 @@ public class AppUpdateServiceIntegrationTests : IDisposable
         // Arrange
         var mockVersionService = new Mock<IAppVersionService>();
         mockVersionService.Setup(x => x.GetCurrentVersion()).Returns("1.0.0");
-        var versionComparator = new SemVerComparator(this.mockComparatorLogger.Object);
+        var versionComparator = new SemVerComparator(_mockComparatorLogger.Object);
         var updateService = new AppUpdateService(
-            this.mockGitHubApiClient.Object,
+            _mockGitHubApiClient.Object,
             mockVersionService.Object,
             versionComparator,
-            this.mockAppUpdateLogger.Object);
+            _mockAppUpdateLogger.Object);
 
-        this.mockGitHubApiClient.Setup(x => x.GetLatestReleaseAsync("test", "repo", It.IsAny<CancellationToken>()))
+        _mockGitHubApiClient.Setup(x => x.GetLatestReleaseAsync("test", "repo", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Network error"));
 
         // Act
@@ -195,7 +174,7 @@ public class AppUpdateServiceIntegrationTests : IDisposable
     public void UpdateInstallerFactory_ShouldCreateCorrectInstaller()
     {
         // Arrange
-        var serviceProvider = this.services.BuildServiceProvider();
+        var serviceProvider = _services.BuildServiceProvider();
         var factory = serviceProvider.GetRequiredService<UpdateInstallerFactory>();
 
         // Act
@@ -208,45 +187,73 @@ public class AppUpdateServiceIntegrationTests : IDisposable
     }
 
     /// <summary>
-    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    /// Tests that installer can handle download progress reporting.
     /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task Installer_ShouldHandleDownloadProgressReporting()
+    {
+        // Arrange
+        var serviceProvider = _services.BuildServiceProvider();
+        var factory = serviceProvider.GetRequiredService<UpdateInstallerFactory>();
+        var installer = factory.CreateInstaller();
+        var progressReports = new List<UpdateProgress>();
+        var progress = new Progress<UpdateProgress>(p => progressReports.Add(p));
+
+        // Create a real temporary file for the File.Exists check to pass.
+        var fakeDownloadPath = Path.Combine(_testDirectory, "update.zip");
+        using (var fs = new FileStream(fakeDownloadPath, System.IO.FileMode.Create))
+        using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
+        {
+            archive.CreateEntry("test.txt"); // Add a file to make it a valid archive
+        }
+
+        // Update the mock to return the path to the real temporary file.
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateSuccess(fakeDownloadPath, 1024, TimeSpan.FromSeconds(1)));
+
+        // Act
+        var result = await installer.DownloadAndInstallAsync("https://test.com/update.zip", progress);
+
+        // Assert
+        result.Should().BeTrue();
+        progressReports.Should().NotBeEmpty();
+    }
+
+    /// <inheritdoc/>
     public void Dispose()
     {
-        this.httpClient?.Dispose();
-        this.services?.Clear();
+        _services?.Clear();
+        if (Directory.Exists(_testDirectory))
+        {
+            Directory.Delete(_testDirectory, true);
+        }
+
         GC.SuppressFinalize(this);
     }
 
     private void SetupServices()
     {
-        // Register required services for factory pattern
-        this.services.AddSingleton(this.mockFactoryLogger.Object);
-        this.services.AddSingleton<UpdateInstallerFactory>();
-
-        // Register a mock platform installer for testing - avoid disposal issues
-        this.services.AddSingleton<IPlatformUpdateInstaller>(serviceProvider =>
+        _services.AddSingleton(_mockFactoryLogger.Object);
+        _services.AddSingleton<UpdateInstallerFactory>();
+        _services.AddSingleton<IPlatformUpdateInstaller>(serviceProvider =>
         {
-            // Use a simple mock logger instead of LoggerFactory to avoid disposal
             var mockTestLogger = new Mock<ILogger<TestPlatformUpdateInstaller>>();
-            return new TestPlatformUpdateInstaller(this.httpClient, mockTestLogger.Object);
+            return new TestPlatformUpdateInstaller(_mockDownloadService.Object, mockTestLogger.Object);
         });
     }
 
     /// <summary>
     /// Test implementation of IPlatformUpdateInstaller for testing purposes.
     /// </summary>
-    public class TestPlatformUpdateInstaller : BaseUpdateInstaller, IPlatformUpdateInstaller
+    public class TestPlatformUpdateInstaller(
+        IDownloadService downloadService,
+        ILogger<TestPlatformUpdateInstaller> logger)
+        : BaseUpdateInstaller(downloadService, logger), IPlatformUpdateInstaller
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TestPlatformUpdateInstaller"/> class.
-        /// </summary>
-        /// <param name="httpClient">The HTTP client.</param>
-        /// <param name="logger">The logger.</param>
-        public TestPlatformUpdateInstaller(HttpClient httpClient, ILogger<TestPlatformUpdateInstaller> logger)
-            : base(httpClient, logger)
-        {
-        }
-
         /// <inheritdoc/>
         protected override List<string> GetPlatformAssetPatterns()
         {
@@ -260,7 +267,6 @@ public class AppUpdateServiceIntegrationTests : IDisposable
             IProgress<UpdateProgress>? progress,
             CancellationToken cancellationToken)
         {
-            // Mock implementation for testing - DON'T create actual scripts/processes
             progress?.Report(new UpdateProgress
             {
                 Status = "Application will restart to complete installation.",
@@ -271,13 +277,12 @@ public class AppUpdateServiceIntegrationTests : IDisposable
         }
 
         /// <summary>
-        /// Override to prevent actual application shutdown during tests.
+        /// Schedules application shutdown after update installation.
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>Always returns true for testing.</returns>
+        /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         protected new Task<bool> ScheduleApplicationShutdownAsync(CancellationToken cancellationToken)
         {
-            // Do nothing in tests - don't actually try to shutdown or create batch files
             return Task.FromResult(true);
         }
     }

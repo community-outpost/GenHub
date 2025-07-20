@@ -1,12 +1,19 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.IO.Compression;
-using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Moq.Protected;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -15,22 +22,19 @@ namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 /// </summary>
 public class UpdateInstallerTests : IDisposable
 {
-    private readonly Mock<ILogger<TestUpdateInstaller>> mockLogger;
-    private readonly Mock<HttpMessageHandler> mockHttpHandler;
-    private readonly HttpClient httpClient;
-    private readonly string tempDirectory;
+    private readonly Mock<ILogger<TestUpdateInstaller>> _mockLogger;
+    private readonly Mock<IDownloadService> _mockDownloadService;
+    private readonly string _tempDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateInstallerTests"/> class.
     /// </summary>
     public UpdateInstallerTests()
     {
-        this.mockLogger = new Mock<ILogger<TestUpdateInstaller>>();
-        this.mockHttpHandler = new Mock<HttpMessageHandler>();
-        this.mockHttpHandler.Protected().Setup("Dispose", ItExpr.IsAny<bool>());
-        this.httpClient = new HttpClient(this.mockHttpHandler.Object);
-        this.tempDirectory = Path.Combine(Path.GetTempPath(), "UpdateInstallerTests", Guid.NewGuid().ToString());
-        Directory.CreateDirectory(this.tempDirectory);
+        _mockLogger = new Mock<ILogger<TestUpdateInstaller>>();
+        _mockDownloadService = new Mock<IDownloadService>();
+        _tempDirectory = Path.Combine(Path.GetTempPath(), "UpdateInstallerTests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_tempDirectory);
     }
 
     /// <summary>
@@ -40,19 +44,19 @@ public class UpdateInstallerTests : IDisposable
     public void Constructor_WithValidParameters_ShouldNotThrow()
     {
         // Act & Assert
-        var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
         installer.Should().NotBeNull();
     }
 
     /// <summary>
-    /// Tests that constructor with null HTTP client should throw ArgumentNullException.
+    /// Tests that constructor with null download service should throw ArgumentNullException.
     /// </summary>
     [Fact]
-    public void Constructor_WithNullHttpClient_ShouldThrowArgumentNullException()
+    public void Constructor_WithNullDownloadService_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        var act = () => new TestUpdateInstaller(null!, this.mockLogger.Object);
-        act.Should().Throw<ArgumentNullException>().WithParameterName("httpClient");
+        var act = () => new TestUpdateInstaller(null!, _mockLogger.Object);
+        act.Should().Throw<ArgumentNullException>().WithParameterName("downloadService");
     }
 
     /// <summary>
@@ -62,7 +66,7 @@ public class UpdateInstallerTests : IDisposable
     public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        var act = () => new TestUpdateInstaller(this.httpClient, null!);
+        var act = () => new TestUpdateInstaller(_mockDownloadService.Object, null!);
         act.Should().Throw<ArgumentNullException>().WithParameterName("logger");
     }
 
@@ -78,7 +82,7 @@ public class UpdateInstallerTests : IDisposable
     public async Task DownloadAndInstallAsync_WithInvalidUrl_ShouldThrowArgumentException(string? url)
     {
         // Arrange
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act & Assert
         var act = () => installer.DownloadAndInstallAsync(url!);
@@ -93,12 +97,17 @@ public class UpdateInstallerTests : IDisposable
     public async Task DownloadAndInstallAsync_WithValidZipUrl_ShouldDownloadAndCreateUpdater()
     {
         // Arrange
-        var zipContent = this.CreateTestZipFile();
         var url = "https://github.com/test/repo/releases/download/v1.0.0/test.zip";
+        var testFilePath = Path.Combine(_tempDirectory, "test.zip");
+        CreateTestZipFile(testFilePath);
 
-        this.SetupHttpResponse(HttpStatusCode.OK, zipContent, "application/zip");
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateSuccess(testFilePath, 1024, TimeSpan.FromSeconds(1)));
 
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
         var progressReports = new List<UpdateProgress>();
         var progress = new Progress<UpdateProgress>(p => progressReports.Add(p));
 
@@ -109,22 +118,30 @@ public class UpdateInstallerTests : IDisposable
         result.Should().BeTrue();
         progressReports.Should().NotBeEmpty();
         progressReports.Should().Contain(p => p.Status.Contains("Preparing download"));
-        progressReports.Should().Contain(p => p.Status.Contains("Downloading"));
         progressReports.Should().Contain(p => p.Status.Contains("Application will restart"));
+        _mockDownloadService.Verify(
+            x => x.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
-    /// Tests that DownloadAndInstallAsync with HTTP error should return false.
+    /// Tests that DownloadAndInstallAsync with download error should return false.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DownloadAndInstallAsync_WithHttpError_ShouldReturnFalse()
+    public async Task DownloadAndInstallAsync_WithDownloadError_ShouldReturnFalse()
     {
         // Arrange
         var url = "https://github.com/test/repo/releases/download/v1.0.0/test.zip";
-        this.SetupHttpResponse(HttpStatusCode.NotFound, Array.Empty<byte>());
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateFailed("Download failed"));
 
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act
         var result = await installer.DownloadAndInstallAsync(url);
@@ -140,7 +157,7 @@ public class UpdateInstallerTests : IDisposable
     public void GetPlatformDownloadUrl_WithNullAssets_ShouldReturnNull()
     {
         // Arrange
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act
         var result = installer.GetPlatformDownloadUrl(null!);
@@ -156,7 +173,7 @@ public class UpdateInstallerTests : IDisposable
     public void GetPlatformDownloadUrl_WithEmptyAssets_ShouldReturnNull()
     {
         // Arrange
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
         var assets = new List<GitHubReleaseAsset>();
 
         // Act
@@ -173,13 +190,13 @@ public class UpdateInstallerTests : IDisposable
     public void GetPlatformDownloadUrl_WithMatchingAsset_ShouldReturnCorrectUrl()
     {
         // Arrange
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
         var assets = new List<GitHubReleaseAsset>
-            {
-                new () { Name = "app-linux.tar.gz", BrowserDownloadUrl = "https://example.com/linux" },
-                new () { Name = "app-test.zip", BrowserDownloadUrl = "https://example.com/test" },
-                new () { Name = "app-mac.dmg", BrowserDownloadUrl = "https://example.com/mac" },
-            };
+        {
+            new () { Name = "app-linux.tar.gz", BrowserDownloadUrl = "https://example.com/linux" },
+            new () { Name = "app-test.zip", BrowserDownloadUrl = "https://example.com/test" },
+            new () { Name = "app-mac.dmg", BrowserDownloadUrl = "https://example.com/mac" },
+        };
 
         // Act
         var result = installer.GetPlatformDownloadUrl(assets);
@@ -195,12 +212,12 @@ public class UpdateInstallerTests : IDisposable
     public void GetPlatformDownloadUrl_WithNoMatchingAsset_ShouldReturnFirstAsset()
     {
         // Arrange
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
         var assets = new List<GitHubReleaseAsset>
-            {
-                new () { Name = "readme.txt", BrowserDownloadUrl = "https://example.com/readme" },
-                new () { Name = "changelog.md", BrowserDownloadUrl = "https://example.com/changelog" },
-            };
+        {
+            new () { Name = "readme.txt", BrowserDownloadUrl = "https://example.com/readme" },
+            new () { Name = "changelog.md", BrowserDownloadUrl = "https://example.com/changelog" },
+        };
 
         // Act
         var result = installer.GetPlatformDownloadUrl(assets);
@@ -219,29 +236,13 @@ public class UpdateInstallerTests : IDisposable
         // Arrange
         var cts = new CancellationTokenSource();
         var url = "https://github.com/test/repo/releases/download/v1.0.0/test.zip";
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
 
-        // Set up the mock to throw OperationCanceledException when token is cancelled
-        this.mockHttpHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .Returns<HttpRequestMessage, CancellationToken>((request, token) =>
-            {
-                // Create a task that will be cancelled
-                var tcs = new TaskCompletionSource<HttpResponseMessage>();
-
-                // If token is already cancelled, set the task to cancelled immediately
-                if (token.IsCancellationRequested)
-                {
-                    tcs.SetCanceled();
-                    return tcs.Task;
-                }
-
-                // Register callback to cancel when token is cancelled
-                token.Register(() => tcs.TrySetCanceled());
-
-                return tcs.Task;
-            });
-
-        using var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act
         cts.Cancel();
@@ -258,7 +259,7 @@ public class UpdateInstallerTests : IDisposable
     public void Dispose_ShouldNotThrow()
     {
         // Arrange
-        var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act & Assert
         var act = installer.Dispose;
@@ -272,7 +273,7 @@ public class UpdateInstallerTests : IDisposable
     public void Dispose_CalledMultipleTimes_ShouldNotThrow()
     {
         // Arrange
-        var installer = new TestUpdateInstaller(this.httpClient, this.mockLogger.Object);
+        var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
 
         // Act & Assert
         installer.Dispose();
@@ -281,17 +282,49 @@ public class UpdateInstallerTests : IDisposable
     }
 
     /// <summary>
-    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    /// Tests that download progress is properly reported.
     /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DownloadAndInstallAsync_ShouldReportDownloadProgress()
+    {
+        // Arrange
+        var url = "https://github.com/test/repo/releases/download/v1.0.0/test.zip";
+        var testFilePath = Path.Combine(_tempDirectory, "test.zip");
+        CreateTestZipFile(testFilePath);
+
+        _mockDownloadService.Setup(x => x.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>(
+                (config, progress, ct) =>
+                {
+                    progress?.Report(new DownloadProgress(512, 1024, "test.zip", url, 1024, TimeSpan.FromSeconds(0.5)));
+                    progress?.Report(new DownloadProgress(1024, 1024, "test.zip", url, 1024, TimeSpan.FromSeconds(1)));
+                })
+            .ReturnsAsync(DownloadResult.CreateSuccess(testFilePath, 1024, TimeSpan.FromSeconds(1)));
+
+        using var installer = new TestUpdateInstaller(_mockDownloadService.Object, _mockLogger.Object);
+        var progressReports = new List<UpdateProgress>();
+        var progress = new Progress<UpdateProgress>(p => progressReports.Add(p));
+
+        // Act
+        var result = await installer.DownloadAndInstallAsync(url, progress);
+
+        // Assert
+        result.Should().BeTrue();
+        progressReports.Should().Contain(p => p.Status.Contains("Downloading"));
+    }
+
+    /// <inheritdoc/>
     public void Dispose()
     {
-        this.httpClient?.Dispose();
-
-        if (Directory.Exists(this.tempDirectory))
+        if (Directory.Exists(_tempDirectory))
         {
             try
             {
-                Directory.Delete(this.tempDirectory, true);
+                Directory.Delete(_tempDirectory, true);
             }
             catch
             {
@@ -302,74 +335,23 @@ public class UpdateInstallerTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private void SetupHttpResponse(HttpStatusCode statusCode, byte[] content, string? contentType = null)
+    private void CreateTestZipFile(string filePath)
     {
-        var response = new HttpResponseMessage(statusCode)
-        {
-            Content = new ByteArrayContent(content),
-        };
-
-        if (!string.IsNullOrEmpty(contentType))
-        {
-            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        }
-
-        response.Content.Headers.ContentLength = content.Length;
-
-        this.mockHttpHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(response);
-    }
-
-    private byte[] CreateTestZipFile()
-    {
-        using var memoryStream = new MemoryStream();
-        using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
-        {
-            // Create a fake publish directory structure
-            archive.CreateEntry("publish/");
-
-            // Add some test files - properly close each entry's stream
-            var exeEntry = archive.CreateEntry("publish/GenHub.Windows.exe");
-            using (var exeStream = exeEntry.Open())
-            {
-                var exeContent = System.Text.Encoding.UTF8.GetBytes("fake exe content");
-                exeStream.Write(exeContent, 0, exeContent.Length);
-            }
-
-            var dllEntry = archive.CreateEntry("publish/GenHub.dll");
-            using (var dllStream = dllEntry.Open())
-            {
-                var dllContent = System.Text.Encoding.UTF8.GetBytes("fake dll content");
-                dllStream.Write(dllContent, 0, dllContent.Length);
-            }
-
-            var configEntry = archive.CreateEntry("publish/appsettings.json");
-            using (var configStream = configEntry.Open())
-            {
-                var configContent = System.Text.Encoding.UTF8.GetBytes("{}");
-                configStream.Write(configContent, 0, configContent.Length);
-            }
-        }
-
-        return memoryStream.ToArray();
+        using var fileStream = new FileStream(filePath, System.IO.FileMode.Create);
+        using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, true);
+        archive.CreateEntry("publish/GenHub.Windows.exe");
+        archive.CreateEntry("publish/GenHub.dll");
+        archive.CreateEntry("publish/appsettings.json");
     }
 
     /// <summary>
     /// Test implementation of BaseUpdateInstaller for testing purposes.
     /// </summary>
-    public class TestUpdateInstaller : BaseUpdateInstaller
+    public class TestUpdateInstaller(
+        IDownloadService downloadService,
+        ILogger<TestUpdateInstaller> logger)
+        : BaseUpdateInstaller(downloadService, logger)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TestUpdateInstaller"/> class.
-        /// </summary>
-        /// <param name="httpClient">The HTTP client.</param>
-        /// <param name="logger">The logger.</param>
-        public TestUpdateInstaller(HttpClient httpClient, ILogger<TestUpdateInstaller> logger)
-            : base(httpClient, logger)
-        {
-        }
-
         /// <inheritdoc/>
         protected override List<string> GetPlatformAssetPatterns()
         {
@@ -383,7 +365,6 @@ public class UpdateInstallerTests : IDisposable
             IProgress<UpdateProgress>? progress,
             CancellationToken cancellationToken)
         {
-            // Mock implementation for testing - DON'T create actual scripts/processes
             progress?.Report(new UpdateProgress
             {
                 Status = "Application will restart to complete installation.",
@@ -394,13 +375,12 @@ public class UpdateInstallerTests : IDisposable
         }
 
         /// <summary>
-        /// Override to prevent actual application shutdown during tests.
+        /// Schedules application shutdown after update installation.
         /// </summary>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>Always returns true for testing.</returns>
+        /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         protected new Task<bool> ScheduleApplicationShutdownAsync(CancellationToken cancellationToken)
         {
-            // Do nothing in tests - don't actually try to shutdown or create batch files
             return Task.FromResult(true);
         }
     }
