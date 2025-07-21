@@ -20,5 +20,5 @@ public class InstallationInstructions
     /// <summary>
     /// Gets or sets the workspace preparation strategy preference.
     /// </summary>
-    public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceStrategy.HybridSymlink;
+    public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
 }
