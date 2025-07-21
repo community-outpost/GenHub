@@ -29,6 +29,13 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
         var cachedManifest = _manifestCache.GetManifest(gameVersion.Id);
         if (cachedManifest != null)
         {
+            if (cachedManifest.Id != gameVersion.Id)
+            {
+                throw new ManifestValidationException(
+                    gameVersion.Id,
+                    $"Manifest ID mismatch. Expected '{gameVersion.Id}', got '{cachedManifest.Id}'");
+            }
+
             return cachedManifest;
         }
 

@@ -3,17 +3,29 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Xunit;
 
-namespace GenHub.Tests.Features.Manifest;
+namespace GenHub.Tests.Core.Features.Manifest;
 
+/// <summary>
+/// Unit tests for the <see cref="ManifestCache"/> class.
+/// </summary>
 public class ManifestCacheTests
 {
+    /// <summary>
+    /// The manifest cache under test.
+    /// </summary>
     private readonly ManifestCache _cache;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ManifestCacheTests"/> class.
+    /// </summary>
     public ManifestCacheTests()
     {
         _cache = new ManifestCache();
     }
 
+    /// <summary>
+    /// Tests that GetManifest returns null when manifest is not found.
+    /// </summary>
     [Fact]
     public void GetManifest_ReturnsNull_WhenManifestNotFound()
     {
@@ -24,6 +36,9 @@ public class ManifestCacheTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Tests that AddOrUpdateManifest adds a new manifest successfully.
+    /// </summary>
     [Fact]
     public void AddOrUpdateManifest_AddsNewManifest_Successfully()
     {
@@ -40,6 +55,9 @@ public class ManifestCacheTests
         Assert.Equal("Test Manifest", result.Name);
     }
 
+    /// <summary>
+    /// Tests that AddOrUpdateManifest updates an existing manifest successfully.
+    /// </summary>
     [Fact]
     public void AddOrUpdateManifest_UpdatesExistingManifest_Successfully()
     {
@@ -58,6 +76,9 @@ public class ManifestCacheTests
         Assert.Equal("Updated", result.Name);
     }
 
+    /// <summary>
+    /// Tests that GetAllManifests returns all cached manifests.
+    /// </summary>
     [Fact]
     public void GetAllManifests_ReturnsAllCachedManifests()
     {
@@ -76,6 +97,9 @@ public class ManifestCacheTests
         Assert.Contains(results, m => m.Id == "id2");
     }
 
+    /// <summary>
+    /// Tests that GetAllManifests returns empty collection when no manifests are added.
+    /// </summary>
     [Fact]
     public void GetAllManifests_ReturnsEmpty_WhenNoManifestsAdded()
     {

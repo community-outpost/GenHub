@@ -1,23 +1,39 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Manifest;
-using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
+
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Features.Manifest;
 
+/// <summary>
+/// Unit tests for the <see cref="ContentManifestBuilder"/> class.
+/// </summary>
 public class ContentManifestBuilderTests
 {
+    /// <summary>
+    /// Mock logger for the content manifest builder.
+    /// </summary>
     private readonly Mock<ILogger<ContentManifestBuilder>> _loggerMock;
+
+    /// <summary>
+    /// The content manifest builder under test.
+    /// </summary>
     private readonly ContentManifestBuilder _builder;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentManifestBuilderTests"/> class.
+    /// </summary>
     public ContentManifestBuilderTests()
     {
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
         _builder = new ContentManifestBuilder(_loggerMock.Object);
     }
 
+    /// <summary>
+    /// Tests that WithBasicInfo sets properties correctly.
+    /// </summary>
     [Fact]
     public void WithBasicInfo_SetsPropertiesCorrectly()
     {
@@ -32,6 +48,9 @@ public class ContentManifestBuilderTests
         Assert.Equal("1.0", result.Version);
     }
 
+    /// <summary>
+    /// Tests that WithContentType sets properties correctly.
+    /// </summary>
     [Fact]
     public void WithContentType_SetsPropertiesCorrectly()
     {
@@ -46,6 +65,9 @@ public class ContentManifestBuilderTests
         Assert.Equal(GameType.Generals, result.TargetGame);
     }
 
+    /// <summary>
+    /// Tests that WithPublisher sets publisher information correctly.
+    /// </summary>
     [Fact]
     public void WithPublisher_SetsPublisherInfo()
     {
@@ -63,6 +85,9 @@ public class ContentManifestBuilderTests
         Assert.Equal("support@test.com", result.Publisher.ContactEmail);
     }
 
+    /// <summary>
+    /// Tests that AddDependency adds a dependency correctly.
+    /// </summary>
     [Fact]
     public void AddDependency_AddsDependencyCorrectly()
     {
@@ -90,12 +115,14 @@ public class ContentManifestBuilderTests
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
-        Assert.True(dependency.InstallBehavior == DependencyInstallBehavior.RequireExisting || dependency.InstallBehavior == DependencyInstallBehavior.AutoInstall);
         Assert.True(dependency.IsExclusive);
         Assert.Equal(new List<string> { "conflict-1" }, dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
     }
 
+    /// <summary>
+    /// Tests that AddRequiredDirectories adds directories correctly.
+    /// </summary>
     [Fact]
     public void AddRequiredDirectories_AddsDirectoriesCorrectly()
     {
@@ -112,6 +139,9 @@ public class ContentManifestBuilderTests
         Assert.Contains("Models", result.RequiredDirectories);
     }
 
+    /// <summary>
+    /// Tests that WithInstallationInstructions sets workspace strategy.
+    /// </summary>
     [Fact]
     public void WithInstallationInstructions_SetsWorkspaceStrategy()
     {
@@ -126,6 +156,9 @@ public class ContentManifestBuilderTests
         Assert.Equal(WorkspaceStrategy.FullCopy, result.Installation.WorkspaceStrategy);
     }
 
+    /// <summary>
+    /// Tests that Build returns a valid manifest with minimal configuration.
+    /// </summary>
     [Fact]
     public void Build_ReturnsValidManifest_WithMinimalConfiguration()
     {
