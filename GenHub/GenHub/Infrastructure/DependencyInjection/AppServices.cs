@@ -21,6 +21,7 @@ public static class AppServices
         services.AddLoggingModule();
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
+        services.AddDownloadServices();
         services.AddManifestServices();
 
         // Register platform-specific services if provided
