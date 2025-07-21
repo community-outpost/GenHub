@@ -1,7 +1,6 @@
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 
 namespace GenHub.Core.Interfaces.Validation;
 
@@ -25,5 +24,5 @@ public interface IGameVersionValidator
     /// <param name="progress">Progress reporter for MVVM integration.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{ValidationResult}"/> representing the asynchronous operation, containing the detailed validation results.</returns>
-    Task<ValidationResult> ValidateAsync(GameVersion gameVersion, IProgress<GenHub.Core.Models.Validation.ValidationProgress>? progress = null, CancellationToken cancellationToken = default);
+    Task<ValidationResult> ValidateAsync(GameVersion gameVersion, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default);
 }
