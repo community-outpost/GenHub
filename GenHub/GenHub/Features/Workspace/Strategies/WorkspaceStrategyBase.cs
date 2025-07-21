@@ -1,0 +1,264 @@
+using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Workspace;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Workspace.Strategies;
+
+/// <summary>
+/// Provides a base implementation for workspace strategies with common functionality.
+/// </summary>
+/// <typeparam name="T">The concrete strategy type.</typeparam>
+public abstract class WorkspaceStrategyBase<T>(
+    IFileOperationsService fileOperations,
+    ILogger<T> logger)
+    : IWorkspaceStrategy
+    where T : WorkspaceStrategyBase<T>
+{
+    /// <summary>
+    /// The logger instance.
+    /// </summary>
+    private readonly ILogger<T> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    /// <summary>
+    /// The file operations service.
+    /// </summary>
+    private readonly IFileOperationsService _fileOperations = fileOperations ?? throw new ArgumentNullException(nameof(fileOperations));
+
+    /// <inheritdoc/>
+    public abstract string Name { get; }
+
+    /// <inheritdoc/>
+    public abstract string Description { get; }
+
+    /// <inheritdoc/>
+    public abstract bool RequiresAdminRights { get; }
+
+    /// <inheritdoc/>
+    public abstract bool RequiresSameVolume { get; }
+
+    /// <summary>
+    /// Gets the logger instance.
+    /// </summary>
+    protected ILogger<T> Logger => _logger;
+
+    /// <summary>
+    /// Gets the file operations service.
+    /// </summary>
+    protected IFileOperationsService FileOperations => _fileOperations;
+
+    /// <inheritdoc/>
+    public abstract bool CanHandle(WorkspaceConfiguration configuration);
+
+    /// <inheritdoc/>
+    public abstract long EstimateDiskUsage(WorkspaceConfiguration configuration);
+
+    /// <inheritdoc/>
+    public abstract Task<WorkspaceInfo> PrepareAsync(
+        WorkspaceConfiguration configuration,
+        IProgress<WorkspacePreparationProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reports progress to the provided progress callback.
+    /// </summary>
+    /// <param name="progress">The progress callback.</param>
+    /// <param name="processedFiles">The number of files processed.</param>
+    /// <param name="totalFiles">The total number of files.</param>
+    /// <param name="processedBytes">The number of bytes processed.</param>
+    /// <param name="totalBytes">The total number of bytes.</param>
+    /// <param name="currentOperation">The current operation description.</param>
+    /// <param name="currentFile">The current file being processed.</param>
+    protected static void ReportProgress(
+        IProgress<WorkspacePreparationProgress>? progress,
+        int processedFiles,
+        int totalFiles,
+        long processedBytes,
+        long totalBytes,
+        string currentOperation,
+        string currentFile)
+    {
+        if (progress == null)
+        {
+            return;
+        }
+
+        progress.Report(new WorkspacePreparationProgress
+        {
+            FilesProcessed = processedFiles,
+            TotalFiles = totalFiles,
+            BytesProcessed = processedBytes,
+            TotalBytes = totalBytes,
+            CurrentOperation = currentOperation,
+            CurrentFile = currentFile,
+        });
+    }
+
+    /// <summary>
+    /// Ensures the target directory exists for the specified file path.
+    /// </summary>
+    /// <param name="filePath">The file path to ensure directory for.</param>
+    protected static void EnsureDirectoryExists(string filePath)
+    {
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+    }
+
+    /// <summary>
+    /// Determines if a file should be considered essential based on built-in rules.
+    /// Essential files are those critical for game functionality and should be copied rather than symlinked.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file.</param>
+    /// <param name="fileSize">The size of the file in bytes.</param>
+    /// <returns>True if the file is essential; otherwise, false.</returns>
+    protected static bool IsEssentialFile(string relativePath, long fileSize)
+    {
+        var fileName = Path.GetFileName(relativePath).ToLowerInvariant();
+        var extension = Path.GetExtension(relativePath).ToLowerInvariant();
+        var directory = Path.GetDirectoryName(relativePath)?.ToLowerInvariant() ?? string.Empty;
+
+        // Always copy small files (under 1MB) - they're usually config/executable files
+        if (fileSize < 1024 * 1024)
+        {
+            return true;
+        }
+
+        // Essential file extensions - executables, libraries, configs
+        var essentialExtensions = new HashSet<string>
+        {
+            ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
+        };
+
+        if (essentialExtensions.Contains(extension))
+        {
+            return true;
+        }
+
+        // Command & Conquer specific essential files
+        var cncEssentialExtensions = new HashSet<string>
+        {
+            ".big", ".str", ".csf", ".w3d",
+        };
+
+        if (cncEssentialExtensions.Contains(extension))
+        {
+            return true;
+        }
+
+        // Essential directories - always copy content from these
+        var essentialDirectories = new HashSet<string>
+        {
+            "mods", "patch", "config", "data", "maps", "scripts",
+        };
+
+        if (essentialDirectories.Any(dir => directory.Contains(dir)))
+        {
+            return true;
+        }
+
+        // Essential file patterns
+        var essentialPatterns = new[]
+        {
+            "mod", "patch", "config", "generals", "zerahour", "settings",
+        };
+
+        if (essentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        {
+            return true;
+        }
+
+        // Large media files are typically non-essential (textures, videos, sounds)
+        var nonEssentialExtensions = new HashSet<string>
+        {
+            ".tga", ".dds", ".bmp", ".jpg", ".jpeg", ".png", ".gif",
+            ".wav", ".mp3", ".ogg", ".flac",
+            ".avi", ".mp4", ".wmv", ".bik",
+        };
+
+        if (nonEssentialExtensions.Contains(extension))
+        {
+            return false;
+        }
+
+        // Default to essential for unknown files
+        return true;
+    }
+
+    /// <summary>
+    /// Creates a base workspace info object with common properties populated.
+    /// </summary>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <returns>A new workspace info object.</returns>
+    protected WorkspaceInfo CreateBaseWorkspaceInfo(WorkspaceConfiguration configuration)
+    {
+        var workspacePath = Path.Combine(configuration.WorkspaceRootPath, configuration.Id);
+
+        return new WorkspaceInfo
+        {
+            Id = configuration.Id,
+            WorkspacePath = workspacePath,
+            GameVersionId = configuration.GameVersion.Id,
+            Strategy = configuration.Strategy,
+            CreatedAt = DateTime.UtcNow,
+            LastAccessedAt = DateTime.UtcNow,
+            IsValid = true,
+        };
+    }
+
+    /// <summary>
+    /// Updates the workspace info with file count, size, and executable information.
+    /// </summary>
+    /// <param name="workspaceInfo">The workspace info to update.</param>
+    /// <param name="fileCount">The number of files processed.</param>
+    /// <param name="totalSize">The total size in bytes.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    protected void UpdateWorkspaceInfo(
+        WorkspaceInfo workspaceInfo,
+        int fileCount,
+        long totalSize,
+        WorkspaceConfiguration configuration)
+    {
+        workspaceInfo.FileCount = fileCount;
+        workspaceInfo.TotalSizeBytes = totalSize;
+
+        // Find the main executable
+        var gameExecutable = configuration.Manifest.Files
+            .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                                !f.RelativePath.Contains("uninstall", StringComparison.OrdinalIgnoreCase));
+
+        if (gameExecutable != null)
+        {
+            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, gameExecutable.RelativePath);
+            workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
+        }
+        else
+        {
+            workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
+        }
+    }
+
+    /// <summary>
+    /// Validates that the source file exists.
+    /// </summary>
+    /// <param name="sourcePath">The source file path.</param>
+    /// <param name="relativePath">The relative path for logging.</param>
+    /// <returns>True if the file exists; otherwise, false.</returns>
+    protected bool ValidateSourceFile(string sourcePath, string relativePath)
+    {
+        if (File.Exists(sourcePath))
+        {
+            return true;
+        }
+
+        _logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
+        return false;
+    }
+}
