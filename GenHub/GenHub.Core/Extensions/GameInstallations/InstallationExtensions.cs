@@ -45,6 +45,7 @@ public static class InstallationExtensions
             GameInstallationType.EaApp => "EA App",
             GameInstallationType.Origin => "Origin",
             GameInstallationType.Wine => "Wine/Proton",
+            GameInstallationType.CDISO => "CD/ISO",
             GameInstallationType.Retail => "Retail",
             _ => "Unknown"
         };
@@ -63,6 +64,7 @@ public static class InstallationExtensions
             GameInstallationType.EaApp => true,
             GameInstallationType.Origin => true,
             GameInstallationType.Wine => false,
+            GameInstallationType.CDISO => false,
             GameInstallationType.Retail => false,
             _ => false
         };
