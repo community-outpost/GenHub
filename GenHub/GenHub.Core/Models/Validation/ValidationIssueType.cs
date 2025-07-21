@@ -34,4 +34,9 @@ public enum ValidationIssueType
     /// A required directory is missing.
     /// </summary>
     DirectoryMissing,
+
+    /// <summary>
+    /// A file or directory is not accessible due to permission issues.
+    /// </summary>
+    AccessDenied,
 }

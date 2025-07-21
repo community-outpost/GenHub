@@ -6,9 +6,19 @@ namespace GenHub.Core.Models.Enums;
 public enum WorkspaceStrategy
 {
     /// <summary>
+    /// Hard link strategy.
+    /// </summary>
+    HardLink,
+
+    /// <summary>
+    /// Symlink only strategy.
+    /// </summary>
+    SymlinkOnly,
+
+    /// <summary>
     /// Hybrid symlink/copy strategy.
     /// </summary>
-    HybridSymlink,
+    HybridCopySymlink,
 
     /// <summary>
     /// Full copy strategy.
