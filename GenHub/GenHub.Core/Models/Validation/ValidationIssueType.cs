@@ -39,4 +39,9 @@ public enum ValidationIssueType
     /// A file or directory is not accessible due to permission issues.
     /// </summary>
     AccessDenied,
+
+    /// <summary>
+    /// There is insufficient disk space to complete the operation.
+    /// </summary>
+    InsufficientSpace,
 }

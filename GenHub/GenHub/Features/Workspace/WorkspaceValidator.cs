@@ -130,7 +130,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         if (strategy != null)
         {
             // Use reflection to get properties if not on the interface
-            var strategyType = WorkspacePreparationStrategy.FullCopy;
+            var strategyType = WorkspaceStrategy.FullCopy;
             var requiresAdmin = false;
             var requiresSameVolume = false;
             var estimateMethod = strategy.GetType().GetMethod("EstimateDiskUsage");
@@ -152,7 +152,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             if (propStrategyType != null)
             {
                 var val = propStrategyType.GetValue(strategy);
-                if (val is WorkspacePreparationStrategy sType)
+                if (val is WorkspaceStrategy sType)
                     strategyType = sType;
             }
 
@@ -193,25 +193,28 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                 long estimatedUsage = 0L;
                 if (estimateMethod != null)
                 {
-                    var config = new WorkspaceConfiguration
+                    var tempConfig = new WorkspaceConfiguration
                     {
-                        Id = "temp",
-                        GameVersion = new GameVersion(),
-                        Manifest = new GameManifest(),
+                        Id = "temp-validation",
+                        GameVersion = new GameVersion { Id = "temp" },
+                        Manifest = new GameManifest { Files = new List<ManifestFile>() },
                         WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
                         BaseInstallationPath = sourcePath,
-                        Strategy = (WorkspaceStrategy)(object)strategyType,
+                        Strategy = (WorkspaceStrategy)strategyType,
                     };
-                    estimatedUsage = (long)(estimateMethod.Invoke(strategy, new object[] { config }) ?? 0L);
+
+                    var result = estimateMethod.Invoke(strategy, new object[] { tempConfig });
+                    estimatedUsage = result is long longValue ? longValue : 0L;
                 }
 
-                if (drive.AvailableFreeSpace < estimatedUsage * 1.1)
+                var safetyMargin = estimatedUsage * 0.1; // 10% safety margin
+                if (drive.AvailableFreeSpace < estimatedUsage + safetyMargin)
                 {
                     issues.Add(new ValidationIssue
                     {
-                        IssueType = ValidationIssueType.UnexpectedFile,
+                        IssueType = ValidationIssueType.InsufficientSpace,
                         Severity = ValidationSeverity.Warning,
-                        Message = $"Low disk space. Available: {drive.AvailableFreeSpace / 1024 / 1024} MB, Estimated needed: {estimatedUsage / 1024 / 1024} MB",
+                        Message = $"Low disk space. Available: {drive.AvailableFreeSpace / 1024 / 1024:N0} MB, Estimated needed: {estimatedUsage / 1024 / 1024:N0} MB (with safety margin)",
                         Path = destinationPath,
                     });
                 }
