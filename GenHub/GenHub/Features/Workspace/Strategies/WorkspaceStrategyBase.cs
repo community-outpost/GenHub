@@ -246,7 +246,7 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Validates that the source file exists.
+    /// Validates that the source file exists and logs appropriate warnings.
     /// </summary>
     /// <param name="sourcePath">The source file path.</param>
     /// <param name="relativePath">The relative path for logging.</param>
@@ -260,5 +260,49 @@ public abstract class WorkspaceStrategyBase<T>(
 
         _logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
         return false;
+    }
+
+    /// <summary>
+    /// Gets file size safely with error handling.
+    /// </summary>
+    /// <param name="filePath">The file path to check.</param>
+    /// <returns>The file size in bytes, or 0 if the file cannot be accessed.</returns>
+    protected long GetFileSizeSafe(string filePath)
+    {
+        try
+        {
+            var fileInfo = new FileInfo(filePath);
+            return fileInfo.Exists ? fileInfo.Length : 0L;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not get file size for {FilePath}", filePath);
+            return 0L;
+        }
+    }
+
+    /// <summary>
+    /// Calculates total size of manifest files from the source directory.
+    /// </summary>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <returns>Total size in bytes of all valid files.</returns>
+    protected long CalculateActualTotalSize(WorkspaceConfiguration configuration)
+    {
+        long totalSize = 0L;
+
+        foreach (var file in configuration.Manifest.Files)
+        {
+            var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+            var actualSize = GetFileSizeSafe(sourcePath);
+            totalSize += actualSize;
+
+            // Update manifest file size if it's zero or incorrect
+            if (file.Size == 0 && actualSize > 0)
+            {
+                file.Size = actualSize;
+            }
+        }
+
+        return totalSize;
     }
 }
