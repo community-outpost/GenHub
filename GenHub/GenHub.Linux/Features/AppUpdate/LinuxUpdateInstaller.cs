@@ -201,31 +201,6 @@ public class LinuxUpdateInstaller(
     }
 
     /// <summary>
-    /// Reports progress with standardized format.
-    /// </summary>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="status">Status message.</param>
-    /// <param name="percentComplete">Completion percentage.</param>
-    /// <param name="hasError">Whether there's an error.</param>
-    /// <param name="errorMessage">Error message if any.</param>
-    private static void ReportProgress(
-        IProgress<UpdateProgress>? progress,
-        string status,
-        int percentComplete,
-        bool hasError = false,
-        string? errorMessage = null)
-    {
-        progress?.Report(new UpdateProgress
-        {
-            Status = status,
-            PercentComplete = percentComplete,
-            HasError = hasError,
-            ErrorMessage = errorMessage,
-            IsCompleted = percentComplete >= 100 && !hasError,
-        });
-    }
-
-    /// <summary>
     /// Loads an embedded update script resource.
     /// </summary>
     /// <param name="resourceName">Name of the embedded resource.</param>

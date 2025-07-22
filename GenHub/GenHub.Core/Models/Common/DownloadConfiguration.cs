@@ -17,17 +17,12 @@ public sealed class DownloadConfiguration
 
     /// <summary>
     /// Default buffer size for file download operations (80KB).
-    /// This size provides a good balance between memory usage and I/O performance.
-    /// Larger buffers reduce I/O calls but use more memory; smaller buffers do the opposite.
-    /// 80KB is chosen as a compromise that works well for most network conditions.
     /// TODO: Consider making this configurable through application settings.
     /// </summary>
     private const int DefaultBufferSize = 81920; // 80KB
 
     /// <summary>
     /// Default timeout for download operations.
-    /// Set to 30 minutes to accommodate users with low bandwidth connections.
-    /// GenHub (~55MB) requires minimum 30KB/s bandwidth to complete within this timeout.
     /// TODO: Make this configurable through application settings in the future.
     /// </summary>
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(10);

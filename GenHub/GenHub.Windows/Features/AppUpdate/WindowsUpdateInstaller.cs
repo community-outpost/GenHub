@@ -43,11 +43,7 @@ public class WindowsUpdateInstaller(
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report(new UpdateProgress
-        {
-            Status = "Launching Windows installer...",
-            PercentComplete = 95,
-        });
+        ReportProgress(progress, "Launching Windows installer...", 95);
 
         var startInfo = new ProcessStartInfo
         {
@@ -63,27 +59,19 @@ public class WindowsUpdateInstaller(
             if (process == null)
             {
                 _logger.LogError("Failed to start installer process");
-                progress?.Report(new UpdateProgress
-                {
-                    Status = "Failed to start installer process",
-                    PercentComplete = 0,
-                    HasError = true,
-                    ErrorMessage = "Could not launch installer executable",
-                });
+                ReportProgress(progress, "Failed to start installer process", 0, true, "Could not launch installer executable");
                 return false;
             }
 
             await process.WaitForExitAsync(cancellationToken);
 
             var success = process.ExitCode == 0;
-            progress?.Report(new UpdateProgress
-            {
-                Status = success ? "Installation completed successfully" : "Installation failed",
-                PercentComplete = 100,
-                IsCompleted = true,
-                HasError = !success,
-                ErrorMessage = success ? null : $"Installer exited with code {process.ExitCode}",
-            });
+            ReportProgress(
+                progress,
+                success ? "Installation completed successfully" : "Installation failed",
+                100,
+                !success,
+                success ? null : $"Installer exited with code {process.ExitCode}");
 
             if (success)
             {
@@ -99,13 +87,7 @@ public class WindowsUpdateInstaller(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute Windows installer");
-            progress?.Report(new UpdateProgress
-            {
-                Status = "Windows installer execution failed",
-                PercentComplete = 0,
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
+            ReportProgress(progress, "Windows installer execution failed", 0, true, ex.Message);
             return false;
         }
     }
@@ -116,11 +98,7 @@ public class WindowsUpdateInstaller(
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report(new UpdateProgress
-        {
-            Status = "Installing MSI package...",
-            PercentComplete = 95,
-        });
+        ReportProgress(progress, "Installing MSI package...", 95);
 
         var startInfo = new ProcessStartInfo
         {
@@ -136,27 +114,19 @@ public class WindowsUpdateInstaller(
             if (process == null)
             {
                 _logger.LogError("Failed to start MSI installer process");
-                progress?.Report(new UpdateProgress
-                {
-                    Status = "Failed to start MSI installer",
-                    PercentComplete = 0,
-                    HasError = true,
-                    ErrorMessage = "Could not launch MSI installer",
-                });
+                ReportProgress(progress, "Failed to start MSI installer", 0, true, "Could not launch MSI installer");
                 return false;
             }
 
             await process.WaitForExitAsync(cancellationToken);
 
             var success = process.ExitCode == 0;
-            progress?.Report(new UpdateProgress
-            {
-                Status = success ? "MSI installation completed successfully" : "MSI installation failed",
-                PercentComplete = 100,
-                IsCompleted = true,
-                HasError = !success,
-                ErrorMessage = success ? null : $"MSI installer exited with code {process.ExitCode}",
-            });
+            ReportProgress(
+                progress,
+                success ? "MSI installation completed successfully" : "MSI installation failed",
+                100,
+                !success,
+                success ? null : $"MSI installer exited with code {process.ExitCode}");
 
             if (success)
             {
@@ -172,13 +142,7 @@ public class WindowsUpdateInstaller(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to install MSI package");
-            progress?.Report(new UpdateProgress
-            {
-                Status = "MSI installation execution failed",
-                PercentComplete = 0,
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
+            ReportProgress(progress, "MSI installation execution failed", 0, true, ex.Message);
             return false;
         }
     }
@@ -241,23 +205,12 @@ powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File ""{p
                 if (Process.Start(startInfo) == null)
                 {
                     _logger.LogError("Failed to start Windows external updater");
-                    progress?.Report(new UpdateProgress
-                    {
-                        Status = "Failed to start external updater",
-                        PercentComplete = 0,
-                        HasError = true,
-                        ErrorMessage = "Could not launch update script",
-                    });
+                    ReportProgress(progress, "Failed to start external updater", 0, true, "Could not launch update script");
                     return false;
                 }
 
                 _logger.LogInformation("Windows external updater launched successfully.");
-                progress?.Report(new UpdateProgress
-                {
-                    Status = "Application will restart to complete installation.",
-                    PercentComplete = 100,
-                    IsCompleted = true,
-                });
+                ReportProgress(progress, "Application will restart to complete installation.", 100, false);
                 return await ScheduleApplicationShutdownAsync(cancellationToken);
             }
             catch (Exception ex)
@@ -265,25 +218,14 @@ powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File ""{p
                 _logger.LogWarning(ex, "Failed to launch updater script");
 
                 // For testing purposes, still report success with progress
-                progress?.Report(new UpdateProgress
-                {
-                    Status = "Application will restart to complete installation.",
-                    PercentComplete = 100,
-                    IsCompleted = true,
-                });
+                ReportProgress(progress, "Application will restart to complete installation.", 100, false);
                 return true;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create external updater");
-            progress?.Report(new UpdateProgress
-            {
-                Status = "Failed to create external updater",
-                PercentComplete = 0,
-                HasError = true,
-                ErrorMessage = ex.Message,
-            });
+            ReportProgress(progress, "Failed to create external updater", 0, true, ex.Message);
             return false;
         }
     }

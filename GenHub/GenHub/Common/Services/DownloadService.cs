@@ -202,6 +202,7 @@ public class DownloadService : IDownloadService
                 }
                 catch
                 {
+                    _logger.LogWarning("Failed to delete corrupted file: {FilePath}", configuration.DestinationPath);
                 }
 
                 return DownloadResult.CreateFailed($"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}", downloadedBytes, stopwatch.Elapsed);

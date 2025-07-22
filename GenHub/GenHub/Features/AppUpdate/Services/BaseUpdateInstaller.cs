@@ -168,6 +168,31 @@ public abstract class BaseUpdateInstaller(
     }
 
     /// <summary>
+    /// Reports progress with standardized format.
+    /// </summary>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="status">Status message.</param>
+    /// <param name="percentComplete">Completion percentage.</param>
+    /// <param name="hasError">Whether there's an error.</param>
+    /// <param name="errorMessage">Error message if any.</param>
+    protected static void ReportProgress(
+        IProgress<UpdateProgress>? progress,
+        string status,
+        int percentComplete,
+        bool hasError = false,
+        string? errorMessage = null)
+    {
+        progress?.Report(new UpdateProgress
+        {
+            Status = status,
+            PercentComplete = percentComplete,
+            HasError = hasError,
+            ErrorMessage = errorMessage,
+            IsCompleted = percentComplete >= 100 && !hasError,
+        });
+    }
+
+    /// <summary>
     /// Disposes the resources used by this installer.
     /// </summary>
     /// <param name="disposing">True if disposing managed resources.</param>
@@ -330,31 +355,6 @@ public abstract class BaseUpdateInstaller(
         _logger.LogWarning("Unsupported update file format: {Extension}", Path.GetExtension(filePath));
         ReportProgress(progress, "Unsupported update file format", 0, true, "The update file format is not supported on this platform.");
         return Task.FromResult(false);
-    }
-
-    /// <summary>
-    /// Reports progress with standardized format.
-    /// </summary>
-    /// <param name="progress">Progress reporter.</param>
-    /// <param name="status">Status message.</param>
-    /// <param name="percentComplete">Completion percentage.</param>
-    /// <param name="hasError">Whether there's an error.</param>
-    /// <param name="errorMessage">Error message if any.</param>
-    private static void ReportProgress(
-        IProgress<UpdateProgress>? progress,
-        string status,
-        int percentComplete,
-        bool hasError = false,
-        string? errorMessage = null)
-    {
-        progress?.Report(new UpdateProgress
-        {
-            Status = status,
-            PercentComplete = percentComplete,
-            HasError = hasError,
-            ErrorMessage = errorMessage,
-            IsCompleted = percentComplete >= 100 && !hasError,
-        });
     }
 
     /// <summary>
