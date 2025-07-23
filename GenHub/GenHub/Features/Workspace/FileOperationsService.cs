@@ -2,11 +2,11 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
-using GenHub.Core.Models.Workspace;
+using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
@@ -14,10 +14,12 @@ namespace GenHub.Features.Workspace;
 /// <summary>
 /// Complete implementation of file operations for workspace preparation.
 /// </summary>
-public class FileOperationsService(ILogger<FileOperationsService> logger, HttpClient httpClient) : IFileOperationsService
+public class FileOperationsService(
+    ILogger<FileOperationsService> logger,
+    IDownloadService downloadService) : IFileOperationsService
 {
     private readonly ILogger<FileOperationsService> _logger = logger;
-    private readonly HttpClient _httpClient = httpClient;
+    private readonly IDownloadService _downloadService = downloadService;
 
     /// <summary>
     /// Copies a file from the source path to the destination path asynchronously.
@@ -26,7 +28,10 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
     /// <param name="destinationPath">The destination file path.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous copy operation.</returns>
-    public async Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
+    public async Task CopyFileAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -38,8 +43,20 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
 
             // Handle large files with buffered copying
             const int bufferSize = 1024 * 1024; // 1MB buffer
-            await using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
-            await using var destination = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize, useAsync: true);
+            await using var source = new FileStream(
+                sourcePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize,
+                useAsync: true);
+            await using var destination = new FileStream(
+                destinationPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize,
+                useAsync: true);
 
             await source.CopyToAsync(destination, cancellationToken);
 
@@ -52,11 +69,18 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
                 Attributes = sourceInfo.Attributes,
             };
 
-            _logger.LogDebug("Copied file from {Source} to {Destination}", sourcePath, destinationPath);
+            _logger.LogDebug(
+                "Copied file from {Source} to {Destination}",
+                sourcePath,
+                destinationPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy file from {Source} to {Destination}", sourcePath, destinationPath);
+            _logger.LogError(
+                ex,
+                "Failed to copy file from {Source} to {Destination}",
+                sourcePath,
+                destinationPath);
             throw;
         }
     }
@@ -68,7 +92,10 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
     /// <param name="targetPath">The target path the link points to.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous symlink creation operation.</returns>
-    public async Task CreateSymlinkAsync(string linkPath, string targetPath, CancellationToken cancellationToken = default)
+    public async Task CreateSymlinkAsync(
+        string linkPath,
+        string targetPath,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -97,16 +124,24 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
                     }
                     else
                     {
-                        throw new FileNotFoundException($"Target path does not exist: {targetPath}");
+                        throw new FileNotFoundException(
+                            $"Target path does not exist: {targetPath}");
                     }
                 },
                 cancellationToken);
 
-            _logger.LogDebug("Created symlink from {Link} to {Target}", linkPath, targetPath);
+            _logger.LogDebug(
+                "Created symlink from {Link} to {Target}",
+                linkPath,
+                targetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create symlink from {Link} to {Target}", linkPath, targetPath);
+            _logger.LogError(
+                ex,
+                "Failed to create symlink from {Link} to {Target}",
+                linkPath,
+                targetPath);
             throw;
         }
     }
@@ -118,7 +153,10 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
     /// <param name="targetPath">The target path the link points to.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous hard link creation operation.</returns>
-    public async Task CreateHardLinkAsync(string linkPath, string targetPath, CancellationToken cancellationToken = default)
+    public async Task CreateHardLinkAsync(
+        string linkPath,
+        string targetPath,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -135,27 +173,38 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
 
             await Task.Run(
                 () =>
-            {
-                if (OperatingSystem.IsWindows())
                 {
-                    if (!CreateHardLinkW(linkPath, targetPath, IntPtr.Zero))
+                    if (OperatingSystem.IsWindows())
                     {
-                        throw new IOException($"Failed to create hard link from {linkPath} to {targetPath}");
+                        if (!CreateHardLinkW(linkPath, targetPath, IntPtr.Zero))
+                        {
+                            throw new IOException(
+                                $"Failed to create hard link from {linkPath} to {targetPath}");
+                        }
                     }
-                }
-                else
-                {
-                    // Use Unix link() system call or fallback to copy
-                    File.Copy(targetPath, linkPath, true);
-                    _logger.LogWarning("Hard links not supported on this platform, fell back to copy for {Link}", linkPath);
-                }
-            }, cancellationToken);
+                    else
+                    {
+                        // Use Unix link() system call or fallback to copy
+                        File.Copy(targetPath, linkPath, true);
+                        _logger.LogWarning(
+                            "Hard links not supported on this platform, fell back to copy for {Link}",
+                            linkPath);
+                    }
+                },
+                cancellationToken);
 
-            _logger.LogDebug("Created hard link from {Link} to {Target}", linkPath, targetPath);
+            _logger.LogDebug(
+                "Created hard link from {Link} to {Target}",
+                linkPath,
+                targetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create hard link from {Link} to {Target}", linkPath, targetPath);
+            _logger.LogError(
+                ex,
+                "Failed to create hard link from {Link} to {Target}",
+                linkPath,
+                targetPath);
             throw;
         }
     }
@@ -167,7 +216,10 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
     /// <param name="expectedHash">The expected hash value.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>True if the hash matches; otherwise, false.</returns>
-    public async Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
+    public async Task<bool> VerifyFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -176,13 +228,18 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
                 return false;
             }
 
-            using var sha256 = SHA256.Create();
-            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            var hash = await sha256.ComputeHashAsync(stream, cancellationToken);
-            var hashString = Convert.ToHexString(hash);
+            var actualHash = await _downloadService.ComputeFileHashAsync(
+                filePath,
+                cancellationToken);
+            var result = string.Equals(
+                actualHash,
+                expectedHash,
+                StringComparison.OrdinalIgnoreCase);
 
-            var result = string.Equals(hashString, expectedHash, StringComparison.OrdinalIgnoreCase);
-            _logger.LogDebug("Hash verification for {File}: {Result}", filePath, result);
+            _logger.LogDebug(
+                "Hash verification for {File}: {Result}",
+                filePath,
+                result);
             return result;
         }
         catch (Exception ex)
@@ -193,55 +250,58 @@ public class FileOperationsService(ILogger<FileOperationsService> logger, HttpCl
     }
 
     /// <summary>
-    /// Downloads a file asynchronously.
+    /// Downloads a file asynchronously using the download service.
     /// </summary>
     /// <param name="url">The URL of the file to download.</param>
     /// <param name="destinationPath">The destination file path.</param>
     /// <param name="progress">Progress reporter for download progress.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous download operation.</returns>
-    public async Task DownloadFileAsync(string url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
+    public async Task DownloadFileAsync(
+        string url,
+        string destinationPath,
+        IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var directory = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(directory))
+            var result = await _downloadService.DownloadFileAsync(
+                url,
+                destinationPath,
+                expectedHash: null,
+                progress,
+                cancellationToken);
+
+            if (!result.Success) // Changed from result.IsSuccess to result.Success
             {
-                Directory.CreateDirectory(directory);
+                throw new HttpRequestException(
+                    $"Download failed: {result.ErrorMessage}");
             }
 
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
-
-            var buffer = new byte[81920];
-            long totalBytesRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
-            {
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                totalBytesRead += bytesRead;
-
-                progress?.Report(new DownloadProgress
-                {
-                    BytesReceived = totalBytesRead,
-                    TotalBytes = totalBytes,
-                });
-            }
-
-            _logger.LogInformation("Downloaded {Bytes} bytes from {Url} to {Destination}", totalBytesRead, url, destinationPath);
+            _logger.LogInformation(
+                "Downloaded {Bytes} bytes from {Url} to {Destination}",
+                result.BytesDownloaded,
+                url,
+                destinationPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to download file from {Url} to {Destination}", url, destinationPath);
+            _logger.LogError(
+                ex,
+                "Failed to download file from {Url} to {Destination}",
+                url,
+                destinationPath);
             throw;
         }
     }
 
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "CreateHardLinkW")]
-    private static extern bool CreateHardLinkW(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+    [DllImport(
+        "kernel32.dll",
+        SetLastError = true,
+        CharSet = CharSet.Unicode,
+        EntryPoint = "CreateHardLinkW")]
+    private static extern bool CreateHardLinkW(
+        string lpFileName,
+        string lpExistingFileName,
+        IntPtr lpSecurityAttributes);
 }

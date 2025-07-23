@@ -24,7 +24,7 @@ public static class AppServices
         services.AddDownloadServices();
         services.AddValidationServices();
         services.AddManifestServices();
-        services.AddAppUpdateModule();
+        services.AddWorkspaceServices();
 
         // Register platform-specific services if provided
         platformSpecificServices?.Invoke(services);

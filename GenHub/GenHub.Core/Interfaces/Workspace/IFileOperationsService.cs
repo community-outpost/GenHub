@@ -1,12 +1,12 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Workspace;
+using GenHub.Core.Models.Common;
 
 namespace GenHub.Core.Interfaces.Workspace;
 
 /// <summary>
-/// Defines file operations for workspace preparation.
+/// Defines file operations for workspace management.
 /// </summary>
 public interface IFileOperationsService
 {
@@ -17,7 +17,10 @@ public interface IFileOperationsService
     /// <param name="destinationPath">The destination file path.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous copy operation.</returns>
-    Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    Task CopyFileAsync(
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a symbolic link asynchronously.
@@ -26,7 +29,10 @@ public interface IFileOperationsService
     /// <param name="targetPath">The target path the link points to.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous symlink creation operation.</returns>
-    Task CreateSymlinkAsync(string linkPath, string targetPath, CancellationToken cancellationToken = default);
+    Task CreateSymlinkAsync(
+        string linkPath,
+        string targetPath,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Creates a hard link asynchronously.
@@ -35,7 +41,10 @@ public interface IFileOperationsService
     /// <param name="targetPath">The target path the link points to.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous hard link creation operation.</returns>
-    Task CreateHardLinkAsync(string linkPath, string targetPath, CancellationToken cancellationToken = default);
+    Task CreateHardLinkAsync(
+        string linkPath,
+        string targetPath,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Verifies the hash of a file asynchronously.
@@ -44,7 +53,10 @@ public interface IFileOperationsService
     /// <param name="expectedHash">The expected hash value.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>True if the hash matches; otherwise, false.</returns>
-    Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default);
+    Task<bool> VerifyFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Downloads a file asynchronously.
@@ -54,5 +66,9 @@ public interface IFileOperationsService
     /// <param name="progress">Progress reporter for download progress.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous download operation.</returns>
-    Task DownloadFileAsync(string url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default);
+    Task DownloadFileAsync(
+        string url,
+        string destinationPath,
+        IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default);
 }

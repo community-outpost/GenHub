@@ -14,20 +14,15 @@ namespace GenHub.Features.Workspace.Strategies;
 /// Workspace strategy that copies essential files and creates symbolic links for others.
 /// Balanced disk usage and compatibility.
 /// </summary>
-public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopySymlinkStrategy>
+/// <remarks>
+/// Initializes a new instance of the <see cref="HybridCopySymlinkStrategy"/> class.
+/// </remarks>
+/// <param name="fileOperations">The file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public sealed class HybridCopySymlinkStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<HybridCopySymlinkStrategy> logger) : WorkspaceStrategyBase<HybridCopySymlinkStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="HybridCopySymlinkStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public HybridCopySymlinkStrategy(
-        IFileOperationsService fileOperations,
-        ILogger<HybridCopySymlinkStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Hybrid Copy-Symlink";
 
@@ -110,14 +105,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                 essentialCount,
                 nonEssentialCount);
 
-            ReportProgress(
-                progress,
-                0,
-                totalFiles,
-                0,
-                estimatedTotalBytes,
-                "Initializing",
-                string.Empty);
+            ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
             foreach (var file in configuration.Manifest.Files)
@@ -177,7 +165,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
 
                 processedFiles++;
                 var currentOperation = isEssential ? "Copying essential file" : "Creating symlink";
-                ReportProgress(progress, processedFiles, totalFiles, totalBytesProcessed, estimatedTotalBytes, currentOperation, file.RelativePath);
+                ReportProgress(progress, processedFiles, totalFiles, currentOperation, file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);

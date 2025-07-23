@@ -13,20 +13,15 @@ namespace GenHub.Features.Workspace.Strategies;
 /// Workspace strategy that creates symbolic links to all game files.
 /// Minimal disk usage, requires administrator privileges.
 /// </summary>
-public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrategy>
+/// <remarks>
+/// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
+/// </remarks>
+/// <param name="fileOperations">The file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public sealed class SymlinkOnlyStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<SymlinkOnlyStrategy> logger) : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public SymlinkOnlyStrategy(
-        IFileOperationsService fileOperations,
-        ILogger<SymlinkOnlyStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Symlink Only";
 
@@ -84,7 +79,7 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
 
             Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
 
-            ReportProgress(progress, 0, totalFiles, 0, estimatedTotalBytes, "Initializing", string.Empty);
+            ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
             foreach (var file in configuration.Manifest.Files)
@@ -117,7 +112,7 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
                 }
 
                 processedFiles++;
-                ReportProgress(progress, processedFiles, totalFiles, totalBytesProcessed, estimatedTotalBytes, "Creating symlink", file.RelativePath);
+                ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);

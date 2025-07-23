@@ -1,7 +1,15 @@
-using GenHub.Core.Models.Workspace;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Features.Workspace;
 
@@ -11,7 +19,7 @@ namespace GenHub.Tests.Features.Workspace;
 public class FileOperationsServiceTests : IDisposable
 {
     private readonly Mock<ILogger<FileOperationsService>> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly Mock<IDownloadService> _downloadService;
     private readonly FileOperationsService _service;
     private readonly string _tempDir;
 
@@ -21,8 +29,8 @@ public class FileOperationsServiceTests : IDisposable
     public FileOperationsServiceTests()
     {
         _logger = new Mock<ILogger<FileOperationsService>>();
-        _httpClient = new HttpClient();
-        _service = new FileOperationsService(_logger.Object, _httpClient);
+        _downloadService = new Mock<IDownloadService>();
+        _service = new FileOperationsService(_logger.Object, _downloadService.Object);
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDir);
     }
@@ -56,7 +64,11 @@ public class FileOperationsServiceTests : IDisposable
 
         await File.WriteAllTextAsync(src, "test content");
         bool isWindows = OperatingSystem.IsWindows();
-        bool isAdmin = isWindows && new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        bool isAdmin = isWindows &&
+            new System.Security.Principal.WindowsPrincipal(
+                System.Security.Principal.WindowsIdentity.GetCurrent())
+            .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+
         if (!isWindows || !isAdmin)
         {
             return;
@@ -81,12 +93,19 @@ public class FileOperationsServiceTests : IDisposable
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
 
-        var expectedHash = "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08";
-        var testHash = caseSensitive ? expectedHash : expectedHash.ToLowerInvariant();
+        var expectedHash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
+        var testHash = caseSensitive ? expectedHash.ToUpperInvariant() : expectedHash;
+
+        _downloadService
+            .Setup(x => x.ComputeFileHashAsync(file, default))
+            .ReturnsAsync(expectedHash);
 
         var result = await _service.VerifyFileHashAsync(file, testHash);
 
         Assert.True(result);
+        _downloadService.Verify(
+            x => x.ComputeFileHashAsync(file, default),
+            Times.Once);
     }
 
     /// <summary>
@@ -99,7 +118,13 @@ public class FileOperationsServiceTests : IDisposable
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
 
+        var actualHash = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
         var wrongHash = "WRONG_HASH";
+
+        _downloadService
+            .Setup(x => x.ComputeFileHashAsync(file, default))
+            .ReturnsAsync(actualHash);
+
         var result = await _service.VerifyFileHashAsync(file, wrongHash);
 
         Assert.False(result);
@@ -117,7 +142,11 @@ public class FileOperationsServiceTests : IDisposable
 
         await File.WriteAllTextAsync(src, "test content");
         bool isWindows = OperatingSystem.IsWindows();
-        bool isAdmin = isWindows && new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        bool isAdmin = isWindows &&
+            new System.Security.Principal.WindowsPrincipal(
+                System.Security.Principal.WindowsIdentity.GetCurrent())
+            .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+
         if (!isWindows || !isAdmin)
         {
             return;
@@ -130,50 +159,64 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Performs cleanup by disposing of temporary resources.
-    /// </summary>
-    public void Dispose()
-    {
-        _httpClient.Dispose();
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, true);
-        }
-    }
-
-    /// <summary>
-    /// Tests that DownloadFileAsync reports progress during the download operation.
+    /// Tests that DownloadFileAsync uses the download service successfully.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DownloadFileAsync_ReportsProgress()
+    public async Task DownloadFileAsync_UsesDownloadService_Successfully()
     {
-        // Skip this test if no internet connection or service unavailable
-        // This test is flaky due to external dependency
-        try
-        {
-            var progressReports = new List<DownloadProgress>();
-            var progress = new Progress<DownloadProgress>(p => progressReports.Add(p));
+        var testUrl = "https://example.com/file.txt";
+        var destination = Path.Combine(_tempDir, "download.txt");
+        var progressReports = new List<DownloadProgress>();
+        var progress = new Progress<DownloadProgress>(p => progressReports.Add(p));
 
-            // Use a smaller, more reliable endpoint
-            var testUrl = "https://httpbin.org/bytes/100";
-            var destination = Path.Combine(_tempDir, "download.bin");
+        var successResult = DownloadResult.CreateSuccess(
+            destination,
+            100,
+            TimeSpan.FromSeconds(1),
+            false);
 
-            await _service.DownloadFileAsync(testUrl, destination, progress);
+        _downloadService
+            .Setup(x => x.DownloadFileAsync(
+                testUrl,
+                destination,
+                null,
+                progress,
+                default))
+            .ReturnsAsync(successResult);
 
-            Assert.True(File.Exists(destination));
-            Assert.True(progressReports.Count > 0);
-        }
-        catch (HttpRequestException ex) when (ex.Message.Contains("503") || ex.Message.Contains("Service Temporarily Unavailable"))
-        {
-            // Skip test if service is unavailable
-            return;
-        }
-        catch (TaskCanceledException)
-        {
-            // Skip test if timeout
-            return;
-        }
+        await _service.DownloadFileAsync(testUrl, destination, progress);
+
+        _downloadService.Verify(
+            x => x.DownloadFileAsync(testUrl, destination, null, progress, default),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that DownloadFileAsync throws exception when download service fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFails()
+    {
+        var testUrl = "https://example.com/file.txt";
+        var destination = Path.Combine(_tempDir, "download.txt");
+
+        var failedResult = DownloadResult.CreateFailed("Network error");
+
+        _downloadService
+            .Setup(x => x.DownloadFileAsync(
+                testUrl,
+                destination,
+                null,
+                null,
+                default))
+            .ReturnsAsync(failedResult);
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(
+            () => _service.DownloadFileAsync(testUrl, destination));
+
+        Assert.Contains("Download failed: Network error", exception.Message);
     }
 
     /// <summary>
@@ -220,5 +263,53 @@ public class FileOperationsServiceTests : IDisposable
 
         await Assert.ThrowsAsync<FileNotFoundException>(
             () => _service.CreateSymlinkAsync(link, nonExistentTarget));
+    }
+
+    /// <summary>
+    /// Tests that VerifyFileHashAsync returns false when file does not exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task VerifyFileHashAsync_ReturnsFalse_WhenFileNotExists()
+    {
+        var nonExistentFile = Path.Combine(_tempDir, "nonexistent.txt");
+        var hash = "somehash";
+
+        var result = await _service.VerifyFileHashAsync(nonExistentFile, hash);
+
+        Assert.False(result);
+        _downloadService.Verify(
+            x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that VerifyFileHashAsync handles exceptions gracefully.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task VerifyFileHashAsync_HandlesExceptions_Gracefully()
+    {
+        var file = Path.Combine(_tempDir, "test.txt");
+        await File.WriteAllTextAsync(file, "test");
+
+        _downloadService
+            .Setup(x => x.ComputeFileHashAsync(file, default))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        var result = await _service.VerifyFileHashAsync(file, "somehash");
+
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Performs cleanup by disposing of temporary resources.
+    /// </summary>
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDir))
+        {
+            Directory.Delete(_tempDir, true);
+        }
     }
 }

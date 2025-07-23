@@ -6,7 +6,7 @@ using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace GenHub.Tests.Features.Workspace;
+namespace GenHub.Tests.Core.Features.Workspace;
 
 /// <summary>
 /// Tests for the HybridCopySymlinkStrategy class.
@@ -86,7 +86,7 @@ public class HybridCopySymlinkStrategyTests : IDisposable
     public void Dispose()
     {
         Dispose(true);
-        System.GC.SuppressFinalize(this);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
