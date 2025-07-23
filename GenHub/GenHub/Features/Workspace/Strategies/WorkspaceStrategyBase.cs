@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
@@ -70,18 +71,16 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="progress">The progress callback.</param>
     /// <param name="processedFiles">The number of files processed.</param>
     /// <param name="totalFiles">The total number of files.</param>
-    /// <param name="processedBytes">The number of bytes processed.</param>
-    /// <param name="totalBytes">The total number of bytes.</param>
     /// <param name="currentOperation">The current operation description.</param>
     /// <param name="currentFile">The current file being processed.</param>
+    /// <param name="downloadProgress">Optional download progress for the current file.</param>
     protected static void ReportProgress(
         IProgress<WorkspacePreparationProgress>? progress,
         int processedFiles,
         int totalFiles,
-        long processedBytes,
-        long totalBytes,
         string currentOperation,
-        string currentFile)
+        string currentFile,
+        DownloadProgress? downloadProgress = null)
     {
         if (progress == null)
         {
@@ -92,10 +91,9 @@ public abstract class WorkspaceStrategyBase<T>(
         {
             FilesProcessed = processedFiles,
             TotalFiles = totalFiles,
-            BytesProcessed = processedBytes,
-            TotalBytes = totalBytes,
             CurrentOperation = currentOperation,
             CurrentFile = currentFile,
+            DownloadProgress = downloadProgress,
         });
     }
 

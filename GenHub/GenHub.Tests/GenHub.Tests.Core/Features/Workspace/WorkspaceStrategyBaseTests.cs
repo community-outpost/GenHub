@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace GenHub.Tests.Features.Workspace;
+namespace GenHub.Tests.Core.Features.Workspace;
 
 /// <summary>
 /// Tests for WorkspaceStrategyBase functionality.
@@ -135,11 +135,11 @@ public class WorkspaceStrategyBaseTests : IDisposable
         {
             Manifest = new GameManifest
             {
-                Files = new List<ManifestFile>
-                {
+                Files =
+                [
                     new() { RelativePath = "generals.exe", Size = 1000 },
                     new() { RelativePath = "config.ini", Size = 500 },
-                },
+                ],
             },
         };
 
@@ -201,35 +201,23 @@ public class WorkspaceStrategyBaseTests : IDisposable
     /// <summary>
     /// Test implementation of WorkspaceStrategyBase for testing purposes.
     /// </summary>
-    public sealed class TestWorkspaceStrategy : WorkspaceStrategyBase<TestWorkspaceStrategy>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="TestWorkspaceStrategy"/> class.
+    /// </remarks>
+    /// <param name="fileOperations">The file operations service.</param>
+    public sealed class TestWorkspaceStrategy(IFileOperationsService fileOperations)
+    : WorkspaceStrategyBase<TestWorkspaceStrategy>(fileOperations, new NullLogger<TestWorkspaceStrategy>())
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TestWorkspaceStrategy"/> class.
-        /// </summary>
-        /// <param name="fileOperations">The file operations service.</param>
-        public TestWorkspaceStrategy(IFileOperationsService fileOperations)
-            : base(fileOperations, new NullLogger<TestWorkspaceStrategy>())
-        {
-        }
-
-        /// <summary>
-        /// Gets the strategy name.
-        /// </summary>
+        /// <inheritdoc/>
         public override string Name => "Test Strategy";
 
-        /// <summary>
-        /// Gets the strategy description.
-        /// </summary>
+        /// <inheritdoc/>
         public override string Description => "Test strategy for unit testing";
 
-        /// <summary>
-        /// Gets a value indicating whether admin rights are required.
-        /// </summary>
+        /// <inheritdoc/>
         public override bool RequiresAdminRights => false;
 
-        /// <summary>
-        /// Gets a value indicating whether same volume is required.
-        /// </summary>
+        /// <inheritdoc/>
         public override bool RequiresSameVolume => false;
 
         /// <summary>
@@ -240,27 +228,13 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// <returns>True if essential; otherwise, false.</returns>
         public static bool TestIsEssentialFile(string relativePath, long fileSize) => IsEssentialFile(relativePath, fileSize);
 
-        /// <summary>
-        /// Determines if the strategy can handle the configuration.
-        /// </summary>
-        /// <param name="configuration">The workspace configuration.</param>
-        /// <returns>True if can handle; otherwise, false.</returns>
+        /// <inheritdoc/>
         public override bool CanHandle(WorkspaceConfiguration configuration) => true;
 
-        /// <summary>
-        /// Estimates disk usage for the configuration.
-        /// </summary>
-        /// <param name="configuration">The workspace configuration.</param>
-        /// <returns>Estimated disk usage in bytes.</returns>
+        /// <inheritdoc/>
         public override long EstimateDiskUsage(WorkspaceConfiguration configuration) => 1000L;
 
-        /// <summary>
-        /// Prepares the workspace asynchronously.
-        /// </summary>
-        /// <param name="configuration">The workspace configuration.</param>
-        /// <param name="progress">Optional progress reporter.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>The workspace info.</returns>
+        /// <inheritdoc/>
         public override Task<WorkspaceInfo> PrepareAsync(
             WorkspaceConfiguration configuration,
             IProgress<WorkspacePreparationProgress>? progress = null,

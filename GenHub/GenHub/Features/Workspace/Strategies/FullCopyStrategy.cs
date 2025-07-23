@@ -14,20 +14,13 @@ namespace GenHub.Features.Workspace.Strategies;
 /// Workspace strategy that creates complete copies of all game files.
 /// Provides maximum compatibility and complete isolation at the cost of disk space.
 /// </summary>
-public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
+/// <remarks>
+/// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
+/// </remarks>
+/// <param name="fileOperations">The file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public sealed class FullCopyStrategy(IFileOperationsService fileOperations, ILogger<FullCopyStrategy> logger) : WorkspaceStrategyBase<FullCopyStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public FullCopyStrategy(
-        IFileOperationsService fileOperations,
-        ILogger<FullCopyStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Full Copy";
 
@@ -84,7 +77,7 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
 
             Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
 
-            ReportProgress(progress, 0, totalFiles, 0, estimatedTotalBytes, "Initializing", string.Empty);
+            ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
             foreach (var file in configuration.Manifest.Files)
@@ -129,7 +122,7 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
                 }
 
                 processedFiles++;
-                ReportProgress(progress, processedFiles, totalFiles, totalBytesProcessed, estimatedTotalBytes, "Copying", file.RelativePath);
+                ReportProgress(progress, processedFiles, totalFiles, "Copying", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);

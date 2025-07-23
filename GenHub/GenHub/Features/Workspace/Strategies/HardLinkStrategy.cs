@@ -14,20 +14,15 @@ namespace GenHub.Features.Workspace.Strategies;
 /// Workspace strategy that creates hard links to game files where possible, falling back to copy.
 /// Space-efficient, requires same volume for optimal results.
 /// </summary>
-public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
+/// <remarks>
+/// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
+/// </remarks>
+/// <param name="fileOperations">The file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public sealed class HardLinkStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<HardLinkStrategy> logger) : WorkspaceStrategyBase<HardLinkStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public HardLinkStrategy(
-        IFileOperationsService fileOperations,
-        ILogger<HardLinkStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Hard Link";
 
@@ -113,14 +108,7 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
 
             Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
 
-            ReportProgress(
-                progress,
-                0,
-                totalFiles,
-                0,
-                estimatedTotalBytes,
-                "Initializing",
-                string.Empty);
+            ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
             foreach (var file in configuration.Manifest.Files)
@@ -188,7 +176,7 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
 
                 processedFiles++;
                 var operation = sameVolume ? "Hard linking" : "Copying";
-                ReportProgress(progress, processedFiles, totalFiles, totalBytesProcessed, estimatedTotalBytes, operation, file.RelativePath);
+                ReportProgress(progress, processedFiles, totalFiles, operation, file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
