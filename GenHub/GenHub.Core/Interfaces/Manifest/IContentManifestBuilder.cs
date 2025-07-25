@@ -106,7 +106,7 @@ public interface IContentManifestBuilder
     /// </summary>
     /// <param name="workspaceStrategy">The workspace preparation strategy.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridSymlink);
+    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink);
 
     /// <summary>
     /// Adds a pre-installation step.

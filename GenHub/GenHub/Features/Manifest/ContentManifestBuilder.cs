@@ -290,7 +290,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <param name="workspaceStrategy">Workspace strategy.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithInstallationInstructions(
-        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridSymlink)
+        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink)
     {
         _manifest.Installation = new InstallationInstructions
         {
