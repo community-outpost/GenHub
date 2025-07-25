@@ -22,12 +22,14 @@ public class WorkspaceManager(
     ILogger<WorkspaceManager> logger
 ) : IWorkspaceManager
 {
-    private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
-    private readonly ILogger<WorkspaceManager> _logger = logger;
-    private readonly string _workspaceMetadataPath = Path.Combine(
+    // TODO: Make this configurable through application settings in the future.
+    private static readonly string WorkspaceMetadataPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "GenHub",
         "workspaces.json");
+
+    private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
+    private readonly ILogger<WorkspaceManager> _logger = logger;
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -40,12 +42,7 @@ public class WorkspaceManager(
     {
         _logger.LogInformation("Preparing workspace for configuration {Id} using strategy {Strategy}", configuration.Id, configuration.Strategy);
 
-        var strategy = _strategies.FirstOrDefault(s => s.CanHandle(configuration));
-        if (strategy == null)
-        {
-            throw new InvalidOperationException($"No strategy available for workspace configuration {configuration.Id} with strategy {configuration.Strategy}");
-        }
-
+        var strategy = _strategies.FirstOrDefault(s => s.CanHandle(configuration)) ?? throw new InvalidOperationException($"No strategy available for workspace configuration {configuration.Id} with strategy {configuration.Strategy}");
         _logger.LogDebug("Using strategy {Strategy} for workspace {Id}", strategy.Name, configuration.Id);
 
         // Clean up existing workspace if force recreate is requested
@@ -74,13 +71,13 @@ public class WorkspaceManager(
 
         try
         {
-            if (!File.Exists(_workspaceMetadataPath))
+            if (!File.Exists(WorkspaceMetadataPath))
             {
-                return Enumerable.Empty<WorkspaceInfo>();
+                return [];
             }
 
-            var json = await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken);
-            var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json) ?? new List<WorkspaceInfo>();
+            var json = await File.ReadAllTextAsync(WorkspaceMetadataPath, cancellationToken);
+            var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json) ?? [];
 
             // Filter out workspaces that no longer exist
             var validWorkspaces = workspaces.Where(w => Directory.Exists(w.WorkspacePath)).ToList();
@@ -95,7 +92,7 @@ public class WorkspaceManager(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve workspaces");
-            return Enumerable.Empty<WorkspaceInfo>();
+            return [];
         }
     }
 
@@ -136,6 +133,18 @@ public class WorkspaceManager(
         }
     }
 
+    private static async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(WorkspaceMetadataPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var json = JsonSerializer.Serialize(workspaces, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(WorkspaceMetadataPath, json, cancellationToken);
+    }
+
     private async Task SaveWorkspaceMetadataAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken)
     {
         var workspaces = (await GetAllWorkspacesAsync(cancellationToken)).ToList();
@@ -148,17 +157,5 @@ public class WorkspaceManager(
 
         workspaces.Add(workspaceInfo);
         await SaveAllWorkspacesAsync(workspaces, cancellationToken);
-    }
-
-    private async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
-    {
-        var directory = Path.GetDirectoryName(_workspaceMetadataPath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        var json = JsonSerializer.Serialize(workspaces, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(_workspaceMetadataPath, json, cancellationToken);
     }
 }

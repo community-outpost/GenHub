@@ -9,7 +9,7 @@ using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace GenHub.Tests.Features.Workspace;
+namespace GenHub.Tests.Core.Features.Workspace;
 
 /// <summary>
 /// Tests for the WorkspaceValidator class.

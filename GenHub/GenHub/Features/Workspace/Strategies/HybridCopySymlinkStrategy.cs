@@ -23,6 +23,8 @@ public sealed class HybridCopySymlinkStrategy(
     IFileOperationsService fileOperations,
     ILogger<HybridCopySymlinkStrategy> logger) : WorkspaceStrategyBase<HybridCopySymlinkStrategy>(fileOperations, logger)
 {
+    private const long LinkOverheadBytes = 1024L;
+
     /// <inheritdoc/>
     public override string Name => "Hybrid Copy-Symlink";
 
@@ -54,7 +56,7 @@ public sealed class HybridCopySymlinkStrategy(
             }
             else
             {
-                estimatedSize += 1024; // Non-essential files are symlinked (minimal overhead)
+                estimatedSize += LinkOverheadBytes; // Non-essential files are symlinked (minimal overhead)
             }
         }
 
@@ -123,7 +125,7 @@ public sealed class HybridCopySymlinkStrategy(
 
                 try
                 {
-                    EnsureDirectoryExists(destinationPath);
+                    FileOperationsService.EnsureDirectoryExists(destinationPath);
 
                     if (isEssential)
                     {
@@ -147,7 +149,7 @@ public sealed class HybridCopySymlinkStrategy(
                         // Create symlinks for non-essential files
                         await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, cancellationToken);
                         symlinkedFiles++;
-                        totalBytesProcessed += 1024; // Approximate symlink overhead
+                        totalBytesProcessed += LinkOverheadBytes; // Approximate symlink overhead
                     }
                 }
                 catch (Exception ex)
@@ -183,18 +185,7 @@ public sealed class HybridCopySymlinkStrategy(
         {
             Logger.LogError(ex, "Failed to prepare hybrid copy-symlink workspace at {WorkspacePath}", workspacePath);
 
-            // Cleanup on failure
-            try
-            {
-                if (Directory.Exists(workspacePath))
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-            }
-            catch (Exception cleanupEx)
-            {
-                Logger.LogWarning(cleanupEx, "Failed to cleanup workspace directory after failure: {WorkspacePath}", workspacePath);
-            }
+            CleanupWorkspaceOnFailure(workspacePath);
 
             throw;
         }

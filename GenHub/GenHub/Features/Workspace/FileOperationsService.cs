@@ -18,8 +18,59 @@ public class FileOperationsService(
     ILogger<FileOperationsService> logger,
     IDownloadService downloadService) : IFileOperationsService
 {
+    private const int BufferSize = 1024 * 1024; // 1MB buffer
+
     private readonly ILogger<FileOperationsService> _logger = logger;
     private readonly IDownloadService _downloadService = downloadService;
+
+    /// <summary>
+    /// Ensures that the directory for the specified file path exists, creating it if necessary.
+    /// </summary>
+    /// <param name="filePath">The file path whose directory should be ensured.</param>
+    /// <returns>True if the filePath is valid; otherwise, false.</returns>
+    public static bool EnsureDirectoryExists(string filePath)
+    {
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Deletes the specified file if it exists.
+    /// </summary>
+    /// <param name="filePath">The path of the file to delete.</param>
+    /// <returns>True if the file exists; otherwise, false.</returns>
+    public static bool DeleteFileIfExists(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Deletes the specified directory and all its contents if it exists.
+    /// </summary>
+    /// <param name="directoryPath">The path of the directory to delete.</param>
+    /// <returns>True if the directory was deleted; otherwise, false.</returns>
+    public static bool DeleteDirectoryIfExists(string directoryPath)
+    {
+        if (Directory.Exists(directoryPath))
+        {
+            Directory.Delete(directoryPath, recursive: true);
+            return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Copies a file from the source path to the destination path asynchronously.
@@ -29,38 +80,30 @@ public class FileOperationsService(
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous copy operation.</returns>
     public async Task CopyFileAsync(
-        string sourcePath,
-        string destinationPath,
-        CancellationToken cancellationToken = default)
+            string sourcePath,
+            string destinationPath,
+            CancellationToken cancellationToken = default)
     {
         try
         {
-            var directory = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            EnsureDirectoryExists(destinationPath);
 
-            // Handle large files with buffered copying
-            const int bufferSize = 1024 * 1024; // 1MB buffer
             await using var source = new FileStream(
                 sourcePath,
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                bufferSize,
+                BufferSize,
                 useAsync: true);
             await using var destination = new FileStream(
                 destinationPath,
                 FileMode.Create,
                 FileAccess.Write,
                 FileShare.None,
-                bufferSize,
+                BufferSize,
                 useAsync: true);
-
             await source.CopyToAsync(destination, cancellationToken);
 
-            // Preserve file attributes and timestamps
             var sourceInfo = new FileInfo(sourcePath);
             var destInfo = new FileInfo(destinationPath)
             {
@@ -99,17 +142,8 @@ public class FileOperationsService(
     {
         try
         {
-            var directory = Path.GetDirectoryName(linkPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // Delete existing file/link if it exists
-            if (File.Exists(linkPath) || Directory.Exists(linkPath))
-            {
-                File.Delete(linkPath);
-            }
+            EnsureDirectoryExists(linkPath);
+            DeleteFileIfExists(linkPath);
 
             await Task.Run(
                 () =>
@@ -160,31 +194,19 @@ public class FileOperationsService(
     {
         try
         {
-            var directory = Path.GetDirectoryName(linkPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            if (File.Exists(linkPath))
-            {
-                File.Delete(linkPath);
-            }
+            EnsureDirectoryExists(linkPath);
+            DeleteFileIfExists(linkPath);
 
             await Task.Run(
                 () =>
                 {
                     if (OperatingSystem.IsWindows())
                     {
-                        if (!CreateHardLinkW(linkPath, targetPath, IntPtr.Zero))
-                        {
-                            throw new IOException(
-                                $"Failed to create hard link from {linkPath} to {targetPath}");
-                        }
+                        // Use platform-specific implementation
+                        throw new NotImplementedException("Hard link creation should be handled by platform-specific service");
                     }
                     else
                     {
-                        // Use Unix link() system call or fallback to copy
                         File.Copy(targetPath, linkPath, true);
                         _logger.LogWarning(
                             "Hard links not supported on this platform, fell back to copy for {Link}",
@@ -272,7 +294,7 @@ public class FileOperationsService(
                 progress,
                 cancellationToken);
 
-            if (!result.Success) // Changed from result.IsSuccess to result.Success
+            if (!result.Success)
             {
                 throw new HttpRequestException(
                     $"Download failed: {result.ErrorMessage}");
@@ -294,14 +316,4 @@ public class FileOperationsService(
             throw;
         }
     }
-
-    [DllImport(
-        "kernel32.dll",
-        SetLastError = true,
-        CharSet = CharSet.Unicode,
-        EntryPoint = "CreateHardLinkW")]
-    private static extern bool CreateHardLinkW(
-        string lpFileName,
-        string lpExistingFileName,
-        IntPtr lpSecurityAttributes);
 }

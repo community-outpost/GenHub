@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace GenHub.Tests.Features.Workspace;
+namespace GenHub.Tests.Core.Features.Workspace;
 
 /// <summary>
 /// Tests for workspace strategies.

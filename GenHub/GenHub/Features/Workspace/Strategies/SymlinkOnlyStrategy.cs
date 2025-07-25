@@ -22,6 +22,8 @@ public sealed class SymlinkOnlyStrategy(
     IFileOperationsService fileOperations,
     ILogger<SymlinkOnlyStrategy> logger) : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
 {
+    private const long LinkOverheadBytes = 1024L;
+
     /// <inheritdoc/>
     public override string Name => "Symlink Only";
 
@@ -44,7 +46,7 @@ public sealed class SymlinkOnlyStrategy(
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifest.Files.Count * 1024L;
+        return configuration.Manifest.Files.Count * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
@@ -96,9 +98,9 @@ public sealed class SymlinkOnlyStrategy(
 
                 try
                 {
-                    EnsureDirectoryExists(destinationPath);
+                    FileOperationsService.EnsureDirectoryExists(destinationPath);
                     await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, cancellationToken);
-                    totalBytesProcessed += 1024; // Approximate symlink overhead
+                    totalBytesProcessed += LinkOverheadBytes; // Approximate symlink overhead
                 }
                 catch (Exception ex)
                 {
@@ -128,18 +130,7 @@ public sealed class SymlinkOnlyStrategy(
         {
             Logger.LogError(ex, "Failed to prepare symlink-only workspace at {WorkspacePath}", workspacePath);
 
-            // Cleanup on failure
-            try
-            {
-                if (Directory.Exists(workspacePath))
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-            }
-            catch (Exception cleanupEx)
-            {
-                Logger.LogWarning(cleanupEx, "Failed to cleanup workspace directory after failure: {WorkspacePath}", workspacePath);
-            }
+            CleanupWorkspaceOnFailure(workspacePath);
 
             throw;
         }

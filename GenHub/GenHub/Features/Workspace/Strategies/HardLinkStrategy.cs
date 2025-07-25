@@ -23,6 +23,8 @@ public sealed class HardLinkStrategy(
     IFileOperationsService fileOperations,
     ILogger<HardLinkStrategy> logger) : WorkspaceStrategyBase<HardLinkStrategy>(fileOperations, logger)
 {
+    private const long LinkOverheadBytes = 1024L;
+
     /// <inheritdoc/>
     public override string Name => "Hard Link";
 
@@ -51,7 +53,7 @@ public sealed class HardLinkStrategy(
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
             // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifest.Files.Count * 1024L;
+            return configuration.Manifest.Files.Count * LinkOverheadBytes;
         }
         else
         {
@@ -125,7 +127,7 @@ public sealed class HardLinkStrategy(
 
                 try
                 {
-                    EnsureDirectoryExists(destinationPath);
+                    FileOperationsService.EnsureDirectoryExists(destinationPath);
 
                     if (sameVolume)
                     {
@@ -133,7 +135,7 @@ public sealed class HardLinkStrategy(
                         {
                             await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
                             hardLinkedFiles++;
-                            totalBytesProcessed += 1024; // Minimal overhead for hard links
+                            totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
                         }
                         catch (Exception hardLinkEx)
                         {
@@ -194,18 +196,7 @@ public sealed class HardLinkStrategy(
         {
             Logger.LogError(ex, "Failed to prepare hard link workspace at {WorkspacePath}", workspacePath);
 
-            // Cleanup on failure
-            try
-            {
-                if (Directory.Exists(workspacePath))
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-            }
-            catch (Exception cleanupEx)
-            {
-                Logger.LogWarning(cleanupEx, "Failed to cleanup workspace directory after failure: {WorkspacePath}", workspacePath);
-            }
+            CleanupWorkspaceOnFailure(workspacePath);
 
             throw;
         }

@@ -94,7 +94,7 @@ public sealed class FullCopyStrategy(IFileOperationsService fileOperations, ILog
 
                 try
                 {
-                    EnsureDirectoryExists(destinationPath);
+                    FileOperationsService.EnsureDirectoryExists(destinationPath);
 
                     await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
 
@@ -139,19 +139,7 @@ public sealed class FullCopyStrategy(IFileOperationsService fileOperations, ILog
         {
             Logger.LogError(ex, "Failed to prepare full copy workspace at {WorkspacePath}", workspacePath);
 
-            // Cleanup on failure
-            try
-            {
-                if (Directory.Exists(workspacePath))
-                {
-                    Directory.Delete(workspacePath, true);
-                }
-            }
-            catch (Exception cleanupEx)
-            {
-                Logger.LogWarning(cleanupEx, "Failed to cleanup workspace directory after failure: {WorkspacePath}", workspacePath);
-            }
-
+            CleanupWorkspaceOnFailure(workspacePath);
             throw;
         }
     }

@@ -21,6 +21,33 @@ public abstract class WorkspaceStrategyBase<T>(
     : IWorkspaceStrategy
     where T : WorkspaceStrategyBase<T>
 {
+    private static readonly HashSet<string> EssentialExtensions =
+    [
+        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
+    ];
+
+    private static readonly HashSet<string> CncEssentialExtensions =
+    [
+        ".big", ".str", ".csf", ".w3d",
+    ];
+
+    private static readonly HashSet<string> EssentialDirectories =
+    [
+        "mods", "patch", "config", "data", "maps", "scripts",
+    ];
+
+    private static readonly string[] EssentialPatterns =
+    [
+        "mod", "patch", "config", "generals", "zerohour", "settings",
+    ];
+
+    private static readonly HashSet<string> NonEssentialExtensions =
+    [
+        ".tga", ".dds", ".bmp", ".jpg", ".jpeg", ".png", ".gif",
+        ".wav", ".mp3", ".ogg", ".flac",
+        ".avi", ".mp4", ".wmv", ".bik",
+    ];
+
     /// <summary>
     /// The logger instance.
     /// </summary>
@@ -98,19 +125,6 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Ensures the target directory exists for the specified file path.
-    /// </summary>
-    /// <param name="filePath">The file path to ensure directory for.</param>
-    protected static void EnsureDirectoryExists(string filePath)
-    {
-        var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-    }
-
-    /// <summary>
     /// Determines if a file should be considered essential based on built-in rules.
     /// Essential files are those critical for game functionality and should be copied rather than symlinked.
     /// </summary>
@@ -130,64 +144,62 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // Essential file extensions - executables, libraries, configs
-        var essentialExtensions = new HashSet<string>
-        {
-            ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
-        };
-
-        if (essentialExtensions.Contains(extension))
+        if (EssentialExtensions.Contains(extension))
         {
             return true;
         }
 
         // Command & Conquer specific essential files
-        var cncEssentialExtensions = new HashSet<string>
-        {
-            ".big", ".str", ".csf", ".w3d",
-        };
-
-        if (cncEssentialExtensions.Contains(extension))
+        if (CncEssentialExtensions.Contains(extension))
         {
             return true;
         }
 
         // Essential directories - always copy content from these
-        var essentialDirectories = new HashSet<string>
-        {
-            "mods", "patch", "config", "data", "maps", "scripts",
-        };
-
-        if (essentialDirectories.Any(dir => directory.Contains(dir)))
+        if (EssentialDirectories.Any(dir => directory.Contains(dir)))
         {
             return true;
         }
 
         // Essential file patterns
-        var essentialPatterns = new[]
-        {
-            "mod", "patch", "config", "generals", "zerahour", "settings",
-        };
-
-        if (essentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        if (EssentialPatterns.Any(pattern => fileName.Contains(pattern)))
         {
             return true;
         }
 
         // Large media files are typically non-essential (textures, videos, sounds)
-        var nonEssentialExtensions = new HashSet<string>
-        {
-            ".tga", ".dds", ".bmp", ".jpg", ".jpeg", ".png", ".gif",
-            ".wav", ".mp3", ".ogg", ".flac",
-            ".avi", ".mp4", ".wmv", ".bik",
-        };
-
-        if (nonEssentialExtensions.Contains(extension))
+        if (NonEssentialExtensions.Contains(extension))
         {
             return false;
         }
 
         // Default to essential for unknown files
         return true;
+    }
+
+    /// <summary>
+    /// Cleans up the workspace directory if a failure occurs during workspace preparation.
+    /// Ensures that no partial or corrupted workspace directories are left behind.
+    /// Logs the cleanup operation and any exceptions encountered.
+    /// </summary>
+    /// <param name="workspacePath">The path to the workspace directory to clean up.</param>
+    protected void CleanupWorkspaceOnFailure(string workspacePath)
+    {
+        try
+        {
+            if (FileOperationsService.DeleteDirectoryIfExists(workspacePath))
+            {
+                Logger.LogDebug("Successfully cleaned up workspace directory after failure: {WorkspacePath}", workspacePath);
+            }
+            else
+            {
+                Logger.LogWarning("Workspace directory did not exist or could not be deleted: {WorkspacePath}", workspacePath);
+            }
+        }
+        catch (Exception cleanupEx)
+        {
+            Logger.LogWarning(cleanupEx, "Failed to cleanup workspace directory after failure: {WorkspacePath}", workspacePath);
+        }
     }
 
     /// <summary>

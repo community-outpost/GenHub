@@ -5,8 +5,10 @@ using System.Threading;
 using Avalonia;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Features.AppUpdate;
+using GenHub.Windows.Features.Workspace;
 using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -63,10 +65,9 @@ public class Program
                     client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
                 });
                 s.AddSingleton<IPlatformUpdateInstaller, WindowsUpdateInstaller>();
+                s.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
+                s.AddSingleton<IFileOperationsService, WindowsFileOperationsService>();
             });
-
-            // Windows-specific DI
-            services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;

@@ -197,13 +197,13 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         Id = "temp-validation",
                         GameVersion = new GameVersion { Id = "temp" },
-                        Manifest = new GameManifest { Files = new List<ManifestFile>() },
+                        Manifest = new GameManifest { Files = [] },
                         WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
                         BaseInstallationPath = sourcePath,
                         Strategy = (WorkspaceStrategy)strategyType,
                     };
 
-                    var result = estimateMethod.Invoke(strategy, new object[] { tempConfig });
+                    var result = estimateMethod.Invoke(strategy, [tempConfig]);
                     estimatedUsage = result is long longValue ? longValue : 0L;
                 }
 

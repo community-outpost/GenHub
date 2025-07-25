@@ -76,8 +76,9 @@ public class HybridCopySymlinkStrategyTests : IDisposable
         var estimate = _strategy.EstimateDiskUsage(config);
 
         // Assert
-        // Should copy exe and ini (1001000 bytes) + symlink overhead for media files (2 * 1024)
-        Assert.Equal(1001000 + 2048, estimate);
+        // Should copy exe and ini (1001000 bytes) + symlink overhead for media files (2 * LinkOverheadBytes)
+        const long LinkOverheadBytes = 1024L;
+        Assert.Equal(1001000 + (2 * LinkOverheadBytes), estimate);
     }
 
     /// <summary>
