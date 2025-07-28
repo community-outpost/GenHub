@@ -72,7 +72,7 @@ public class Program
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
@@ -84,12 +84,13 @@ public class Program
     /// <summary>
     /// Avalonia configuration.
     /// </summary>
+    /// <param name="serviceProvider">The application's dependency injection service provider.</param>
     /// <returns>The <see cref="AppBuilder"/>.</returns>
     /// <remarks>
     /// Don't remove; also used by visual designer.
     /// </remarks>
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    public static AppBuilder BuildAvaloniaApp(IServiceProvider serviceProvider)
+        => AppBuilder.Configure(() => new App(serviceProvider))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
