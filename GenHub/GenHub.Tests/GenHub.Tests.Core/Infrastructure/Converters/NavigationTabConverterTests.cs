@@ -20,8 +20,8 @@ public class NavigationTabConverterTests
     [InlineData(NavigationTab.GameProfiles, NavigationTab.GameProfiles, typeof(bool), true)]
     [InlineData(NavigationTab.GameProfiles, NavigationTab.Downloads, typeof(bool), false)]
     [InlineData(NavigationTab.Downloads, NavigationTab.Downloads, typeof(bool), true)]
-    [InlineData(NavigationTab.GameProfiles, NavigationTab.GameProfiles, typeof(int), 0)]
-    [InlineData(NavigationTab.Downloads, NavigationTab.Downloads, typeof(int), 1)]
+    [InlineData(NavigationTab.GameProfiles, NavigationTab.GameProfiles, typeof(int), 1)]
+    [InlineData(NavigationTab.Downloads, NavigationTab.Downloads, typeof(int), 2)]
     public void Convert_ReturnsExpectedValue(NavigationTab value, NavigationTab parameter, Type targetType, object expected)
     {
         var result = NavigationTabConverter.Instance.Convert(value, targetType, parameter, null);
@@ -51,9 +51,10 @@ public class NavigationTabConverterTests
     /// <param name="value">The integer value to convert back.</param>
     /// <param name="expected">The expected NavigationTab.</param>
     [Theory]
-    [InlineData(0, NavigationTab.GameProfiles)]
-    [InlineData(1, NavigationTab.Downloads)]
-    [InlineData(2, NavigationTab.Settings)]
+    [InlineData(0, NavigationTab.Home)]
+    [InlineData(1, NavigationTab.GameProfiles)]
+    [InlineData(2, NavigationTab.Downloads)]
+    [InlineData(3, NavigationTab.Settings)]
     public void ConvertBack_WithValidIndex_ReturnsTab(int value, NavigationTab expected)
     {
         var result = NavigationTabConverter.Instance.ConvertBack(value, typeof(NavigationTab), null, null);

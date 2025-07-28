@@ -1,9 +1,11 @@
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
@@ -29,6 +31,7 @@ public class SharedViewModelModuleTests
         // This simulates the full application service registration.
         services.AddGameDetectionService(); // Registers IGameInstallationDetectionOrchestrator
         services.AddLoggingModule();       // Registers ILogger<T>
+        services.AddSingleton<IConfigurationService>(new Mock<IConfigurationService>().Object);
 
         // Build the service provider
         var serviceProvider = services.BuildServiceProvider();
