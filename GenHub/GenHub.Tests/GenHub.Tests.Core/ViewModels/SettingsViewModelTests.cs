@@ -13,7 +13,7 @@ namespace GenHub.Tests.Core.ViewModels;
 /// </summary>
 public class SettingsViewModelTests
 {
-    private readonly Mock<IConfigurationService> _mockConfigService;
+    private readonly Mock<IUserSettingsService> _mockConfigService;
     private readonly Mock<ILogger<SettingsViewModel>> _mockLogger;
     private readonly AppSettings _defaultSettings;
 
@@ -22,7 +22,7 @@ public class SettingsViewModelTests
     /// </summary>
     public SettingsViewModelTests()
     {
-        _mockConfigService = new Mock<IConfigurationService>();
+        _mockConfigService = new Mock<IUserSettingsService>();
         _mockLogger = new Mock<ILogger<SettingsViewModel>>();
         _defaultSettings = new AppSettings();
 
@@ -33,7 +33,7 @@ public class SettingsViewModelTests
     /// Verifies that the constructor loads settings from the configuration service.
     /// </summary>
     [Fact]
-    public void Constructor_LoadsSettingsFromConfigurationService()
+    public void Constructor_LoadsSettingsFromUserSettingsService()
     {
         // Arrange
         var customSettings = new AppSettings
@@ -61,7 +61,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_UpdatesConfigurationService()
+    public async Task SaveSettingsCommand_UpdatesUserSettingsService()
     {
         // Arrange
         var viewModel = new SettingsViewModel(_mockConfigService.Object, _mockLogger.Object);
@@ -162,7 +162,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_HandlesConfigurationServiceException()
+    public async Task SaveSettingsCommand_HandlesUserSettingsServiceException()
     {
         // Arrange
         _mockConfigService.Setup(x => x.SaveAsync()).ThrowsAsync(new IOException("Disk full"));
@@ -186,7 +186,7 @@ public class SettingsViewModelTests
     /// Verifies that the constructor handles configuration service exceptions and uses defaults.
     /// </summary>
     [Fact]
-    public void Constructor_HandlesConfigurationServiceException()
+    public void Constructor_HandlesUserSettingsServiceException()
     {
         // Arrange
         _mockConfigService.Setup(x => x.GetSettings()).Throws(new Exception("Configuration error"));

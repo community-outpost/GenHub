@@ -22,7 +22,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly ILogger<MainViewModel>? _logger;
     private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
-    private readonly IConfigurationService _configurationService;
+    private readonly IUserSettingsService _userSettingsService;
 
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
@@ -34,27 +34,27 @@ public partial class MainViewModel : ObservableObject
     /// <param name="downloadsViewModel">Downloads view model.</param>
     /// <param name="settingsViewModel">Settings view model.</param>
     /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
-    /// <param name="configurationService">Configuration service.</param>
+    /// <param name="userSettingsService">Configuration service.</param>
     /// <param name="logger">Logger instance.</param>
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
         DownloadsViewModel downloadsViewModel,
         SettingsViewModel settingsViewModel,
         IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
-        IConfigurationService configurationService,
+        IUserSettingsService userSettingsService,
         ILogger<MainViewModel>? logger = null)
     {
         GameProfilesViewModel = gameProfilesViewModel;
         DownloadsViewModel = downloadsViewModel;
         SettingsViewModel = settingsViewModel;
         _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
-        _configurationService = configurationService;
+        _userSettingsService = userSettingsService;
         _logger = logger;
 
         // Load initial settings
         try
         {
-            var settings = _configurationService.GetSettings();
+            var settings = _userSettingsService.GetSettings();
             _selectedTab = settings.LastSelectedTab;
             _logger?.LogDebug($"Initial settings loaded, selected tab: {_selectedTab}");
         }
@@ -197,7 +197,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            _configurationService.UpdateSettings(settings =>
+            _userSettingsService.UpdateSettings(settings =>
             {
                 settings.LastSelectedTab = selectedTab;
             });

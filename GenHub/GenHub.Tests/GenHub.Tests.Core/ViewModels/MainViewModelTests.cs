@@ -24,7 +24,7 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         mockConfigService.Setup(x => x.GetSettings()).Returns(new AppSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockConfigService.Object, mockLogger.Object);
@@ -51,7 +51,7 @@ public class MainViewModelTests
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         mockConfigService.Setup(x => x.GetSettings()).Returns(new AppSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockConfigService.Object, mockLogger.Object);
@@ -74,7 +74,7 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         mockConfigService.Setup(x => x.GetSettings()).Returns(new AppSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockConfigService.Object, mockLogger.Object);
@@ -99,7 +99,7 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         mockConfigService.Setup(x => x.GetSettings()).Returns(new AppSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockConfigService.Object, mockLogger.Object);
@@ -127,7 +127,7 @@ public class MainViewModelTests
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         mockConfigService.Setup(x => x.GetSettings()).Returns(new AppSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockConfigService.Object, mockLogger.Object);

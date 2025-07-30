@@ -12,7 +12,7 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// Service for managing application configuration settings.
 /// </summary>
-public class ConfigurationService : IConfigurationService
+public class UserSettingsService : IUserSettingsService
 {
     /// <summary>
     /// JSON serializer options for settings.
@@ -25,26 +25,26 @@ public class ConfigurationService : IConfigurationService
         Converters = { new JsonStringEnumConverter() },
     };
 
-    private readonly ILogger<ConfigurationService> _logger;
+    private readonly ILogger<UserSettingsService> _logger;
     private readonly object _lock = new();
     private string _settingsFilePath = string.Empty;
     private AppSettings _settings = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationService"/> class.
+    /// Initializes a new instance of the <see cref="UserSettingsService"/> class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    public ConfigurationService(ILogger<ConfigurationService> logger)
+    public UserSettingsService(ILogger<UserSettingsService> logger)
         : this(logger, true)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationService"/> class with optional initialization control.
+    /// Initializes a new instance of the <see cref="UserSettingsService"/> class with optional initialization control.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
     /// <param name="initialize">Whether to perform normal initialization.</param>
-    protected ConfigurationService(ILogger<ConfigurationService> logger, bool initialize)
+    protected UserSettingsService(ILogger<UserSettingsService> logger, bool initialize)
     {
         _logger = logger;
 

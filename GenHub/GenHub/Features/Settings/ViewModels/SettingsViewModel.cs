@@ -22,7 +22,7 @@ namespace GenHub.Features.Settings.ViewModels;
 /// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
-    private readonly IConfigurationService _configurationService;
+    private readonly IUserSettingsService _userSettingsService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly Timer _memoryUpdateTimer;
     private bool _isViewVisible = false;
@@ -81,11 +81,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
-    /// <param name="configurationService">The configuration service.</param>
+    /// <param name="userSettingsService">The configuration service.</param>
     /// <param name="logger">The logger.</param>
-    public SettingsViewModel(IConfigurationService configurationService, ILogger<SettingsViewModel> logger)
+    public SettingsViewModel(IUserSettingsService userSettingsService, ILogger<SettingsViewModel> logger)
     {
-        _configurationService = configurationService;
+        _userSettingsService = userSettingsService;
         _logger = logger;
         LoadSettings();
 
@@ -293,7 +293,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var settings = _configurationService.GetSettings();
+            var settings = _userSettingsService.GetSettings();
             Theme = settings.Theme;
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
@@ -331,7 +331,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _configurationService.UpdateSettings(settings =>
+            _userSettingsService.UpdateSettings(settings =>
             {
                 settings.Theme = Theme;
                 settings.WorkspacePath = WorkspacePath;
@@ -346,7 +346,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.SettingsFilePath = SettingsFilePath;
             });
 
-            await _configurationService.SaveAsync();
+            await _userSettingsService.SaveAsync();
 
             _logger.LogInformation("Settings saved successfully");
 
@@ -514,7 +514,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             using var process = Process.GetCurrentProcess();
-            CurrentMemoryUsage = process.WorkingSet64 / 1024.0 / 1024.0; // Convert to MB
+
+            // WorkingSet64 is the current physical memory used by the process, but Task Manager's "Memory (Private Working Set)" may differ.
+            // For a value closer to Task Manager's "Memory (Private Working Set)", use PrivateMemorySize64.
+            CurrentMemoryUsage = process.PrivateMemorySize64 / 1024.0 / 1024.0; // Convert to MB
         }
         catch (Exception ex)
         {

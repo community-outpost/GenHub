@@ -31,7 +31,7 @@ public class SharedViewModelModuleTests
         // This simulates the full application service registration.
         services.AddGameDetectionService(); // Registers IGameInstallationDetectionOrchestrator
         services.AddLoggingModule();       // Registers ILogger<T>
-        services.AddSingleton<IConfigurationService>(new Mock<IConfigurationService>().Object);
+        services.AddSingleton<IUserSettingsService>(new Mock<IUserSettingsService>().Object);
 
         // Build the service provider
         var serviceProvider = services.BuildServiceProvider();
