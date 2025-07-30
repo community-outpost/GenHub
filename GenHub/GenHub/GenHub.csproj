@@ -25,6 +25,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Console" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
         <PackageReference Include="Octokit" />
+        <PackageReference Include="ReactiveUI" />
         <PackageReference Include="StyleCop.Analyzers" />
     </ItemGroup>
 
