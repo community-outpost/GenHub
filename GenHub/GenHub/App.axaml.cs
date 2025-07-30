@@ -17,7 +17,7 @@ namespace GenHub;
 public partial class App : Application
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly IConfigurationService _configurationService;
+    private readonly IUserSettingsService _userSettingsService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -26,7 +26,7 @@ public partial class App : Application
     public App(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _configurationService = _serviceProvider.GetService<IConfigurationService>() ?? throw new InvalidOperationException("IConfigurationService not registered");
+        _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
     }
 
     /// <summary>
@@ -59,10 +59,10 @@ public partial class App : Application
 
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
-        if (_configurationService == null) return;
+        if (_userSettingsService == null) return;
         try
         {
-            var settings = _configurationService.GetSettings();
+            var settings = _userSettingsService.GetSettings();
             mainWindow.Width = settings.WindowWidth;
             mainWindow.Height = settings.WindowHeight;
             if (settings.IsMaximized)
@@ -82,13 +82,13 @@ public partial class App : Application
 
     private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (_configurationService == null || _serviceProvider == null) return;
+        if (_userSettingsService == null || _serviceProvider == null) return;
         try
         {
             // Save current window state
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {
-                _configurationService.UpdateSettings(settings =>
+                _userSettingsService.UpdateSettings(settings =>
                 {
                     if (desktop.MainWindow.WindowState != Avalonia.Controls.WindowState.Maximized)
                     {
@@ -98,7 +98,7 @@ public partial class App : Application
 
                     settings.IsMaximized = desktop.MainWindow.WindowState == Avalonia.Controls.WindowState.Maximized;
                 });
-                await _configurationService.SaveAsync();
+                await _userSettingsService.SaveAsync();
             }
         }
         catch (Exception ex)

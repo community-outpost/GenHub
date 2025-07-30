@@ -24,10 +24,10 @@ public class AppLifecycleTests
     }
 
     /// <summary>
-    /// Verifies that the <see cref="App"/> constructor throws if IConfigurationService is not registered.
+    /// Verifies that the <see cref="App"/> constructor throws if IUserSettingsService is not registered.
     /// </summary>
     [Fact]
-    public void App_Constructor_RequiresConfigurationService()
+    public void App_Constructor_RequiresUserSettingsService()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -47,7 +47,7 @@ public class AppLifecycleTests
     {
         // Arrange
         var services = new ServiceCollection();
-        var mockConfigService = new Mock<IConfigurationService>();
+        var mockConfigService = new Mock<IUserSettingsService>();
         services.AddSingleton(mockConfigService.Object);
         var serviceProvider = services.BuildServiceProvider();
 

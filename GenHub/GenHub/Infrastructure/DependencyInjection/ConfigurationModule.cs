@@ -16,7 +16,15 @@ public static class ConfigurationModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddConfigurationModule(this IServiceCollection services)
     {
-        services.AddSingleton<IConfigurationService, ConfigurationService>();
+        // Register app configuration service (uses Microsoft IConfiguration)
+        services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
+
+        // Register user settings service (JSON-based)
+        services.AddSingleton<IUserSettingsService, UserSettingsService>();
+
+        // Register the unified provider that combines app config and user settings
+        services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
+
         return services;
     }
 }

@@ -5,7 +5,7 @@ namespace GenHub.Core.Interfaces.Common;
 /// <summary>
 /// Service responsible for managing application configuration settings.
 /// </summary>
-public interface IConfigurationService
+public interface IUserSettingsService
 {
     /// <summary>
     /// Gets a deep copy of the current application settings.

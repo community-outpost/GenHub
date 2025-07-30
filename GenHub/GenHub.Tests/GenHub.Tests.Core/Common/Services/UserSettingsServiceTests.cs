@@ -10,21 +10,21 @@ using Xunit;
 namespace GenHub.Tests.Core.Common.Services;
 
 /// <summary>
-/// Tests for <see cref="ConfigurationService"/>.
+/// Tests for <see cref="UserSettingsService"/>.
 /// </summary>
-public class ConfigurationServiceTests : IDisposable
+public class UserSettingsServiceTests : IDisposable
 {
     private readonly string _tempDirectory;
-    private readonly Mock<ILogger<ConfigurationService>> _mockLogger;
+    private readonly Mock<ILogger<UserSettingsService>> _mockLogger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationServiceTests"/> class.
+    /// Initializes a new instance of the <see cref="UserSettingsServiceTests"/> class.
     /// </summary>
-    public ConfigurationServiceTests()
+    public UserSettingsServiceTests()
     {
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
-        _mockLogger = new Mock<ILogger<ConfigurationService>>();
+        _mockLogger = new Mock<ILogger<UserSettingsService>>();
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public class ConfigurationServiceTests : IDisposable
         Assert.Contains("\"downloads\"", fileContent.ToLowerInvariant());
 
         // Important: Don't delete the file this time - we want the second service to load it
-        var service2 = new TestableConfigurationService(_mockLogger.Object, settingsPath, loadFromFile: true);
+        var service2 = new TestableUserSettingsService(_mockLogger.Object, settingsPath, loadFromFile: true);
         var loadedSettings = service2.GetSettings();
 
         Assert.Equal("Light", loadedSettings.Theme);
@@ -179,7 +179,7 @@ public class ConfigurationServiceTests : IDisposable
         var nestedPath = Path.Combine(_tempDirectory, "nested", "path");
         var settingsPath = Path.Combine(nestedPath, "settings.json");
         var service = CreateService();
-        var settingsPathField = typeof(ConfigurationService)
+        var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         settingsPathField?.SetValue(service, settingsPath);
         await service.SaveAsync();
@@ -211,7 +211,7 @@ public class ConfigurationServiceTests : IDisposable
         var settingsPath = Path.Combine(deepPath, "settings.json");
 
         var service = CreateService();
-        var settingsPathField = typeof(ConfigurationService)
+        var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         if (settingsPathField is not null)
         {
@@ -245,7 +245,7 @@ public class ConfigurationServiceTests : IDisposable
         Assert.Contains("1600", writtenContent);
 
         // Act - Create service that loads from the existing file
-        var service = new TestableConfigurationService(_mockLogger.Object, settingsPath, loadFromFile: true);
+        var service = new TestableUserSettingsService(_mockLogger.Object, settingsPath, loadFromFile: true);
         var settings = service.GetSettings();
 
         // Assert
@@ -256,32 +256,32 @@ public class ConfigurationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Creates a new <see cref="ConfigurationService"/> instance for testing with a temp file path.
+    /// Creates a new <see cref="UserSettingsService"/> instance for testing with a temp file path.
     /// </summary>
-    /// <returns>A new <see cref="ConfigurationService"/> instance using a temp file path.</returns>
-    private ConfigurationService CreateService()
+    /// <returns>A new <see cref="UserSettingsService"/> instance using a temp file path.</returns>
+    private UserSettingsService CreateService()
     {
         var settingsPath = Path.Combine(_tempDirectory, "settings.json");
         return CreateServiceWithPath(settingsPath);
     }
 
-    private ConfigurationService CreateServiceWithPath(string settingsPath)
+    private UserSettingsService CreateServiceWithPath(string settingsPath)
     {
         // Ensure the test file doesn't exist initially
         if (File.Exists(settingsPath))
             File.Delete(settingsPath);
 
         // Create a service that bypasses normal initialization
-        var service = new TestableConfigurationService(_mockLogger.Object, settingsPath);
+        var service = new TestableUserSettingsService(_mockLogger.Object, settingsPath);
         return service;
     }
 
     /// <summary>
-    /// Testable version of ConfigurationService that allows specifying the settings file path.
+    /// Testable version of UserSettingsService that allows specifying the settings file path.
     /// </summary>
-    private class TestableConfigurationService : ConfigurationService
+    private class TestableUserSettingsService : UserSettingsService
     {
-        public TestableConfigurationService(ILogger<ConfigurationService> logger, string settingsFilePath, bool loadFromFile = false)
+        public TestableUserSettingsService(ILogger<UserSettingsService> logger, string settingsFilePath, bool loadFromFile = false)
             : base(logger, false) // Bypass normal initialization
         {
             // Set the custom path and load settings from it
