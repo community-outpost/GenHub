@@ -26,6 +26,7 @@ public class UserSettingsService : IUserSettingsService
     };
 
     private readonly ILogger<UserSettingsService> _logger;
+    private readonly IAppConfigurationService? _appConfig;
     private readonly object _lock = new();
     private string _settingsFilePath = string.Empty;
     private AppSettings _settings = new();
@@ -34,8 +35,9 @@ public class UserSettingsService : IUserSettingsService
     /// Initializes a new instance of the <see cref="UserSettingsService"/> class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    public UserSettingsService(ILogger<UserSettingsService> logger)
-        : this(logger, true)
+    /// <param name="appConfig">Application configuration service.</param>
+    public UserSettingsService(ILogger<UserSettingsService> logger, IAppConfigurationService appConfig)
+        : this(logger, appConfig, true)
     {
     }
 
@@ -43,10 +45,12 @@ public class UserSettingsService : IUserSettingsService
     /// Initializes a new instance of the <see cref="UserSettingsService"/> class with optional initialization control.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
+    /// <param name="appConfig">Application configuration service.</param>
     /// <param name="initialize">Whether to perform normal initialization.</param>
-    protected UserSettingsService(ILogger<UserSettingsService> logger, bool initialize)
+    protected UserSettingsService(ILogger<UserSettingsService> logger, IAppConfigurationService? appConfig, bool initialize)
     {
         _logger = logger;
+        _appConfig = appConfig;
 
         if (initialize)
         {
@@ -78,7 +82,15 @@ public class UserSettingsService : IUserSettingsService
 
         lock (_lock)
         {
-            applyChanges(_settings);
+            // Work on a copy to ensure exception safety
+            var json = JsonSerializer.Serialize(_settings, JsonOptions);
+            var settingsCopy = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions)
+                               ?? new AppSettings();
+
+            applyChanges(settingsCopy);
+
+            // Only update internal state if no exception occurred
+            _settings = settingsCopy;
 
             // If the settings file path was changed, update the internal field
             if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
@@ -100,6 +112,11 @@ public class UserSettingsService : IUserSettingsService
         {
             // Use the potentially updated path from the settings object itself.
             pathToSave = _settingsFilePath;
+            if (string.IsNullOrWhiteSpace(pathToSave))
+            {
+                throw new InvalidOperationException("Settings file path is not configured");
+            }
+
             settingsToSave = GetSettings(); // Use a copy to avoid race conditions
         }
 
@@ -139,30 +156,21 @@ public class UserSettingsService : IUserSettingsService
     /// <param name="path">The path to set.</param>
     protected void SetSettingsFilePath(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
         _settingsFilePath = path;
         _settings = LoadSettings(path);
     }
 
-    private static string GetDefaultSettingsFilePath()
+    private string GetDefaultSettingsFilePath()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-
-        if (OperatingSystem.IsLinux())
+        if (_appConfig == null)
         {
-            var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-            appDataPath = !string.IsNullOrEmpty(xdgConfigHome)
-                ? xdgConfigHome
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Library",
-                "Application Support");
+            // Fallback for test scenarios where appConfig might not be provided
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appDataPath, "GenHub", "settings.json");
         }
 
-        return Path.Combine(appDataPath, "GenHub", "settings.json");
+        return Path.Combine(_appConfig.GetAppDataPath(), "settings.json");
     }
 
     private void InitializeSettings()
