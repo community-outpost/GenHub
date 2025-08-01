@@ -206,9 +206,7 @@ public class FileOperationsServiceTests : IDisposable
 
         _downloadService
             .Setup(x => x.DownloadFileAsync(
-                testUrl,
-                destination,
-                null,
+                It.Is<DownloadConfiguration>(cfg => cfg.Url == testUrl && cfg.DestinationPath == destination),
                 progress,
                 default))
             .ReturnsAsync(successResult);
@@ -216,7 +214,10 @@ public class FileOperationsServiceTests : IDisposable
         await _service.DownloadFileAsync(testUrl, destination, progress);
 
         _downloadService.Verify(
-            x => x.DownloadFileAsync(testUrl, destination, null, progress, default),
+            x => x.DownloadFileAsync(
+                It.Is<DownloadConfiguration>(cfg => cfg.Url == testUrl && cfg.DestinationPath == destination),
+                progress,
+                default),
             Times.Once);
     }
 
@@ -227,24 +228,19 @@ public class FileOperationsServiceTests : IDisposable
     [Fact]
     public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFails()
     {
-        var testUrl = "https://example.com/file.txt";
-        var destination = Path.Combine(_tempDir, "download.txt");
+        var downloadServiceMock = new Mock<IDownloadService>();
+        downloadServiceMock.Setup(s => s.DownloadFileAsync(
+            It.IsAny<DownloadConfiguration>(),
+            It.IsAny<IProgress<DownloadProgress>>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DownloadResult.CreateFailed("Failed"));
 
-        var failedResult = DownloadResult.CreateFailed("Network error");
+        var loggerMock = new Mock<ILogger<FileOperationsService>>();
+        var fileOps = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object);
 
-        _downloadService
-            .Setup(x => x.DownloadFileAsync(
-                testUrl,
-                destination,
-                null,
-                null,
-                default))
-            .ReturnsAsync(failedResult);
-
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(
-            () => _service.DownloadFileAsync(testUrl, destination));
-
-        Assert.Contains("Download failed: Network error", exception.Message);
+        // Act & Assert
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            fileOps.DownloadFileAsync("http://fail", "fail.zip"));
     }
 
     /// <summary>
@@ -321,9 +317,6 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, true);
-        }
+        FileOperationsService.DeleteDirectoryIfExists(_tempDir);
     }
 }

@@ -1,9 +1,7 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
@@ -14,7 +12,6 @@ using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -41,6 +38,21 @@ public class WorkspaceIntegrationTests : IDisposable
         // Add mock download service
         var mockDownloadService = new Mock<IDownloadService>();
         services.AddSingleton(mockDownloadService.Object);
+
+        // Add configuration services
+        var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
+        var mockAppConfig = new Mock<IAppConfigurationService>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+
+        // Setup mock returns
+        mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
+        mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
+        mockUserSettings.Setup(x => x.GetSettings()).Returns(new AppSettings());
+
+        services.AddSingleton(mockConfiguration.Object);
+        services.AddSingleton(mockAppConfig.Object);
+        services.AddSingleton(mockUserSettings.Object);
+        services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
 
         // Add workspace services
         services.AddWorkspaceServices();
@@ -101,8 +113,13 @@ public class WorkspaceIntegrationTests : IDisposable
             mockDownloadService.Object);
         var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
         var strategy = new HybridCopySymlinkStrategy(fileOps, logger.Object);
-        var managerLogger = new Mock<ILogger<WorkspaceManager>>();
-        var manager = new WorkspaceManager([strategy], managerLogger.Object);
+
+        // Create proper mock for IConfigurationProvider
+        var mockConfigProvider = new Mock<IConfigurationProvider>();
+        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
+
+        var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
+        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger);
 
         var config = CreateTestConfiguration(WorkspaceStrategy.HybridCopySymlink);
 
