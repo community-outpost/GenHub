@@ -46,15 +46,25 @@ public class ContentValidator : IContentValidator, IValidator<GameManifest>
         var issues = new List<ValidationIssue>();
 
         // Step 1: Validate manifest structure
-        progress?.Report(new ValidationProgress(0, 2, "Validating Manifest Structure"));
+        progress?.Report(new ValidationProgress(0, 3, "Validating Manifest Structure"));
         issues.AddRange(ValidateManifestStructure(manifest));
-        progress?.Report(new ValidationProgress(1, 2, "Manifest Structure Complete"));
+        progress?.Report(new ValidationProgress(1, 3, "Manifest Structure Complete"));
 
         // Step 2: Validate content integrity
-        progress?.Report(new ValidationProgress(1, 2, "Validating Content Integrity"));
-        var integrityResult = await ValidateContentIntegrityAsync(string.Empty, manifest, cancellationToken); // Pass actual contentPath if available
+        progress?.Report(new ValidationProgress(1, 3, "Validating Content Integrity"));
+        var integrityResult = await ValidateContentIntegrityAsync(string.Empty, manifest, cancellationToken);
         issues.AddRange(integrityResult.Issues);
-        progress?.Report(new ValidationProgress(2, 2, "Content Integrity Complete"));
+        progress?.Report(new ValidationProgress(2, 3, "Content Integrity Complete"));
+
+        // Step 3: Check for extraneous files if content path is available
+        if (!string.IsNullOrEmpty(string.Empty))
+        {
+            progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
+            var extraneousResult = await DetectExtraneousFilesAsync(string.Empty, manifest, cancellationToken);
+            issues.AddRange(extraneousResult.Issues);
+        }
+
+        progress?.Report(new ValidationProgress(3, 3, "Validation Complete"));
 
         _logger.LogDebug("Manifest validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
         return new ValidationResult(manifest.Id, issues);
@@ -99,7 +109,7 @@ public class ContentValidator : IContentValidator, IValidator<GameManifest>
                     var isHashValid = await _fileOperations.VerifyFileHashAsync(filePath, file.Hash, cancellationToken);
                     if (!isHashValid)
                     {
-                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Warning)); // xezon:' File validation is probably fine by just names, and just warn if hash is mismatching.' - on discord 22:20 01/08/2025
                     }
                 }
 
@@ -118,6 +128,94 @@ public class ContentValidator : IContentValidator, IValidator<GameManifest>
         }
 
         _logger.LogDebug("Content integrity validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
+        return new ValidationResult(manifest.Id, issues);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ValidationResult> DetectExtraneousFilesAsync(string contentPath, GameManifest manifest, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentPath))
+            throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
+        if (manifest == null)
+            throw new ArgumentNullException(nameof(manifest));
+
+        var issues = new List<ValidationIssue>();
+
+        if (!Directory.Exists(contentPath))
+        {
+            issues.Add(new ValidationIssue($"Content directory does not exist: {contentPath}", ValidationSeverity.Error));
+            return new ValidationResult(manifest.Id, issues);
+        }
+
+        try
+        {
+            // Build a hashset of expected file paths for O(1) lookup performance
+            var expectedFiles = new HashSet<string>(
+                manifest.Files.Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Add expected directories if specified in manifest
+            var expectedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (manifest.RequiredDirectories != null)
+            {
+                foreach (var dir in manifest.RequiredDirectories)
+                {
+                    expectedDirectories.Add(Path.GetFullPath(Path.Combine(contentPath, dir)));
+                }
+            }
+
+            // Recursively scan all files in the content directory
+            var allFiles = Directory.GetFiles(contentPath, "*", SearchOption.AllDirectories);
+            var extraneousFiles = new List<string>();
+
+            await Task.Run(
+                () =>
+            {
+                foreach (var file in allFiles)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var fullPath = Path.GetFullPath(file);
+                    if (!expectedFiles.Contains(fullPath))
+                    {
+                        // Check if file is in an expected directory (some files might be allowed in certain dirs)
+                        var isInExpectedDirectory = expectedDirectories.Any(dir =>
+                            fullPath.StartsWith(dir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+
+                        if (!isInExpectedDirectory)
+                        {
+                            extraneousFiles.Add(Path.GetRelativePath(contentPath, file));
+                        }
+                    }
+                }
+            }, cancellationToken);
+
+            // Report extraneous files as warnings (they don't break functionality but indicate potential issues)
+            foreach (var extraneousFile in extraneousFiles)
+            {
+                issues.Add(new ValidationIssue(
+                    $"Extraneous file detected (not in manifest): {extraneousFile}",
+                    ValidationSeverity.Warning));
+            }
+
+            _logger.LogDebug("Extraneous file detection for {ManifestId} found {ExtraneousCount} files.", manifest.Id, extraneousFiles.Count);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            issues.Add(new ValidationIssue($"Access denied while scanning directory: {ex.Message}", ValidationSeverity.Error));
+            _logger.LogError(ex, "Access denied while scanning {ContentPath} for extraneous files", contentPath);
+        }
+        catch (DirectoryNotFoundException ex)
+        {
+            issues.Add(new ValidationIssue($"Directory not found: {ex.Message}", ValidationSeverity.Error));
+            _logger.LogError(ex, "Directory not found while scanning {ContentPath} for extraneous files", contentPath);
+        }
+        catch (Exception ex)
+        {
+            issues.Add(new ValidationIssue($"Unexpected error during extraneous file detection: {ex.Message}", ValidationSeverity.Error));
+            _logger.LogError(ex, "Unexpected error while scanning {ContentPath} for extraneous files", contentPath);
+        }
+
         return new ValidationResult(manifest.Id, issues);
     }
 

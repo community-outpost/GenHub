@@ -35,6 +35,8 @@ public class GameInstallationValidatorTests
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<GameManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+        _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<GameManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
         _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object);
     }
@@ -86,8 +88,8 @@ public class GameInstallationValidatorTests
 
         // Check the final progress
         var finalProgress = progressReports.Last();
-        Assert.Equal(4, finalProgress.Total);
-        Assert.Equal(4, finalProgress.Processed);
+        Assert.Equal(6, finalProgress.Total);
+        Assert.Equal(6, finalProgress.Processed);
         Assert.Equal(100, finalProgress.PercentComplete);
 
         tempDir.Delete(true);

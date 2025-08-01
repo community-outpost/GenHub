@@ -27,4 +27,14 @@ public interface IContentValidator
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Validation result containing any integrity issues.</returns>
     Task<ValidationResult> ValidateContentIntegrityAsync(string contentPath, GameManifest manifest, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Detects extraneous files in the content directory that are not specified in the manifest.
+    /// This is critical for symlinked directories to ensure clean content isolation.
+    /// </summary>
+    /// <param name="contentPath">Path to the content directory to scan.</param>
+    /// <param name="manifest">The manifest describing expected files.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Validation result containing any extraneous files found.</returns>
+    Task<ValidationResult> DetectExtraneousFilesAsync(string contentPath, GameManifest manifest, CancellationToken cancellationToken = default);
 }
