@@ -21,4 +21,9 @@ public class InstallationInstructions
     /// Gets or sets the workspace preparation strategy preference.
     /// </summary>
     public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
+
+    /// <summary>
+    /// Gets or sets the SHA256 hash of the primary download file for verification.
+    /// </summary>
+    public string? DownloadHash { get; set; }
 }

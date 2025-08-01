@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
@@ -224,7 +225,7 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Updates the workspace info with file count, size, and executable information.
+    /// Updates the workspace info with file count, total size, and configuration details.
     /// </summary>
     /// <param name="workspaceInfo">The workspace info to update.</param>
     /// <param name="fileCount">The number of files processed.</param>
