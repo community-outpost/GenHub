@@ -26,7 +26,7 @@ public partial class App : Application
     public App(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
+        _userSettingsService = _serviceProvider.GetRequiredService<IUserSettingsService>();
     }
 
     /// <summary>
@@ -59,7 +59,6 @@ public partial class App : Application
 
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
-        if (_userSettingsService == null) return;
         try
         {
             var settings = _userSettingsService.GetSettings();
@@ -82,7 +81,7 @@ public partial class App : Application
 
     private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (_userSettingsService == null || _serviceProvider == null) return;
+        if (_serviceProvider == null) return;
         try
         {
             // Save current window state

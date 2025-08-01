@@ -256,6 +256,68 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that CachePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_CachePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var cachePath = "/test/cache/path";
+
+        service.UpdateSettings(settings => settings.CachePath = cachePath);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(cachePath, currentSettings.CachePath);
+    }
+
+    /// <summary>
+    /// Verifies that ContentStoragePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_ContentStoragePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var contentPath = "/test/content/path";
+
+        service.UpdateSettings(settings => settings.ContentStoragePath = contentPath);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(contentPath, currentSettings.ContentStoragePath);
+    }
+
+    /// <summary>
+    /// Verifies that DownloadBufferSize can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_DownloadBufferSize_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var bufferSize = 16384;
+
+        service.UpdateSettings(settings => settings.DownloadBufferSize = bufferSize);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(bufferSize, currentSettings.DownloadBufferSize);
+    }
+
+    /// <summary>
+    /// Verifies that EnableDetailedLogging can be set and retrieved correctly.
+    /// </summary>
+    /// <param name="enableLogging">The value to set for EnableDetailedLogging in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UpdateSettings_EnableDetailedLogging_CanBeSetAndRetrieved(bool enableLogging)
+    {
+        var service = CreateService();
+
+        service.UpdateSettings(settings => settings.EnableDetailedLogging = enableLogging);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(enableLogging, currentSettings.EnableDetailedLogging);
+    }
+
+    /// <summary>
     /// Creates a new <see cref="UserSettingsService"/> instance for testing with a temp file path.
     /// </summary>
     /// <returns>A new <see cref="UserSettingsService"/> instance using a temp file path.</returns>
@@ -282,7 +344,7 @@ public class UserSettingsServiceTests : IDisposable
     private class TestableUserSettingsService : UserSettingsService
     {
         public TestableUserSettingsService(ILogger<UserSettingsService> logger, string settingsFilePath, bool loadFromFile = false)
-            : base(logger, false) // Bypass normal initialization
+            : base(logger, null, false) // Pass null for config provider, false for initialize
         {
             // Set the custom path and load settings from it
             SetSettingsFilePath(settingsFilePath);
