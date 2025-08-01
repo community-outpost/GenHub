@@ -188,7 +188,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <returns>The builder instance.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
-        ManifestFileSourceType sourceType = ManifestFileSourceType.CopyUnique,
+        ManifestFileSourceType sourceType = ManifestFileSourceType.Content,
         string fileFilter = "*",
         bool isExecutable = false)
     {
@@ -239,7 +239,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <returns>The builder instance.</returns>
     public async Task<IContentManifestBuilder> AddFileAsync(
         string relativePath,
-        ManifestFileSourceType sourceType = ManifestFileSourceType.CopyUnique,
+        ManifestFileSourceType sourceType = ManifestFileSourceType.Content,
         string downloadUrl = "",
         bool isExecutable = false,
         FilePermissions? permissions = null)
@@ -253,7 +253,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
             Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
         };
 
-        if (sourceType != ManifestFileSourceType.Download && File.Exists(relativePath))
+        if (sourceType != ManifestFileSourceType.Patch && string.IsNullOrEmpty(downloadUrl) && File.Exists(relativePath))
         {
             var fileInfo = new FileInfo(relativePath);
             manifestFile.Size = fileInfo.Length;
@@ -262,6 +262,14 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
 
         _manifest.Files.Add(manifestFile);
         _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType})", relativePath, sourceType);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder AddFile(ManifestFile file)
+    {
+        _manifest.Files.Add(file);
+        _logger.LogDebug("Added pre-existing file: {RelativePath} (Source: {SourceType})", file.RelativePath, file.SourceType);
         return this;
     }
 
@@ -292,7 +300,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     public IContentManifestBuilder WithInstallationInstructions(
         WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink)
     {
-        _manifest.Installation = new InstallationInstructions
+        _manifest.InstallationInstructions = new InstallationInstructions
         {
             WorkspaceStrategy = workspaceStrategy,
         };
@@ -324,7 +332,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
             WorkingDirectory = workingDirectory,
             RequiresElevation = requiresElevation,
         };
-        _manifest.Installation.PreInstallSteps.Add(step);
+        _manifest.InstallationInstructions.PreInstallSteps.Add(step);
         _logger.LogDebug("Added pre-install step: {StepName}", name);
         return this;
     }
@@ -353,8 +361,23 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
             WorkingDirectory = workingDirectory,
             RequiresElevation = requiresElevation,
         };
-        _manifest.Installation.PostInstallSteps.Add(step);
+        _manifest.InstallationInstructions.PostInstallSteps.Add(step);
         _logger.LogDebug("Added post-install step: {StepName}", name);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile)
+    {
+        var manifestFile = new ManifestFile
+        {
+            RelativePath = targetRelativePath,
+            PatchSourceFile = patchSourceFile,
+            SourceType = ManifestFileSourceType.Patch,
+        };
+
+        _manifest.Files.Add(manifestFile);
+        _logger.LogDebug("Added patch for {TargetFile} with source {PatchFile}", targetRelativePath, patchSourceFile);
         return this;
     }
 

@@ -47,6 +47,10 @@ public class WindowsFileOperationsService : IFileOperationsService
         => _baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
 
     /// <inheritdoc/>
+    public Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
+        => _baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task CreateHardLinkAsync(
         string linkPath,
         string targetPath,
