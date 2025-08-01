@@ -310,6 +310,47 @@
         </StackPanel>
       </Border>
 
+      <!-- Cache Path -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🗄️ Storage" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="Cache Directory" Classes="setting-label" />
+            <TextBox Text="{Binding CachePath}" Watermark="Default (platform-dependent)" LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Override the default cache directory for downloads and temp files." Classes="setting-description" />
+          </StackPanel>
+          <StackPanel Spacing="8">
+            <TextBlock Text="Content Storage Directory" Classes="setting-label" />
+            <TextBox Text="{Binding ContentStoragePath}" Watermark="Default (%AppData%/GenHub/Content)" LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Override the default directory where downloaded content is stored permanently." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Content Directories -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="📂 Local Content Directories" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="Content Directories (one per line)" Classes="setting-label" />
+            <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. C:\Games\GenHub\Mods" />
+            <TextBlock Text="Specify directories to scan for local content. One path per line." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- GitHub Discovery Repositories -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🌐 GitHub Discovery" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="GitHub Repositories (one per line, owner/repo)" Classes="setting-label" />
+            <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. some-author/some-mod" />
+            <TextBlock Text="Specify GitHub repositories to scan for releases. One owner/repo per line." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
       <!-- Action Buttons -->
       <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
         <Button Content="Reset to Defaults"

@@ -78,6 +78,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _settingsFilePath;
 
+    [ObservableProperty]
+    private string? _cachePath;
+
+    [ObservableProperty]
+    private string _contentDirectoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string _gitHubDiscoveryRepositoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string? _contentStoragePath;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -305,6 +317,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
             DownloadUserAgent = settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
+            CachePath = settings.CachePath;
+            ContentDirectoriesText = string.Join(Environment.NewLine, settings.ContentDirectories ?? new());
+            GitHubDiscoveryRepositoriesText = string.Join(Environment.NewLine, settings.GitHubDiscoveryRepositories ?? new());
+            ContentStoragePath = settings.ContentStoragePath;
 
             _logger.LogDebug("Settings loaded successfully");
         }
@@ -344,6 +360,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent ?? "GenHub/1.0";
                 settings.SettingsFilePath = SettingsFilePath;
+                settings.CachePath = CachePath;
+                settings.ContentDirectories = (ContentDirectoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.GitHubDiscoveryRepositories = (GitHubDiscoveryRepositoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.ContentStoragePath = ContentStoragePath;
             });
 
             await _userSettingsService.SaveAsync();
@@ -383,6 +407,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadTimeoutSeconds = 600;
             DownloadUserAgent = "GenHub/1.0";
             SettingsFilePath = null;
+            CachePath = null;
+            ContentDirectoriesText = string.Empty;
+            GitHubDiscoveryRepositoriesText = string.Empty;
+            ContentStoragePath = null;
 
             _logger.LogInformation("Settings reset to defaults");
 
