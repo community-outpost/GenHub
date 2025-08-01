@@ -9,6 +9,12 @@ namespace GenHub.Core.Interfaces.Common;
 public interface IAppConfigurationService
 {
     /// <summary>
+    /// Gets the root application data path for GenHub.
+    /// </summary>
+    /// <returns>The root application data path as a string.</returns>
+    string GetAppDataPath();
+
+    /// <summary>
     /// Gets the default workspace path for GenHub.
     /// </summary>
     /// <returns>The default workspace path as a string.</returns>

@@ -20,6 +20,24 @@ public interface IConfigurationProvider
     string GetCacheDirectory();
 
     /// <summary>
+    /// Gets the effective content directories for local discovery.
+    /// </summary>
+    /// <returns>List of content directories.</returns>
+    List<string> GetContentDirectories();
+
+    /// <summary>
+    /// Gets the effective GitHub repositories for discovery.
+    /// </summary>
+    /// <returns>List of GitHub repositories in "owner/repo" format.</returns>
+    List<string> GetGitHubDiscoveryRepositories();
+
+    /// <summary>
+    /// Gets the effective content storage path.
+    /// </summary>
+    /// <returns>The content storage path as a string.</returns>
+    string GetContentStoragePath();
+
+    /// <summary>
     /// Gets the effective maximum number of concurrent downloads.
     /// </summary>
     /// <returns>The maximum number of concurrent downloads.</returns>

@@ -35,8 +35,8 @@ public class AppSettings
     /// <summary>Gets or sets a value indicating whether to automatically check for updates on startup.</summary>
     public bool AutoCheckForUpdatesOnStartup { get; set; } = true;
 
-    /// <summary>Gets or sets the timestamp of the last update check in ISO 8601 format.</summary>
-    public string? LastUpdateCheckTimestamp { get; set; }
+    /// <summary>Gets or sets the timestamp of the last update check (UTC).</summary>
+    public DateTime? LastUpdateCheckUtc { get; set; }
 
     /// <summary>Gets or sets a value indicating whether detailed logging information is enabled.</summary>
     public bool EnableDetailedLogging { get; set; } = false;
@@ -55,4 +55,24 @@ public class AppSettings
 
     /// <summary>Gets or sets the custom settings file path. If null or empty, use platform default.</summary>
     public string? SettingsFilePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the custom cache directory path.
+    /// </summary>
+    public string? CachePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of content directories to scan for local content.
+    /// </summary>
+    public List<string> ContentDirectories { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the list of GitHub repositories for content discovery.
+    /// </summary>
+    public List<string> GitHubDiscoveryRepositories { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the custom content storage path.
+    /// </summary>
+    public string? ContentStoragePath { get; set; }
 }
