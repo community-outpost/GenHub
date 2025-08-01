@@ -26,6 +26,7 @@ public static class AppServices
         services.AddManifestServices();
         services.AddWorkspaceServices();
         services.AddConfigurationModule();
+        services.AddContentPipelineServices();
 
         // Register platform-specific services if provided
         platformSpecificServices?.Invoke(services);
