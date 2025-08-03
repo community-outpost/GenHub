@@ -1,5 +1,6 @@
 using System.Text;
 using GenHub.AuthApi.Data;
+using GenHub.AuthApi.Middlewires;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseExceptionHandlerMiddlewire();
 
 app.UseHttpsRedirection();
 
