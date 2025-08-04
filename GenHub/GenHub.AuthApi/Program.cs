@@ -61,6 +61,7 @@ builder.Services.Configure<IdentityOptions>(options=>
 {
     options.User.RequireUniqueEmail = true;
     options.Password.RequiredLength = 8;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromHours(1);
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
