@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 
 namespace GenHub.Core.Interfaces.Common;
 
@@ -84,4 +85,10 @@ public interface IConfigurationProvider
     /// </summary>
     /// <returns>True if detailed logging is enabled; otherwise, false.</returns>
     bool GetEnableDetailedLogging();
+
+    /// <summary>
+    /// Gets the CAS configuration settings.
+    /// </summary>
+    /// <returns>The CAS configuration.</returns>
+    CasConfiguration GetCasConfiguration();
 }

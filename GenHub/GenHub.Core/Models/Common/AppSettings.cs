@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 
 namespace GenHub.Core.Models.Common;
 
@@ -75,4 +76,9 @@ public class AppSettings
     /// Gets or sets the custom content storage path.
     /// </summary>
     public string? ContentStoragePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Content-Addressable Storage configuration.
+    /// </summary>
+    public CasConfiguration CasConfiguration { get; set; } = new();
 }
