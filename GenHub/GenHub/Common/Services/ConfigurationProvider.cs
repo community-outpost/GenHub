@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
@@ -175,6 +176,25 @@ public class ConfigurationProvider : IConfigurationProvider
         return Enum.IsDefined(typeof(WorkspaceStrategy), userSettings.DefaultWorkspaceStrategy)
             ? userSettings.DefaultWorkspaceStrategy
             : _appConfig.GetDefaultWorkspaceStrategy();
+    }
+
+    /// <inheritdoc />
+    public CasConfiguration GetCasConfiguration()
+    {
+        var userSettings = _userSettings.GetSettings();
+        var casConfig = userSettings.CasConfiguration;
+
+        // Apply validation and defaults
+        try
+        {
+            casConfig.Validate();
+            return casConfig;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Invalid CAS configuration in user settings, using defaults");
+            return new CasConfiguration();
+        }
     }
 
     /// <inheritdoc />

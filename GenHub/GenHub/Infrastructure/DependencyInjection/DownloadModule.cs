@@ -17,12 +17,24 @@ public static class DownloadModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddDownloadServices(this IServiceCollection services)
     {
-        services.AddSingleton<IDownloadService, DownloadService>();
-        services.AddHttpClient<DownloadService>(client =>
+        // Register DownloadService and its interface
+        services.AddScoped<IDownloadService, DownloadService>();
+        services.AddScoped<DownloadService>();
+
+        // Register HttpClient with configuration from IConfigurationProvider
+        services.AddHttpClient<DownloadService>((serviceProvider, client) =>
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
-            client.Timeout = TimeSpan.FromMinutes(30);
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProvider>();
+
+            var userAgent = configProvider.GetDownloadUserAgent();
+            var timeoutSeconds = configProvider.GetDownloadTimeoutSeconds();
+
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? "GenHub/1.0");
+            client.Timeout = timeoutSeconds > 0
+                ? TimeSpan.FromSeconds(timeoutSeconds)
+                : TimeSpan.FromMinutes(30);
         });
+
         return services;
     }
 }
