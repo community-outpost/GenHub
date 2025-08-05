@@ -72,4 +72,16 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
 
         return Task.CompletedTask;
     }
+
+    /// <inheritdoc/>
+    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _memoryCache.Remove(key);
+        lock (_keys)
+        {
+            _keys.Remove(key);
+        }
+
+        return Task.CompletedTask;
+    }
 }
