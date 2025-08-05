@@ -57,7 +57,7 @@ public class ManifestProviderTests
             Id = "test-version",
             Name = "Test Version",
         };
-        var expectedManifest = new GameManifest
+        var expectedManifest = new ContentManifest
         {
             Id = "test-version",
             Name = "Test Manifest",
@@ -91,7 +91,7 @@ public class ManifestProviderTests
             HasGenerals = true,
             HasZeroHour = false,
         };
-        var expectedManifest = new GameManifest
+        var expectedManifest = new ContentManifest
         {
             Id = "Origin.Generals",
             Name = "Test Manifest",
@@ -125,7 +125,7 @@ public class ManifestProviderTests
             HasGenerals = true,
             HasZeroHour = true,
         };
-        var expectedManifest = new GameManifest
+        var expectedManifest = new ContentManifest
         {
             Id = "Steam.ZeroHour",
             Name = "Test Manifest",
@@ -151,7 +151,7 @@ public class ManifestProviderTests
     {
         // Arrange
         var gameVersion = new GameVersion { Id = "non-existent" };
-        _cacheMock.Setup(x => x.GetManifest(It.IsAny<string>())).Returns((GameManifest?)null);
+        _cacheMock.Setup(x => x.GetManifest(It.IsAny<string>())).Returns((ContentManifest?)null);
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(gameVersion);
@@ -175,7 +175,7 @@ public class ManifestProviderTests
         };
 
         // Simulate manifest returned with mismatched Id
-        var mismatchedManifest = new GameManifest
+        var mismatchedManifest = new ContentManifest
         {
             Id = "wrong-id",
             Name = "Test Manifest",
@@ -195,7 +195,7 @@ public class ManifestProviderTests
     public void ValidateManifestSecurity_ThrowsSecurityException_ForPathTraversal()
     {
         // Arrange
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Id = "test-manifest",
             Files =

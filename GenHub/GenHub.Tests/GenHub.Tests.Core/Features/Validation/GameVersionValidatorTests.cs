@@ -42,7 +42,7 @@ public class GameVersionValidatorTests
         var addonFilePath = Path.Combine(tempDir.FullName, "d3d8.dll");
         await File.WriteAllTextAsync(addonFilePath, "addon content");
 
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Files = new()
             {
@@ -83,7 +83,7 @@ public class GameVersionValidatorTests
         await File.WriteAllTextAsync(expectedFilePath, "expected");
         await File.WriteAllTextAsync(unexpectedFilePath, "unexpected");
 
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Files = new()
             {
@@ -111,7 +111,7 @@ public class GameVersionValidatorTests
     [Fact]
     public async Task ValidateAsync_ManifestNotFound_AddsIssue()
     {
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), It.IsAny<CancellationToken>())).ReturnsAsync((GameManifest?)null);
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), It.IsAny<CancellationToken>())).ReturnsAsync((ContentManifest?)null);
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
@@ -134,7 +134,7 @@ public class GameVersionValidatorTests
     [Fact]
     public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
     {
-        var manifest = new GameManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
+        var manifest = new ContentManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
         var tempDir = Directory.GetCurrentDirectory();
         var version = new GameVersion { WorkingDirectory = tempDir };

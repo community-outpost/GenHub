@@ -29,8 +29,8 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <param name="manifests">Manifest dictionary.</param>
     /// <param name="contentType">Content type.</param>
     /// <returns>Enumerable of manifests.</returns>
-    public static IEnumerable<GameManifest> GetManifestsByType(
-        Dictionary<string, GameManifest> manifests,
+    public static IEnumerable<ContentManifest> GetManifestsByType(
+        Dictionary<string, ContentManifest> manifests,
         ContentType contentType)
     {
         return manifests.Values.Where(m => m.ContentType == contentType);
@@ -42,8 +42,8 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <param name="manifests">Manifest dictionary.</param>
     /// <param name="gameType">Game type.</param>
     /// <returns>Enumerable of compatible manifests.</returns>
-    public static IEnumerable<GameManifest> GetCompatibleManifests(
-        Dictionary<string, GameManifest> manifests,
+    public static IEnumerable<ContentManifest> GetCompatibleManifests(
+        Dictionary<string, ContentManifest> manifests,
         GameType gameType)
     {
         return manifests.Values.Where(m => m.TargetGame == gameType);
@@ -55,11 +55,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <param name="searchDirectories">The directories to search for manifests.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A dictionary of discovered manifests keyed by their ID.</returns>
-    public async Task<Dictionary<string, GameManifest>> DiscoverManifestsAsync(
+    public async Task<Dictionary<string, ContentManifest>> DiscoverManifestsAsync(
         IEnumerable<string> searchDirectories,
         CancellationToken cancellationToken = default)
     {
-        var manifests = new Dictionary<string, GameManifest>();
+        var manifests = new Dictionary<string, ContentManifest>();
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
@@ -117,12 +117,12 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <param name="availableManifests">Available manifests.</param>
     /// <returns>True if dependencies are valid; otherwise, false.</returns>
     public bool ValidateDependencies(
-        GameManifest manifest,
-        Dictionary<string, GameManifest> availableManifests)
+        ContentManifest manifest,
+        Dictionary<string, ContentManifest> availableManifests)
     {
         foreach (var dependency in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
         {
-            if (!availableManifests.TryGetValue(dependency.Id, out GameManifest? dependencyManifest))
+            if (!availableManifests.TryGetValue(dependency.Id, out ContentManifest? dependencyManifest))
             {
                 _logger.LogWarning(
                     "Missing required dependency {DependencyId} for manifest {ManifestId}",
@@ -164,10 +164,10 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         return true;
     }
 
-    private static async Task<GameManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
+    private static async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifestPath);
-        var manifest = await JsonSerializer.DeserializeAsync<GameManifest>(stream, JsonOptions, cancellationToken);
+        var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
         if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
         {
             return manifest;
@@ -187,7 +187,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 try
                 {
                     await using var stream = File.OpenRead(manifestFile);
-                    var manifest = await JsonSerializer.DeserializeAsync<GameManifest>(stream, JsonOptions, cancellationToken);
+                    var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
                         _manifestCache.AddOrUpdateManifest(manifest);
@@ -216,7 +216,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 await using var stream = assembly.GetManifestResourceStream(resourceName);
                 if (stream == null) continue;
 
-                var manifest = await JsonSerializer.DeserializeAsync<GameManifest>(stream, JsonOptions, cancellationToken);
+                var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
                     _manifestCache.AddOrUpdateManifest(manifest);

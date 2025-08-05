@@ -18,7 +18,7 @@ namespace GenHub.Features.Manifest;
 public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IContentManifestBuilder
 {
     private readonly ILogger<ContentManifestBuilder> _logger = logger;
-    private readonly GameManifest _manifest = new();
+    private readonly ContentManifest _manifest = new();
 
     /// <summary>
     /// Sets the basic information for the manifest.
@@ -362,7 +362,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// Builds and returns the manifest.
     /// </summary>
     /// <returns>The built manifest.</returns>
-    public GameManifest Build()
+    public ContentManifest Build()
     {
         _logger.LogInformation(
             "Built manifest for '{ContentName}' with {FileCount} files and {DependencyCount} dependencies",
