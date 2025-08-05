@@ -78,7 +78,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers
                 // Add the map file
                 await manifest.AddFileAsync(
                     Path.GetFileName(mapDetails.downloadUrl),
-                    ManifestFileSourceType.Download,
+                    ContentSourceType.RemoteDownload,
                     mapDetails.downloadUrl);
 
                 // Add required directories for maps

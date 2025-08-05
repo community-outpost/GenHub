@@ -115,7 +115,7 @@ public class GitHubResolver : IContentResolver
             {
                 await manifest.AddFileAsync(
                     asset.Name,
-                    ManifestFileSourceType.Download,
+                    ContentSourceType.RemoteDownload,
                     asset.BrowserDownloadUrl,
                     isExecutable: IsExecutableFile(asset.Name));
             }

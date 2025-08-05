@@ -7,7 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 
@@ -18,38 +20,35 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class GameManifestPool : IGameManifestPool
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     private readonly IContentStorageService _storageService;
+    private readonly ICasService _casService;
     private readonly ILogger<GameManifestPool> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameManifestPool"/> class.
     /// </summary>
     /// <param name="storageService">The content storage service.</param>
+    /// <param name="casService">The Content-Addressable Storage service.</param>
     /// <param name="logger">The logger instance.</param>
-    public GameManifestPool(IContentStorageService storageService, ILogger<GameManifestPool> logger)
+    public GameManifestPool(IContentStorageService storageService, ICasService casService, ILogger<GameManifestPool> logger)
     {
         _storageService = storageService;
+        _casService = casService;
         _logger = logger;
     }
 
     /// <inheritdoc/>
     public async Task AddManifestAsync(GameManifest manifest, CancellationToken cancellationToken = default)
     {
-        // Delegate to storage service without source directory
-        // This will be used when manifest already exists in storage
-        var isStoredResult = await _storageService.IsContentStoredAsync(manifest.Id, cancellationToken);
-        if (!isStoredResult.Success || !isStoredResult.Data)
-        {
-            throw new InvalidOperationException(
-                $"Cannot add manifest {manifest.Id} without source directory. Content must be stored first using AddManifestAsync(GameManifest, string, CancellationToken).");
-        }
-
-        _logger.LogDebug("Manifest {ManifestId} already exists in storage", manifest.Id);
+        var manifestPath = _storageService.GetManifestStoragePath(manifest.Id);
+        var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+        await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
+        _logger.LogDebug("Manifest {ManifestId} metadata stored.", manifest.Id);
     }
 
     /// <summary>
-    /// Adds a GameManifest to the pool with its content files from a source directory.
+    /// Adds a GameManifest to the pool, storing its content files in CAS.
     /// </summary>
     /// <param name="manifest">The game manifest to store.</param>
     /// <param name="sourceDirectory">The directory containing the content files.</param>
@@ -57,15 +56,17 @@ public class GameManifestPool : IGameManifestPool
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task AddManifestAsync(GameManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Adding manifest {ManifestId} to pool with content from {SourceDirectory}", manifest.Id, sourceDirectory);
+        // CAS-backed content storage
+        _logger.LogInformation("Adding manifest {ManifestId} to pool and storing content in CAS from {SourceDirectory}", manifest.Id, sourceDirectory);
 
+        // Store content files in CAS and get an updated manifest
         var result = await _storageService.StoreContentAsync(manifest, sourceDirectory, cancellationToken);
         if (!result.Success)
         {
             throw new InvalidOperationException($"Failed to store content for manifest {manifest.Id}: {result.ErrorMessage}");
         }
 
-        _logger.LogDebug("Successfully added manifest {ManifestId} to pool", manifest.Id);
+        _logger.LogInformation("Successfully added manifest {ManifestId} to pool with content stored in CAS.", manifest.Id);
     }
 
     /// <inheritdoc/>
@@ -157,18 +158,20 @@ public class GameManifestPool : IGameManifestPool
     /// <inheritdoc/>
     public async Task<bool> IsManifestAcquiredAsync(string manifestId, CancellationToken cancellationToken = default)
     {
-        var result = await _storageService.IsContentStoredAsync(manifestId, cancellationToken);
-        return result.Success && result.Data;
+        var manifestPath = _storageService.GetManifestStoragePath(manifestId);
+        return await Task.FromResult(File.Exists(manifestPath));
     }
 
     /// <summary>
     /// Gets the content directory path for a specific manifest.
+    /// Note: Legacy path; CAS-backed content is materialized on demand via workspace strategies.
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The path to the content directory if it exists, null otherwise.</returns>
     public async Task<string?> GetContentDirectoryAsync(string manifestId, CancellationToken cancellationToken = default)
     {
+        // Legacy path; CAS-backed content is materialized on demand via workspace strategies.
         var contentDir = _storageService.GetContentDirectoryPath(manifestId);
         return await Task.FromResult(Directory.Exists(contentDir) ? contentDir : null);
     }
