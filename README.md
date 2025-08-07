@@ -1,4 +1,4 @@
-# GenHub
+# GeneralsHub
 
 Launcher for C&C: Generals and Zero Hour with patch management and mod support
 

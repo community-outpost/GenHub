@@ -1,0 +1,60 @@
+:root {
+  --vp-c-brand-1: #4f46e5;
+  --vp-c-brand-2: #6366f1;
+  --vp-c-brand-3: #8b5cf6;
+}
+
+/* Mermaid diagram styling */
+.mermaid-rendered {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0;
+}
+
+.mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  color: #dc2626;
+  font-family: monospace;
+  white-space: pre-wrap;
+  margin: 1rem 0;
+}
+
+/* Dark mode support for mermaid */
+.dark .mermaid-rendered svg {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.dark .mermaid-rendered svg .node rect,
+.dark .mermaid-rendered svg .node circle,
+.dark .mermaid-rendered svg .node ellipse,
+.dark .mermaid-rendered svg .node polygon {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Responsive flowchart styling */
+@media (max-width: 768px) {
+  .mermaid-rendered svg {
+    font-size: 12px;
+  }
+}
+
+/* Custom styling for flowchart elements */
+.flowchart .node rect {
+  fill: #f8fafc;
+  stroke: #334155;
+  stroke-width: 2px;
+}
+
+.flowchart .node.highlighted rect {
+  fill: #dbeafe;
+  stroke: #3b82f6;
+  stroke-width: 3px;
+}
