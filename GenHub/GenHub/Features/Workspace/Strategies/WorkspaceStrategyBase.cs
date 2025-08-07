@@ -333,9 +333,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="file">The manifest file to process.</param>
     /// <param name="workspacePath">The root path of the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual async Task ProcessManifestFileAsync(ManifestFile file, string workspacePath, CancellationToken cancellationToken)
+    protected virtual async Task ProcessManifestFileAsync(ManifestFile file, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         var targetPath = Path.Combine(workspacePath, file.RelativePath);
         switch (file.SourceType)
@@ -344,10 +345,10 @@ public abstract class WorkspaceStrategyBase<T>(
                 await ProcessCasFileAsync(file, targetPath, cancellationToken);
                 break;
             case ContentSourceType.BaseGame:
-                await ProcessBaseGameFileAsync(file, targetPath, cancellationToken);
+                await ProcessBaseGameFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
-                await ProcessLocalFileAsync(file, targetPath, cancellationToken);
+                await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
@@ -404,9 +405,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="file">The manifest file representing the base game content.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
         throw new NotImplementedException("ProcessBaseGameFileAsync must be implemented in the strategy if used.");
@@ -417,9 +419,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="file">The manifest file representing the local file content.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessLocalFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    protected virtual Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
         throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");

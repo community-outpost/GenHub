@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -194,6 +195,31 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
         {
             Logger.LogError("Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, targetPath);
             throw new InvalidOperationException($"Failed to copy from CAS for hash {hash} to {targetPath}");
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+
+        // Verify file integrity if hash is provided
+        if (!string.IsNullOrEmpty(file.Hash))
+        {
+            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
+            if (!hashValid)
+            {
+                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+            }
         }
     }
 }

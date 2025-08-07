@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -102,7 +103,7 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
                 try
                 {
                     // Use the base class method that handles CAS files with proper fallback
-                    await ProcessManifestFileAsync(file, workspacePath, cancellationToken);
+                    await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
                 }
                 catch (Exception ex)
                 {
@@ -150,5 +151,31 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
         }
 
         Logger.LogDebug("Successfully created CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        Logger.LogDebug("Creating symlink for local file {RelativePath} from {SourcePath} to {TargetPath}", file.RelativePath, sourcePath, targetPath);
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        try
+        {
+            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
+            Logger.LogDebug("Successfully created symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+            throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
+        }
     }
 }

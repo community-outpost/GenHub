@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -237,6 +238,54 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
             if (!success)
             {
                 throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        // Check if source and destination are on the same volume
+        var sourceRoot = Path.GetPathRoot(sourcePath);
+        var destRoot = Path.GetPathRoot(targetPath);
+        var sameVolume = string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
+
+        if (sameVolume)
+        {
+            try
+            {
+                await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
+            }
+            catch (Exception hardLinkEx)
+            {
+                Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+
+                // Fall back to copy
+                await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+            }
+        }
+        else
+        {
+            // Different volumes, must copy
+            await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+        }
+
+        // Verify file integrity if hash is provided (only for copied files)
+        if (!string.IsNullOrEmpty(file.Hash))
+        {
+            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
+            if (!hashValid)
+            {
+                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
             }
         }
     }

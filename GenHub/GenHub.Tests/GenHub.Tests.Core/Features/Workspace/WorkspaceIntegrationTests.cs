@@ -123,8 +123,9 @@ public class WorkspaceIntegrationTests : IDisposable
             new Mock<ILogger<FileOperationsService>>().Object,
             mockDownloadService.Object,
             mockCasService.Object);
-        var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
-        var strategy = new HybridCopySymlinkStrategy(fileOps, logger.Object);
+
+        var logger = new Mock<ILogger<FullCopyStrategy>>();
+        var strategy = new FullCopyStrategy(fileOps, logger.Object);
 
         var mockConfigProvider = new Mock<IConfigurationProvider>();
         mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
@@ -139,7 +140,7 @@ public class WorkspaceIntegrationTests : IDisposable
 
         var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker);
 
-        var config = CreateTestConfiguration(WorkspaceStrategy.HybridCopySymlink);
+        var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
         var info = await manager.PrepareWorkspaceAsync(config);
 
@@ -230,6 +231,7 @@ public class WorkspaceIntegrationTests : IDisposable
                 RelativePath = file,
                 Size = fi.Exists ? fi.Length : 0,
                 IsExecutable = file.EndsWith(".exe"),
+                SourceType = ContentSourceType.LocalFile,
             });
         }
 

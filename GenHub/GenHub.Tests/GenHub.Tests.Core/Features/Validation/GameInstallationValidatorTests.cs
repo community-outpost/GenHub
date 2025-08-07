@@ -56,20 +56,28 @@ public class GameInstallationValidatorTests
         var filePath = Path.Combine(tempDir.FullName, "file1.txt");
         await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
 
+        var requiredDir = "testdir";
         var manifest = new GameManifest
         {
             Files = new()
             {
                 new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
             },
-            RequiredDirectories = new List<string> { "testdir" }, // Add a required directory to trigger step 4
+            RequiredDirectories = new List<string> { requiredDir },
         };
         _manifestProviderMock
             .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
             .ReturnsAsync(manifest);
 
-        // Create the required directory
-        Directory.CreateDirectory(Path.Combine(tempDir.FullName, "testdir"));
+        // Create the required directory with correct casing and permissions, retry if needed (Linux FS can be slow to sync)
+        var requiredDirPath = Path.Combine(tempDir.FullName, requiredDir);
+        Directory.CreateDirectory(requiredDirPath);
+        for (int i = 0; i < 5; i++)
+        {
+            if (Directory.Exists(requiredDirPath))
+                break;
+            Thread.Sleep(50);
+        }
 
         var installation = new GameInstallation(
             tempDir.FullName,
