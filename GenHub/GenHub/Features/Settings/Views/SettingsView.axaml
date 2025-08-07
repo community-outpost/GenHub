@@ -3,15 +3,333 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
-             Background="#1A1A1A">
-    <Design.DataContext>
-        <vm:SettingsViewModel />
-    </Design.DataContext>
-    <StackPanel Margin="20">
-        <TextBlock Text="{Binding Title}" FontSize="28" FontWeight="SemiBold" Foreground="White" />
-        <TextBlock Text="Settings will be available in a future update." FontSize="16" Foreground="#AAAAAA" Margin="0,20,0,0" />
+             Focusable="True">
+
+  <UserControl.Resources>
+    <converters:NullableIntConverter x:Key="NullableIntConverter" />
+    <converters:NullableDoubleConverter x:Key="NullableDoubleConverter" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.settings-card">
+      <Setter Property="Background" Value="#2D2D30" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="BorderBrush" Value="#3F3F46" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    
+    <Style Selector="TextBlock.section-header">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+    
+    <Style Selector="TextBlock.setting-label">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="#E0E0E0" />
+      <Setter Property="Margin" Value="0,0,0,5" />
+    </Style>
+    
+    <Style Selector="TextBlock.setting-description">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#AAAAAA" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    
+    <Style Selector="Button.browse-button">
+      <Setter Property="Background" Value="#404040" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    
+    <Style Selector="Button.browse-button:pointerover">
+      <Setter Property="Background" Value="#505050" />
+    </Style>
+    
+    <Style Selector="Button.primary-button">
+      <Setter Property="Background" Value="#0078D4" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#106EBE" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    
+    <Style Selector="Button.primary-button:pointerover">
+      <Setter Property="Background" Value="#106EBE" />
+    </Style>
+    
+    <Style Selector="Button.secondary-button">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#E0E0E0" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    
+    <Style Selector="Button.secondary-button:pointerover">
+      <Setter Property="Background" Value="#404040" />
+    </Style>
+    
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#1E1E1E" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#1E1E1E" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    
+    <Style Selector="NumericUpDown">
+      <Setter Property="Background" Value="#1E1E1E" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#606060" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="#E0E0E0" />
+    </Style>
+    
+    <Style Selector="Border.notification">
+      <Setter Property="Background" Value="#4CAF50" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,0,0,10" />
+      <Setter Property="IsVisible" Value="{Binding ShowSaveNotification}" />
+    </Style>
+    
+    <Style Selector="Border.notification TextBlock">
+      <Setter Property="Foreground" Value="#FFFFFF" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer Background="#1A1A1A" Focusable="True">
+    <StackPanel Margin="30" Spacing="25" MaxWidth="800">
+      
+      <!-- Header -->
+      <StackPanel Spacing="5" Margin="0,0,0,10">
+        <TextBlock Text="Settings" FontSize="32" FontWeight="Bold" Foreground="#FFFFFF" />
+        <TextBlock Text="Configure your GenHub preferences and application behavior" 
+                   FontSize="16" Foreground="#AAAAAA" />
+      </StackPanel>
+
+      <!-- TODO: Replace with application notification system -->
+      <!-- Save Notification -->
+      <Border Classes="notification">
+        <TextBlock Text="✓ Settings saved successfully!" />
+      </Border>
+
+      <!-- Game Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🎮 Game Configuration" Classes="section-header" />
+          
+          <!-- Preferred Game Path -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Preferred Game Installation Path" Classes="setting-label" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Grid.Column="0" 
+                       Text="{Binding WorkspacePath}"
+                       Watermark="Auto-detect game installation path..."
+                       LostFocus="OnTextBoxLostFocus" />
+              <Button Grid.Column="1" 
+                      Content="Browse"
+                      Command="{Binding BrowseGamePathCommand}"
+                      Classes="browse-button" />
+            </Grid>
+            <TextBlock Text="Specify where you prefer games to be installed. Leave empty for auto-detection." 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Default Workspace Strategy -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Default Workspace Strategy" Classes="setting-label" />
+            <ComboBox ItemsSource="{Binding AvailableWorkspaceStrategies}"
+                      SelectedItem="{Binding DefaultWorkspaceStrategy}"
+                      HorizontalAlignment="Left"
+                      MinWidth="200" />
+            <TextBlock Text="Choose how files are managed in game workspaces" 
+                       Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Download Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="📥 Downloads" Classes="section-header" />
+          
+          <!-- Max Concurrent Downloads -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Maximum Concurrent Downloads" Classes="setting-label" />
+            <NumericUpDown Value="{Binding MaxConcurrentDownloads}"
+                           Minimum="1"
+                           Maximum="10"
+                           Increment="1"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Limit the number of simultaneous downloads to manage bandwidth usage (1-10)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Download Buffer Size -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Download Buffer Size" Classes="setting-label" />
+            <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
+                           Minimum="4"
+                           Maximum="1024"
+                           Increment="4"
+                           HorizontalAlignment="Left"
+                           Width="160"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Buffer size used for file downloads (4KB - 1MB, default: 80KB)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Download Timeout -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Download Timeout" Classes="setting-label" />
+            <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
+                           Minimum="10"
+                           Maximum="3600"
+                           Increment="10"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Timeout for each download operation  (10-3600 seconds,default: 600 seconds)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Download User-Agent -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Download User-Agent" Classes="setting-label" />
+            <TextBox Text="{Binding DownloadUserAgent}" 
+                     Width="300"
+                     LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="HTTP User-Agent string sent with download requests" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Background Downloads -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Allow background downloads"
+                      IsChecked="{Binding AllowBackgroundDownloads}" />
+            <TextBlock Text="Continue downloads when the application is minimized or in the background" 
+                       Classes="setting-description" Margin="24,0,0,0" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Application Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🎨 Appearance" Classes="section-header" />
+          
+          <!-- Theme Selection -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Theme" Classes="setting-label" />
+            <ComboBox ItemsSource="{Binding AvailableThemes}"
+                      SelectedItem="{Binding Theme}"
+                      HorizontalAlignment="Left"
+                      MinWidth="150" />
+            <TextBlock Text="Choose between light and dark themes" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Detailed Logging -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Enable detailed logging"
+                      IsChecked="{Binding EnableDetailedLogging}" />
+            <TextBlock Text="Enable verbose logging for troubleshooting. May impact performance." 
+                       Classes="setting-description" Margin="24,0,0,0" />
+          </StackPanel>
+
+          <!-- Auto Update Check -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Check for updates on startup"
+                      IsChecked="{Binding AutoCheckForUpdatesOnStartup}" />
+            <TextBlock Text="Automatically check for GenHub updates when the application starts" 
+                       Classes="setting-description" Margin="24,0,0,0" />
+          </StackPanel>
+
+          <!-- Settings File Path -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Settings File Location" Classes="setting-label" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Grid.Column="0"
+                       Text="{Binding SettingsFilePath}"
+                       Watermark="Default (platform-dependent)"
+                       LostFocus="OnTextBoxLostFocus" />
+              <Button Grid.Column="1"
+                      Content="Browse"
+                      Command="{Binding BrowseSettingsFilePathCommand}"
+                      Classes="browse-button" />
+            </Grid>
+            <TextBlock Text="Specify a custom location for your settings file. Leave empty to use the default location."
+                       Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Performance Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="⚡ Performance" Classes="section-header" />
+          
+          <!-- Memory Usage Info -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Memory Usage" Classes="setting-label" />
+            <TextBlock Text="{Binding CurrentMemoryUsage, StringFormat='Current: {0:F1} MB'}" 
+                       Foreground="#AAAAAA" FontSize="14" />
+            <TextBlock Text="Monitor application memory consumption" 
+                       Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Action Buttons -->
+      <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <Button Content="Reset to Defaults"
+                Command="{Binding ResetToDefaultsCommand}"
+                Classes="secondary-button"
+                IsEnabled="{Binding !IsSaving}" />
+        <Button Content="{Binding SaveButtonText}"
+                Command="{Binding SaveSettingsCommand}"
+                Classes="primary-button"
+                IsEnabled="{Binding !IsSaving}" />
+      </StackPanel>
+
+      <!-- Footer Info -->
+      <Border Background="#2D2D30" CornerRadius="4" Padding="15" Margin="0,20,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="💡" FontSize="16" />
+          <TextBlock Text="Settings are automatically saved and will take effect immediately or on next restart as needed." 
+                     Foreground="#AAAAAA" FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
     </StackPanel>
+  </ScrollViewer>
 </UserControl>

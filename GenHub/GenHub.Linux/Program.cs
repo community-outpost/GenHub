@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.AppUpdate;
 using GenHub.Linux.GameInstallations;
+using GenHub.Linux.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -40,25 +41,14 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services and pass in platform-specific registrations
-            services.ConfigureApplicationServices(s =>
-            {
-                // Register Linux-specific services
-                s.AddHttpClient<LinuxUpdateInstaller>(client =>
-                {
-                    client.Timeout = UpdaterTimeout;
-                    client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
-                });
-                s.AddSingleton<IPlatformUpdateInstaller, LinuxUpdateInstaller>();
-            });
-
-            // Linux-specific DI
-            services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
+            // Register shared services and Linux-specific services
+            services.ConfigureApplicationServices((s, configProvider) =>
+                s.AddLinuxServices(configProvider));
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
@@ -71,11 +61,12 @@ public class Program
     /// Avalonia configuration.
     /// </summary>
     /// <returns>The <see cref="AppBuilder"/>.</returns>
+    /// <param name="serviceProvider">The application's dependency injection service provider.</param>
     /// <remarks>
     /// Don't remove; also used by visual designer.
     /// </remarks>
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    public static AppBuilder BuildAvaloniaApp(IServiceProvider serviceProvider)
+        => AppBuilder.Configure(() => new App(serviceProvider))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

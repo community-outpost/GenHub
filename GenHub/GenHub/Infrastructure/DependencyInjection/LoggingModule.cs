@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
@@ -14,19 +15,21 @@ public static class LoggingModule
     /// Adds logging configuration to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configProvider">The configuration provider for determining log levels.</param>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddLoggingModule(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfigurationProviderService configProvider)
     {
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.AddConsole();
             builder.AddDebug();
-            var minLevel = LogLevel.Information;
+
+            var minLevel = configProvider.GetEnableDetailedLogging() ? LogLevel.Debug : LogLevel.Information;
             builder.SetMinimumLevel(minLevel);
         });
-
         return services;
     }
 

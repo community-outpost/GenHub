@@ -6,17 +6,22 @@ namespace GenHub.Core.Models.Enums;
 public enum NavigationTab
 {
     /// <summary>
+    /// Home tab (default landing page).
+    /// </summary>
+    Home,
+
+    /// <summary>
     /// Game profiles and installations management.
     /// </summary>
-    GameProfiles = 0,
+    GameProfiles,
 
     /// <summary>
     /// Downloads and mod management.
     /// </summary>
-    Downloads = 1,
+    Downloads,
 
     /// <summary>
     /// Application settings and configuration.
     /// </summary>
-    Settings = 2,
+    Settings,
 }

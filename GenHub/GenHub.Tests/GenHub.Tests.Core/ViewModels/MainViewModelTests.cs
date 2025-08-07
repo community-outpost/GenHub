@@ -1,13 +1,13 @@
-using System.Threading.Tasks;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.ViewModels;
 
@@ -24,14 +24,17 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var logger = NullLogger<MainViewModel>.Instance;
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var configProvider = CreateConfigProviderMock();
 
+        // Act
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
-            new SettingsViewModel(),
+            settingsVm,
             mockOrchestrator.Object,
-            logger);
+            configProvider,
+            userSettingsMock.Object);
 
         // Assert
         Assert.NotNull(vm);
@@ -49,13 +52,17 @@ public class MainViewModelTests
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var logger = NullLogger<MainViewModel>.Instance;
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var configProvider = CreateConfigProviderMock();
+
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
-            new SettingsViewModel(),
+            settingsVm,
             mockOrchestrator.Object,
-            logger);
+            configProvider,
+            userSettingsMock.Object);
+
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
     }
@@ -69,13 +76,15 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var logger = NullLogger<MainViewModel>.Instance;
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var configProvider = CreateConfigProviderMock();
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
-            new SettingsViewModel(),
+            settingsVm,
             mockOrchestrator.Object,
-            logger);
+            configProvider,
+            userSettingsMock.Object);
 
         // Act & Assert
         await viewModel.ScanForGamesAsync();
@@ -91,13 +100,15 @@ public class MainViewModelTests
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var logger = NullLogger<MainViewModel>.Instance;
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var configProvider = CreateConfigProviderMock();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
-            new SettingsViewModel(),
+            settingsVm,
             mockOrchestrator.Object,
-            logger);
+            configProvider,
+            userSettingsMock.Object);
 
         // Act & Assert
         await vm.InitializeAsync();
@@ -116,13 +127,15 @@ public class MainViewModelTests
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var logger = NullLogger<MainViewModel>.Instance;
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var configProvider = CreateConfigProviderMock();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
-            new SettingsViewModel(),
+            settingsVm,
             mockOrchestrator.Object,
-            logger);
+            configProvider,
+            userSettingsMock.Object);
 
         vm.SelectTabCommand.Execute(tab);
 
@@ -141,5 +154,28 @@ public class MainViewModelTests
                 Assert.IsType<SettingsViewModel>(currentViewModel);
                 break;
         }
+    }
+
+    // Helpers must be placed after public members to satisfy StyleCop ordering rules.
+
+    /// <summary>
+    /// Creates a default SettingsViewModel with mocked services for reuse.
+    /// </summary>
+    private static (SettingsViewModel settingsVm, Mock<IUserSettingsService> userSettingsMock) CreateSettingsVm()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
+        var mockLogger = new Mock<ILogger<SettingsViewModel>>();
+        var settingsVm = new SettingsViewModel(mockUserSettings.Object, mockLogger.Object);
+        return (settingsVm, mockUserSettings);
+    }
+
+    private static IConfigurationProviderService CreateConfigProviderMock()
+    {
+        var mock = new Mock<IConfigurationProviderService>();
+
+        // Minimal defaults used by MainViewModel
+        mock.Setup(x => x.GetLastSelectedTab()).Returns(NavigationTab.GameProfiles);
+        return mock.Object;
     }
 }

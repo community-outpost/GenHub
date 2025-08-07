@@ -1,14 +1,15 @@
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 
@@ -17,19 +18,57 @@ namespace GenHub.Common.ViewModels;
 /// <summary>
 /// Main view model for the application.
 /// </summary>
-public partial class MainViewModel(
-    GameProfileLauncherViewModel gameProfilesViewModel,
-    DownloadsViewModel downloadsViewModel,
-    SettingsViewModel settingsViewModel,
-    IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
-    ILogger<MainViewModel>? logger = null
-) : ObservableObject
+public partial class MainViewModel : ObservableObject
 {
-    private readonly ILogger<MainViewModel>? _logger = logger;
-    private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
+    private readonly ILogger<MainViewModel>? _logger;
+    private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
+    private readonly IConfigurationProviderService _configurationProvider;
+    private readonly IUserSettingsService _userSettingsService;
 
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// </summary>
+    /// <param name="gameProfilesViewModel">Game profiles view model.</param>
+    /// <param name="downloadsViewModel">Downloads view model.</param>
+    /// <param name="settingsViewModel">Settings view model.</param>
+    /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
+    /// <param name="configurationProvider">Configuration provider service.</param>
+    /// <param name="userSettingsService">User settings service for persistence operations.</param>
+    /// <param name="logger">Logger instance.</param>
+    public MainViewModel(
+        GameProfileLauncherViewModel gameProfilesViewModel,
+        DownloadsViewModel downloadsViewModel,
+        SettingsViewModel settingsViewModel,
+        IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
+        IConfigurationProviderService configurationProvider,
+        IUserSettingsService userSettingsService,
+        ILogger<MainViewModel>? logger = null)
+    {
+        GameProfilesViewModel = gameProfilesViewModel;
+        DownloadsViewModel = downloadsViewModel;
+        SettingsViewModel = settingsViewModel;
+        _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
+        _configurationProvider = configurationProvider;
+        _userSettingsService = userSettingsService;
+        _logger = logger;
+
+        // Load initial settings using unified configuration
+        try
+        {
+            _selectedTab = _configurationProvider.GetLastSelectedTab();
+            _logger?.LogDebug($"Initial settings loaded, selected tab: {_selectedTab}");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load initial settings");
+            _selectedTab = NavigationTab.GameProfiles;
+        }
+
+        // Tab change handled by ObservableProperty partial method
+    }
 
     /// <summary>
     /// Gets a value indicating whether an update is available (dummy implementation for UI binding).
@@ -37,19 +76,19 @@ public partial class MainViewModel(
     public static bool HasUpdateAvailable => false;
 
     /// <summary>
-    /// Gets the Game Profiles tab ViewModel.
+    /// Gets the game profiles view model.
     /// </summary>
-    public GameProfileLauncherViewModel GameProfilesViewModel => gameProfilesViewModel;
+    public GameProfileLauncherViewModel GameProfilesViewModel { get; }
 
     /// <summary>
-    /// Gets the Downloads tab ViewModel.
+    /// Gets the downloads view model.
     /// </summary>
-    public DownloadsViewModel DownloadsViewModel => downloadsViewModel;
+    public DownloadsViewModel DownloadsViewModel { get; }
 
     /// <summary>
-    /// Gets the Settings tab ViewModel.
+    /// Gets the settings view model.
     /// </summary>
-    public SettingsViewModel SettingsViewModel => settingsViewModel;
+    public SettingsViewModel SettingsViewModel { get; }
 
     /// <summary>
     /// Gets the collection of detected game installations.
@@ -74,7 +113,7 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles => GameProfilesViewModel,
         NavigationTab.Downloads => DownloadsViewModel,
         NavigationTab.Settings => SettingsViewModel,
-        _ => GameProfilesViewModel
+        _ => GameProfilesViewModel,
     };
 
     /// <summary>
@@ -98,7 +137,6 @@ public partial class MainViewModel(
     {
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
-        await SettingsViewModel.InitializeAsync();
         _logger?.LogInformation("MainViewModel initialized");
         await Task.CompletedTask;
     }
@@ -158,8 +196,31 @@ public partial class MainViewModel(
     private void SelectTab(NavigationTab tab) =>
         SelectedTab = tab;
 
-    partial void OnSelectedTabChanged(NavigationTab value) =>
+    private void SaveSelectedTab(NavigationTab selectedTab)
+    {
+        try
+        {
+            _userSettingsService.UpdateSettings(settings =>
+            {
+                settings.LastSelectedTab = selectedTab;
+            });
+            _logger?.LogDebug($"Updated last selected tab to: {selectedTab}");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to update selected tab setting");
+        }
+    }
+
+    partial void OnSelectedTabChanged(NavigationTab value)
+    {
         OnPropertyChanged(nameof(CurrentTabViewModel));
+
+        // Notify SettingsViewModel when it becomes visible/invisible
+        SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
+
+        SaveSelectedTab(value);
+    }
 
     /// <summary>
     /// Shows the update notification dialog.

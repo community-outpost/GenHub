@@ -14,14 +14,22 @@ public static class DownloadModule
     /// Registers download services for dependency injection.
     /// </summary>
     /// <param name="services">The service collection to configure.</param>
+    /// <param name="configProvider">The configuration provider for HTTP client setup.</param>
     /// <returns>The updated service collection.</returns>
-    public static IServiceCollection AddDownloadServices(this IServiceCollection services)
+    public static IServiceCollection AddDownloadServices(
+        this IServiceCollection services,
+        IConfigurationProviderService configProvider)
     {
         services.AddSingleton<IDownloadService, DownloadService>();
+
+        var userAgent = configProvider.GetDownloadUserAgent();
+        var timeout = configProvider.GetDownloadTimeoutSeconds();
+
         services.AddHttpClient<DownloadService>(client =>
         {
-            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
-            client.Timeout = TimeSpan.FromMinutes(30);
+            client.DefaultRequestHeaders.Remove("User-Agent");
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            client.Timeout = TimeSpan.FromSeconds(timeout);
         });
         return services;
     }

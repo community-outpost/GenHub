@@ -2,7 +2,10 @@ using System;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
@@ -20,9 +23,10 @@ public class DownloadModuleTests
     {
         // Arrange
         var services = new ServiceCollection();
+        var configProvider = CreateMockConfigProvider();
 
         // Act
-        services.AddDownloadServices();
+        services.AddDownloadServices(configProvider);
         var provider = services.BuildServiceProvider();
 
         // Assert
@@ -31,7 +35,18 @@ public class DownloadModuleTests
         Assert.IsType<DownloadService>(service);
 
         // HttpClient should be resolvable for DownloadService
-        var httpClient = provider.GetService<HttpClient>();
+        var httpClientFactory = provider.GetService<IHttpClientFactory>();
+        Assert.NotNull(httpClientFactory);
+
+        var httpClient = httpClientFactory.CreateClient(nameof(DownloadService));
         Assert.NotNull(httpClient);
+    }
+
+    private static IConfigurationProviderService CreateMockConfigProvider()
+    {
+        var mock = new Mock<IConfigurationProviderService>();
+        mock.Setup(x => x.GetDownloadUserAgent()).Returns("TestAgent/1.0");
+        mock.Setup(x => x.GetDownloadTimeoutSeconds()).Returns(120);
+        return mock.Object;
     }
 }

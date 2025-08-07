@@ -1,35 +1,44 @@
 using System;
+using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Main module that orchestrates registration of all application services.
+/// Main module that orchestrates registration of all application services and passes a single shared
+/// IConfigurationProviderService instance into modules that require configuration at registration time.
+/// Platform-specific services are registered via a factory to keep Program.cs minimal.
 /// </summary>
 public static class AppServices
 {
     /// <summary>
-    /// Registers all shared services (non-platform-specific).
+    /// Registers all shared services and platform-specific services.
     /// </summary>
     /// <param name="services">The service collection to which application services will be registered.</param>
-    /// <param name="platformSpecificServices">An action to register platform-specific services.</param>
+    /// <param name="platformModuleFactory">A factory that registers platform-specific services using the shared config provider.</param>
     /// <returns>The updated <see cref="IServiceCollection"/> with registered application services.</returns>
-    public static IServiceCollection ConfigureApplicationServices(this IServiceCollection services, Action<IServiceCollection>? platformSpecificServices = null)
+    public static IServiceCollection ConfigureApplicationServices(
+        this IServiceCollection services,
+        Func<IServiceCollection, IConfigurationProviderService, IServiceCollection>? platformModuleFactory = null)
     {
-        // Register shared services here via extension modules
+        services.AddConfigurationModule();
+
+        using var tempProvider = services.BuildServiceProvider();
+        var configProvider = tempProvider.GetRequiredService<IConfigurationProviderService>();
+
+        // Register shared services, passing config provider to those that need it
         services.AddGameDetectionService();
-        services.AddLoggingModule();
+        services.AddLoggingModule(configProvider);
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
-        services.AddDownloadServices();
+        services.AddDownloadServices(configProvider);
         services.AddValidationServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
 
-        // Register platform-specific services if provided
-        platformSpecificServices?.Invoke(services);
+        // Register platform-specific services using the factory if provided
+        platformModuleFactory?.Invoke(services, configProvider);
 
-        // Add more shared modules here as needed
         return services;
     }
 }
