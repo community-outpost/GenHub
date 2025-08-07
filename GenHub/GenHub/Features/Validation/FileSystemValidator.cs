@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Infrastructure.Exceptions;
@@ -21,14 +21,17 @@ public abstract class FileSystemValidator
     /// Logger for validation events.
     /// </summary>
     private readonly ILogger _logger;
+    private readonly IFileHashProvider _hashProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileSystemValidator"/> class.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    protected FileSystemValidator(ILogger logger)
+    /// <param name="hashProvider">Hash provider instance.</param>
+    protected FileSystemValidator(ILogger logger, IFileHashProvider hashProvider)
     {
         _logger = logger;
+        _hashProvider = hashProvider;
     }
 
     /// <summary>
@@ -37,12 +40,9 @@ public abstract class FileSystemValidator
     /// <param name="filePath">File path.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>SHA256 hash string.</returns>
-    protected static async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
+    protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
     {
-        using var sha256 = SHA256.Create();
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
-        var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
     /// <summary>

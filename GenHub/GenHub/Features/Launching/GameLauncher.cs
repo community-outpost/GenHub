@@ -18,22 +18,29 @@ public class GameLauncher(ILogger<GameLauncher> logger) : IGameLauncher
     /// <inheritdoc/>
     public async Task<LaunchResult> LaunchGameAsync(GameLaunchConfiguration config, System.Threading.CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrEmpty(config.ExecutablePath))
+            return LaunchResult.CreateFailure("Executable path cannot be null or empty", null);
         try
         {
-            var process = new Process
+            return await Task.Run(
+                () =>
             {
-                StartInfo = new ProcessStartInfo
+                var startTime = DateTime.UtcNow;
+                using var process = new Process
                 {
-                    FileName = config.ExecutablePath,
-                    WorkingDirectory = config.WorkingDirectory,
-                    Arguments = config.Arguments,
-                    UseShellExecute = false,
-                },
-            };
-            process.Start();
-
-            await Task.CompletedTask;
-            return LaunchResult.CreateSuccess(process.Id, process.StartTime, TimeSpan.Zero);
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = config.ExecutablePath,
+                        WorkingDirectory = config.WorkingDirectory,
+                        Arguments = config.Arguments,
+                        UseShellExecute = false,
+                    },
+                };
+                if (!process.Start())
+                    return LaunchResult.CreateFailure("Failed to start process", null);
+                var launchTime = DateTime.UtcNow - startTime;
+                return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchTime);
+            }, cancellationToken);
         }
         catch (System.Exception ex)
         {
@@ -45,23 +52,41 @@ public class GameLauncher(ILogger<GameLauncher> logger) : IGameLauncher
     /// <inheritdoc/>
     public async Task<GameProcessInfo?> GetGameProcessInfoAsync(int processId, System.Threading.CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
         try
         {
-            var process = Process.GetProcessById(processId);
-            return new GameProcessInfo
+            return await Task.Run(
+                () =>
             {
-                ProcessId = process.Id,
-                ProcessName = process.ProcessName,
-                StartTime = process.StartTime,
-                WorkingDirectory = process.StartInfo.WorkingDirectory,
-                CommandLine = process.StartInfo.Arguments,
-                IsResponding = process.Responding,
-            };
+                using var process = Process.GetProcessById(processId);
+
+                // Note: StartInfo properties are often not available for external processes
+                var workingDirectory = string.Empty;
+                var commandLine = string.Empty;
+
+                try
+                {
+                    workingDirectory = process.StartInfo.WorkingDirectory ?? string.Empty;
+                    commandLine = process.StartInfo.Arguments ?? string.Empty;
+                }
+                catch
+                {
+                    // StartInfo properties may not be accessible for external processes
+                }
+
+                return new GameProcessInfo
+                {
+                    ProcessId = process.Id,
+                    ProcessName = process.ProcessName,
+                    StartTime = process.StartTime,
+                    WorkingDirectory = workingDirectory,
+                    CommandLine = commandLine,
+                    IsResponding = process.Responding,
+                };
+            }, cancellationToken);
         }
         catch (System.Exception ex)
         {
-            _logger.LogError(ex, "Failed to get game process info");
+            _logger.LogError(ex, "Failed to get game process info for process ID {ProcessId}", processId);
             return null;
         }
     }
@@ -69,16 +94,24 @@ public class GameLauncher(ILogger<GameLauncher> logger) : IGameLauncher
     /// <inheritdoc/>
     public async Task<bool> TerminateGameAsync(int processId, System.Threading.CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask;
         try
         {
-            var process = Process.GetProcessById(processId);
-            process.Kill();
+            using var process = Process.GetProcessById(processId);
+
+            // Try graceful termination first
+            if (!process.CloseMainWindow())
+            {
+                // If graceful close fails, wait a bit then force kill
+                await Task.Delay(2000, cancellationToken);
+                if (!process.HasExited)
+                    process.Kill();
+            }
+
             return true;
         }
         catch (System.Exception ex)
         {
-            _logger.LogError(ex, "Failed to terminate game process");
+            _logger.LogError(ex, "Failed to terminate game process with ID {ProcessId}", processId);
             return false;
         }
     }
