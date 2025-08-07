@@ -10,6 +10,7 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Features.AppUpdate;
 using GenHub.Windows.Features.Workspace;
 using GenHub.Windows.GameInstallations;
+using GenHub.Windows.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -21,7 +22,6 @@ namespace GenHub.Windows;
 public class Program
 {
     private const string MutexName = "Global\\GenHub";
-    private const string UpdaterUserAgent = "GenHub-Updater/1.0";
     private static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
     private static Mutex? mutex;
 
@@ -55,19 +55,9 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services and pass in platform-specific registrations
-            services.ConfigureApplicationServices(s =>
-            {
-                // Register Windows-specific services
-                s.AddHttpClient<WindowsUpdateInstaller>(client =>
-                {
-                    client.Timeout = UpdaterTimeout;
-                    client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
-                });
-                s.AddSingleton<IPlatformUpdateInstaller, WindowsUpdateInstaller>();
-                s.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
-                s.AddSingleton<IFileOperationsService, WindowsFileOperationsService>();
-            });
+            // Register shared services and Windows-specific services
+            services.ConfigureApplicationServices((s, configProvider) =>
+                s.AddWindowsServices(configProvider));
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;

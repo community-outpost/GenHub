@@ -15,7 +15,7 @@ public class SettingsViewModelTests
 {
     private readonly Mock<IUserSettingsService> _mockConfigService;
     private readonly Mock<ILogger<SettingsViewModel>> _mockLogger;
-    private readonly AppSettings _defaultSettings;
+    private readonly UserSettings _defaultSettings;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModelTests"/> class.
@@ -24,7 +24,7 @@ public class SettingsViewModelTests
     {
         _mockConfigService = new Mock<IUserSettingsService>();
         _mockLogger = new Mock<ILogger<SettingsViewModel>>();
-        _defaultSettings = new AppSettings();
+        _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.GetSettings()).Returns(_defaultSettings);
     }
@@ -36,7 +36,7 @@ public class SettingsViewModelTests
     public void Constructor_LoadsSettingsFromUserSettingsService()
     {
         // Arrange
-        var customSettings = new AppSettings
+        var customSettings = new UserSettings
         {
             Theme = "Light",
             MaxConcurrentDownloads = 5,
@@ -72,7 +72,7 @@ public class SettingsViewModelTests
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
 
         // Assert
-        _mockConfigService.Verify(x => x.UpdateSettings(It.IsAny<Action<AppSettings>>()), Times.Once);
+        _mockConfigService.Verify(x => x.UpdateSettings(It.IsAny<Action<UserSettings>>()), Times.Once);
         _mockConfigService.Verify(x => x.SaveAsync(), Times.Once);
     }
 

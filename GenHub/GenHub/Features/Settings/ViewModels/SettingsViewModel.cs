@@ -294,7 +294,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var settings = _userSettingsService.GetSettings();
-            Theme = settings.Theme;
+            Theme = settings.Theme ?? "Dark";
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
@@ -303,7 +303,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = settings.DownloadBufferSize / 1024.0; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
-            DownloadUserAgent = settings.DownloadUserAgent;
+            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? "GenHub/1.0" : settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
 
             _logger.LogDebug("Settings loaded successfully");
@@ -342,7 +342,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
                 settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * 1024); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
-                settings.DownloadUserAgent = DownloadUserAgent ?? "GenHub/1.0";
+                settings.DownloadUserAgent = DownloadUserAgent;
                 settings.SettingsFilePath = SettingsFilePath;
             });
 

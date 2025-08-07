@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly ILogger<MainViewModel>? _logger;
     private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
+    private readonly IConfigurationProviderService _configurationProvider;
     private readonly IUserSettingsService _userSettingsService;
 
     [ObservableProperty]
@@ -34,13 +35,15 @@ public partial class MainViewModel : ObservableObject
     /// <param name="downloadsViewModel">Downloads view model.</param>
     /// <param name="settingsViewModel">Settings view model.</param>
     /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
-    /// <param name="userSettingsService">Configuration service.</param>
+    /// <param name="configurationProvider">Configuration provider service.</param>
+    /// <param name="userSettingsService">User settings service for persistence operations.</param>
     /// <param name="logger">Logger instance.</param>
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
         DownloadsViewModel downloadsViewModel,
         SettingsViewModel settingsViewModel,
         IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
+        IConfigurationProviderService configurationProvider,
         IUserSettingsService userSettingsService,
         ILogger<MainViewModel>? logger = null)
     {
@@ -48,14 +51,14 @@ public partial class MainViewModel : ObservableObject
         DownloadsViewModel = downloadsViewModel;
         SettingsViewModel = settingsViewModel;
         _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
+        _configurationProvider = configurationProvider;
         _userSettingsService = userSettingsService;
         _logger = logger;
 
-        // Load initial settings
+        // Load initial settings using unified configuration
         try
         {
-            var settings = _userSettingsService.GetSettings();
-            _selectedTab = settings.LastSelectedTab;
+            _selectedTab = _configurationProvider.GetLastSelectedTab();
             _logger?.LogDebug($"Initial settings loaded, selected tab: {_selectedTab}");
         }
         catch (Exception ex)
