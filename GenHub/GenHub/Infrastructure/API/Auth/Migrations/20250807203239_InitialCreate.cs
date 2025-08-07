@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace GenHub.AuthApi.Migrations
+namespace GenHub.Infrastructure.API.Auth.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
