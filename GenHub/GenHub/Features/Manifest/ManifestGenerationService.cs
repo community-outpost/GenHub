@@ -108,7 +108,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="installationType">The installation type.</param>
     /// <param name="version">The game version.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateBaseContentManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
@@ -150,7 +150,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="gameVersion">The game version.</param>
     /// <param name="executablePath">The path to the main executable.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateStandaloneContentManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameVersionManifestAsync(
         string gameDirectory,
         string gameId,
         string gameName,

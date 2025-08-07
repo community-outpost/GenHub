@@ -48,7 +48,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest { Files = new List<ManifestFile>() },
+            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -69,7 +69,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest { Files = new List<ManifestFile>() },
+            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -90,7 +90,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest { Files = new List<ManifestFile>() },
+            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -111,7 +111,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest { Files = new List<ManifestFile>() },
+            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -142,7 +142,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest { Files = files },
+            Manifest = new ContentManifest { Files = files },
         };
 
         // Setup the file operations mock to simulate file existence
@@ -201,7 +201,7 @@ public class StrategyTests : IDisposable
         // Arrange
         var strategy = CreateStrategy(strategyType);
         var config = CreateValidConfiguration(strategyType);
-        config.Manifest = new GameManifest { Files = new List<ManifestFile>() };
+        config.Manifest = new ContentManifest { Files = new List<ManifestFile>() };
 
         // Act & Assert
         var estimate = strategy.EstimateDiskUsage(config);
@@ -311,7 +311,7 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new GameManifest
+            Manifest = new ContentManifest
             {
                 Files = new List<ManifestFile>
                 {
