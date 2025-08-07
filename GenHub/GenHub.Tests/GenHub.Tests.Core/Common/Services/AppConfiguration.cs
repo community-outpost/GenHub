@@ -10,22 +10,22 @@ using Xunit;
 namespace GenHub.Tests.Core.Common.Services;
 
 /// <summary>
-/// Tests for <see cref="AppConfigurationService"/>.
+/// Tests for <see cref="AppConfiguration"/>.
 /// </summary>
-public class AppConfigurationServiceTests
+public class AppConfigurationTests
 {
     private readonly Mock<IConfiguration> _mockConfiguration;
     private readonly Mock<IConfigurationSection> _mockSection;
-    private readonly Mock<ILogger<AppConfigurationService>> _mockLogger;
+    private readonly Mock<ILogger<AppConfiguration>> _mockLogger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AppConfigurationServiceTests"/> class.
+    /// Initializes a new instance of the <see cref="AppConfigurationTests"/> class.
     /// </summary>
-    public AppConfigurationServiceTests()
+    public AppConfigurationTests()
     {
         _mockConfiguration = new Mock<IConfiguration>();
         _mockSection = new Mock<IConfigurationSection>();
-        _mockLogger = new Mock<ILogger<AppConfigurationService>>();
+        _mockLogger = new Mock<ILogger<AppConfiguration>>();
     }
 
     /// <summary>
@@ -34,7 +34,7 @@ public class AppConfigurationServiceTests
     [Fact]
     public void Constructor_WithValidDependencies_DoesNotThrow()
     {
-        var service = new AppConfigurationService(_mockConfiguration.Object, _mockLogger.Object);
+        var service = new AppConfiguration(_mockConfiguration.Object, _mockLogger.Object);
         Assert.NotNull(service);
     }
 
@@ -45,7 +45,7 @@ public class AppConfigurationServiceTests
     public void Constructor_WithNullConfiguration_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new AppConfigurationService(null!, _mockLogger.Object));
+            new AppConfiguration(null!, _mockLogger.Object));
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public class AppConfigurationServiceTests
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new AppConfigurationService(_mockConfiguration.Object, null!));
+            new AppConfiguration(_mockConfiguration.Object, null!));
     }
 
     /// <summary>
@@ -453,12 +453,12 @@ public class AppConfigurationServiceTests
     }
 
     /// <summary>
-    /// Creates an AppConfigurationService instance for testing.
+    /// Creates an AppConfiguration instance for testing.
     /// </summary>
-    /// <returns>A new AppConfigurationService instance.</returns>
-    private AppConfigurationService CreateService()
+    /// <returns>A new AppConfiguration instance.</returns>
+    private AppConfiguration CreateService()
     {
-        return new AppConfigurationService(_mockConfiguration.Object, _mockLogger.Object);
+        return new AppConfiguration(_mockConfiguration.Object, _mockLogger.Object);
     }
 
     /// <summary>
