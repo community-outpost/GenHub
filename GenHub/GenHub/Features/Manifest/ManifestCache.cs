@@ -10,22 +10,22 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ManifestCache() : IManifestCache
 {
-    private readonly ConcurrentDictionary<string, GameManifest> _manifests = new();
+    private readonly ConcurrentDictionary<string, ContentManifest> _manifests = new();
 
     /// <inheritdoc />
-    public GameManifest? GetManifest(string manifestId)
+    public ContentManifest? GetManifest(string manifestId)
     {
         return _manifests.TryGetValue(manifestId, out var manifest) ? manifest : null;
     }
 
     /// <inheritdoc />
-    public void AddOrUpdateManifest(GameManifest manifest)
+    public void AddOrUpdateManifest(ContentManifest manifest)
     {
         _manifests[manifest.Id] = manifest;
     }
 
     /// <inheritdoc />
-    public IEnumerable<GameManifest> GetAllManifests()
+    public IEnumerable<ContentManifest> GetAllManifests()
     {
         return _manifests.Values;
     }

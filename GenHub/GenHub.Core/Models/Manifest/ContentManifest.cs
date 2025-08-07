@@ -9,7 +9,7 @@ namespace GenHub.Core.Models.Manifest;
 /// Comprehensive manifest for content distribution in GenHub ecosystem.
 /// This is the central contract between content publishers and the GenHub launcher.
 /// </summary>
-public class GameManifest
+public class ContentManifest
 {
     /// <summary>
     /// Gets or sets the manifest format version for backward compatibility.

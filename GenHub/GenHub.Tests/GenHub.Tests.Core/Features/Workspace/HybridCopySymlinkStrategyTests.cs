@@ -55,7 +55,7 @@ public class HybridCopySymlinkStrategyTests : IDisposable
     public void EstimateDiskUsage_MixedFiles_ReturnsCorrectEstimate()
     {
         // Arrange
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Files =
             [

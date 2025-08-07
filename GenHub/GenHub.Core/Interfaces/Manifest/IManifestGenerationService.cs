@@ -20,7 +20,7 @@ public interface IManifestGenerationService
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="version">The game version (e.g., "1.04", "1.08").</param>
     /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateBaseGameManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, string version);
+    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, string version);
 
     /// <summary>
     /// Creates a manifest builder for any content type (mod, patch, addon, etc).
@@ -51,7 +51,7 @@ public interface IManifestGenerationService
     /// <param name="gameVersion">Game version.</param>
     /// <param name="executablePath">Path to the main executable.</param>
     /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateStandaloneGameManifestAsync(string gameDirectory, string gameId, string gameName, string gameVersion, string executablePath);
+    Task<IContentManifestBuilder> CreateGameVersionManifestAsync(string gameDirectory, string gameId, string gameName, string gameVersion, string executablePath);
 
     /// <summary>
     /// Saves a manifest to a file.
@@ -59,7 +59,7 @@ public interface IManifestGenerationService
     /// <param name="manifest">The manifest to save.</param>
     /// <param name="outputPath">The output file path.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SaveManifestAsync(GameManifest manifest, string outputPath);
+    Task SaveManifestAsync(ContentManifest manifest, string outputPath);
 
     /// <summary>
     /// Creates a content bundle from multiple content items.

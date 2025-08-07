@@ -16,7 +16,7 @@ public class WorkspaceConfiguration
     public GameVersion GameVersion { get; set; } = new();
 
     /// <summary>Gets or sets the game manifest.</summary>
-    public GameManifest Manifest { get; set; } = new();
+    public ContentManifest Manifest { get; set; } = new();
 
     /// <summary>Gets or sets the workspace root directory.</summary>
     public string WorkspaceRootPath { get; set; } = string.Empty;

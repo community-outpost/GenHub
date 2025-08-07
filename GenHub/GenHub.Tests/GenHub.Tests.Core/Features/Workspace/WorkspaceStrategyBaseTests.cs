@@ -128,7 +128,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifest = new GameManifest
+            Manifest = new ContentManifest
             {
                 Files =
                 [

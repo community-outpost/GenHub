@@ -108,7 +108,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="installationType">The installation type.</param>
     /// <param name="version">The game version.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateBaseGameManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
@@ -150,7 +150,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="gameVersion">The game version.</param>
     /// <param name="executablePath">The path to the main executable.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateStandaloneGameManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameVersionManifestAsync(
         string gameDirectory,
         string gameId,
         string gameName,
@@ -182,8 +182,8 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="targetPublisherId">The target publisher identifier.</param>
     /// <param name="referralUrl">The referral URL.</param>
     /// <param name="description">The description.</param>
-    /// <returns>The created <see cref="GameManifest"/>.</returns>
-    public Task<GameManifest> CreatePublisherReferralAsync(
+    /// <returns>The created <see cref="ContentManifest"/>.</returns>
+    public Task<ContentManifest> CreatePublisherReferralAsync(
         string referralId,
         string referralName,
         string targetPublisherId,
@@ -195,7 +195,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             referralId,
             targetPublisherId);
 
-        var referral = new GameManifest
+        var referral = new ContentManifest
         {
             Id = referralId,
             Name = referralName,
@@ -224,8 +224,8 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="targetPublisherId">The target publisher identifier.</param>
     /// <param name="referralUrl">The referral URL.</param>
     /// <param name="description">The description.</param>
-    /// <returns>The created <see cref="GameManifest"/>.</returns>
-    public Task<GameManifest> CreateContentReferralAsync(
+    /// <returns>The created <see cref="ContentManifest"/>.</returns>
+    public Task<ContentManifest> CreateContentReferralAsync(
         string referralId,
         string referralName,
         string targetContentId,
@@ -238,7 +238,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             referralId,
             targetContentId);
 
-        var referral = new GameManifest
+        var referral = new ContentManifest
         {
             Id = referralId,
             Name = referralName,
@@ -269,7 +269,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="manifest">The manifest to save.</param>
     /// <param name="outputPath">The output file path.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    public async Task SaveManifestAsync(GameManifest manifest, string outputPath)
+    public async Task SaveManifestAsync(ContentManifest manifest, string outputPath)
     {
         _logger.LogInformation("Saving manifest {ManifestId} to {OutputPath}", manifest.Id, outputPath);
 

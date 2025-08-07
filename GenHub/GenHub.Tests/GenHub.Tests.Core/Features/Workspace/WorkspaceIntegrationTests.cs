@@ -176,7 +176,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <returns>A configured <see cref="WorkspaceConfiguration"/>.</returns>
     private WorkspaceConfiguration CreateTestConfiguration(WorkspaceStrategy strategy)
         {
-        var manifest = new GameManifest();
+        var manifest = new ContentManifest();
         var testFiles = new[]
         {
             "generals.exe",

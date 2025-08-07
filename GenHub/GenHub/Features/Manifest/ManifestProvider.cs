@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Manifest;
 
 /// <summary>
-/// Provides GameManifest instances by retrieving them from cache or loading from embedded resources, with comprehensive error handling and security validation.
+/// Provides ContentManifest instances by retrieving them from cache or loading from embedded resources, with comprehensive error handling and security validation.
 /// </summary>
 public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache manifestCache) : IManifestProvider
 {
@@ -23,7 +23,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
     private readonly IManifestCache _manifestCache = manifestCache;
 
     /// <inheritdoc/>
-    public async Task<GameManifest?> GetManifestAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)
+    public async Task<ContentManifest?> GetManifestAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)
     {
         // First check cache
         var cachedManifest = _manifestCache.GetManifest(gameVersion.Id);
@@ -56,7 +56,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
 
         try
         {
-            var manifest = await JsonSerializer.DeserializeAsync<GameManifest>(stream, _jsonOptions, cancellationToken);
+            var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
             if (manifest == null)
             {
                 throw new ManifestValidationException(
@@ -90,7 +90,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
     }
 
     /// <inheritdoc/>
-    public async Task<GameManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    public async Task<ContentManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
         string gameType = installation.HasGenerals && !installation.HasZeroHour ? "Generals" :
                           installation.HasZeroHour ? "ZeroHour" : "Unknown";
@@ -121,7 +121,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
 
         try
         {
-            var manifest = await JsonSerializer.DeserializeAsync<GameManifest>(stream, _jsonOptions, cancellationToken);
+            var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
             if (manifest == null)
             {
                 throw new ManifestValidationException(
@@ -150,7 +150,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache m
     /// <summary>
     /// Validates manifest security to prevent path traversal and other security issues.
     /// </summary>
-    private static void ValidateManifestSecurity(GameManifest manifest)
+    private static void ValidateManifestSecurity(ContentManifest manifest)
     {
         foreach (var file in manifest.Files)
         {

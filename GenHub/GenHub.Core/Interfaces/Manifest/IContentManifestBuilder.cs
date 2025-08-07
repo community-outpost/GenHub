@@ -147,8 +147,8 @@ public interface IContentManifestBuilder
         string maxVersion = "");
 
     /// <summary>
-    /// Builds the final GameManifest.
+    /// Builds the final ContentManifest.
     /// </summary>
-    /// <returns>The constructed GameManifest.</returns>
-    GameManifest Build();
+    /// <returns>The constructed ContentManifest.</returns>
+    ContentManifest Build();
 }

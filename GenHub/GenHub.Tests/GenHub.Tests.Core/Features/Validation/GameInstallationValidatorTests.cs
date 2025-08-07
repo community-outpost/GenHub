@@ -40,7 +40,7 @@ public class GameInstallationValidatorTests
         var filePath = Path.Combine(tempDir.FullName, "file1.txt");
         await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
 
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Files = new()
             {
@@ -70,7 +70,7 @@ public class GameInstallationValidatorTests
             var issuesStr = string.Empty;
             try
             {
-                var manifest2 = new GameManifest
+                var manifest2 = new ContentManifest
                 {
                     Files = new()
                     {
@@ -106,7 +106,7 @@ public class GameInstallationValidatorTests
         // Arrange
         _manifestProviderMock
             .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GameManifest?)null);
+            .ReturnsAsync((ContentManifest?)null);
 
         var installation = new GameInstallation(
             "path",
@@ -130,7 +130,7 @@ public class GameInstallationValidatorTests
     public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
     {
         // Arrange
-        var manifest = new GameManifest
+        var manifest = new ContentManifest
         {
             Files = new()
             {

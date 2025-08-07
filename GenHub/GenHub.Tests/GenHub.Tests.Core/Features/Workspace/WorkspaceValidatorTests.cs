@@ -68,7 +68,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = string.Empty,
             BaseInstallationPath = string.Empty,
             WorkspaceRootPath = string.Empty,
-            Manifest = new GameManifest { Files = new List<ManifestFile>() },
+            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
         };
 
         // Act
@@ -105,7 +105,7 @@ public class WorkspaceValidatorTests : IDisposable
     {
         // Arrange
         var config = CreateValidConfiguration();
-        config.Manifest = new GameManifest { Files = new List<ManifestFile>() };
+        config.Manifest = new ContentManifest { Files = new List<ManifestFile>() };
 
         // Act
         var result = await _validator.ValidateConfigurationAsync(config);
@@ -188,7 +188,7 @@ public class WorkspaceValidatorTests : IDisposable
         var strategy = new FullCopyStrategy(fileOps.Object, logger.Object);
 
         // Create a configuration with large files to trigger disk space warning
-        var largeFileManifest = new GameManifest
+        var largeFileManifest = new ContentManifest
         {
             Files = new List<ManifestFile>
             {
@@ -243,7 +243,7 @@ public class WorkspaceValidatorTests : IDisposable
             WorkspaceRootPath = _workspaceDir,
             GameVersion = new GameVersion { Id = "test-version" },
             Strategy = WorkspaceStrategy.FullCopy,
-            Manifest = new GameManifest
+            Manifest = new ContentManifest
             {
                 Files = new List<ManifestFile>
                 {

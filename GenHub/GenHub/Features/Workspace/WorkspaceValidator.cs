@@ -197,7 +197,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         Id = "temp-validation",
                         GameVersion = new GameVersion { Id = "temp" },
-                        Manifest = new GameManifest { Files = [] },
+                        Manifest = new ContentManifest { Files = [] },
                         WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
                         BaseInstallationPath = sourcePath,
                         Strategy = (WorkspaceStrategy)strategyType,

@@ -43,7 +43,7 @@ public class ManifestCacheTests
     public void AddOrUpdateManifest_AddsNewManifest_Successfully()
     {
         // Arrange
-        var manifest = new GameManifest { Id = "test-id", Name = "Test Manifest" };
+        var manifest = new ContentManifest { Id = "test-id", Name = "Test Manifest" };
 
         // Act
         _cache.AddOrUpdateManifest(manifest);
@@ -62,8 +62,8 @@ public class ManifestCacheTests
     public void AddOrUpdateManifest_UpdatesExistingManifest_Successfully()
     {
         // Arrange
-        var originalManifest = new GameManifest { Id = "test-id", Name = "Original" };
-        var updatedManifest = new GameManifest { Id = "test-id", Name = "Updated" };
+        var originalManifest = new ContentManifest { Id = "test-id", Name = "Original" };
+        var updatedManifest = new ContentManifest { Id = "test-id", Name = "Updated" };
 
         // Act
         _cache.AddOrUpdateManifest(originalManifest);
@@ -83,8 +83,8 @@ public class ManifestCacheTests
     public void GetAllManifests_ReturnsAllCachedManifests()
     {
         // Arrange
-        var manifest1 = new GameManifest { Id = "id1", Name = "Manifest 1" };
-        var manifest2 = new GameManifest { Id = "id2", Name = "Manifest 2" };
+        var manifest1 = new ContentManifest { Id = "id1", Name = "Manifest 1" };
+        var manifest2 = new ContentManifest { Id = "id2", Name = "Manifest 2" };
 
         // Act
         _cache.AddOrUpdateManifest(manifest1);
