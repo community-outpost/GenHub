@@ -21,7 +21,7 @@ namespace GenHub.Infrastructure.API.Auth.Data
         public GenHubAuthDbContext CreateDbContext(string[] args)
         {
             var optionsBuilder = new DbContextOptionsBuilder<GenHubAuthDbContext>();
-            optionsBuilder.UseSqlServer("Server=LAPTOP-627C5K4V\\SQLEXPRESS02;Database=GenHubAuthDb2;Trusted_Connection=True;TrustServerCertificate=True");
+            optionsBuilder.UseSqlServer("Server=YourServer;Database=YourDatabase;Trusted_Connection=True;TrustServerCertificate=True");
 
             return new GenHubAuthDbContext(optionsBuilder.Options);
         }

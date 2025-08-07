@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Infrastructure.API.Auth.Middlewares;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Hosting;
@@ -14,6 +15,7 @@ namespace GenHub.Infrastructure.API.Auth
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Services.AddAuthLoggingModule();
             builder.Services.AddAuthModule();
 
             var app = builder.Build();
@@ -24,6 +26,7 @@ namespace GenHub.Infrastructure.API.Auth
                 app.UseSwaggerUI();
             }
 
+            app.UseExceptionHandlerMiddlewire();
             app.UseHttpsRedirection();
 
             app.UseAuthentication();

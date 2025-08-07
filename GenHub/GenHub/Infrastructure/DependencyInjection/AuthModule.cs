@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -15,10 +16,25 @@ namespace GenHub.Infrastructure.DependencyInjection
 {
     public static class AuthModule
     {
+        public static IServiceCollection AddAuthLoggingModule(this IServiceCollection services)
+        {
+            services.AddLogging(builder =>
+            {
+                builder.ClearProviders();
+                builder.AddConsole();
+                builder.AddDebug();
+
+                builder.AddFilter("Default", LogLevel.Information);
+                builder.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+            });
+
+            return services;
+        }
+
         public static IServiceCollection AddAuthModule(this IServiceCollection services)
         {
             services.AddDbContext<GenHubAuthDbContext>(options =>
-            options.UseSqlServer("Server=LAPTOP-627C5K4V\\SQLEXPRESS02;Database=GenHubAuthDb2;Trusted_Connection=True;TrustServerCertificate=True"));
+            options.UseSqlServer("Server=YourServer;Database=YourDatabase;Trusted_Connection=True;TrustServerCertificate=True"));
 
             services.AddControllers();
 
@@ -75,8 +91,8 @@ namespace GenHub.Infrastructure.DependencyInjection
                         ValidateAudience = true,
                         ValidateIssuerSigningKey = true,
                         ValidateLifetime = true,
-                        ValidIssuer = "https://localhost:7186/",
-                        ValidAudience = "https://localhost:7186/",
+                        ValidIssuer = "https://localhost:7100/",
+                        ValidAudience = "https://localhost:7100/",
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("mysupersecretkey1234567890123456")),
                     };
                 });
