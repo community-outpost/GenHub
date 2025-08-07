@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
@@ -19,9 +21,10 @@ public class LoggingModuleTests
     {
         // Arrange
         var services = new ServiceCollection();
+        var configProvider = CreateMockConfigProvider();
 
         // Act
-        services.AddLoggingModule();
+        services.AddLoggingModule(configProvider);
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert
@@ -45,5 +48,12 @@ public class LoggingModuleTests
         // Assert
         Assert.NotNull(factory);
         Assert.NotNull(logger);
+    }
+
+    private static IConfigurationProviderService CreateMockConfigProvider()
+    {
+        var mock = new Mock<IConfigurationProviderService>();
+        mock.Setup(x => x.GetEnableDetailedLogging()).Returns(false);
+        return mock.Object;
     }
 }

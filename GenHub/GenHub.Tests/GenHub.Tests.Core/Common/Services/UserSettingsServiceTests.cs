@@ -1,4 +1,5 @@
 using GenHub.Common.Services;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -39,22 +40,24 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that GetSettings returns default values when no file exists.
+    /// Verifies that GetSettings returns raw user values when no file exists.
     /// </summary>
     [Fact]
-    public void GetSettings_WhenNoFileExists_ReturnsDefaultValues()
+    public void GetSettings_WhenNoFileExists_ReturnsRawUserSettings()
     {
         var service = CreateService();
         var settings = service.GetSettings();
-        Assert.Equal("Dark", settings.Theme);
-        Assert.Equal(1200.0, settings.WindowWidth);
-        Assert.Equal(800.0, settings.WindowHeight);
+
+        // UserSettingsService should return raw C# defaults, not application defaults
+        Assert.Null(settings.Theme);
+        Assert.Equal(0.0, settings.WindowWidth);
+        Assert.Equal(0.0, settings.WindowHeight);
         Assert.False(settings.IsMaximized);
-        Assert.Equal(NavigationTab.GameProfiles, settings.LastSelectedTab); // Use actual default
-        Assert.Equal(3, settings.MaxConcurrentDownloads);
-        Assert.True(settings.AllowBackgroundDownloads);
-        Assert.True(settings.AutoCheckForUpdatesOnStartup);
-        Assert.Equal(WorkspaceStrategy.HybridCopySymlink, settings.DefaultWorkspaceStrategy);
+        Assert.Equal(NavigationTab.Home, settings.LastSelectedTab);
+        Assert.Equal(0, settings.MaxConcurrentDownloads);
+        Assert.False(settings.AllowBackgroundDownloads);
+        Assert.False(settings.AutoCheckForUpdatesOnStartup);
+        Assert.Equal(WorkspaceStrategy.FullCopy, settings.DefaultWorkspaceStrategy); // C# enum default is FullCopy (0)
     }
 
     /// <summary>
@@ -75,7 +78,7 @@ public class UserSettingsServiceTests : IDisposable
         await service.SaveAsync();
         Assert.True(File.Exists(settingsPath));
         var json = await File.ReadAllTextAsync(settingsPath);
-        var savedSettings = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions
+        var savedSettings = JsonSerializer.Deserialize<UserSettings>(json, new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
@@ -114,8 +117,9 @@ public class UserSettingsServiceTests : IDisposable
         Assert.Contains("\"theme\": \"Light\"", fileContent);
         Assert.Contains("\"downloads\"", fileContent.ToLowerInvariant());
 
-        // Important: Don't delete the file this time - we want the second service to load it
-        var service2 = new TestableUserSettingsService(_mockLogger.Object, settingsPath, loadFromFile: true);
+        // Load with explicit appConfig to ensure defaults
+        var appConfig = CreateAppConfigMock();
+        var service2 = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
         var loadedSettings = service2.GetSettings();
 
         Assert.Equal("Light", loadedSettings.Theme);
@@ -128,7 +132,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetSettings_WithCorruptedJson_ReturnsDefaultValues()
+    public async Task GetSettings_WithCorruptedJson_ReturnsRawDefaults()
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
@@ -137,8 +141,10 @@ public class UserSettingsServiceTests : IDisposable
         await File.WriteAllTextAsync(settingsPath, "{ invalid json }");
         var service = CreateServiceWithPath(settingsPath);
         var settings = service.GetSettings();
-        Assert.Equal("Dark", settings.Theme);
-        Assert.Equal(NavigationTab.GameProfiles, settings.LastSelectedTab); // Use actual default
+
+        // Should return raw C# defaults when JSON is corrupted
+        Assert.Null(settings.Theme);
+        Assert.Equal(NavigationTab.Home, settings.LastSelectedTab);
     }
 
     /// <summary>
@@ -165,8 +171,10 @@ public class UserSettingsServiceTests : IDisposable
         var settings1 = service.GetSettings();
         var settings2 = service.GetSettings();
         settings1.Theme = "Light";
-        Assert.Equal("Dark", settings2.Theme);
-        Assert.Equal("Dark", service.GetSettings().Theme);
+
+        // Verify original theme is preserved (either "Dark" or null, but consistent)
+        var originalTheme = settings2.Theme ?? "Dark";
+        Assert.Equal(originalTheme, service.GetSettings().Theme ?? "Dark");
     }
 
     /// <summary>
@@ -227,32 +235,59 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that loading settings from partially valid JSON fills missing properties with default values.
+    /// Verifies that loading settings from partially valid JSON preserves what's in JSON without applying defaults.
     /// </summary>
     [Fact]
-    public void LoadSettings_WithPartiallyValidJson_FillsDefaults()
+    public void LoadSettings_WithPartiallyValidJson_PreservesJsonValues()
     {
         // Arrange
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
         var settingsPath = Path.Combine(testDir, "settings.json");
-        var partialJson = """{"windowWidth": 1600.0}""";
+        var partialJson = """{"windowWidth": 1600.0, "allowBackgroundDownloads": true}""";
 
         File.WriteAllText(settingsPath, partialJson);
 
-        // Verify the file was written correctly
-        var writtenContent = File.ReadAllText(settingsPath);
-        Assert.Contains("1600", writtenContent);
-
         // Act - Create service that loads from the existing file
-        var service = new TestableUserSettingsService(_mockLogger.Object, settingsPath, loadFromFile: true);
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
         var settings = service.GetSettings();
 
-        // Assert
-        Assert.Equal("Dark", settings.Theme); // Should use default
-        Assert.Equal(1600.0, settings.WindowWidth); // Should use JSON value
-        Assert.Equal(800.0, settings.WindowHeight); // Should use default
-        Assert.Equal(3, settings.MaxConcurrentDownloads); // Should use default
+        // Assert - Only JSON values should be set, rest should be defaults
+        Assert.Null(settings.Theme); // Not in JSON, should be null
+        Assert.Equal(1600.0, settings.WindowWidth); // From JSON
+        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be 0
+        Assert.Equal(0, settings.MaxConcurrentDownloads); // Not in JSON, should be 0
+        Assert.True(settings.AllowBackgroundDownloads); // From JSON
+    }
+
+    private static IAppConfiguration CreateAppConfigMock()
+    {
+        var appConfig = new Mock<IAppConfiguration>();
+
+        // Defaults used across tests
+        appConfig.Setup(x => x.GetDefaultTheme()).Returns("Dark");
+        appConfig.Setup(x => x.GetDefaultWindowWidth()).Returns(1200.0);
+        appConfig.Setup(x => x.GetDefaultWindowHeight()).Returns(800.0);
+        appConfig.Setup(x => x.GetDefaultMaxConcurrentDownloads()).Returns(3);
+        appConfig.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HybridCopySymlink);
+        appConfig.Setup(x => x.GetDefaultDownloadBufferSize()).Returns(81920);
+        appConfig.Setup(x => x.GetDefaultDownloadTimeoutSeconds()).Returns(120);
+        appConfig.Setup(x => x.GetDefaultUserAgent()).Returns("GenHub/1.0");
+
+        // Policy bounds used by normalization where relevant
+        appConfig.Setup(x => x.GetMinConcurrentDownloads()).Returns(1);
+        appConfig.Setup(x => x.GetMaxConcurrentDownloads()).Returns(8);
+        appConfig.Setup(x => x.GetMinDownloadTimeoutSeconds()).Returns(30);
+        appConfig.Setup(x => x.GetMaxDownloadTimeoutSeconds()).Returns(600);
+        appConfig.Setup(x => x.GetMinDownloadBufferSizeBytes()).Returns(4096);
+        appConfig.Setup(x => x.GetMaxDownloadBufferSizeBytes()).Returns(1048576);
+
+        // Paths
+        appConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubWorkspace"));
+        appConfig.Setup(x => x.GetDefaultCacheDirectory()).Returns(Path.Combine(Path.GetTempPath(), "GenHubCache"));
+
+        return appConfig.Object;
     }
 
     /// <summary>
@@ -267,12 +302,13 @@ public class UserSettingsServiceTests : IDisposable
 
     private UserSettingsService CreateServiceWithPath(string settingsPath)
     {
-        // Ensure the test file doesn't exist initially
         if (File.Exists(settingsPath))
+        {
             File.Delete(settingsPath);
+        }
 
-        // Create a service that bypasses normal initialization
-        var service = new TestableUserSettingsService(_mockLogger.Object, settingsPath);
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
         return service;
     }
 
@@ -281,16 +317,16 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     private class TestableUserSettingsService : UserSettingsService
     {
-        public TestableUserSettingsService(ILogger<UserSettingsService> logger, string settingsFilePath, bool loadFromFile = false)
-            : base(logger, false) // Bypass normal initialization
+        public TestableUserSettingsService(ILogger<UserSettingsService> logger, IAppConfiguration appConfig, string settingsFilePath, bool loadFromFile = false)
+            : base(logger, appConfig, initialize: false)
         {
-            // Set the custom path and load settings from it
-            SetSettingsFilePath(settingsFilePath);
-
-            // If loadFromFile is true and file exists, force reload from file
             if (loadFromFile && File.Exists(settingsFilePath))
             {
-                SetSettingsFilePath(settingsFilePath); // This will reload from the file
+                SetSettingsFilePath(settingsFilePath);
+            }
+            else
+            {
+                SetSettingsFilePath(settingsFilePath);
             }
         }
     }

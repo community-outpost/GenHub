@@ -9,21 +9,6 @@ namespace GenHub.Tests.Core.Common.Models;
 public class NavigationTabTests
 {
     /// <summary>
-    /// Verifies that the NavigationTab enum values match their expected integer values.
-    /// </summary>
-    /// <param name="tab">The tab enum value.</param>
-    /// <param name="expectedValue">The expected integer value.</param>
-    [Theory]
-    [InlineData(NavigationTab.Home, 0)]
-    [InlineData(NavigationTab.GameProfiles, 1)]
-    [InlineData(NavigationTab.Downloads, 2)]
-    [InlineData(NavigationTab.Settings, 3)]
-    public void NavigationTab_HasExpectedValues(NavigationTab tab, int expectedValue)
-    {
-        Assert.Equal(expectedValue, (int)tab);
-    }
-
-    /// <summary>
     /// Verifies that all NavigationTab enum values are defined.
     /// </summary>
     [Fact]

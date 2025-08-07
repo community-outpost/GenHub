@@ -10,17 +10,17 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// Provides access to application-level configuration (read-only, deployment-time settings).
 /// </summary>
-public class AppConfigurationService : IAppConfigurationService
+public class AppConfiguration : IAppConfiguration
 {
     private readonly IConfiguration _configuration;
-    private readonly ILogger<AppConfigurationService> _logger;
+    private readonly ILogger<AppConfiguration> _logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AppConfigurationService"/> class.
+    /// Initializes a new instance of the <see cref="AppConfiguration"/> class.
     /// </summary>
     /// <param name="configuration">The configuration provider.</param>
     /// <param name="logger">The logger instance.</param>
-    public AppConfigurationService(IConfiguration configuration, ILogger<AppConfigurationService> logger)
+    public AppConfiguration(IConfiguration configuration, ILogger<AppConfiguration> logger)
     {
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -85,4 +85,58 @@ public class AppConfigurationService : IAppConfigurationService
     /// </summary>
     /// <returns>The default <see cref="WorkspaceStrategy"/>.</returns>
     public WorkspaceStrategy GetDefaultWorkspaceStrategy() => _configuration.GetValue("GenHub:Workspace:DefaultStrategy", WorkspaceStrategy.HybridCopySymlink);
+
+    /// <summary>
+    /// Gets the default UI theme for GenHub.
+    /// </summary>
+    /// <returns>The default UI theme as a string.</returns>
+    public string GetDefaultTheme() => _configuration.GetValue("GenHub:UI:DefaultTheme", "Dark").Trim();
+
+    /// <summary>
+    /// Gets the default window width for GenHub.
+    /// </summary>
+    /// <returns>The default window width in pixels.</returns>
+    public double GetDefaultWindowWidth() => _configuration.GetValue("GenHub:UI:DefaultWindowWidth", 1024.0);
+
+    /// <summary>
+    /// Gets the default window height for GenHub.
+    /// </summary>
+    /// <returns>The default window height in pixels.</returns>
+    public double GetDefaultWindowHeight() => _configuration.GetValue("GenHub:UI:DefaultWindowHeight", 768.0);
+
+    /// <summary>
+    /// Gets the minimum allowed concurrent downloads value.
+    /// </summary>
+    /// <returns>The minimum allowed number of concurrent downloads.</returns>
+    public int GetMinConcurrentDownloads() => _configuration.GetValue("GenHub:Downloads:Policy:MinConcurrent", 1);
+
+    /// <summary>
+    /// Gets the maximum allowed concurrent downloads value.
+    /// </summary>
+    /// <returns>The maximum allowed number of concurrent downloads.</returns>
+    public int GetMaxConcurrentDownloads() => _configuration.GetValue("GenHub:Downloads:Policy:MaxConcurrent", 10);
+
+    /// <summary>
+    /// Gets the minimum allowed download timeout in seconds.
+    /// </summary>
+    /// <returns>The minimum allowed download timeout in seconds.</returns>
+    public int GetMinDownloadTimeoutSeconds() => _configuration.GetValue("GenHub:Downloads:Policy:MinTimeoutSeconds", 10);
+
+    /// <summary>
+    /// Gets the maximum allowed download timeout in seconds.
+    /// </summary>
+    /// <returns>The maximum allowed download timeout in seconds.</returns>
+    public int GetMaxDownloadTimeoutSeconds() => _configuration.GetValue("GenHub:Downloads:Policy:MaxTimeoutSeconds", 3600);
+
+    /// <summary>
+    /// Gets the minimum allowed download buffer size in bytes.
+    /// </summary>
+    /// <returns>The minimum allowed download buffer size in bytes.</returns>
+    public int GetMinDownloadBufferSizeBytes() => _configuration.GetValue("GenHub:Downloads:Policy:MinBufferSizeBytes", 4 * 1024);
+
+    /// <summary>
+    /// Gets the maximum allowed download buffer size in bytes.
+    /// </summary>
+    /// <returns>The maximum allowed download buffer size in bytes.</returns>
+    public int GetMaxDownloadBufferSizeBytes() => _configuration.GetValue("GenHub:Downloads:Policy:MaxBufferSizeBytes", 1024 * 1024);
 }

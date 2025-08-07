@@ -1,21 +1,22 @@
 using GenHub.Core.Models.Enums;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Common;
 
 /// <summary>Represents application-level and user-specific settings for GenHub.</summary>
-public class AppSettings
+public class UserSettings
 {
     /// <summary>Gets or sets the application theme preference.</summary>
-    public string Theme { get; set; } = "Dark";
+    public string? Theme { get; set; }
 
     /// <summary>Gets or sets the main window width in pixels.</summary>
-    public double WindowWidth { get; set; } = 1200.0;
+    public double WindowWidth { get; set; }
 
     /// <summary>Gets or sets the main window height in pixels.</summary>
-    public double WindowHeight { get; set; } = 800.0;
+    public double WindowHeight { get; set; }
 
     /// <summary>Gets or sets a value indicating whether the main window is maximized.</summary>
-    public bool IsMaximized { get; set; } = false;
+    public bool IsMaximized { get; set; }
 
     /// <summary>Gets or sets the workspace path where all game files are stored.</summary>
     public string? WorkspacePath { get; set; }
@@ -24,35 +25,53 @@ public class AppSettings
     public string? LastUsedProfileId { get; set; }
 
     /// <summary>Gets or sets the last selected navigation tab.</summary>
-    public NavigationTab LastSelectedTab { get; set; } = NavigationTab.GameProfiles;
+    public NavigationTab LastSelectedTab { get; set; }
 
     /// <summary>Gets or sets the maximum number of concurrent downloads allowed.</summary>
-    public int MaxConcurrentDownloads { get; set; } = 3;
+    public int MaxConcurrentDownloads { get; set; }
 
     /// <summary>Gets or sets a value indicating whether downloads are allowed to continue in the background.</summary>
-    public bool AllowBackgroundDownloads { get; set; } = true;
+    public bool AllowBackgroundDownloads { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to automatically check for updates on startup.</summary>
-    public bool AutoCheckForUpdatesOnStartup { get; set; } = true;
+    public bool AutoCheckForUpdatesOnStartup { get; set; }
 
     /// <summary>Gets or sets the timestamp of the last update check in ISO 8601 format.</summary>
     public string? LastUpdateCheckTimestamp { get; set; }
 
     /// <summary>Gets or sets a value indicating whether detailed logging information is enabled.</summary>
-    public bool EnableDetailedLogging { get; set; } = false;
+    public bool EnableDetailedLogging { get; set; }
 
     /// <summary>Gets or sets the default workspace strategy for new profiles.</summary>
-    public WorkspaceStrategy DefaultWorkspaceStrategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
+    public WorkspaceStrategy DefaultWorkspaceStrategy { get; set; }
 
     /// <summary>Gets or sets the buffer size (in bytes) for file download operations.</summary>
-    public int DownloadBufferSize { get; set; } = 81920; // 80KB
+    public int DownloadBufferSize { get; set; }
 
     /// <summary>Gets or sets the download timeout in seconds.</summary>
-    public int DownloadTimeoutSeconds { get; set; } = 600; // 10 minutes
+    public int DownloadTimeoutSeconds { get; set; }
 
     /// <summary>Gets or sets the user-agent string for downloads.</summary>
-    public string DownloadUserAgent { get; set; } = "GenHub/1.0";
+    public string? DownloadUserAgent { get; set; }
 
     /// <summary>Gets or sets the custom settings file path. If null or empty, use platform default.</summary>
     public string? SettingsFilePath { get; set; }
+
+    /// <summary>Gets or sets the set of property names explicitly set by the user, allowing distinction between user intent and C# defaults.</summary>
+    public HashSet<string> ExplicitlySetProperties { get; set; } = new();
+
+    /// <summary>Marks a property as explicitly set by the user.</summary>
+    /// <param name="propertyName">The name of the property to mark as explicitly set.</param>
+    public void MarkAsExplicitlySet(string propertyName)
+    {
+        ExplicitlySetProperties.Add(propertyName);
+    }
+
+    /// <summary>Checks if a property was explicitly set by the user.</summary>
+    /// <param name="propertyName">The name of the property to check.</param>
+    /// <returns><c>true</c> if the property was explicitly set by the user; otherwise, <c>false</c>.</returns>
+    public bool IsExplicitlySet(string propertyName)
+    {
+        return ExplicitlySetProperties.Contains(propertyName);
+    }
 }

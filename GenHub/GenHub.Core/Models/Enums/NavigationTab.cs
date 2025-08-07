@@ -8,20 +8,20 @@ public enum NavigationTab
     /// <summary>
     /// Home tab (default landing page).
     /// </summary>
-    Home = 0,
+    Home,
 
     /// <summary>
     /// Game profiles and installations management.
     /// </summary>
-    GameProfiles = 1,
+    GameProfiles,
 
     /// <summary>
     /// Downloads and mod management.
     /// </summary>
-    Downloads = 2,
+    Downloads,
 
     /// <summary>
     /// Application settings and configuration.
     /// </summary>
-    Settings = 3,
+    Settings,
 }

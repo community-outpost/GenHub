@@ -1,11 +1,12 @@
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Interfaces.Common;
 
 /// <summary>
-/// Unified configuration provider that combines app config and user settings.
+/// Unified configuration service that combines app config and user settings to provide effective values.
 /// </summary>
-public interface IConfigurationProvider
+public interface IConfigurationProviderService
 {
     /// <summary>
     /// Gets the effective workspace path.
@@ -66,4 +67,41 @@ public interface IConfigurationProvider
     /// </summary>
     /// <returns>True if detailed logging is enabled; otherwise, false.</returns>
     bool GetEnableDetailedLogging();
+
+    /// <summary>
+    /// Gets the effective UI theme.
+    /// </summary>
+    /// <returns>The theme string.</returns>
+    string GetTheme();
+
+    /// <summary>
+    /// Gets the effective window width.
+    /// </summary>
+    /// <returns>The window width in pixels.</returns>
+    double GetWindowWidth();
+
+    /// <summary>
+    /// Gets the effective window height.
+    /// </summary>
+    /// <returns>The window height in pixels.</returns>
+    double GetWindowHeight();
+
+    /// <summary>
+    /// Gets whether the window should be maximized.
+    /// </summary>
+    /// <returns>True if window should be maximized; otherwise, false.</returns>
+    bool GetIsWindowMaximized();
+
+    /// <summary>
+    /// Gets the last selected navigation tab.
+    /// </summary>
+    /// <returns>The last selected navigation tab.</returns>
+    NavigationTab GetLastSelectedTab();
+
+    /// <summary>
+    /// Gets the effective settings with all defaults applied.
+    /// This provides a complete UserSettings object with all values resolved.
+    /// </summary>
+    /// <returns>A UserSettings object with all effective values.</returns>
+    UserSettings GetEffectiveSettings();
 }

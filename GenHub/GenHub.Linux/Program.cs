@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Features.AppUpdate;
 using GenHub.Linux.GameInstallations;
+using GenHub.Linux.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -40,20 +41,9 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services and pass in platform-specific registrations
-            services.ConfigureApplicationServices(s =>
-            {
-                // Register Linux-specific services
-                s.AddHttpClient<LinuxUpdateInstaller>(client =>
-                {
-                    client.Timeout = UpdaterTimeout;
-                    client.DefaultRequestHeaders.Add("User-Agent", UpdaterUserAgent);
-                });
-                s.AddSingleton<IPlatformUpdateInstaller, LinuxUpdateInstaller>();
-            });
-
-            // Linux-specific DI
-            services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
+            // Register shared services and Linux-specific services
+            services.ConfigureApplicationServices((s, configProvider) =>
+                s.AddLinuxServices(configProvider));
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;

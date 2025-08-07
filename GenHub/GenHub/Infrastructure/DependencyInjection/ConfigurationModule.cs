@@ -1,5 +1,7 @@
+using System;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -16,14 +18,9 @@ public static class ConfigurationModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddConfigurationModule(this IServiceCollection services)
     {
-        // Register app configuration service (uses Microsoft IConfiguration)
-        services.AddSingleton<IAppConfigurationService, AppConfigurationService>();
-
-        // Register user settings service (JSON-based)
+        services.AddSingleton<IAppConfiguration, AppConfiguration>();
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
-
-        // Register the unified provider that combines app config and user settings
-        services.AddSingleton<IConfigurationProvider, ConfigurationProvider>();
+        services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
 
         return services;
     }
