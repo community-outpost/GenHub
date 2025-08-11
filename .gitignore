@@ -156,3 +156,7 @@ _NCrunch*
 **/.idea/**/*.iml
 **/.idea/**/contentModel.xml
 **/.idea/**/modules.xml
+
+#Auth Api
+**/appsettings.json
+**/GenHub.AuthApi.http
