@@ -7,7 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
@@ -28,6 +31,7 @@ public class WorkspaceManager(
 
     private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
     private readonly ILogger<WorkspaceManager> _logger = logger;
+    private readonly CasReferenceTracker _casReferenceTracker = casReferenceTracker;
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -53,6 +57,9 @@ public class WorkspaceManager(
 
         // Save workspace metadata
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
+
+        // Track CAS references for the workspace
+        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifest, cancellationToken);
 
         _logger.LogInformation("Workspace {Id} prepared successfully at {Path}", workspaceInfo.Id, workspaceInfo.WorkspacePath);
         return workspaceInfo;

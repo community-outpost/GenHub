@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.Features.Workspace;
@@ -59,15 +60,12 @@ public class WindowsFileOperationsService : IFileOperationsService
         try
         {
             var directory = Path.GetDirectoryName(linkPath);
-            if (!string.IsNullOrEmpty(directory))
+            if (directory != null)
             {
-                Directory.CreateDirectory(directory);
+                FileOperationsService.EnsureDirectoryExists(directory);
             }
 
-            if (File.Exists(linkPath))
-            {
-                File.Delete(linkPath);
-            }
+            FileOperationsService.DeleteFileIfExists(linkPath);
 
             await Task.Run(
                 () =>

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -100,14 +99,7 @@ public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, 
     {
         var issues = new List<ValidationIssue>();
 
-        // Addon detection (manifest-driven)
-        foreach (var file in manifest.Files)
-        {
-            if (file.SourceType == ManifestFileSourceType.OptionalAddon)
-            {
-                issues.Add(new ValidationIssue { IssueType = ValidationIssueType.AddonDetected, Path = file.RelativePath, Message = "Detected optional addon as specified in manifest." });
-            }
-        }
+        progress?.Report(new ValidationProgress(3, 4, "Content integrity validation"));
 
         // Get actual files for known addon detection
         var actualFiles = await Task.Run(

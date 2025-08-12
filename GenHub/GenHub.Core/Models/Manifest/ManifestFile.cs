@@ -4,7 +4,7 @@ using GenHub.Core.Models.Enums;
 namespace GenHub.Core.Models.Manifest;
 
 /// <summary>
-/// Enhanced file entry with advanced sourcing and handling options.
+/// Represents a file entry in a game manifest with content source information.
 /// </summary>
 public class ManifestFile
 {
@@ -13,6 +13,12 @@ public class ManifestFile
     /// </summary>
     [JsonPropertyName("relativePath")]
     public string RelativePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the source type of this file.
+    /// </summary>
+    [JsonPropertyName("sourceType")]
+    public ContentSourceType SourceType { get; set; } = ContentSourceType.Unknown;
 
     /// <summary>
     /// Gets or sets the size of the file in bytes.
@@ -25,11 +31,6 @@ public class ManifestFile
     /// </summary>
     [JsonPropertyName("hash")]
     public string Hash { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the source type for workspace preparation.
-    /// </summary>
-    public ManifestFileSourceType SourceType { get; set; }
 
     /// <summary>
     /// Gets or sets the file permissions for cross-platform compatibility.

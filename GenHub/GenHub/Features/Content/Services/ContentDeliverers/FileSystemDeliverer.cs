@@ -45,7 +45,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
         }
 
         return manifest.Files.All(f =>
-            f.SourceType == ManifestFileSourceType.Content);
+            f.SourceType == ContentSourceType.Content);
     }
 
     /// <inheritdoc />
@@ -88,7 +88,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                     RelativePath = file.RelativePath,
                     Size = new FileInfo(sourcePath).Length,
                     Hash = file.Hash,
-                    SourceType = ManifestFileSourceType.Content,
+                    SourceType = ContentSourceType.Content,
                     IsRequired = file.IsRequired,
                     SourcePath = sourcePath,
                 });
@@ -146,7 +146,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             {
                 await manifestBuilder.AddFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    ContentSourceType.Content,
                     file.Hash ?? string.Empty,
                     file.IsExecutable,
                     file.Permissions);

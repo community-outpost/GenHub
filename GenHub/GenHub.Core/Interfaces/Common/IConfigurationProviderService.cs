@@ -1,23 +1,26 @@
+using System.Collections.Generic;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 
 namespace GenHub.Core.Interfaces.Common;
 
 /// <summary>
-/// Unified configuration service that combines app config and user settings to provide effective values.
+/// Unified configuration service that intelligently combines app config and user settings to provide effective values.
+/// This is the single service that other components should depend on for all configuration needs.
 /// </summary>
 public interface IConfigurationProviderService
 {
     /// <summary>
-    /// Gets the effective workspace path.
+    /// Gets the effective workspace path, falling back to defaults if necessary.
     /// </summary>
     /// <returns>The workspace path as a string.</returns>
     string GetWorkspacePath();
 
     /// <summary>
-    /// Gets the effective cache directory.
+    /// Gets the effective cache directory path.
     /// </summary>
-    /// <returns>The cache directory as a string.</returns>
+    /// <returns>The cache directory path as a string.</returns>
     string GetCacheDirectory();
 
     /// <summary>
@@ -39,7 +42,7 @@ public interface IConfigurationProviderService
     int GetDownloadTimeoutSeconds();
 
     /// <summary>
-    /// Gets the effective user agent string for downloads.
+    /// Gets the effective user agent for downloads.
     /// </summary>
     /// <returns>The user agent string.</returns>
     string GetDownloadUserAgent();
@@ -53,13 +56,13 @@ public interface IConfigurationProviderService
     /// <summary>
     /// Gets the effective default workspace strategy.
     /// </summary>
-    /// <returns>The <see cref="WorkspaceStrategy"/> value.</returns>
+    /// <returns>The default workspace strategy.</returns>
     WorkspaceStrategy GetDefaultWorkspaceStrategy();
 
     /// <summary>
-    /// Gets whether to auto-check for updates on startup.
+    /// Gets whether to automatically check for updates on startup.
     /// </summary>
-    /// <returns>True if auto-check for updates is enabled; otherwise, false.</returns>
+    /// <returns>True if auto-check is enabled; otherwise, false.</returns>
     bool GetAutoCheckForUpdatesOnStartup();
 
     /// <summary>

@@ -4,6 +4,7 @@ using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
@@ -238,6 +239,11 @@ public class ConfigurationProviderService : IConfigurationProviderService
             DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
             DownloadUserAgent = GetDownloadUserAgent(),
             SettingsFilePath = _userSettings.GetSettings().SettingsFilePath,
+            ContentDirectories = GetContentDirectories(),
+            GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
+            ContentStoragePath = GetContentStoragePath(),
+            CachePath = GetCacheDirectory(),
+            CasConfiguration = GetCasConfiguration(),
         };
     }
 

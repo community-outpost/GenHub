@@ -201,7 +201,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
     /// </remarks>
     /// <param name="fileOperations">The file operations service.</param>
     public sealed class TestWorkspaceStrategy(IFileOperationsService fileOperations)
-    : WorkspaceStrategyBase<TestWorkspaceStrategy>(fileOperations, new NullLogger<TestWorkspaceStrategy>())
+        : WorkspaceStrategyBase<TestWorkspaceStrategy>(fileOperations, new NullLogger<TestWorkspaceStrategy>())
     {
         /// <inheritdoc/>
         public override string Name => "Test Strategy";
@@ -277,5 +277,12 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// <param name="configuration">The workspace configuration.</param>
         /// <returns>The total size in bytes.</returns>
         public long TestCalculateActualTotalSize(WorkspaceConfiguration configuration) => CalculateActualTotalSize(configuration);
+
+        /// <inheritdoc/>
+        protected override Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+        {
+            // For testing, just simulate a completed task.
+            return Task.CompletedTask;
+        }
     }
 }

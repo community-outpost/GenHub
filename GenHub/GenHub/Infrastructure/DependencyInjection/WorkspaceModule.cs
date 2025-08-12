@@ -1,5 +1,8 @@
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Storage;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,18 +21,16 @@ public static class WorkspaceModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddWorkspaceServices(this IServiceCollection services)
     {
-        // Register file operations service with download service dependency
-        services.AddScoped<IFileOperationsService, FileOperationsService>();
-
-        // Register workspace manager and validator
+        // Core workspace services
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
+        services.AddScoped<IFileOperationsService, FileOperationsService>();
 
-        // Register workspace strategies as IWorkspaceStrategy
-        services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();
-        services.AddScoped<IWorkspaceStrategy, HardLinkStrategy>();
-        services.AddScoped<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
-        services.AddScoped<IWorkspaceStrategy, SymlinkOnlyStrategy>();
+        // Strategy implementations
+        services.AddTransient<IWorkspaceStrategy, FullCopyStrategy>();
+        services.AddTransient<IWorkspaceStrategy, HardLinkStrategy>();
+        services.AddTransient<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
+        services.AddTransient<IWorkspaceStrategy, SymlinkOnlyStrategy>();
 
         // Also register concrete types for direct injection if needed
         services.AddScoped<FullCopyStrategy>();
