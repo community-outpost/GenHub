@@ -139,4 +139,16 @@ public class AppConfiguration : IAppConfiguration
     /// </summary>
     /// <returns>The maximum allowed download buffer size in bytes.</returns>
     public int GetMaxDownloadBufferSizeBytes() => _configuration.GetValue("GenHub:Downloads:Policy:MaxBufferSizeBytes", 1024 * 1024);
+
+    /// <summary>
+    /// Gets the application data path for GenHub.
+    /// </summary>
+    /// <returns>The application data path as a string.</returns>
+    public string GetAppDataPath()
+    {
+        var configured = _configuration.GetValue<string>("GenHub:AppDataPath");
+        return !string.IsNullOrEmpty(configured)
+            ? configured
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+    }
 }

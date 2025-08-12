@@ -81,7 +81,7 @@ public interface IContentManifestBuilder
     /// <param name="fileFilter">Optional file filter (e.g., "*.dll", "*.exe").</param>
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ManifestFileSourceType sourceType = ManifestFileSourceType.CopyUnique, string fileFilter = "*", bool isExecutable = false);
+    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string fileFilter = "*", bool isExecutable = false);
 
     /// <summary>
     /// Adds a single file with specific properties.
@@ -92,7 +92,14 @@ public interface IContentManifestBuilder
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task<IContentManifestBuilder> AddFileAsync(string relativePath, ManifestFileSourceType sourceType = ManifestFileSourceType.CopyUnique, string downloadUrl = "", bool isExecutable = false, FilePermissions? permissions = null);
+    Task<IContentManifestBuilder> AddFileAsync(string relativePath, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string downloadUrl = "", bool isExecutable = false, FilePermissions? permissions = null);
+
+    /// <summary>
+    /// Adds a pre-existing ManifestFile object to the manifest.
+    /// </summary>
+    /// <param name="file">The ManifestFile to add.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddFile(ManifestFile file);
 
     /// <summary>
     /// Adds required directories.
@@ -145,6 +152,14 @@ public interface IContentManifestBuilder
         ContentType contentType,
         string minVersion = "",
         string maxVersion = "");
+
+    /// <summary>
+    /// Adds a file patching operation to the manifest.
+    /// </summary>
+    /// <param name="targetRelativePath">The relative path of the file in the workspace to be patched.</param>
+    /// <param name="patchSourceFile">The path to the patch file, relative to the mod's content root.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile);
 
     /// <summary>
     /// Builds the final ContentManifest.

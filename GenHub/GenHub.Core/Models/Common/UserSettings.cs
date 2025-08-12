@@ -57,6 +57,18 @@ public class UserSettings
     /// <summary>Gets or sets the custom settings file path. If null or empty, use platform default.</summary>
     public string? SettingsFilePath { get; set; }
 
+    /// <summary>Gets or sets the cache directory path.</summary>
+    public string? CachePath { get; set; }
+
+    /// <summary>Gets or sets the content storage path.</summary>
+    public string? ContentStoragePath { get; set; }
+
+    /// <summary>Gets or sets the list of content directories for local discovery.</summary>
+    public List<string>? ContentDirectories { get; set; }
+
+    /// <summary>Gets or sets the list of GitHub repositories for discovery.</summary>
+    public List<string>? GitHubDiscoveryRepositories { get; set; }
+
     /// <summary>Gets or sets the set of property names explicitly set by the user, allowing distinction between user intent and C# defaults.</summary>
     public HashSet<string> ExplicitlySetProperties { get; set; } = new();
 

@@ -39,10 +39,27 @@ public sealed class FullCopyStrategy(IFileOperationsService fileOperations, ILog
         return configuration.Strategy == WorkspaceStrategy.FullCopy;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Estimates the total disk usage required for the workspace based on the manifest files.
+    /// </summary>
+    /// <param name="configuration">The workspace configuration containing the manifest.</param>
+    /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        return configuration.Manifest.Files.Sum(f => f.Size);
+        if (configuration?.Manifest?.Files == null)
+            return 0;
+
+        long totalSize = 0;
+        foreach (var file in configuration.Manifest.Files)
+        {
+            // Prevent negative sizes and overflow
+            long safeSize = Math.Max(0, file.Size);
+            if (long.MaxValue - totalSize < safeSize)
+                return long.MaxValue; // Indicate overflow
+            totalSize += safeSize;
+        }
+
+        return totalSize;
     }
 
     /// <inheritdoc/>

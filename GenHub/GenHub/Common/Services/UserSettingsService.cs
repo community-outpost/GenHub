@@ -349,5 +349,11 @@ public class UserSettingsService : IUserSettingsService
             _settingsFilePath = defaultPath;
             _settings = initialSettings;
         }
+
+        // Apply validation and normalization
+        lock (_lock)
+        {
+            NormalizeAndValidateLocked(_settings, _appConfig);
+        }
     }
 }

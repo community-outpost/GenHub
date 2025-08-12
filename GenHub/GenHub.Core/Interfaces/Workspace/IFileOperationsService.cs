@@ -59,6 +59,15 @@ public interface IFileOperationsService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Applies a patch to a target file. The patch format is determined by the implementation.
+    /// </summary>
+    /// <param name="targetPath">The file to be patched.</param>
+    /// <param name="patchPath">The path to the patch definition file.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous patch operation.</returns>
+    Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Downloads a file asynchronously.
     /// </summary>
     /// <param name="url">The URL of the file to download.</param>

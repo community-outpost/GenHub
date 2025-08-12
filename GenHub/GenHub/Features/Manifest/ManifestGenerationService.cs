@@ -60,7 +60,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 dep.ConflictsWith);
         }
 
-        await builder.AddFilesFromDirectoryAsync(contentDirectory, ManifestFileSourceType.CopyUnique);
+        await builder.AddFilesFromDirectoryAsync(contentDirectory, ManifestFileSourceType.Content);
         return builder;
     }
 
@@ -136,7 +136,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ManifestFileSourceType.LinkFromBase);
+        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ManifestFileSourceType.BaseGame);
 
         return builder;
     }
@@ -166,10 +166,10 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameDirectory, ManifestFileSourceType.CopyUnique);
+        await builder.AddFilesFromDirectoryAsync(gameDirectory, ManifestFileSourceType.Content);
 
         // Mark the main executable
-        await builder.AddFileAsync(executablePath, ManifestFileSourceType.CopyUnique, string.Empty, true);
+        await builder.AddFileAsync(executablePath, ManifestFileSourceType.Content, string.Empty, true);
 
         return builder;
     }

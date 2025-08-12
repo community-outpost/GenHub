@@ -271,6 +271,32 @@ public class FileOperationsService(
         }
     }
 
+    /// <inheritdoc/>
+    public async Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
+    {
+        // This is a placeholder for a real patch implementation.
+        // A real implementation would read the patch file and apply transformations
+        // to the target file. For example, using a library for diff/patch or JSON Patch.
+        _logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);
+
+        if (!File.Exists(targetPath))
+        {
+            throw new FileNotFoundException("Target file for patching does not exist.", targetPath);
+        }
+
+        if (!File.Exists(patchPath))
+        {
+            throw new FileNotFoundException("Patch file does not exist.", patchPath);
+        }
+
+        // Example: Simple text append for demonstration.
+        // A real implementation would be much more complex.
+        var patchContent = await File.ReadAllTextAsync(patchPath, cancellationToken);
+        await File.AppendAllTextAsync(targetPath, patchContent, cancellationToken);
+
+        _logger.LogDebug("Successfully applied patch to {TargetPath}", targetPath);
+    }
+
     /// <summary>
     /// Downloads a file asynchronously using the download service.
     /// </summary>
@@ -287,13 +313,12 @@ public class FileOperationsService(
     {
         try
         {
+            EnsureDirectoryExists(destinationPath);
+
             var result = await _downloadService.DownloadFileAsync(
-                url,
-                destinationPath,
-                expectedHash: null,
+                new DownloadConfiguration { Url = url, DestinationPath = destinationPath },
                 progress,
                 cancellationToken);
-
             if (!result.Success)
             {
                 throw new HttpRequestException(

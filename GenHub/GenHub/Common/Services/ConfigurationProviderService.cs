@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
@@ -38,17 +39,55 @@ public class ConfigurationProviderService : IConfigurationProviderService
     {
         var s = _userSettings.GetSettings();
         if (s.IsExplicitlySet(nameof(UserSettings.WorkspacePath)) &&
-            !string.IsNullOrWhiteSpace(s.WorkspacePath) &&
-            Directory.Exists(s.WorkspacePath))
+            !string.IsNullOrWhiteSpace(s.WorkspacePath))
         {
-            return s.WorkspacePath;
+            try
+            {
+                // Check if the directory exists or can be created.
+                var dir = Path.GetDirectoryName(s.WorkspacePath);
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                {
+                    return s.WorkspacePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", s.WorkspacePath);
+            }
         }
 
         return _appConfig.GetDefaultWorkspacePath();
     }
 
     /// <inheritdoc />
-    public string GetCacheDirectory() => _appConfig.GetDefaultCacheDirectory();
+    public string GetCacheDirectory()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.CachePath)) &&
+            !string.IsNullOrWhiteSpace(s.CachePath))
+        {
+            try
+            {
+                // Validate the user-defined cache directory
+                if (Directory.Exists(s.CachePath))
+                {
+                    return s.CachePath;
+                }
+
+                var parentDir = Path.GetDirectoryName(s.CachePath);
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+                {
+                    return s.CachePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", s.CachePath);
+            }
+        }
+
+        return _appConfig.GetDefaultCacheDirectory();
+    }
 
     /// <inheritdoc />
     public int GetMaxConcurrentDownloads()
@@ -194,5 +233,48 @@ public class ConfigurationProviderService : IConfigurationProviderService
             DownloadUserAgent = GetDownloadUserAgent(),
             SettingsFilePath = _userSettings.GetSettings().SettingsFilePath,
         };
+    }
+
+    /// <inheritdoc />
+    public List<string> GetContentDirectories()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.ContentDirectories)) &&
+            s.ContentDirectories != null && s.ContentDirectories.Count > 0)
+            return s.ContentDirectories;
+
+        return new List<string>
+        {
+            Path.Combine(_appConfig.GetAppDataPath(), "Manifests"),
+            Path.Combine(_appConfig.GetAppDataPath(), "CustomManifests"),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "Command and Conquer Generals Zero Hour Data",
+                "Mods"),
+        };
+    }
+
+    /// <inheritdoc />
+    public List<string> GetGitHubDiscoveryRepositories()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories)) &&
+            s.GitHubDiscoveryRepositories != null && s.GitHubDiscoveryRepositories.Count > 0)
+            return s.GitHubDiscoveryRepositories;
+
+        return new List<string> { "TheSuperHackers/GeneralsGameCode" };
+    }
+
+    /// <inheritdoc />
+    public string GetContentStoragePath()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.ContentStoragePath)) &&
+            !string.IsNullOrWhiteSpace(s.ContentStoragePath))
+        {
+            return s.ContentStoragePath;
+        }
+
+        return Path.Combine(_appConfig.GetAppDataPath(), "Content");
     }
 }
