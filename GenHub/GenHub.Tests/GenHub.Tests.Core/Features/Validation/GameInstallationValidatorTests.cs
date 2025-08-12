@@ -1,7 +1,10 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
@@ -16,6 +19,8 @@ public class GameInstallationValidatorTests
 {
     private readonly Mock<ILogger<GameInstallationValidator>> _loggerMock;
     private readonly Mock<IManifestProvider> _manifestProviderMock;
+    private readonly Mock<IContentValidator> _contentValidatorMock = new();
+    private readonly Mock<IFileHashProvider> _hashProviderMock = new();
     private readonly GameInstallationValidator _validator;
 
     /// <summary>
@@ -25,7 +30,18 @@ public class GameInstallationValidatorTests
     {
         _loggerMock = new Mock<ILogger<GameInstallationValidator>>();
         _manifestProviderMock = new Mock<IManifestProvider>();
-        _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object);
+        _contentValidatorMock = new Mock<IContentValidator>();
+        _hashProviderMock = new Mock<IFileHashProvider>();
+
+        // Setup ContentValidator mocks to return valid results
+        _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+        _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+
+        _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
     }
 
     /// <summary>
@@ -37,63 +53,83 @@ public class GameInstallationValidatorTests
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
-        var filePath = Path.Combine(tempDir.FullName, "file1.txt");
-        await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
-
-        var manifest = new ContentManifest
+        try
         {
-            Files = new()
+            var filePath = Path.Combine(tempDir.FullName, "file1.txt");
+            await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
+
+            var requiredDir = "testdir";
+            var manifest = new ContentManifest
             {
-                new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
-            },
-        };
-        _manifestProviderMock
-            .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
-            .ReturnsAsync(manifest);
-
-        var installation = new GameInstallation(
-            tempDir.FullName,
-            GameInstallationType.Steam,
-            new Mock<ILogger<GameInstallation>>().Object);
-
-        var progressReports = new List<ValidationProgress>();
-        var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
-
-        // Act
-        await _validator.ValidateAsync(installation, progress);
-        await Task.Delay(50); // Ensure all progress callbacks are processed
-
-        // Assert
-        if (progressReports.Count == 0)
-        {
-            var files = string.Join("\n", Directory.GetFiles(tempDir.FullName).Select(f => Path.GetFileName(f)));
-            var issuesStr = string.Empty;
-            try
-            {
-                var manifest2 = new ContentManifest
+                Files = new()
                 {
-                    Files = new()
-                    {
-                        new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
-                    },
-                };
-                var validator2 = new FileSystemValidatorTests.TestFileSystemValidator(new Mock<ILogger>().Object);
-                var issuesList = await validator2.ValidateFilesAsync(tempDir.FullName, manifest2.Files, CancellationToken.None);
-                issuesStr = string.Join("\n", issuesList.Select(i => $"Type: {i.IssueType}, Path: {i.Path}, Msg: {i.Message}"));
-            }
-            catch
+                    new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
+                },
+                RequiredDirectories = new List<string> { requiredDir },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .ReturnsAsync(manifest);
+
+            Directory.CreateDirectory(Path.Combine(tempDir.FullName, requiredDir));
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+
+            // Use a custom synchronous progress implementation
+            var progressTracker = new SynchronousProgress<ValidationProgress>();
+
+            // Act
+            await _validator.ValidateAsync(installation, progressTracker);
+
+            // Assert
+            var progressReports = progressTracker.Reports;
+            Assert.True(progressReports.Count > 0, $"Expected progress reports to be generated, got {progressReports.Count}");
+
+            // Verify we have reasonable number of progress reports
+            Assert.True(progressReports.Count >= 2, $"Expected at least 2 progress reports, got {progressReports.Count}");
+
+            // Verify the final progress report shows completion
+            var finalProgress = progressReports.Last();
+            Assert.Equal(finalProgress.Total, finalProgress.Processed);
+            Assert.Equal(100, finalProgress.PercentComplete);
+            
+            // Verify that all progress reports have reasonable step counts
+            foreach (var report in progressReports)
             {
-                // ignore
+                Assert.True(report.Total >= 4, $"Expected total steps >= 4, got {report.Total}");
+                Assert.True(report.Processed >= 1, $"Expected processed steps >= 1, got {report.Processed}");
+                Assert.True(report.Processed <= report.Total, $"Expected processed <= total, got {report.Processed}/{report.Total}");
             }
 
-            throw new Xunit.Sdk.XunitException($"No progress reports. Directory contents:\n{files}\nIssues:\n{issuesStr}");
+            // Verify progress is monotonically increasing
+            for (int i = 1; i < progressReports.Count; i++)
+            {
+                Assert.True(progressReports[i].Processed >= progressReports[i - 1].Processed,
+                    $"Progress should be monotonically increasing. Step {i}: {progressReports[i].Processed} vs {progressReports[i - 1].Processed}");
+            }
         }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
 
-        Assert.Equal(1, progressReports.Last().Processed);
-        Assert.Equal(1, progressReports.Last().Total);
-        Assert.Equal(100, progressReports.Last().PercentComplete);
+    /// <summary>
+    /// Custom progress implementation that captures reports synchronously.
+    /// </summary>
+    private class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly List<T> _reports = new();
 
-        tempDir.Delete(true);
+        public IReadOnlyList<T> Reports => _reports;
+
+        public void Report(T value)
+        {
+            _reports.Add(value);
+        }
     }
 
     /// <summary>
@@ -129,7 +165,6 @@ public class GameInstallationValidatorTests
     [Fact]
     public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
     {
-        // Arrange
         var manifest = new ContentManifest
         {
             Files = new()
@@ -141,17 +176,32 @@ public class GameInstallationValidatorTests
             .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
             .ReturnsAsync(manifest);
 
-        var installation = new GameInstallation(
-            Directory.GetCurrentDirectory(),
-            GameInstallationType.Steam,
-            new Mock<ILogger<GameInstallation>>().Object);
+        // Setup ContentValidator to return missing file issue
+        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
+            {
+                new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+            }));
 
-        // Act
-        var result = await _validator.ValidateAsync(installation, null, default);
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
 
-        // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
+            // Act
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            // Assert
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
     }
 
     /// <summary>

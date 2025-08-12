@@ -6,6 +6,43 @@ namespace GenHub.Core.Models.Validation;
 public class ValidationIssue
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="ValidationIssue"/> class.
+    /// </summary>
+    public ValidationIssue()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValidationIssue"/> class with a message and severity.
+    /// </summary>
+    /// <param name="message">The message describing the issue.</param>
+    /// <param name="severity">The severity of the issue.</param>
+    public ValidationIssue(string message, ValidationSeverity severity)
+    {
+        Message = message;
+        Severity = severity;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValidationIssue"/> class with all properties.
+    /// </summary>
+    /// <param name="message">The message describing the issue.</param>
+    /// <param name="severity">The severity of the issue.</param>
+    /// <param name="path">The relative path to the file or directory that has an issue.</param>
+    /// <param name="expected">The expected value (e.g., hash, file size).</param>
+    /// <param name="actual">The actual value found.</param>
+    /// <param name="details">Additional context or details about the issue.</param>
+    public ValidationIssue(string message, ValidationSeverity severity, string path = "", string? expected = null, string? actual = null, string? details = null)
+    {
+        Message = message;
+        Severity = severity;
+        Path = path;
+        Expected = expected;
+        Actual = actual;
+        Details = details;
+    }
+
+    /// <summary>
     /// Gets or sets the type of the validation issue.
     /// </summary>
     public ValidationIssueType IssueType { get; set; }

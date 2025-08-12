@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
@@ -38,17 +40,55 @@ public class ConfigurationProviderService : IConfigurationProviderService
     {
         var s = _userSettings.GetSettings();
         if (s.IsExplicitlySet(nameof(UserSettings.WorkspacePath)) &&
-            !string.IsNullOrWhiteSpace(s.WorkspacePath) &&
-            Directory.Exists(s.WorkspacePath))
+            !string.IsNullOrWhiteSpace(s.WorkspacePath))
         {
-            return s.WorkspacePath;
+            try
+            {
+                // Check if the directory exists or can be created.
+                var dir = Path.GetDirectoryName(s.WorkspacePath);
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                {
+                    return s.WorkspacePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", s.WorkspacePath);
+            }
         }
 
         return _appConfig.GetDefaultWorkspacePath();
     }
 
     /// <inheritdoc />
-    public string GetCacheDirectory() => _appConfig.GetDefaultCacheDirectory();
+    public string GetCacheDirectory()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.CachePath)) &&
+            !string.IsNullOrWhiteSpace(s.CachePath))
+        {
+            try
+            {
+                // Validate the user-defined cache directory
+                if (Directory.Exists(s.CachePath))
+                {
+                    return s.CachePath;
+                }
+
+                var parentDir = Path.GetDirectoryName(s.CachePath);
+                if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
+                {
+                    return s.CachePath;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", s.CachePath);
+            }
+        }
+
+        return _appConfig.GetDefaultCacheDirectory();
+    }
 
     /// <inheritdoc />
     public int GetMaxConcurrentDownloads()
@@ -193,6 +233,75 @@ public class ConfigurationProviderService : IConfigurationProviderService
             DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
             DownloadUserAgent = GetDownloadUserAgent(),
             SettingsFilePath = _userSettings.GetSettings().SettingsFilePath,
+            ContentDirectories = GetContentDirectories(),
+            GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
+            ContentStoragePath = GetContentStoragePath(),
+            CachePath = GetCacheDirectory(),
+            CasConfiguration = GetCasConfiguration(),
         };
+    }
+
+    /// <inheritdoc />
+    public List<string> GetContentDirectories()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.ContentDirectories)) &&
+            s.ContentDirectories != null && s.ContentDirectories.Count > 0)
+            return s.ContentDirectories;
+
+        var appDataPath = _appConfig.GetAppDataPath();
+        if (string.IsNullOrEmpty(appDataPath))
+        {
+            // Fallback if app data path is not available
+            return new List<string>();
+        }
+
+        return new List<string>
+        {
+            Path.Combine(appDataPath, "Manifests"),
+            Path.Combine(appDataPath, "CustomManifests"),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "Command and Conquer Generals Zero Hour Data",
+                "Mods"),
+        };
+    }
+
+    /// <inheritdoc />
+    public List<string> GetGitHubDiscoveryRepositories()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories)) &&
+            s.GitHubDiscoveryRepositories != null && s.GitHubDiscoveryRepositories.Count > 0)
+            return s.GitHubDiscoveryRepositories;
+
+        return new List<string> { "TheSuperHackers/GeneralsGameCode" };
+    }
+
+    /// <inheritdoc />
+    public string GetContentStoragePath()
+    {
+        var s = _userSettings.GetSettings();
+        if (s.IsExplicitlySet(nameof(UserSettings.ContentStoragePath)) &&
+            !string.IsNullOrWhiteSpace(s.ContentStoragePath))
+        {
+            return s.ContentStoragePath;
+        }
+
+        var appDataPath = _appConfig.GetAppDataPath();
+        if (string.IsNullOrEmpty(appDataPath))
+        {
+            // Fallback if app data path is not available
+            return Path.Combine(Path.GetTempPath(), "GenHub", "Content");
+        }
+
+        return Path.Combine(appDataPath, "Content");
+    }
+
+    /// <inheritdoc />
+    public CasConfiguration GetCasConfiguration()
+    {
+        var s = _userSettings.GetSettings();
+        return s.CasConfiguration;
     }
 }
