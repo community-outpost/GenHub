@@ -33,7 +33,7 @@ public class NullableDoubleConverter : IValueConverter
             if (string.IsNullOrWhiteSpace(stringValue))
             {
                 // Return a default value instead of null to prevent InvalidCast
-                if (parameter is string defaultParam && double.TryParse(defaultParam, out double defaultValue))
+                if (parameter is string defaultParam && double.TryParse(defaultParam, NumberStyles.Float, culture, out double defaultValue))
                 {
                     return defaultValue;
                 }

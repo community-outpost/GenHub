@@ -19,7 +19,7 @@ public class NullableIntConverter : IValueConverter
     {
         if (value is int intValue)
         {
-            return intValue.ToString();
+            return intValue.ToString(culture);
         }
 
         return string.Empty;
@@ -33,7 +33,7 @@ public class NullableIntConverter : IValueConverter
             if (string.IsNullOrWhiteSpace(stringValue))
             {
                 // Return a default value instead of null to prevent InvalidCast
-                if (parameter is string defaultParam && int.TryParse(defaultParam, out int defaultValue))
+                if (parameter is string defaultParam && int.TryParse(defaultParam, NumberStyles.Integer, culture, out int defaultValue))
                 {
                     return defaultValue;
                 }
@@ -41,7 +41,7 @@ public class NullableIntConverter : IValueConverter
                 return 0; // Safe default
             }
 
-            if (int.TryParse(stringValue, out int result))
+            if (int.TryParse(stringValue, NumberStyles.Integer, culture, out int result))
             {
                 return result;
             }
