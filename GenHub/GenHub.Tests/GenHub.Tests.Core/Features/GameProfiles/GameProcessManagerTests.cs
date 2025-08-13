@@ -103,9 +103,39 @@ namespace GenHub.Tests.Core.Features.GameProfiles
         [Fact]
         public async Task StartProcessAsync_WithValidExecutablePath_ShouldReturnSuccess()
         {
-            // Arrange
-            var tempExe = Path.GetTempFileName() + ".bat";
-            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 2 >nul\n");
+            // Arrange - Use cross-platform approach
+            string tempExe;
+            string scriptContent;
+
+            if (OperatingSystem.IsWindows())
+            {
+                tempExe = Path.GetTempFileName() + ".bat";
+                scriptContent = "@echo off\ntimeout /t 2 >nul\n";
+            }
+            else
+            {
+                tempExe = Path.GetTempFileName() + ".sh";
+                scriptContent = "#!/bin/bash\nsleep 2\n";
+            }
+
+            await File.WriteAllTextAsync(tempExe, scriptContent);
+
+            if (!OperatingSystem.IsWindows())
+            {
+                // Make script executable on Unix systems
+                var chmod = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "chmod",
+                        Arguments = "+x " + tempExe,
+                        UseShellExecute = false,
+                    },
+                };
+                chmod.Start();
+                chmod.WaitForExit();
+            }
+
             try
             {
                 var config = new GameLaunchConfiguration
@@ -137,9 +167,39 @@ namespace GenHub.Tests.Core.Features.GameProfiles
         [Fact]
         public async Task TerminateProcessAsync_WithRunningProcess_ShouldReturnSuccess()
         {
-            // Arrange
-            var tempExe = Path.GetTempFileName() + ".bat";
-            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            // Arrange - Use cross-platform approach
+            string tempExe;
+            string scriptContent;
+
+            if (OperatingSystem.IsWindows())
+            {
+                tempExe = Path.GetTempFileName() + ".bat";
+                scriptContent = "@echo off\ntimeout /t 5 >nul\n";
+            }
+            else
+            {
+                tempExe = Path.GetTempFileName() + ".sh";
+                scriptContent = "#!/bin/bash\nsleep 5\n";
+            }
+
+            await File.WriteAllTextAsync(tempExe, scriptContent);
+
+            if (!OperatingSystem.IsWindows())
+            {
+                // Make script executable on Unix systems
+                var chmod = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "chmod",
+                        Arguments = "+x " + tempExe,
+                        UseShellExecute = false,
+                    },
+                };
+                chmod.Start();
+                chmod.WaitForExit();
+            }
+
             var config = new GameLaunchConfiguration
             {
                 ExecutablePath = tempExe,
@@ -170,9 +230,39 @@ namespace GenHub.Tests.Core.Features.GameProfiles
         [Fact]
         public async Task GetProcessInfoAsync_WithRunningProcess_ShouldReturnInfo()
         {
-            // Arrange
-            var tempExe = Path.GetTempFileName() + ".bat";
-            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            // Arrange - Use cross-platform approach
+            string tempExe;
+            string scriptContent;
+
+            if (OperatingSystem.IsWindows())
+            {
+                tempExe = Path.GetTempFileName() + ".bat";
+                scriptContent = "@echo off\ntimeout /t 5 >nul\n";
+            }
+            else
+            {
+                tempExe = Path.GetTempFileName() + ".sh";
+                scriptContent = "#!/bin/bash\nsleep 5\n";
+            }
+
+            await File.WriteAllTextAsync(tempExe, scriptContent);
+
+            if (!OperatingSystem.IsWindows())
+            {
+                // Make script executable on Unix systems
+                var chmod = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "chmod",
+                        Arguments = "+x " + tempExe,
+                        UseShellExecute = false,
+                    },
+                };
+                chmod.Start();
+                chmod.WaitForExit();
+            }
+
             var config = new GameLaunchConfiguration
             {
                 ExecutablePath = tempExe,
@@ -188,7 +278,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles
                 var infoResult = await _processManager.GetProcessInfoAsync(startResult.Data!.ProcessId);
 
                 // Assert
-                Assert.True(infoResult.Success);
+                Assert.True(infoResult.Success, $"Failed to get process info: {infoResult.FirstError}");
                 Assert.NotNull(infoResult.Data);
                 Assert.Equal(startResult.Data.ProcessId, infoResult.Data.ProcessId);
 
@@ -208,9 +298,39 @@ namespace GenHub.Tests.Core.Features.GameProfiles
         [Fact]
         public async Task GetActiveProcessesAsync_WithRunningProcess_ShouldReturnNonEmptyList()
         {
-            // Arrange
-            var tempExe = Path.GetTempFileName() + ".bat";
-            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            // Arrange - Use cross-platform approach
+            string tempExe;
+            string scriptContent;
+
+            if (OperatingSystem.IsWindows())
+            {
+                tempExe = Path.GetTempFileName() + ".bat";
+                scriptContent = "@echo off\ntimeout /t 5 >nul\n";
+            }
+            else
+            {
+                tempExe = Path.GetTempFileName() + ".sh";
+                scriptContent = "#!/bin/bash\nsleep 5\n";
+            }
+
+            await File.WriteAllTextAsync(tempExe, scriptContent);
+
+            if (!OperatingSystem.IsWindows())
+            {
+                // Make script executable on Unix systems
+                var chmod = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "chmod",
+                        Arguments = "+x " + tempExe,
+                        UseShellExecute = false,
+                    },
+                };
+                chmod.Start();
+                chmod.WaitForExit();
+            }
+
             var config = new GameLaunchConfiguration
             {
                 ExecutablePath = tempExe,
