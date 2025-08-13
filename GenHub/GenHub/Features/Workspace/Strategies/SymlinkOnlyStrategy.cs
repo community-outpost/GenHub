@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
@@ -53,7 +54,7 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifest.Files.Count * LinkOverheadBytes;
+        return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
@@ -71,54 +72,38 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (configuration.ForceRecreate)
             {
-                try
-                {
-                    Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                    FileOperationsService.DeleteDirectoryIfExists(workspacePath);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Failed to clean existing workspace at {WorkspacePath}", workspacePath);
-                    throw;
-                }
+                Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
+                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
             }
 
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var totalFiles = allFiles.Count();
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
-
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file using the base class method that has proper fallback logic
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                try
-                {
-                    // Use the base class method that handles CAS files with proper fallback
-                    await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to process file {RelativePath}",
-                        file.RelativePath);
-                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
-                }
+                await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
 
                 processedFiles++;
                 ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, 0, configuration);
+            workspaceInfo.Success = true;
 
             Logger.LogInformation(
                 "Symlink-only workspace prepared successfully at {WorkspacePath} with {FileCount} symlinks",
@@ -127,13 +112,19 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare symlink-only workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
-
-            throw;
+            workspaceInfo.Success = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 

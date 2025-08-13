@@ -60,12 +60,12 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
             // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifest.Files.Count * LinkOverheadBytes;
+            return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
         }
         else
         {
             // Different volumes: will fall back to copying
-            return configuration.Manifest.Files.Sum(f => f.Size);
+            return configuration.Manifests.SelectMany(m => m.Files).Sum(f => f.Size);
         }
     }
 
@@ -84,6 +84,9 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Clean existing workspace if force recreate is requested
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
@@ -94,11 +97,10 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var estimatedTotalBytes = EstimateDiskUsage(configuration);
-
             var hardLinkedFiles = 0;
             var copiedFiles = 0;
 
@@ -115,84 +117,71 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
                     destRoot);
             }
 
-            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
-
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                try
+                FileOperationsService.EnsureDirectoryExists(destinationPath);
+
+                // Handle different source types
+                if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                 {
-                    FileOperationsService.EnsureDirectoryExists(destinationPath);
+                    // Use CAS content
+                    await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                    hardLinkedFiles++;
+                    totalBytesProcessed += LinkOverheadBytes;
+                }
+                else
+                {
+                    // Use regular file from base installation
+                    var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
 
-                    // Handle different source types
-                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                    if (!ValidateSourceFile(sourcePath, file.RelativePath))
                     {
-                        // Use CAS content
-                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                        hardLinkedFiles++;
-                        totalBytesProcessed += LinkOverheadBytes;
+                        continue;
                     }
-                    else
+
+                    if (sameVolume)
                     {
-                        // Use regular file from base installation
-                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        try
                         {
-                            continue;
+                            await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
+                            hardLinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
                         }
-
-                        if (sameVolume)
+                        catch (Exception hardLinkEx)
                         {
-                            try
-                            {
-                                await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
-                                hardLinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
-                            }
-                            catch (Exception hardLinkEx)
-                            {
-                                Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+                            Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
 
-                                // Fall back to copy
-                                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                copiedFiles++;
-                                totalBytesProcessed += file.Size;
-                            }
-                        }
-                        else
-                        {
-                            // Different volumes, must copy
+                            // Fall back to copy
                             await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                             copiedFiles++;
                             totalBytesProcessed += file.Size;
                         }
+                    }
+                    else
+                    {
+                        // Different volumes, must copy
+                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                        copiedFiles++;
+                        totalBytesProcessed += file.Size;
+                    }
 
-                        // Verify file integrity if hash is provided (only for copied files)
-                        if (!string.IsNullOrEmpty(file.Hash) && (copiedFiles > 0 || !sameVolume))
+                    // Verify file integrity if hash is provided (only for copied files)
+                    if (!string.IsNullOrEmpty(file.Hash) && (copiedFiles > 0 || !sameVolume))
+                    {
+                        var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                        if (!hashValid)
                         {
-                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                            if (!hashValid)
-                            {
-                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-                            }
+                            Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to process file {RelativePath} to {DestinationPath}",
-                        file.RelativePath,
-                        destinationPath);
-                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
                 }
 
                 processedFiles++;
@@ -201,6 +190,7 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
+            workspaceInfo.Success = true;
 
             Logger.LogInformation(
                 "Hard link workspace prepared successfully at {WorkspacePath} with {HardLinked} hard links and {Copied} copies ({TotalSize} bytes)",
@@ -211,13 +201,19 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare hard link workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
-
-            throw;
+            workspaceInfo.Success = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 
