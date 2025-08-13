@@ -52,7 +52,13 @@ public class WorkspaceValidatorTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
+
+        // Allow warnings but not errors
         Assert.DoesNotContain(result.Issues, i => i.Severity == ValidationSeverity.Error);
+
+        // If there are warnings about empty manifests, that's acceptable for this test
+        var manifestWarnings = result.Issues.Where(i => i.Message.Contains("Manifest must contain at least one file"));
+        Assert.True(manifestWarnings.All(w => w.Severity == ValidationSeverity.Warning));
     }
 
     /// <summary>
@@ -68,7 +74,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = string.Empty,
             BaseInstallationPath = string.Empty,
             WorkspaceRootPath = string.Empty,
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, },
         };
 
         // Act
@@ -105,7 +111,7 @@ public class WorkspaceValidatorTests : IDisposable
     {
         // Arrange
         var config = CreateValidConfiguration();
-        config.Manifest = new ContentManifest { Files = new List<ManifestFile>() };
+        config.Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, };
 
         // Act
         var result = await _validator.ValidateConfigurationAsync(config);
@@ -198,7 +204,7 @@ public class WorkspaceValidatorTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifest = largeFileManifest,
+            Manifests = new List<ContentManifest> { largeFileManifest },
             Strategy = WorkspaceStrategy.FullCopy,
         };
 
@@ -239,18 +245,21 @@ public class WorkspaceValidatorTests : IDisposable
         return new WorkspaceConfiguration
         {
             Id = "test-workspace",
+            Manifests = new List<ContentManifest>
+            {
+                new()
+                {
+                    Files = new List<ManifestFile>
+                    {
+                        new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
+                        new() { RelativePath = "config.ini", Size = 500 },
+                    },
+                },
+            },
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = _workspaceDir,
             GameVersion = new GameVersion { Id = "test-version" },
             Strategy = WorkspaceStrategy.FullCopy,
-            Manifest = new ContentManifest
-            {
-                Files = new List<ManifestFile>
-                {
-                    new() { RelativePath = "test.exe", Size = 1000 },
-                    new() { RelativePath = "config.ini", Size = 500 },
-                },
-            },
         };
     }
 }

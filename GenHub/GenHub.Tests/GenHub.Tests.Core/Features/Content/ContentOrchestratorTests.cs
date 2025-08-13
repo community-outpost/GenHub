@@ -17,7 +17,7 @@ public class ContentOrchestratorTests
 {
     private readonly Mock<IDynamicContentCache> _cacheMock;
     private readonly Mock<IContentValidator> _contentValidatorMock;
-    private readonly Mock<IGameManifestPool> _manifestPoolMock;
+    private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock;
 
     /// <summary>
@@ -27,7 +27,7 @@ public class ContentOrchestratorTests
     {
         _cacheMock = new Mock<IDynamicContentCache>();
         _contentValidatorMock = new Mock<IContentValidator>();
-        _manifestPoolMock = new Mock<IGameManifestPool>();
+        _manifestPoolMock = new Mock<IContentManifestPool>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -99,6 +99,9 @@ public class ContentOrchestratorTests
 
         _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,

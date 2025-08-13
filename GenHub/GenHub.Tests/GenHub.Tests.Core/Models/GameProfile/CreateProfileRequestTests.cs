@@ -1,0 +1,56 @@
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using Xunit;
+
+namespace GenHub.Tests.Core.Models.GameProfile
+{
+    /// <summary>
+    /// Tests for <see cref="CreateProfileRequest"/>.
+    /// </summary>
+    public class CreateProfileRequestTests
+    {
+        /// <summary>
+        /// Tests that CreateProfileRequest can be created with required properties.
+        /// </summary>
+        [Fact]
+        public void CreateProfileRequest_WithRequiredProperties_ShouldBeValid()
+        {
+            // Act
+            var request = new CreateProfileRequest
+            {
+                Name = "Test Profile",
+                GameInstallationId = "install-1",
+                GameVersionId = "version-1",
+            };
+
+            // Assert
+            Assert.Equal("Test Profile", request.Name);
+            Assert.Equal("install-1", request.GameInstallationId);
+            Assert.Equal("version-1", request.GameVersionId);
+            Assert.Equal(WorkspaceStrategy.HybridCopySymlink, request.PreferredStrategy);
+        }
+
+        /// <summary>
+        /// Tests that CreateProfileRequest properties can be modified.
+        /// </summary>
+        [Fact]
+        public void CreateProfileRequest_PropertyModification_ShouldWork()
+        {
+            // Arrange
+            var request = new CreateProfileRequest
+            {
+                Name = "Initial Name",
+                GameInstallationId = "install-1",
+                GameVersionId = "version-1",
+            };
+
+            // Act
+            request.Description = "Test Description";
+            request.PreferredStrategy = WorkspaceStrategy.FullCopy;
+
+            // Assert
+            Assert.Equal("Test Description", request.Description);
+            Assert.Equal(WorkspaceStrategy.FullCopy, request.PreferredStrategy);
+        }
+    }
+}

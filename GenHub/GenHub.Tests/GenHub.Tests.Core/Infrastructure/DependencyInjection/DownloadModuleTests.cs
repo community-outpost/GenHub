@@ -29,6 +29,8 @@ public class DownloadModuleTests
         services.AddSingleton(configProvider);
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
 
+        services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
+
         // Act
         services.AddDownloadServices(configProvider);
         var provider = services.BuildServiceProvider();
