@@ -61,27 +61,42 @@ namespace GenHub.Tests.Core.Features.Workspace
         [Fact]
         public async Task PrepareWorkspaceAsync_ThrowsIfNoStrategy()
         {
-            var mockConfigProvider = new Mock<IConfigurationProviderService>();
-            mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
+            // Create a temporary directory for this test
+            var testTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(testTempDir);
 
-            var mockLogger = new Mock<ILogger<WorkspaceManager>>();
-            var mockCasService = new Mock<ICasService>();
+            try
+            {
+                var mockConfigProvider = new Mock<IConfigurationProviderService>();
+                mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(testTempDir, "content"));
 
-            // Create CasReferenceTracker for this test
-            var casConfig = new Mock<IOptions<CasConfiguration>>();
-            casConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = "/test/cas" });
-            var casLogger = new Mock<ILogger<CasReferenceTracker>>();
-            var casTracker = new CasReferenceTracker(casConfig.Object, casLogger.Object);
+                var mockLogger = new Mock<ILogger<WorkspaceManager>>();
+                var mockCasService = new Mock<ICasService>();
 
-            var manager = new WorkspaceManager(
-                System.Array.Empty<IWorkspaceStrategy>(),
-                mockConfigProvider.Object,
-                mockLogger.Object,
-                mockCasService.Object,
-                casTracker);
+                // Create CasReferenceTracker for this test with proper temp directory
+                var casConfig = new Mock<IOptions<CasConfiguration>>();
+                casConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = Path.Combine(testTempDir, "cas") });
+                var casLogger = new Mock<ILogger<CasReferenceTracker>>();
+                var casTracker = new CasReferenceTracker(casConfig.Object, casLogger.Object);
 
-            var config = new WorkspaceConfiguration();
-            await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
+                var manager = new WorkspaceManager(
+                    System.Array.Empty<IWorkspaceStrategy>(),
+                    mockConfigProvider.Object,
+                    mockLogger.Object,
+                    mockCasService.Object,
+                    casTracker);
+
+                var config = new WorkspaceConfiguration();
+                await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
+            }
+            finally
+            {
+                // Clean up the temporary directory
+                if (Directory.Exists(testTempDir))
+                {
+                    Directory.Delete(testTempDir, true);
+                }
+            }
         }
 
         /// <summary>
