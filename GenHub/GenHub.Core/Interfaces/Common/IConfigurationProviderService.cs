@@ -104,4 +104,22 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>A UserSettings object with all effective values.</returns>
     UserSettings GetEffectiveSettings();
+
+    /// <summary>
+    /// Gets the effective content directories for local discovery.
+    /// </summary>
+    /// <returns>List of content directories.</returns>
+    List<string> GetContentDirectories();
+
+    /// <summary>
+    /// Gets the effective GitHub repositories for discovery.
+    /// </summary>
+    /// <returns>List of GitHub repositories in "owner/repo" format.</returns>
+    List<string> GetGitHubDiscoveryRepositories();
+
+    /// <summary>
+    /// Gets the effective content storage path.
+    /// </summary>
+    /// <returns>The content storage path as a string.</returns>
+    string GetContentStoragePath();
 }

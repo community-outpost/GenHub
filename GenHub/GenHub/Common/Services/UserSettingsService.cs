@@ -280,6 +280,10 @@ public class UserSettingsService : IUserSettingsService
             "downloadTimeoutSeconds" => nameof(UserSettings.DownloadTimeoutSeconds),
             "downloadUserAgent" => nameof(UserSettings.DownloadUserAgent),
             "settingsFilePath" => nameof(UserSettings.SettingsFilePath),
+            "cachePath" => nameof(UserSettings.CachePath),
+            "contentStoragePath" => nameof(UserSettings.ContentStoragePath),
+            "contentDirectories" => nameof(UserSettings.ContentDirectories),
+            "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
             _ => string.Empty
         };
     }
@@ -348,6 +352,12 @@ public class UserSettingsService : IUserSettingsService
         {
             _settingsFilePath = defaultPath;
             _settings = initialSettings;
+        }
+
+        // Apply validation and normalization
+        lock (_lock)
+        {
+            NormalizeAndValidateLocked(_settings, _appConfig);
         }
     }
 }

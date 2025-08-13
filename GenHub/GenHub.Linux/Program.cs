@@ -41,9 +41,17 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services and Linux-specific services
-            services.ConfigureApplicationServices((s, configProvider) =>
-                s.AddLinuxServices(configProvider));
+            try
+            {
+                // Register shared services and Linux-specific services
+                services.ConfigureApplicationServices((s, configProvider) =>
+                    s.AddLinuxServices(configProvider));
+            }
+            catch (Exception configEx)
+            {
+                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                throw;
+            }
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;

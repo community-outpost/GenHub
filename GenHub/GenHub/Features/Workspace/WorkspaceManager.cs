@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
@@ -19,14 +20,11 @@ namespace GenHub.Features.Workspace;
 /// </summary>
 public class WorkspaceManager(
     IEnumerable<IWorkspaceStrategy> strategies,
+    IConfigurationProviderService configurationProvider,
     ILogger<WorkspaceManager> logger
 ) : IWorkspaceManager
 {
-    // TODO: Make this configurable through application settings in the future.
-    private static readonly string WorkspaceMetadataPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "GenHub",
-        "workspaces.json");
+    private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
 
     private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
     private readonly ILogger<WorkspaceManager> _logger = logger;
@@ -71,12 +69,12 @@ public class WorkspaceManager(
 
         try
         {
-            if (!File.Exists(WorkspaceMetadataPath))
+            if (!File.Exists(_workspaceMetadataPath))
             {
                 return [];
             }
 
-            var json = await File.ReadAllTextAsync(WorkspaceMetadataPath, cancellationToken);
+            var json = await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken);
             var workspaces = JsonSerializer.Deserialize<List<WorkspaceInfo>>(json) ?? [];
 
             // Filter out workspaces that no longer exist
@@ -115,9 +113,8 @@ public class WorkspaceManager(
                 return false;
             }
 
-            if (Directory.Exists(workspace.WorkspacePath))
+            if (FileOperationsService.DeleteDirectoryIfExists(workspace.WorkspacePath))
             {
-                Directory.Delete(workspace.WorkspacePath, true);
                 _logger.LogInformation("Deleted workspace directory {Path}", workspace.WorkspacePath);
             }
 
@@ -133,16 +130,16 @@ public class WorkspaceManager(
         }
     }
 
-    private static async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
+    private async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
     {
-        var directory = Path.GetDirectoryName(WorkspaceMetadataPath);
+        var directory = Path.GetDirectoryName(_workspaceMetadataPath);
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
         var json = JsonSerializer.Serialize(workspaces, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(WorkspaceMetadataPath, json, cancellationToken);
+        await File.WriteAllTextAsync(_workspaceMetadataPath, json, cancellationToken);
     }
 
     private async Task SaveWorkspaceMetadataAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken)

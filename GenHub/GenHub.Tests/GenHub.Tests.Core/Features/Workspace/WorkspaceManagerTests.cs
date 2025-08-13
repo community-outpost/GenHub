@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace;
@@ -20,8 +21,11 @@ public class WorkspaceManagerTests
     [Fact]
     public async Task PrepareWorkspaceAsync_ThrowsIfNoStrategy()
     {
-        var logger = new Mock<ILogger<WorkspaceManager>>();
-        var manager = new WorkspaceManager(System.Array.Empty<IWorkspaceStrategy>(), logger.Object);
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
+
+        var mockLogger = new Mock<ILogger<WorkspaceManager>>();
+        var manager = new WorkspaceManager(System.Array.Empty<IWorkspaceStrategy>(), mockConfigProvider.Object, mockLogger.Object);
         var config = new WorkspaceConfiguration();
         await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
     }

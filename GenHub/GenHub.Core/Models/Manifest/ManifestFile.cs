@@ -45,4 +45,32 @@ public class ManifestFile
     /// Gets or sets the download URL for remote files.
     /// </summary>
     public string DownloadUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this file is required for the manifest to function.
+    /// </summary>
+    [JsonPropertyName("isRequired")]
+    public bool IsRequired { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the source path for copy operations, relative to a base installation or extraction path.
+    /// </summary>
+    [JsonPropertyName("sourcePath")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourcePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the path to the patch file to be applied to the target file.
+    /// This is only used when SourceType is 'Patch'. The path is relative to the mod's own content root.
+    /// </summary>
+    [JsonPropertyName("patchSourceFile")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PatchSourceFile { get; set; }
+
+    /// <summary>
+    /// Gets or sets information for package extraction. This is only used when SourceType is 'Package'.
+    /// </summary>
+    [JsonPropertyName("packageInfo")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExtractionConfiguration? PackageInfo { get; set; }
 }

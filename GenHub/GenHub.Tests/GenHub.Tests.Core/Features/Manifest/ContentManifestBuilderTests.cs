@@ -152,8 +152,8 @@ public class ContentManifestBuilderTests
             .Build();
 
         // Assert
-        Assert.NotNull(result.Installation);
-        Assert.Equal(WorkspaceStrategy.FullCopy, result.Installation.WorkspaceStrategy);
+        Assert.NotNull(result.InstallationInstructions);
+        Assert.Equal(WorkspaceStrategy.FullCopy, result.InstallationInstructions.WorkspaceStrategy);
     }
 
     /// <summary>

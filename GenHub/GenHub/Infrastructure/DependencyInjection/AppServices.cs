@@ -21,20 +21,21 @@ public static class AppServices
         this IServiceCollection services,
         Func<IServiceCollection, IConfigurationProviderService, IServiceCollection>? platformModuleFactory = null)
     {
-        services.AddConfigurationModule();
+        // Register configuration services and get the provider
+        var configProvider = services.AddConfigurationModule();
 
-        using var tempProvider = services.BuildServiceProvider();
-        var configProvider = tempProvider.GetRequiredService<IConfigurationProviderService>();
-
-        // Register shared services, passing config provider to those that need it
-        services.AddGameDetectionService();
+        // Register services that need configuration
         services.AddLoggingModule(configProvider);
+        services.AddDownloadServices(configProvider);
+
+        // Register remaining services
+        services.AddGameDetectionService();
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
-        services.AddDownloadServices(configProvider);
         services.AddValidationServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
+        services.AddContentPipelineServices();
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services, configProvider);
