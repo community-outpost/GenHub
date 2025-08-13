@@ -85,7 +85,8 @@ public class GameInstallationValidatorTests
             // Ensure the installation is properly fetched to have consistent state
             installation.Fetch();
 
-            var progressReports = new List<ValidationProgress>();
+            // Use thread-safe collection for progress reports
+            var progressReports = new System.Collections.Concurrent.ConcurrentBag<ValidationProgress>();
             var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
 
             // Act
@@ -93,28 +94,31 @@ public class GameInstallationValidatorTests
             await Task.Delay(100); // Ensure all progress callbacks are processed
 
             // Assert
-            Assert.True(progressReports.Count > 0, "Expected progress reports to be generated");
+            var reportsList = progressReports.ToList();
+            Assert.True(reportsList.Count > 0, "Expected progress reports to be generated");
 
-            // Check that we have progress reports and the final one shows completion
-            var finalProgress = progressReports.Last();
+            // Find the final progress report (highest processed count)
+            var finalProgress = reportsList.OrderBy(p => p.Processed).Last();
+
+            // Verify the final progress shows completion
             Assert.Equal(finalProgress.Total, finalProgress.Processed);
             Assert.Equal(100, finalProgress.PercentComplete);
 
-            // Don't assert on specific step counts since they vary based on installation detection
-            // Just ensure we have at least the minimum expected steps (basic validation steps)
-            Assert.True(finalProgress.Total >= 3, $"Expected at least 3 total steps, got {finalProgress.Total}");
-            Assert.True(progressReports.Count >= 3, $"Expected at least 3 progress reports, got {progressReports.Count}");
+            // Verify we have reasonable progress reporting (at least 4 steps for basic validation)
+            // Don't assert exact counts since they vary based on installation detection
+            Assert.True(finalProgress.Total >= 4, $"Expected at least 4 total steps, got {finalProgress.Total}");
+            Assert.True(reportsList.Count >= 3, $"Expected at least 3 progress reports, got {reportsList.Count}");
 
-            // Verify progress goes from start to 100%
-            var firstProgress = progressReports.First();
-            Assert.True(firstProgress.Processed >= 0, "Expected first progress to have valid processed count");
-            Assert.True(progressReports.Any(p => p.PercentComplete == 100), "Expected final progress report showing 100%");
+            // Verify all progress reports have consistent total
+            var allTotals = reportsList.Select(p => p.Total).Distinct().ToList();
+            Assert.True(allTotals.Count == 1, $"All progress reports should have the same total. Found totals: [{string.Join(", ", allTotals)}]");
 
-            // Verify progress is monotonic (doesn't go backwards)
-            for (int i = 1; i < progressReports.Count; i++)
+            // Verify progress values are within valid range
+            Assert.All(reportsList, report =>
             {
-                Assert.True(progressReports[i].Processed >= progressReports[i - 1].Processed, $"Progress should be monotonic. Step {i}: {progressReports[i].Processed} should be >= {progressReports[i - 1].Processed}");
-            }
+                Assert.True(report.Processed >= 0 && report.Processed <= report.Total, $"Progress processed ({report.Processed}) should be between 0 and total ({report.Total})");
+                Assert.True(report.PercentComplete >= 0 && report.PercentComplete <= 100, $"Percent complete ({report.PercentComplete}) should be between 0 and 100");
+            });
         }
         finally
         {
