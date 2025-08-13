@@ -15,7 +15,7 @@ public enum ContentSourceType
     /// <summary>
     /// Content comes from the base game installation.
     /// </summary>
-    BaseGame = 1,
+    GameInstallation = 1,
 
     /// <summary>
     /// Content is stored in the Content-Addressable Storage (CAS) system.

@@ -6,37 +6,35 @@ namespace GenHub.Core.Models.Results;
 /// <summary>
 /// Result of a game launch operation.
 /// </summary>
-public class LaunchResult
+public class LaunchResult : ResultBase
 {
-    /// <summary>
-    /// Gets or sets a value indicating whether the launch was successful.
-    /// </summary>
-    required public bool Success { get; set; }
+    private LaunchResult(
+        bool success,
+        int? processId = null,
+        string? errorMessage = null,
+        Exception? exception = null,
+        DateTime? startTime = null,
+        TimeSpan elapsed = default)
+        : base(success, errorMessage, elapsed)
+    {
+        ProcessId = processId;
+        Exception = exception;
+        StartTime = startTime ?? DateTime.UtcNow;
+    }
 
-    /// <summary>
-    /// Gets or sets the process ID if successful.
-    /// </summary>
-    public int? ProcessId { get; set; }
+    /// <summary>Gets the process ID if successful.</summary>
+    public int? ProcessId { get; }
 
-    /// <summary>
-    /// Gets or sets the error message if unsuccessful.
-    /// </summary>
-    public string? ErrorMessage { get; set; }
+    /// <summary>Gets the exception if one occurred.</summary>
+    public Exception? Exception { get; }
 
-    /// <summary>
-    /// Gets or sets the exception if one occurred.
-    /// </summary>
-    public Exception? Exception { get; set; }
+    /// <summary>Gets the start time.</summary>
+    public DateTime StartTime { get; }
 
-    /// <summary>
-    /// Gets or sets the launch duration.
-    /// </summary>
-    public TimeSpan LaunchDuration { get; set; }
+    /// <summary>Gets the launch duration (alias for Elapsed).</summary>
+    public TimeSpan LaunchDuration => Elapsed;
 
-    /// <summary>
-    /// Gets or sets the start time.
-    /// </summary>
-    public DateTime StartTime { get; set; }
+    // Factory Methods
 
     /// <summary>
     /// Creates a successful launch result.
@@ -46,15 +44,7 @@ public class LaunchResult
     /// <param name="duration">The duration of the launch.</param>
     /// <returns>A successful <see cref="LaunchResult"/> instance.</returns>
     public static LaunchResult CreateSuccess(int processId, DateTime startTime, TimeSpan duration)
-    {
-        return new LaunchResult
-        {
-            Success = true,
-            ProcessId = processId,
-            StartTime = startTime,
-            LaunchDuration = duration,
-        };
-    }
+        => new(true, processId, null, null, startTime, duration);
 
     /// <summary>
     /// Creates a failed launch result.
@@ -63,13 +53,5 @@ public class LaunchResult
     /// <param name="exception">The exception that occurred, if any.</param>
     /// <returns>A failed <see cref="LaunchResult"/> instance.</returns>
     public static LaunchResult CreateFailure(string errorMessage, Exception? exception = null)
-    {
-        return new LaunchResult
-        {
-            Success = false,
-            ErrorMessage = errorMessage,
-            Exception = exception,
-            StartTime = DateTime.UtcNow,
-        };
-    }
+        => new(false, null, errorMessage, exception);
 }

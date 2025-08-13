@@ -21,7 +21,7 @@ public class GameLaunchConfiguration
     /// <summary>
     /// Gets or sets the command line arguments.
     /// </summary>
-    public string? Arguments { get; set; }
+    public Dictionary<string, string>? Arguments { get; set; }
 
     /// <summary>
     /// Gets or sets the environment variables.

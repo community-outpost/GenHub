@@ -44,4 +44,19 @@ public enum ValidationIssueType
     /// There is insufficient disk space to complete the operation.
     /// </summary>
     InsufficientSpace,
+
+    /// <summary>
+    /// A required file is missing.
+    /// </summary>
+    FileMissing,
+
+    /// <summary>
+    /// A file is corrupted or modified.
+    /// </summary>
+    FileCorrupted,
+
+    /// <summary>
+    /// A symbolic link is broken or points to a non-existent target.
+    /// </summary>
+    BrokenLink,
 }

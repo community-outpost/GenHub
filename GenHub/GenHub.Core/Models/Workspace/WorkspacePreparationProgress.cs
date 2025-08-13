@@ -36,4 +36,9 @@ public class WorkspacePreparationProgress
     /// Gets the overall percentage of completion.
     /// </summary>
     public double OverallPercentage => TotalFiles > 0 ? (double)FilesProcessed / TotalFiles * 100 : 0;
+
+    /// <summary>
+    /// Gets the overall percentage of completion as an integer.
+    /// </summary>
+    public int PercentComplete => (int)Math.Round(OverallPercentage);
 }
