@@ -132,10 +132,25 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
                 // Handle different source types
                 if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                 {
-                    // Use CAS content
-                    await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                    hardLinkedFiles++;
-                    totalBytesProcessed += LinkOverheadBytes;
+                    try
+                    {
+                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                        if (sameVolume)
+                        {
+                            hardLinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes;
+                        }
+                        else
+                        {
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Failed to process CAS file with hash {Hash}", file.Hash);
+                        throw;
+                    }
                 }
                 else
                 {
@@ -174,7 +189,7 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
                     }
 
                     // Verify file integrity if hash is provided (only for copied files)
-                    if (!string.IsNullOrEmpty(file.Hash) && (copiedFiles > 0 || !sameVolume))
+                    if (!string.IsNullOrEmpty(file.Hash))
                     {
                         var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                         if (!hashValid)

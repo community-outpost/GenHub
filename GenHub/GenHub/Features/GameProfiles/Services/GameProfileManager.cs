@@ -37,10 +37,10 @@ namespace GenHub.Features.GameProfiles.Services
             IContentManifestPool manifestPool,
             ILogger<GameProfileManager> logger)
         {
-            _profileRepository = profileRepository;
-            _installationService = installationService;
-            _manifestPool = manifestPool;
-            _logger = logger;
+            _profileRepository = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
+            _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
+            _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <inheritdoc/>
@@ -48,6 +48,11 @@ namespace GenHub.Features.GameProfiles.Services
         {
             try
             {
+                if (request == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
+                }
+
                 // Validate request
                 if (string.IsNullOrWhiteSpace(request.Name))
                 {
@@ -102,6 +107,11 @@ namespace GenHub.Features.GameProfiles.Services
         {
             try
             {
+                if (request == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
+                }
+
                 var loadResult = await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
                 if (loadResult.Failed)
                 {
@@ -110,7 +120,17 @@ namespace GenHub.Features.GameProfiles.Services
 
                 var profile = loadResult.Data!;
 
-                if (request.Name != null) profile.Name = request.Name;
+                if (request.Name != null)
+                {
+                    var nameValidationError = ValidateProfileName(request.Name);
+                    if (nameValidationError != null)
+                    {
+                        return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError);
+                    }
+
+                    profile.Name = request.Name;
+                }
+
                 if (request.Description != null) profile.Description = request.Description;
                 if (request.EnabledContentIds != null) profile.EnabledContentIds = request.EnabledContentIds;
                 if (request.PreferredStrategy.HasValue) profile.PreferredStrategy = request.PreferredStrategy.Value;
@@ -147,6 +167,11 @@ namespace GenHub.Features.GameProfiles.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(profileId))
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
+                }
+
                 var deleteResult = await _profileRepository.DeleteProfileAsync(profileId, cancellationToken);
                 if (deleteResult.Success)
                 {
@@ -185,6 +210,11 @@ namespace GenHub.Features.GameProfiles.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(profileId))
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
+                }
+
                 return await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
             }
             catch (Exception ex)
@@ -199,6 +229,11 @@ namespace GenHub.Features.GameProfiles.Services
         {
             try
             {
+                if (gameVersion == null)
+                {
+                    return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("Game version cannot be null");
+                }
+
                 var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
                 if (!manifestsResult.Success)
                 {
@@ -216,6 +251,22 @@ namespace GenHub.Features.GameProfiles.Services
                 _logger.LogError(ex, "An unexpected error occurred while getting available content.");
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
             }
+        }
+
+        /// <summary>
+        /// Validates the profile name.
+        /// </summary>
+        /// <param name="name">The profile name to validate.</param>
+        /// <returns>Null if valid, otherwise an error message.</returns>
+        private string? ValidateProfileName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "Profile name cannot be empty.";
+            if (name.Length > 100)
+                return "Profile name is too long.";
+
+            // Add more rules as needed (e.g., invalid characters)
+            return null;
         }
     }
 }

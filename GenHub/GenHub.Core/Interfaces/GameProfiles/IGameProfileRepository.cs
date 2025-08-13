@@ -37,9 +37,11 @@ namespace GenHub.Core.Interfaces.GameProfiles
         /// <summary>
         /// Deletes a game profile from the repository.
         /// </summary>
-        /// <param name="profileId">The unique identifier of the profile to delete.</param>
+        /// <param name="profileId">The unique identifier of the profile to delete. Must not be null or empty.</param>
         /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
-        /// <returns>An operation result indicating success or failure.</returns>
+        /// <returns>An operation result containing the deleted profile if successful.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when profileId is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when profileId is empty.</exception>
         Task<ProfileOperationResult<GameProfile>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default);
     }
 }

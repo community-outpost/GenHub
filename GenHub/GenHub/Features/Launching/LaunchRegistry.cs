@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,17 +26,30 @@ namespace GenHub.Features.Launching
             _logger = logger;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Registers a new game launch in the registry.
+        /// </summary>
+        /// <param name="launchInfo">The launch information to register.</param>
+        /// <returns>A completed task.</returns>
         public Task RegisterLaunchAsync(GameLaunchInfo launchInfo)
         {
+            ArgumentNullException.ThrowIfNull(launchInfo);
+            ArgumentException.ThrowIfNullOrWhiteSpace(launchInfo.LaunchId);
+
             _activeLaunches[launchInfo.LaunchId] = launchInfo;
             _logger.LogInformation("Registered launch {LaunchId} for profile {ProfileId}", launchInfo.LaunchId, launchInfo.ProfileId);
             return Task.CompletedTask;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Unregisters a game launch from the registry.
+        /// </summary>
+        /// <param name="launchId">The launch ID to unregister.</param>
+        /// <returns>A completed task.</returns>
         public Task UnregisterLaunchAsync(string launchId)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
+
             if (_activeLaunches.TryRemove(launchId, out var launchInfo))
             {
                 launchInfo.TerminatedAt = System.DateTime.UtcNow;
@@ -52,6 +66,8 @@ namespace GenHub.Features.Launching
         /// <inheritdoc/>
         public Task<GameLaunchInfo?> GetLaunchInfoAsync(string launchId)
         {
+            ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
+
             _activeLaunches.TryGetValue(launchId, out var launchInfo);
             return Task.FromResult(launchInfo);
         }

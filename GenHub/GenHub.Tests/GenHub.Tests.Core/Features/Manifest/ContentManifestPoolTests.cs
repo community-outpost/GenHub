@@ -42,15 +42,20 @@ public class ContentManifestPoolTests : IDisposable
     {
         // Arrange
         var manifest = CreateTestManifest();
-        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, default))
+        var manifestPath = Path.Combine(_tempDirectory, $"{manifest.Id}.manifest.json");
+
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id))
+            .Returns(manifestPath);
 
         // Act
         var result = await _manifestPool.AddManifestAsync(manifest);
 
         // Assert
-        Assert.True(result.Success);
-        Assert.True(result.Data);
+        Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
+        Assert.True(result.Data, "Expected result.Data to be true");
+        _storageServiceMock.Verify(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

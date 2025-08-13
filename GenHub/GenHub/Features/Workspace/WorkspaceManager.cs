@@ -76,7 +76,9 @@ public class WorkspaceManager : IWorkspaceManager
 
         if (!workspaceInfo.Success)
         {
-            return OperationResult<WorkspaceInfo>.CreateFailure(workspaceInfo.ValidationIssues.Select(i => i.Message));
+            var messages = workspaceInfo.ValidationIssues?.Select(i => i.Message)
+                           ?? new[] { "Workspace preparation failed" };
+            return OperationResult<WorkspaceInfo>.CreateFailure(messages);
         }
 
         // Save workspace metadata
@@ -93,8 +95,8 @@ public class WorkspaceManager : IWorkspaceManager
     /// Retrieves all workspaces asynchronously.
     /// </summary>
     /// <param name="cancellationToken">Optional cancellation token.</param>
-    /// <returns>A collection of workspace information.</returns>
-    public async Task<IEnumerable<WorkspaceInfo>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default)
+    /// <returns>An operation result containing all prepared workspaces.</returns>
+    public async Task<OperationResult<IEnumerable<WorkspaceInfo>>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Retrieving all workspaces");
 
@@ -102,7 +104,7 @@ public class WorkspaceManager : IWorkspaceManager
         {
             if (!File.Exists(_workspaceMetadataPath))
             {
-                return [];
+                return OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess(Enumerable.Empty<WorkspaceInfo>());
             }
 
             var json = await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken);
@@ -116,12 +118,12 @@ public class WorkspaceManager : IWorkspaceManager
                 await SaveAllWorkspacesAsync(validWorkspaces, cancellationToken);
             }
 
-            return validWorkspaces;
+            return OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess(validWorkspaces.AsEnumerable());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve workspaces");
-            return [];
+            return OperationResult<IEnumerable<WorkspaceInfo>>.CreateFailure($"Failed to retrieve workspaces: {ex.Message}");
         }
     }
 
@@ -130,18 +132,24 @@ public class WorkspaceManager : IWorkspaceManager
     /// </summary>
     /// <param name="workspaceId">The workspace identifier.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
-    /// <returns>True if cleanup was successful; otherwise, false.</returns>
-    public async Task<bool> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default)
+    /// <returns>An operation result indicating whether the workspace was cleaned up successfully.</returns>
+    public async Task<OperationResult<bool>> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var workspaces = (await GetAllWorkspacesAsync(cancellationToken)).ToList();
+            var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+            if (!workspacesResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to get workspaces for cleanup: {workspacesResult.FirstError}");
+            }
+
+            var workspaces = workspacesResult.Data!.ToList();
             var workspace = workspaces.FirstOrDefault(w => w.Id == workspaceId);
 
             if (workspace == null)
             {
                 _logger.LogWarning("Workspace {Id} not found for cleanup", workspaceId);
-                return false;
+                return OperationResult<bool>.CreateSuccess(false);
             }
 
             if (FileOperationsService.DeleteDirectoryIfExists(workspace.WorkspacePath))
@@ -152,12 +160,12 @@ public class WorkspaceManager : IWorkspaceManager
             workspaces.Remove(workspace);
             await SaveAllWorkspacesAsync(workspaces, cancellationToken);
 
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to cleanup workspace {Id}", workspaceId);
-            return false;
+            return OperationResult<bool>.CreateFailure($"Failed to cleanup workspace: {ex.Message}");
         }
     }
 
@@ -189,7 +197,8 @@ public class WorkspaceManager : IWorkspaceManager
 
     private async Task SaveWorkspaceMetadataAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken)
     {
-        var workspaces = (await GetAllWorkspacesAsync(cancellationToken)).ToList();
+        var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+        var workspaces = workspacesResult.Data?.ToList() ?? new List<WorkspaceInfo>();
         var existing = workspaces.FirstOrDefault(w => w.Id == workspaceInfo.Id);
 
         if (existing != null)

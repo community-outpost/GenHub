@@ -70,6 +70,9 @@ namespace GenHub.Core.Models.Results
         /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
         public static OperationResult<T> CreateFailure(IEnumerable<string> errors, TimeSpan elapsed = default)
         {
+            ArgumentNullException.ThrowIfNull(errors, nameof(errors));
+            if (!errors.Any())
+                throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
             return new OperationResult<T>(false, default, errors, elapsed);
         }
     }

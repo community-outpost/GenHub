@@ -18,7 +18,7 @@ public interface IGameProcessManager
     /// <param name="configuration">The launch configuration.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the process information.</returns>
-    Task<ProcessOperationResult<GameProcessInfo>> StartProcessAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default);
+    Task<OperationResult<GameProcessInfo>> StartProcessAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Terminates a game process by its process ID.
@@ -26,7 +26,7 @@ public interface IGameProcessManager
     /// <param name="processId">The process ID to terminate.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result indicating success or failure.</returns>
-    Task<ProcessOperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets information about a specific process by its ID.
@@ -34,12 +34,12 @@ public interface IGameProcessManager
     /// <param name="processId">The process ID.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the process information.</returns>
-    Task<ProcessOperationResult<GameProcessInfo>> GetProcessInfoAsync(int processId, CancellationToken cancellationToken = default);
+    Task<OperationResult<GameProcessInfo>> GetProcessInfoAsync(int processId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all active game processes managed by this instance.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the list of active processes.</returns>
-    Task<ProcessOperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default);
 }

@@ -141,6 +141,8 @@ public class ContentStorageService : IContentStorageService
                 return OperationResult<string>.CreateFailure($"Could not deserialize manifest: {manifestId}");
             }
 
+            var failedFiles = new List<string>();
+
             foreach (var file in manifest.Files.Where(f => !string.IsNullOrEmpty(f.Hash)))
             {
                 var destPath = Path.Combine(targetDirectory, file.RelativePath);
@@ -157,8 +159,20 @@ public class ContentStorageService : IContentStorageService
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to retrieve {RelativePath} from CAS for manifest {ManifestId}", file.RelativePath, manifestId);
+                    _logger.LogWarning(
+                        "Failed to retrieve {RelativePath} from CAS for manifest {ManifestId}",
+                        file.RelativePath,
+                        manifestId);
+                    failedFiles.Add(file.RelativePath);
                 }
+            }
+
+            if (failedFiles.Any())
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Failed to retrieve {failedFiles.Count} file(s): " +
+                    $"{string.Join(", ", failedFiles.Take(5))}" +
+                    (failedFiles.Count > 5 ? ", ..." : string.Empty));
             }
 
             return OperationResult<string>.CreateSuccess(targetDirectory);

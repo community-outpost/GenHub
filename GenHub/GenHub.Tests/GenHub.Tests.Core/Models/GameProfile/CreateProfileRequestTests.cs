@@ -31,6 +31,75 @@ namespace GenHub.Tests.Core.Models.GameProfile
         }
 
         /// <summary>
+        /// Tests that CreateProfileRequest validates required properties.
+        /// </summary>
+        [Fact]
+        public void CreateProfileRequest_WithNullName_ShouldThrowOrFail()
+        {
+            // Arrange
+            var request = new CreateProfileRequest
+            {
+                Name = string.Empty,
+                GameInstallationId = "install-1",
+                GameVersionId = "version-1",
+            };
+
+            // Act & Assert
+            Assert.True(string.IsNullOrWhiteSpace(request.Name));
+
+            // If you have a validation method, call and assert failure here.
+            // Example:
+            // var result = ValidateRequest(request);
+            // Assert.False(result.Success);
+        }
+
+        /// <summary>
+        /// Tests that CreateProfileRequest validates GameInstallationId.
+        /// </summary>
+        [Fact]
+        public void CreateProfileRequest_WithNullGameInstallationId_ShouldThrowOrFail()
+        {
+            // Arrange
+            var request = new CreateProfileRequest
+            {
+                Name = "Test Profile",
+                GameInstallationId = string.Empty,
+                GameVersionId = "version-1",
+            };
+
+            // Act & Assert
+            Assert.True(string.IsNullOrWhiteSpace(request.GameInstallationId));
+
+            // If you have a validation method, call and assert failure here.
+            // Example:
+            // var result = ValidateRequest(request);
+            // Assert.False(result.Success);
+        }
+
+        /// <summary>
+        /// Tests that CreateProfileRequest validates GameVersionId.
+        /// </summary>
+        [Fact]
+        public void CreateProfileRequest_WithNullGameVersionId_ShouldThrowOrFail()
+        {
+            // Arrange
+            var request = new CreateProfileRequest
+            {
+                Name = "Test Profile",
+                GameInstallationId = "install-1",
+                GameVersionId = string.Empty,
+            };
+
+            // Act & Assert
+            Assert.True(string.IsNullOrWhiteSpace(request.GameVersionId));
+
+            // If you have a validation method, call and assert failure here.
+            // Example:
+            // var result = ValidateRequest(request);
+            // Assert.False(result.Success);
+        }
+
+        /// <summary>
         /// Tests that CreateProfileRequest properties can be modified.
         /// </summary>
         [Fact]

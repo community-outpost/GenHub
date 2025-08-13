@@ -21,8 +21,6 @@ namespace GenHub.Infrastructure.DependencyInjection
             services.AddSingleton<IGameInstallationService, GameInstallationService>();
             services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
 
-            services.AddScoped<IGameInstallationService, GameInstallationService>();
-
             return services;
         }
     }

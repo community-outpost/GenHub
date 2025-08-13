@@ -40,8 +40,6 @@ namespace GenHub.Tests.Features.Validation
                 .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
             _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
-            _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
             _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
         }
@@ -53,19 +51,17 @@ namespace GenHub.Tests.Features.Validation
         [Fact]
         public async Task ValidateAsync_WithProgressCallback_ReportsProgress()
         {
-            // Arrange
             var tempDir = Directory.CreateTempSubdirectory();
             try
             {
                 var filePath = Path.Combine(tempDir.FullName, "file1.txt");
-                await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
-
+                await File.WriteAllTextAsync(filePath, "content1"); // 8 bytes
                 var requiredDir = "testdir";
                 var manifest = new ContentManifest
                 {
                     Files = new()
                     {
-                        new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
+                        new ManifestFile { RelativePath = "file1.txt", Size = 9, Hash = string.Empty },
                     },
                     RequiredDirectories = new List<string> { requiredDir },
                 };
@@ -399,12 +395,25 @@ namespace GenHub.Tests.Features.Validation
         private class SynchronousProgress<T> : IProgress<T>
         {
             private readonly List<T> _reports = new();
+            private readonly object _lock = new();
 
-            public IReadOnlyList<T> Reports => _reports;
+            public IReadOnlyList<T> Reports
+            {
+                get
+                {
+                    lock (_lock)
+                    {
+                        return _reports.ToList();
+                    }
+                }
+            }
 
             public void Report(T value)
             {
-                _reports.Add(value);
+                lock (_lock)
+                {
+                    _reports.Add(value);
+                }
             }
         }
     }

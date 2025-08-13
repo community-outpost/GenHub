@@ -46,12 +46,12 @@ namespace GenHub.Features.Launching
             ILaunchRegistry launchRegistry,
             ILogger<GameLauncher> logger)
         {
-            _profileManager = profileManager;
-            _workspaceManager = workspaceManager;
-            _manifestPool = manifestPool;
-            _processManager = processManager;
-            _launchRegistry = launchRegistry;
-            _logger = logger;
+            _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+            _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
+            _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+            _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
+            _launchRegistry = launchRegistry ?? throw new ArgumentNullException(nameof(launchRegistry));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <inheritdoc/>
@@ -133,7 +133,9 @@ namespace GenHub.Features.Launching
                     Manifests = manifests,
                     Strategy = profile.PreferredStrategy,
                     GameVersion = profile.GameVersion, // Pass the whole GameVersion object
-                    BaseInstallationPath = Path.GetDirectoryName(profile.GameVersion.ExecutablePath) ?? string.Empty,
+                    BaseInstallationPath = profile.GameVersion?.ExecutablePath != null
+                        ? Path.GetDirectoryName(profile.GameVersion.ExecutablePath) ?? string.Empty
+                        : string.Empty,
                 };
 
                 var workspaceProgress = progress == null ? null : new Progress<WorkspacePreparationProgress>(p =>

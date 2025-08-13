@@ -61,42 +61,15 @@ namespace GenHub.Tests.Core.Features.Workspace
         [Fact]
         public async Task PrepareWorkspaceAsync_ThrowsIfNoStrategy()
         {
-            // Create a temporary directory for this test
-            var testTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(testTempDir);
+            var manager = new WorkspaceManager(
+                System.Array.Empty<IWorkspaceStrategy>(),
+                _configProviderMock.Object,
+                _loggerMock.Object,
+                _casServiceMock.Object,
+                _casReferenceTracker);
 
-            try
-            {
-                var mockConfigProvider = new Mock<IConfigurationProviderService>();
-                mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(testTempDir, "content"));
-
-                var mockLogger = new Mock<ILogger<WorkspaceManager>>();
-                var mockCasService = new Mock<ICasService>();
-
-                // Create CasReferenceTracker for this test with proper temp directory
-                var casConfig = new Mock<IOptions<CasConfiguration>>();
-                casConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = Path.Combine(testTempDir, "cas") });
-                var casLogger = new Mock<ILogger<CasReferenceTracker>>();
-                var casTracker = new CasReferenceTracker(casConfig.Object, casLogger.Object);
-
-                var manager = new WorkspaceManager(
-                    System.Array.Empty<IWorkspaceStrategy>(),
-                    mockConfigProvider.Object,
-                    mockLogger.Object,
-                    mockCasService.Object,
-                    casTracker);
-
-                var config = new WorkspaceConfiguration();
-                await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
-            }
-            finally
-            {
-                // Clean up the temporary directory
-                if (Directory.Exists(testTempDir))
-                {
-                    Directory.Delete(testTempDir, true);
-                }
-            }
+            var config = new WorkspaceConfiguration();
+            await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
         }
 
         /// <summary>
@@ -159,7 +132,8 @@ namespace GenHub.Tests.Core.Features.Workspace
             var result = await _workspaceManager.CleanupWorkspaceAsync(workspaceId);
 
             // Assert
-            Assert.True(result);
+            Assert.True(result.Success);
+            Assert.True(result.Data);
             Assert.False(Directory.Exists(workspaceDir));
         }
 

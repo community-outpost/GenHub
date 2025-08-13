@@ -95,5 +95,148 @@ namespace GenHub.Tests.Core.Features.GameProfiles
             Assert.True(result.Success);
             Assert.Empty(result.Data!);
         }
+
+        /// <summary>
+        /// Tests that StartProcessAsync with a valid executable path returns success.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task StartProcessAsync_WithValidExecutablePath_ShouldReturnSuccess()
+        {
+            // Arrange
+            var tempExe = Path.GetTempFileName() + ".bat";
+            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 2 >nul\n");
+            try
+            {
+                var config = new GameLaunchConfiguration
+                {
+                    ExecutablePath = tempExe,
+                };
+
+                // Act
+                var result = await _processManager.StartProcessAsync(config);
+
+                // Assert
+                Assert.True(result.Success);
+                Assert.NotNull(result.Data);
+                Assert.True(result.Data.ProcessId > 0);
+
+                // Cleanup
+                await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            }
+            finally
+            {
+                File.Delete(tempExe);
+            }
+        }
+
+        /// <summary>
+        /// Tests that TerminateProcessAsync with a real running process returns success.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task TerminateProcessAsync_WithRunningProcess_ShouldReturnSuccess()
+        {
+            // Arrange
+            var tempExe = Path.GetTempFileName() + ".bat";
+            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            var config = new GameLaunchConfiguration
+            {
+                ExecutablePath = tempExe,
+            };
+
+            try
+            {
+                var startResult = await _processManager.StartProcessAsync(config);
+                Assert.True(startResult.Success);
+                Assert.NotNull(startResult.Data);
+
+                // Act
+                var terminateResult = await _processManager.TerminateProcessAsync(startResult.Data!.ProcessId);
+
+                // Assert
+                Assert.True(terminateResult.Success);
+            }
+            finally
+            {
+                File.Delete(tempExe);
+            }
+        }
+
+        /// <summary>
+        /// Tests that GetProcessInfoAsync returns info for a running process.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task GetProcessInfoAsync_WithRunningProcess_ShouldReturnInfo()
+        {
+            // Arrange
+            var tempExe = Path.GetTempFileName() + ".bat";
+            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            var config = new GameLaunchConfiguration
+            {
+                ExecutablePath = tempExe,
+            };
+
+            try
+            {
+                var startResult = await _processManager.StartProcessAsync(config);
+                Assert.True(startResult.Success);
+                Assert.NotNull(startResult.Data);
+
+                // Act
+                var infoResult = await _processManager.GetProcessInfoAsync(startResult.Data!.ProcessId);
+
+                // Assert
+                Assert.True(infoResult.Success);
+                Assert.NotNull(infoResult.Data);
+                Assert.Equal(startResult.Data.ProcessId, infoResult.Data.ProcessId);
+
+                // Cleanup
+                await _processManager.TerminateProcessAsync(startResult.Data.ProcessId);
+            }
+            finally
+            {
+                File.Delete(tempExe);
+            }
+        }
+
+        /// <summary>
+        /// Tests that GetActiveProcessesAsync returns running processes.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task GetActiveProcessesAsync_WithRunningProcess_ShouldReturnNonEmptyList()
+        {
+            // Arrange
+            var tempExe = Path.GetTempFileName() + ".bat";
+            await File.WriteAllTextAsync(tempExe, "@echo off\ntimeout /t 5 >nul\n");
+            var config = new GameLaunchConfiguration
+            {
+                ExecutablePath = tempExe,
+            };
+
+            try
+            {
+                var startResult = await _processManager.StartProcessAsync(config);
+                Assert.True(startResult.Success);
+                Assert.NotNull(startResult.Data);
+
+                // Act
+                var activeResult = await _processManager.GetActiveProcessesAsync();
+
+                // Assert
+                Assert.True(activeResult.Success);
+                Assert.NotNull(activeResult.Data);
+                Assert.Contains(activeResult.Data, p => p.ProcessId == startResult.Data!.ProcessId);
+
+                // Cleanup
+                await _processManager.TerminateProcessAsync(startResult.Data.ProcessId);
+            }
+            finally
+            {
+                File.Delete(tempExe);
+            }
+        }
     }
 }

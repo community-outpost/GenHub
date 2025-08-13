@@ -109,7 +109,7 @@ namespace GenHub.Tests.Features.Validation
 
             // Assert
             Assert.True(result.IsValid); // UnexpectedFile does not make result invalid
-            var relPath = Path.GetRelativePath(tempDir.FullName, unexpectedFilePath).Replace('\\', '/');
+            var relPath = Path.GetRelativePath(tempDir.FullName, unexpectedFilePath).Replace(Path.DirectorySeparatorChar, '/');
             Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.UnexpectedFile && i.Path == relPath);
 
             tempDir.Delete(true);
@@ -176,10 +176,12 @@ namespace GenHub.Tests.Features.Validation
         [Fact]
         public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledException()
         {
+            var tempDir = Directory.CreateTempSubdirectory();
             var cts = new CancellationTokenSource();
             cts.Cancel();
-            var version = new GameVersion { WorkingDirectory = "path" };
+            var version = new GameVersion { WorkingDirectory = tempDir.FullName };
             await Assert.ThrowsAsync<OperationCanceledException>(() => _validator.ValidateAsync(version, cancellationToken: cts.Token));
+            tempDir.Delete(true);
         }
 
         /// <summary>

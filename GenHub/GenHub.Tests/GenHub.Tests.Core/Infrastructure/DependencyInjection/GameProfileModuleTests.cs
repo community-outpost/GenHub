@@ -67,10 +67,10 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddScoped(provider => new Mock<IGameProfileManager>().Object);
             services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
             services.AddScoped(provider => new Mock<IGameProcessManager>().Object);
-            services.AddScoped(provider => new Mock<IContentManifestPool>().Object); // Added missing dependency
+            services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
 
             // Act
-            services.AddLaunchingServices(configProviderMock.Object);
+            services.AddLaunchingServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -93,6 +93,10 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             services.AddLogging();
+
+            // Mock missing dependencies
+            services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
+            services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
 
             // Act
             services.AddGameProfileServices(configProviderMock.Object);
@@ -117,7 +121,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddLogging();
 
             // Act
-            services.AddLaunchingServices(configProviderMock.Object);
+            services.AddLaunchingServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert

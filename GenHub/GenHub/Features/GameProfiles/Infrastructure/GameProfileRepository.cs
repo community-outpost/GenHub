@@ -28,8 +28,8 @@ namespace GenHub.Features.GameProfiles.Infrastructure
         /// <param name="logger">The logger.</param>
         public GameProfileRepository(string profilesDirectory, ILogger<GameProfileRepository> logger)
         {
-            _profilesDirectory = profilesDirectory;
-            _logger = logger;
+            _profilesDirectory = profilesDirectory ?? throw new ArgumentNullException(nameof(profilesDirectory));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _jsonOptions = new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -45,6 +45,9 @@ namespace GenHub.Features.GameProfiles.Infrastructure
         {
             try
             {
+                if (profile == null)
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Profile cannot be null");
+
                 // Generate new ID if not set
                 if (string.IsNullOrEmpty(profile.Id))
                 {
@@ -60,7 +63,7 @@ namespace GenHub.Features.GameProfiles.Infrastructure
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to save profile {ProfileId}", profile.Id);
+                _logger.LogError(ex, "Failed to save profile {ProfileId}", profile?.Id);
                 return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to save profile: {ex.Message}");
             }
         }
@@ -70,6 +73,9 @@ namespace GenHub.Features.GameProfiles.Infrastructure
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(profileId))
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be null or empty");
+
                 var filePath = GetProfileFilePath(profileId);
                 if (!File.Exists(filePath))
                 {
@@ -134,6 +140,9 @@ namespace GenHub.Features.GameProfiles.Infrastructure
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(profileId))
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be null or empty");
+
                 var filePath = GetProfileFilePath(profileId);
                 if (!File.Exists(filePath))
                 {
@@ -160,6 +169,13 @@ namespace GenHub.Features.GameProfiles.Infrastructure
 
         private string GetProfileFilePath(string profileId)
         {
+            if (string.IsNullOrWhiteSpace(profileId))
+                throw new ArgumentException("Profile ID cannot be null or empty", nameof(profileId));
+
+            // Validate profileId contains only valid filename characters
+            if (profileId.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                throw new ArgumentException("Profile ID contains invalid characters", nameof(profileId));
+
             return Path.Combine(_profilesDirectory, $"{profileId}.json");
         }
     }

@@ -16,6 +16,9 @@ public class WorkspaceConfiguration
     /// <summary>Gets or sets the list of manifests to include in the workspace.</summary>
     public List<ContentManifest> Manifests { get; set; } = new();
 
+    /// <summary>Gets a value indicating whether the workspace configuration is valid.</summary>
+    public bool IsValid => Manifests?.Count > 0;
+
     /// <summary>Gets or sets the target game version.</summary>
     public GameVersion GameVersion { get; set; } = new();
 

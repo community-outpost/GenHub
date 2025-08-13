@@ -39,8 +39,6 @@ public class ContentManifestPool : IContentManifestPool
     {
         try
         {
-            // Delegate to storage service without source directory
-            // This will be used when manifest already exists in storage
             var isStoredResult = await _storageService.IsContentStoredAsync(manifest.Id, cancellationToken);
             if (!isStoredResult.Success || !isStoredResult.Data)
             {
@@ -48,7 +46,12 @@ public class ContentManifestPool : IContentManifestPool
                     $"Cannot add manifest {manifest.Id} without source directory. Content must be stored first using AddManifestAsync(ContentManifest, string, CancellationToken).");
             }
 
-            _logger.LogDebug("Manifest {ManifestId} already exists in storage", manifest.Id);
+            // Update the manifest metadata even if content already exists
+            var manifestPath = _storageService.GetManifestStoragePath(manifest.Id);
+            var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+            await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
+
+            _logger.LogDebug("Updated manifest {ManifestId} in storage", manifest.Id);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -99,6 +102,12 @@ public class ContentManifestPool : IContentManifestPool
 
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
+            if (manifest == null)
+            {
+                _logger.LogWarning("Manifest file {ManifestPath} exists but deserialization returned null", manifestPath);
+                return OperationResult<ContentManifest?>.CreateFailure("Manifest file is corrupted or invalid");
+            }
+
             return OperationResult<ContentManifest?>.CreateSuccess(manifest);
         }
         catch (Exception ex)
@@ -155,7 +164,8 @@ public class ContentManifestPool : IContentManifestPool
             if (!allManifestsResult.Success)
                 return allManifestsResult;
 
-            var filteredManifests = allManifestsResult.Data!.Where(manifest =>
+            var manifests = allManifestsResult.Data ?? Enumerable.Empty<ContentManifest>();
+            var filteredManifests = manifests.Where(manifest =>
             {
                 if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
                     !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&

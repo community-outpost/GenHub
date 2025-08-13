@@ -25,14 +25,14 @@ public interface IWorkspaceManager
     /// Gets all prepared workspaces.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>An enumerable of all prepared workspaces.</returns>
-    Task<IEnumerable<WorkspaceInfo>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default);
+    /// <returns>An operation result containing all prepared workspaces.</returns>
+    Task<OperationResult<IEnumerable<WorkspaceInfo>>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Cleans up and removes a workspace.
     /// </summary>
     /// <param name="workspaceId">The identifier of the workspace to clean up.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns><c>true</c> if the workspace was cleaned up; otherwise, <c>false</c>.</returns>
-    Task<bool> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default);
+    /// <returns>An operation result indicating whether the workspace was cleaned up successfully.</returns>
+    Task<OperationResult<bool>> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default);
 }

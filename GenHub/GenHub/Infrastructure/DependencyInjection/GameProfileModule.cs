@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -35,9 +36,22 @@ public static class GameProfileModule
 
     private static string GetProfilesDirectory(IConfigurationProviderService configProvider)
     {
-        var appDataPath = configProvider.GetContentStoragePath();
-        var profilesDirectory = Path.Combine(Path.GetDirectoryName(appDataPath) ?? string.Empty, "Profiles");
-        Directory.CreateDirectory(profilesDirectory);
-        return profilesDirectory;
+        try
+        {
+            var appDataPath = configProvider.GetContentStoragePath();
+            var parentDirectory = Path.GetDirectoryName(appDataPath);
+            if (string.IsNullOrEmpty(parentDirectory))
+            {
+                throw new InvalidOperationException($"Unable to determine parent directory for path: {appDataPath}");
+            }
+
+            var profilesDirectory = Path.Combine(parentDirectory, "Profiles");
+            Directory.CreateDirectory(profilesDirectory);
+            return profilesDirectory;
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException($"Failed to create profiles directory: {ex.Message}", ex);
+        }
     }
 }

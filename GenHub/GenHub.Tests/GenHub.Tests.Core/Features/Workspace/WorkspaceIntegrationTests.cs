@@ -129,6 +129,12 @@ public class WorkspaceIntegrationTests : IDisposable
         var validationResult = await _workspaceValidator.ValidateWorkspaceAsync(result.Data!);
         Assert.True(validationResult.Success);
         Assert.NotNull(validationResult.Data);
+
+        // Test GetAllWorkspacesAsync with new return type
+        var allWorkspacesResult = await manager.GetAllWorkspacesAsync();
+        Assert.True(allWorkspacesResult.Success);
+        Assert.NotNull(allWorkspacesResult.Data);
+        Assert.Contains(allWorkspacesResult.Data, w => w.Id == result.Data.Id);
     }
 
     /// <summary>

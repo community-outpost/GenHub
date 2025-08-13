@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -19,7 +21,7 @@ namespace GenHub.Features.GameProfiles.Infrastructure
     {
         private readonly IConfigurationProviderService _configProvider;
         private readonly ILogger<GameProcessManager> _logger;
-        private readonly Dictionary<int, Process> _managedProcesses = new();
+        private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GameProcessManager"/> class.
@@ -33,7 +35,7 @@ namespace GenHub.Features.GameProfiles.Infrastructure
         }
 
         /// <inheritdoc/>
-        public Task<ProcessOperationResult<GameProcessInfo>> StartProcessAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default)
+        public Task<OperationResult<GameProcessInfo>> StartProcessAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -50,20 +52,41 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                 {
                     foreach (var arg in configuration.Arguments)
                     {
-                        processStartInfo.ArgumentList.Add($"{arg.Key}={arg.Value}");
+                        // If the key starts with - or --, treat it as a flag/option
+                        if (arg.Key.StartsWith("-"))
+                        {
+                            processStartInfo.ArgumentList.Add(arg.Key);
+                            if (!string.IsNullOrEmpty(arg.Value))
+                            {
+                                processStartInfo.ArgumentList.Add(arg.Value);
+                            }
+                        }
+                        else if (string.IsNullOrEmpty(arg.Key))
+                        {
+                            // Positional argument
+                            processStartInfo.ArgumentList.Add(arg.Value);
+                        }
+                        else
+                        {
+                            // Key=value format
+                            processStartInfo.ArgumentList.Add($"{arg.Key}={arg.Value}");
+                        }
                     }
                 }
 
                 // Add environment variables
-                foreach (var envVar in configuration.EnvironmentVariables)
+                if (configuration.EnvironmentVariables != null)
                 {
-                    processStartInfo.Environment[envVar.Key] = envVar.Value;
+                    foreach (var envVar in configuration.EnvironmentVariables)
+                    {
+                        processStartInfo.Environment[envVar.Key] = envVar.Value;
+                    }
                 }
 
                 var process = Process.Start(processStartInfo);
                 if (process == null)
                 {
-                    return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure("Failed to start process"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Failed to start process"));
                 }
 
                 // Track the process
@@ -74,30 +97,30 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                     ProcessId = process.Id,
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime,
-                    ExecutablePath = configuration.ExecutablePath,
+                    ExecutablePath = GetProcessExecutablePath(process),
                 };
 
                 _logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", process.Id, configuration.ExecutablePath);
-                return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+                return Task.FromResult(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration.ExecutablePath);
-                return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure($"Failed to start process: {ex.Message}"));
+                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process: {ex.Message}"));
             }
         }
 
         /// <inheritdoc/>
-        public Task<ProcessOperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default)
+        public Task<OperationResult<bool>> TerminateProcessAsync(int processId, CancellationToken cancellationToken = default)
         {
             try
             {
                 Process? process = null;
 
                 // Try to get from managed processes first
-                if (_managedProcesses.TryGetValue(processId, out process))
+                if (_managedProcesses.TryRemove(processId, out process))
                 {
-                    _managedProcesses.Remove(processId);
+                    // process is set
                 }
                 else
                 {
@@ -108,42 +131,59 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                     }
                     catch (ArgumentException)
                     {
-                        return Task.FromResult(ProcessOperationResult<bool>.CreateFailure("Process not found"));
+                        return Task.FromResult(OperationResult<bool>.CreateFailure("Process not found"));
                     }
                 }
 
                 if (process == null)
                 {
-                    return Task.FromResult(ProcessOperationResult<bool>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<bool>.CreateFailure("Process not found"));
                 }
 
-                // Try graceful termination first
-                if (!process.CloseMainWindow())
-                {
-                    // Force termination if graceful fails
-                    process.Kill();
-                }
-
-                // Wait for exit with timeout
+                // Try graceful termination first (only for processes with UI)
+                bool hasExited = false;
                 var timeout = TimeSpan.FromSeconds(10);
-                if (!process.WaitForExit((int)timeout.TotalMilliseconds))
+
+                if (process.MainWindowHandle != IntPtr.Zero)
                 {
-                    process.Kill();
-                    process.WaitForExit();
+                    process.CloseMainWindow();
+                    hasExited = process.WaitForExit((int)(timeout.TotalMilliseconds / 2));
                 }
+
+                // Force termination if graceful fails or no UI
+                if (!hasExited)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                        hasExited = process.WaitForExit((int)(timeout.TotalMilliseconds / 2));
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited
+                        hasExited = true;
+                    }
+                }
+
+                if (!hasExited)
+                {
+                    return Task.FromResult(OperationResult<bool>.CreateFailure("Failed to terminate process within timeout"));
+                }
+
+                process.Dispose();
 
                 _logger.LogInformation("Terminated process {ProcessId}", processId);
-                return Task.FromResult(ProcessOperationResult<bool>.CreateSuccess(true));
+                return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to terminate process {ProcessId}", processId);
-                return Task.FromResult(ProcessOperationResult<bool>.CreateFailure($"Failed to terminate process: {ex.Message}"));
+                return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to terminate process: {ex.Message}"));
             }
         }
 
         /// <inheritdoc/>
-        public Task<ProcessOperationResult<GameProcessInfo>> GetProcessInfoAsync(int processId, CancellationToken cancellationToken = default)
+        public Task<OperationResult<GameProcessInfo>> GetProcessInfoAsync(int processId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -153,8 +193,8 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                 {
                     if (process.HasExited)
                     {
-                        _managedProcesses.Remove(processId);
-                        return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                        _managedProcesses.TryRemove(processId, out _);
+                        return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
                     }
 
                     var processInfo = new GameProcessInfo
@@ -162,10 +202,10 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
                         StartTime = process.StartTime,
-                        ExecutablePath = process.MainModule?.FileName ?? string.Empty,
+                        ExecutablePath = GetProcessExecutablePath(process),
                     };
 
-                    return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
                 }
 
                 // Try to get from system processes
@@ -174,7 +214,7 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                     process = Process.GetProcessById(processId);
                     if (process == null || process.HasExited)
                     {
-                        return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                        return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
                     }
 
                     var processInfo = new GameProcessInfo
@@ -182,25 +222,25 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                         ProcessId = process.Id,
                         ProcessName = process.ProcessName,
                         StartTime = process.StartTime,
-                        ExecutablePath = process.MainModule?.FileName ?? string.Empty,
+                        ExecutablePath = GetProcessExecutablePath(process),
                     };
 
-                    return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
                 }
                 catch (ArgumentException)
                 {
-                    return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                    return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get process info for {ProcessId}", processId);
-                return Task.FromResult(ProcessOperationResult<GameProcessInfo>.CreateFailure("Process not found"));
+                return Task.FromResult(OperationResult<GameProcessInfo>.CreateFailure("Process not found"));
             }
         }
 
         /// <inheritdoc/>
-        public Task<ProcessOperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default)
+        public Task<OperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -218,29 +258,47 @@ namespace GenHub.Features.GameProfiles.Infrastructure
                                 ProcessId = process.Id,
                                 ProcessName = process.ProcessName,
                                 StartTime = process.StartTime,
-                                ExecutablePath = process.MainModule?.FileName ?? string.Empty,
+                                ExecutablePath = GetProcessExecutablePath(process),
                             };
                             activeProcesses.Add(processInfo);
                         }
                         else
                         {
                             // Remove exited processes from tracking
-                            _managedProcesses.Remove(kvp.Key);
+                            _managedProcesses.TryRemove(kvp.Key, out _);
                         }
                     }
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Failed to get info for managed process {ProcessId}", kvp.Key);
-                        _managedProcesses.Remove(kvp.Key);
+                        _managedProcesses.TryRemove(kvp.Key, out _);
                     }
                 }
 
-                return Task.FromResult(ProcessOperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess(activeProcesses.AsReadOnly()));
+                return Task.FromResult(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess(activeProcesses.AsReadOnly()));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get active processes");
-                return Task.FromResult(ProcessOperationResult<IReadOnlyList<GameProcessInfo>>.CreateFailure($"Failed to get active processes: {ex.Message}"));
+                return Task.FromResult(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateFailure($"Failed to get active processes: {ex.Message}"));
+            }
+        }
+
+        private string GetProcessExecutablePath(Process process)
+        {
+            try
+            {
+                return process.MainModule?.FileName ?? string.Empty;
+            }
+            catch (Win32Exception)
+            {
+                // Cannot access MainModule due to security restrictions
+                return string.Empty;
+            }
+            catch (InvalidOperationException)
+            {
+                // Process has exited
+                return string.Empty;
             }
         }
     }

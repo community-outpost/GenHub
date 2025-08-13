@@ -53,7 +53,6 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        const long LinkOverheadBytes = 1024L; // Overhead for symlinks
         long totalUsage = 0;
 
         foreach (var manifest in configuration.Manifests)
@@ -118,11 +117,12 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                 FileOperationsService.EnsureDirectoryExists(destinationPath);
 
                 // Handle different source types
-                if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                 {
                     // Use CAS content
+                    var shouldCopy = ShouldCopyFile(file);
                     await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                    if (isEssential)
+                    if (shouldCopy)
                     {
                         copiedFiles++;
                         totalBytesProcessed += file.Size;
@@ -271,22 +271,8 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
     /// <returns>True if the file should be copied, false if it should be symlinked.</returns>
     private static bool ShouldCopyFile(ManifestFile file)
     {
-        // Copy executable files for compatibility
-        if (file.IsExecutable)
-            return true;
-
-        // Copy small configuration files
-        if (file.Size < 1024 * 1024) // Files smaller than 1MB
-            return true;
-
-        // Copy files that commonly need write access
-        var extension = Path.GetExtension(file.RelativePath).ToLowerInvariant();
-        var copyExtensions = new[] { ".ini", ".cfg", ".txt", ".xml", ".json" };
-        if (copyExtensions.Contains(extension))
-            return true;
-
-        // Everything else gets symlinked
-        return false;
+        return WorkspaceStrategyBase<HybridCopySymlinkStrategy>
+            .IsEssentialFile(file.RelativePath, file.Size);
     }
 
     private bool ShouldCopyFile(string targetPath)

@@ -198,7 +198,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         Id = "temp-validation",
                         GameVersion = new GameVersion { Id = "temp" },
-                        Manifests = [new ContentManifest { Files = [] }],
+                        Manifests = new List<ContentManifest> { new ContentManifest { Files = new List<ManifestFile>() } },
                         WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
                         BaseInstallationPath = sourcePath,
                         Strategy = (WorkspaceStrategy)strategyType,
@@ -267,7 +267,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                 {
                     issues.Add(new ValidationIssue
                     {
-                        IssueType = ValidationIssueType.FileMissing,
+                        IssueType = ValidationIssueType.MissingFile,
                         Severity = ValidationSeverity.Error,
                         Message = $"Executable file not found: {executablePath}",
                         Path = executablePath,
@@ -282,8 +282,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                         {
                             var fileInfo = new FileInfo(executablePath);
 
-                            // On Unix, we can check if the file has any execute bits set this is a simplified check.
-                            // TODO make this more robust to check whether a file can be executed on linux
+                            // Check if file exists and has execute permission for the current user
                             if (!fileInfo.Exists)
                             {
                                 issues.Add(new ValidationIssue
@@ -293,6 +292,21 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                                     Message = $"Cannot verify execute permissions for: {executablePath}",
                                     Path = executablePath,
                                 });
+                            }
+                            else
+                            {
+                                // Properly check execute permission using Unix stat
+                                // TODO: Make this a platform specific validation
+                                if (!HasUnixExecutePermission(executablePath))
+                                {
+                                    issues.Add(new ValidationIssue
+                                    {
+                                        IssueType = ValidationIssueType.AccessDenied,
+                                        Severity = ValidationSeverity.Warning,
+                                        Message = $"File is not marked as executable: {executablePath}",
+                                        Path = executablePath,
+                                    });
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -309,7 +323,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             {
                 issues.Add(new ValidationIssue
                 {
-                    IssueType = ValidationIssueType.FileCorrupted,
+                    IssueType = ValidationIssueType.CorruptedFile,
                     Severity = ValidationSeverity.Warning,
                     Message = $"File count mismatch. Expected: {workspaceInfo.FileCount}, Actual: {actualFileCount}",
                     Path = workspaceInfo.WorkspacePath,
@@ -348,6 +362,58 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         {
             _logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
             return OperationResult<ValidationResult>.CreateFailure($"Workspace validation failed: {ex.Message}");
+        }
+    }
+
+    private static bool IsRunningAsAdministrator()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // On Unix systems, check if running as root
+            return Environment.UserName == "root";
+        }
+
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // Add this helper method to check Unix execute permission
+    private static bool HasUnixExecutePermission(string filePath)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                return true;
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "/bin/sh",
+                Arguments = $"-c \"[ -x '{filePath.Replace("'", "'\\''")}' ]\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+
+            if (proc == null)
+                return false;
+
+            proc.WaitForExit();
+            return proc.ExitCode == 0;
+        }
+        catch
+        {
+            // If all checks fail, assume not executable
+            return false;
         }
     }
 
@@ -391,25 +457,5 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
 
         await Task.CompletedTask;
-    }
-
-    private static bool IsRunningAsAdministrator()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            // On Unix systems, check if running as root
-            return Environment.UserName == "root";
-        }
-
-        try
-        {
-            using var identity = WindowsIdentity.GetCurrent();
-            var principal = new WindowsPrincipal(identity);
-            return principal.IsInRole(WindowsBuiltInRole.Administrator);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
     }
 }

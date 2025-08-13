@@ -114,7 +114,12 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
 
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                FileOperationsService.EnsureDirectoryExists(destinationPath);
+                // Ensure the directory (not the full file path) exists
+                var destinationDirectory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(destinationDirectory))
+                {
+                    FileOperationsService.EnsureDirectoryExists(destinationDirectory);
+                }
 
                 // Handle different source types
                 if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
