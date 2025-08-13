@@ -29,7 +29,7 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly ConcurrentDictionary<string, IContentResolver> _resolvers;
     private readonly IDynamicContentCache _cache;
     private readonly IContentValidator _contentValidator;
-    private readonly IGameManifestPool _manifestPool;
+    private readonly IContentManifestPool _manifestPool;
     private readonly object _providerLock = new object();
 
     /// <summary>
@@ -49,7 +49,7 @@ public class ContentOrchestrator : IContentOrchestrator
         IEnumerable<IContentResolver> resolvers,
         IDynamicContentCache cache,
         IContentValidator contentValidator,
-        IGameManifestPool manifestPool)
+        IContentManifestPool manifestPool)
     {
         _logger = logger;
         _providers = new ConcurrentBag<IContentProvider>(providers);
@@ -457,7 +457,11 @@ public class ContentOrchestrator : IContentOrchestrator
                 });
 
                 // Store the prepared manifest in the pool
-                await _manifestPool.AddManifestAsync(prepareResult.Data, cancellationToken);
+                var addResult = await _manifestPool.AddManifestAsync(prepareResult.Data, cancellationToken);
+                if (!addResult.Success)
+                {
+                    return ContentOperationResult<ContentManifest>.CreateFailure($"Failed to add manifest to pool: {addResult.FirstError}");
+                }
 
                 progress?.Report(new ContentAcquisitionProgress
                 {
@@ -497,8 +501,13 @@ public class ContentOrchestrator : IContentOrchestrator
     public async Task<ContentOperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
         CancellationToken cancellationToken = default)
     {
-        var manifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
-        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
+        var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (!manifestsResult.Success)
+        {
+            return ContentOperationResult<IEnumerable<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
+        }
+
+        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? Enumerable.Empty<ContentManifest>());
     }
 
     /// <summary>

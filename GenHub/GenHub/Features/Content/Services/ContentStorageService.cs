@@ -71,14 +71,14 @@ public class ContentStorageService : IContentStorageService
         Path.Combine(_storageRoot, "Data", manifestId); // This path for non-CAS content.
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<ContentManifest>> StoreContentAsync(
+    public async Task<OperationResult<ContentManifest>> StoreContentAsync(
         ContentManifest manifest,
         string sourceDirectory,
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(sourceDirectory))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure(
+            return OperationResult<ContentManifest>.CreateFailure(
                 $"Source directory does not exist: {sourceDirectory}");
         }
 
@@ -96,7 +96,7 @@ public class ContentStorageService : IContentStorageService
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
             _logger.LogInformation("Successfully stored content for manifest {ManifestId} in CAS", manifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateSuccess(updatedManifest);
+            return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);
         }
         catch (Exception ex)
         {
@@ -112,12 +112,12 @@ public class ContentStorageService : IContentStorageService
                 _logger.LogWarning(cleanupEx, "Failed to cleanup manifest after storage failure for {ManifestId}", manifest.Id);
             }
 
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Storage failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Storage failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<string>> RetrieveContentAsync(
+    public async Task<OperationResult<string>> RetrieveContentAsync(
         string manifestId,
         string targetDirectory,
         CancellationToken cancellationToken = default)
@@ -128,58 +128,74 @@ public class ContentStorageService : IContentStorageService
         var manifestPath = GetManifestStoragePath(manifestId);
         if (!File.Exists(manifestPath))
         {
-            return ContentOperationResult<string>.CreateFailure($"Manifest not found: {manifestId}");
+            return OperationResult<string>.CreateFailure($"Manifest not found: {manifestId}");
         }
 
-        var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-        var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson);
-
-        if (manifest == null)
+        try
         {
-            return ContentOperationResult<string>.CreateFailure($"Could not deserialize manifest: {manifestId}");
-        }
+            var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
+            var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson);
 
-        foreach (var file in manifest.Files.Where(f => !string.IsNullOrEmpty(f.Hash)))
-        {
-            var destPath = Path.Combine(targetDirectory, file.RelativePath);
-            var destDir = Path.GetDirectoryName(destPath);
-            if (destDir != null)
+            if (manifest == null)
             {
-                Directory.CreateDirectory(destDir);
+                return OperationResult<string>.CreateFailure($"Could not deserialize manifest: {manifestId}");
             }
 
-            var result = await _casService.GetContentPathAsync(file.Hash, cancellationToken);
-            if (result.Success && result.Data != null)
+            foreach (var file in manifest.Files.Where(f => !string.IsNullOrEmpty(f.Hash)))
             {
-                File.Copy(result.Data, destPath, true);
+                var destPath = Path.Combine(targetDirectory, file.RelativePath);
+                var destDir = Path.GetDirectoryName(destPath);
+                if (destDir != null)
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
+                var result = await _casService.GetContentPathAsync(file.Hash, cancellationToken);
+                if (result.Success && result.Data != null)
+                {
+                    File.Copy(result.Data, destPath, true);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to retrieve {RelativePath} from CAS for manifest {ManifestId}", file.RelativePath, manifestId);
+                }
+            }
+
+            return OperationResult<string>.CreateSuccess(targetDirectory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve content for manifest {ManifestId}", manifestId);
+            return OperationResult<string>.CreateFailure($"Retrieval failed: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var manifestPath = GetManifestStoragePath(manifestId);
+            bool exists = File.Exists(manifestPath);
+
+            if (exists)
+            {
+                return await Task.FromResult(OperationResult<bool>.CreateSuccess(true));
             }
             else
             {
-                _logger.LogWarning("Failed to retrieve {RelativePath} from CAS for manifest {ManifestId}", file.RelativePath, manifestId);
+                return await Task.FromResult(OperationResult<bool>.CreateSuccess(false));
             }
         }
-
-        return ContentOperationResult<string>.CreateSuccess(targetDirectory);
-    }
-
-    /// <inheritdoc/>
-    public async Task<ContentOperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
-    {
-        var manifestPath = GetManifestStoragePath(manifestId);
-
-        bool exists = File.Exists(manifestPath);
-        if (exists)
+        catch (Exception ex)
         {
-            return await Task.FromResult(ContentOperationResult<bool>.CreateSuccess(true));
-        }
-        else
-        {
-            return await Task.FromResult(ContentOperationResult<bool>.CreateFailure($"Content manifest not found for manifest {manifestId}"));
+            _logger.LogError(ex, "Failed to check if content is stored for manifest {ManifestId}", manifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to check storage status: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
     {
         // Note: This only removes the manifest. It does NOT trigger CAS garbage collection.
         // Garbage collection is a separate maintenance task.
@@ -191,15 +207,15 @@ public class ContentStorageService : IContentStorageService
                 () =>
             {
                 FileOperationsService.DeleteFileIfExists(manifestPath);
-            });
+            }, cancellationToken);
 
             _logger.LogInformation("Removed manifest for {ManifestId}. Associated CAS content will be cleaned up by garbage collection.", manifestId);
-            return ContentOperationResult<bool>.CreateSuccess(true);
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove manifest for {ManifestId}", manifestId);
-            return ContentOperationResult<bool>.CreateFailure($"Removal failed: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Removal failed: {ex.Message}");
         }
     }
 

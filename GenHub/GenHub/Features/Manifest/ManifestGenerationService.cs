@@ -125,7 +125,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 $"{gameType}_{version}_{installationType}",
                 $"{gameType} {version}",
                 version)
-            .WithContentType(ContentType.BaseGame, gameType)
+            .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(
                 "EA Games",
                 "https://www.ea.com",
@@ -136,7 +136,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.BaseGame);
+        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);
 
         return builder;
     }
