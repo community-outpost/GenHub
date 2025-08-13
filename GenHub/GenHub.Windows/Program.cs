@@ -55,9 +55,17 @@ public class Program
 
             var services = new ServiceCollection();
 
-            // Register shared services and Windows-specific services
-            services.ConfigureApplicationServices((s, configProvider) =>
-                s.AddWindowsServices(configProvider));
+            try
+            {
+                // Register shared services and Windows-specific services
+                services.ConfigureApplicationServices((s, configProvider) =>
+                    s.AddWindowsServices(configProvider));
+            }
+            catch (Exception configEx)
+            {
+                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                throw;
+            }
 
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;

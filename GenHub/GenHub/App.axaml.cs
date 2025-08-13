@@ -18,6 +18,7 @@ public partial class App : Application
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
+    private readonly IConfigurationProviderService _configurationProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -27,6 +28,7 @@ public partial class App : Application
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
+        _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
     }
 
     /// <summary>
@@ -59,13 +61,13 @@ public partial class App : Application
 
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
-        if (_userSettingsService == null) return;
+        if (_configurationProvider == null) return;
         try
         {
-            var settings = _userSettingsService.GetSettings();
-            mainWindow.Width = settings.WindowWidth;
-            mainWindow.Height = settings.WindowHeight;
-            if (settings.IsMaximized)
+            // Use configuration provider which properly handles defaults
+            mainWindow.Width = _configurationProvider.GetWindowWidth();
+            mainWindow.Height = _configurationProvider.GetWindowHeight();
+            if (_configurationProvider.GetIsWindowMaximized())
             {
                 mainWindow.WindowState = Avalonia.Controls.WindowState.Maximized;
             }

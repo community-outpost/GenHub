@@ -280,6 +280,10 @@ public class UserSettingsService : IUserSettingsService
             "downloadTimeoutSeconds" => nameof(UserSettings.DownloadTimeoutSeconds),
             "downloadUserAgent" => nameof(UserSettings.DownloadUserAgent),
             "settingsFilePath" => nameof(UserSettings.SettingsFilePath),
+            "cachePath" => nameof(UserSettings.CachePath),
+            "contentStoragePath" => nameof(UserSettings.ContentStoragePath),
+            "contentDirectories" => nameof(UserSettings.ContentDirectories),
+            "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
             _ => string.Empty
         };
     }

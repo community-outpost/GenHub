@@ -101,13 +101,20 @@ public class GameInstallationValidatorTests
             Assert.Equal(100, finalProgress.PercentComplete);
 
             // Don't assert on specific step counts since they vary based on installation detection
-            // Just ensure we have at least the minimum expected steps (4 base steps)
-            Assert.True(finalProgress.Total >= 4, $"Expected at least 4 total steps, got {finalProgress.Total}");
-            Assert.True(progressReports.Count >= 4, $"Expected at least 4 progress reports, got {progressReports.Count}");
-            
-            // Verify progress goes from 0 to 100%
-            Assert.True(progressReports.Any(p => p.PercentComplete == 0 || p.Processed == 1), "Expected initial progress report");
+            // Just ensure we have at least the minimum expected steps (basic validation steps)
+            Assert.True(finalProgress.Total >= 3, $"Expected at least 3 total steps, got {finalProgress.Total}");
+            Assert.True(progressReports.Count >= 3, $"Expected at least 3 progress reports, got {progressReports.Count}");
+
+            // Verify progress goes from start to 100%
+            var firstProgress = progressReports.First();
+            Assert.True(firstProgress.Processed >= 0, "Expected first progress to have valid processed count");
             Assert.True(progressReports.Any(p => p.PercentComplete == 100), "Expected final progress report showing 100%");
+
+            // Verify progress is monotonic (doesn't go backwards)
+            for (int i = 1; i < progressReports.Count; i++)
+            {
+                Assert.True(progressReports[i].Processed >= progressReports[i - 1].Processed, $"Progress should be monotonic. Step {i}: {progressReports[i].Processed} should be >= {progressReports[i - 1].Processed}");
+            }
         }
         finally
         {

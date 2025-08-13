@@ -32,8 +32,7 @@ public static class ContentPipelineModule
         // Register GitHub API client
         services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
 
-        // Register content providers (these will get IContentValidator injected)
-        services.AddTransient<BaseContentProvider>();
+        // Register concrete content providers only
         services.AddTransient<IContentProvider, GitHubContentProvider>();
         services.AddTransient<IContentProvider, CNCLabsContentProvider>();
         services.AddTransient<IContentProvider, ModDBContentProvider>();

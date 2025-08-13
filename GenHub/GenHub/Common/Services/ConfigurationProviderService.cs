@@ -178,18 +178,24 @@ public class ConfigurationProviderService : IConfigurationProviderService
     public double GetWindowWidth()
     {
         var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.WindowWidth)) && s.WindowWidth > 0
-            ? s.WindowWidth
-            : _appConfig.GetDefaultWindowWidth();
+        if (s.IsExplicitlySet(nameof(UserSettings.WindowWidth)) && s.WindowWidth > 0)
+        {
+            return s.WindowWidth;
+        }
+
+        return _appConfig.GetDefaultWindowWidth();
     }
 
     /// <inheritdoc />
     public double GetWindowHeight()
     {
         var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.WindowHeight)) && s.WindowHeight > 0
-            ? s.WindowHeight
-            : _appConfig.GetDefaultWindowHeight();
+        if (s.IsExplicitlySet(nameof(UserSettings.WindowHeight)) && s.WindowHeight > 0)
+        {
+            return s.WindowHeight;
+        }
+
+        return _appConfig.GetDefaultWindowHeight();
     }
 
     /// <inheritdoc />

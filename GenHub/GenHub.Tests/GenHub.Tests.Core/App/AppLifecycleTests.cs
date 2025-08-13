@@ -47,8 +47,12 @@ public class AppLifecycleTests
     {
         // Arrange
         var services = new ServiceCollection();
-        var mockConfigService = new Mock<IUserSettingsService>();
-        services.AddSingleton(mockConfigService.Object);
+        var mockUserSettingsService = new Mock<IUserSettingsService>();
+        var mockConfigurationProvider = new Mock<IConfigurationProviderService>();
+
+        services.AddSingleton(mockUserSettingsService.Object);
+        services.AddSingleton(mockConfigurationProvider.Object);
+
         var serviceProvider = services.BuildServiceProvider();
 
         // Act & Assert
