@@ -18,8 +18,8 @@ public interface IWorkspaceManager
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The prepared <see cref="WorkspaceInfo"/> for the specified configuration.</returns>
-    Task<WorkspaceInfo> PrepareWorkspaceAsync(WorkspaceConfiguration configuration, IProgress<WorkspacePreparationProgress>? progress = null, CancellationToken cancellationToken = default);
+    /// <returns>An operation result containing the prepared workspace information.</returns>
+    Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceAsync(WorkspaceConfiguration configuration, IProgress<WorkspacePreparationProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all prepared workspaces.
