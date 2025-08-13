@@ -29,6 +29,11 @@ public class GitHubRelease
     public string Body { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the author of the release.
+    /// </summary>
+    public string Author { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the HTML URL for the release.
     /// </summary>
     public string HtmlUrl { get; set; } = string.Empty;

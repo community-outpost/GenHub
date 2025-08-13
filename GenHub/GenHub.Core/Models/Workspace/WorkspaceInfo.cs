@@ -1,5 +1,6 @@
 using System;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Validation;
 
 namespace GenHub.Core.Models.Workspace;
 
@@ -19,6 +20,16 @@ public class WorkspaceInfo
 
     /// <summary>Gets or sets the workspace strategy used.</summary>
     public WorkspaceStrategy Strategy { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the workspace preparation was successful.
+    /// </summary>
+    public bool Success { get; set; }
+
+    /// <summary>
+    /// Gets or sets a list of validation issues or errors encountered during preparation.
+    /// </summary>
+    public List<ValidationIssue> ValidationIssues { get; set; } = [];
 
     /// <summary>Gets or sets the creation timestamp.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

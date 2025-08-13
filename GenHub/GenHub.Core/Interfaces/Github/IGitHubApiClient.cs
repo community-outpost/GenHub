@@ -22,6 +22,20 @@ public interface IGitHubApiClient
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a specific release by tag from the specified repository.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repositoryName">The repository name.</param>
+    /// <param name="tag">The release tag.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The GitHub release with the specified tag.</returns>
+    Task<GitHubRelease> GetReleaseByTagAsync(
+        string owner,
+        string repositoryName,
+        string tag,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Sets the authentication token for GitHub API requests.
     /// </summary>
     /// <param name="token">The GitHub token.</param>
