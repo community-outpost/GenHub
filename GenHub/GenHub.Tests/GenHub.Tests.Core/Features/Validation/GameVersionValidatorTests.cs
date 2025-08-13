@@ -1,7 +1,5 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
@@ -22,6 +20,7 @@ public class GameVersionValidatorTests
     private readonly Mock<ILogger<GameVersionValidator>> _loggerMock = new();
     private readonly Mock<IManifestProvider> _manifestProviderMock = new();
     private readonly Mock<IContentValidator> _contentValidatorMock = new();
+    private readonly Mock<IFileHashProvider> _hashProviderMock = new();
     private readonly GameVersionValidator _validator;
 
     /// <summary>
@@ -35,7 +34,11 @@ public class GameVersionValidatorTests
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
-        _validator = new GameVersionValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object);
+        _validator = new GameVersionValidator(
+            _loggerMock.Object,
+            _manifestProviderMock.Object,
+            _contentValidatorMock.Object,
+            _hashProviderMock.Object);
     }
 
     /// <summary>

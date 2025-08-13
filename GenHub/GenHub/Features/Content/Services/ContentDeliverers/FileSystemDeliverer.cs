@@ -23,16 +23,22 @@ public class FileSystemDeliverer : IContentDeliverer
 {
     private readonly ILogger<FileSystemDeliverer> _logger;
     private readonly IConfigurationProviderService _configProvider;
+    private readonly IFileHashProvider _hashProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileSystemDeliverer"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="configProvider">The configuration provider.</param>
-    public FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider)
+    /// <param name="hashProvider">The file hash provider.</param>
+    public FileSystemDeliverer(
+        ILogger<FileSystemDeliverer> logger,
+        IConfigurationProviderService configProvider,
+        IFileHashProvider hashProvider)
     {
         _logger = logger;
         _configProvider = configProvider;
+        _hashProvider = hashProvider;
     }
 
     /// <inheritdoc />
@@ -54,7 +60,7 @@ public class FileSystemDeliverer : IContentDeliverer
             return false;
 
         return manifest.Files.All(f =>
-            f.SourceType == ManifestFileSourceType.Content);
+            f.SourceType == ContentSourceType.ContentAddressable);
     }
 
     /// <inheritdoc />
@@ -97,7 +103,7 @@ public class FileSystemDeliverer : IContentDeliverer
                     RelativePath = file.RelativePath,
                     Size = new FileInfo(sourcePath).Length,
                     Hash = file.Hash,
-                    SourceType = ManifestFileSourceType.Content,
+                    SourceType = ContentSourceType.ContentAddressable,
                     IsRequired = file.IsRequired,
                     SourcePath = sourcePath,
                 });
@@ -107,7 +113,8 @@ public class FileSystemDeliverer : IContentDeliverer
 
             // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
-                LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>());
+                LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
+                _hashProvider);
 
             manifestBuilder
                 .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
@@ -143,7 +150,7 @@ public class FileSystemDeliverer : IContentDeliverer
             {
                 await manifestBuilder.AddFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    ContentSourceType.ContentAddressable,
                     file.Hash ?? string.Empty,
                     file.IsExecutable,
                     file.Permissions);

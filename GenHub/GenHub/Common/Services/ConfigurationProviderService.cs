@@ -4,6 +4,7 @@ using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Common.Services;
@@ -238,6 +239,11 @@ public class ConfigurationProviderService : IConfigurationProviderService
             DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
             DownloadUserAgent = GetDownloadUserAgent(),
             SettingsFilePath = _userSettings.GetSettings().SettingsFilePath,
+            ContentDirectories = GetContentDirectories(),
+            GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
+            ContentStoragePath = GetContentStoragePath(),
+            CachePath = GetCacheDirectory(),
+            CasConfiguration = GetCasConfiguration(),
         };
     }
 
@@ -249,10 +255,17 @@ public class ConfigurationProviderService : IConfigurationProviderService
             s.ContentDirectories != null && s.ContentDirectories.Count > 0)
             return s.ContentDirectories;
 
+        var appDataPath = _appConfig.GetAppDataPath();
+        if (string.IsNullOrEmpty(appDataPath))
+        {
+            // Fallback if app data path is not available
+            return new List<string>();
+        }
+
         return new List<string>
         {
-            Path.Combine(_appConfig.GetAppDataPath(), "Manifests"),
-            Path.Combine(_appConfig.GetAppDataPath(), "CustomManifests"),
+            Path.Combine(appDataPath, "Manifests"),
+            Path.Combine(appDataPath, "CustomManifests"),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",
@@ -281,6 +294,20 @@ public class ConfigurationProviderService : IConfigurationProviderService
             return s.ContentStoragePath;
         }
 
-        return Path.Combine(_appConfig.GetAppDataPath(), "Content");
+        var appDataPath = _appConfig.GetAppDataPath();
+        if (string.IsNullOrEmpty(appDataPath))
+        {
+            // Fallback if app data path is not available
+            return Path.Combine(Path.GetTempPath(), "GenHub", "Content");
+        }
+
+        return Path.Combine(appDataPath, "Content");
+    }
+
+    /// <inheritdoc />
+    public CasConfiguration GetCasConfiguration()
+    {
+        var s = _userSettings.GetSettings();
+        return s.CasConfiguration;
     }
 }

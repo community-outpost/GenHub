@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -5,25 +9,22 @@ using GenHub.Core.Models.Results;
 namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
-/// Represents a complete content source that orchestrates discovery, resolution, and delivery
-/// for a specific content provider (e.g., "GitHub", "ModDB", "Local Files").
-/// This is a high-level interface that composes the specialized pipeline components.
+/// Defines a contract for a content provider that can discover, resolve, and prepare content.
 /// </summary>
 public interface IContentProvider : IContentSource
 {
     /// <summary>
-    /// Searches for content using this provider's complete pipeline.
-    /// This orchestrates discovery -> resolution -> validation.
+    /// Searches for content using the provider's pipeline.
     /// </summary>
-    /// <param name="query">The search criteria.</param>
+    /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>Fully resolved content search results ready for installation.</returns>
+    /// <returns>A list of discovered and resolved content items.</returns>
     Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a complete manifest for specific content, handling the full pipeline if needed.
+    /// Gets a fully resolved manifest for a specific content ID.
     /// </summary>
     /// <param name="contentId">The unique identifier of the content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -33,12 +34,11 @@ public interface IContentProvider : IContentSource
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Prepares content for installation by handling acquisition and delivery.
-    /// This orchestrates the full content delivery pipeline.
+    /// Prepares content for use by downloading, extracting, and validating it.
     /// </summary>
     /// <param name="manifest">The manifest describing the content to prepare.</param>
-    /// <param name="targetDirectory">The directory where content should be prepared.</param>
-    /// <param name="progress">Optional progress reporting.</param>
+    /// <param name="targetDirectory">The directory to prepare the content in.</param>
+    /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The final manifest with all content ready for workspace preparation.</returns>
     Task<ContentOperationResult<ContentManifest>> PrepareContentAsync(

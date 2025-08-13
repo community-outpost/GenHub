@@ -30,6 +30,14 @@ public interface IDynamicContentCache
     Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Removes an item from the cache.
+    /// </summary>
+    /// <param name="key">The cache key to remove.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task RemoveAsync(string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Invalidates cache entries matching a key or pattern.
     /// </summary>
     /// <param name="pattern">The key or pattern to invalidate.</param>

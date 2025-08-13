@@ -36,6 +36,7 @@ public static class AppServices
         services.AddManifestServices();
         services.AddWorkspaceServices();
         services.AddContentPipelineServices();
+        services.AddCasServices();
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services, configProvider);

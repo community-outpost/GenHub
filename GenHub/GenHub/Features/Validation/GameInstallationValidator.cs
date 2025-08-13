@@ -1,14 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Validation;
@@ -29,11 +30,13 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
     /// <param name="logger">The logger instance.</param>
     /// <param name="manifestProvider">The manifest provider.</param>
     /// <param name="contentValidator">Content validator for core validation logic.</param>
+    /// <param name="hashProvider">File hash provider for validation.</param>
     public GameInstallationValidator(
         ILogger<GameInstallationValidator> logger,
         IManifestProvider manifestProvider,
-        IContentValidator contentValidator)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
+        IContentValidator contentValidator,
+        IFileHashProvider hashProvider)
+        : base(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
@@ -64,14 +67,7 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
         _logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
         var issues = new List<ValidationIssue>();
 
-        // Calculate total steps dynamically based on installation
-        int totalSteps = 4; // Base steps: manifest fetch, manifest validation, integrity, extraneous files
-        if (installation.HasGenerals) totalSteps++;
-        if (installation.HasZeroHour) totalSteps++;
-
-        int currentStep = 0;
-
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Fetching manifest"));
+        progress?.Report(new ValidationProgress(1, 6, "Fetching manifest"));
 
         // Fetch manifest for this installation type
         var manifest = await _manifestProvider.GetManifestAsync(installation, cancellationToken);
@@ -79,45 +75,37 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
         if (manifest == null)
         {
             issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = installation.InstallationPath, Message = "Manifest not found for installation." });
-            progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
+            progress?.Report(new ValidationProgress(6, 6, "Validation complete"));
             return new ValidationResult(installation.InstallationPath, issues);
         }
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
+        progress?.Report(new ValidationProgress(2, 6, "Core manifest validation"));
 
         // Use ContentValidator for core validation
         var manifestValidationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Content integrity validation"));
+        progress?.Report(new ValidationProgress(3, 6, "Content integrity validation"));
 
         // Use ContentValidator for file integrity
         var integrityValidationResult = await _contentValidator.ValidateContentIntegrityAsync(installation.InstallationPath, manifest, cancellationToken);
         issues.AddRange(integrityValidationResult.Issues);
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Detecting extraneous files"));
+        progress?.Report(new ValidationProgress(4, 6, "Detecting extraneous files"));
 
         var extraneousFilesResult = await _contentValidator.DetectExtraneousFilesAsync(installation.InstallationPath, manifest, cancellationToken);
         issues.AddRange(extraneousFilesResult.Issues);
+
+        progress?.Report(new ValidationProgress(5, 6, "Installation specific checks"));
 
         // Installation-specific validations (directories, etc.)
         var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();
         if (requiredDirs.Any())
         {
-            if (installation.HasGenerals)
-            {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Generals directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.GeneralsPath, requiredDirs, cancellationToken));
-            }
-
-            if (installation.HasZeroHour)
-            {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Zero Hour directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.ZeroHourPath, requiredDirs, cancellationToken));
-            }
+            issues.AddRange(await ValidateDirectoriesAsync(installation.InstallationPath, requiredDirs, cancellationToken));
         }
 
-        progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
+        progress?.Report(new ValidationProgress(6, 6, "Validation complete"));
 
         _logger.LogInformation("Installation validation for '{Path}' completed with {Count} issues.", installation.InstallationPath, issues.Count);
         return new ValidationResult(installation.InstallationPath, issues);

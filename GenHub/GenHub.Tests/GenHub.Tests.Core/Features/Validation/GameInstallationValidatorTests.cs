@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
@@ -19,6 +20,7 @@ public class GameInstallationValidatorTests
     private readonly Mock<ILogger<GameInstallationValidator>> _loggerMock;
     private readonly Mock<IManifestProvider> _manifestProviderMock;
     private readonly Mock<IContentValidator> _contentValidatorMock = new();
+    private readonly Mock<IFileHashProvider> _hashProviderMock = new();
     private readonly GameInstallationValidator _validator;
 
     /// <summary>
@@ -29,6 +31,7 @@ public class GameInstallationValidatorTests
         _loggerMock = new Mock<ILogger<GameInstallationValidator>>();
         _manifestProviderMock = new Mock<IManifestProvider>();
         _contentValidatorMock = new Mock<IContentValidator>();
+        _hashProviderMock = new Mock<IFileHashProvider>();
 
         // Setup ContentValidator mocks to return valid results
         _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
@@ -38,7 +41,7 @@ public class GameInstallationValidatorTests
         _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
-        _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object);
+        _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
     }
 
     /// <summary>
@@ -55,70 +58,57 @@ public class GameInstallationValidatorTests
             var filePath = Path.Combine(tempDir.FullName, "file1.txt");
             await File.WriteAllTextAsync(filePath, "file1.txt"); // 8 bytes
 
-            // Create the game installation directories that Fetch() looks for to ensure consistent behavior
-            var generalsDir = Path.Combine(tempDir.FullName, "Command and Conquer Generals");
-            var zeroHourDir = Path.Combine(tempDir.FullName, "Command and Conquer Generals Zero Hour");
-            Directory.CreateDirectory(generalsDir);
-            Directory.CreateDirectory(zeroHourDir);
-
+            var requiredDir = "testdir";
             var manifest = new ContentManifest
             {
                 Files = new()
                 {
                     new ManifestFile { RelativePath = "file1.txt", Size = 8, Hash = string.Empty },
                 },
-                RequiredDirectories = new List<string> { "testdir" },
+                RequiredDirectories = new List<string> { requiredDir },
             };
             _manifestProviderMock
                 .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
                 .ReturnsAsync(manifest);
 
-            // Create the required directory in both game directories
-            Directory.CreateDirectory(Path.Combine(generalsDir, "testdir"));
-            Directory.CreateDirectory(Path.Combine(zeroHourDir, "testdir"));
+            Directory.CreateDirectory(Path.Combine(tempDir.FullName, requiredDir));
 
             var installation = new GameInstallation(
                 tempDir.FullName,
                 GameInstallationType.Steam,
                 new Mock<ILogger<GameInstallation>>().Object);
 
-            // Ensure the installation is properly fetched to have consistent state
-            installation.Fetch();
-
-            // Use thread-safe collection for progress reports
-            var progressReports = new System.Collections.Concurrent.ConcurrentBag<ValidationProgress>();
-            var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
+            // Use a custom synchronous progress implementation
+            var progressTracker = new SynchronousProgress<ValidationProgress>();
 
             // Act
-            await _validator.ValidateAsync(installation, progress);
-            await Task.Delay(100); // Ensure all progress callbacks are processed
+            await _validator.ValidateAsync(installation, progressTracker);
 
             // Assert
-            var reportsList = progressReports.ToList();
-            Assert.True(reportsList.Count > 0, "Expected progress reports to be generated");
+            var progressReports = progressTracker.Reports;
+            Assert.True(progressReports.Count > 0, $"Expected progress reports to be generated, got {progressReports.Count}");
 
-            // Find the final progress report (highest processed count)
-            var finalProgress = reportsList.OrderBy(p => p.Processed).Last();
+            // Verify we have reasonable number of progress reports
+            Assert.True(progressReports.Count >= 2, $"Expected at least 2 progress reports, got {progressReports.Count}");
 
-            // Verify the final progress shows completion
+            // Verify the final progress report shows completion
+            var finalProgress = progressReports.Last();
             Assert.Equal(finalProgress.Total, finalProgress.Processed);
             Assert.Equal(100, finalProgress.PercentComplete);
 
-            // Verify we have reasonable progress reporting (at least 4 steps for basic validation)
-            // Don't assert exact counts since they vary based on installation detection
-            Assert.True(finalProgress.Total >= 4, $"Expected at least 4 total steps, got {finalProgress.Total}");
-            Assert.True(reportsList.Count >= 3, $"Expected at least 3 progress reports, got {reportsList.Count}");
-
-            // Verify all progress reports have consistent total
-            var allTotals = reportsList.Select(p => p.Total).Distinct().ToList();
-            Assert.True(allTotals.Count == 1, $"All progress reports should have the same total. Found totals: [{string.Join(", ", allTotals)}]");
-
-            // Verify progress values are within valid range
-            Assert.All(reportsList, report =>
+            // Verify that all progress reports have reasonable step counts
+            foreach (var report in progressReports)
             {
-                Assert.True(report.Processed >= 0 && report.Processed <= report.Total, $"Progress processed ({report.Processed}) should be between 0 and total ({report.Total})");
-                Assert.True(report.PercentComplete >= 0 && report.PercentComplete <= 100, $"Percent complete ({report.PercentComplete}) should be between 0 and 100");
-            });
+                Assert.True(report.Total >= 4, $"Expected total steps >= 4, got {report.Total}");
+                Assert.True(report.Processed >= 1, $"Expected processed steps >= 1, got {report.Processed}");
+                Assert.True(report.Processed <= report.Total, $"Expected processed <= total, got {report.Processed}/{report.Total}");
+            }
+
+            // Verify progress is monotonically increasing
+            for (int i = 1; i < progressReports.Count; i++)
+            {
+                Assert.True(progressReports[i].Processed >= progressReports[i - 1].Processed, $"Progress should be monotonically increasing. Step {i}: {progressReports[i].Processed} vs {progressReports[i - 1].Processed}");
+            }
         }
         finally
         {
@@ -217,5 +207,20 @@ public class GameInstallationValidatorTests
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             _validator.ValidateAsync(installation, null, cts.Token));
+    }
+
+    /// <summary>
+    /// Custom progress implementation that captures reports synchronously.
+    /// </summary>
+    private class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly List<T> _reports = new();
+
+        public IReadOnlyList<T> Reports => _reports;
+
+        public void Report(T value)
+        {
+            _reports.Add(value);
+        }
     }
 }

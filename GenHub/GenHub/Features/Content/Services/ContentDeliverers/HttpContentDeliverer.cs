@@ -134,7 +134,7 @@ public class HttpContentDeliverer : IContentDeliverer
                 // Add the delivered file using the builder
                 await deliveredManifest.AddFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    ContentSourceType.ContentAddressable,
                     isExecutable: file.IsExecutable,
                     permissions: file.Permissions);
 
@@ -146,7 +146,7 @@ public class HttpContentDeliverer : IContentDeliverer
             {
                 await deliveredManifest.AddFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    ContentSourceType.ContentAddressable,
                     isExecutable: file.IsExecutable,
                     permissions: file.Permissions);
             }

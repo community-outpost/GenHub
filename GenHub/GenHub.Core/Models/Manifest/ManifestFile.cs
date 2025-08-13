@@ -4,7 +4,7 @@ using GenHub.Core.Models.Enums;
 namespace GenHub.Core.Models.Manifest;
 
 /// <summary>
-/// Enhanced file entry with advanced sourcing and handling options.
+/// Represents a file entry in a game manifest with content source information.
 /// </summary>
 public class ManifestFile
 {
@@ -13,6 +13,12 @@ public class ManifestFile
     /// </summary>
     [JsonPropertyName("relativePath")]
     public string RelativePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the source type of this file.
+    /// </summary>
+    [JsonPropertyName("sourceType")]
+    public ContentSourceType SourceType { get; set; } = ContentSourceType.Unknown;
 
     /// <summary>
     /// Gets or sets the size of the file in bytes.
@@ -25,11 +31,6 @@ public class ManifestFile
     /// </summary>
     [JsonPropertyName("hash")]
     public string Hash { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the source type for workspace preparation.
-    /// </summary>
-    public ManifestFileSourceType SourceType { get; set; }
 
     /// <summary>
     /// Gets or sets the file permissions for cross-platform compatibility.
@@ -61,14 +62,14 @@ public class ManifestFile
 
     /// <summary>
     /// Gets or sets the path to the patch file to be applied to the target file.
-    /// This is only used when SourceType is 'Patch'. The path is relative to the mod's own content root.
+    /// This is only used when SourceType is 'PatchFile'. The path is relative to the mod's own content root.
     /// </summary>
     [JsonPropertyName("patchSourceFile")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? PatchSourceFile { get; set; }
 
     /// <summary>
-    /// Gets or sets information for package extraction. This is only used when SourceType is 'Package'.
+    /// Gets or sets information for package extraction. This is only used when SourceType is 'ExtractedPackage'.
     /// </summary>
     [JsonPropertyName("packageInfo")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

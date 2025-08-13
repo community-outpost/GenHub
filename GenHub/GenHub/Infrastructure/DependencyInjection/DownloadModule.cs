@@ -20,17 +20,24 @@ public static class DownloadModule
         this IServiceCollection services,
         IConfigurationProviderService configProvider)
     {
-        services.AddSingleton<IDownloadService, DownloadService>();
+        // Register DownloadService and its interface
+        services.AddScoped<IDownloadService, DownloadService>();
+        services.AddScoped<DownloadService>();
 
-        var userAgent = configProvider.GetDownloadUserAgent();
-        var timeout = configProvider.GetDownloadTimeoutSeconds();
-
-        services.AddHttpClient<DownloadService>(client =>
+        // Register HttpClient with configuration from IConfigurationProviderService
+        services.AddHttpClient<DownloadService>((serviceProvider, client) =>
         {
-            client.DefaultRequestHeaders.Remove("User-Agent");
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-            client.Timeout = TimeSpan.FromSeconds(timeout);
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+
+            var userAgent = configProvider.GetDownloadUserAgent();
+            var timeoutSeconds = configProvider.GetDownloadTimeoutSeconds();
+
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? "GenHub/1.0");
+            client.Timeout = timeoutSeconds > 0
+                ? TimeSpan.FromSeconds(timeoutSeconds)
+                : TimeSpan.FromMinutes(30);
         });
+
         return services;
     }
 }

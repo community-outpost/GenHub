@@ -82,7 +82,15 @@ public class UserSettingsService : IUserSettingsService
 
         lock (_lock)
         {
-            applyChanges(_settings);
+            // Work on a copy to ensure exception safety
+            var json = JsonSerializer.Serialize(_settings, JsonOptions);
+            var settingsCopy = JsonSerializer.Deserialize<UserSettings>(json, JsonOptions)
+                               ?? new UserSettings();
+
+            applyChanges(settingsCopy);
+
+            // Only update internal state if no exception occurred
+            _settings = settingsCopy;
 
             // If the settings file path was changed, update the internal field
             if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
@@ -182,33 +190,11 @@ public class UserSettingsService : IUserSettingsService
     /// <param name="path">The path to set.</param>
     protected void SetSettingsFilePath(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
         _settingsFilePath = path;
         _settings = LoadSettings(path);
     }
 
-    private static string GetDefaultSettingsFilePath()
-    {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-
-        if (OperatingSystem.IsLinux())
-        {
-            var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-            appDataPath = !string.IsNullOrEmpty(xdgConfigHome)
-                ? xdgConfigHome
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Library",
-                "Application Support");
-        }
-
-        return Path.Combine(appDataPath, "GenHub", "settings.json");
-    }
-
-    // Remove the complex NormalizeAndValidateLocked method - move to SettingsProvider
     private static void NormalizeAndValidateLocked(UserSettings s, IAppConfiguration appConfig)
     {
         // Only apply basic validation/clamping, no defaults
@@ -284,6 +270,8 @@ public class UserSettingsService : IUserSettingsService
             "contentStoragePath" => nameof(UserSettings.ContentStoragePath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),
             "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
+            "casConfiguration" => nameof(UserSettings.CasConfiguration),
+            "explicitlySetProperties" => nameof(UserSettings.ExplicitlySetProperties),
             _ => string.Empty
         };
     }
@@ -333,6 +321,18 @@ public class UserSettingsService : IUserSettingsService
             _logger.LogError(ex, "JSON parsing error loading settings from {Path}, using defaults", path);
             return new UserSettings();
         }
+    }
+
+    private string GetDefaultSettingsFilePath()
+    {
+        if (_appConfig == null)
+        {
+            // Fallback for test scenarios where appConfig might not be provided
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appDataPath, "GenHub", "settings.json");
+        }
+
+        return Path.Combine(_appConfig.GetAppDataPath(), "settings.json");
     }
 
     private void InitializeSettings()

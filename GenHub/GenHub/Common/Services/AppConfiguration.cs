@@ -27,15 +27,43 @@ public class AppConfiguration : IAppConfiguration
     }
 
     /// <summary>
+    /// Gets the root application data path for GenHub.
+    /// </summary>
+    /// <returns>The root application data path as a string.</returns>
+    public string GetAppDataPath()
+    {
+        try
+        {
+            var configured = _configuration?.GetValue<string>("GenHub:AppDataPath");
+            return !string.IsNullOrEmpty(configured)
+                ? configured
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+        }
+    }
+
+    /// <summary>
     /// Gets the default workspace path for GenHub.
     /// </summary>
     /// <returns>The default workspace path as a string.</returns>
     public string GetDefaultWorkspacePath()
     {
-        var configured = _configuration.GetValue<string>("GenHub:Workspace:DefaultPath");
-        return !string.IsNullOrEmpty(configured)
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "Workspace");
+        try
+        {
+            var configured = _configuration?.GetValue<string>("GenHub:Workspace:DefaultPath");
+            return !string.IsNullOrEmpty(configured)
+                ? configured
+                : Path.Combine(GetAppDataPath(), "Workspace");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get configured workspace path, using default");
+            return Path.Combine(GetAppDataPath(), "Workspace");
+        }
     }
 
     /// <summary>
@@ -44,47 +72,55 @@ public class AppConfiguration : IAppConfiguration
     /// <returns>The default cache directory as a string.</returns>
     public string GetDefaultCacheDirectory()
     {
-        var configured = _configuration.GetValue<string>("GenHub:Cache:DefaultPath");
-        return !string.IsNullOrEmpty(configured)
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "Cache");
+        try
+        {
+            var configured = _configuration?.GetValue<string>("GenHub:Cache:DefaultPath");
+            return !string.IsNullOrEmpty(configured)
+                ? configured
+                : Path.Combine(GetAppDataPath(), "Cache");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get configured cache directory, using default");
+            return Path.Combine(GetAppDataPath(), "Cache");
+        }
     }
 
     /// <summary>
     /// Gets the default download timeout in seconds.
     /// </summary>
     /// <returns>The default download timeout in seconds.</returns>
-    public int GetDefaultDownloadTimeoutSeconds() => _configuration.GetValue("GenHub:Downloads:DefaultTimeoutSeconds", 600);
+    public int GetDefaultDownloadTimeoutSeconds() => _configuration?.GetValue("GenHub:Downloads:DefaultTimeoutSeconds", 600) ?? 600;
 
     /// <summary>
     /// Gets the default user agent string for downloads.
     /// </summary>
     /// <returns>The default user agent string.</returns>
-    public string GetDefaultUserAgent() => _configuration.GetValue("GenHub:Downloads:DefaultUserAgent", "GenHub/1.0");
+    public string GetDefaultUserAgent() => _configuration?.GetValue("GenHub:Downloads:DefaultUserAgent", "GenHub/1.0") ?? "GenHub/1.0";
 
     /// <summary>
     /// Gets the default log level for the application.
     /// </summary>
     /// <returns>The default <see cref="LogLevel"/>.</returns>
-    public LogLevel GetDefaultLogLevel() => _configuration.GetValue("Logging:LogLevel:Default", LogLevel.Information);
+    public LogLevel GetDefaultLogLevel() => _configuration?.GetValue("Logging:LogLevel:Default", LogLevel.Information) ?? LogLevel.Information;
 
     /// <summary>
     /// Gets the default maximum number of concurrent downloads.
     /// </summary>
     /// <returns>The default maximum number of concurrent downloads.</returns>
-    public int GetDefaultMaxConcurrentDownloads() => _configuration.GetValue("GenHub:Downloads:DefaultMaxConcurrent", 3);
+    public int GetDefaultMaxConcurrentDownloads() => _configuration?.GetValue("GenHub:Downloads:DefaultMaxConcurrent", 3) ?? 3;
 
     /// <summary>
     /// Gets the default download buffer size in bytes.
     /// </summary>
     /// <returns>The default download buffer size in bytes.</returns>
-    public int GetDefaultDownloadBufferSize() => _configuration.GetValue("GenHub:Downloads:DefaultBufferSize", 81920);
+    public int GetDefaultDownloadBufferSize() => _configuration?.GetValue("GenHub:Downloads:DefaultBufferSize", 81920) ?? 81920;
 
     /// <summary>
     /// Gets the default workspace strategy for GenHub.
     /// </summary>
     /// <returns>The default <see cref="WorkspaceStrategy"/>.</returns>
-    public WorkspaceStrategy GetDefaultWorkspaceStrategy() => _configuration.GetValue("GenHub:Workspace:DefaultStrategy", WorkspaceStrategy.HybridCopySymlink);
+    public WorkspaceStrategy GetDefaultWorkspaceStrategy() => _configuration?.GetValue("GenHub:Workspace:DefaultStrategy", WorkspaceStrategy.HybridCopySymlink) ?? WorkspaceStrategy.HybridCopySymlink;
 
     /// <summary>
     /// Gets the default UI theme for GenHub.
@@ -139,16 +175,4 @@ public class AppConfiguration : IAppConfiguration
     /// </summary>
     /// <returns>The maximum allowed download buffer size in bytes.</returns>
     public int GetMaxDownloadBufferSizeBytes() => _configuration.GetValue("GenHub:Downloads:Policy:MaxBufferSizeBytes", 1024 * 1024);
-
-    /// <summary>
-    /// Gets the application data path for GenHub.
-    /// </summary>
-    /// <returns>The application data path as a string.</returns>
-    public string GetAppDataPath()
-    {
-        var configured = _configuration.GetValue<string>("GenHub:AppDataPath");
-        return !string.IsNullOrEmpty(configured)
-            ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
-    }
 }
