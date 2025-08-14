@@ -30,6 +30,7 @@ public static class AppServices
 
         // Register remaining services
         services.AddGameDetectionService();
+        services.AddGameInstallationServices();
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
         services.AddValidationServices();
