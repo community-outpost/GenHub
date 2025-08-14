@@ -99,13 +99,23 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Initializing manifest cache...");
+
+        // First discover embedded manifests
         await DiscoverEmbeddedManifestsAsync(cancellationToken);
 
+        // Then discover from local filesystem locations
         var localManifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
             "Manifests");
-        await DiscoverFileSystemManifestsAsync([localManifestDir], cancellationToken);
+
+        // Also check for custom manifest directories
+        var customManifestDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "GenHub",
+            "CustomManifests");
+
+        await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
 
         _logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", _manifestCache.GetAllManifests().Count());
     }
@@ -181,7 +191,12 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
-            var manifestFiles = Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories);
+
+            // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
+            var manifestFiles = Directory.EnumerateFiles(directory, "*.manifest.json", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
+                    .Where(f => !f.EndsWith(".manifest.json")));
+
             foreach (var manifestFile in manifestFiles)
             {
                 try

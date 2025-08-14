@@ -13,7 +13,7 @@ public sealed class DetectionResult<T>
     private DetectionResult()
     {
         Success = false;
-        Items = Array.Empty<T>();
+        Installations = Array.Empty<T>();
         Errors = Array.Empty<string>();
         Elapsed = TimeSpan.Zero;
     }
@@ -21,7 +21,7 @@ public sealed class DetectionResult<T>
     private DetectionResult(bool success, IEnumerable<T> items, IEnumerable<string> errors, TimeSpan elapsed)
     {
         Success = success;
-        Items = items.ToList();
+        Installations = items.ToList();
         Errors = errors.ToList();
         Elapsed = elapsed;
     }
@@ -29,8 +29,15 @@ public sealed class DetectionResult<T>
     /// <summary>Gets a value indicating whether detection succeeded (even if 0 items).</summary>
     public bool Success { get; }
 
-    /// <summary>Gets the items found.</summary>
-    public IReadOnlyList<T> Items { get; }
+    /// <summary>
+    /// Gets the items found (Installations).
+    /// </summary>
+    public IReadOnlyList<T> Installations { get; }
+
+    /// <summary>
+    /// Gets the items found (alias for Installations, for compatibility).
+    /// </summary>
+    public IReadOnlyList<T> Items => Installations;
 
     /// <summary>Gets any errors encountered.</summary>
     public IReadOnlyList<string> Errors { get; }

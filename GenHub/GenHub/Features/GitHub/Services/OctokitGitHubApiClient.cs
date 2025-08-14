@@ -49,34 +49,42 @@ public class OctokitGitHubApiClient(IGitHubClient gitHubClient, ILogger<OctokitG
         try
         {
             var octo = await _gitHubClient.Repository.Release.GetLatest(owner, repositoryName);
-            return new GitHubRelease
-            {
-                Id = octo.Id,
-                TagName = octo.TagName,
-                Name = octo.Name,
-                Body = octo.Body,
-                HtmlUrl = octo.HtmlUrl,
-                Prerelease = octo.Prerelease,
-                Draft = octo.Draft,
-                CreatedAt = octo.CreatedAt,
-                PublishedAt = octo.PublishedAt,
-                Assets = octo.Assets.Select(a => new GitHubReleaseAsset
-                {
-                    Id = a.Id,
-                    Name = a.Name,
-                    Label = a.Label,
-                    ContentType = a.ContentType,
-                    Size = a.Size,
-                    DownloadCount = a.DownloadCount,
-                    BrowserDownloadUrl = a.BrowserDownloadUrl,
-                    CreatedAt = a.CreatedAt,
-                    UpdatedAt = a.UpdatedAt,
-                }).ToList(),
-            };
+            return MapOctokitRelease(octo);
         }
         catch (Octokit.NotFoundException)
         {
             return null!;
+        }
+    }
+
+    /// <summary>
+    /// Gets a specific release by tag for the specified repository.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repositoryName">The repository name.</param>
+    /// <param name="tag">The release tag.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The <see cref="GitHubRelease"/> with the specified tag or null if not found.</returns>
+    public async Task<GitHubRelease> GetReleaseByTagAsync(
+        string owner,
+        string repositoryName,
+        string tag,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var octo = await _gitHubClient.Repository.Release.Get(owner, repositoryName, tag);
+            return MapOctokitRelease(octo);
+        }
+        catch (Octokit.NotFoundException)
+        {
+            _logger.LogDebug("Release with tag '{Tag}' not found for {Owner}/{Repo}", tag, owner, repositoryName);
+            return null!;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get release by tag '{Tag}' for {Owner}/{Repo}", tag, owner, repositoryName);
+            throw;
         }
     }
 
@@ -93,7 +101,17 @@ public class OctokitGitHubApiClient(IGitHubClient gitHubClient, ILogger<OctokitG
         CancellationToken cancellationToken = default)
     {
         var octos = await _gitHubClient.Repository.Release.GetAll(owner, repo);
-        return octos.Select(octo => new GitHubRelease
+        return octos.Select(MapOctokitRelease);
+    }
+
+    /// <summary>
+    /// Maps an Octokit Release to our domain model.
+    /// </summary>
+    /// <param name="octo">The Octokit release.</param>
+    /// <returns>The mapped release.</returns>
+    private static GitHubRelease MapOctokitRelease(Release octo)
+    {
+        return new GitHubRelease
         {
             Id = octo.Id,
             TagName = octo.TagName,
@@ -104,19 +122,9 @@ public class OctokitGitHubApiClient(IGitHubClient gitHubClient, ILogger<OctokitG
             Draft = octo.Draft,
             CreatedAt = octo.CreatedAt,
             PublishedAt = octo.PublishedAt,
-            Assets = octo.Assets.Select(a => new GitHubReleaseAsset
-            {
-                Id = a.Id,
-                Name = a.Name,
-                Label = a.Label,
-                ContentType = a.ContentType,
-                Size = a.Size,
-                DownloadCount = a.DownloadCount,
-                BrowserDownloadUrl = a.BrowserDownloadUrl,
-                CreatedAt = a.CreatedAt,
-                UpdatedAt = a.UpdatedAt,
-            }).ToList(),
-        });
+            Author = octo.Author?.Login ?? "Unknown",
+            Assets = octo.Assets.Select(MapAsset).ToList(),
+        };
     }
 
     /// <summary>

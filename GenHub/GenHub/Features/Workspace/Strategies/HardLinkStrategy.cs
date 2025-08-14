@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -17,13 +18,19 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
 /// </remarks>
-/// <param name="fileOperations">The file operations service.</param>
-/// <param name="logger">The logger instance.</param>
-public sealed class HardLinkStrategy(
-    IFileOperationsService fileOperations,
-    ILogger<HardLinkStrategy> logger) : WorkspaceStrategyBase<HardLinkStrategy>(fileOperations, logger)
+public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
 {
     private const long LinkOverheadBytes = 1024L;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
+    /// </summary>
+    /// <param name="fileOperations">The file operations service used for file management.</param>
+    /// <param name="logger">The logger instance for logging operations.</param>
+    public HardLinkStrategy(IFileOperationsService fileOperations, ILogger<HardLinkStrategy> logger)
+        : base(fileOperations, logger)
+    {
+    }
 
     /// <inheritdoc/>
     public override string Name => "Hard Link";
@@ -53,12 +60,12 @@ public sealed class HardLinkStrategy(
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
             // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifest.Files.Count * LinkOverheadBytes;
+            return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
         }
         else
         {
             // Different volumes: will fall back to copying
-            return configuration.Manifest.Files.Sum(f => f.Size);
+            return configuration.Manifests.SelectMany(m => m.Files).Sum(f => f.Size);
         }
     }
 
@@ -77,6 +84,9 @@ public sealed class HardLinkStrategy(
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Clean existing workspace if force recreate is requested
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
@@ -87,11 +97,10 @@ public sealed class HardLinkStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var estimatedTotalBytes = EstimateDiskUsage(configuration);
-
             var hardLinkedFiles = 0;
             var copiedFiles = 0;
 
@@ -108,26 +117,50 @@ public sealed class HardLinkStrategy(
                     destRoot);
             }
 
-            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
-
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                if (!ValidateSourceFile(sourcePath, file.RelativePath))
-                {
-                    continue;
-                }
+                FileOperationsService.EnsureDirectoryExists(destinationPath);
 
-                try
+                // Handle different source types
+                if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                 {
-                    FileOperationsService.EnsureDirectoryExists(destinationPath);
+                    try
+                    {
+                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                        if (sameVolume)
+                        {
+                            hardLinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes;
+                        }
+                        else
+                        {
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Failed to process CAS file with hash {Hash}", file.Hash);
+                        throw;
+                    }
+                }
+                else
+                {
+                    // Use regular file from base installation
+                    var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+                    if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                    {
+                        continue;
+                    }
 
                     if (sameVolume)
                     {
@@ -156,7 +189,7 @@ public sealed class HardLinkStrategy(
                     }
 
                     // Verify file integrity if hash is provided (only for copied files)
-                    if (!string.IsNullOrEmpty(file.Hash) && (copiedFiles > 0 || !sameVolume))
+                    if (!string.IsNullOrEmpty(file.Hash))
                     {
                         var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                         if (!hashValid)
@@ -165,16 +198,6 @@ public sealed class HardLinkStrategy(
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to process file {RelativePath} from {SourcePath} to {DestinationPath}",
-                        file.RelativePath,
-                        sourcePath,
-                        destinationPath);
-                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
-                }
 
                 processedFiles++;
                 var operation = sameVolume ? "Hard linking" : "Copying";
@@ -182,6 +205,7 @@ public sealed class HardLinkStrategy(
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
+            workspaceInfo.Success = true;
 
             Logger.LogInformation(
                 "Hard link workspace prepared successfully at {WorkspacePath} with {HardLinked} hard links and {Copied} copies ({TotalSize} bytes)",
@@ -192,13 +216,88 @@ public sealed class HardLinkStrategy(
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare hard link workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
+            workspaceInfo.Success = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
+        }
+    }
 
-            throw;
+    /// <summary>
+    /// Attempts to create a hard link for the specified CAS file hash at the target path; falls back to copying if hard link creation fails.
+    /// </summary>
+    /// <param name="hash">The content-addressable storage (CAS) hash of the file to link or copy.</param>
+    /// <param name="targetPath">The destination path where the hard link or copy should be created.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    {
+        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, cancellationToken);
+        if (!success)
+        {
+            Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
+            success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+            if (!success)
+            {
+                throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        // Check if source and destination are on the same volume
+        var sourceRoot = Path.GetPathRoot(sourcePath);
+        var destRoot = Path.GetPathRoot(targetPath);
+        var sameVolume = string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
+
+        if (sameVolume)
+        {
+            try
+            {
+                await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
+            }
+            catch (Exception hardLinkEx)
+            {
+                Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+
+                // Fall back to copy
+                await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+            }
+        }
+        else
+        {
+            // Different volumes, must copy
+            await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+        }
+
+        // Verify file integrity if hash is provided (only for copied files)
+        if (!string.IsNullOrEmpty(file.Hash))
+        {
+            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
+            if (!hashValid)
+            {
+                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+            }
         }
     }
 }

@@ -1,8 +1,12 @@
-using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Validation;
-using GenHub.Features.Manifest;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.Manifest;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -18,8 +22,20 @@ public static class ValidationModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddValidationServices(this IServiceCollection services)
     {
-        services.AddSingleton<IGameVersionValidator, GameVersionValidator>();
-        services.AddSingleton<IGameInstallationValidator, GameInstallationValidator>();
+        // Register core content validator first (used by all other validators)
+        services.AddTransient<IContentValidator, ContentValidator>();
+
+        // Register domain-specific validators that use ContentValidator internally
+        services.AddTransient<IGameInstallationValidator, GameInstallationValidator>();
+        services.AddTransient<IGameVersionValidator, GameVersionValidator>();
+
+        // Register generic validator interface implementations
+        services.AddTransient<IValidator<ContentManifest>>(provider =>
+            provider.GetRequiredService<IContentValidator>() as ContentValidator ??
+            throw new InvalidOperationException("ContentValidator must implement IValidator<ContentManifest>"));
+        services.AddTransient<IValidator<GameInstallation>, GameInstallationValidator>();
+        services.AddTransient<IValidator<GameVersion>, GameVersionValidator>();
+
         return services;
     }
 }

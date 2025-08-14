@@ -60,7 +60,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 dep.ConflictsWith);
         }
 
-        await builder.AddFilesFromDirectoryAsync(contentDirectory, ManifestFileSourceType.CopyUnique);
+        await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable);
         return builder;
     }
 
@@ -125,7 +125,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 $"{gameType}_{version}_{installationType}",
                 $"{gameType} {version}",
                 version)
-            .WithContentType(ContentType.BaseGame, gameType)
+            .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(
                 "EA Games",
                 "https://www.ea.com",
@@ -136,7 +136,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ManifestFileSourceType.LinkFromBase);
+        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);
 
         return builder;
     }
@@ -166,10 +166,10 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameDirectory, ManifestFileSourceType.CopyUnique);
+        await builder.AddFilesFromDirectoryAsync(gameDirectory, ContentSourceType.ContentAddressable);
 
         // Mark the main executable
-        await builder.AddFileAsync(executablePath, ManifestFileSourceType.CopyUnique, string.Empty, true);
+        await builder.AddFileAsync(executablePath, ContentSourceType.ContentAddressable, string.Empty, true);
 
         return builder;
     }

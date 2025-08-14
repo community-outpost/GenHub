@@ -8,7 +8,7 @@ public enum ContentType
     // Foundation types (detected/installed)
 
     /// <summary>EA/Steam/Origin installation.</summary>
-    BaseGame,
+    GameInstallation,
 
     /// <summary>Independent game executable.</summary>
     StandaloneVersion,

@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,11 @@ public class ContentManifestBuilderTests
     private readonly Mock<ILogger<ContentManifestBuilder>> _loggerMock;
 
     /// <summary>
+    /// Mock for the file hash provider used in the builder.
+    /// </summary>
+    private readonly Mock<IFileHashProvider> _hashProviderMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -28,7 +34,13 @@ public class ContentManifestBuilderTests
     public ContentManifestBuilderTests()
     {
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
-        _builder = new ContentManifestBuilder(_loggerMock.Object);
+        _hashProviderMock = new Mock<IFileHashProvider>();
+
+        // Setup default hash provider behavior
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("dummy-hash-for-testing");
+
+        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object);
     }
 
     /// <summary>
@@ -97,7 +109,7 @@ public class ContentManifestBuilderTests
             .AddDependency(
                 id: "dep-id",
                 name: "Dependency Name",
-                dependencyType: ContentType.BaseGame,
+                dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.AutoInstall,
                 minVersion: "1.0",
                 maxVersion: "2.0",
@@ -111,7 +123,7 @@ public class ContentManifestBuilderTests
         var dependency = result.Dependencies[0];
         Assert.Equal("dep-id", dependency.Id);
         Assert.Equal("Dependency Name", dependency.Name);
-        Assert.Equal(ContentType.BaseGame, dependency.DependencyType);
+        Assert.Equal(ContentType.GameInstallation, dependency.DependencyType);
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
@@ -152,8 +164,8 @@ public class ContentManifestBuilderTests
             .Build();
 
         // Assert
-        Assert.NotNull(result.Installation);
-        Assert.Equal(WorkspaceStrategy.FullCopy, result.Installation.WorkspaceStrategy);
+        Assert.NotNull(result.InstallationInstructions);
+        Assert.Equal(WorkspaceStrategy.FullCopy, result.InstallationInstructions.WorkspaceStrategy);
     }
 
     /// <summary>
