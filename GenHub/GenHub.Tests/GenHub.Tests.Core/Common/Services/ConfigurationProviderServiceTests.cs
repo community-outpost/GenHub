@@ -753,6 +753,26 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Tests that GetUserDataPath returns the app configuration's app data path.
+    /// </summary>
+    [Fact]
+    public void GetUserDataPath_ShouldReturnAppConfigurationAppDataPath()
+    {
+        // Arrange
+        var expectedPath = @"C:\Users\TestUser\AppData\Roaming\GenHub";
+        _mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(expectedPath);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetUserDataPath();
+
+        // Assert
+        Assert.Equal(expectedPath, result);
+        _mockAppConfig.Verify(x => x.GetAppDataPath(), Times.Once);
+    }
+
+    /// <summary>
     /// Creates a ConfigurationProviderService instance for testing.
     /// </summary>
     /// <returns>A new ConfigurationProviderService instance.</returns>

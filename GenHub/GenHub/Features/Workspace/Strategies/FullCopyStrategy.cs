@@ -55,11 +55,11 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifest?.Files == null)
+        if (configuration?.Manifests == null)
             return 0;
 
         long totalSize = 0;
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
         {
             // Prevent negative sizes and overflow
             long safeSize = Math.Max(0, file.Size);
@@ -86,6 +86,9 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Clean existing workspace if force recreate is requested
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
@@ -96,72 +99,64 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var estimatedTotalBytes = EstimateDiskUsage(configuration);
 
-            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
-
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                try
+                // Ensure the directory (not the full file path) exists
+                var destinationDirectory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(destinationDirectory))
                 {
-                    FileOperationsService.EnsureDirectoryExists(destinationPath);
-
-                    // Handle different source types
-                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
-                    {
-                        // Use CAS content
-                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                    }
-                    else
-                    {
-                        // Use regular file from base installation
-                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
-                        {
-                            continue;
-                        }
-
-                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-
-                        // Verify file integrity if hash is provided
-                        if (!string.IsNullOrEmpty(file.Hash))
-                        {
-                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                            if (!hashValid)
-                            {
-                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-                            }
-                        }
-                    }
-
-                    totalBytesProcessed += file.Size;
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to copy file {RelativePath} to {DestinationPath}",
-                        file.RelativePath,
-                        destinationPath);
-                    throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
+                    FileOperationsService.EnsureDirectoryExists(destinationDirectory);
                 }
 
+                // Handle different source types
+                if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                {
+                    // Use CAS content
+                    await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                }
+                else
+                {
+                    // Use regular file from base installation
+                    var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+                    if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                    {
+                        continue;
+                    }
+
+                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+
+                    // Verify file integrity if hash is provided
+                    if (!string.IsNullOrEmpty(file.Hash))
+                    {
+                        var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                        if (!hashValid)
+                        {
+                            Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                        }
+                    }
+                }
+
+                totalBytesProcessed += file.Size;
                 processedFiles++;
                 ReportProgress(progress, processedFiles, totalFiles, "Copying", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
+            workspaceInfo.Success = true;
 
             Logger.LogInformation(
                 "Full copy workspace prepared successfully at {WorkspacePath} with {FileCount} files ({TotalSize} bytes)",
@@ -171,12 +166,19 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare full copy workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
-            throw;
+            workspaceInfo.Success = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 

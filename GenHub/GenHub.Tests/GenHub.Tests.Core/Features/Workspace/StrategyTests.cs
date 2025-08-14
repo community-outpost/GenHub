@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
@@ -48,7 +49,16 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.txt", Size = 1024 },
+                    ],
+                },
+            ],
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -69,7 +79,16 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.txt", Size = 1024 },
+                    ],
+                },
+            ],
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -90,7 +109,16 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.txt", Size = 1024 },
+                    ],
+                },
+            ],
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -111,7 +139,16 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.txt", Size = 1024 },
+                    ],
+                },
+            ],
         };
 
         Assert.True(strategy.CanHandle(config));
@@ -142,7 +179,13 @@ public class StrategyTests : IDisposable
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest { Files = files },
+            Manifests =
+            [
+                new()
+                {
+                    Files = files,
+                },
+            ],
         };
 
         // Setup the file operations mock to simulate file existence
@@ -201,7 +244,7 @@ public class StrategyTests : IDisposable
         // Arrange
         var strategy = CreateStrategy(strategyType);
         var config = CreateValidConfiguration(strategyType);
-        config.Manifest = new ContentManifest { Files = new List<ManifestFile>() };
+        config.Manifests = [ new()];
 
         // Act & Assert
         var estimate = strategy.EstimateDiskUsage(config);
@@ -306,20 +349,21 @@ public class StrategyTests : IDisposable
     {
         return new WorkspaceConfiguration
         {
-            Id = "test-workspace",
+            Id = "test",
             Strategy = strategyType,
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest
-            {
-                Files = new List<ManifestFile>
+            Manifests =
+            [
+                new()
                 {
-                    new() { RelativePath = "test.exe", Size = 1000 },
-                    new() { RelativePath = "config.ini", Size = 500 },
-                    new() { RelativePath = "data/texture.tga", Size = 5000000 },
+                    Files =
+                    [
+                        new() { RelativePath = "test.txt", Size = 1024 },
+                    ],
                 },
-            },
+            ],
         };
     }
 }

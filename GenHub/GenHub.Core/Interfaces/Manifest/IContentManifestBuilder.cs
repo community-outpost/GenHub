@@ -23,7 +23,7 @@ public interface IContentManifestBuilder
     /// <summary>
     /// Sets the content type and target game.
     /// </summary>
-    /// <param name="contentType">The type of content (BaseGame, Mod, Addon, etc.).</param>
+    /// <param name="contentType">The type of content (GameInstallation, Mod, Addon, etc.).</param>
     /// <param name="targetGame">The target game type.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithContentType(ContentType contentType, GameType targetGame);

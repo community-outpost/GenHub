@@ -58,7 +58,7 @@ public class GameVersion
     /// </summary>
     public GameType GameType { get; set; }
 
-    /// <summary>Gets or sets the content source type (BaseGame or StandaloneVersion).</summary>
+    /// <summary>Gets or sets the content source type (GameInstallation or StandaloneVersion).</summary>
     public ContentType SourceType { get; set; }
 
     /// <summary>Gets or sets additional command line arguments.</summary>

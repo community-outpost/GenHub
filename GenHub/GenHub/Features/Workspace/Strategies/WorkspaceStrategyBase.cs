@@ -242,19 +242,38 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
 
-        // Find the main executable
-        var gameExecutable = configuration.Manifest.Files
-            .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-                                !f.RelativePath.Contains("uninstall", StringComparison.OrdinalIgnoreCase));
-
-        if (gameExecutable != null)
+        // Set executable path from GameVersion configuration
+        if (!string.IsNullOrEmpty(configuration.GameVersion.ExecutablePath))
         {
-            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, gameExecutable.RelativePath);
+            // If the GameVersion ExecutablePath is already absolute, use it directly
+            if (Path.IsPathRooted(configuration.GameVersion.ExecutablePath))
+            {
+                workspaceInfo.ExecutablePath = configuration.GameVersion.ExecutablePath;
+            }
+            else
+            {
+                // If it's relative, combine with workspace path
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameVersion.ExecutablePath);
+            }
+
             workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
         }
         else
         {
-            workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
+            // Fallback: Find the main executable in manifest files
+            var gameExecutable = configuration.Manifests.SelectMany(m => m.Files)
+                .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                                    !f.RelativePath.Contains("uninstall", StringComparison.OrdinalIgnoreCase));
+
+            if (gameExecutable != null)
+            {
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, gameExecutable.RelativePath);
+                workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
+            }
+            else
+            {
+                workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
+            }
         }
     }
 
@@ -303,7 +322,7 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         long totalSize = 0L;
 
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
         {
             var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
             var actualSize = GetFileSizeSafe(sourcePath);
@@ -344,8 +363,8 @@ public abstract class WorkspaceStrategyBase<T>(
             case ContentSourceType.ContentAddressable:
                 await ProcessCasFileAsync(file, targetPath, cancellationToken);
                 break;
-            case ContentSourceType.BaseGame:
-                await ProcessBaseGameFileAsync(file, targetPath, configuration, cancellationToken);
+            case ContentSourceType.GameInstallation:
+                await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
                 await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
@@ -408,10 +427,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
-        throw new NotImplementedException("ProcessBaseGameFileAsync must be implemented in the strategy if used.");
+        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>

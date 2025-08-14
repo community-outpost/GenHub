@@ -37,6 +37,8 @@ public static class AppServices
         services.AddWorkspaceServices();
         services.AddContentPipelineServices();
         services.AddCasServices();
+        services.AddGameProfileServices(configProvider);
+        services.AddLaunchingServices();
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services, configProvider);

@@ -310,4 +310,11 @@ public class ConfigurationProviderService : IConfigurationProviderService
         var s = _userSettings.GetSettings();
         return s.CasConfiguration;
     }
+
+    /// <inheritdoc />
+    public string GetUserDataPath()
+    {
+        // Use the app configuration to get the base user data path
+        return _appConfig.GetAppDataPath();
+    }
 }

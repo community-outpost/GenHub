@@ -6,9 +6,11 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
@@ -16,23 +18,39 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Workspace;
 
 /// <summary>
-/// Complete workspace management service with persistence and cleanup.
-/// </summary>
-/// <summary>
 /// Manages workspace operations including preparation, retrieval, and cleanup.
 /// </summary>
-public class WorkspaceManager(
-    IEnumerable<IWorkspaceStrategy> strategies,
-    IConfigurationProviderService configurationProvider,
-    ILogger<WorkspaceManager> logger,
-    CasReferenceTracker casReferenceTracker
-) : IWorkspaceManager
+public class WorkspaceManager : IWorkspaceManager
 {
-    private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
+    private readonly IWorkspaceStrategy[] _strategies;
+    private readonly IConfigurationProviderService _configProvider;
+    private readonly ILogger<WorkspaceManager> _logger;
+    private readonly ICasService _casService;
+    private readonly CasReferenceTracker _casReferenceTracker;
+    private readonly string _workspaceMetadataPath;
 
-    private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
-    private readonly ILogger<WorkspaceManager> _logger = logger;
-    private readonly CasReferenceTracker _casReferenceTracker = casReferenceTracker;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WorkspaceManager"/> class.
+    /// </summary>
+    /// <param name="strategies">Available workspace strategies.</param>
+    /// <param name="configProvider">Configuration provider service.</param>
+    /// <param name="logger">Logger instance.</param>
+    /// <param name="casService">Content addressable storage service.</param>
+    /// <param name="casReferenceTracker">CAS reference tracker for workspace references.</param>
+    public WorkspaceManager(
+        IEnumerable<IWorkspaceStrategy> strategies,
+        IConfigurationProviderService configProvider,
+        ILogger<WorkspaceManager> logger,
+        ICasService casService,
+        CasReferenceTracker casReferenceTracker)
+    {
+        _strategies = strategies.ToArray();
+        _configProvider = configProvider;
+        _logger = logger;
+        _casService = casService;
+        _casReferenceTracker = casReferenceTracker;
+        _workspaceMetadataPath = Path.Combine(configProvider.GetContentStoragePath(), "workspaces.json");
+    }
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -41,7 +59,7 @@ public class WorkspaceManager(
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
     /// <returns>The prepared workspace information.</returns>
-    public async Task<WorkspaceInfo> PrepareWorkspaceAsync(WorkspaceConfiguration configuration, IProgress<WorkspacePreparationProgress>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceAsync(WorkspaceConfiguration configuration, IProgress<WorkspacePreparationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Preparing workspace for configuration {Id} using strategy {Strategy}", configuration.Id, configuration.Strategy);
 
@@ -56,22 +74,29 @@ public class WorkspaceManager(
 
         var workspaceInfo = await strategy.PrepareAsync(configuration, progress, cancellationToken);
 
+        if (!workspaceInfo.Success)
+        {
+            var messages = workspaceInfo.ValidationIssues?.Select(i => i.Message)
+                           ?? new[] { "Workspace preparation failed" };
+            return OperationResult<WorkspaceInfo>.CreateFailure(messages);
+        }
+
         // Save workspace metadata
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
 
         // Track CAS references for the workspace
-        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifest, cancellationToken);
+        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests, cancellationToken);
 
         _logger.LogInformation("Workspace {Id} prepared successfully at {Path}", workspaceInfo.Id, workspaceInfo.WorkspacePath);
-        return workspaceInfo;
+        return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
     }
 
     /// <summary>
     /// Retrieves all workspaces asynchronously.
     /// </summary>
     /// <param name="cancellationToken">Optional cancellation token.</param>
-    /// <returns>A collection of workspace information.</returns>
-    public async Task<IEnumerable<WorkspaceInfo>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default)
+    /// <returns>An operation result containing all prepared workspaces.</returns>
+    public async Task<OperationResult<IEnumerable<WorkspaceInfo>>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogDebug("Retrieving all workspaces");
 
@@ -79,7 +104,7 @@ public class WorkspaceManager(
         {
             if (!File.Exists(_workspaceMetadataPath))
             {
-                return [];
+                return OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess(Enumerable.Empty<WorkspaceInfo>());
             }
 
             var json = await File.ReadAllTextAsync(_workspaceMetadataPath, cancellationToken);
@@ -93,12 +118,12 @@ public class WorkspaceManager(
                 await SaveAllWorkspacesAsync(validWorkspaces, cancellationToken);
             }
 
-            return validWorkspaces;
+            return OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess(validWorkspaces.AsEnumerable());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve workspaces");
-            return [];
+            return OperationResult<IEnumerable<WorkspaceInfo>>.CreateFailure($"Failed to retrieve workspaces: {ex.Message}");
         }
     }
 
@@ -107,18 +132,24 @@ public class WorkspaceManager(
     /// </summary>
     /// <param name="workspaceId">The workspace identifier.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
-    /// <returns>True if cleanup was successful; otherwise, false.</returns>
-    public async Task<bool> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default)
+    /// <returns>An operation result indicating whether the workspace was cleaned up successfully.</returns>
+    public async Task<OperationResult<bool>> CleanupWorkspaceAsync(string workspaceId, CancellationToken cancellationToken = default)
     {
         try
         {
-            var workspaces = (await GetAllWorkspacesAsync(cancellationToken)).ToList();
+            var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+            if (!workspacesResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure($"Failed to get workspaces for cleanup: {workspacesResult.FirstError}");
+            }
+
+            var workspaces = workspacesResult.Data!.ToList();
             var workspace = workspaces.FirstOrDefault(w => w.Id == workspaceId);
 
             if (workspace == null)
             {
                 _logger.LogWarning("Workspace {Id} not found for cleanup", workspaceId);
-                return false;
+                return OperationResult<bool>.CreateSuccess(false);
             }
 
             if (FileOperationsService.DeleteDirectoryIfExists(workspace.WorkspacePath))
@@ -129,20 +160,21 @@ public class WorkspaceManager(
             workspaces.Remove(workspace);
             await SaveAllWorkspacesAsync(workspaces, cancellationToken);
 
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to cleanup workspace {Id}", workspaceId);
-            return false;
+            return OperationResult<bool>.CreateFailure($"Failed to cleanup workspace: {ex.Message}");
         }
     }
 
-    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, ContentManifest manifest, CancellationToken cancellationToken)
+    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var casReferences = manifest.Files
+        var casReferences = manifests.SelectMany(m => m.Files)
             .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
             .Select(f => f.Hash!)
+            .Distinct()
             .ToList();
 
         if (casReferences.Any())
@@ -165,7 +197,8 @@ public class WorkspaceManager(
 
     private async Task SaveWorkspaceMetadataAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken)
     {
-        var workspaces = (await GetAllWorkspacesAsync(cancellationToken)).ToList();
+        var workspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+        var workspaces = workspacesResult.Data?.ToList() ?? new List<WorkspaceInfo>();
         var existing = workspaces.FirstOrDefault(w => w.Id == workspaceInfo.Id);
 
         if (existing != null)

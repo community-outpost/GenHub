@@ -21,22 +21,17 @@ public static class WorkspaceModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddWorkspaceServices(this IServiceCollection services)
     {
-        // Core workspace services
-        services.AddScoped<IWorkspaceManager, WorkspaceManager>();
-        services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
-        services.AddScoped<IFileOperationsService, FileOperationsService>();
-
-        // Strategy implementations
+        // Register workspace strategies
         services.AddTransient<IWorkspaceStrategy, FullCopyStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HardLinkStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
         services.AddTransient<IWorkspaceStrategy, SymlinkOnlyStrategy>();
+        services.AddTransient<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
+        services.AddTransient<IWorkspaceStrategy, HardLinkStrategy>();
 
-        // Also register concrete types for direct injection if needed
-        services.AddScoped<FullCopyStrategy>();
-        services.AddScoped<HardLinkStrategy>();
-        services.AddScoped<HybridCopySymlinkStrategy>();
-        services.AddScoped<SymlinkOnlyStrategy>();
+        // Register workspace manager with proper dependencies
+        services.AddScoped<IWorkspaceManager, WorkspaceManager>();
+
+        // Register workspace validator
+        services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
 
         return services;
     }

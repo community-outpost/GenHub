@@ -131,4 +131,10 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The CAS configuration.</returns>
     CasConfiguration GetCasConfiguration();
+
+    /// <summary>
+    /// Gets the effective user data path for application data storage.
+    /// </summary>
+    /// <returns>The user data path to use.</returns>
+    string GetUserDataPath();
 }

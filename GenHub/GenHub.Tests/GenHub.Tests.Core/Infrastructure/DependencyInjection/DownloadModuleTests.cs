@@ -27,6 +27,7 @@ public class DownloadModuleTests
 
         // Register the IConfigurationProviderService that DownloadModule expects
         services.AddSingleton(configProvider);
+
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
 
         // Act

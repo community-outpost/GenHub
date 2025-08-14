@@ -1,0 +1,21 @@
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+
+namespace GenHub.Core.Interfaces.GameInstallations
+{
+    /// <summary>
+    /// Provides services for managing and retrieving game installations.
+    /// </summary>
+    public interface IGameInstallationService
+    {
+        /// <summary>
+        /// Gets a game installation by its unique identifier.
+        /// </summary>
+        /// <param name="installationId">The unique identifier of the installation.</param>
+        /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+        /// <returns>An operation result containing the game installation if found.</returns>
+        Task<OperationResult<GameInstallation>> GetInstallationAsync(string installationId, CancellationToken cancellationToken = default);
+    }
+}

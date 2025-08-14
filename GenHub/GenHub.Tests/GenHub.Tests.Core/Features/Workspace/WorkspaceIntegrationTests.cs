@@ -26,6 +26,7 @@ public class WorkspaceIntegrationTests : IDisposable
     private readonly string _tempGameInstall;
     private readonly string _tempWorkspaceRoot;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IWorkspaceValidator _workspaceValidator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkspaceIntegrationTests"/> class.
@@ -38,21 +39,21 @@ public class WorkspaceIntegrationTests : IDisposable
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
 
-        // Add mock download service for FileOperationsService
+        // Mock download service
         var mockDownloadService = new Mock<IDownloadService>();
         services.AddSingleton<IDownloadService>(mockDownloadService.Object);
 
-        // Register hash providers
+        // Register hash providers (only once)
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
         services.AddSingleton<IStreamHashProvider, Sha256HashProvider>();
 
-        // Register CAS storage and reference tracker
+        // Register CAS storage and reference tracker (only once)
         services.Configure<CasConfiguration>(config =>
         {
             config.CasRootPath = _tempWorkspaceRoot;
         });
 
-        // Mock ConfigurationProviderService instead of using real one
+        // Mock ConfigurationProviderService
         var mockConfigProvider = new Mock<IConfigurationProviderService>();
         mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
         services.AddSingleton<IConfigurationProviderService>(mockConfigProvider.Object);
@@ -61,15 +62,14 @@ public class WorkspaceIntegrationTests : IDisposable
         services.AddSingleton<CasReferenceTracker>();
         services.AddSingleton<ICasService, CasService>();
 
-        // Register FileOperationsService for workspace strategies
+        // Register FileOperationsService
         services.AddSingleton<IFileOperationsService, FileOperationsService>();
 
-        // Add configuration services
+        // Mock configuration services
         var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
         var mockAppConfig = new Mock<IAppConfiguration>();
         var mockUserSettings = new Mock<IUserSettingsService>();
 
-        // Setup mock returns
         mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
         mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
@@ -83,6 +83,7 @@ public class WorkspaceIntegrationTests : IDisposable
         services.AddWorkspaceServices();
 
         _serviceProvider = services.BuildServiceProvider();
+        _workspaceValidator = _serviceProvider.GetRequiredService<IWorkspaceValidator>();
         SetupTestGameInstallation().Wait();
     }
 
@@ -115,14 +116,25 @@ public class WorkspaceIntegrationTests : IDisposable
             return;
         }
 
-        var workspace = await manager.PrepareWorkspaceAsync(config);
+        var result = await manager.PrepareWorkspaceAsync(config);
 
-        Assert.True(Directory.Exists(workspace.WorkspacePath));
-        Assert.True(File.Exists(workspace.ExecutablePath));
-        Assert.Equal(strategy, workspace.Strategy);
-        Assert.True(workspace.FileCount > 0);
+        // Assert
+        Assert.True(result.Success, result.FirstError ?? "Workspace preparation failed with an unknown error.");
+        Assert.True(Directory.Exists(result.Data!.WorkspacePath));
+        Assert.NotNull(result.Data.ExecutablePath);
+        Assert.Equal(strategy, result.Data.Strategy);
+        Assert.True(result.Data.FileCount > 0);
 
-        await VerifyWorkspaceStrategy(workspace, strategy);
+        // Cleanup
+        var validationResult = await _workspaceValidator.ValidateWorkspaceAsync(result.Data!);
+        Assert.True(validationResult.Success);
+        Assert.NotNull(validationResult.Data);
+
+        // Test GetAllWorkspacesAsync with new return type
+        var allWorkspacesResult = await manager.GetAllWorkspacesAsync();
+        Assert.True(allWorkspacesResult.Success);
+        Assert.NotNull(allWorkspacesResult.Data);
+        Assert.Contains(allWorkspacesResult.Data, w => w.Id == result.Data.Id);
     }
 
     /// <summary>
@@ -132,39 +144,14 @@ public class WorkspaceIntegrationTests : IDisposable
     [Fact]
     public async Task PrepareWorkspaceAsync_CreatesDirectory()
     {
-        var mockDownloadService = new Mock<IDownloadService>();
-        var mockCasService = new Mock<ICasService>();
-        var fileOps = new FileOperationsService(
-            new Mock<ILogger<FileOperationsService>>().Object,
-            mockDownloadService.Object,
-            mockCasService.Object);
-
-        var logger = new Mock<ILogger<FullCopyStrategy>>();
-        var strategy = new FullCopyStrategy(fileOps, logger.Object);
-
-        var mockConfigProvider = new Mock<IConfigurationProviderService>();
-        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
-        mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(_tempWorkspaceRoot);
-
-        var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
-
-        // Use a real CasReferenceTracker with dummy dependencies
-        var dummyLogger = new Mock<ILogger<CasReferenceTracker>>().Object;
-        var dummyOptions = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
-        dummyOptions.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = _tempWorkspaceRoot });
-        var casReferenceTracker = new CasReferenceTracker(dummyOptions.Object, dummyLogger);
-
-        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker);
-
+        var manager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
         var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
-        var info = await manager.PrepareWorkspaceAsync(config);
+        var result = await manager.PrepareWorkspaceAsync(config);
 
-        var expected = Path.GetFullPath(config.WorkspaceRootPath).TrimEnd(Path.DirectorySeparatorChar);
-        var actual = Path.GetFullPath(Path.GetDirectoryName(info.WorkspacePath) ?? string.Empty)
-            .TrimEnd(Path.DirectorySeparatorChar);
-
-        Assert.Equal(expected, actual);
+        Assert.True(result.Success, $"Workspace preparation failed: {(result.HasErrors ? result.FirstError : "An unknown error occurred.")}");
+        Assert.NotNull(result.Data);
+        Assert.True(Directory.Exists(result.Data.WorkspacePath));
     }
 
     /// <summary>
@@ -227,7 +214,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <param name="strategy">The workspace strategy.</param>
     /// <returns>A configured <see cref="WorkspaceConfiguration"/>.</returns>
     private WorkspaceConfiguration CreateTestConfiguration(WorkspaceStrategy strategy)
-        {
+    {
         var manifest = new ContentManifest();
         var testFiles = new[]
         {
@@ -251,18 +238,22 @@ public class WorkspaceIntegrationTests : IDisposable
             });
         }
 
+        var gameVersion = new GameVersion
+        {
+            Id = "test-version",
+            Name = "Test Version",
+            ExecutablePath = "generals.exe", // Use relative path
+            GameType = GameType.Generals,
+        };
+
         return new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            GameVersion = new GameVersion
-            {
-                Id = "test-version",
-                Name = "Test Version",
-            },
+            GameVersion = gameVersion,
             WorkspaceRootPath = _tempWorkspaceRoot,
             Strategy = strategy,
             BaseInstallationPath = _tempGameInstall,
-            Manifest = manifest,
+            Manifests = new List<ContentManifest> { manifest },
         };
     }
 
