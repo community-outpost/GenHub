@@ -1,17 +1,25 @@
+using System;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 
 namespace GenHub.Core.Interfaces.Common;
 
 /// <summary>
-/// Service responsible for managing user-scoped settings (persisted per user).
+/// Defines a contract for a service that manages user-specific settings.
+/// This service is responsible for loading, saving, and providing access to the UserSettings object.
+/// It deals with the raw user settings file and does not apply application-level defaults.
 /// </summary>
 public interface IUserSettingsService
 {
     /// <summary>
-    /// Gets a <see cref="UserSettings"/> object representing the current user settings.
+    /// Gets the current user settings.
+    /// This method returns a copy of the settings to prevent direct modification.
+    /// Use UpdateSettings to modify the settings.
     /// </summary>
     /// <remarks>
-    /// Kept for backward compatibility. Prefer <see cref="GetSettings"/> for clarity.
+    /// This returns the raw settings as loaded from the user's configuration file,
+    /// without any application-level defaults applied. For effective settings,
+    /// use IConfigurationProviderService.
     /// </remarks>
     /// <returns>The current user settings instance.</returns>
     ///
@@ -34,6 +42,6 @@ public interface IUserSettingsService
     /// <summary>
     /// Asynchronously persists the current settings to disk.
     /// </summary>
-    /// <returns>A task representing the asynchronous save operation.</returns>
+    /// <returns>A task that represents the asynchronous save operation.</returns>
     Task SaveAsync();
 }

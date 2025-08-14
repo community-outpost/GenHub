@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
@@ -86,7 +87,7 @@ public class FileSystemValidatorTests
         /// </summary>
         /// <param name="logger">Logger instance.</param>
         public TestFileSystemValidator(ILogger logger)
-            : base(logger)
+            : base(logger, new Mock<IFileHashProvider>().Object)
         {
         }
 

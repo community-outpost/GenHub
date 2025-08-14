@@ -571,6 +571,188 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Verifies that GetCacheDirectory returns user setting when it's valid.
+    /// </summary>
+    [Fact]
+    public void GetCacheDirectory_WithValidUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath();
+        var userCache = Path.Combine(tempDir, "user-cache");
+        Directory.CreateDirectory(userCache);
+
+        try
+        {
+            var userSettings = new UserSettings { CachePath = userCache };
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.CachePath));
+            _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+
+            var provider = CreateProvider();
+
+            // Act
+            var result = provider.GetCacheDirectory();
+
+            // Assert
+            Assert.Equal(userCache, result);
+            _mockAppConfig.Verify(x => x.GetDefaultCacheDirectory(), Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(userCache))
+                Directory.Delete(userCache, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GetCacheDirectory returns app default when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetCacheDirectory_WithNullUserSetting_ReturnsAppDefault()
+    {
+        // Arrange
+        var appDefault = "/app/cache/directory";
+        var userSettings = new UserSettings { CachePath = null };
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetDefaultCacheDirectory()).Returns(appDefault);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCacheDirectory();
+
+        // Assert
+        Assert.Equal(appDefault, result);
+        _mockAppConfig.Verify(x => x.GetDefaultCacheDirectory(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentStoragePath returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetContentStoragePath_WithValidUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userPath = "/user/content/path";
+        var userSettings = new UserSettings { ContentStoragePath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ContentStoragePath));
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentStoragePath();
+
+        // Assert
+        Assert.Equal(userPath, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentStoragePath returns default when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetContentStoragePath_WithNullUserSetting_ReturnsDefault()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        var userSettings = new UserSettings { ContentStoragePath = null };
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentStoragePath();
+
+        // Assert
+        Assert.Equal(Path.Combine(appDataPath, "Content"), result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentDirectories returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userDirs = new List<string> { "/user/dir1", "/user/dir2" };
+        var userSettings = new UserSettings { ContentDirectories = userDirs };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ContentDirectories));
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Equal(userDirs, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentDirectories returns defaults when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithNullUserSetting_ReturnsDefaults()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        var userSettings = new UserSettings { ContentDirectories = new List<string>() };
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Contains(Path.Combine(appDataPath, "Manifests"), result);
+        Assert.Contains(Path.Combine(appDataPath, "CustomManifests"), result);
+        Assert.True(result.Count >= 3);
+    }
+
+    /// <summary>
+    /// Verifies that GetGitHubDiscoveryRepositories returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetGitHubDiscoveryRepositories_WithUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userRepos = new List<string> { "user/repo1", "user/repo2" };
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = userRepos };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories));
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetGitHubDiscoveryRepositories();
+
+        // Assert
+        Assert.Equal(userRepos, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetGitHubDiscoveryRepositories returns defaults when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetGitHubDiscoveryRepositories_WithNullUserSetting_ReturnsDefaults()
+    {
+        // Arrange
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = new List<string>() };
+        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetGitHubDiscoveryRepositories();
+
+        // Assert
+        Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
+        Assert.Single(result);
+    }
+
+    /// <summary>
     /// Creates a ConfigurationProviderService instance for testing.
     /// </summary>
     /// <returns>A new ConfigurationProviderService instance.</returns>

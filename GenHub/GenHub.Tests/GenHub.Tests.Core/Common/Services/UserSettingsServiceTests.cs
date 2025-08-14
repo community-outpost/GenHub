@@ -253,12 +253,74 @@ public class UserSettingsServiceTests : IDisposable
         var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
         var settings = service.GetSettings();
 
-        // Assert - Only JSON values should be set, rest should be defaults
+        // Assert - Only JSON values should be set, rest should be C# defaults
         Assert.Null(settings.Theme); // Not in JSON, should be null
         Assert.Equal(1600.0, settings.WindowWidth); // From JSON
-        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be 0
+        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be C# default (0)
         Assert.Equal(0, settings.MaxConcurrentDownloads); // Not in JSON, should be 0
         Assert.True(settings.AllowBackgroundDownloads); // From JSON
+    }
+
+    /// <summary>
+    /// Verifies that CachePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_CachePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var cachePath = "/test/cache/path";
+
+        service.UpdateSettings(settings => settings.CachePath = cachePath);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(cachePath, currentSettings.CachePath);
+    }
+
+    /// <summary>
+    /// Verifies that ContentStoragePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_ContentStoragePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var contentPath = "/test/content/path";
+
+        service.UpdateSettings(settings => settings.ContentStoragePath = contentPath);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(contentPath, currentSettings.ContentStoragePath);
+    }
+
+    /// <summary>
+    /// Verifies that DownloadBufferSize can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_DownloadBufferSize_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var bufferSize = 16384;
+
+        service.UpdateSettings(settings => settings.DownloadBufferSize = bufferSize);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(bufferSize, currentSettings.DownloadBufferSize);
+    }
+
+    /// <summary>
+    /// Verifies that EnableDetailedLogging can be set and retrieved correctly.
+    /// </summary>
+    /// <param name="enableLogging">The value to set for EnableDetailedLogging in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UpdateSettings_EnableDetailedLogging_CanBeSetAndRetrieved(bool enableLogging)
+    {
+        var service = CreateService();
+
+        service.UpdateSettings(settings => settings.EnableDetailedLogging = enableLogging);
+        var currentSettings = service.GetSettings();
+
+        Assert.Equal(enableLogging, currentSettings.EnableDetailedLogging);
     }
 
     private static IAppConfiguration CreateAppConfigMock()
@@ -320,14 +382,11 @@ public class UserSettingsServiceTests : IDisposable
         public TestableUserSettingsService(ILogger<UserSettingsService> logger, IAppConfiguration appConfig, string settingsFilePath, bool loadFromFile = false)
             : base(logger, appConfig, initialize: false)
         {
-            if (loadFromFile && File.Exists(settingsFilePath))
-            {
-                SetSettingsFilePath(settingsFilePath);
-            }
-            else
-            {
-                SetSettingsFilePath(settingsFilePath);
-            }
+            // The base constructor with `initialize: false` creates an empty settings object.
+            // We then set the path, which will load from the file if it exists.
+            // If `loadFromFile` is false and the file exists, it will still be loaded by `SetSettingsFilePath`,
+            // but the tests are structured to delete the file first in those cases.
+            SetSettingsFilePath(settingsFilePath);
         }
     }
 }

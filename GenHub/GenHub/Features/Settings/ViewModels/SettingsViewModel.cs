@@ -78,6 +78,39 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _settingsFilePath;
 
+    [ObservableProperty]
+    private string? _cachePath;
+
+    [ObservableProperty]
+    private string _contentDirectoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string _gitHubDiscoveryRepositoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string? _contentStoragePath;
+
+    [ObservableProperty]
+    private string _casRootPath = string.Empty;
+
+    [ObservableProperty]
+    private bool _enableAutomaticGarbageCollection = true;
+
+    [ObservableProperty]
+    private long _maxCacheSizeGB = 50;
+
+    [ObservableProperty]
+    private int _casMaxConcurrentOperations = 4;
+
+    [ObservableProperty]
+    private bool _casVerifyIntegrity = true;
+
+    [ObservableProperty]
+    private int _garbageCollectionGracePeriodDays = 7;
+
+    [ObservableProperty]
+    private int _autoGcIntervalDays = 1;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -305,6 +338,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
             DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? "GenHub/1.0" : settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
+            CachePath = settings.CachePath;
+            ContentDirectoriesText = string.Join(Environment.NewLine, settings.ContentDirectories ?? new());
+            GitHubDiscoveryRepositoriesText = string.Join(Environment.NewLine, settings.GitHubDiscoveryRepositories ?? new());
+            ContentStoragePath = settings.ContentStoragePath;
+
+            // Load CAS settings
+            CasRootPath = settings.CasConfiguration.CasRootPath;
+            EnableAutomaticGarbageCollection = settings.CasConfiguration.EnableAutomaticGarbageCollection;
+            MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / (1024L * 1024L * 1024L);
+            CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
+            CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
+            GarbageCollectionGracePeriodDays = (int)settings.CasConfiguration.GarbageCollectionGracePeriod.TotalDays;
+            AutoGcIntervalDays = (int)settings.CasConfiguration.AutoGcInterval.TotalDays;
 
             _logger.LogDebug("Settings loaded successfully");
         }
@@ -344,6 +390,23 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;
                 settings.SettingsFilePath = SettingsFilePath;
+                settings.CachePath = CachePath;
+                settings.ContentDirectories = (ContentDirectoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.GitHubDiscoveryRepositories = (GitHubDiscoveryRepositoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.ContentStoragePath = ContentStoragePath;
+
+                // Update CAS settings
+                settings.CasConfiguration.CasRootPath = CasRootPath;
+                settings.CasConfiguration.EnableAutomaticGarbageCollection = EnableAutomaticGarbageCollection;
+                settings.CasConfiguration.MaxCacheSizeBytes = MaxCacheSizeGB * 1024L * 1024L * 1024L;
+                settings.CasConfiguration.MaxConcurrentOperations = CasMaxConcurrentOperations;
+                settings.CasConfiguration.VerifyIntegrity = CasVerifyIntegrity;
+                settings.CasConfiguration.GarbageCollectionGracePeriod = TimeSpan.FromDays(GarbageCollectionGracePeriodDays);
+                settings.CasConfiguration.AutoGcInterval = TimeSpan.FromDays(AutoGcIntervalDays);
             });
 
             await _userSettingsService.SaveAsync();
@@ -383,6 +446,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DownloadTimeoutSeconds = 600;
             DownloadUserAgent = "GenHub/1.0";
             SettingsFilePath = null;
+            CachePath = null;
+            ContentDirectoriesText = string.Empty;
+            GitHubDiscoveryRepositoriesText = string.Empty;
+            ContentStoragePath = null;
+
+            // Reset CAS settings
+            CasRootPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "cas-pool");
+            EnableAutomaticGarbageCollection = true;
+            MaxCacheSizeGB = 50;
+            CasMaxConcurrentOperations = 4;
+            CasVerifyIntegrity = true;
+            GarbageCollectionGracePeriodDays = 7;
+            AutoGcIntervalDays = 1;
 
             _logger.LogInformation("Settings reset to defaults");
 
@@ -457,6 +534,36 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while browsing for settings file path");
+        }
+    }
+
+    [RelayCommand]
+    private async Task BrowseCasRootPath()
+    {
+        try
+        {
+            _logger.LogDebug("Browse CAS root path requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel != null)
+            {
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Content-Addressable Storage Root Directory",
+                    AllowMultiple = false,
+                });
+
+                if (folders.Count > 0)
+                {
+                    CasRootPath = folders[0].Path.LocalPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while browsing for CAS root path");
         }
     }
 

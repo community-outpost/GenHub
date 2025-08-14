@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.Features.Workspace;
@@ -47,6 +48,26 @@ public class WindowsFileOperationsService : IFileOperationsService
         => _baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
 
     /// <inheritdoc/>
+    public Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
+        => _baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<string?> StoreInCasAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
+        => _baseService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default)
+        => _baseService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default)
+        => _baseService.LinkFromCasAsync(hash, destinationPath, useHardLink, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default)
+        => _baseService.OpenCasContentAsync(hash, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task CreateHardLinkAsync(
         string linkPath,
         string targetPath,
@@ -55,15 +76,12 @@ public class WindowsFileOperationsService : IFileOperationsService
         try
         {
             var directory = Path.GetDirectoryName(linkPath);
-            if (!string.IsNullOrEmpty(directory))
+            if (directory != null)
             {
-                Directory.CreateDirectory(directory);
+                FileOperationsService.EnsureDirectoryExists(directory);
             }
 
-            if (File.Exists(linkPath))
-            {
-                File.Delete(linkPath);
-            }
+            FileOperationsService.DeleteFileIfExists(linkPath);
 
             await Task.Run(
                 () =>

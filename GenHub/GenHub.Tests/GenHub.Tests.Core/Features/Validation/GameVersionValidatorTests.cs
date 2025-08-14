@@ -1,6 +1,5 @@
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
@@ -20,6 +19,8 @@ public class GameVersionValidatorTests
 {
     private readonly Mock<ILogger<GameVersionValidator>> _loggerMock = new();
     private readonly Mock<IManifestProvider> _manifestProviderMock = new();
+    private readonly Mock<IContentValidator> _contentValidatorMock = new();
+    private readonly Mock<IFileHashProvider> _hashProviderMock = new();
     private readonly GameVersionValidator _validator;
 
     /// <summary>
@@ -27,7 +28,17 @@ public class GameVersionValidatorTests
     /// </summary>
     public GameVersionValidatorTests()
     {
-        _validator = new GameVersionValidator(_loggerMock.Object, _manifestProviderMock.Object);
+        // Setup ContentValidator mocks to return valid results
+        _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+
+        _validator = new GameVersionValidator(
+            _loggerMock.Object,
+            _manifestProviderMock.Object,
+            _contentValidatorMock.Object,
+            _hashProviderMock.Object);
     }
 
     /// <summary>
@@ -136,11 +147,26 @@ public class GameVersionValidatorTests
     {
         var manifest = new ContentManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
-        var tempDir = Directory.GetCurrentDirectory();
-        var version = new GameVersion { WorkingDirectory = tempDir };
-        var result = await _validator.ValidateAsync(version, null, default);
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
+
+        // Setup ContentValidator to return missing file issue
+        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
+            {
+                new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+            }));
+
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+            var result = await _validator.ValidateAsync(version, null, default);
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
     }
 
     /// <summary>
