@@ -9,6 +9,16 @@
 *.user
 *.sln.docstates
 
+# Node deps / package managers
+node_modules/
+package-lock.json
+npm-debug.log*
+pnpm-debug.log*
+
+# VitePress / site build
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
 # Build results
 
 [Dd]ebug/
