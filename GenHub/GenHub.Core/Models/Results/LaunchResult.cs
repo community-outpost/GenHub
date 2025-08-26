@@ -6,70 +6,58 @@ namespace GenHub.Core.Models.Results;
 /// <summary>
 /// Result of a game launch operation.
 /// </summary>
-public class LaunchResult
+public class LaunchResult(bool success, int? processId = null, string? errorMessage = null, Exception? exception = null, TimeSpan launchDuration = default, DateTime startTime = default)
 {
     /// <summary>
-    /// Gets or sets a value indicating whether the launch was successful.
+    /// Gets a value indicating whether the launch was successful.
     /// </summary>
-    required public bool Success { get; set; }
+    public bool Success { get; } = success;
 
     /// <summary>
-    /// Gets or sets the process ID if successful.
+    /// Gets the process ID if successful.
     /// </summary>
-    public int? ProcessId { get; set; }
+    public int? ProcessId { get; } = processId;
 
     /// <summary>
-    /// Gets or sets the error message if unsuccessful.
+    /// Gets the error message if unsuccessful.
     /// </summary>
-    public string? ErrorMessage { get; set; }
+    public string? ErrorMessage { get; } = errorMessage;
 
     /// <summary>
-    /// Gets or sets the exception if one occurred.
+    /// Gets the exception if one occurred.
     /// </summary>
-    public Exception? Exception { get; set; }
+    public Exception? Exception { get; } = exception;
 
     /// <summary>
-    /// Gets or sets the launch duration.
+    /// Gets the launch duration.
     /// </summary>
-    public TimeSpan LaunchDuration { get; set; }
+    public TimeSpan LaunchDuration { get; } = launchDuration;
 
     /// <summary>
-    /// Gets or sets the start time.
+    /// Gets the start time.
     /// </summary>
-    public DateTime StartTime { get; set; }
+    public DateTime StartTime { get; } = startTime;
 
     /// <summary>
-    /// Creates a successful launch result.
+    /// Creates a failed <see cref="LaunchResult"/>.
     /// </summary>
-    /// <param name="processId">The process ID of the launched game.</param>
-    /// <param name="startTime">The start time of the process.</param>
-    /// <param name="duration">The duration of the launch.</param>
-    /// <returns>A successful <see cref="LaunchResult"/> instance.</returns>
-    public static LaunchResult CreateSuccess(int processId, DateTime startTime, TimeSpan duration)
+    /// <param name="errorMessage">The error message describing the failure.</param>
+    /// <param name="exception">Optional exception captured during the launch attempt.</param>
+    /// <returns>A <see cref="LaunchResult"/> representing the failed launch.</returns>
+    public static LaunchResult CreateFailure(string errorMessage, Exception? exception = null)
     {
-        return new LaunchResult
-        {
-            Success = true,
-            ProcessId = processId,
-            StartTime = startTime,
-            LaunchDuration = duration,
-        };
+        return new LaunchResult(false, null, errorMessage, exception, default, DateTime.UtcNow);
     }
 
     /// <summary>
-    /// Creates a failed launch result.
+    /// Creates a successful <see cref="LaunchResult"/>.
     /// </summary>
-    /// <param name="errorMessage">The error message describing the failure.</param>
-    /// <param name="exception">The exception that occurred, if any.</param>
-    /// <returns>A failed <see cref="LaunchResult"/> instance.</returns>
-    public static LaunchResult CreateFailure(string errorMessage, Exception? exception = null)
+    /// <param name="processId">The launched process id.</param>
+    /// <param name="startTime">The process start time.</param>
+    /// <param name="launchDuration">The duration it took to launch.</param>
+    /// <returns>A <see cref="LaunchResult"/> representing a successful launch.</returns>
+    public static LaunchResult CreateSuccess(int processId, DateTime startTime, TimeSpan launchDuration)
     {
-        return new LaunchResult
-        {
-            Success = false,
-            ErrorMessage = errorMessage,
-            Exception = exception,
-            StartTime = DateTime.UtcNow,
-        };
+        return new LaunchResult(true, processId, null, null, launchDuration, startTime);
     }
 }

@@ -11,30 +11,23 @@ namespace GenHub.Core.Models.GitHub;
 /// <remarks>
 /// Use <see cref="CreateSuccess"/> for successful parses and <see cref="CreateFailure"/> for failures.
 /// </remarks>
-public sealed class GitHubUrlParseResult : ResultBase
+public sealed class GitHubUrlParseResult(bool success, string owner = "", string repo = "", string? tag = null, IEnumerable<string>? errors = null)
+    : ResultBase(success, errors)
 {
-    private GitHubUrlParseResult(bool success, string owner = "", string repo = "", string? tag = null, IEnumerable<string>? errors = null)
-        : base(success, errors)
-    {
-        Owner = owner;
-        Repo = repo;
-        Tag = tag;
-    }
-
     /// <summary>
     /// Gets the repository owner (username or organization) parsed from the URL.
     /// </summary>
-    public string Owner { get; }
+    public string Owner { get; } = owner;
 
     /// <summary>
     /// Gets the repository name parsed from the URL.
     /// </summary>
-    public string Repo { get; }
+    public string Repo { get; } = repo;
 
     /// <summary>
     /// Gets the optional tag (release) parsed from the URL, if present.
     /// </summary>
-    public string? Tag { get; }
+    public string? Tag { get; } = tag;
 
     /// <summary>
     /// Creates a successful parse result containing the owner, repository and optional tag.

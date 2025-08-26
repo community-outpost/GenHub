@@ -115,10 +115,10 @@ public class ContentOrchestratorTests
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
 
-    // Assert
-    Assert.True(result.Success);
-    Assert.Equal(manifest, result.Data);
-    _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
-    _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(manifest, result.Data);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

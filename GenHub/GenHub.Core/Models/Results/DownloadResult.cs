@@ -5,50 +5,23 @@ namespace GenHub.Core.Models.Results;
 /// <summary>
 /// Result of a file download operation.
 /// </summary>
-public class DownloadResult : ResultBase
+public class DownloadResult(bool success, string? filePath = null, long bytesDownloaded = 0, string? errorMessage = null, TimeSpan? elapsed = null, bool hashVerified = false)
+    : ResultBase(success, errorMessage, elapsed ?? TimeSpan.Zero)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DownloadResult"/> class.
-    /// </summary>
-    /// <param name="success">Whether the download was successful.</param>
-    /// <param name="filePath">The path to the downloaded file.</param>
-    /// <param name="bytesDownloaded">The number of bytes downloaded.</param>
-    /// <param name="errorMessage">Error message if unsuccessful.</param>
-    /// <param name="elapsed">Time taken for the download.</param>
-    /// <param name="hashVerified">Whether hash verification passed.</param>
-    public DownloadResult(
-        bool success,
-        string? filePath = null,
-        long bytesDownloaded = 0,
-        string? errorMessage = null,
-        TimeSpan? elapsed = null,
-        bool hashVerified = false)
-        : base(success, errorMessage, elapsed ?? TimeSpan.Zero)
-    {
-        FilePath = filePath;
-        BytesDownloaded = bytesDownloaded;
-        HashVerified = hashVerified;
-    }
-
     /// <summary>
     /// Gets the path to the downloaded file.
     /// </summary>
-    public string? FilePath { get; }
+    public string? FilePath { get; } = filePath;
 
     /// <summary>
     /// Gets the number of bytes downloaded.
     /// </summary>
-    public long BytesDownloaded { get; }
-
-    /// <summary>
-    /// Gets the error message if the download failed.
-    /// </summary>
-    public string? ErrorMessage => FirstError;
+    public long BytesDownloaded { get; } = bytesDownloaded;
 
     /// <summary>
     /// Gets a value indicating whether hash verification passed.
     /// </summary>
-    public bool HashVerified { get; }
+    public bool HashVerified { get; } = hashVerified;
 
     /// <summary>
     /// Gets the average download speed in bytes per second.
@@ -65,6 +38,11 @@ public class DownloadResult : ResultBase
     /// Gets the formatted average download speed (e.g. "1.2 MB/s").
     /// </summary>
     public string FormattedSpeed => FormatBytes(AverageSpeedBytesPerSecond) + "/s";
+
+    /// <summary>
+    /// Gets the error message if the download failed.
+    /// </summary>
+    public string? ErrorMessage => FirstError;
 
     /// <summary>
     /// Creates a successful download result.

@@ -456,7 +456,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = "Validating prepared content files",
                 });
 
-                // Forward orchestrator progress into validator 
+                // Forward orchestrator progress into validator
                 IProgress<ValidationProgress>? validationProgress = null;
                 if (progress != null)
                 {
