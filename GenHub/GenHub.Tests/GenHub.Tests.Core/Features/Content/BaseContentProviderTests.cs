@@ -119,7 +119,7 @@ public class BaseContentProviderTests
 
         protected override IContentDeliverer Deliverer => _deliverer;
 
-        public override Task<ContentOperationResult<ContentManifest>> GetContentAsync(string contentId, CancellationToken cancellationToken = default)
+        public override Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(string contentId, CancellationToken cancellationToken = default)
         {
             var manifest = new ContentManifest { Id = contentId, Name = $"Content {contentId}" };
             return Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));

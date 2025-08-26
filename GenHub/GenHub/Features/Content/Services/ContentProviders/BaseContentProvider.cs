@@ -128,7 +128,7 @@ public abstract class BaseContentProvider(
     /// <param name="contentId">The content identifier.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result containing the game manifest.</returns>
-    public abstract Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    public abstract Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 

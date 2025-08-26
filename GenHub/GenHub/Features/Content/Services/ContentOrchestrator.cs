@@ -211,7 +211,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogDebug("Retrieving manifest from provider {ProviderName} for content {ContentId}", providerName, contentId);
 
-        var result = await provider.GetContentAsync(contentId, cancellationToken);
+        var result = await provider.GetValidatedContentAsync(contentId, cancellationToken);
 
         // Cache successful results
         if (result.Success && result.Data != null)
@@ -399,7 +399,7 @@ public class ContentOrchestrator : IContentOrchestrator
             }
             else
             {
-                var manifestResult = await provider.GetContentAsync(searchResult.Id, cancellationToken);
+                var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
                 if (!manifestResult.Success || manifestResult.Data == null)
                 {
                     return ContentOperationResult<ContentManifest>.CreateFailure(

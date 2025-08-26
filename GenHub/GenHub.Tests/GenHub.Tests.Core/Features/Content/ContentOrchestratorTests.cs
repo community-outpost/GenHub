@@ -92,7 +92,7 @@ public class ContentOrchestratorTests
 
         var providerMock = new Mock<IContentProvider>();
         providerMock.Setup(p => p.SourceName).Returns("TestProvider");
-        providerMock.Setup(p => p.GetContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
         providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));

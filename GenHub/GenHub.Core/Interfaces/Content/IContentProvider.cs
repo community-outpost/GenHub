@@ -28,7 +28,7 @@ public interface IContentProvider : IContentSource
     /// <param name="contentId">The unique identifier of the content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A complete, validated game manifest ready for workspace preparation.</returns>
-    Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 
