@@ -73,7 +73,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers
                         mapDetails.description,
                         tags: new List<string> { "Map", "CNC Labs", "Community" },
                         iconUrl: mapDetails.previewImage,
-                        screenshotUrls: mapDetails.Screenshots);
+                        screenshotUrls: mapDetails.ScreenshotUrls);
 
                 // Add the map file
                 await manifest.AddFileAsync(
@@ -146,7 +146,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers
             float rating = 0f
         )
         {
-            public List<string> Screenshots => screenshots ?? new List<string>();
+            public List<string> ScreenshotUrls => screenshots ?? new List<string>();
         }
     }
 }

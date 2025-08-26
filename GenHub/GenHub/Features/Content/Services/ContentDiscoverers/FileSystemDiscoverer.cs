@@ -103,9 +103,9 @@ public class FileSystemDiscoverer : IContentDiscoverer
                 };
 
                 // Copy screenshots and tags
-                discovered.Screenshots.Clear();
+                discovered.ScreenshotUrls.Clear();
                 if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
-                    foreach (var s in manifest.Metadata.ScreenshotUrls) discovered.Screenshots.Add(s);
+                    foreach (var s in manifest.Metadata.ScreenshotUrls) discovered.ScreenshotUrls.Add(s);
 
                 discovered.Tags.Clear();
                 if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)

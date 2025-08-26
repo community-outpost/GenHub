@@ -239,11 +239,11 @@ public abstract class BaseContentProvider(
         };
 
         // Copy screenshots and tags
-        resolved.Screenshots.Clear();
+        resolved.ScreenshotUrls.Clear();
         if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
-            foreach (var s in manifest.Metadata.ScreenshotUrls) resolved.Screenshots.Add(s);
+            foreach (var s in manifest.Metadata.ScreenshotUrls) resolved.ScreenshotUrls.Add(s);
         else
-            foreach (var s in discovered.Screenshots) resolved.Screenshots.Add(s);
+            foreach (var s in discovered.ScreenshotUrls) resolved.ScreenshotUrls.Add(s);
 
         resolved.Tags.Clear();
         if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)

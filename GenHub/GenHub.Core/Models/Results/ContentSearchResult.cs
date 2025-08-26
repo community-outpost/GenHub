@@ -38,8 +38,8 @@ public class ContentSearchResult
     /// <summary>Gets or sets the URL for the content's icon (optional).</summary>
     public string? IconUrl { get; set; }
 
-    /// <summary>Gets a list of URLs for screenshots.</summary>
-    public IList<string> Screenshots { get; } = new List<string>();
+    /// <summary>Gets a list of screenshot URLs.</summary>
+    public IList<string> ScreenshotUrls { get; } = new List<string>();
 
     /// <summary>Gets a list of tags associated with the content.</summary>
     public IList<string> Tags { get; } = new List<string>();
