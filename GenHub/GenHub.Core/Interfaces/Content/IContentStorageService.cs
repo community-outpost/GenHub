@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 
@@ -77,27 +78,10 @@ public interface IContentStorageService
     /// Gets storage statistics and usage information.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>Storage statistics including size, file count, etc.</returns>
+    /// <returns>
+    /// A <see cref="StorageStats"/> object describing usage under the content storage root.
+    /// Fields include manifest count (logical manifests), total file count (all files under the storage root),
+    /// total size in bytes, deduplication savings and available free disk space.
+    /// </returns>
     Task<StorageStats> GetStorageStatsAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>
-/// Storage statistics for content storage service.
-/// </summary>
-public class StorageStats
-{
-    /// <summary>Gets or sets the total size of stored content in bytes.</summary>
-    public long TotalSizeBytes { get; set; }
-
-    /// <summary>Gets or sets the number of stored manifests.</summary>
-    public int ManifestCount { get; set; }
-
-    /// <summary>Gets or sets the total number of stored files.</summary>
-    public long TotalFileCount { get; set; }
-
-    /// <summary>Gets or sets the amount of space saved through deduplication in bytes.</summary>
-    public long DeduplicationSavingsBytes { get; set; }
-
-    /// <summary>Gets or sets the available free space in bytes.</summary>
-    public long AvailableFreeSpaceBytes { get; set; }
 }
