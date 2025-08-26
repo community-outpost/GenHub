@@ -22,8 +22,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 public class GitHubResolver(
     IGitHubApiClient gitHubApiClient,
     IContentManifestBuilder manifestBuilder,
-    ILogger<GitHubResolver> logger
-) : IContentResolver
+    ILogger<GitHubResolver> logger) : IContentResolver
 {
     // Regex breakdown:
     // ^https://github\.com/
@@ -32,8 +31,7 @@ public class GitHubResolver(
     //   (?:/releases/tag/(?<tag>[^/]+))? -> optional tag
     private static readonly Regex GitHubUrlRegex = new(
         @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?",
-        RegexOptions.Compiled
-    );
+        RegexOptions.Compiled);
 
     private static readonly Dictionary<string, ContentType> ContentTypeKeywords = new()
     {
@@ -67,93 +65,66 @@ public class GitHubResolver(
     /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved manifest or an error.</returns>
     public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
-        CancellationToken cancellationToken = default
-    )
+        CancellationToken cancellationToken = default)
     {
         try
         {
             // Extract metadata from the discovered item
-            if (
-                !discoveredItem.ResolverMetadata.TryGetValue("owner", out var owner)
+            if (!discoveredItem.ResolverMetadata.TryGetValue("owner", out var owner)
                 || !discoveredItem.ResolverMetadata.TryGetValue("repo", out var repo)
-                || !discoveredItem.ResolverMetadata.TryGetValue("tag", out var tag)
-            )
+                || !discoveredItem.ResolverMetadata.TryGetValue("tag", out var tag))
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure(
-                    "Missing required metadata for GitHub resolution"
-                );
+                return ContentOperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
             }
 
             var release = string.IsNullOrEmpty(tag)
                 ? await _gitHubApiClient.GetLatestReleaseAsync(
                     owner,
                     repo,
-                    cancellationToken
-                )
+                    cancellationToken)
                 : await _gitHubApiClient.GetReleaseByTagAsync(
                     owner,
                     repo,
                     tag,
-                    cancellationToken
-                );
+                    cancellationToken);
 
             if (release == null)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure(
-                    $"Release not found for {owner}/{repo}"
-                );
+                return ContentOperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
             }
 
             var manifest = _manifestBuilder
                 .WithBasicInfo(
                     discoveredItem.Id,
                     release.Name ?? discoveredItem.Name,
-                    release.TagName
-                )
+                    release.TagName)
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(release.Author)
                 .WithMetadata(
                     release.Body ?? discoveredItem.Description ?? string.Empty,
                     tags: InferTagsFromRelease(release),
-                    changelogUrl: release.HtmlUrl ?? string.Empty
-                )
+                    changelogUrl: release.HtmlUrl ?? string.Empty)
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
             // Validate assets collection
             if (release.Assets == null || !release.Assets.Any())
             {
-                _logger.LogWarning(
-                    "No assets found for release {Owner}/{Repo}:{Tag}",
-                    owner,
-                    repo,
-                    release.TagName
-                );
+                _logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
                 return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
 
             // Add files from GitHub assets
             foreach (var asset in release.Assets)
             {
-                await manifest.AddFileAsync(
-                    asset.Name,
-                    ManifestFileSourceType.Download,
-                    asset.BrowserDownloadUrl,
-                    isExecutable: IsExecutableFile(asset.Name)
-                );
+                await manifest.AddFileAsync(asset.Name, ManifestFileSourceType.Download, asset.BrowserDownloadUrl, isExecutable: IsExecutableFile(asset.Name));
             }
 
             return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Failed to resolve GitHub release for {ItemName}",
-                discoveredItem.Name
-            );
-            return ContentOperationResult<ContentManifest>.CreateFailure(
-                $"Resolution failed: {ex.Message}"
-            );
+            _logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
+            return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
     }
 
@@ -215,8 +186,7 @@ public class GitHubResolver(
     private static (
         bool Success,
         (string Owner, string Repo, string? Tag) Value,
-        string ErrorMessage
-    ) ParseGitHubUrl(string url)
+        string ErrorMessage) ParseGitHubUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -236,11 +206,7 @@ public class GitHubResolver(
         var match = GitHubUrlRegex.Match(url);
         if (!match.Success)
         {
-            return (
-                false,
-                default,
-                "Invalid GitHub repository URL format. Expected: https://github.com/owner/repo or https://github.com/owner/repo/releases/tag/version"
-            );
+            return (false, default, "Invalid GitHub repository URL format. Expected: https://github.com/owner/repo or https://github.com/owner/repo/releases/tag/version");
         }
 
         var owner = match.Groups["owner"].Value;
@@ -249,11 +215,7 @@ public class GitHubResolver(
 
         if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repo))
         {
-            return (
-                false,
-                default,
-                "Owner and repository name cannot be empty."
-            );
+            return (false, default, "Owner and repository name cannot be empty.");
         }
 
         return (true, (owner, repo, tag), string.Empty);
@@ -265,11 +227,10 @@ public class GitHubResolver(
         return $"fallback:{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(fallbackData))}";
     }
 
-    private ContentType InferContentType(
+    private (ContentType type, bool isInferred) InferContentType(
         string repo,
         string? releaseName,
-        string? description
-    )
+        string? description)
     {
         var searchText = $"{repo} {releaseName} {description}".ToLowerInvariant();
         var scores = new Dictionary<ContentType, int>();
@@ -285,15 +246,14 @@ public class GitHubResolver(
         }
 
         return scores.Any()
-            ? scores.OrderByDescending(x => x.Value).First().Key
-            : _defaultContentType;
+            ? (scores.OrderByDescending(x => x.Value).First().Key, true)
+            : (_defaultContentType, true);
     }
 
     private GameType InferTargetGame(
         string repo,
         string? releaseName,
-        string? description
-    )
+        string? description)
     {
         var searchText = $"{repo} {releaseName} {description}".ToLowerInvariant();
 

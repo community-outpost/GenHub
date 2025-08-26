@@ -78,6 +78,8 @@ public class GitHubDiscoverer : IContentDiscoverer
                 var latestRelease = await _gitHubApiClient.GetLatestReleaseAsync(owner, repo, cancellationToken);
                 if (latestRelease != null)
                 {
+                    var inferred = InferContentType(repo, latestRelease.Name);
+                    var inferredGame = InferTargetGame(repo, latestRelease.Name);
                     var discovered = new ContentSearchResult
                     {
                         Id = $"github.{owner}.{repo}.{latestRelease.TagName}",
@@ -85,8 +87,9 @@ public class GitHubDiscoverer : IContentDiscoverer
                         Description = "GitHub release - full details available after resolution",
                         Version = latestRelease.TagName,
                         AuthorName = latestRelease.Author,
-                        ContentType = InferContentType(repo, latestRelease.Name),
-                        TargetGame = InferTargetGame(repo, latestRelease.Name),
+                        ContentType = inferred.type,
+                        TargetGame = inferredGame.type,
+                        IsInferred = inferred.isInferred || inferredGame.isInferred,
                         ProviderName = SourceName,
                         RequiresResolution = true,
                         ResolverId = "GitHubRelease",
@@ -136,37 +139,37 @@ public class GitHubDiscoverer : IContentDiscoverer
         return true;
     }
 
-    private ContentType InferContentType(string repo, string? releaseName)
+    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName}".ToLowerInvariant();
 
         if (searchText.Contains("patch") || searchText.Contains("fix"))
         {
-            return ContentType.Patch;
+            return (ContentType.Patch, true);
         }
 
         if (searchText.Contains("map"))
         {
-            return ContentType.MapPack;
+            return (ContentType.MapPack, true);
         }
 
-        return ContentType.Mod; // Default
+        return (ContentType.Mod, true); // Default guess is inferred
     }
 
-    private GameType InferTargetGame(string repo, string? releaseName)
+    private (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName}".ToLowerInvariant();
 
         if (searchText.Contains("zero hour") || searchText.Contains("zh"))
         {
-            return GameType.ZeroHour;
+            return (GameType.ZeroHour, true);
         }
 
         if (searchText.Contains("generals"))
         {
-            return GameType.Generals;
+            return (GameType.Generals, true);
         }
 
-        return GameType.ZeroHour; // Default
+        return (GameType.ZeroHour, true); // Default
     }
 }

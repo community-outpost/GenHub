@@ -73,11 +73,11 @@ public abstract class BaseContentProvider(
 
         // Step 1: Discovery
         var discoveryResult = await Discoverer.DiscoverAsync(query, cancellationToken);
-            if (!discoveryResult.Success || discoveryResult.Data == null)
-            {
-                return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
-                    $"Discovery failed: {discoveryResult.ErrorMessage}");
-            }
+        if (!discoveryResult.Success || discoveryResult.Data == null)
+        {
+            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                $"Discovery failed: {discoveryResult.ErrorMessage}");
+        }
 
         var resolvedResults = new List<ContentSearchResult>();
 
@@ -240,36 +240,36 @@ public abstract class BaseContentProvider(
 
         // Copy screenshots and tags
         resolved.ScreenshotUrls.Clear();
-            if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
+        if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
+        {
+            foreach (var s in manifest.Metadata.ScreenshotUrls)
             {
-                foreach (var s in manifest.Metadata.ScreenshotUrls)
-                {
-                    resolved.ScreenshotUrls.Add(s);
-                }
+                resolved.ScreenshotUrls.Add(s);
             }
-            else
+        }
+        else
+        {
+            foreach (var s in discovered.ScreenshotUrls)
             {
-                foreach (var s in discovered.ScreenshotUrls)
-                {
-                    resolved.ScreenshotUrls.Add(s);
-                }
+                resolved.ScreenshotUrls.Add(s);
             }
+        }
 
         resolved.Tags.Clear();
-            if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)
+        if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)
+        {
+            foreach (var t in manifest.Metadata.Tags)
             {
-                foreach (var t in manifest.Metadata.Tags)
-                {
-                    resolved.Tags.Add(t);
-                }
+                resolved.Tags.Add(t);
             }
-            else
+        }
+        else
+        {
+            foreach (var t in discovered.Tags)
             {
-                foreach (var t in discovered.Tags)
-                {
-                    resolved.Tags.Add(t);
-                }
+                resolved.Tags.Add(t);
             }
+        }
 
         resolved.SetData(manifest);
         return resolved;

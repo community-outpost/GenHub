@@ -67,6 +67,8 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                     if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                         release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
                     {
+                        var inferred = InferContentType(repo, release.Name);
+                        var inferredGame = InferTargetGame(repo, release.Name);
                         results.Add(new ContentSearchResult
                         {
                             Id = $"github.{owner}.{repo}.{release.TagName}",
@@ -74,8 +76,9 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                             Description = "GitHub release - full details available after resolution",
                             Version = release.TagName,
                             AuthorName = release.Author,
-                            ContentType = InferContentType(repo, release.Name),
-                            TargetGame = InferTargetGame(repo, release.Name),
+                            ContentType = inferred.type,
+                            TargetGame = inferredGame.type,
+                            IsInferred = inferred.isInferred || inferredGame.isInferred,
                             ProviderName = SourceName,
                             RequiresResolution = true,
                             ResolverId = "GitHubRelease",
@@ -108,42 +111,42 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 
-    private ContentType InferContentType(string repo, string? releaseName)
+    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
 
         if (searchText.Contains("patch") || searchText.Contains("fix"))
         {
-            return ContentType.Patch;
+            return (ContentType.Patch, true);
         }
 
         if (searchText.Contains("map"))
         {
-            return ContentType.MapPack;
+            return (ContentType.MapPack, true);
         }
 
         if (searchText.Contains("mod") || searchText.Contains("addon"))
         {
-            return ContentType.Mod;
+            return (ContentType.Mod, true);
         }
 
-        return ContentType.Mod; // Default
+        return (ContentType.Mod, true); // Default
     }
 
-    private GameType InferTargetGame(string repo, string? releaseName)
+    private (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
 
         if (searchText.Contains("zero hour") || searchText.Contains("zh"))
         {
-            return GameType.ZeroHour;
+            return (GameType.ZeroHour, true);
         }
 
         if (searchText.Contains("generals") && !searchText.Contains("zero hour"))
         {
-            return GameType.Generals;
+            return (GameType.Generals, true);
         }
 
-        return GameType.ZeroHour; // Default
+        return (GameType.ZeroHour, true); // Default
     }
 }

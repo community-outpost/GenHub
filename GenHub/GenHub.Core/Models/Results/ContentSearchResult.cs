@@ -26,6 +26,13 @@ public class ContentSearchResult
     /// <summary>Gets or sets the type of the content (e.g., Mod, Map).</summary>
     public ContentType ContentType { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the ContentType (or other inferred fields)
+    /// were produced by an automatic heuristic and should be considered a guess that
+    /// the user can override.
+    /// </summary>
+    public bool IsInferred { get; set; } = false;
+
     /// <summary>Gets or sets the game this content is for (e.g., Generals, ZeroHour).</summary>
     public GameType TargetGame { get; set; }
 
