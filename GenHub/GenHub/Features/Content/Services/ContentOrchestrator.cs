@@ -243,7 +243,7 @@ public class ContentOrchestrator : IContentOrchestrator
         var result = await SearchAsync(query, cancellationToken);
         return result.Success
             ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? Enumerable.Empty<ContentSearchResult>())
-            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(string.Join(", ", result.Errors));
+            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(result.Errors);
     }
 
     /// <summary>
@@ -353,8 +353,8 @@ public class ContentOrchestrator : IContentOrchestrator
             var validationResult = await _contentValidator.ValidateManifestAsync(manifestResult.Data, cancellationToken);
             if (!validationResult.IsValid)
             {
-                var error = string.Join(", ", validationResult.Issues.Select(i => i.Message));
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {error}");
+                return ContentOperationResult<ContentManifest>.CreateFailure(
+                    validationResult.Issues.Select(i => $"Manifest validation failed: {i.Message}"));
             }
 
             return ContentOperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
@@ -423,8 +423,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    var errorMessage = string.Join("; ", errors.Select(e => e.Message));
-                    return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {errorMessage}");
+                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                        errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
 

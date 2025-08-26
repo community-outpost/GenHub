@@ -156,8 +156,8 @@ public abstract class BaseContentProvider(
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    var errorMessage = string.Join("; ", errors.Select(e => e.Message));
-                    return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {errorMessage}");
+                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                        errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
 

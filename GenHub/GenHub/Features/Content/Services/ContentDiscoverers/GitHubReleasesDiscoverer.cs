@@ -108,7 +108,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         }
 
         return errors.Any() && !results.Any()
-            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(string.Join(", ", errors))
+            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(errors)
             : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 

@@ -13,9 +13,9 @@ public class ContentOperationResult<T> : ResultBase
     /// </summary>
     /// <param name="success">Whether the operation was successful.</param>
     /// <param name="data">The data returned by the operation.</param>
-    /// <param name="errorMessage">The error message if the operation failed.</param>
-    protected ContentOperationResult(bool success, T? data, string? errorMessage = null)
-        : base(success, errorMessage)
+    /// <param name="errors">The error messages if the operation failed.</param>
+    protected ContentOperationResult(bool success, T? data, IEnumerable<string>? errors = null)
+        : base(success, errors)
     {
         Data = data;
     }
@@ -47,7 +47,17 @@ public class ContentOperationResult<T> : ResultBase
     /// <returns>A failed <see cref="ContentOperationResult{T}"/>.</returns>
     public static ContentOperationResult<T> CreateFailure(string errorMessage)
     {
-        return new ContentOperationResult<T>(false, default, errorMessage);
+        return new ContentOperationResult<T>(false, default, errorMessage != null ? new[] { errorMessage } : null);
+    }
+
+    /// <summary>
+    /// Creates a failed result with multiple error messages.
+    /// </summary>
+    /// <param name="errors">The error messages.</param>
+    /// <returns>A failed <see cref="ContentOperationResult{T}"/>.</returns>
+    public static ContentOperationResult<T> CreateFailure(IEnumerable<string> errors)
+    {
+        return new ContentOperationResult<T>(false, default, errors);
     }
 
     /// <summary>
@@ -57,6 +67,6 @@ public class ContentOperationResult<T> : ResultBase
     /// <returns>A failed <see cref="ContentOperationResult{T}"/>.</returns>
     public static ContentOperationResult<T> CreateFailure(ResultBase result)
     {
-        return new ContentOperationResult<T>(false, default, result.FirstError);
+    return new ContentOperationResult<T>(false, default, result.Errors ?? Enumerable.Empty<string>());
     }
 }
