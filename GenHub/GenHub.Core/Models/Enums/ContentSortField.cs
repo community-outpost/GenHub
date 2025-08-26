@@ -8,40 +8,40 @@ public enum ContentSortField
     /// <summary>
     /// No explicit sort order specified (default).
     /// </summary>
-    None = 0,
+    None,
 
     /// <summary>
     /// Sort by relevance to the search query.
     /// </summary>
-    Relevance = 1,
+    Relevance,
 
     /// <summary>
     /// Sort by content name.
     /// </summary>
-    Name = 2,
+    Name,
 
     /// <summary>
     /// Sort by creation date.
     /// </summary>
-    DateCreated = 3,
+    DateCreated,
 
     /// <summary>
     /// Sort by last updated date.
     /// </summary>
-    DateUpdated = 4,
+    DateUpdated,
 
     /// <summary>
     /// Sort by download count.
     /// </summary>
-    DownloadCount = 5,
+    DownloadCount,
 
     /// <summary>
     /// Sort by user rating.
     /// </summary>
-    Rating = 6,
+    Rating,
 
     /// <summary>
     /// Sort by file size.
     /// </summary>
-    Size = 7,
+    Size,
 }
