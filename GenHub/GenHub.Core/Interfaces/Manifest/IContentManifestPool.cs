@@ -13,12 +13,14 @@ namespace GenHub.Core.Interfaces.Manifest;
 public interface IContentManifestPool
 {
     /// <summary>
-    /// Adds a ContentManifest to the pool after content acquisition.
+    /// Stores a ContentManifest and its content files in persistent storage,
+    /// and registers it in the pool.
     /// </summary>
-    /// <param name="manifest">The game manifest to store.</param>
+    /// <param name="manifest">The content manifest to store.</param>
+    /// <param name="sourceDirectory">The directory containing the content files.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation. Completes when the manifest is stored in the pool.</returns>
-    Task AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default);
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a specific ContentManifest from the pool by ID.

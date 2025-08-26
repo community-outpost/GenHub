@@ -16,48 +16,21 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Persistent storage and management of acquired GameManifests using the content storage service.
 /// </summary>
-public class ContentManifestPool : IContentManifestPool
+public class ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger) : IContentManifestPool
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private readonly IContentStorageService _storageService;
-    private readonly ILogger<ContentManifestPool> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentManifestPool"/> class.
-    /// </summary>
-    /// <param name="storageService">The content storage service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger)
-    {
-        _storageService = storageService;
-        _logger = logger;
-    }
+    private readonly IContentStorageService _storageService = storageService;
+    private readonly ILogger<ContentManifestPool> _logger = logger;
 
     /// <inheritdoc/>
-    public async Task AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default)
-    {
-        // Delegate to storage service without source directory
-        // This will be used when manifest already exists in storage
-        var isStoredResult = await _storageService.IsContentStoredAsync(manifest.Id, cancellationToken);
-        if (!isStoredResult.Success || !isStoredResult.Data)
-        {
-            throw new InvalidOperationException(
-                $"Cannot add manifest {manifest.Id} without source directory. Content must be stored first using AddManifestAsync(ContentManifest, string, CancellationToken).");
-        }
-
-        _logger.LogDebug("Manifest {ManifestId} already exists in storage", manifest.Id);
-    }
-
-    /// <summary>
-    /// Adds a ContentManifest to the pool with its content files from a source directory.
-    /// </summary>
-    /// <param name="manifest">The game manifest to store.</param>
-    /// <param name="sourceDirectory">The directory containing the content files.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation. Completes when the manifest and associated content have been stored.</returns>
     public async Task AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Adding manifest {ManifestId} to pool with content from {SourceDirectory}", manifest.Id, sourceDirectory);
+        _logger.LogInformation("Storing manifest {ManifestId} with content from {SourceDirectory}", manifest.Id, sourceDirectory);
+
+        if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
+        {
+            throw new DirectoryNotFoundException($"Source directory does not exist: {sourceDirectory}");
+        }
 
         var result = await _storageService.StoreContentAsync(manifest, sourceDirectory, cancellationToken);
         if (!result.Success)
@@ -65,7 +38,7 @@ public class ContentManifestPool : IContentManifestPool
             throw new InvalidOperationException($"Failed to store content for manifest {manifest.Id}: {result.ErrorMessage}");
         }
 
-        _logger.LogDebug("Successfully added manifest {ManifestId} to pool", manifest.Id);
+        _logger.LogDebug("Successfully stored manifest {ManifestId} in pool", manifest.Id);
     }
 
     /// <inheritdoc/>
