@@ -22,7 +22,6 @@ public class GitHubDiscoverer : IContentDiscoverer
     private readonly ILogger<GitHubDiscoverer> _logger;
     private readonly IConfigurationProviderService _configurationProvider;
 
-    // TODO: Save and retrieve these from configuration.
     private readonly List<(string owner, string repo)> _repositories;
 
     /// <summary>
