@@ -143,8 +143,8 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
 
             if (!IsVersionCompatible(
                 dependencyManifest.Version,
-                dependency.MinVersion,
-                dependency.MaxVersion))
+                dependency.MinVersion ?? string.Empty,
+                dependency.MaxVersion ?? string.Empty))
             {
                 _logger.LogWarning(
                     "Dependency {DependencyId} version {Version} is not compatible with required range {MinVersion}-{MaxVersion}",

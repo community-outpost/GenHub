@@ -14,7 +14,7 @@ public class ContentSearchResult
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Gets or sets a brief description of the content.</summary>
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     /// <summary>  Gets or sets the rich data payload. For discoverers with SupportsManifestGeneration capability,
     /// this can contain the complete ContentManifest to avoid data loss.  </summary>
@@ -32,11 +32,11 @@ public class ContentSearchResult
     /// <summary>Gets or sets the name of the provider that supplied this result.</summary>
     public string ProviderName { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the name of the content author or publisher.</summary>
-    public string AuthorName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the name of the content author or publisher, if available.</summary>
+    public string? AuthorName { get; set; }
 
-    /// <summary>Gets or sets the URL for the content's icon.</summary>
-    public string IconUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets the URL for the content's icon (optional).</summary>
+    public string? IconUrl { get; set; }
 
     /// <summary>Gets a list of URLs for screenshots.</summary>
     public IList<string> Screenshots { get; } = new List<string>();

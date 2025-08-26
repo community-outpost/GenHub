@@ -128,14 +128,26 @@ public class FileSystemDeliverer : IContentDeliverer
             foreach (var dep in packageManifest.Dependencies)
             {
                 manifestBuilder.AddDependency(
-                    dep.Id, dep.Name, dep.DependencyType, dep.InstallBehavior, dep.MinVersion, dep.MaxVersion, dep.CompatibleVersions, dep.IsExclusive, dep.ConflictsWith);
+                    dep.Id,
+                    dep.Name,
+                    dep.DependencyType,
+                    dep.InstallBehavior,
+                    dep.MinVersion ?? string.Empty,
+                    dep.MaxVersion ?? string.Empty,
+                    dep.CompatibleVersions,
+                    dep.IsExclusive,
+                    dep.ConflictsWith);
             }
 
             // Add content references
             foreach (var reference in packageManifest.ContentReferences)
             {
                 manifestBuilder.AddContentReference(
-                    reference.ContentId, reference.PublisherId, reference.ContentType, reference.MinVersion, reference.MaxVersion);
+                    reference.ContentId,
+                    reference.PublisherId ?? string.Empty,
+                    reference.ContentType,
+                    reference.MinVersion ?? string.Empty,
+                    reference.MaxVersion ?? string.Empty);
             }
 
             // Add delivered files to the manifest

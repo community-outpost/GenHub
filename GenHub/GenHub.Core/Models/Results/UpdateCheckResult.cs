@@ -26,17 +26,17 @@ public class UpdateCheckResult
     /// <summary>
     /// Gets or sets the URL to download or view the update.
     /// </summary>
-    public string UpdateUrl { get; set; } = string.Empty;
+    public string? UpdateUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the release notes for the update.
     /// </summary>
-    public string ReleaseNotes { get; set; } = string.Empty;
+    public string? ReleaseNotes { get; set; }
 
     /// <summary>
     /// Gets or sets the title of the release for the update.
     /// </summary>
-    public string ReleaseTitle { get; set; } = string.Empty;
+    public string? ReleaseTitle { get; set; }
 
     /// <summary>
     /// Gets or sets the list of error messages encountered during the check.

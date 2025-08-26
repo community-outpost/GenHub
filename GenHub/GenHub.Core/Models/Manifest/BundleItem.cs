@@ -20,7 +20,7 @@ public class BundleItem
     /// <summary>
     /// Gets or sets the required version of the content.
     /// </summary>
-    public string RequiredVersion { get; set; } = string.Empty;
+    public string? RequiredVersion { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this item is optional in the bundle.

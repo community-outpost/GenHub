@@ -18,7 +18,7 @@ public class ContentMetadata
     /// <summary>
     /// Gets or sets the icon URL.
     /// </summary>
-    public string IconUrl { get; set; } = string.Empty;
+    public string? IconUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the screenshot URLs.
@@ -33,5 +33,5 @@ public class ContentMetadata
     /// <summary>
     /// Gets or sets the changelog URL.
     /// </summary>
-    public string ChangelogUrl { get; set; } = string.Empty;
+    public string? ChangelogUrl { get; set; }
 }

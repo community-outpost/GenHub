@@ -44,7 +44,7 @@ public class ManifestFile
     /// <summary>
     /// Gets or sets the download URL for remote files.
     /// </summary>
-    public string DownloadUrl { get; set; } = string.Empty;
+    public string? DownloadUrl { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this file is required for the manifest to function.

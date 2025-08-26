@@ -98,9 +98,9 @@ public class GitHubResolver : IContentResolver
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(release.Author)
                 .WithMetadata(
-                    release.Body ?? discoveredItem.Description,
+                    release.Body ?? discoveredItem.Description ?? string.Empty,
                     tags: InferTagsFromRelease(release),
-                    changelogUrl: release.HtmlUrl)
+                    changelogUrl: release.HtmlUrl ?? string.Empty)
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
             // Validate assets collection

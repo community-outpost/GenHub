@@ -89,7 +89,15 @@ public class HttpContentDeliverer : IContentDeliverer
             foreach (var dep in packageManifest.Dependencies)
             {
                 deliveredManifest.AddDependency(
-                    dep.Id, dep.Name, dep.DependencyType, dep.InstallBehavior, dep.MinVersion, dep.MaxVersion, dep.CompatibleVersions, dep.IsExclusive, dep.ConflictsWith);
+                    dep.Id,
+                    dep.Name,
+                    dep.DependencyType,
+                    dep.InstallBehavior,
+                    dep.MinVersion ?? string.Empty,
+                    dep.MaxVersion ?? string.Empty,
+                    dep.CompatibleVersions,
+                    dep.IsExclusive,
+                    dep.ConflictsWith);
             }
 
             var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();

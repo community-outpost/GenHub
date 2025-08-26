@@ -15,17 +15,17 @@ public class ContentReference
     /// <summary>
     /// Gets or sets the publisher ID (if cross-publisher).
     /// </summary>
-    public string PublisherId { get; set; } = string.Empty;
+    public string? PublisherId { get; set; }
 
     /// <summary>
     /// Gets or sets the minimum compatible version.
     /// </summary>
-    public string MinVersion { get; set; } = string.Empty;
+    public string? MinVersion { get; set; }
 
     /// <summary>
     /// Gets or sets the maximum compatible version.
     /// </summary>
-    public string MaxVersion { get; set; } = string.Empty;
+    public string? MaxVersion { get; set; }
 
     /// <summary>
     /// Gets or sets the content type of the reference.

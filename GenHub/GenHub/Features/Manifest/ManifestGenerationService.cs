@@ -53,8 +53,8 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 dep.Name,
                 dep.DependencyType,
                 dep.InstallBehavior,
-                dep.MinVersion,
-                dep.MaxVersion,
+                dep.MinVersion ?? string.Empty,
+                dep.MaxVersion ?? string.Empty,
                 dep.CompatibleVersions,
                 dep.IsExclusive,
                 dep.ConflictsWith);

@@ -23,7 +23,7 @@ public class InstallationStep
     /// <summary>
     /// Gets or sets the working directory for the command.
     /// </summary>
-    public string WorkingDirectory { get; set; } = string.Empty;
+    public string? WorkingDirectory { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the step requires elevation.
