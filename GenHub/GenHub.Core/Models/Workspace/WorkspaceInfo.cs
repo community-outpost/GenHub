@@ -24,7 +24,7 @@ public class WorkspaceInfo
     /// <summary>
     /// Gets or sets a value indicating whether the workspace preparation was successful.
     /// </summary>
-    public bool Success { get; set; }
+    public bool IsPrepared { get; set; }
 
     /// <summary>
     /// Gets or sets a list of validation issues or errors encountered during preparation.
