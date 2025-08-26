@@ -251,8 +251,8 @@ public class ConfigurationProviderService : IConfigurationProviderService
 
         return new List<string>
         {
-            Path.Combine(_appConfig.GetAppDataPath(), "Manifests"),
-            Path.Combine(_appConfig.GetAppDataPath(), "CustomManifests"),
+            Path.Combine(_appConfig.GetConfiguredDataPath(), "Manifests"),
+            Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",
@@ -281,6 +281,6 @@ public class ConfigurationProviderService : IConfigurationProviderService
             return s.ContentStoragePath;
         }
 
-        return Path.Combine(_appConfig.GetAppDataPath(), "Content");
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), "Content");
     }
 }

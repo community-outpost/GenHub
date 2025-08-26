@@ -144,7 +144,7 @@ public class AppConfiguration : IAppConfiguration
     /// Gets the application data path for GenHub.
     /// </summary>
     /// <returns>The application data path as a string.</returns>
-    public string GetAppDataPath()
+    public string GetConfiguredDataPath()
     {
         var configured = _configuration.GetValue<string>("GenHub:AppDataPath");
         return !string.IsNullOrEmpty(configured)

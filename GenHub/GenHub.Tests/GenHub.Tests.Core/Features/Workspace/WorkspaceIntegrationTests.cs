@@ -45,7 +45,7 @@ public class WorkspaceIntegrationTests : IDisposable
         var mockUserSettings = new Mock<IUserSettingsService>();
 
         // Setup mock returns
-        mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
+        mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
         mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
 
