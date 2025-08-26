@@ -40,7 +40,9 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
     public bool CanDeliver(ContentManifest manifest)
     {
         if (manifest?.Files == null)
+        {
             return false;
+        }
 
         return manifest.Files.All(f =>
             f.SourceType == ManifestFileSourceType.Content);

@@ -51,10 +51,14 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
         try
         {
             if (query == null)
+            {
                 return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Query cannot be null");
+            }
 
             if (string.IsNullOrWhiteSpace(query.SearchTerm))
+            {
                 return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(Enumerable.Empty<ContentSearchResult>());
+            }
 
             var searchUrl = $"https://search.cnclabs.com/?cse=labs&q={Uri.EscapeDataString(query.SearchTerm ?? string.Empty)}";
             var response = await _httpClient.GetStringAsync(searchUrl, cancellationToken);

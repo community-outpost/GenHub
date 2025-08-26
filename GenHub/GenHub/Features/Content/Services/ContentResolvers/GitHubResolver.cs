@@ -119,13 +119,40 @@ public class GitHubResolver(IGitHubApiClient gitHubApiClient, IContentManifestBu
         var tags = new List<string>();
         var text = $"{release.Name} {release.Body}".ToLowerInvariant();
 
-        if (text.Contains("patch")) tags.Add("Patch");
-        if (text.Contains("fix")) tags.Add("Fix");
-        if (text.Contains("mod")) tags.Add("Mod");
-        if (text.Contains("map")) tags.Add("Map");
-        if (text.Contains("campaign")) tags.Add("Campaign");
-        if (release.Prerelease) tags.Add("Prerelease");
-        if (release.Draft) tags.Add("Draft");
+        if (text.Contains("patch"))
+        {
+            tags.Add("Patch");
+        }
+
+        if (text.Contains("fix"))
+        {
+            tags.Add("Fix");
+        }
+
+        if (text.Contains("mod"))
+        {
+            tags.Add("Mod");
+        }
+
+        if (text.Contains("map"))
+        {
+            tags.Add("Map");
+        }
+
+        if (text.Contains("campaign"))
+        {
+            tags.Add("Campaign");
+        }
+
+        if (release.Prerelease)
+        {
+            tags.Add("Prerelease");
+        }
+
+        if (release.Draft)
+        {
+            tags.Add("Draft");
+        }
 
         return tags.Distinct().ToList();
     }

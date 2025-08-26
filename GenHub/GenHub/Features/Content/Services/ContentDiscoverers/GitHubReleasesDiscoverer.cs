@@ -112,9 +112,20 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
 
-        if (searchText.Contains("patch") || searchText.Contains("fix")) return ContentType.Patch;
-        if (searchText.Contains("map")) return ContentType.MapPack;
-        if (searchText.Contains("mod") || searchText.Contains("addon")) return ContentType.Mod;
+        if (searchText.Contains("patch") || searchText.Contains("fix"))
+        {
+            return ContentType.Patch;
+        }
+
+        if (searchText.Contains("map"))
+        {
+            return ContentType.MapPack;
+        }
+
+        if (searchText.Contains("mod") || searchText.Contains("addon"))
+        {
+            return ContentType.Mod;
+        }
 
         return ContentType.Mod; // Default
     }
@@ -123,8 +134,15 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
 
-        if (searchText.Contains("zero hour") || searchText.Contains("zh")) return GameType.ZeroHour;
-        if (searchText.Contains("generals") && !searchText.Contains("zero hour")) return GameType.Generals;
+        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
+        {
+            return GameType.ZeroHour;
+        }
+
+        if (searchText.Contains("generals") && !searchText.Contains("zero hour"))
+        {
+            return GameType.Generals;
+        }
 
         return GameType.ZeroHour; // Default
     }

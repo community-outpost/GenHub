@@ -14,7 +14,7 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicContentCache
 {
-    private static readonly List<string> _keys = [];
+    private static readonly List<string> _keys = new();
     private readonly IMemoryCache _memoryCache = memoryCache;
 
     /// <inheritdoc/>

@@ -30,10 +30,14 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
     public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
     {
         if (discoveredItem == null)
+        {
             return ContentOperationResult<ContentManifest>.CreateFailure("ContentSearchResult cannot be null.");
+        }
 
         if (string.IsNullOrWhiteSpace(discoveredItem.SourceUrl))
+        {
             return ContentOperationResult<ContentManifest>.CreateFailure("SourceUrl cannot be null or empty.");
+        }
 
         var manifestPath = discoveredItem.SourceUrl;
         if (!File.Exists(manifestPath))

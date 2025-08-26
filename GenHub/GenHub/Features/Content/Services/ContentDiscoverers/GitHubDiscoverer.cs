@@ -141,9 +141,14 @@ public class GitHubDiscoverer : IContentDiscoverer
         var searchText = $"{repo} {releaseName}".ToLowerInvariant();
 
         if (searchText.Contains("patch") || searchText.Contains("fix"))
+        {
             return ContentType.Patch;
+        }
+
         if (searchText.Contains("map"))
+        {
             return ContentType.MapPack;
+        }
 
         return ContentType.Mod; // Default
     }
@@ -153,9 +158,14 @@ public class GitHubDiscoverer : IContentDiscoverer
         var searchText = $"{repo} {releaseName}".ToLowerInvariant();
 
         if (searchText.Contains("zero hour") || searchText.Contains("zh"))
+        {
             return GameType.ZeroHour;
+        }
+
         if (searchText.Contains("generals"))
+        {
             return GameType.Generals;
+        }
 
         return GameType.ZeroHour; // Default
     }
