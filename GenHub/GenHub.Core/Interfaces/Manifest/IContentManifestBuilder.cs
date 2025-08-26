@@ -80,7 +80,7 @@ public interface IContentManifestBuilder
     /// <param name="sourceType">How these files should be handled during workspace preparation.</param>
     /// <param name="fileFilter">Optional file filter (e.g., "*.dll", "*.exe").</param>
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string fileFilter = "*", bool isExecutable = false);
 
     /// <summary>
@@ -91,7 +91,7 @@ public interface IContentManifestBuilder
     /// <param name="downloadUrl">Download URL for remote files.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     Task<IContentManifestBuilder> AddFileAsync(string relativePath, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string downloadUrl = "", bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>

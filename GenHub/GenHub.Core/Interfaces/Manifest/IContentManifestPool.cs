@@ -17,7 +17,7 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="manifest">The game manifest to store.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A task representing the asynchronous operation. Completes when the manifest is stored in the pool.</returns>
     Task AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default);
 
     /// <summary>

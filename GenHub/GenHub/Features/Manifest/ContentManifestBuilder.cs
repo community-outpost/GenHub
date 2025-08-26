@@ -185,7 +185,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <param name="sourceType">Source type.</param>
     /// <param name="fileFilter">File filter.</param>
     /// <param name="isExecutable">Is executable.</param>
-    /// <returns>The builder instance.</returns>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
         ManifestFileSourceType sourceType = ManifestFileSourceType.Content,
@@ -236,7 +236,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <param name="downloadUrl">Download URL.</param>
     /// <param name="isExecutable">Is executable.</param>
     /// <param name="permissions">File permissions.</param>
-    /// <returns>The builder instance.</returns>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFileAsync(
         string relativePath,
         ManifestFileSourceType sourceType = ManifestFileSourceType.Content,

@@ -54,7 +54,7 @@ public class ContentManifestPool : IContentManifestPool
     /// <param name="manifest">The game manifest to store.</param>
     /// <param name="sourceDirectory">The directory containing the content files.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A task representing the asynchronous operation. Completes when the manifest and associated content have been stored.</returns>
     public async Task AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Adding manifest {ManifestId} to pool with content from {SourceDirectory}", manifest.Id, sourceDirectory);
