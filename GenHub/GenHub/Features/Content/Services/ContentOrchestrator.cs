@@ -409,10 +409,10 @@ public class ContentOrchestrator : IContentOrchestrator
                 manifest = manifestResult.Data;
             }
 
-            // Step 3: Validate manifest
+            // Step 3: Validate manifest structure only
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Validating,
+                Phase = ContentAcquisitionPhase.ValidatingManifest,
                 ProgressPercentage = 20,
                 CurrentOperation = "Validating content manifest",
             });
@@ -448,16 +448,59 @@ public class ContentOrchestrator : IContentOrchestrator
                         $"Content preparation failed: {prepareResult.ErrorMessage}");
                 }
 
-                // Step 5: Store in permanent storage
+                // Step 5: Full validation (manifest + files)
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
+                    ProgressPercentage = 70,
+                    CurrentOperation = "Validating prepared content files",
+                });
+
+                // Forward orchestrator progress into validator 
+                IProgress<ValidationProgress>? validationProgress = null;
+                if (progress != null)
+                {
+                    validationProgress = new Progress<ValidationProgress>(vp =>
+                    {
+                        // Map validation progress (0-100) into 70-80% range for acquisition
+                        var pct = 70 + (int)(vp.PercentComplete / 10.0);
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.ValidatingFiles,
+                            ProgressPercentage = pct,
+                            CurrentOperation = vp.CurrentFile ?? "Validating files",
+                            FilesProcessed = vp.Processed,
+                            TotalFiles = vp.Total,
+                        });
+                    });
+                }
+
+                var fullValidation = await _contentValidator.ValidateAllAsync(
+                    stagingDir,
+                    prepareResult.Data,
+                    validationProgress,
+                    cancellationToken);
+
+                if (!fullValidation.IsValid)
+                {
+                    var errors = fullValidation.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
+                    if (errors.Any())
+                    {
+                        return ContentOperationResult<ContentManifest>.CreateFailure(
+                            errors.Select(e => $"Content validation failed: {e.Message}"));
+                    }
+                }
+
+                // Step 6: Store in permanent storage
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Extracting,
-                    ProgressPercentage = 80,
+                    ProgressPercentage = 85,
                     CurrentOperation = "Adding to content library",
                 });
 
                 // Store the prepared manifest in the pool
-                await _manifestPool.AddManifestAsync(prepareResult.Data, cancellationToken);
+                await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken);
 
                 progress?.Report(new ContentAcquisitionProgress
                 {

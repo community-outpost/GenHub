@@ -32,7 +32,11 @@ public class GameVersionValidatorTests
         // Setup ContentValidator mocks to return valid results
         _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
-        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+
+        // Deprecated granular methods are no longer relied upon; prepare ValidateAllAsync instead
+
+        // Ensure ValidateAllAsync returns a valid result for full validation
+        _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
         _validator = new GameVersionValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object);
@@ -146,11 +150,16 @@ public class GameVersionValidatorTests
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
 
         // Setup ContentValidator to return missing file issue
+        var missingFileResult = new ValidationResult("test", new List<ValidationIssue>
+        {
+            new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+        });
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
-            {
-                new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
-            }));
+            .ReturnsAsync(missingFileResult);
+
+        // Ensure full validation returns the same result
+        _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(missingFileResult);
 
         var tempDir = Directory.CreateTempSubdirectory();
         try

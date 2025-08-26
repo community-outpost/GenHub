@@ -33,9 +33,9 @@ public class GameInstallationValidatorTests
         // Setup ContentValidator mocks to return valid results
         _contentValidatorMock.Setup(c => c.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
-        _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
-        _contentValidatorMock.Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+
+    // Use unified ValidateAllAsync for full validation
+        _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
         _validator = new GameInstallationValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object);
@@ -176,6 +176,14 @@ public class GameInstallationValidatorTests
             {
                 new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
             }));
+
+        // Ensure full validation returns the same result
+        var missingResult = new ValidationResult("test", new List<ValidationIssue>
+        {
+            new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+        });
+        _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(missingResult);
 
         var tempDir = Directory.CreateTempSubdirectory();
         try

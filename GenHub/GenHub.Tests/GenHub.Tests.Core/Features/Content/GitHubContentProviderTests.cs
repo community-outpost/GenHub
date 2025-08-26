@@ -42,7 +42,7 @@ public class GitHubContentProviderTests
         // Setup validator to return valid results for all calls
         _validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
-        _validatorMock.Setup(v => v.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+        _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
         _provider = new GitHubContentProvider(
@@ -110,7 +110,7 @@ public class GitHubContentProviderTests
         _delivererMock.Setup(d => d.DeliverContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
-        _validatorMock.Setup(v => v.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+        _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("gh.test.mod", new List<ValidationIssue>())); // Valid result
 
         // Act

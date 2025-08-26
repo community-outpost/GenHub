@@ -83,9 +83,9 @@ public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, 
 
         progress?.Report(new ValidationProgress(3, 4, "Content integrity validation"));
 
-        // Use ContentValidator for file integrity
-        var integrityValidationResult = await _contentValidator.ValidateContentIntegrityAsync(gameVersion.WorkingDirectory, manifest, cancellationToken);
-        issues.AddRange(integrityValidationResult.Issues);
+        // Use ContentValidator for full content validation (integrity + extraneous files)
+        var fullValidationResult = await _contentValidator.ValidateAllAsync(gameVersion.WorkingDirectory, manifest, progress, cancellationToken);
+        issues.AddRange(fullValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(4, 4, "Game version specific checks"));
 

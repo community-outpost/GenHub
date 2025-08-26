@@ -146,7 +146,7 @@ public abstract class BaseContentProvider(
             // Validate manifest before preparation
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Validating,
+                Phase = ContentAcquisitionPhase.ValidatingManifest,
                 CurrentOperation = "Validating manifest structure...",
             });
 
@@ -175,18 +175,37 @@ public abstract class BaseContentProvider(
                 // Final validation of prepared content
                 progress?.Report(new ContentAcquisitionProgress
                 {
-                    Phase = ContentAcquisitionPhase.Completed,
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
                     CurrentOperation = "Validating prepared content...",
                 });
 
-                var integrityResult = await ContentValidator.ValidateContentIntegrityAsync(
+                // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
+                IProgress<ValidationProgress>? validationProgress = null;
+                if (progress != null)
+                {
+                    validationProgress = new Progress<ValidationProgress>(vp =>
+                    {
+                        // Map validation progress to content acquisition progress for UI display
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.ValidatingFiles,
+                            ProgressPercentage = vp.PercentComplete,
+                            CurrentOperation = vp.CurrentFile ?? "Validating files",
+                            FilesProcessed = vp.Processed,
+                            TotalFiles = vp.Total,
+                        });
+                    });
+                }
+
+                var fullResult = await ContentValidator.ValidateAllAsync(
                     workingDirectory,
                     result.Data!,
-                    cancellationToken);
+                    validationProgress,
+                    cancellationToken: cancellationToken);
 
-                if (!integrityResult.IsValid)
+                if (!fullResult.IsValid)
                 {
-                    Logger.LogWarning("Content integrity validation found {IssueCount} issues for {ManifestId}", integrityResult.Issues.Count, manifest.Id);
+                    Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
                 }
             }
 

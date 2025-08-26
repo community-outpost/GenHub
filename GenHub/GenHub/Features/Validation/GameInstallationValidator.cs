@@ -89,16 +89,11 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
         var manifestValidationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Content integrity validation"));
+        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
 
-        // Use ContentValidator for file integrity
-        var integrityValidationResult = await _contentValidator.ValidateContentIntegrityAsync(installation.InstallationPath, manifest, cancellationToken);
-        issues.AddRange(integrityValidationResult.Issues);
-
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Detecting extraneous files"));
-
-        var extraneousFilesResult = await _contentValidator.DetectExtraneousFilesAsync(installation.InstallationPath, manifest, cancellationToken);
-        issues.AddRange(extraneousFilesResult.Issues);
+        // Use ContentValidator for full content validation (integrity + extraneous files)
+        var fullValidation = await _contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
+        issues.AddRange(fullValidation.Issues);
 
         // Installation-specific validations (directories, etc.)
         var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();

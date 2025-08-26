@@ -26,9 +26,14 @@ namespace GenHub.Core.Models.Content
         Copying,
 
         /// <summary>
-        /// The phase where content is being validated for integrity.
-        /// </summary>
-        Validating,
+    /// The phase where the manifest is being validated (structure, metadata).
+    /// </summary>
+    ValidatingManifest,
+
+    /// <summary>
+    /// The phase where content files are being validated (integrity, extraneous files).
+    /// </summary>
+    ValidatingFiles,
 
         /// <summary>
         /// The phase where content is being delivered (moved) to its destination.

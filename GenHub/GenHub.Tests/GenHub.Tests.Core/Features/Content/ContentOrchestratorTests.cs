@@ -100,6 +100,9 @@ public class ContentOrchestratorTests
         _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
 
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
+
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,
             new[] { providerMock.Object },
@@ -112,10 +115,10 @@ public class ContentOrchestratorTests
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
 
-        // Assert
-        Assert.True(result.Success);
-        Assert.Equal(manifest, result.Data);
-        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
-        _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    // Assert
+    Assert.True(result.Success);
+    Assert.Equal(manifest, result.Data);
+    _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
