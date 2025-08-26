@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -67,8 +68,8 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                     if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                         release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        var inferred = InferContentType(repo, release.Name);
-                        var inferredGame = InferTargetGame(repo, release.Name);
+                        var inferred = GitHubInferenceHelper.InferContentType(repo, release.Name);
+                        var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
                         results.Add(new ContentSearchResult
                         {
                             Id = $"github.{owner}.{repo}.{release.TagName}",
@@ -111,42 +112,5 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 
-    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
-
-        if (searchText.Contains("patch") || searchText.Contains("fix"))
-        {
-            return (ContentType.Patch, true);
-        }
-
-        if (searchText.Contains("map"))
-        {
-            return (ContentType.MapPack, true);
-        }
-
-        if (searchText.Contains("mod") || searchText.Contains("addon"))
-        {
-            return (ContentType.Mod, true);
-        }
-
-        return (ContentType.Mod, true); // Default
-    }
-
-    private (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
-
-        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
-        {
-            return (GameType.ZeroHour, true);
-        }
-
-        if (searchText.Contains("generals") && !searchText.Contains("zero hour"))
-        {
-            return (GameType.Generals, true);
-        }
-
-        return (GameType.ZeroHour, true); // Default
-    }
+    // Inference logic extracted to GitHubInferenceHelper
 }

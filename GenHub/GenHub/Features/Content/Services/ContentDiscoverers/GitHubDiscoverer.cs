@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -78,8 +79,8 @@ public class GitHubDiscoverer : IContentDiscoverer
                 var latestRelease = await _gitHubApiClient.GetLatestReleaseAsync(owner, repo, cancellationToken);
                 if (latestRelease != null)
                 {
-                    var inferred = InferContentType(repo, latestRelease.Name);
-                    var inferredGame = InferTargetGame(repo, latestRelease.Name);
+                    var inferred = GitHubInferenceHelper.InferContentType(repo, latestRelease.Name);
+                    var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, latestRelease.Name);
                     var discovered = new ContentSearchResult
                     {
                         Id = $"github.{owner}.{repo}.{latestRelease.TagName}",
@@ -139,37 +140,5 @@ public class GitHubDiscoverer : IContentDiscoverer
         return true;
     }
 
-    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName}".ToLowerInvariant();
-
-        if (searchText.Contains("patch") || searchText.Contains("fix"))
-        {
-            return (ContentType.Patch, true);
-        }
-
-        if (searchText.Contains("map"))
-        {
-            return (ContentType.MapPack, true);
-        }
-
-        return (ContentType.Mod, true); // Default guess is inferred
-    }
-
-    private (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName}".ToLowerInvariant();
-
-        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
-        {
-            return (GameType.ZeroHour, true);
-        }
-
-        if (searchText.Contains("generals"))
-        {
-            return (GameType.Generals, true);
-        }
-
-        return (GameType.ZeroHour, true); // Default
-    }
+    // Inference logic extracted to GitHubInferenceHelper
 }

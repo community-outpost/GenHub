@@ -12,9 +12,8 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
-
-namespace GenHub.Features.Content.Services.ContentResolvers;
 
 /// <summary>
 /// Resolves a discovered GitHub release into a full ContentManifest.
@@ -33,24 +32,9 @@ public class GitHubResolver(
         @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?",
         RegexOptions.Compiled);
 
-    private static readonly Dictionary<string, ContentType> ContentTypeKeywords = new()
-    {
-        { "patch", ContentType.Patch },
-        { "fix", ContentType.Patch },
-        { "update", ContentType.Patch },
-        { "mod", ContentType.Mod },
-        { "modification", ContentType.Mod },
-        { "total conversion", ContentType.Mod },
-        { "map", ContentType.MapPack },
-        { "maps", ContentType.MapPack },
-        { "campaign", ContentType.MapPack },
-    };
-
     private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient;
     private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
     private readonly ILogger<GitHubResolver> _logger = logger;
-    private readonly ContentType _defaultContentType = ContentType.Mod;
-    private readonly GameType _defaultTargetGame = GameType.ZeroHour;
 
     /// <summary>
     /// Gets the unique identifier for the GitHub release content resolver.
@@ -100,10 +84,10 @@ public class GitHubResolver(
                     release.TagName)
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(release.Author)
-                .WithMetadata(
-                    release.Body ?? discoveredItem.Description ?? string.Empty,
-                    tags: InferTagsFromRelease(release),
-                    changelogUrl: release.HtmlUrl ?? string.Empty)
+                    .WithMetadata(
+                        release.Body ?? discoveredItem.Description ?? string.Empty,
+                        tags: GitHubInferenceHelper.InferTagsFromRelease(release),
+                        changelogUrl: release.HtmlUrl ?? string.Empty)
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
             // Validate assets collection
@@ -116,7 +100,7 @@ public class GitHubResolver(
             // Add files from GitHub assets
             foreach (var asset in release.Assets)
             {
-                await manifest.AddFileAsync(asset.Name, ManifestFileSourceType.Download, asset.BrowserDownloadUrl, isExecutable: IsExecutableFile(asset.Name));
+                await manifest.AddFileAsync(asset.Name, ManifestFileSourceType.Download, asset.BrowserDownloadUrl, isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
             }
 
             return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
@@ -126,61 +110,6 @@ public class GitHubResolver(
             _logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
             return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
-    }
-
-    // Helper: Infer tags from a GitHub release (basic implementation)
-    private static List<string> InferTagsFromRelease(GitHubRelease release)
-    {
-        var tags = new List<string>();
-        var text = $"{release.Name} {release.Body}".ToLowerInvariant();
-
-        if (text.Contains("patch"))
-        {
-            tags.Add("Patch");
-        }
-
-        if (text.Contains("fix"))
-        {
-            tags.Add("Fix");
-        }
-
-        if (text.Contains("mod"))
-        {
-            tags.Add("Mod");
-        }
-
-        if (text.Contains("map"))
-        {
-            tags.Add("Map");
-        }
-
-        if (text.Contains("campaign"))
-        {
-            tags.Add("Campaign");
-        }
-
-        if (release.Prerelease)
-        {
-            tags.Add("Prerelease");
-        }
-
-        if (release.Draft)
-        {
-            tags.Add("Draft");
-        }
-
-        return tags.Distinct().ToList();
-    }
-
-    // Helper: Determine if a file is likely executable based on extension
-    private static bool IsExecutableFile(string fileName)
-    {
-        var ext = Path.GetExtension(fileName).ToLowerInvariant();
-        return ext == ".exe"
-            || ext == ".dll"
-            || ext == ".sh"
-            || ext == ".bat"
-            || ext == ".so";
     }
 
     private static (
@@ -227,46 +156,8 @@ public class GitHubResolver(
         return $"fallback:{Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(fallbackData))}";
     }
 
-    private (ContentType type, bool isInferred) InferContentType(
-        string repo,
-        string? releaseName,
-        string? description)
+    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName, string? description)
     {
-        var searchText = $"{repo} {releaseName} {description}".ToLowerInvariant();
-        var scores = new Dictionary<ContentType, int>();
-
-        foreach (var (keyword, contentType) in ContentTypeKeywords)
-        {
-            var count = Regex.Matches(searchText, $@"\b{Regex.Escape(keyword)}\b").Count;
-            if (count > 0)
-            {
-                scores[contentType] =
-                    scores.GetValueOrDefault(contentType, 0) + count;
-            }
-        }
-
-        return scores.Any()
-            ? (scores.OrderByDescending(x => x.Value).First().Key, true)
-            : (_defaultContentType, true);
-    }
-
-    private GameType InferTargetGame(
-        string repo,
-        string? releaseName,
-        string? description)
-    {
-        var searchText = $"{repo} {releaseName} {description}".ToLowerInvariant();
-
-        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
-        {
-            return GameType.ZeroHour;
-        }
-
-        if (searchText.Contains("generals") && !searchText.Contains("zero hour"))
-        {
-            return GameType.Generals;
-        }
-
-        return _defaultTargetGame;
+        return GitHubInferenceHelper.InferContentType(repo, releaseName);
     }
 }
