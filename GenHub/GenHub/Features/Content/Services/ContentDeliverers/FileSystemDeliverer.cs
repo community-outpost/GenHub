@@ -19,21 +19,10 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
-public class FileSystemDeliverer : IContentDeliverer
+public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider) : IContentDeliverer
 {
-    private readonly ILogger<FileSystemDeliverer> _logger;
-    private readonly IConfigurationProviderService _configProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FileSystemDeliverer"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="configProvider">The configuration provider.</param>
-    public FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider)
-    {
-        _logger = logger;
-        _configProvider = configProvider;
-    }
+    private readonly ILogger<FileSystemDeliverer> _logger = logger;
+    private readonly IConfigurationProviderService _configProvider = configProvider;
 
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";

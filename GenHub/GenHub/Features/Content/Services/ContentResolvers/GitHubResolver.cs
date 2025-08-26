@@ -19,7 +19,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// <summary>
 /// Resolves a discovered GitHub release into a full ContentManifest.
 /// </summary>
-public class GitHubResolver : IContentResolver
+public class GitHubResolver(IGitHubApiClient gitHubApiClient, IContentManifestBuilder manifestBuilder, ILogger<GitHubResolver> logger) : IContentResolver
 {
     private static readonly Regex GitHubUrlRegex = new(
         @"^https://github\.com/([^/]+)/([^/]+)(?:/releases/tag/([^/]+))?",
@@ -38,27 +38,11 @@ public class GitHubResolver : IContentResolver
         { "campaign", ContentType.MapPack },
     };
 
-    private readonly IGitHubApiClient _gitHubApiClient;
-    private readonly IContentManifestBuilder _manifestBuilder;
-    private readonly ILogger<GitHubResolver> _logger;
+    private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient;
+    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+    private readonly ILogger<GitHubResolver> _logger = logger;
     private readonly ContentType _defaultContentType = ContentType.Mod;
     private readonly GameType _defaultTargetGame = GameType.ZeroHour;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubResolver"/> class.
-    /// </summary>
-    /// <param name="gitHubApiClient">The GitHub API client.</param>
-    /// <param name="manifestBuilder">The manifest builder instance.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GitHubResolver(
-        IGitHubApiClient gitHubApiClient,
-        IContentManifestBuilder manifestBuilder,
-        ILogger<GitHubResolver> logger)
-    {
-        _gitHubApiClient = gitHubApiClient;
-        _manifestBuilder = manifestBuilder;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Gets the unique identifier for the GitHub release content resolver.

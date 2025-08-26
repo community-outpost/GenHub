@@ -16,27 +16,11 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// <summary>
 /// Discovers content from GitHub releases.
 /// </summary>
-public class GitHubReleasesDiscoverer : IContentDiscoverer
+public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<GitHubReleasesDiscoverer> logger, IConfigurationProviderService configurationProvider) : IContentDiscoverer
 {
-    private readonly IGitHubApiClient _gitHubClient;
-    private readonly ILogger<GitHubReleasesDiscoverer> _logger;
-    private readonly IConfigurationProviderService _configurationProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubReleasesDiscoverer"/> class.
-    /// </summary>
-    /// <param name="gitHubClient">The GitHub API client used to fetch release information.</param>
-    /// <param name="logger">The logger instance for logging errors and information.</param>
-    /// <param name="configurationProvider">The configuration provider to fetch repository settings.</param>
-    public GitHubReleasesDiscoverer(
-        IGitHubApiClient gitHubClient,
-        ILogger<GitHubReleasesDiscoverer> logger,
-        IConfigurationProviderService configurationProvider)
-    {
-        _gitHubClient = gitHubClient;
-        _logger = logger;
-        _configurationProvider = configurationProvider;
-    }
+    private readonly IGitHubApiClient _gitHubClient = gitHubClient;
+    private readonly ILogger<GitHubReleasesDiscoverer> _logger = logger;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     /// <inheritdoc />
     public string SourceName => "GitHub Releases";

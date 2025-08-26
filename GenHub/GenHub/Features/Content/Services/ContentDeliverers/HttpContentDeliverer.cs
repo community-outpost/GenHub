@@ -19,24 +19,11 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers remote HTTP content.
 /// Pure delivery - downloads and extracts content.
 /// </summary>
-public class HttpContentDeliverer : IContentDeliverer
+public class HttpContentDeliverer(IDownloadService downloadService, IContentManifestBuilder manifestBuilder, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
 {
-    private readonly IDownloadService _downloadService;
-    private readonly IContentManifestBuilder _manifestBuilder;
-    private readonly ILogger<HttpContentDeliverer> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="HttpContentDeliverer"/> class.
-    /// </summary>
-    /// <param name="downloadService">The download service.</param>
-    /// <param name="manifestBuilder">The content manifest builder.</param>
-    /// <param name="logger">The logger instance.</param>
-    public HttpContentDeliverer(IDownloadService downloadService, IContentManifestBuilder manifestBuilder, ILogger<HttpContentDeliverer> logger)
-    {
-        _downloadService = downloadService;
-        _manifestBuilder = manifestBuilder;
-        _logger = logger;
-    }
+    private readonly IDownloadService _downloadService = downloadService;
+    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+    private readonly ILogger<HttpContentDeliverer> _logger = logger;
 
     /// <inheritdoc />
     public string SourceName => "HTTP Content Deliverer";

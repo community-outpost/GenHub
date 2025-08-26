@@ -12,43 +12,29 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.ContentResolvers
+namespace GenHub.Features.Content.Services.ContentResolvers;
+
+/// <summary>
+/// Resolves CNC Labs map details from discovered content items.
+/// </summary>
+public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder manifestBuilder, ILogger<CNCLabsMapResolver> logger) : IContentResolver
 {
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+    private readonly ILogger<CNCLabsMapResolver> _logger = logger;
+
     /// <summary>
-    /// Resolves CNC Labs map details from discovered content items.
+    /// Gets the unique resolver ID for CNC Labs Map.
     /// </summary>
-    public class CNCLabsMapResolver : IContentResolver
-    {
-        private readonly HttpClient httpClient;
-        private readonly IContentManifestBuilder _manifestBuilder;
-        private readonly ILogger<CNCLabsMapResolver> logger;
+    public string ResolverId => "CNCLabsMap";
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CNCLabsMapResolver"/> class.
-        /// </summary>
-        /// <param name="httpClient">The HTTP client used for web requests.</param>
-        /// <param name="logger">The logger instance.</param>
-        /// <param name="manifestBuilder">The manifest builder instance.</param>
-        public CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder manifestBuilder, ILogger<CNCLabsMapResolver> logger)
-        {
-            this.httpClient = httpClient;
-            _manifestBuilder = manifestBuilder;
-            this.logger = logger;
-        }
-
-        /// <summary>
-        /// Gets the unique resolver ID for CNC Labs Map.
-        /// </summary>
-        public string ResolverId => "CNCLabsMap";
-
-        /// <summary>
-        /// Resolves the details of a discovered CNC Labs map item.
-        /// </summary>
-        /// <param name="discoveredItem">The discovered content item to resolve.</param>
-        /// <param name="cancellationToken">A cancellation token.</param>
-        /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved details.</returns>
-        public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(
-            ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Resolves the details of a discovered CNC Labs map item.
+    /// </summary>
+    /// <param name="discoveredItem">The discovered content item to resolve.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved details.</returns>
+    public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
         {
             if (discoveredItem?.SourceUrl == null)
             {
@@ -57,7 +43,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers
 
             try
             {
-                var response = await httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
+                var response = await _httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
                 var mapDetails = ParseMapDetailPage(response);
 
                 if (string.IsNullOrEmpty(mapDetails.downloadUrl))
@@ -88,65 +74,64 @@ namespace GenHub.Features.Content.Services.ContentResolvers
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
+                _logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
                 return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Parses the HTML detail page for a CNC Labs map and extracts map details.
-        /// </summary>
-        /// <param name="html">The HTML content of the map detail page.</param>
-        /// <returns>A <see cref="MapDetails"/> record containing parsed details.</returns>
-        private MapDetails ParseMapDetailPage(string html)
-        {
-            // TODO: Implement HTML parsing logic
-            return new MapDetails(
-                name: string.Empty,
-                description: string.Empty,
-                version: string.Empty,
-                author: string.Empty,
-                previewImage: string.Empty,
-                screenshots: new List<string>(),
-                fileSize: 0,
-                downloadCount: 0,
-                submissionDate: DateTime.MinValue,
-                downloadUrl: string.Empty,
-                fileType: string.Empty,
-                rating: 0f);
-        }
+    /// <summary>
+    /// Parses the HTML detail page for a CNC Labs map and extracts map details.
+    /// </summary>
+    /// <param name="html">The HTML content of the map detail page.</param>
+    /// <returns>A <see cref="MapDetails"/> record containing parsed details.</returns>
+    private MapDetails ParseMapDetailPage(string html)
+    {
+        // TODO: Implement HTML parsing logic
+        return new MapDetails(
+            name: string.Empty,
+            description: string.Empty,
+            version: string.Empty,
+            author: string.Empty,
+            previewImage: string.Empty,
+            screenshots: new List<string>(),
+            fileSize: 0,
+            downloadCount: 0,
+            submissionDate: DateTime.MinValue,
+            downloadUrl: string.Empty,
+            fileType: string.Empty,
+            rating: 0f);
+    }
 
-        /// <summary>
-        /// Represents the details of a CNC Labs map.
-        /// </summary>
-        /// <param name="name">The name of the map.</param>
-        /// <param name="description">The description of the map.</param>
-        /// <param name="version">The version of the map.</param>
-        /// <param name="author">The author of the map.</param>
-        /// <param name="previewImage">The preview image URL.</param>
-        /// <param name="screenshots">A list of screenshot URLs.</param>
-        /// <param name="fileSize">The file size in bytes.</param>
-        /// <param name="downloadCount">The number of downloads.</param>
-        /// <param name="submissionDate">The date the map was submitted.</param>
-        /// <param name="downloadUrl">The download URL.</param>
-        /// <param name="fileType">The file type.</param>
-        /// <param name="rating">The rating of the map.</param>
-        private record MapDetails(
-            string name = "",
-            string description = "",
-            string version = "",
-            string author = "",
-            string previewImage = "",
-            List<string>? screenshots = null,
-            long fileSize = 0,
-            int downloadCount = 0,
-            DateTime submissionDate = default,
-            string downloadUrl = "",
-            string fileType = "",
-            float rating = 0f
-        )
-        {
-            public List<string> ScreenshotUrls => screenshots ?? new List<string>();
-        }
+    /// <summary>
+    /// Represents the details of a CNC Labs map.
+    /// </summary>
+    /// <param name="name">The name of the map.</param>
+    /// <param name="description">The description of the map.</param>
+    /// <param name="version">The version of the map.</param>
+    /// <param name="author">The author of the map.</param>
+    /// <param name="previewImage">The preview image URL.</param>
+    /// <param name="screenshots">A list of screenshot URLs.</param>
+    /// <param name="fileSize">The file size in bytes.</param>
+    /// <param name="downloadCount">The number of downloads.</param>
+    /// <param name="submissionDate">The date the map was submitted.</param>
+    /// <param name="downloadUrl">The download URL.</param>
+    /// <param name="fileType">The file type.</param>
+    /// <param name="rating">The rating of the map.</param>
+    private record MapDetails(
+        string name = "",
+        string description = "",
+        string version = "",
+        string author = "",
+        string previewImage = "",
+        List<string>? screenshots = null,
+        long fileSize = 0,
+        int downloadCount = 0,
+        DateTime submissionDate = default,
+        string downloadUrl = "",
+        string fileType = "",
+        float rating = 0f
+    )
+    {
+        public List<string> ScreenshotUrls => screenshots ?? new List<string>();
     }
 }
