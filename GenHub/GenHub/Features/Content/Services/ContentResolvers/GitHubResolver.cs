@@ -112,30 +112,27 @@ public class GitHubResolver(
         }
     }
 
-    private static (
-        bool Success,
-        (string Owner, string Repo, string? Tag) Value,
-        string ErrorMessage) ParseGitHubUrl(string url)
+    private static GitHubUrlParseResult ParseGitHubUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
-            return (false, default, "URL cannot be null or empty.");
+            return GitHubUrlParseResult.CreateFailure("URL cannot be null or empty.");
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            return (false, default, "Invalid URL format.");
+            return GitHubUrlParseResult.CreateFailure("Invalid URL format.");
         }
 
         if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
         {
-            return (false, default, "URL must be from github.com.");
+            return GitHubUrlParseResult.CreateFailure("URL must be from github.com.");
         }
 
         var match = GitHubUrlRegex.Match(url);
         if (!match.Success)
         {
-            return (false, default, "Invalid GitHub repository URL format. Expected: https://github.com/owner/repo or https://github.com/owner/repo/releases/tag/version");
+            return GitHubUrlParseResult.CreateFailure("Invalid GitHub repository URL format. Expected: https://github.com/owner/repo or https://github.com/owner/repo/releases/tag/version");
         }
 
         var owner = match.Groups["owner"].Value;
@@ -144,10 +141,10 @@ public class GitHubResolver(
 
         if (string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repo))
         {
-            return (false, default, "Owner and repository name cannot be empty.");
+            return GitHubUrlParseResult.CreateFailure("Owner and repository name cannot be empty.");
         }
 
-        return (true, (owner, repo, tag), string.Empty);
+        return GitHubUrlParseResult.CreateSuccess(owner, repo, tag);
     }
 
     private static string GenerateHashFallback(GitHubReleaseAsset asset, string tagName)

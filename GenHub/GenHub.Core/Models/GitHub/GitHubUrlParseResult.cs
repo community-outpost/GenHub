@@ -1,0 +1,56 @@
+using System;
+using System.Collections.Generic;
+using GenHub.Core.Models.Results;
+
+namespace GenHub.Core.Models.GitHub;
+
+/// <summary>
+/// Result type for parsing GitHub repository URLs.
+/// Inherits from <see cref="ResultBase"/> to align with project result semantics.
+/// </summary>
+/// <remarks>
+/// Use <see cref="CreateSuccess"/> for successful parses and <see cref="CreateFailure"/> for failures.
+/// </remarks>
+public sealed class GitHubUrlParseResult : ResultBase
+{
+    private GitHubUrlParseResult(bool success, string owner = "", string repo = "", string? tag = null, IEnumerable<string>? errors = null)
+        : base(success, errors)
+    {
+        Owner = owner;
+        Repo = repo;
+        Tag = tag;
+    }
+
+    /// <summary>
+    /// Gets the repository owner (username or organization) parsed from the URL.
+    /// </summary>
+    public string Owner { get; }
+
+    /// <summary>
+    /// Gets the repository name parsed from the URL.
+    /// </summary>
+    public string Repo { get; }
+
+    /// <summary>
+    /// Gets the optional tag (release) parsed from the URL, if present.
+    /// </summary>
+    public string? Tag { get; }
+
+    /// <summary>
+    /// Creates a successful parse result containing the owner, repository and optional tag.
+    /// </summary>
+    /// <param name="owner">Repository owner (username or organization).</param>
+    /// <param name="repo">Repository name.</param>
+    /// <param name="tag">Optional release tag.</param>
+    /// <returns>A <see cref="GitHubUrlParseResult"/> representing a successful parse.</returns>
+    public static GitHubUrlParseResult CreateSuccess(string owner, string repo, string? tag) =>
+        new(true, owner, repo, tag);
+
+    /// <summary>
+    /// Creates a failed parse result containing one or more error messages.
+    /// </summary>
+    /// <param name="errors">Error messages describing the failure reason(s).</param>
+    /// <returns>A <see cref="GitHubUrlParseResult"/> representing a failed parse.</returns>
+    public static GitHubUrlParseResult CreateFailure(params string[] errors) =>
+        new(false, errors: errors);
+}
