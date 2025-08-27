@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "GenHub Documentation Site",
   "type": "module",
-  "packageManager": "pnpm@8.10.0",
+  "packageManager": "pnpm@10.15.0",
   "private": true,
   "scripts": {
     "dev": "vitepress dev docs",
