@@ -239,7 +239,7 @@ public class FileOperationsServiceTests : IDisposable
             .ReturnsAsync(DownloadResult.CreateFailed("Failed"));
 
         var loggerMock = new Mock<ILogger<FileOperationsService>>();
-        var fileOps = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object);
+        var fileOps = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object, _casService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() =>

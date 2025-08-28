@@ -17,14 +17,13 @@ namespace GenHub.Features.Workspace;
 
 /// <summary>
 /// Complete workspace management service with persistence and cleanup.
-/// </summary>
-/// <summary>
 /// Manages workspace operations including preparation, retrieval, and cleanup.
 /// </summary>
 public class WorkspaceManager(
     IEnumerable<IWorkspaceStrategy> strategies,
     IConfigurationProviderService configurationProvider,
-    ILogger<WorkspaceManager> logger
+    ILogger<WorkspaceManager> logger,
+    CasReferenceTracker casReferenceTracker
 ) : IWorkspaceManager
 {
     private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
@@ -161,5 +160,18 @@ public class WorkspaceManager(
 
         workspaces.Add(workspaceInfo);
         await SaveAllWorkspacesAsync(workspaces, cancellationToken);
+    }
+
+    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        var casReferences = manifest.Files
+            .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
+            .Select(f => f.Hash!)
+            .ToList();
+
+        if (casReferences.Any())
+        {
+            await _casReferenceTracker.TrackWorkspaceReferencesAsync(workspaceId, casReferences, cancellationToken);
+        }
     }
 }

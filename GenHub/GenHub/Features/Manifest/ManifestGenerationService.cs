@@ -60,7 +60,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 dep.ConflictsWith);
         }
 
-        await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.Content);
+        await builder.AddFilesFromDirectoryAsync(contentDirectory, ContentSourceType.ContentAddressable);
         return builder;
     }
 
@@ -166,10 +166,10 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameDirectory, ContentSourceType.Content);
+        await builder.AddFilesFromDirectoryAsync(gameDirectory, ContentSourceType.ContentAddressable);
 
         // Mark the main executable
-        await builder.AddFileAsync(executablePath, ContentSourceType.Content, string.Empty, true);
+        await builder.AddFileAsync(executablePath, sourcePath: string.Empty, sourceType: ContentSourceType.ContentAddressable, isExecutable: true);
 
         return builder;
     }

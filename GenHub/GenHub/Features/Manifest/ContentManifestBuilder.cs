@@ -200,7 +200,7 @@ public class ContentManifestBuilder : IContentManifestBuilder
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
-        ContentSourceType sourceType = ContentSourceType.Content,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
         bool isExecutable = false)
     {
@@ -243,15 +243,17 @@ public class ContentManifestBuilder : IContentManifestBuilder
     /// <summary>
     /// Adds a file to the manifest.
     /// </summary>
-    /// <param name="relativePath">Relative path.</param>
+    /// <param name="relativePath">Relative path in workspace.</param>
+    /// <param name="sourcePath">Source path for hash computation.</param>
     /// <param name="sourceType">Source type.</param>
     /// <param name="downloadUrl">Download URL.</param>
     /// <param name="isExecutable">Is executable.</param>
     /// <param name="permissions">File permissions.</param>
-    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    /// <returns>The builder instance.</returns>
     public async Task<IContentManifestBuilder> AddFileAsync(
         string relativePath,
-        ContentSourceType sourceType = ContentSourceType.Content,
+        string sourcePath = "",
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string downloadUrl = "",
         bool isExecutable = false,
         FilePermissions? permissions = null)
@@ -259,17 +261,18 @@ public class ContentManifestBuilder : IContentManifestBuilder
         var manifestFile = new ManifestFile
         {
             RelativePath = relativePath,
+            SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : null,
             SourceType = sourceType,
             IsExecutable = isExecutable,
             DownloadUrl = downloadUrl,
             Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
         };
 
-        if (sourceType != ContentSourceType.Patch && string.IsNullOrEmpty(downloadUrl) && File.Exists(relativePath))
+        if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
         {
-            var fileInfo = new FileInfo(relativePath);
+            var fileInfo = new FileInfo(sourcePath);
             manifestFile.Size = fileInfo.Length;
-            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(relativePath);
+            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
         }
 
         _manifest.Files.Add(manifestFile);
@@ -385,7 +388,7 @@ public class ContentManifestBuilder : IContentManifestBuilder
         {
             RelativePath = targetRelativePath,
             PatchSourceFile = patchSourceFile,
-            SourceType = ContentSourceType.Patch,
+            SourceType = ContentSourceType.RemoteDownload,
         };
 
         _manifest.Files.Add(manifestFile);

@@ -330,7 +330,7 @@ public class UserSettingsService : IUserSettingsService
             return Path.Combine(appDataPath, "GenHub", "settings.json");
         }
 
-        return Path.Combine(_appConfig.GetAppDataPath(), "settings.json");
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), "settings.json");
     }
 
     private void InitializeSettings()

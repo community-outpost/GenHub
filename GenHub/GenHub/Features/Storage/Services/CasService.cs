@@ -1,51 +1,32 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
 /// <summary>
 /// High-level Content-Addressable Storage service with coordination and validation.
 /// </summary>
-public class CasService : ICasService
+public class CasService(
+    ICasStorage storage,
+    CasReferenceTracker referenceTracker,
+    ILogger<CasService> logger,
+    IOptions<CasConfiguration> config,
+    IFileHashProvider fileHashProvider,
+    IStreamHashProvider streamHashProvider) : ICasService
 {
-    private readonly ICasStorage _storage;
-    private readonly CasReferenceTracker _referenceTracker;
-    private readonly ILogger<CasService> _logger;
-    private readonly CasConfiguration _config;
-    private readonly IFileHashProvider _fileHashProvider;
-    private readonly IStreamHashProvider _streamHashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CasService"/> class.
-    /// </summary>
-    /// <param name="storage">Low-level CAS storage.</param>
-    /// <param name="referenceTracker">Reference tracking service.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="config">CAS configuration.</param>
-    /// <param name="fileHashProvider">File hash provider.</param>
-    /// <param name="streamHashProvider">Stream hash provider.</param>
-    public CasService(
-        ICasStorage storage,
-        CasReferenceTracker referenceTracker,
-        ILogger<CasService> logger,
-        IOptions<CasConfiguration> config,
-        IFileHashProvider fileHashProvider,
-        IStreamHashProvider streamHashProvider)
-    {
-        _storage = storage;
-        _referenceTracker = referenceTracker;
-        _logger = logger;
-        _config = config.Value;
-        _fileHashProvider = fileHashProvider;
-        _streamHashProvider = streamHashProvider;
-    }
+    private readonly ICasStorage _storage = storage;
+    private readonly CasReferenceTracker _referenceTracker = referenceTracker;
+    private readonly ILogger<CasService> _logger = logger;
+    private readonly CasConfiguration _config = config.Value;
+    private readonly IFileHashProvider _fileHashProvider = fileHashProvider;
+    private readonly IStreamHashProvider _streamHashProvider = streamHashProvider;
 
     /// <inheritdoc/>
     public async Task<CasOperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)

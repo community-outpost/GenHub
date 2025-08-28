@@ -656,7 +656,7 @@ public class ConfigurationProviderServiceTests
         var appDataPath = "/app/data/path";
         var userSettings = new UserSettings { ContentStoragePath = null };
         _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
-        _mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(appDataPath);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
 
         var provider = CreateProvider();
 
@@ -698,7 +698,7 @@ public class ConfigurationProviderServiceTests
         var appDataPath = "/app/data/path";
         var userSettings = new UserSettings { ContentDirectories = new List<string>() };
         _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
-        _mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(appDataPath);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
 
         var provider = CreateProvider();
 

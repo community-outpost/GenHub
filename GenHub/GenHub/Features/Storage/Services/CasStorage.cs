@@ -1,3 +1,9 @@
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Storage;
+using GenHub.Features.Workspace;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Linq;
@@ -5,49 +11,28 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Models.Storage;
-using GenHub.Features.Workspace;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace GenHub.Features.Storage.Services;
 
 /// <summary>
 /// Low-level Content-Addressable Storage implementation with atomic operations and concurrency safety.
 /// </summary>
-public class CasStorage : ICasStorage
+public class CasStorage(
+    IOptions<CasConfiguration> config,
+    ILogger<CasStorage> logger,
+    IFileHashProvider hashProvider) : ICasStorage
 {
-    private readonly CasConfiguration _config;
-    private readonly ILogger<CasStorage> _logger;
-    private readonly string _objectsDirectory;
-    private readonly string _tempDirectory;
-    private readonly string _lockDirectory;
-    private readonly IFileHashProvider _hashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CasStorage"/> class.
-    /// </summary>
-    /// <param name="config">CAS configuration options.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="hashProvider">File hash provider.</param>
-    public CasStorage(IOptions<CasConfiguration> config, ILogger<CasStorage> logger, IFileHashProvider hashProvider)
-    {
-        _config = config.Value;
-        _logger = logger;
-        _hashProvider = hashProvider;
-
-        _objectsDirectory = Path.Combine(_config.CasRootPath, "objects");
-        _tempDirectory = Path.Combine(_config.CasRootPath, "temp");
-        _lockDirectory = Path.Combine(_config.CasRootPath, "locks");
-
-        EnsureDirectoryStructure();
-    }
+    private readonly CasConfiguration _config = config.Value;
+    private readonly ILogger<CasStorage> _logger = logger;
+    private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
+    private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, "temp");
+    private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <inheritdoc/>
     public string GetObjectPath(string hash)
     {
+        EnsureDirectoryStructure();
         ValidateHash(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());
@@ -248,9 +233,8 @@ public class CasStorage : ICasStorage
 
         foreach (var directory in requiredDirectories)
         {
-            if (!Directory.Exists(directory))
+            if (FileOperationsService.EnsureDirectoryExists(directory))
             {
-                Directory.CreateDirectory(directory);
                 _logger.LogDebug("Created CAS directory: {Directory}", directory);
             }
         }

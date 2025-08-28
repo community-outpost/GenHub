@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
@@ -22,6 +23,7 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
     private readonly ILogger<GameInstallationValidator> _logger;
     private readonly IManifestProvider _manifestProvider;
     private readonly IContentValidator _contentValidator;
+    private readonly IFileHashProvider _hashProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameInstallationValidator"/> class.
@@ -29,15 +31,18 @@ public class GameInstallationValidator : FileSystemValidator, IGameInstallationV
     /// <param name="logger">The logger instance.</param>
     /// <param name="manifestProvider">The manifest provider.</param>
     /// <param name="contentValidator">Content validator for core validation logic.</param>
+    /// <param name="hashProvider">File hash provider for file system validation.</param>
     public GameInstallationValidator(
         ILogger<GameInstallationValidator> logger,
         IManifestProvider manifestProvider,
-        IContentValidator contentValidator)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
+        IContentValidator contentValidator,
+        IFileHashProvider hashProvider)
+        : base(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider)))
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
         _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
     }
 
     /// <summary>

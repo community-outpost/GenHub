@@ -289,4 +289,11 @@ public class ConfigurationProviderService : IConfigurationProviderService
 
         return Path.Combine(_appConfig.GetConfiguredDataPath(), "Content");
     }
+
+    /// <inheritdoc />
+    public CasConfiguration GetCasConfiguration()
+    {
+        var settings = _userSettings.GetSettings();
+        return settings.CasConfiguration;
+    }
 }

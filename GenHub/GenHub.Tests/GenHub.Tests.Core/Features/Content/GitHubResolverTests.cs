@@ -83,6 +83,7 @@ public class GitHubResolverTests
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.AddFileAsync(
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<ContentSourceType>(),
                 It.IsAny<string>(),
                 It.IsAny<bool>(),

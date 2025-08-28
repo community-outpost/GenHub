@@ -70,21 +70,6 @@ public class WorkspaceIntegrationTests : IDisposable
         var mockUserSettings = new Mock<IUserSettingsService>();
 
         // Setup mock returns
-        mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
-        mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
-        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
-
-        services.AddSingleton(mockConfiguration.Object);
-        services.AddSingleton(mockAppConfig.Object);
-        services.AddSingleton(mockUserSettings.Object);
-        services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
-
-        // Add configuration services
-        var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
-        var mockAppConfig = new Mock<IAppConfiguration>();
-        var mockUserSettings = new Mock<IUserSettingsService>();
-
-        // Setup mock returns
         mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
         mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
@@ -151,17 +136,8 @@ public class WorkspaceIntegrationTests : IDisposable
         var mockCasService = new Mock<ICasService>();
         var fileOps = new FileOperationsService(
             new Mock<ILogger<FileOperationsService>>().Object,
-            mockDownloadService.Object);
-        var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
-        var strategy = new HybridCopySymlinkStrategy(fileOps, logger.Object);
-
-        // Create proper mock for IConfigurationProviderService
-        var mockConfigProvider = new Mock<IConfigurationProviderService>();
-        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
-        mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(_tempWorkspaceRoot);
-
-        var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
-        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger);
+            mockDownloadService.Object,
+            mockCasService.Object);
 
         var logger = new Mock<ILogger<FullCopyStrategy>>();
         var strategy = new FullCopyStrategy(fileOps, logger.Object);
@@ -251,7 +227,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <param name="strategy">The workspace strategy.</param>
     /// <returns>A configured <see cref="WorkspaceConfiguration"/>.</returns>
     private WorkspaceConfiguration CreateTestConfiguration(WorkspaceStrategy strategy)
-        {
+    {
         var manifest = new ContentManifest();
         var testFiles = new[]
         {

@@ -125,4 +125,10 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The content storage path as a string.</returns>
     string GetContentStoragePath();
+
+    /// <summary>
+    /// Gets the CAS configuration settings.
+    /// </summary>
+    /// <returns>The CAS configuration.</returns>
+    CasConfiguration GetCasConfiguration();
 }
