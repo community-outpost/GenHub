@@ -17,19 +17,12 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
 /// </remarks>
-public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrategy>
+public sealed class SymlinkOnlyStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<SymlinkOnlyStrategy> logger)
+    : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
 {
     private const long LinkOverheadBytes = 1024L;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">Service for file operations.</param>
-    /// <param name="logger">Logger instance for logging.</param>
-    public SymlinkOnlyStrategy(IFileOperationsService fileOperations, ILogger<SymlinkOnlyStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
 
     /// <inheritdoc/>
     public override string Name => "Symlink Only";

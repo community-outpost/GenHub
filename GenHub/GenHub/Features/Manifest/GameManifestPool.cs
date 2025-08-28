@@ -18,25 +18,15 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Persistent storage and management of acquired GameManifests using the content storage service.
 /// </summary>
-public class GameManifestPool : IGameManifestPool
+public class GameManifestPool(
+    IContentStorageService storageService,
+    ICasService casService,
+    ILogger<GameManifestPool> logger) : IGameManifestPool
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
-    private readonly IContentStorageService _storageService;
-    private readonly ICasService _casService;
-    private readonly ILogger<GameManifestPool> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameManifestPool"/> class.
-    /// </summary>
-    /// <param name="storageService">The content storage service.</param>
-    /// <param name="casService">The Content-Addressable Storage service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public GameManifestPool(IContentStorageService storageService, ICasService casService, ILogger<GameManifestPool> logger)
-    {
-        _storageService = storageService;
-        _casService = casService;
-        _logger = logger;
-    }
+    private readonly IContentStorageService _storageService = storageService;
+    private readonly ICasService _casService = casService;
+    private readonly ILogger<GameManifestPool> _logger = logger;
 
     /// <inheritdoc/>
     public async Task AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default)

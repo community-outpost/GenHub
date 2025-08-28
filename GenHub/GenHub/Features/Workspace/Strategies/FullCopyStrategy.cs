@@ -18,18 +18,11 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
 /// </remarks>
-public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
+public sealed class FullCopyStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<FullCopyStrategy> logger)
+    : WorkspaceStrategyBase<FullCopyStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public FullCopyStrategy(IFileOperationsService fileOperations, ILogger<FullCopyStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Full Copy";
 

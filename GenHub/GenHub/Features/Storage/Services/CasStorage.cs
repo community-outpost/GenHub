@@ -29,10 +29,13 @@ public class CasStorage(
     private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
     private readonly IFileHashProvider _hashProvider = hashProvider;
 
+    // Ensure directory structure exists on first use
+    private bool _directoriesEnsured = false;
+
     /// <inheritdoc/>
     public string GetObjectPath(string hash)
     {
-        EnsureDirectoryStructure();
+        EnsureDirectoriesCreated();
         ValidateHash(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());
@@ -63,6 +66,9 @@ public class CasStorage(
     {
         ValidateHash(hash);
 
+        // Ensure directory structure exists before acquiring locks
+        EnsureDirectoriesCreated();
+
         var objectPath = GetObjectPath(hash);
         var tempPath = Path.Combine(_tempDirectory, $"store-{Guid.NewGuid():N}");
         var lockPath = Path.Combine(_lockDirectory, $"{hash}.lock");
@@ -79,6 +85,12 @@ public class CasStorage(
             }
 
             // Write to temporary file first (atomic operation)
+            var tempDirectory = Path.GetDirectoryName(tempPath);
+            if (!string.IsNullOrEmpty(tempDirectory))
+            {
+                Directory.CreateDirectory(tempDirectory);
+            }
+
             await using (var tempStream = File.Create(tempPath))
             {
                 if (content.CanSeek && content.Position != 0)
@@ -139,6 +151,9 @@ public class CasStorage(
     /// <inheritdoc/>
     public async Task DeleteObjectAsync(string hash, CancellationToken cancellationToken = default)
     {
+        // Ensure directory structure exists before acquiring locks
+        EnsureDirectoriesCreated();
+
         var objectPath = GetObjectPath(hash);
         var lockPath = Path.Combine(_lockDirectory, $"{hash}.lock");
 
@@ -240,10 +255,26 @@ public class CasStorage(
         }
     }
 
+    private void EnsureDirectoriesCreated()
+    {
+        if (!_directoriesEnsured)
+        {
+            EnsureDirectoryStructure();
+            _directoriesEnsured = true;
+        }
+    }
+
     private async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)
     {
         const int maxRetries = 10;
         const int retryDelayMs = 100;
+
+        // Ensure the lock file's directory exists
+        var lockDirectory = Path.GetDirectoryName(lockPath);
+        if (!string.IsNullOrEmpty(lockDirectory))
+        {
+            Directory.CreateDirectory(lockDirectory);
+        }
 
         for (int i = 0; i < maxRetries; i++)
         {

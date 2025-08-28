@@ -15,22 +15,13 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Fluent builder for creating comprehensive game manifests.
 /// </summary>
-public class ContentManifestBuilder : IContentManifestBuilder
+public class ContentManifestBuilder(
+    ILogger<ContentManifestBuilder> logger,
+    IFileHashProvider hashProvider) : IContentManifestBuilder
 {
-    private readonly ILogger<ContentManifestBuilder> _logger;
+    private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
-    private readonly IFileHashProvider _hashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentManifestBuilder"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance for logging operations.</param>
-    /// <param name="hashProvider">The file hash provider for computing file hashes.</param>
-    public ContentManifestBuilder(ILogger<ContentManifestBuilder> logger, IFileHashProvider hashProvider)
-    {
-        _logger = logger;
-        _hashProvider = hashProvider;
-    }
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <summary>
     /// Sets the basic information for the manifest.
