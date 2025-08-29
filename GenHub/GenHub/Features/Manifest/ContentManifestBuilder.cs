@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
@@ -15,10 +15,13 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Fluent builder for creating comprehensive game manifests.
 /// </summary>
-public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IContentManifestBuilder
+public class ContentManifestBuilder(
+    ILogger<ContentManifestBuilder> logger,
+    IFileHashProvider hashProvider) : IContentManifestBuilder
 {
     private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <summary>
     /// Sets the basic information for the manifest.
@@ -188,7 +191,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
-        ManifestFileSourceType sourceType = ManifestFileSourceType.Content,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string fileFilter = "*",
         bool isExecutable = false)
     {
@@ -205,7 +208,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
         {
             var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
             var fileInfo = new FileInfo(filePath);
-            var hash = await ComputeSha256Async(filePath);
+            var hash = await _hashProvider.ComputeFileHashAsync(filePath);
 
             var manifestFile = new ManifestFile
             {
@@ -231,15 +234,17 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
     /// <summary>
     /// Adds a file to the manifest.
     /// </summary>
-    /// <param name="relativePath">Relative path.</param>
+    /// <param name="relativePath">Relative path in workspace.</param>
+    /// <param name="sourcePath">Source path for hash computation.</param>
     /// <param name="sourceType">Source type.</param>
     /// <param name="downloadUrl">Download URL.</param>
     /// <param name="isExecutable">Is executable.</param>
     /// <param name="permissions">File permissions.</param>
-    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    /// <returns>The builder instance.</returns>
     public async Task<IContentManifestBuilder> AddFileAsync(
         string relativePath,
-        ManifestFileSourceType sourceType = ManifestFileSourceType.Content,
+        string sourcePath = "",
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
         string downloadUrl = "",
         bool isExecutable = false,
         FilePermissions? permissions = null)
@@ -247,17 +252,18 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
         var manifestFile = new ManifestFile
         {
             RelativePath = relativePath,
+            SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : null,
             SourceType = sourceType,
             IsExecutable = isExecutable,
             DownloadUrl = downloadUrl,
             Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
         };
 
-        if (sourceType != ManifestFileSourceType.Patch && string.IsNullOrEmpty(downloadUrl) && File.Exists(relativePath))
+        if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
         {
-            var fileInfo = new FileInfo(relativePath);
+            var fileInfo = new FileInfo(sourcePath);
             manifestFile.Size = fileInfo.Length;
-            manifestFile.Hash = await ComputeSha256Async(relativePath);
+            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
         }
 
         _manifest.Files.Add(manifestFile);
@@ -373,7 +379,7 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
         {
             RelativePath = targetRelativePath,
             PatchSourceFile = patchSourceFile,
-            SourceType = ManifestFileSourceType.Patch,
+            SourceType = ContentSourceType.RemoteDownload,
         };
 
         _manifest.Files.Add(manifestFile);
@@ -393,14 +399,6 @@ public class ContentManifestBuilder(ILogger<ContentManifestBuilder> logger) : IC
             _manifest.Files.Count,
             _manifest.Dependencies.Count);
         return _manifest;
-    }
-
-    private static async Task<string> ComputeSha256Async(string filePath)
-    {
-        await using var stream = File.OpenRead(filePath);
-        using var sha = SHA256.Create();
-        var hash = await sha.ComputeHashAsync(stream);
-        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
 
     private static bool IsExecutableFile(string filePath)

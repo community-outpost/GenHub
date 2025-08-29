@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.Features.Workspace;
@@ -12,23 +13,12 @@ namespace GenHub.Windows.Features.Workspace;
 /// <summary>
 /// Windows-specific implementation of <see cref="IFileOperationsService"/> for file operations.
 /// </summary>
-public class WindowsFileOperationsService : IFileOperationsService
+/// <param name="baseService">The base file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public class WindowsFileOperationsService(IFileOperationsService baseService, ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
 {
-    private readonly IFileOperationsService _baseService;
-    private readonly ILogger<WindowsFileOperationsService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WindowsFileOperationsService"/> class.
-    /// </summary>
-    /// <param name="baseService">The base file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public WindowsFileOperationsService(
-        IFileOperationsService baseService,
-        ILogger<WindowsFileOperationsService> logger)
-    {
-        _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IFileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
+    private readonly ILogger<WindowsFileOperationsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
@@ -51,6 +41,22 @@ public class WindowsFileOperationsService : IFileOperationsService
         => _baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
 
     /// <inheritdoc/>
+    public Task<string?> StoreInCasAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
+        => _baseService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default)
+        => _baseService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default)
+        => _baseService.LinkFromCasAsync(hash, destinationPath, useHardLink, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default)
+        => _baseService.OpenCasContentAsync(hash, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task CreateHardLinkAsync(
         string linkPath,
         string targetPath,
@@ -59,15 +65,12 @@ public class WindowsFileOperationsService : IFileOperationsService
         try
         {
             var directory = Path.GetDirectoryName(linkPath);
-            if (!string.IsNullOrEmpty(directory))
+            if (directory != null)
             {
-                Directory.CreateDirectory(directory);
+                FileOperationsService.EnsureDirectoryExists(directory);
             }
 
-            if (File.Exists(linkPath))
-            {
-                File.Delete(linkPath);
-            }
+            FileOperationsService.DeleteFileIfExists(linkPath);
 
             await Task.Run(
                 () =>

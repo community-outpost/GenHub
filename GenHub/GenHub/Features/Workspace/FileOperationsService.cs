@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
@@ -16,12 +16,14 @@ namespace GenHub.Features.Workspace;
 /// </summary>
 public class FileOperationsService(
     ILogger<FileOperationsService> logger,
-    IDownloadService downloadService) : IFileOperationsService
+    IDownloadService downloadService,
+    ICasService casService) : IFileOperationsService
 {
     private const int BufferSize = 1024 * 1024; // 1MB buffer
 
     private readonly ILogger<FileOperationsService> _logger = logger;
     private readonly IDownloadService _downloadService = downloadService;
+    private readonly ICasService _casService = casService;
 
     /// <summary>
     /// Ensures that the directory for the specified file path exists, creating it if necessary.
@@ -104,13 +106,27 @@ public class FileOperationsService(
                 useAsync: true);
             await source.CopyToAsync(destination, cancellationToken);
 
-            var sourceInfo = new FileInfo(sourcePath);
-            var destInfo = new FileInfo(destinationPath)
+            // Safely try to copy timestamps/attributes but do not fail copy if this part fails
+            try
             {
-                CreationTime = sourceInfo.CreationTime,
-                LastWriteTime = sourceInfo.LastWriteTime,
-                Attributes = sourceInfo.Attributes,
-            };
+                var sourceInfo = new FileInfo(sourcePath);
+                var destInfo = new FileInfo(destinationPath);
+
+                // Timestamps
+                destInfo.CreationTime = sourceInfo.CreationTime;
+                destInfo.LastWriteTime = sourceInfo.LastWriteTime;
+
+                // Attributes - avoid reparse/read-only/system flags
+                var sanitizedAttributes = sourceInfo.Attributes
+                    & ~FileAttributes.ReparsePoint
+                    & ~FileAttributes.ReadOnly
+                    & ~FileAttributes.System;
+                destInfo.Attributes = sanitizedAttributes;
+            }
+            catch (Exception attrEx)
+            {
+                _logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
+            }
 
             _logger.LogDebug(
                 "Copied file from {Source} to {Destination}",
@@ -145,29 +161,67 @@ public class FileOperationsService(
             EnsureDirectoryExists(linkPath);
             DeleteFileIfExists(linkPath);
 
+            var absoluteTargetPath = Path.GetFullPath(targetPath);
+            if (!File.Exists(absoluteTargetPath) && !Directory.Exists(absoluteTargetPath))
+            {
+                throw new FileNotFoundException(
+                    $"Target path does not exist: {absoluteTargetPath}");
+            }
+
             await Task.Run(
                 () =>
                 {
-                    if (File.Exists(targetPath))
+                    try
                     {
-                        File.CreateSymbolicLink(linkPath, targetPath);
+                        if (File.Exists(absoluteTargetPath))
+                        {
+                            File.CreateSymbolicLink(linkPath, absoluteTargetPath);
+                        }
+                        else if (Directory.Exists(absoluteTargetPath))
+                        {
+                            Directory.CreateSymbolicLink(linkPath, absoluteTargetPath);
+                        }
+                        else
+                        {
+                            throw new FileNotFoundException(
+                                $"Target path does not exist: {absoluteTargetPath}");
+                        }
                     }
-                    else if (Directory.Exists(targetPath))
+                    catch (UnauthorizedAccessException uaex) when (OperatingSystem.IsWindows())
                     {
-                        Directory.CreateSymbolicLink(linkPath, targetPath);
+                        // Fall back to copy if symlink creation requires elevation or Developer Mode
+                        _logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
+
+                        if (File.Exists(absoluteTargetPath))
+                        {
+                            File.Copy(absoluteTargetPath, linkPath, overwrite: true);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
-                    else
+                    catch (PlatformNotSupportedException pnsex)
                     {
-                        throw new FileNotFoundException(
-                            $"Target path does not exist: {targetPath}");
+                        // Fall back if platform lacks symlink support
+                        _logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
+
+                        if (File.Exists(absoluteTargetPath))
+                        {
+                            File.Copy(absoluteTargetPath, linkPath, overwrite: true);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
                 },
                 cancellationToken);
 
             _logger.LogDebug(
-                "Created symlink from {Link} to {Target}",
+                "Created symlink or copied file from {Link} to {Target}",
                 linkPath,
-                targetPath);
+                absoluteTargetPath);
         }
         catch (Exception ex)
         {
@@ -339,6 +393,153 @@ public class FileOperationsService(
                 url,
                 destinationPath);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Stores a file in CAS and returns its hash.
+    /// </summary>
+    /// <param name="sourcePath">The path to the source file.</param>
+    /// <param name="expectedHash">Optional expected hash for verification.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The content hash if successful.</returns>
+    public async Task<string?> StoreInCasAsync(
+        string sourcePath,
+        string? expectedHash = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _casService.StoreContentAsync(sourcePath, expectedHash, cancellationToken).ConfigureAwait(false);
+            if (result.Success)
+            {
+                _logger.LogDebug("Stored file {SourcePath} in CAS with hash {Hash}", sourcePath, result.Data);
+                return result.Data;
+            }
+
+            _logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.ErrorMessage);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Copies a file from CAS to the specified destination path using its hash.
+    /// The destination path determines the final filename and location.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the operation succeeded.</returns>
+    public async Task<bool> CopyFromCasAsync(
+        string hash,
+        string destinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            if (!pathResult.Success || pathResult.Data == null)
+            {
+                _logger.LogError("CAS content not found for hash {Hash}", hash);
+                return false;
+            }
+
+            EnsureDirectoryExists(destinationPath);
+
+            await CopyFileAsync(pathResult.Data, destinationPath, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a link (hard or symbolic) from CAS to the specified destination path.
+    /// The destination path determines the final filename and location.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="useHardLink">Whether to use a hard link instead of symbolic link.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the operation succeeded.</returns>
+    public async Task<bool> LinkFromCasAsync(
+        string hash,
+        string destinationPath,
+        bool useHardLink = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            if (!pathResult.Success || pathResult.Data == null)
+            {
+                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.ErrorMessage);
+                return false;
+            }
+
+            // Verify the CAS file actually exists before trying to link
+            if (!File.Exists(pathResult.Data))
+            {
+                _logger.LogError("CAS file does not exist at path {Path} for hash {Hash}", pathResult.Data, hash);
+                return false;
+            }
+
+            EnsureDirectoryExists(destinationPath);
+
+            if (useHardLink)
+            {
+                await CreateHardLinkAsync(destinationPath, pathResult.Data, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await CreateSymlinkAsync(destinationPath, pathResult.Data, cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Opens a stream to CAS content by hash.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A stream to read the content, or null if not found.</returns>
+    public async Task<Stream?> OpenCasContentAsync(
+        string hash,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var streamResult = await _casService.OpenContentStreamAsync(hash, cancellationToken).ConfigureAwait(false);
+            if (streamResult.Success)
+            {
+                return streamResult.Data;
+            }
+
+            _logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.ErrorMessage);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
+            return null;
         }
     }
 }

@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
@@ -17,28 +18,18 @@ namespace GenHub.Features.Validation;
 /// Validates the integrity of a base game installation directory (e.g., from Steam, EA App).
 /// Focuses on installation-specific validation concerns.
 /// </summary>
-public class GameInstallationValidator : FileSystemValidator, IGameInstallationValidator, IValidator<GameInstallation>
+public class GameInstallationValidator(
+    ILogger<GameInstallationValidator> logger,
+    IManifestProvider manifestProvider,
+    IContentValidator contentValidator,
+    IFileHashProvider hashProvider)
+    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))),
+      IGameInstallationValidator, IValidator<GameInstallation>
 {
-    private readonly ILogger<GameInstallationValidator> _logger;
-    private readonly IManifestProvider _manifestProvider;
-    private readonly IContentValidator _contentValidator;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameInstallationValidator"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="manifestProvider">The manifest provider.</param>
-    /// <param name="contentValidator">Content validator for core validation logic.</param>
-    public GameInstallationValidator(
-        ILogger<GameInstallationValidator> logger,
-        IManifestProvider manifestProvider,
-        IContentValidator contentValidator)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-        _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-    }
+    private readonly ILogger<GameInstallationValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
+    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
 
     /// <summary>
     /// Validates the specified game installation.

@@ -7,27 +7,30 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
 
 /// <summary>
 /// Complete workspace management service with persistence and cleanup.
-/// </summary>
-/// <summary>
 /// Manages workspace operations including preparation, retrieval, and cleanup.
 /// </summary>
 public class WorkspaceManager(
     IEnumerable<IWorkspaceStrategy> strategies,
     IConfigurationProviderService configurationProvider,
-    ILogger<WorkspaceManager> logger
+    ILogger<WorkspaceManager> logger,
+    CasReferenceTracker casReferenceTracker
 ) : IWorkspaceManager
 {
     private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
 
     private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
     private readonly ILogger<WorkspaceManager> _logger = logger;
+    private readonly CasReferenceTracker _casReferenceTracker = casReferenceTracker;
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -53,6 +56,9 @@ public class WorkspaceManager(
 
         // Save workspace metadata
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
+
+        // Track CAS references for the workspace
+        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifest, cancellationToken);
 
         _logger.LogInformation("Workspace {Id} prepared successfully at {Path}", workspaceInfo.Id, workspaceInfo.WorkspacePath);
         return workspaceInfo;
@@ -154,5 +160,18 @@ public class WorkspaceManager(
 
         workspaces.Add(workspaceInfo);
         await SaveAllWorkspacesAsync(workspaces, cancellationToken);
+    }
+
+    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        var casReferences = manifest.Files
+            .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
+            .Select(f => f.Hash!)
+            .ToList();
+
+        if (casReferences.Any())
+        {
+            await _casReferenceTracker.TrackWorkspaceReferencesAsync(workspaceId, casReferences, cancellationToken);
+        }
     }
 }

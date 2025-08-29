@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Common;
@@ -71,6 +72,11 @@ public class UserSettings
 
     /// <summary>Gets or sets the set of property names explicitly set by the user, allowing distinction between user intent and C# defaults.</summary>
     public HashSet<string> ExplicitlySetProperties { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the Content-Addressable Storage configuration.
+    /// </summary>
+    public CasConfiguration CasConfiguration { get; set; } = new();
 
     /// <summary>Marks a property as explicitly set by the user.</summary>
     /// <param name="propertyName">The name of the property to mark as explicitly set.</param>

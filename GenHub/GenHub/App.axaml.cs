@@ -84,7 +84,7 @@ public partial class App : Application
 
     private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (_userSettingsService == null || _serviceProvider == null) return;
+        if (_serviceProvider == null) return;
         try
         {
             // Save current window state
