@@ -23,20 +23,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+          
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-          cache-dependency-path: package.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install dependencies with pnpm and build
+      - name: Install dependencies and build
         run: |
-          pnpm install --frozen-lockfile=false
+          pnpm install --frozen-lockfile
           pnpm --filter "./docs..." run build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
