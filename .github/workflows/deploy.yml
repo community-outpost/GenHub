@@ -36,15 +36,10 @@ jobs:
       - name: Build VitePress
         run: pnpm run build
 
-      - name: Prepare publish folder for /wiki
-        run: |
-          mkdir -p docs/.vitepress/out/wiki
-          cp -r docs/.vitepress/dist/* docs/.vitepress/out/wiki/
-
       - name: Install Netlify CLI
         run: pnpm add -g netlify-cli
 
-      - name: Deploy to Netlify (production)
+      - name: Deploy to Netlify
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
