@@ -2,7 +2,7 @@ name: Deploy VitePress site to Netlify
 
 on:
   push:
-    branches: [development]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
