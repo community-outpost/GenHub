@@ -95,7 +95,6 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                 });
 
                 processedFiles++;
-                processedFiles++;
             }
 
             // Use ContentManifestBuilder to create delivered manifest
