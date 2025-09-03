@@ -62,90 +62,107 @@ public class CasStorage(
     }
 
     /// <inheritdoc/>
-    public async Task<string> StoreObjectAsync(Stream content, string hash, CancellationToken cancellationToken = default)
+    public async Task<string?> StoreObjectAsync(Stream content, string hash, CancellationToken cancellationToken = default)
     {
-        ValidateHash(hash);
-
-        // Ensure directory structure exists before acquiring locks
-        EnsureDirectoriesCreated();
-
-        var objectPath = GetObjectPath(hash);
-        var tempPath = Path.Combine(_tempDirectory, $"store-{Guid.NewGuid():N}");
-        var lockPath = Path.Combine(_lockDirectory, $"{hash}.lock");
-
-        await using var lockFile = await AcquireLockAsync(lockPath, cancellationToken);
-
         try
         {
-            // Check if object already exists (race condition protection)
-            if (await ObjectExistsAsync(hash, cancellationToken))
-            {
-                _logger.LogDebug("Object {Hash} already exists in CAS", hash);
-                return objectPath;
-            }
+            ValidateHash(hash);
 
-            // Write to temporary file first (atomic operation)
-            var tempDirectory = Path.GetDirectoryName(tempPath);
-            if (!string.IsNullOrEmpty(tempDirectory))
-            {
-                Directory.CreateDirectory(tempDirectory);
-            }
+            // Ensure directory structure exists before acquiring locks
+            EnsureDirectoriesCreated();
 
-            await using (var tempStream = File.Create(tempPath))
-            {
-                if (content.CanSeek && content.Position != 0)
-                {
-                    content.Position = 0;
-                }
+            var objectPath = GetObjectPath(hash);
+            var tempPath = Path.Combine(_tempDirectory, $"store-{Guid.NewGuid():N}");
+            var lockPath = Path.Combine(_lockDirectory, $"{hash}.lock");
 
-                await content.CopyToAsync(tempStream, cancellationToken);
-                await tempStream.FlushAsync(cancellationToken);
-            } // tempStream is disposed here
+            await using var lockFile = await AcquireLockAsync(lockPath, cancellationToken);
 
-            // Verify integrity if enabled
-            if (_config.VerifyIntegrity)
-            {
-                var actualHash = await _hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
-                if (!string.Equals(actualHash, hash, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidDataException($"Hash mismatch: expected {hash}, got {actualHash}");
-                }
-            }
-
-            // Ensure target directory exists
-            var targetDirectory = Path.GetDirectoryName(objectPath)!;
-            Directory.CreateDirectory(targetDirectory);
-
-            // Atomic move to final location
-            File.Move(tempPath, objectPath);
-
-            _logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
-            return objectPath;
-        }
-        finally
-        {
             try
             {
-                FileOperationsService.DeleteFileIfExists(tempPath);
+                // Check if object already exists (race condition protection)
+                if (await ObjectExistsAsync(hash, cancellationToken))
+                {
+                    _logger.LogDebug("Object {Hash} already exists in CAS", hash);
+                    return objectPath;
+                }
+
+                // Write to temporary file first (atomic operation)
+                var tempDirectory = Path.GetDirectoryName(tempPath);
+                if (!string.IsNullOrEmpty(tempDirectory))
+                {
+                    Directory.CreateDirectory(tempDirectory);
+                }
+
+                await using (var tempStream = File.Create(tempPath))
+                {
+                    if (content.CanSeek && content.Position != 0)
+                    {
+                        content.Position = 0;
+                    }
+
+                    await content.CopyToAsync(tempStream, cancellationToken);
+                    await tempStream.FlushAsync(cancellationToken);
+                } // tempStream is disposed here
+
+                // Verify integrity if enabled
+                if (_config.VerifyIntegrity)
+                {
+                    var actualHash = await _hashProvider.ComputeFileHashAsync(tempPath, cancellationToken);
+                    if (!string.Equals(actualHash, hash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException($"Hash mismatch: expected {hash}, got {actualHash}");
+                    }
+                }
+
+                // Ensure target directory exists
+                var targetDirectory = Path.GetDirectoryName(objectPath)!;
+                Directory.CreateDirectory(targetDirectory);
+
+                // Atomic move to final location
+                File.Move(tempPath, objectPath);
+
+                _logger.LogDebug("Stored object {Hash} in CAS at {Path}", hash, objectPath);
+                return objectPath;
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
+                try
+                {
+                    FileOperationsService.DeleteFileIfExists(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to cleanup temp file {TempPath}", tempPath);
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store object {Hash} in CAS", hash);
+            return null;
         }
     }
 
     /// <inheritdoc/>
-    public async Task<Stream> OpenObjectStreamAsync(string hash, CancellationToken cancellationToken = default)
+    public async Task<Stream?> OpenObjectStreamAsync(string hash, CancellationToken cancellationToken = default)
     {
-        var objectPath = GetObjectPath(hash);
-
-        if (!await ObjectExistsAsync(hash, cancellationToken))
+        try
         {
-            throw new FileNotFoundException($"Object not found in CAS: {hash}");
-        }
+            var objectPath = GetObjectPath(hash);
 
-        return await Task.Run(() => File.OpenRead(objectPath), cancellationToken);
+            if (!await ObjectExistsAsync(hash, cancellationToken))
+            {
+                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                return null;
+            }
+
+            return await Task.Run(() => File.OpenRead(objectPath), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open stream for object {Hash}", hash);
+            return null;
+        }
     }
 
     /// <inheritdoc/>
@@ -206,17 +223,25 @@ public class CasStorage(
     /// </summary>
     /// <param name="hash">The hash of the object.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>The creation time of the object.</returns>
-    /// <exception cref="FileNotFoundException">Thrown if the object does not exist.</exception>
-    public async Task<DateTime> GetObjectCreationTimeAsync(string hash, CancellationToken cancellationToken = default)
+    /// <returns>The creation time of the object, or null if the object cannot be accessed.</returns>
+    public async Task<DateTime?> GetObjectCreationTimeAsync(string hash, CancellationToken cancellationToken = default)
     {
-        var objectPath = GetObjectPath(hash);
-        if (!await ObjectExistsAsync(hash, cancellationToken))
+        try
         {
-            throw new FileNotFoundException($"Object not found in CAS: {hash}");
-        }
+            var objectPath = GetObjectPath(hash);
+            if (!await ObjectExistsAsync(hash, cancellationToken))
+            {
+                _logger.LogWarning("Object {Hash} not found in CAS", hash);
+                return null;
+            }
 
-        return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+            return await Task.Run(() => File.GetCreationTime(objectPath), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get creation time for object {Hash}", hash);
+            return null;
+        }
     }
 
     private static void ValidateHash(string hash)

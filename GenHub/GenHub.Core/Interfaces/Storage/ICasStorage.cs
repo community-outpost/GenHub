@@ -30,16 +30,16 @@ public interface ICasStorage
     /// <param name="content">The content stream.</param>
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The path where the content was stored.</returns>
-    Task<string> StoreObjectAsync(Stream content, string hash, CancellationToken cancellationToken = default);
+    /// <returns>The path where the content was stored, or null if storage failed.</returns>
+    Task<string?> StoreObjectAsync(Stream content, string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Opens a read-only stream to an object in storage.
     /// </summary>
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A stream to read the object content.</returns>
-    Task<Stream> OpenObjectStreamAsync(string hash, CancellationToken cancellationToken = default);
+    /// <returns>A stream to read the object content, or null if the object cannot be opened.</returns>
+    Task<Stream?> OpenObjectStreamAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes an object from storage.
@@ -61,6 +61,6 @@ public interface ICasStorage
     /// </summary>
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The creation time of the object.</returns>
-    Task<System.DateTime> GetObjectCreationTimeAsync(string hash, CancellationToken cancellationToken = default);
+    /// <returns>The creation time of the object, or null if the object cannot be accessed.</returns>
+    Task<System.DateTime?> GetObjectCreationTimeAsync(string hash, CancellationToken cancellationToken = default);
 }

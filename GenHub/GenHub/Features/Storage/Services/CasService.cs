@@ -65,7 +65,12 @@ public class CasService(
 
             // Store content in CAS
             await using var sourceStream = File.OpenRead(sourcePath);
-            await _storage.StoreObjectAsync(sourceStream, hash, cancellationToken);
+            var storedPath = await _storage.StoreObjectAsync(sourceStream, hash, cancellationToken);
+
+            if (storedPath == null)
+            {
+                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+            }
 
             _logger.LogInformation("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
             return CasOperationResult<string>.CreateSuccess(hash);
@@ -120,7 +125,12 @@ public class CasService(
             }
 
             // Store content in CAS
-            await _storage.StoreObjectAsync(contentStream, hash, cancellationToken);
+            var storedPath = await _storage.StoreObjectAsync(contentStream, hash, cancellationToken);
+
+            if (storedPath == null)
+            {
+                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+            }
 
             _logger.LogInformation("Stored content in CAS: {Hash}", hash);
             return CasOperationResult<string>.CreateSuccess(hash);
@@ -173,6 +183,11 @@ public class CasService(
         try
         {
             var stream = await _storage.OpenObjectStreamAsync(hash, cancellationToken);
+            if (stream == null)
+            {
+                return CasOperationResult<Stream>.CreateFailure($"Content not found in CAS: {hash}");
+            }
+
             return CasOperationResult<Stream>.CreateSuccess(stream);
         }
         catch (Exception ex)
@@ -213,7 +228,7 @@ public class CasService(
                 try
                 {
                     var creationTime = await _storage.GetObjectCreationTimeAsync(hash, cancellationToken);
-                    if (DateTime.UtcNow - creationTime > gracePeriod)
+                    if (creationTime == null || DateTime.UtcNow - creationTime.Value > gracePeriod)
                     {
                         // Get size before deletion
                         var objectPath = _storage.GetObjectPath(hash);
