@@ -151,6 +151,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
                 _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
             }
         }
+
         return DefaultTheme;
     }
 

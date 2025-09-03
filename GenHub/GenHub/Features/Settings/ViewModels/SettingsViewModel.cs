@@ -335,7 +335,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = settings.DownloadBufferSize / 1024.0; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
-            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? Appconstants. : settings.DownloadUserAgent;
+            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? "GenHub/1.0" : settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
             CachePath = settings.CachePath;
             ContentDirectoriesText = string.Join(Environment.NewLine, settings.ContentDirectories ?? new());

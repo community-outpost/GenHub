@@ -5,7 +5,7 @@ namespace GenHub.Core.Models.Storage;
 /// <summary>
 /// Configuration settings for the Content-Addressable Storage (CAS) system.
 /// </summary>
-public class CasConfiguration
+public class CasConfiguration : ICloneable
 {
     private const long DefaultMaxCacheSizeBytes = 50L * 1024 * 1024 * 1024; // 50GB
     private const int DefaultMaxConcurrentOperations = 4;
@@ -102,5 +102,24 @@ public class CasConfiguration
         {
             throw new ArgumentException($"Invalid CasRootPath: {CasRootPath}", ex);
         }
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the current CasConfiguration instance.
+    /// </summary>
+    /// <returns>A new CasConfiguration instance with all properties copied.</returns>
+    public object Clone()
+    {
+        return new CasConfiguration
+        {
+            EnableAutomaticGc = EnableAutomaticGc,
+            CasRootPath = CasRootPath,
+            HashAlgorithm = HashAlgorithm,
+            GcGracePeriod = GcGracePeriod,
+            MaxCacheSizeBytes = MaxCacheSizeBytes,
+            AutoGcInterval = AutoGcInterval,
+            MaxConcurrentOperations = MaxConcurrentOperations,
+            VerifyIntegrity = VerifyIntegrity,
+        };
     }
 }

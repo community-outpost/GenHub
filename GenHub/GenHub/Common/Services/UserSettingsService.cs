@@ -70,8 +70,7 @@ public class UserSettingsService : IUserSettingsService
         lock (_lock)
         {
             // Return a deep copy to prevent external modification
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            return JsonSerializer.Deserialize<UserSettings>(json, JsonOptions) ?? new UserSettings();
+            return (UserSettings)_settings.Clone();
         }
     }
 
@@ -83,9 +82,7 @@ public class UserSettingsService : IUserSettingsService
         lock (_lock)
         {
             // Work on a copy to ensure exception safety
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            var settingsCopy = JsonSerializer.Deserialize<UserSettings>(json, JsonOptions)
-                               ?? new UserSettings();
+            var settingsCopy = (UserSettings)_settings.Clone();
 
             applyChanges(settingsCopy);
 
@@ -188,6 +185,7 @@ public class UserSettingsService : IUserSettingsService
     /// Sets the settings file path for testing purposes.
     /// </summary>
     /// <param name="path">The path to set.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or consists only of white-space characters.</exception>
     protected void SetSettingsFilePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
