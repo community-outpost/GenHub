@@ -33,6 +33,11 @@ public class ManifestFile
     public string Hash { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the source type for workspace preparation.
+    /// </summary>
+    public ContentSourceType SourceType { get; set; }
+
+    /// <summary>
     /// Gets or sets the file permissions for cross-platform compatibility.
     /// </summary>
     public FilePermissions Permissions { get; set; } = new();
