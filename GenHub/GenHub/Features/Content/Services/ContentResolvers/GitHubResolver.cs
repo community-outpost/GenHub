@@ -102,7 +102,7 @@ public class GitHubResolver(
             {
                 await manifest.AddFileAsync(
                     asset.Name,
-                    string.Empty,
+                    sourcePath: string.Empty,
                     ContentSourceType.RemoteDownload,
                     asset.BrowserDownloadUrl,
                     isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
