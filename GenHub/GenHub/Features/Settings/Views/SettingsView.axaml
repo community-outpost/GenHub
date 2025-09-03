@@ -365,12 +365,12 @@
           <!-- Garbage Collection Settings -->
           <StackPanel Spacing="8">
             <CheckBox Content="Enable automatic garbage collection"
-                      IsChecked="{Binding EnableAutomaticGarbageCollection}" />
+                      IsChecked="{Binding EnableAutomaticGc}" />
             <TextBlock Text="Automatically clean up unreferenced content to free disk space" 
                        Classes="setting-description" Margin="24,0,0,0" />
           </StackPanel>
 
-          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGarbageCollection}">
+          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
             <TextBlock Text="Garbage Collection Grace Period (Days)" Classes="setting-label" />
             <NumericUpDown Value="{Binding GarbageCollectionGracePeriodDays}"
                            Minimum="1"
@@ -384,7 +384,7 @@
                        Classes="setting-description" />
           </StackPanel>
 
-          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGarbageCollection}">
+          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
             <TextBlock Text="Auto GC Interval (Days)" Classes="setting-label" />
             <NumericUpDown Value="{Binding AutoGcIntervalDays}"
                            Minimum="1"

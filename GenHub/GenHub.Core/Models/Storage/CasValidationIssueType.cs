@@ -21,6 +21,11 @@ public enum CasValidationIssueType
     MissingObject,
 
     /// <summary>
+    /// Critical validation error that requires immediate attention.
+    /// </summary>
+    Critical,
+
+    /// <summary>
     /// General validation warning.
     /// </summary>
     Warning,

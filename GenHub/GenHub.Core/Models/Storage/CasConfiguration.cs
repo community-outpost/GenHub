@@ -12,7 +12,7 @@ public class CasConfiguration
     private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(1);
     private static readonly TimeSpan DefaultGcGracePeriod = TimeSpan.FromDays(7);
 
-    private TimeSpan _garbageCollectionGracePeriod = DefaultGcGracePeriod;
+    private TimeSpan _gcGracePeriod = DefaultGcGracePeriod;
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
     private int _maxConcurrentOperations = DefaultMaxConcurrentOperations;
     private long _maxCacheSizeBytes = DefaultMaxCacheSizeBytes;
@@ -20,7 +20,7 @@ public class CasConfiguration
     /// <summary>
     /// Gets or sets a value indicating whether automatic garbage collection is enabled.
     /// </summary>
-    public bool EnableAutomaticGarbageCollection { get; set; } = true;
+    public bool EnableAutomaticGc { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the root path for the CAS pool.
@@ -38,10 +38,10 @@ public class CasConfiguration
     /// <summary>
     /// Gets or sets the grace period before unreferenced objects can be garbage collected.
     /// </summary>
-    public TimeSpan GarbageCollectionGracePeriod
+    public TimeSpan GcGracePeriod
     {
-        get => _garbageCollectionGracePeriod;
-        set => _garbageCollectionGracePeriod = value > TimeSpan.Zero
+        get => _gcGracePeriod;
+        set => _gcGracePeriod = value > TimeSpan.Zero
             ? value
             : throw new ArgumentOutOfRangeException(nameof(value), "Must be positive");
     }

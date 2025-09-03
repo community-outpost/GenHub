@@ -219,7 +219,7 @@ public class CasService(
             var unreferencedHashes = System.Linq.Enumerable.Except(allHashes, referencedHashes);
 
             // Use configurable grace period
-            var gracePeriod = _config.GarbageCollectionGracePeriod;
+            var gracePeriod = _config.GcGracePeriod;
             long bytesFreed = 0;
             int objectsDeleted = 0;
 

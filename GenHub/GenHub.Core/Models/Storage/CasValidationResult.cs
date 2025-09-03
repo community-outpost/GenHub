@@ -14,7 +14,8 @@ public class CasValidationResult
     /// Gets a value indicating whether the validation passed (no critical issues).
     /// </summary>
     public bool IsValid => !Issues.Any(i => i.IssueType == CasValidationIssueType.HashMismatch ||
-                                            i.IssueType == CasValidationIssueType.CorruptedObject);
+                                            i.IssueType == CasValidationIssueType.CorruptedObject ||
+                                            i.IssueType == CasValidationIssueType.MissingObject);
 
     /// <summary>
     /// Gets or sets the total number of objects validated.

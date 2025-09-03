@@ -93,7 +93,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private string _casRootPath = string.Empty;
 
     [ObservableProperty]
-    private bool _enableAutomaticGarbageCollection = true;
+    private bool _enableAutomaticGc = true;
 
     [ObservableProperty]
     private long _maxCacheSizeGB = 50;
@@ -335,7 +335,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = settings.DownloadBufferSize / 1024.0; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
-            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? "GenHub/1.0" : settings.DownloadUserAgent;
+            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? Appconstants. : settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
             CachePath = settings.CachePath;
             ContentDirectoriesText = string.Join(Environment.NewLine, settings.ContentDirectories ?? new());
@@ -344,11 +344,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             // Load CAS settings
             CasRootPath = settings.CasConfiguration.CasRootPath;
-            EnableAutomaticGarbageCollection = settings.CasConfiguration.EnableAutomaticGarbageCollection;
+            EnableAutomaticGc = settings.CasConfiguration.EnableAutomaticGc;
             MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / (1024L * 1024L * 1024L);
             CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
             CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
-            GarbageCollectionGracePeriodDays = (int)settings.CasConfiguration.GarbageCollectionGracePeriod.TotalDays;
+            GarbageCollectionGracePeriodDays = (int)settings.CasConfiguration.GcGracePeriod.TotalDays;
             AutoGcIntervalDays = (int)settings.CasConfiguration.AutoGcInterval.TotalDays;
 
             _logger.LogDebug("Settings loaded successfully");
@@ -400,11 +400,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 // Update CAS settings
                 settings.CasConfiguration.CasRootPath = CasRootPath;
-                settings.CasConfiguration.EnableAutomaticGarbageCollection = EnableAutomaticGarbageCollection;
+                settings.CasConfiguration.EnableAutomaticGc = EnableAutomaticGc;
                 settings.CasConfiguration.MaxCacheSizeBytes = MaxCacheSizeGB * 1024L * 1024L * 1024L;
                 settings.CasConfiguration.MaxConcurrentOperations = CasMaxConcurrentOperations;
                 settings.CasConfiguration.VerifyIntegrity = CasVerifyIntegrity;
-                settings.CasConfiguration.GarbageCollectionGracePeriod = TimeSpan.FromDays(GarbageCollectionGracePeriodDays);
+                settings.CasConfiguration.GcGracePeriod = TimeSpan.FromDays(GarbageCollectionGracePeriodDays);
                 settings.CasConfiguration.AutoGcInterval = TimeSpan.FromDays(AutoGcIntervalDays);
             });
 
@@ -453,7 +453,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // Reset CAS settings
             CasRootPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "cas-pool");
-            EnableAutomaticGarbageCollection = true;
+            EnableAutomaticGc = true;
             MaxCacheSizeGB = 50;
             CasMaxConcurrentOperations = 4;
             CasVerifyIntegrity = true;

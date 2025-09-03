@@ -26,7 +26,7 @@ public class CasMaintenanceService(
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_config.EnableAutomaticGarbageCollection)
+        if (!_config.EnableAutomaticGc)
         {
             _logger.LogInformation("Automatic CAS garbage collection is disabled");
             return;

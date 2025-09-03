@@ -28,10 +28,10 @@ public static class CasModule
         var userCasConfig = configProvider.GetCasConfiguration();
         services.Configure<CasConfiguration>(config =>
         {
-            config.EnableAutomaticGarbageCollection = userCasConfig.EnableAutomaticGarbageCollection;
+            config.EnableAutomaticGc = userCasConfig.EnableAutomaticGc;
             config.CasRootPath = userCasConfig.CasRootPath;
             config.HashAlgorithm = userCasConfig.HashAlgorithm;
-            config.GarbageCollectionGracePeriod = userCasConfig.GarbageCollectionGracePeriod;
+            config.GcGracePeriod = userCasConfig.GcGracePeriod;
             config.MaxCacheSizeBytes = userCasConfig.MaxCacheSizeBytes;
             config.AutoGcInterval = userCasConfig.AutoGcInterval;
             config.MaxConcurrentOperations = userCasConfig.MaxConcurrentOperations;
