@@ -1,6 +1,4 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Storage;
 
@@ -12,9 +10,9 @@ public class CasConfiguration
     private const long DefaultMaxCacheSizeBytes = 50L * 1024 * 1024 * 1024; // 50GB
     private const int DefaultMaxConcurrentOperations = 4;
     private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(1);
-    private static readonly TimeSpan DefaultGarbageCollectionGracePeriod = TimeSpan.FromDays(7);
+    private static readonly TimeSpan DefaultGcGracePeriod = TimeSpan.FromDays(7);
 
-    private TimeSpan _garbageCollectionGracePeriod = DefaultGarbageCollectionGracePeriod;
+    private TimeSpan _garbageCollectionGracePeriod = DefaultGcGracePeriod;
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
     private int _maxConcurrentOperations = DefaultMaxConcurrentOperations;
     private long _maxCacheSizeBytes = DefaultMaxCacheSizeBytes;
@@ -35,7 +33,7 @@ public class CasConfiguration
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
     /// </summary>
-    public string HashAlgorithm { get; set; } = "SHA256";
+    public HashAlgorithm HashAlgorithm { get; set; } = HashAlgorithm.Sha256;
 
     /// <summary>
     /// Gets or sets the grace period before unreferenced objects can be garbage collected.
