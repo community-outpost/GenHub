@@ -18,19 +18,9 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// HybridCopySymlinkStrategy provides a balance between copying essential files and symlinking large files.
 /// </remarks>
-public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopySymlinkStrategy>
+public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperations, ILogger<HybridCopySymlinkStrategy> logger) : WorkspaceStrategyBase<HybridCopySymlinkStrategy>(fileOperations, logger)
 {
     private const long LinkOverheadBytes = 1024L;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="HybridCopySymlinkStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">Service for file operations.</param>
-    /// <param name="logger">Logger instance for logging.</param>
-    public HybridCopySymlinkStrategy(IFileOperationsService fileOperations, ILogger<HybridCopySymlinkStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
 
     /// <inheritdoc/>
     public override string Name => "Hybrid Copy-Symlink";
@@ -119,7 +109,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                     FileOperationsService.EnsureDirectoryExists(destinationPath);
 
                     // Handle different source types
-                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                    if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         // Use CAS content
                         await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
@@ -157,7 +147,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                                 var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                                 if (!hashValid)
                                 {
-                                    Logger.LogWarning("Hash verification failed for essential file: {RelativePath}", file.RelativePath);
+                                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
                                 }
                             }
                         }
@@ -256,7 +246,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                 var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
                 if (!hashValid)
                 {
-                    Logger.LogWarning("Hash verification failed for essential file: {RelativePath}", file.RelativePath);
+                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
                 }
             }
         }
