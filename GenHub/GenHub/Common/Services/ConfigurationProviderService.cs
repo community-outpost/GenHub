@@ -61,7 +61,7 @@ public class ConfigurationProviderService : IConfigurationProviderService
     }
 
     /// <inheritdoc />
-    public string GetCacheDirectory()
+    public string GetCachePath()
     {
         var settings = _userSettings.GetSettings();
         if (settings.IsExplicitlySet(nameof(UserSettings.CachePath)) &&
@@ -242,7 +242,7 @@ public class ConfigurationProviderService : IConfigurationProviderService
             ContentDirectories = GetContentDirectories(),
             GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
             ContentStoragePath = GetContentStoragePath(),
-            CachePath = GetCacheDirectory(),
+            CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
         };
     }

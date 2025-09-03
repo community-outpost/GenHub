@@ -18,10 +18,10 @@ public interface IConfigurationProviderService
     string GetWorkspacePath();
 
     /// <summary>
-    /// Gets the effective cache directory path.
+    /// Gets the effective cache path.
     /// </summary>
-    /// <returns>The cache directory path as a string.</returns>
-    string GetCacheDirectory();
+    /// <returns>The cache path as a string.</returns>
+    string GetCachePath();
 
     /// <summary>
     /// Gets the effective maximum number of concurrent downloads.

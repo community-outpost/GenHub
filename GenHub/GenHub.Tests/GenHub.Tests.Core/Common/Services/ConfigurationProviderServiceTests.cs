@@ -178,10 +178,10 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetCacheDirectory returns app configuration default.
+    /// Verifies that GetCachePath returns app configuration default.
     /// </summary>
     [Fact]
-    public void GetCacheDirectory_ReturnsAppDefault()
+    public void GetCachePath_ReturnsAppDefault()
     {
         // Arrange
         var appDefault = "/app/cache/directory";
@@ -190,7 +190,7 @@ public class ConfigurationProviderServiceTests
         var provider = CreateProvider();
 
         // Act
-        var result = provider.GetCacheDirectory();
+        var result = provider.GetCachePath();
 
         // Assert
         Assert.Equal(appDefault, result);
@@ -567,14 +567,14 @@ public class ConfigurationProviderServiceTests
         Assert.Equal(7, provider.GetMaxConcurrentDownloads());
         Assert.False(provider.GetAllowBackgroundDownloads());
         Assert.True(provider.GetEnableDetailedLogging());
-        Assert.Equal("/cache", provider.GetCacheDirectory());
+        Assert.Equal("/cache", provider.GetCachePath());
     }
 
     /// <summary>
-    /// Verifies that GetCacheDirectory returns user setting when it's valid.
+    /// Verifies that GetCachePath returns user setting when it's valid.
     /// </summary>
     [Fact]
-    public void GetCacheDirectory_WithValidUserSetting_ReturnsUserSetting()
+    public void GetCachePath_WithValidUserSetting_ReturnsUserSetting()
     {
         // Arrange
         var tempDir = Path.GetTempPath();
@@ -590,7 +590,7 @@ public class ConfigurationProviderServiceTests
             var provider = CreateProvider();
 
             // Act
-            var result = provider.GetCacheDirectory();
+            var result = provider.GetCachePath();
 
             // Assert
             Assert.Equal(userCache, result);
@@ -604,10 +604,10 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetCacheDirectory returns app default when user setting is null.
+    /// Verifies that GetCachePath returns app default when user setting is null.
     /// </summary>
     [Fact]
-    public void GetCacheDirectory_WithNullUserSetting_ReturnsAppDefault()
+    public void GetCachePath_WithNullUserSetting_ReturnsAppDefault()
     {
         // Arrange
         var appDefault = "/app/cache/directory";
@@ -618,7 +618,7 @@ public class ConfigurationProviderServiceTests
         var provider = CreateProvider();
 
         // Act
-        var result = provider.GetCacheDirectory();
+        var result = provider.GetCachePath();
 
         // Assert
         Assert.Equal(appDefault, result);
