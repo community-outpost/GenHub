@@ -18,19 +18,9 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
 /// </remarks>
-public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
+public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILogger<HardLinkStrategy> logger) : WorkspaceStrategyBase<HardLinkStrategy>(fileOperations, logger)
 {
     private const long LinkOverheadBytes = 1024L;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service used for file management.</param>
-    /// <param name="logger">The logger instance for logging operations.</param>
-    public HardLinkStrategy(IFileOperationsService fileOperations, ILogger<HardLinkStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
 
     /// <inheritdoc/>
     public override string Name => "Hard Link";
@@ -228,17 +218,20 @@ public sealed class HardLinkStrategy : WorkspaceStrategyBase<HardLinkStrategy>
     /// <param name="targetPath">The destination path where the hard link or copy should be created.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when both hard link creation and copy fallback fail.</exception>
     protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
     {
         var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, cancellationToken);
+        if (success)
+        {
+            return;
+        }
+
+        Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
+        success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
         if (!success)
         {
-            Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
-            success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
-            if (!success)
-            {
-                throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
-            }
+            throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
         }
     }
 
