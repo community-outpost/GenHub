@@ -271,6 +271,158 @@ public class ContentManifestBuilder(
         return this;
     }
 
+    /// <summary>
+    /// Adds a local file from the filesystem.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="sourcePath">The source path of the file on the local filesystem.</param>
+    /// <param name="sourceType">How this file should be handled.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public async Task<IContentManifestBuilder> AddLocalFileAsync(
+        string relativePath,
+        string sourcePath,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        return await AddFileAsync(relativePath, sourcePath, sourceType, string.Empty, isExecutable, permissions);
+    }
+
+    /// <summary>
+    /// Adds a remote file to be downloaded.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="downloadUrl">Download URL for the remote file.</param>
+    /// <param name="sourceType">How this file should be handled.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public async Task<IContentManifestBuilder> AddRemoteFileAsync(
+        string relativePath,
+        string downloadUrl,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        return await AddFileAsync(relativePath, string.Empty, sourceType, downloadUrl, isExecutable, permissions);
+    }
+
+    /// <summary>
+    /// Adds a base game file from the detected game installation.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="sourcePath">The source path of the file in the base game installation.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public async Task<IContentManifestBuilder> AddBaseGameFileAsync(
+        string relativePath,
+        string sourcePath,
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        if (string.IsNullOrEmpty(sourcePath))
+        {
+            throw new ArgumentException("sourcePath cannot be null or empty for base game files.", nameof(sourcePath));
+        }
+
+        return await AddFileAsync(relativePath, sourcePath, ContentSourceType.BaseGame, string.Empty, isExecutable, permissions);
+    }
+
+    /// <summary>
+    /// Adds a content-addressable file from the CAS system.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="hash">The content hash for CAS lookup.</param>
+    /// <param name="size">The expected file size.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public Task<IContentManifestBuilder> AddContentAddressableFileAsync(
+        string relativePath,
+        string hash,
+        long size,
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        if (string.IsNullOrEmpty(hash))
+        {
+            throw new ArgumentException("hash cannot be null or empty for content-addressable files.", nameof(hash));
+        }
+
+        var manifestFile = new ManifestFile
+        {
+            RelativePath = relativePath,
+            SourceType = ContentSourceType.ContentAddressable,
+            IsExecutable = isExecutable,
+            Hash = hash,
+            Size = size,
+            Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
+        };
+
+        _manifest.Files.Add(manifestFile);
+        _logger.LogDebug("Added content-addressable file: {RelativePath} (Hash: {Hash})", relativePath, hash);
+        return Task.FromResult(this as IContentManifestBuilder);
+    }
+
+    /// <summary>
+    /// Adds a file from an extracted package/archive.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="packagePath">The path to the package file.</param>
+    /// <param name="internalPath">The path within the package.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public async Task<IContentManifestBuilder> AddExtractedPackageFileAsync(
+        string relativePath,
+        string packagePath,
+        string internalPath,
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        if (string.IsNullOrEmpty(packagePath))
+        {
+            throw new ArgumentException("packagePath cannot be null or empty for extracted package files.", nameof(packagePath));
+        }
+
+        if (string.IsNullOrEmpty(internalPath))
+        {
+            throw new ArgumentException("internalPath cannot be null or empty for extracted package files.", nameof(internalPath));
+        }
+
+        var manifestFile = new ManifestFile
+        {
+            RelativePath = relativePath,
+            SourcePath = packagePath,
+            SourceType = ContentSourceType.ExtractedPackage,
+            IsExecutable = isExecutable,
+            Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
+            PackageInfo = new ExtractionConfiguration
+            {
+                ExtractionPath = internalPath,
+            },
+        };
+
+        // Try to compute hash if package file exists
+        if (File.Exists(packagePath))
+        {
+            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(packagePath);
+            var fileInfo = new FileInfo(packagePath);
+            manifestFile.Size = fileInfo.Length;
+        }
+
+        _manifest.Files.Add(manifestFile);
+        _logger.LogDebug(
+            "Added extracted package file: {RelativePath} from {PackagePath}:{InternalPath}",
+            relativePath,
+            packagePath,
+            internalPath);
+        return this;
+    }
+
     /// <inheritdoc/>
     public IContentManifestBuilder AddFile(ManifestFile file)
     {
