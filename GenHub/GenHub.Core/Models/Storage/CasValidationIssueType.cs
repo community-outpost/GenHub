@@ -21,11 +21,6 @@ public enum CasValidationIssueType
     MissingObject,
 
     /// <summary>
-    /// The object path structure is invalid.
-    /// </summary>
-    InvalidPath,
-
-    /// <summary>
     /// General validation warning.
     /// </summary>
     Warning,
