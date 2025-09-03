@@ -18,6 +18,7 @@ public class CasMaintenanceService(
     IOptions<CasConfiguration> config,
     ILogger<CasMaintenanceService> logger) : BackgroundService
 {
+    private const int ErrorRetryDelayMinutes = 5;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly CasConfiguration _config = config.Value;
     private readonly ILogger<CasMaintenanceService> _logger = logger;
@@ -54,7 +55,7 @@ public class CasMaintenanceService(
                 _logger.LogError(ex, "Error during CAS maintenance cycle");
 
                 // Continue with next cycle after a delay
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(ErrorRetryDelayMinutes), stoppingToken);
             }
         }
 
