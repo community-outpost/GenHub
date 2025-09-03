@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Manifest;
 
 /// <summary>
-/// Persistent storage and management of acquired GameManifests using the content storage service.
+/// Persistent storage and management of acquired ContentManifests using the content storage service.
 /// </summary>
 public class ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger) : IContentManifestPool
 {

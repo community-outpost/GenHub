@@ -1,12 +1,14 @@
 using System;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDeliverers;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.GitHub.Services;
+using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -23,6 +25,10 @@ public static class ContentPipelineModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddContentPipelineServices(this IServiceCollection services)
     {
+        // Register core storage and manifest services
+        services.AddSingleton<IContentStorageService, ContentStorageService>();
+        services.AddScoped<IContentManifestPool, ContentManifestPool>();
+
         // Register core orchestrator
         services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
 
