@@ -23,7 +23,7 @@ public class Sha256HashProvider() : IFileHashProvider, IStreamHashProvider
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
         using var sha256 = SHA256.Create();
         var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
     /// <summary>
@@ -36,6 +36,6 @@ public class Sha256HashProvider() : IFileHashProvider, IStreamHashProvider
     {
         using var sha256 = SHA256.Create();
         var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }
