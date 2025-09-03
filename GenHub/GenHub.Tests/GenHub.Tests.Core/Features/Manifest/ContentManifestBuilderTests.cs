@@ -110,7 +110,7 @@ public class ContentManifestBuilderTests
             .AddDependency(
                 id: "dep-id",
                 name: "Dependency Name",
-                dependencyType: ContentType.BaseGame,
+                dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.AutoInstall,
                 minVersion: "1.0",
                 maxVersion: "2.0",
@@ -124,7 +124,7 @@ public class ContentManifestBuilderTests
         var dependency = result.Dependencies[0];
         Assert.Equal("dep-id", dependency.Id);
         Assert.Equal("Dependency Name", dependency.Name);
-        Assert.Equal(ContentType.BaseGame, dependency.DependencyType);
+        Assert.Equal(ContentType.GameInstallation, dependency.DependencyType);
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
