@@ -26,7 +26,7 @@ public interface IManifestGenerationService
     /// Creates a manifest builder for any content type (mod, patch, addon, etc).
     /// </summary>
     /// <param name="contentDirectory">Path to the content directory.</param>
-    /// <param name="contentId">Unique content identifier.</param>
+    /// <param name="publisherId">The publisher identifier used to deterministically generate the manifest id.</param>
     /// <param name="contentName">Content display name.</param>
     /// <param name="contentVersion">Content version.</param>
     /// <param name="contentType">Type of content (Mod, Patch, Addon, etc).</param>
@@ -35,7 +35,7 @@ public interface IManifestGenerationService
     /// <returns>A task that returns a configured manifest builder.</returns>
     Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
-        string contentId,
+        string publisherId,
         string contentName,
         string contentVersion,
         ContentType contentType,
@@ -46,12 +46,12 @@ public interface IManifestGenerationService
     /// Creates a manifest builder for a standalone game version.
     /// </summary>
     /// <param name="gameDirectory">Path to the standalone game directory.</param>
-    /// <param name="gameId">Unique game version identifier.</param>
+    /// <param name="publisherId">The publisher identifier used to generate the manifest id.</param>
     /// <param name="gameName">Game version display name.</param>
     /// <param name="gameVersion">Game version.</param>
     /// <param name="executablePath">Path to the main executable.</param>
     /// <returns>A task that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameVersionManifestAsync(string gameDirectory, string gameId, string gameName, string gameVersion, string executablePath);
+    Task<IContentManifestBuilder> CreateGameVersionManifestAsync(string gameDirectory, string publisherId, string gameName, string gameVersion, string executablePath);
 
     /// <summary>
     /// Saves a manifest to a file.
@@ -64,16 +64,54 @@ public interface IManifestGenerationService
     /// <summary>
     /// Creates a content bundle from multiple content items.
     /// </summary>
-    /// <param name="bundleId">The bundle identifier.</param>
+    /// <param name="publisherId">The publisher identifier used to generate the bundle id.</param>
     /// <param name="bundleName">The bundle name.</param>
     /// <param name="bundleVersion">The bundle version.</param>
     /// <param name="publisher">The publisher information.</param>
     /// <param name="items">The bundle items.</param>
     /// <returns>A task that returns the created content bundle.</returns>
     Task<ContentBundle> CreateContentBundleAsync(
-        string bundleId,
+        string publisherId,
         string bundleName,
         string bundleVersion,
         PublisherInfo publisher,
         params BundleItem[] items);
+
+    /// <summary>
+    /// Creates a publisher referral manifest with a deterministic id.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
+    /// <param name="referralName">Display name for the referral.</param>
+    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="targetPublisherId">The target publisher id being referred to.</param>
+    /// <param name="referralUrl">The URL for the referral.</param>
+    /// <param name="description">Optional description for the referral.</param>
+    /// <returns>A task that returns the created <see cref="ContentManifest"/>.</returns>
+    Task<ContentManifest> CreatePublisherReferralAsync(
+        string publisherId,
+        string referralName,
+        string referralVersion,
+        string targetPublisherId,
+        string referralUrl,
+        string description);
+
+    /// <summary>
+    /// Creates a content referral manifest that references another content id.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
+    /// <param name="referralName">Display name for the referral.</param>
+    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="targetContentId">The id of the content being referred to.</param>
+    /// <param name="targetPublisherId">The publisher id of the target content.</param>
+    /// <param name="referralUrl">The URL for the referral.</param>
+    /// <param name="description">Optional description for the referral.</param>
+    /// <returns>A task that returns the created <see cref="ContentManifest"/>.</returns>
+    Task<ContentManifest> CreateContentReferralAsync(
+        string publisherId,
+        string referralName,
+        string referralVersion,
+        string targetContentId,
+        string targetPublisherId,
+        string referralUrl,
+        string description);
 }
