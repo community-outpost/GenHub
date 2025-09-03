@@ -2,7 +2,7 @@ using System;
 using Avalonia.Data.Converters;
 using System.Globalization;
 
-namespace GenHub.GenHub.Infrastructure.Converters;
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a value to true if not null or empty.
@@ -20,6 +20,7 @@ public class NotNullOrEmptyConverter : IValueConverter
     /// Not implemented - throws NotImplementedException.
     /// </summary>
     /// <inheritdoc />
+    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }

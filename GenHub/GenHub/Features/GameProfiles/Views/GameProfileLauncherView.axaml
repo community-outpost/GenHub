@@ -5,7 +5,7 @@
     xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
     xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
     xmlns:local="clr-namespace:GenHub.Features.GameProfiles.Views"
-    xmlns:conv="clr-namespace:GenHub.GenHub.Infrastructure.Converters"
+    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView"
     x:Name="ProfileLauncher"
