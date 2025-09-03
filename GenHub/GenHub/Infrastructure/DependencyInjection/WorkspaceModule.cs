@@ -1,8 +1,4 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
-using GenHub.Core.Models.Storage;
-using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,10 +23,10 @@ public static class WorkspaceModule
         services.AddScoped<IFileOperationsService, FileOperationsService>();
 
         // Strategy implementations
-        services.AddTransient<IWorkspaceStrategy, FullCopyStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HardLinkStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
-        services.AddTransient<IWorkspaceStrategy, SymlinkOnlyStrategy>();
+        services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();
+        services.AddScoped<IWorkspaceStrategy, HardLinkStrategy>();
+        services.AddScoped<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
+        services.AddScoped<IWorkspaceStrategy, SymlinkOnlyStrategy>();
 
         // Also register concrete types for direct injection if needed
         services.AddScoped<FullCopyStrategy>();
