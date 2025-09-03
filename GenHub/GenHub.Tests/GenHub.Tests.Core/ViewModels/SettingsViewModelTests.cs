@@ -26,7 +26,7 @@ public class SettingsViewModelTests
         _mockLogger = new Mock<ILogger<SettingsViewModel>>();
         _defaultSettings = new UserSettings();
 
-        _mockConfigService.Setup(x => x.GetSettings()).Returns(_defaultSettings);
+        _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ public class SettingsViewModelTests
             WorkspacePath = "/custom/path",
         };
 
-        _mockConfigService.Setup(x => x.GetSettings()).Returns(customSettings);
+        _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
         var viewModel = new SettingsViewModel(_mockConfigService.Object, _mockLogger.Object);
@@ -72,7 +72,7 @@ public class SettingsViewModelTests
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
 
         // Assert
-        _mockConfigService.Verify(x => x.UpdateSettings(It.IsAny<Action<UserSettings>>()), Times.Once);
+        _mockConfigService.Verify(x => x.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
         _mockConfigService.Verify(x => x.SaveAsync(), Times.Once);
     }
 
@@ -189,7 +189,7 @@ public class SettingsViewModelTests
     public void Constructor_HandlesUserSettingsServiceException()
     {
         // Arrange
-        _mockConfigService.Setup(x => x.GetSettings()).Throws(new Exception("Configuration error"));
+        _mockConfigService.Setup(x => x.Get()).Throws(new Exception("Configuration error"));
 
         // Act
         var viewModel = new SettingsViewModel(_mockConfigService.Object, _mockLogger.Object);

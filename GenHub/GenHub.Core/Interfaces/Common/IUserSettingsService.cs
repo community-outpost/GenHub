@@ -1,20 +1,17 @@
-using System;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 
 namespace GenHub.Core.Interfaces.Common;
 
 /// <summary>
-/// Defines a contract for a service that manages user-specific settings.
-/// This service is responsible for loading, saving, and providing access to the UserSettings object.
-/// It deals with the raw user settings file and does not apply application-level defaults.
+/// Manages user-specific settings, including loading, saving, and providing access to the UserSettings object.
+/// Deals with the raw user settings file without applying application-level defaults.
 /// </summary>
 public interface IUserSettingsService
 {
     /// <summary>
     /// Gets the current user settings.
     /// This method returns a copy of the settings to prevent direct modification.
-    /// Use UpdateSettings to modify the settings.
+    /// Use Update to modify the settings.
     /// </summary>
     /// <remarks>
     /// This returns the raw settings as loaded from the user's configuration file,
@@ -22,14 +19,13 @@ public interface IUserSettingsService
     /// use IConfigurationProviderService.
     /// </remarks>
     /// <returns>The current user settings instance.</returns>
-    ///
-    UserSettings GetSettings();
+    UserSettings Get();
 
     /// <summary>
     /// Updates the in-memory user settings using the provided action. Not persisted until SaveAsync is called.
     /// </summary>
     /// <param name="applyChanges">Action to apply changes to the settings.</param>
-    void UpdateSettings(Action<UserSettings> applyChanges);
+    void Update(Action<UserSettings> applyChanges);
 
     /// <summary>
     /// Attempts to apply updates and persist to disk in one operation.

@@ -72,7 +72,7 @@ public class WorkspaceIntegrationTests : IDisposable
         // Setup mock returns
         mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
-        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
 
         services.AddSingleton(mockConfiguration.Object);
         services.AddSingleton(mockAppConfig.Object);

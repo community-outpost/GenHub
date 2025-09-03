@@ -4,7 +4,6 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
@@ -326,7 +325,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var settings = _userSettingsService.GetSettings();
+            var settings = _userSettingsService.Get();
             Theme = settings.Theme ?? "Dark";
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
@@ -377,7 +376,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _userSettingsService.UpdateSettings(settings =>
+            _userSettingsService.Update(settings =>
             {
                 settings.Theme = Theme;
                 settings.WorkspacePath = WorkspacePath;

@@ -43,10 +43,10 @@ public class UserSettingsServiceTests : IDisposable
     /// Verifies that GetSettings returns raw user values when no file exists.
     /// </summary>
     [Fact]
-    public void GetSettings_WhenNoFileExists_ReturnsRawUserSettings()
+    public void Get_WhenNoFileExists_ReturnsRawUserSettings()
     {
         var service = CreateService();
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
         // UserSettingsService should return raw C# defaults, not application defaults
         Assert.Null(settings.Theme);
@@ -69,7 +69,7 @@ public class UserSettingsServiceTests : IDisposable
     {
         var service = CreateService();
         var settingsPath = Path.Combine(_tempDirectory, "settings.json");
-        service.UpdateSettings(settings =>
+        service.Update(settings =>
         {
             settings.Theme = "Light";
             settings.WindowWidth = 1600.0;
@@ -103,7 +103,7 @@ public class UserSettingsServiceTests : IDisposable
 
         // Create first service and save settings
         var service1 = CreateServiceWithPath(settingsPath);
-        service1.UpdateSettings(settings =>
+        service1.Update(settings =>
         {
             settings.Theme = "Light";
             settings.WorkspacePath = "/test/path";
@@ -120,7 +120,7 @@ public class UserSettingsServiceTests : IDisposable
         // Load with explicit appConfig to ensure defaults
         var appConfig = CreateAppConfigMock();
         var service2 = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
-        var loadedSettings = service2.GetSettings();
+        var loadedSettings = service2.Get();
 
         Assert.Equal("Light", loadedSettings.Theme);
         Assert.Equal("/test/path", loadedSettings.WorkspacePath);
@@ -140,7 +140,7 @@ public class UserSettingsServiceTests : IDisposable
 
         await File.WriteAllTextAsync(settingsPath, "{ invalid json }");
         var service = CreateServiceWithPath(settingsPath);
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
         // Should return raw C# defaults when JSON is corrupted
         Assert.Null(settings.Theme);
@@ -155,8 +155,8 @@ public class UserSettingsServiceTests : IDisposable
     {
         var service = CreateService();
         var settingsPath = Path.Combine(_tempDirectory, "settings.json");
-        service.UpdateSettings(settings => settings.Theme = "Light");
-        var currentSettings = service.GetSettings();
+        service.Update(settings => settings.Theme = "Light");
+        var currentSettings = service.Get();
         Assert.Equal("Light", currentSettings.Theme);
         Assert.False(File.Exists(settingsPath));
     }
@@ -168,13 +168,13 @@ public class UserSettingsServiceTests : IDisposable
     public void GetSettings_ReturnsIndependentCopy()
     {
         var service = CreateService();
-        var settings1 = service.GetSettings();
-        var settings2 = service.GetSettings();
+        var settings1 = service.Get();
+        var settings2 = service.Get();
         settings1.Theme = "Light";
 
         // Verify original theme is preserved (either "Dark" or null, but consistent)
         var originalTheme = settings2.Theme ?? "Dark";
-        Assert.Equal(originalTheme, service.GetSettings().Theme ?? "Dark");
+        Assert.Equal(originalTheme, service.Get().Theme ?? "Dark");
     }
 
     /// <summary>
@@ -204,7 +204,7 @@ public class UserSettingsServiceTests : IDisposable
     public void UpdateSettings_WithNullAction_ThrowsArgumentNullException()
     {
         var service = CreateService();
-        Assert.Throws<ArgumentNullException>(() => service.UpdateSettings(null!));
+        Assert.Throws<ArgumentNullException>(() => service.Update(null!));
     }
 
     /// <summary>
@@ -251,7 +251,7 @@ public class UserSettingsServiceTests : IDisposable
         // Act - Create service that loads from the existing file
         var appConfig = CreateAppConfigMock();
         var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
         // Assert - Only JSON values should be set, rest should be C# defaults
         Assert.Null(settings.Theme); // Not in JSON, should be null
@@ -270,8 +270,8 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var cachePath = "/test/cache/path";
 
-        service.UpdateSettings(settings => settings.CachePath = cachePath);
-        var currentSettings = service.GetSettings();
+        service.Update(settings => settings.CachePath = cachePath);
+        var currentSettings = service.Get();
 
         Assert.Equal(cachePath, currentSettings.CachePath);
     }
@@ -285,8 +285,8 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var contentPath = "/test/content/path";
 
-        service.UpdateSettings(settings => settings.ContentStoragePath = contentPath);
-        var currentSettings = service.GetSettings();
+        service.Update(settings => settings.ContentStoragePath = contentPath);
+        var currentSettings = service.Get();
 
         Assert.Equal(contentPath, currentSettings.ContentStoragePath);
     }
@@ -300,8 +300,8 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var bufferSize = 16384;
 
-        service.UpdateSettings(settings => settings.DownloadBufferSize = bufferSize);
-        var currentSettings = service.GetSettings();
+        service.Update(settings => settings.DownloadBufferSize = bufferSize);
+        var currentSettings = service.Get();
 
         Assert.Equal(bufferSize, currentSettings.DownloadBufferSize);
     }
@@ -317,8 +317,8 @@ public class UserSettingsServiceTests : IDisposable
     {
         var service = CreateService();
 
-        service.UpdateSettings(settings => settings.EnableDetailedLogging = enableLogging);
-        var currentSettings = service.GetSettings();
+        service.Update(settings => settings.EnableDetailedLogging = enableLogging);
+        var currentSettings = service.Get();
 
         Assert.Equal(enableLogging, currentSettings.EnableDetailedLogging);
     }

@@ -62,7 +62,7 @@ public class SharedViewModelModuleTests
     private static IUserSettingsService CreateMockUserSettingsService()
     {
         var mock = new Mock<IUserSettingsService>();
-        mock.Setup(x => x.GetSettings()).Returns(new UserSettings
+        mock.Setup(x => x.Get()).Returns(new UserSettings
         {
             Theme = "Dark",
             WindowWidth = 1200.0,

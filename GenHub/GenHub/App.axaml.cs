@@ -90,7 +90,7 @@ public partial class App : Application
             // Save current window state
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {
-                _userSettingsService.UpdateSettings(settings =>
+                _userSettingsService.Update(settings =>
                 {
                     if (desktop.MainWindow.WindowState != Avalonia.Controls.WindowState.Maximized)
                     {

@@ -65,7 +65,7 @@ public class UserSettingsService : IUserSettingsService
     }
 
     /// <inheritdoc/>
-    public UserSettings GetSettings()
+    public UserSettings Get()
     {
         lock (_lock)
         {
@@ -76,7 +76,7 @@ public class UserSettingsService : IUserSettingsService
     }
 
     /// <inheritdoc/>
-    public void UpdateSettings(Action<UserSettings> applyChanges)
+    public void Update(Action<UserSettings> applyChanges)
     {
         ArgumentNullException.ThrowIfNull(applyChanges);
 
@@ -151,7 +151,7 @@ public class UserSettingsService : IUserSettingsService
         lock (_lock)
         {
             pathToSave = _settingsFilePath;
-            settingsToSave = GetSettings();
+            settingsToSave = Get();
         }
 
         try
