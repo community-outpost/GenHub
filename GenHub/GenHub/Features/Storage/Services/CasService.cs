@@ -342,7 +342,6 @@ public class CasService(
             var stats = new CasStats
             {
                 ObjectCount = allHashes.Length,
-                UniqueObjects = allHashes.Length,
             };
 
             // Calculate total size

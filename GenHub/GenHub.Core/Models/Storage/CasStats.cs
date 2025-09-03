@@ -7,6 +7,8 @@ public class CasStats
 {
     /// <summary>
     /// Gets or sets the total number of objects in the CAS.
+    /// In a Content-Addressable Storage system, this equals the number of unique objects
+    /// since duplicates are automatically deduplicated by content hash.
     /// </summary>
     public int ObjectCount { get; set; }
 
@@ -16,12 +18,7 @@ public class CasStats
     public long TotalSize { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of unique objects (deduplicated count).
-    /// </summary>
-    public int UniqueObjects { get; set; }
-
-    /// <summary>
-    /// Gets or sets the total space saved through deduplication.
+    /// Gets or sets the total space saved through deduplication in bytes.
     /// </summary>
     public long SpaceSaved { get; set; }
 
