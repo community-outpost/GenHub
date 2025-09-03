@@ -50,13 +50,13 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifests = new Dictionary<string, ContentManifest>
         {
-            ["base1"] = new() { Id = "base1", ContentType = ContentType.BaseGame },
+            ["base1"] = new() { Id = "base1", ContentType = ContentType.GameInstallation },
             ["mod1"] = new() { Id = "mod1", ContentType = ContentType.Mod },
-            ["base2"] = new() { Id = "base2", ContentType = ContentType.BaseGame },
+            ["base2"] = new() { Id = "base2", ContentType = ContentType.GameInstallation },
         };
 
         // Act
-        var baseGames = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.BaseGame);
+        var baseGames = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.GameInstallation);
         var mods = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.Mod);
 
         // Assert
