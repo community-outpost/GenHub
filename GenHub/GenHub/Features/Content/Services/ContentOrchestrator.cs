@@ -541,7 +541,14 @@ public class ContentOrchestrator : IContentOrchestrator
         CancellationToken cancellationToken = default)
     {
         var manifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
-        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
+        if (manifests.Success && manifests.Data != null)
+        {
+            return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests.Data);
+        }
+        else
+        {
+            return ContentOperationResult<IEnumerable<ContentManifest>>.CreateFailure(manifests);
+        }
     }
 
     /// <summary>
