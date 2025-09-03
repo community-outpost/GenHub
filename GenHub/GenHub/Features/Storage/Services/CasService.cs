@@ -201,7 +201,7 @@ public class CasService(
     public async Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
-        var result = new CasGarbageCollectionResult { Success = true };
+        var result = new CasGarbageCollectionResult(true, (string?)null);
 
         try
         {
@@ -250,16 +250,13 @@ public class CasService(
 
             result.ObjectsDeleted = objectsDeleted;
             result.BytesFreed = bytesFreed;
-            result.Duration = DateTime.UtcNow - startTime;
 
             _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed} bytes freed", objectsDeleted, bytesFreed);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CAS garbage collection failed");
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
-            result.Duration = DateTime.UtcNow - startTime;
+            result = new CasGarbageCollectionResult(false, ex.Message, DateTime.UtcNow - startTime);
         }
 
         return result;

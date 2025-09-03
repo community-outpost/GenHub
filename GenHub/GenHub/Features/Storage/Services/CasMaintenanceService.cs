@@ -74,11 +74,11 @@ public class CasMaintenanceService(
 
         if (gcResult.Success)
         {
-            _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Duration}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Duration);
+            _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Elapsed);
         }
         else
         {
-            _logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.ErrorMessage);
+            _logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.FirstError);
         }
 
         // Optionally run integrity validation periodically
