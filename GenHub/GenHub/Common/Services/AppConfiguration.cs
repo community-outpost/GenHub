@@ -13,27 +13,6 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfiguration>? logger) : IAppConfiguration
 {
-    private const string DefaultWorkspaceDirectoryName = "Workspace";
-    private const string DefaultCacheDirectoryName = "Cache";
-
-    // Default buffer size: 80 KB (81920 bytes) - reasonable size for network downloads
-    // Balances memory usage with performance; not too small (avoids many small reads)
-    // and not too large (prevents excessive memory consumption)
-    private const int DefaultDownloadBufferSizeBytes = 81920;
-
-    // Default timeout: 10 minutes (600 seconds) - reasonable timeout for large downloads
-    private const int DefaultDownloadTimeoutSeconds = 600;
-
-    // Default concurrent downloads: 3 - balances performance with server load
-    private const int DefaultMaxConcurrentDownloads = 3;
-
-    // Default UI theme
-    private const string DefaultTheme = "Dark";
-
-    // Default window dimensions (1024x768 provides good balance of space and compatibility)
-    private const double DefaultWindowWidth = 1024.0;
-    private const double DefaultWindowHeight = 768.0;
-
     private readonly IConfiguration? _configuration = configuration;
     private readonly ILogger<AppConfiguration>? _logger = logger;
 
@@ -152,18 +131,18 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             }
         }
 
-        return "Dark"; // Default theme
+        return AppConstants.DefaultThemeName; // Default theme
     }
 
     /// <summary>
-    /// Gets the configured default window width for GenHub, or defaults to 1024 pixels.
+    /// Gets the configured default window width for GenHub, or defaults to 1200 pixels.
     /// </summary>
     /// <returns>The default window width in pixels.</returns>
     public double GetDefaultWindowWidth() =>
         double.TryParse(_configuration?[ConfigurationKeys.UiDefaultWindowWidth], out var result) ? result : UiConstants.DefaultWindowWidth;
 
     /// <summary>
-    /// Gets the configured default window height for GenHub, or defaults to 768 pixels.
+    /// Gets the configured default window height for GenHub, or defaults to 800 pixels.
     /// </summary>
     /// <returns>The default window height in pixels.</returns>
     public double GetDefaultWindowHeight() =>
@@ -219,12 +198,12 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     {
         if (_configuration == null)
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
         }
 
         var configured = _configuration[ConfigurationKeys.AppDataPath];
         return !string.IsNullOrEmpty(configured)
             ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
     }
 }

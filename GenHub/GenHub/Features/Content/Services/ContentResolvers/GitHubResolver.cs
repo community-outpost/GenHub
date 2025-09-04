@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
@@ -29,7 +30,7 @@ public class GitHubResolver(
     //   /(?<repo>[^/]+) -> repo
     //   (?:/releases/tag/(?<tag>[^/]+))? -> optional tag
     private static readonly Regex GitHubUrlRegex = new(
-        @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?",
+        ApiConstants.GitHubUrlRegexPattern,
         RegexOptions.Compiled);
 
     private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient;
@@ -128,7 +129,7 @@ public class GitHubResolver(
             return GitHubUrlParseResult.CreateFailure("Invalid URL format.");
         }
 
-        if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        if (!uri.Host.Equals(ApiConstants.GitHubDomain, StringComparison.OrdinalIgnoreCase))
         {
             return GitHubUrlParseResult.CreateFailure("URL must be from github.com.");
         }

@@ -107,13 +107,13 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         // Then discover from local filesystem locations
         var localManifestDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
+            AppConstants.AppName,
             FileTypes.ManifestsDirectory);
 
         // Also check for custom manifest directories
         var customManifestDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
+            AppConstants.AppName,
             "CustomManifests");
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);

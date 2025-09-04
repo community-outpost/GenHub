@@ -14,19 +14,4 @@ public static class UiConstants
     /// Default main window height in pixels.
     /// </summary>
     public const double DefaultWindowHeight = 800;
-
-    /// <summary>
-    /// Minimum allowed window width.
-    /// </summary>
-    public const double MinWindowWidth = 800;
-
-    /// <summary>
-    /// Minimum allowed window height.
-    /// </summary>
-    public const double MinWindowHeight = 600;
-
-    /// <summary>
-    /// Memory update interval in seconds for UI display.
-    /// </summary>
-    public const int MemoryUpdateIntervalSeconds = 2;
 }

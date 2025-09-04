@@ -11,9 +11,19 @@ public static class DownloadDefaults
     public const int BufferSizeBytes = 81920;
 
     /// <summary>
+    /// Minimum buffer size in kilobytes for validation.
+    /// </summary>
+    public const double MinBufferSizeKB = 4.0;
+
+    /// <summary>
     /// Default buffer size in kilobytes for display purposes.
     /// </summary>
     public const double BufferSizeKB = 80.0;
+
+    /// <summary>
+    /// Maximum buffer size in kilobytes for validation.
+    /// </summary>
+    public const double MaxBufferSizeKB = 1024.0;
 
     /// <summary>
     /// Default maximum number of concurrent downloads.
@@ -31,7 +41,7 @@ public static class DownloadDefaults
     public const int TimeoutSeconds = 600; // 10 minutes
 
     /// <summary>
-    /// Default retry delay in seconds.
+    /// Default buffer size for file operations (4KB).
     /// </summary>
-    public const int RetryDelaySeconds = 1;
+    public const int FileBufferSizeBytes = 4096;
 }

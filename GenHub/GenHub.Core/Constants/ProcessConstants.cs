@@ -54,37 +54,5 @@ public static class ProcessConstants
     /// Windows API constant for maximizing a window.
     /// </summary>
     public const int SW_MAXIMIZE = 3;
-
-    // Process priority constants
-
-    /// <summary>
-    /// Process priority class for real-time priority.
-    /// </summary>
-    public const int REALTIME_PRIORITY_CLASS = 0x00000100;
-
-    /// <summary>
-    /// Process priority class for high priority.
-    /// </summary>
-    public const int HIGH_PRIORITY_CLASS = 0x00000080;
-
-    /// <summary>
-    /// Process priority class for above normal priority.
-    /// </summary>
-    public const int ABOVE_NORMAL_PRIORITY_CLASS = 0x00008000;
-
-    /// <summary>
-    /// Process priority class for normal priority.
-    /// </summary>
-    public const int NORMAL_PRIORITY_CLASS = 0x00000020;
-
-    /// <summary>
-    /// Process priority class for below normal priority.
-    /// </summary>
-    public const int BELOW_NORMAL_PRIORITY_CLASS = 0x00004000;
-
-    /// <summary>
-    /// Process priority class for idle priority.
-    /// </summary>
-    public const int IDLE_PRIORITY_CLASS = 0x00000040;
 #pragma warning restore SA1310 // Field names should not contain underscore
 }

@@ -98,7 +98,7 @@ public class AppConfigurationTests
         var expectedPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
-            "Workspace");
+            "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -118,7 +118,7 @@ public class AppConfigurationTests
         var expectedPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
-            "Workspace");
+            "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -439,7 +439,7 @@ public class AppConfigurationTests
 
         // Assert
         Assert.Contains("GenHub", workspacePath);
-        Assert.Contains("Workspace", workspacePath);
+        Assert.Contains("Data", workspacePath);
         Assert.Contains("GenHub", cachePath);
         Assert.Contains("Cache", cachePath);
 

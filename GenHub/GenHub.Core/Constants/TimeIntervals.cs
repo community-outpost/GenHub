@@ -6,22 +6,17 @@ namespace GenHub.Core.Constants;
 public static class TimeIntervals
 {
     /// <summary>
-    /// Default progress reporting interval for downloads.
-    /// </summary>
-    public static readonly TimeSpan DownloadProgressInterval = TimeSpan.FromMilliseconds(500);
-
-    /// <summary>
     /// Default timeout for updater operations.
     /// </summary>
     public static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
 
     /// <summary>
-    /// Default CAS maintenance error retry delay.
+    /// Default timeout for download operations.
     /// </summary>
-    public static readonly TimeSpan CasMaintenanceRetryDelay = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(30);
 
     /// <summary>
-    /// Memory update interval for UI.
+    /// Delay for hiding UI notifications.
     /// </summary>
-    public static readonly TimeSpan MemoryUpdateInterval = TimeSpan.FromSeconds(2);
+    public static readonly TimeSpan NotificationHideDelay = TimeSpan.FromMilliseconds(3000);
 }
