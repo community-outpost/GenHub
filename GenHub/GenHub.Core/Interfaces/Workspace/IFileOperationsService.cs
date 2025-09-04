@@ -98,7 +98,7 @@ public interface IFileOperationsService
     /// <param name="hash">The content hash in CAS.</param>
     /// <param name="destinationPath">The destination file path.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the operation succeeded.</returns>
+    /// <returns>True if the operation succeeded; otherwise, false.</returns>
     Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default);
 
     /// <summary>

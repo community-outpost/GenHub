@@ -8,30 +8,30 @@ public enum PackageType : byte
     /// <summary>
     /// No package type specified / unknown.
     /// </summary>
-    None = 0,
+    None,
 
     /// <summary>
     /// A standard ZIP archive.
     /// </summary>
-    Zip = 1,
+    Zip,
 
     /// <summary>
     /// A tarball archive.
     /// </summary>
-    Tar = 2,
+    Tar,
 
     /// <summary>
     /// A GZipped tarball archive.
     /// </summary>
-    TarGz = 3,
+    TarGz,
 
     /// <summary>
     /// A 7-Zip archive.
     /// </summary>
-    SevenZip = 4,
+    SevenZip,
 
     /// <summary>
     /// A self-contained installer executable.
     /// </summary>
-    Installer = 5,
+    Installer,
 }

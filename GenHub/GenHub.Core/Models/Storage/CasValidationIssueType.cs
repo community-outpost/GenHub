@@ -21,9 +21,9 @@ public enum CasValidationIssueType
     MissingObject,
 
     /// <summary>
-    /// The object path structure is invalid.
+    /// Critical validation error that requires immediate attention.
     /// </summary>
-    InvalidPath,
+    Critical,
 
     /// <summary>
     /// General validation warning.

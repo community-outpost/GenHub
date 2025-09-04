@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -26,7 +27,7 @@ public abstract class WorkspaceStrategyBase<T>(
 {
     private static readonly HashSet<string> EssentialExtensions =
     [
-        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
+        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", FileTypes.JsonFileExtension, ".txt", ".log",
     ];
 
     private static readonly HashSet<string> CncEssentialExtensions =
@@ -363,8 +364,8 @@ public abstract class WorkspaceStrategyBase<T>(
             case ContentSourceType.ContentAddressable:
                 await ProcessCasFileAsync(file, targetPath, cancellationToken);
                 break;
-            case ContentSourceType.GameInstallation:
-                await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
+            case ContentSourceType.BaseGame:
+                await ProcessBaseGameFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
                 await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
@@ -427,10 +428,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
-        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
+        throw new NotImplementedException("ProcessBaseGameFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>

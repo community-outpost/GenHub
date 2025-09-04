@@ -200,7 +200,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            _userSettingsService.UpdateSettings(settings =>
+            _userSettingsService.Update(settings =>
             {
                 settings.LastSelectedTab = selectedTab;
             });

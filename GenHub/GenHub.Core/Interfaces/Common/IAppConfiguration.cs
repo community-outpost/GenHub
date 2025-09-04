@@ -10,7 +10,7 @@ public interface IAppConfiguration
 {
     /// <summary>Gets the root application data path for GenHub.</summary>
     /// <returns>The root application data path.</returns>
-    string GetAppDataPath();
+    string GetConfiguredDataPath();
 
     /// <summary>Gets the default workspace path for GenHub.</summary>
     /// <returns>The default workspace path.</returns>

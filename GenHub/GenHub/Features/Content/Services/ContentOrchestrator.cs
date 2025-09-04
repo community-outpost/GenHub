@@ -211,7 +211,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogDebug("Retrieving manifest from provider {ProviderName} for content {ContentId}", providerName, contentId);
 
-        var result = await provider.GetContentAsync(contentId, cancellationToken);
+        var result = await provider.GetValidatedContentAsync(contentId, cancellationToken);
 
         // Cache successful results
         if (result.Success && result.Data != null)
@@ -243,7 +243,7 @@ public class ContentOrchestrator : IContentOrchestrator
         var result = await SearchAsync(query, cancellationToken);
         return result.Success
             ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? Enumerable.Empty<ContentSearchResult>())
-            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(string.Join(", ", result.Errors));
+            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(result.Errors);
     }
 
     /// <summary>
@@ -353,8 +353,8 @@ public class ContentOrchestrator : IContentOrchestrator
             var validationResult = await _contentValidator.ValidateManifestAsync(manifestResult.Data, cancellationToken);
             if (!validationResult.IsValid)
             {
-                var error = string.Join(", ", validationResult.Issues.Select(i => i.Message));
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {error}");
+                return ContentOperationResult<ContentManifest>.CreateFailure(
+                    validationResult.Issues.Select(i => $"Manifest validation failed: {i.Message}"));
             }
 
             return ContentOperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
@@ -399,7 +399,7 @@ public class ContentOrchestrator : IContentOrchestrator
             }
             else
             {
-                var manifestResult = await provider.GetContentAsync(searchResult.Id, cancellationToken);
+                var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
                 if (!manifestResult.Success || manifestResult.Data == null)
                 {
                     return ContentOperationResult<ContentManifest>.CreateFailure(
@@ -409,10 +409,10 @@ public class ContentOrchestrator : IContentOrchestrator
                 manifest = manifestResult.Data;
             }
 
-            // Step 3: Validate manifest
+            // Step 3: Validate manifest structure only
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Validating,
+                Phase = ContentAcquisitionPhase.ValidatingManifest,
                 ProgressPercentage = 20,
                 CurrentOperation = "Validating content manifest",
             });
@@ -423,8 +423,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    var errorMessage = string.Join("; ", errors.Select(e => e.Message));
-                    return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {errorMessage}");
+                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                        errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
 
@@ -448,20 +448,59 @@ public class ContentOrchestrator : IContentOrchestrator
                         $"Content preparation failed: {prepareResult.ErrorMessage}");
                 }
 
-                // Step 5: Store in permanent storage
+                // Step 5: Full validation (manifest + files)
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
+                    ProgressPercentage = 70,
+                    CurrentOperation = "Validating prepared content files",
+                });
+
+                // Forward orchestrator progress into validator
+                IProgress<ValidationProgress>? validationProgress = null;
+                if (progress != null)
+                {
+                    validationProgress = new Progress<ValidationProgress>(vp =>
+                    {
+                        // Map validation progress (0-100) into 70-80% range for acquisition
+                        var pct = 70 + (int)(vp.PercentComplete / 10.0);
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.ValidatingFiles,
+                            ProgressPercentage = pct,
+                            CurrentOperation = vp.CurrentFile ?? "Validating files",
+                            FilesProcessed = vp.Processed,
+                            TotalFiles = vp.Total,
+                        });
+                    });
+                }
+
+                var fullValidation = await _contentValidator.ValidateAllAsync(
+                    stagingDir,
+                    prepareResult.Data,
+                    validationProgress,
+                    cancellationToken);
+
+                if (!fullValidation.IsValid)
+                {
+                    var errors = fullValidation.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
+                    if (errors.Any())
+                    {
+                        return ContentOperationResult<ContentManifest>.CreateFailure(
+                            errors.Select(e => $"Content validation failed: {e.Message}"));
+                    }
+                }
+
+                // Step 6: Store in permanent storage
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Extracting,
-                    ProgressPercentage = 80,
+                    ProgressPercentage = 85,
                     CurrentOperation = "Adding to content library",
                 });
 
                 // Store the prepared manifest in the pool
-                var addResult = await _manifestPool.AddManifestAsync(prepareResult.Data, cancellationToken);
-                if (!addResult.Success)
-                {
-                    return ContentOperationResult<ContentManifest>.CreateFailure($"Failed to add manifest to pool: {addResult.FirstError}");
-                }
+                await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken);
 
                 progress?.Report(new ContentAcquisitionProgress
                 {
@@ -501,13 +540,8 @@ public class ContentOrchestrator : IContentOrchestrator
     public async Task<ContentOperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
         CancellationToken cancellationToken = default)
     {
-        var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
-        if (!manifestsResult.Success)
-        {
-            return ContentOperationResult<IEnumerable<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
-        }
-
-        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? Enumerable.Empty<ContentManifest>());
+        var manifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
+        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <summary>

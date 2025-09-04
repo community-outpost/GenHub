@@ -76,7 +76,7 @@ public class LocalFileSystemContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _fileSystemDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = 1 };

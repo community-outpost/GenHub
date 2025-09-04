@@ -92,7 +92,7 @@ public class ContentOrchestratorTests
 
         var providerMock = new Mock<IContentProvider>();
         providerMock.Setup(p => p.SourceName).Returns("TestProvider");
-        providerMock.Setup(p => p.GetContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
         providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
@@ -100,8 +100,8 @@ public class ContentOrchestratorTests
         _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
 
-        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
 
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,
@@ -118,7 +118,7 @@ public class ContentOrchestratorTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal(manifest, result.Data);
-        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

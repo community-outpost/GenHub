@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -16,27 +17,11 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// <summary>
 /// Discovers content from GitHub releases.
 /// </summary>
-public class GitHubReleasesDiscoverer : IContentDiscoverer
+public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<GitHubReleasesDiscoverer> logger, IConfigurationProviderService configurationProvider) : IContentDiscoverer
 {
-    private readonly IGitHubApiClient _gitHubClient;
-    private readonly ILogger<GitHubReleasesDiscoverer> _logger;
-    private readonly IConfigurationProviderService _configurationProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubReleasesDiscoverer"/> class.
-    /// </summary>
-    /// <param name="gitHubClient">The GitHub API client used to fetch release information.</param>
-    /// <param name="logger">The logger instance for logging errors and information.</param>
-    /// <param name="configurationProvider">The configuration provider to fetch repository settings.</param>
-    public GitHubReleasesDiscoverer(
-        IGitHubApiClient gitHubClient,
-        ILogger<GitHubReleasesDiscoverer> logger,
-        IConfigurationProviderService configurationProvider)
-    {
-        _gitHubClient = gitHubClient;
-        _logger = logger;
-        _configurationProvider = configurationProvider;
-    }
+    private readonly IGitHubApiClient _gitHubClient = gitHubClient;
+    private readonly ILogger<GitHubReleasesDiscoverer> _logger = logger;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     /// <inheritdoc />
     public string SourceName => "GitHub Releases";
@@ -83,6 +68,8 @@ public class GitHubReleasesDiscoverer : IContentDiscoverer
                     if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                         release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
                     {
+                        var inferred = GitHubInferenceHelper.InferContentType(repo, release.Name);
+                        var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
                         results.Add(new ContentSearchResult
                         {
                             Id = $"github.{owner}.{repo}.{release.TagName}",
@@ -90,8 +77,9 @@ public class GitHubReleasesDiscoverer : IContentDiscoverer
                             Description = "GitHub release - full details available after resolution",
                             Version = release.TagName,
                             AuthorName = release.Author,
-                            ContentType = InferContentType(repo, release.Name),
-                            TargetGame = InferTargetGame(repo, release.Name),
+                            ContentType = inferred.type,
+                            TargetGame = inferredGame.type,
+                            IsInferred = inferred.isInferred || inferredGame.isInferred,
                             ProviderName = SourceName,
                             RequiresResolution = true,
                             ResolverId = "GitHubRelease",
@@ -120,28 +108,9 @@ public class GitHubReleasesDiscoverer : IContentDiscoverer
         }
 
         return errors.Any() && !results.Any()
-            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(string.Join(", ", errors))
+            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(errors)
             : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 
-    private ContentType InferContentType(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
-
-        if (searchText.Contains("patch") || searchText.Contains("fix")) return ContentType.Patch;
-        if (searchText.Contains("map")) return ContentType.MapPack;
-        if (searchText.Contains("mod") || searchText.Contains("addon")) return ContentType.Mod;
-
-        return ContentType.Mod; // Default
-    }
-
-    private GameType InferTargetGame(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
-
-        if (searchText.Contains("zero hour") || searchText.Contains("zh")) return GameType.ZeroHour;
-        if (searchText.Contains("generals") && !searchText.Contains("zero hour")) return GameType.Generals;
-
-        return GameType.ZeroHour; // Default
-    }
+    // Inference logic extracted to GitHubInferenceHelper
 }

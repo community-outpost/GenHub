@@ -39,21 +39,21 @@ public class WorkspaceIntegrationTests : IDisposable
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
 
-        // Mock download service
+        // Add mock download service for FileOperationsService
         var mockDownloadService = new Mock<IDownloadService>();
         services.AddSingleton<IDownloadService>(mockDownloadService.Object);
 
-        // Register hash providers (only once)
+        // Register hash providers
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
         services.AddSingleton<IStreamHashProvider, Sha256HashProvider>();
 
-        // Register CAS storage and reference tracker (only once)
+        // Register CAS storage and reference tracker
         services.Configure<CasConfiguration>(config =>
         {
             config.CasRootPath = _tempWorkspaceRoot;
         });
 
-        // Mock ConfigurationProviderService
+        // Mock ConfigurationProviderService instead of using real one
         var mockConfigProvider = new Mock<IConfigurationProviderService>();
         mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
         services.AddSingleton<IConfigurationProviderService>(mockConfigProvider.Object);
@@ -62,17 +62,18 @@ public class WorkspaceIntegrationTests : IDisposable
         services.AddSingleton<CasReferenceTracker>();
         services.AddSingleton<ICasService, CasService>();
 
-        // Register FileOperationsService
+        // Register FileOperationsService for workspace strategies
         services.AddSingleton<IFileOperationsService, FileOperationsService>();
 
-        // Mock configuration services
+        // Add configuration services
         var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
         var mockAppConfig = new Mock<IAppConfiguration>();
         var mockUserSettings = new Mock<IUserSettingsService>();
 
-        mockAppConfig.Setup(x => x.GetAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
+        // Setup mock returns
+        mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
-        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
 
         services.AddSingleton(mockConfiguration.Object);
         services.AddSingleton(mockAppConfig.Object);
@@ -144,10 +145,31 @@ public class WorkspaceIntegrationTests : IDisposable
     [Fact]
     public async Task PrepareWorkspaceAsync_CreatesDirectory()
     {
-        var manager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
-        var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
+        var mockDownloadService = new Mock<IDownloadService>();
+        var mockCasService = new Mock<ICasService>();
+        var fileOps = new FileOperationsService(
+            new Mock<ILogger<FileOperationsService>>().Object,
+            mockDownloadService.Object,
+            mockCasService.Object);
 
-        var result = await manager.PrepareWorkspaceAsync(config);
+        var logger = new Mock<ILogger<FullCopyStrategy>>();
+        var strategy = new FullCopyStrategy(fileOps, logger.Object);
+
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
+        mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(_tempWorkspaceRoot);
+
+        var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
+
+        // Use a real CasReferenceTracker with dummy dependencies
+        var dummyLogger = new Mock<ILogger<CasReferenceTracker>>().Object;
+        var dummyOptions = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
+        dummyOptions.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = _tempWorkspaceRoot });
+        var casReferenceTracker = new CasReferenceTracker(dummyOptions.Object, dummyLogger);
+
+        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker);
+
+        var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
         Assert.True(result.Success, $"Workspace preparation failed: {(result.HasErrors ? result.FirstError : "An unknown error occurred.")}");
         Assert.NotNull(result.Data);

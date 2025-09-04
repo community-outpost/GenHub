@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -67,7 +68,7 @@ public class GitHubContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = 1 };
@@ -112,8 +113,32 @@ public class GitHubContentProvider : BaseContentProvider
             // Ensure we have valid data before validation
             var resultManifest = deliveryResult.Data ?? manifest;
 
-            // Validate the delivered content
-            var validationResult = await ContentValidator.ValidateContentIntegrityAsync(workingDirectory, resultManifest, cancellationToken);
+            // Validate the delivered content (full validation)
+            // Forward the provider progress reporter to the validator for user-visible progress
+            IProgress<ValidationProgress>? validationProgress = null;
+            if (progress != null)
+            {
+                // Signal start of file validation phase
+                progress.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
+                    CurrentOperation = "Validating prepared content...",
+                });
+
+                validationProgress = new Progress<ValidationProgress>(vp =>
+                {
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.ValidatingFiles,
+                        ProgressPercentage = vp.PercentComplete,
+                        CurrentOperation = vp.CurrentFile ?? "Validating files",
+                        FilesProcessed = vp.Processed,
+                        TotalFiles = vp.Total,
+                    });
+                });
+            }
+
+            var validationResult = await ContentValidator.ValidateAllAsync(workingDirectory, resultManifest, validationProgress, cancellationToken);
             if (!validationResult.IsValid)
             {
                 Logger.LogWarning("Content validation found issues for {ManifestId}: {Issues}", manifest.Id, string.Join(", ", validationResult.Issues.Select(i => i.Message)));

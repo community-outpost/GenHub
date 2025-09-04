@@ -15,21 +15,10 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// <summary>
 /// Discovers maps from CNC Labs website.
 /// </summary>
-public class CNCLabsMapDiscoverer : IContentDiscoverer
+public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDiscoverer> logger) : IContentDiscoverer
 {
-    private readonly HttpClient httpClient;
-    private readonly ILogger<CNCLabsMapDiscoverer> logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CNCLabsMapDiscoverer"/> class.
-    /// </summary>
-    /// <param name="httpClient">The HTTP client for web requests.</param>
-    /// <param name="logger">The logger instance.</param>
-    public CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDiscoverer> logger)
-    {
-        this.httpClient = httpClient;
-        this.logger = logger;
-    }
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly ILogger<CNCLabsMapDiscoverer> _logger = logger;
 
     /// <summary>
     /// Gets the source name for this discoverer.
@@ -62,13 +51,17 @@ public class CNCLabsMapDiscoverer : IContentDiscoverer
         try
         {
             if (query == null)
+            {
                 return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Query cannot be null");
+            }
 
             if (string.IsNullOrWhiteSpace(query.SearchTerm))
+            {
                 return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(Enumerable.Empty<ContentSearchResult>());
+            }
 
             var searchUrl = $"https://search.cnclabs.com/?cse=labs&q={Uri.EscapeDataString(query.SearchTerm ?? string.Empty)}";
-            var response = await httpClient.GetStringAsync(searchUrl, cancellationToken);
+            var response = await _httpClient.GetStringAsync(searchUrl, cancellationToken);
             var discoveredMaps = ParseMapListPage(response);
             var results = discoveredMaps.Select(map => new ContentSearchResult
             {
@@ -88,7 +81,7 @@ public class CNCLabsMapDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to discover maps from CNC Labs");
+            _logger.LogError(ex, "Failed to discover maps from CNC Labs");
             return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }

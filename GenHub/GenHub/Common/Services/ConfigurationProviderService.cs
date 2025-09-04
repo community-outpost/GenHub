@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -38,22 +39,22 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public string GetWorkspacePath()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.WorkspacePath)) &&
-            !string.IsNullOrWhiteSpace(s.WorkspacePath))
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.WorkspacePath)) &&
+            !string.IsNullOrWhiteSpace(settings.WorkspacePath))
         {
             try
             {
                 // Check if the directory exists or can be created.
-                var dir = Path.GetDirectoryName(s.WorkspacePath);
+                var dir = Path.GetDirectoryName(settings.WorkspacePath);
                 if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
                 {
-                    return s.WorkspacePath;
+                    return settings.WorkspacePath;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", s.WorkspacePath);
+                _logger.LogWarning(ex, "User-defined workspace path '{Path}' is invalid. Falling back to default.", settings.WorkspacePath);
             }
         }
 
@@ -61,29 +62,29 @@ public class ConfigurationProviderService : IConfigurationProviderService
     }
 
     /// <inheritdoc />
-    public string GetCacheDirectory()
+    public string GetCachePath()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.CachePath)) &&
-            !string.IsNullOrWhiteSpace(s.CachePath))
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.CachePath)) &&
+            !string.IsNullOrWhiteSpace(settings.CachePath))
         {
             try
             {
                 // Validate the user-defined cache directory
-                if (Directory.Exists(s.CachePath))
+                if (Directory.Exists(settings.CachePath))
                 {
-                    return s.CachePath;
+                    return settings.CachePath;
                 }
 
-                var parentDir = Path.GetDirectoryName(s.CachePath);
+                var parentDir = Path.GetDirectoryName(settings.CachePath);
                 if (!string.IsNullOrEmpty(parentDir) && Directory.Exists(parentDir))
                 {
-                    return s.CachePath;
+                    return settings.CachePath;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", s.CachePath);
+                _logger.LogWarning(ex, "User-defined cache path '{Path}' is invalid. Falling back to default.", settings.CachePath);
             }
         }
 
@@ -93,9 +94,9 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public int GetMaxConcurrentDownloads()
     {
-        var s = _userSettings.GetSettings();
-        var value = s.IsExplicitlySet(nameof(UserSettings.MaxConcurrentDownloads)) && s.MaxConcurrentDownloads > 0
-            ? s.MaxConcurrentDownloads
+        var settings = _userSettings.Get();
+        var value = settings.IsExplicitlySet(nameof(UserSettings.MaxConcurrentDownloads)) && settings.MaxConcurrentDownloads > 0
+            ? settings.MaxConcurrentDownloads
             : _appConfig.GetDefaultMaxConcurrentDownloads();
         return Math.Clamp(value, _appConfig.GetMinConcurrentDownloads(), _appConfig.GetMaxConcurrentDownloads());
     }
@@ -103,18 +104,18 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public bool GetAllowBackgroundDownloads()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads))
-            ? s.AllowBackgroundDownloads
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads))
+            ? settings.AllowBackgroundDownloads
             : true; // App default
     }
 
     /// <inheritdoc />
     public int GetDownloadTimeoutSeconds()
     {
-        var s = _userSettings.GetSettings();
-        var value = s.IsExplicitlySet(nameof(UserSettings.DownloadTimeoutSeconds)) && s.DownloadTimeoutSeconds > 0
-            ? s.DownloadTimeoutSeconds
+        var settings = _userSettings.Get();
+        var value = settings.IsExplicitlySet(nameof(UserSettings.DownloadTimeoutSeconds)) && settings.DownloadTimeoutSeconds > 0
+            ? settings.DownloadTimeoutSeconds
             : _appConfig.GetDefaultDownloadTimeoutSeconds();
         return Math.Clamp(value, _appConfig.GetMinDownloadTimeoutSeconds(), _appConfig.GetMaxDownloadTimeoutSeconds());
     }
@@ -122,18 +123,18 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public string GetDownloadUserAgent()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.DownloadUserAgent)) && !string.IsNullOrWhiteSpace(s.DownloadUserAgent)
-            ? s.DownloadUserAgent
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.DownloadUserAgent)) && !string.IsNullOrWhiteSpace(settings.DownloadUserAgent)
+            ? settings.DownloadUserAgent
             : _appConfig.GetDefaultUserAgent();
     }
 
     /// <inheritdoc />
     public int GetDownloadBufferSize()
     {
-        var s = _userSettings.GetSettings();
-        var value = s.IsExplicitlySet(nameof(UserSettings.DownloadBufferSize)) && s.DownloadBufferSize > 0
-            ? s.DownloadBufferSize
+        var settings = _userSettings.Get();
+        var value = settings.IsExplicitlySet(nameof(UserSettings.DownloadBufferSize)) && settings.DownloadBufferSize > 0
+            ? settings.DownloadBufferSize
             : _appConfig.GetDefaultDownloadBufferSize();
 
         return Math.Clamp(value, _appConfig.GetMinDownloadBufferSizeBytes(), _appConfig.GetMaxDownloadBufferSizeBytes());
@@ -142,46 +143,46 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public WorkspaceStrategy GetDefaultWorkspaceStrategy()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy))
-            ? s.DefaultWorkspaceStrategy
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy))
+            ? settings.DefaultWorkspaceStrategy
             : _appConfig.GetDefaultWorkspaceStrategy();
     }
 
     /// <inheritdoc />
     public bool GetAutoCheckForUpdatesOnStartup()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup))
-            ? s.AutoCheckForUpdatesOnStartup
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup))
+            ? settings.AutoCheckForUpdatesOnStartup
             : true; // App default
     }
 
     /// <inheritdoc />
     public bool GetEnableDetailedLogging()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging))
-            ? s.EnableDetailedLogging
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging))
+            ? settings.EnableDetailedLogging
             : false; // App default
     }
 
     /// <inheritdoc />
     public string GetTheme()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.Theme)) && !string.IsNullOrWhiteSpace(s.Theme)
-            ? s.Theme
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.Theme)) && !string.IsNullOrWhiteSpace(settings.Theme)
+            ? settings.Theme
             : _appConfig.GetDefaultTheme();
     }
 
     /// <inheritdoc />
     public double GetWindowWidth()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.WindowWidth)) && s.WindowWidth > 0)
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.WindowWidth)) && settings.WindowWidth > 0)
         {
-            return s.WindowWidth;
+            return settings.WindowWidth;
         }
 
         return _appConfig.GetDefaultWindowWidth();
@@ -190,10 +191,10 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public double GetWindowHeight()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.WindowHeight)) && s.WindowHeight > 0)
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.WindowHeight)) && settings.WindowHeight > 0)
         {
-            return s.WindowHeight;
+            return settings.WindowHeight;
         }
 
         return _appConfig.GetDefaultWindowHeight();
@@ -202,18 +203,18 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public bool GetIsWindowMaximized()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.IsMaximized))
-            ? s.IsMaximized
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.IsMaximized))
+            ? settings.IsMaximized
             : false; // App default
     }
 
     /// <inheritdoc />
     public NavigationTab GetLastSelectedTab()
     {
-        var s = _userSettings.GetSettings();
-        return s.IsExplicitlySet(nameof(UserSettings.LastSelectedTab))
-            ? s.LastSelectedTab
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.LastSelectedTab))
+            ? settings.LastSelectedTab
             : NavigationTab.Home; // App default
     }
 
@@ -227,22 +228,22 @@ public class ConfigurationProviderService : IConfigurationProviderService
             WindowHeight = GetWindowHeight(),
             IsMaximized = GetIsWindowMaximized(),
             WorkspacePath = GetWorkspacePath(),
-            LastUsedProfileId = _userSettings.GetSettings().LastUsedProfileId,
+            LastUsedProfileId = _userSettings.Get().LastUsedProfileId,
             LastSelectedTab = GetLastSelectedTab(),
             MaxConcurrentDownloads = GetMaxConcurrentDownloads(),
             AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
             AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
-            LastUpdateCheckTimestamp = _userSettings.GetSettings().LastUpdateCheckTimestamp,
+            LastUpdateCheckTimestamp = _userSettings.Get().LastUpdateCheckTimestamp,
             EnableDetailedLogging = GetEnableDetailedLogging(),
             DefaultWorkspaceStrategy = GetDefaultWorkspaceStrategy(),
             DownloadBufferSize = GetDownloadBufferSize(),
             DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
             DownloadUserAgent = GetDownloadUserAgent(),
-            SettingsFilePath = _userSettings.GetSettings().SettingsFilePath,
+            SettingsFilePath = _userSettings.Get().SettingsFilePath,
             ContentDirectories = GetContentDirectories(),
             GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
             ContentStoragePath = GetContentStoragePath(),
-            CachePath = GetCacheDirectory(),
+            CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
         };
     }
@@ -250,22 +251,15 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public List<string> GetContentDirectories()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.ContentDirectories)) &&
-            s.ContentDirectories != null && s.ContentDirectories.Count > 0)
-            return s.ContentDirectories;
-
-        var appDataPath = _appConfig.GetAppDataPath();
-        if (string.IsNullOrEmpty(appDataPath))
-        {
-            // Fallback if app data path is not available
-            return new List<string>();
-        }
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.ContentDirectories)) &&
+            settings.ContentDirectories != null && settings.ContentDirectories.Count > 0)
+            return settings.ContentDirectories;
 
         return new List<string>
         {
-            Path.Combine(appDataPath, "Manifests"),
-            Path.Combine(appDataPath, "CustomManifests"),
+            Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory),
+            Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",
@@ -276,10 +270,10 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public List<string> GetGitHubDiscoveryRepositories()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories)) &&
-            s.GitHubDiscoveryRepositories != null && s.GitHubDiscoveryRepositories.Count > 0)
-            return s.GitHubDiscoveryRepositories;
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories)) &&
+            settings.GitHubDiscoveryRepositories != null && settings.GitHubDiscoveryRepositories.Count > 0)
+            return settings.GitHubDiscoveryRepositories;
 
         return new List<string> { "TheSuperHackers/GeneralsGameCode" };
     }
@@ -287,34 +281,20 @@ public class ConfigurationProviderService : IConfigurationProviderService
     /// <inheritdoc />
     public string GetContentStoragePath()
     {
-        var s = _userSettings.GetSettings();
-        if (s.IsExplicitlySet(nameof(UserSettings.ContentStoragePath)) &&
-            !string.IsNullOrWhiteSpace(s.ContentStoragePath))
+        var settings = _userSettings.Get();
+        if (settings.IsExplicitlySet(nameof(UserSettings.ContentStoragePath)) &&
+            !string.IsNullOrWhiteSpace(settings.ContentStoragePath))
         {
-            return s.ContentStoragePath;
+            return settings.ContentStoragePath;
         }
 
-        var appDataPath = _appConfig.GetAppDataPath();
-        if (string.IsNullOrEmpty(appDataPath))
-        {
-            // Fallback if app data path is not available
-            return Path.Combine(Path.GetTempPath(), "GenHub", "Content");
-        }
-
-        return Path.Combine(appDataPath, "Content");
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), "Content");
     }
 
     /// <inheritdoc />
     public CasConfiguration GetCasConfiguration()
     {
-        var s = _userSettings.GetSettings();
-        return s.CasConfiguration;
-    }
-
-    /// <inheritdoc />
-    public string GetUserDataPath()
-    {
-        // Use the app configuration to get the base user data path
-        return _appConfig.GetAppDataPath();
+        var settings = _userSettings.Get();
+        return settings.CasConfiguration;
     }
 }

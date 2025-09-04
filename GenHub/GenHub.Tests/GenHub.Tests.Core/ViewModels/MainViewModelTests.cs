@@ -164,7 +164,7 @@ public class MainViewModelTests
     private static (SettingsViewModel settingsVm, Mock<IUserSettingsService> userSettingsMock) CreateSettingsVm()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
-        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockUserSettings.Object, mockLogger.Object);
         return (settingsVm, mockUserSettings);

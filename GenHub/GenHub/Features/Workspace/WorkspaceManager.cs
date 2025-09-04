@@ -6,11 +6,9 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
@@ -18,39 +16,21 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Workspace;
 
 /// <summary>
+/// Complete workspace management service with persistence and cleanup.
 /// Manages workspace operations including preparation, retrieval, and cleanup.
 /// </summary>
-public class WorkspaceManager : IWorkspaceManager
+public class WorkspaceManager(
+    IEnumerable<IWorkspaceStrategy> strategies,
+    IConfigurationProviderService configurationProvider,
+    ILogger<WorkspaceManager> logger,
+    CasReferenceTracker casReferenceTracker
+) : IWorkspaceManager
 {
-    private readonly IWorkspaceStrategy[] _strategies;
-    private readonly IConfigurationProviderService _configProvider;
-    private readonly ILogger<WorkspaceManager> _logger;
-    private readonly ICasService _casService;
-    private readonly CasReferenceTracker _casReferenceTracker;
-    private readonly string _workspaceMetadataPath;
+    private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WorkspaceManager"/> class.
-    /// </summary>
-    /// <param name="strategies">Available workspace strategies.</param>
-    /// <param name="configProvider">Configuration provider service.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="casService">Content addressable storage service.</param>
-    /// <param name="casReferenceTracker">CAS reference tracker for workspace references.</param>
-    public WorkspaceManager(
-        IEnumerable<IWorkspaceStrategy> strategies,
-        IConfigurationProviderService configProvider,
-        ILogger<WorkspaceManager> logger,
-        ICasService casService,
-        CasReferenceTracker casReferenceTracker)
-    {
-        _strategies = strategies.ToArray();
-        _configProvider = configProvider;
-        _logger = logger;
-        _casService = casService;
-        _casReferenceTracker = casReferenceTracker;
-        _workspaceMetadataPath = Path.Combine(configProvider.GetContentStoragePath(), "workspaces.json");
-    }
+    private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
+    private readonly ILogger<WorkspaceManager> _logger = logger;
+    private readonly CasReferenceTracker _casReferenceTracker = casReferenceTracker;
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -85,7 +65,7 @@ public class WorkspaceManager : IWorkspaceManager
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
 
         // Track CAS references for the workspace
-        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests, cancellationToken);
+        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifest, cancellationToken);
 
         _logger.LogInformation("Workspace {Id} prepared successfully at {Path}", workspaceInfo.Id, workspaceInfo.WorkspacePath);
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
@@ -169,20 +149,6 @@ public class WorkspaceManager : IWorkspaceManager
         }
     }
 
-    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
-    {
-        var casReferences = manifests.SelectMany(m => m.Files)
-            .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
-            .Select(f => f.Hash!)
-            .Distinct()
-            .ToList();
-
-        if (casReferences.Any())
-        {
-            await _casReferenceTracker.TrackWorkspaceReferencesAsync(workspaceId, casReferences, cancellationToken);
-        }
-    }
-
     private async Task SaveAllWorkspacesAsync(IEnumerable<WorkspaceInfo> workspaces, CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_workspaceMetadataPath);
@@ -208,5 +174,18 @@ public class WorkspaceManager : IWorkspaceManager
 
         workspaces.Add(workspaceInfo);
         await SaveAllWorkspacesAsync(workspaces, cancellationToken);
+    }
+
+    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, ContentManifest manifest, CancellationToken cancellationToken)
+    {
+        var casReferences = manifest.Files
+            .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
+            .Select(f => f.Hash!)
+            .ToList();
+
+        if (casReferences.Any())
+        {
+            await _casReferenceTracker.TrackWorkspaceReferencesAsync(workspaceId, casReferences, cancellationToken);
+        }
     }
 }

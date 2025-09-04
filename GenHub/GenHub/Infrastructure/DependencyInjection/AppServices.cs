@@ -30,16 +30,12 @@ public static class AppServices
 
         // Register remaining services
         services.AddGameDetectionService();
-        services.AddGameInstallationServices();
         services.AddSharedViewModelModule();
         services.AddAppUpdateModule();
         services.AddValidationServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
         services.AddContentPipelineServices();
-        services.AddCasServices();
-        services.AddGameProfileServices(configProvider);
-        services.AddLaunchingServices();
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services, configProvider);

@@ -19,32 +19,21 @@ namespace GenHub.Features.Validation;
 /// <summary>
 /// Validates the integrity of a specific game version workspace using manifest-driven checks.
 /// </summary>
-public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, IValidator<GameVersion>
+/// <param name="logger">Logger instance.</param>
+/// <param name="manifestProvider">Manifest provider.</param>
+/// <param name="contentValidator">Content validator for core validation logic.</param>
+/// <param name="hashProvider">File hash provider for file system validation.</param>
+public class GameVersionValidator(
+    ILogger<GameVersionValidator> logger,
+    IManifestProvider manifestProvider,
+    IContentValidator contentValidator,
+    IFileHashProvider hashProvider)
+    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))), IGameVersionValidator, IValidator<GameVersion>
 {
-    private readonly ILogger<GameVersionValidator> _logger;
-    private readonly IManifestProvider _manifestProvider;
-    private readonly IContentValidator _contentValidator;
-    private readonly IFileHashProvider _hashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameVersionValidator"/> class.
-    /// </summary>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="manifestProvider">Manifest provider.</param>
-    /// <param name="contentValidator">Content validator for core validation logic.</param>
-    /// <param name="hashProvider">File hash provider for file system validation.</param>
-    public GameVersionValidator(
-        ILogger<GameVersionValidator> logger,
-        IManifestProvider manifestProvider,
-        IContentValidator contentValidator,
-        IFileHashProvider hashProvider)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider)))
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-        _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-        _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
-    }
+    private readonly ILogger<GameVersionValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
+    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
 
     /// <inheritdoc/>
     public async Task<ValidationResult> ValidateAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)

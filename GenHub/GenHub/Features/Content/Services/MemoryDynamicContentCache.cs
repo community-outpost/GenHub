@@ -14,7 +14,7 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicContentCache
 {
-    private static readonly List<string> _keys = [];
+    private static readonly List<string> _keys = new();
     private readonly IMemoryCache _memoryCache = memoryCache;
 
     /// <inheritdoc/>
@@ -68,18 +68,6 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
             {
                 _keys.Remove(key);
             }
-        }
-
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc/>
-    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
-    {
-        _memoryCache.Remove(key);
-        lock (_keys)
-        {
-            _keys.Remove(key);
         }
 
         return Task.CompletedTask;

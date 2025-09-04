@@ -4,10 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using GenHub.Core;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 
@@ -53,8 +52,8 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 dep.Name,
                 dep.DependencyType,
                 dep.InstallBehavior,
-                dep.MinVersion,
-                dep.MaxVersion,
+                dep.MinVersion ?? string.Empty,
+                dep.MaxVersion ?? string.Empty,
                 dep.CompatibleVersions,
                 dep.IsExclusive,
                 dep.ConflictsWith);
@@ -132,11 +131,11 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 "https://help.ea.com",
                 "support@ea.com")
             .WithMetadata($"Base game installation of {gameType} version {version} from {installationType}")
-            .AddRequiredDirectories("Data", "Maps")
+            .AddRequiredDirectories(DirectoryNames.Data, "Maps")
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);
+        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.BaseGame);
 
         return builder;
     }
@@ -169,7 +168,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
         await builder.AddFilesFromDirectoryAsync(gameDirectory, ContentSourceType.ContentAddressable);
 
         // Mark the main executable
-        await builder.AddFileAsync(executablePath, ContentSourceType.ContentAddressable, string.Empty, true);
+        await builder.AddLocalFileAsync(executablePath, string.Empty, ContentSourceType.ContentAddressable, isExecutable: true);
 
         return builder;
     }

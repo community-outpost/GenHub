@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -9,36 +5,40 @@ using GenHub.Core.Models.Results;
 namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
-/// Defines a contract for a content provider that can discover, resolve, and prepare content.
+/// Represents a complete content source that orchestrates discovery, resolution, and delivery
+/// for a specific content provider (e.g., "GitHub", "ModDB", "Local Files").
+/// This is a high-level interface that composes the specialized pipeline components.
 /// </summary>
 public interface IContentProvider : IContentSource
 {
     /// <summary>
-    /// Searches for content using the provider's pipeline.
+    /// Searches for content using this provider's complete pipeline.
+    /// This orchestrates discovery -> resolution -> validation.
     /// </summary>
-    /// <param name="query">The search query.</param>
+    /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A list of discovered and resolved content items.</returns>
+    /// <returns>Fully resolved content search results ready for installation.</returns>
     Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a fully resolved manifest for a specific content ID.
+    /// Gets a complete manifest for specific content, handling the full pipeline if needed.
     /// </summary>
     /// <param name="contentId">The unique identifier of the content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A complete, validated game manifest ready for workspace preparation.</returns>
-    Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Prepares content for use by downloading, extracting, and validating it.
+    /// Prepares content for installation by handling acquisition and delivery.
+    /// This orchestrates the full content delivery pipeline.
     /// </summary>
     /// <param name="manifest">The manifest describing the content to prepare.</param>
-    /// <param name="targetDirectory">The directory to prepare the content in.</param>
-    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="targetDirectory">The directory where content should be prepared.</param>
+    /// <param name="progress">Optional progress reporting.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The final manifest with all content ready for workspace preparation.</returns>
     Task<ContentOperationResult<ContentManifest>> PrepareContentAsync(

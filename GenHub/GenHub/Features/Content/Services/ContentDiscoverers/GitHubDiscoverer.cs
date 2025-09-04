@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -22,7 +23,6 @@ public class GitHubDiscoverer : IContentDiscoverer
     private readonly ILogger<GitHubDiscoverer> _logger;
     private readonly IConfigurationProviderService _configurationProvider;
 
-    // TODO: Save and retrieve these from configuration.
     private readonly List<(string owner, string repo)> _repositories;
 
     /// <summary>
@@ -79,6 +79,8 @@ public class GitHubDiscoverer : IContentDiscoverer
                 var latestRelease = await _gitHubApiClient.GetLatestReleaseAsync(owner, repo, cancellationToken);
                 if (latestRelease != null)
                 {
+                    var inferred = GitHubInferenceHelper.InferContentType(repo, latestRelease.Name);
+                    var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, latestRelease.Name);
                     var discovered = new ContentSearchResult
                     {
                         Id = $"github.{owner}.{repo}.{latestRelease.TagName}",
@@ -86,8 +88,9 @@ public class GitHubDiscoverer : IContentDiscoverer
                         Description = "GitHub release - full details available after resolution",
                         Version = latestRelease.TagName,
                         AuthorName = latestRelease.Author,
-                        ContentType = InferContentType(repo, latestRelease.Name),
-                        TargetGame = InferTargetGame(repo, latestRelease.Name),
+                        ContentType = inferred.type,
+                        TargetGame = inferredGame.type,
+                        IsInferred = inferred.isInferred || inferredGame.isInferred,
                         ProviderName = SourceName,
                         RequiresResolution = true,
                         ResolverId = "GitHubRelease",
@@ -137,27 +140,5 @@ public class GitHubDiscoverer : IContentDiscoverer
         return true;
     }
 
-    private ContentType InferContentType(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName}".ToLowerInvariant();
-
-        if (searchText.Contains("patch") || searchText.Contains("fix"))
-            return ContentType.Patch;
-        if (searchText.Contains("map"))
-            return ContentType.MapPack;
-
-        return ContentType.Mod; // Default
-    }
-
-    private GameType InferTargetGame(string repo, string? releaseName)
-    {
-        var searchText = $"{repo} {releaseName}".ToLowerInvariant();
-
-        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
-            return GameType.ZeroHour;
-        if (searchText.Contains("generals"))
-            return GameType.Generals;
-
-        return GameType.ZeroHour; // Default
-    }
+    // Inference logic extracted to GitHubInferenceHelper
 }

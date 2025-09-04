@@ -13,23 +13,12 @@ namespace GenHub.Windows.Features.Workspace;
 /// <summary>
 /// Windows-specific implementation of <see cref="IFileOperationsService"/> for file operations.
 /// </summary>
-public class WindowsFileOperationsService : IFileOperationsService
+/// <param name="baseService">The base file operations service.</param>
+/// <param name="logger">The logger instance.</param>
+public class WindowsFileOperationsService(IFileOperationsService baseService, ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
 {
-    private readonly IFileOperationsService _baseService;
-    private readonly ILogger<WindowsFileOperationsService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="WindowsFileOperationsService"/> class.
-    /// </summary>
-    /// <param name="baseService">The base file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public WindowsFileOperationsService(
-        IFileOperationsService baseService,
-        ILogger<WindowsFileOperationsService> logger)
-    {
-        _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IFileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
+    private readonly ILogger<WindowsFileOperationsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)

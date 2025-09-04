@@ -41,32 +41,60 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
     }
 
     /// <inheritdoc/>
-    public async Task<ValidationResult> ValidateAsync(ContentManifest manifest, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateAsync(ContentManifest manifest, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         var issues = new List<ValidationIssue>();
 
         // Step 1: Validate manifest structure
+        progress?.Report(new ValidationProgress(0, 1, "Validating Manifest Structure"));
+        issues.AddRange(ValidateManifestStructure(manifest));
+        progress?.Report(new ValidationProgress(1, 1, "Manifest Structure Complete"));
+
+        _logger.LogDebug("Manifest validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
+        return Task.FromResult(new ValidationResult(manifest.Id, issues));
+    }
+
+    /// <summary>
+    /// Performs full validation including manifest structure, file integrity and extraneous file detection.
+    /// </summary>
+    /// <param name="contentPath">Path to the content directory to validate.</param>
+    /// <param name="manifest">The manifest to validate against.</param>
+    /// <param name="progress">Optional progress reporter for validation phases.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The aggregated <see cref="ValidationResult"/> for the manifest and files.</returns>
+    public async Task<ValidationResult> ValidateAllAsync(string contentPath, ContentManifest manifest, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(contentPath))
+        {
+            throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
+        }
+
+        if (manifest == null)
+        {
+            throw new ArgumentNullException(nameof(manifest));
+        }
+
+        var issues = new List<ValidationIssue>();
+
+        // Step 1: Manifest structure
         progress?.Report(new ValidationProgress(0, 3, "Validating Manifest Structure"));
         issues.AddRange(ValidateManifestStructure(manifest));
         progress?.Report(new ValidationProgress(1, 3, "Manifest Structure Complete"));
 
-        // Step 2: Validate content integrity
+        // Step 2: Content integrity
         progress?.Report(new ValidationProgress(1, 3, "Validating Content Integrity"));
-        var integrityResult = await ValidateContentIntegrityAsync(string.Empty, manifest, cancellationToken);
+        var integrityResult = await ValidateContentIntegrityAsync(contentPath, manifest, cancellationToken);
         issues.AddRange(integrityResult.Issues);
         progress?.Report(new ValidationProgress(2, 3, "Content Integrity Complete"));
 
-        // Step 3: Check for extraneous files if content path is available
-        if (!string.IsNullOrEmpty(string.Empty))
-        {
-            progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
-            var extraneousResult = await DetectExtraneousFilesAsync(string.Empty, manifest, cancellationToken);
-            issues.AddRange(extraneousResult.Issues);
-        }
+        // Step 3: Extraneous files
+        progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
+        var extraneousResult = await DetectExtraneousFilesAsync(contentPath, manifest, cancellationToken);
+        issues.AddRange(extraneousResult.Issues);
 
         progress?.Report(new ValidationProgress(3, 3, "Validation Complete"));
 
-        _logger.LogDebug("Manifest validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
+        _logger.LogDebug("Full content validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
         return new ValidationResult(manifest.Id, issues);
     }
 
@@ -80,9 +108,14 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
     public async Task<ValidationResult> ValidateContentIntegrityAsync(string contentPath, ContentManifest manifest, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentPath))
+        {
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
+        }
+
         if (manifest == null)
+        {
             throw new ArgumentNullException(nameof(manifest));
+        }
 
         var issues = new List<ValidationIssue>();
         var totalFiles = manifest.Files.Count;
@@ -135,9 +168,14 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
     public async Task<ValidationResult> DetectExtraneousFilesAsync(string contentPath, ContentManifest manifest, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentPath))
+        {
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
+        }
+
         if (manifest == null)
+        {
             throw new ArgumentNullException(nameof(manifest));
+        }
 
         var issues = new List<ValidationIssue>();
 
@@ -170,25 +208,26 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
 
             await Task.Run(
                 () =>
-            {
-                foreach (var file in allFiles)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var fullPath = Path.GetFullPath(file);
-                    if (!expectedFiles.Contains(fullPath))
+                    foreach (var file in allFiles)
                     {
-                        // Check if file is in an expected directory (some files might be allowed in certain dirs)
-                        var isInExpectedDirectory = expectedDirectories.Any(dir =>
-                            fullPath.StartsWith(dir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                        if (!isInExpectedDirectory)
+                        var fullPath = Path.GetFullPath(file);
+                        if (!expectedFiles.Contains(fullPath))
                         {
-                            extraneousFiles.Add(Path.GetRelativePath(contentPath, file));
+                            // Check if file is in an expected directory (some files might be allowed in certain dirs)
+                            var isInExpectedDirectory = expectedDirectories.Any(dir =>
+                                fullPath.StartsWith(dir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+
+                            if (!isInExpectedDirectory)
+                            {
+                                extraneousFiles.Add(Path.GetRelativePath(contentPath, file));
+                            }
                         }
                     }
-                }
-            }, cancellationToken);
+                },
+                cancellationToken);
 
             // Report extraneous files as warnings (they don't break functionality but indicate potential issues)
             foreach (var extraneousFile in extraneousFiles)
@@ -222,7 +261,9 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
     private static List<ValidationIssue> ValidateManifestStructure(ContentManifest manifest)
     {
         if (manifest == null)
+        {
             throw new ArgumentNullException(nameof(manifest));
+        }
 
         var issues = new List<ValidationIssue>();
 

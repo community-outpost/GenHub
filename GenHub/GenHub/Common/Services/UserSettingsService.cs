@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
@@ -65,27 +66,24 @@ public class UserSettingsService : IUserSettingsService
     }
 
     /// <inheritdoc/>
-    public UserSettings GetSettings()
+    public UserSettings Get()
     {
         lock (_lock)
         {
             // Return a deep copy to prevent external modification
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            return JsonSerializer.Deserialize<UserSettings>(json, JsonOptions) ?? new UserSettings();
+            return (UserSettings)_settings.Clone();
         }
     }
 
     /// <inheritdoc/>
-    public void UpdateSettings(Action<UserSettings> applyChanges)
+    public void Update(Action<UserSettings> applyChanges)
     {
         ArgumentNullException.ThrowIfNull(applyChanges);
 
         lock (_lock)
         {
             // Work on a copy to ensure exception safety
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            var settingsCopy = JsonSerializer.Deserialize<UserSettings>(json, JsonOptions)
-                               ?? new UserSettings();
+            var settingsCopy = (UserSettings)_settings.Clone();
 
             applyChanges(settingsCopy);
 
@@ -151,7 +149,7 @@ public class UserSettingsService : IUserSettingsService
         lock (_lock)
         {
             pathToSave = _settingsFilePath;
-            settingsToSave = GetSettings();
+            settingsToSave = Get();
         }
 
         try
@@ -188,6 +186,7 @@ public class UserSettingsService : IUserSettingsService
     /// Sets the settings file path for testing purposes.
     /// </summary>
     /// <param name="path">The path to set.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or consists only of white-space characters.</exception>
     protected void SetSettingsFilePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
@@ -270,8 +269,6 @@ public class UserSettingsService : IUserSettingsService
             "contentStoragePath" => nameof(UserSettings.ContentStoragePath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),
             "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
-            "casConfiguration" => nameof(UserSettings.CasConfiguration),
-            "explicitlySetProperties" => nameof(UserSettings.ExplicitlySetProperties),
             _ => string.Empty
         };
     }
@@ -329,10 +326,10 @@ public class UserSettingsService : IUserSettingsService
         {
             // Fallback for test scenarios where appConfig might not be provided
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appDataPath, "GenHub", "settings.json");
+            return Path.Combine(appDataPath, "GenHub", FileTypes.JsonFileExtension);
         }
 
-        return Path.Combine(_appConfig.GetAppDataPath(), "settings.json");
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.JsonFileExtension);
     }
 
     private void InitializeSettings()

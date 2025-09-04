@@ -18,7 +18,10 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
 /// </remarks>
-public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrategy>
+public sealed class SymlinkOnlyStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<SymlinkOnlyStrategy> logger)
+    : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
 {
     private const long LinkOverheadBytes = 1024L;
 
@@ -72,13 +75,18 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
 
         try
         {
-            // Allow cancellation to propagate for tests
-            cancellationToken.ThrowIfCancellationRequested();
-
             if (configuration.ForceRecreate)
             {
-                Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                FileOperationsService.DeleteDirectoryIfExists(workspacePath);
+                try
+                {
+                    Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
+                    FileOperationsService.DeleteDirectoryIfExists(workspacePath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to clean existing workspace at {WorkspacePath}", workspacePath);
+                    throw;
+                }
             }
 
             // Create workspace directory
@@ -89,21 +97,34 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
+
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file using the base class method that has proper fallback logic
-            foreach (var file in allFiles)
+            foreach (var file in configuration.Manifest.Files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
+                try
+                {
+                    // Use the base class method that handles CAS files with proper fallback
+                    await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(
+                        ex,
+                        "Failed to process file {RelativePath}",
+                        file.RelativePath);
+                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
+                }
 
                 processedFiles++;
                 ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, 0, configuration);
-            workspaceInfo.Success = true;
 
             Logger.LogInformation(
                 "Symlink-only workspace prepared successfully at {WorkspacePath} with {FileCount} symlinks",
@@ -125,6 +146,48 @@ public sealed class SymlinkOnlyStrategy : WorkspaceStrategyBase<SymlinkOnlyStrat
             workspaceInfo.Success = false;
             workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
             return workspaceInfo;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    {
+        Logger.LogDebug("Creating CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        // Use the service method to create the link from CAS
+        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, cancellationToken);
+        if (!success)
+        {
+            throw new InvalidOperationException($"Failed to create symlink from CAS hash {hash} to {targetPath}");
+        }
+
+        Logger.LogDebug("Successfully created CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        Logger.LogDebug("Creating symlink for local file {RelativePath} from {SourcePath} to {TargetPath}", file.RelativePath, sourcePath, targetPath);
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        try
+        {
+            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
+            Logger.LogDebug("Successfully created symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+            throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
         }
     }
 

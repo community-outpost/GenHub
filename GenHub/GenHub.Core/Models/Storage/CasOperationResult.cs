@@ -25,7 +25,7 @@ public class CasOperationResult<T> : ResultBase
     /// <summary>
     /// Gets the data returned by the operation.
     /// </summary>
-    public T? Data { get; private set; }
+    public T? Data { get; init; }
 
     /// <summary>
     /// Gets the error message if the operation failed.
@@ -35,7 +35,7 @@ public class CasOperationResult<T> : ResultBase
     /// <summary>
     /// Gets additional context information for the operation.
     /// </summary>
-    public string? Context { get; private set; }
+    public string? Context { get; init; }
 
     /// <summary>
     /// Creates a successful CAS operation result.

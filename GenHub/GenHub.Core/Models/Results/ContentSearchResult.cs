@@ -14,7 +14,7 @@ public class ContentSearchResult
     public string Name { get; set; } = string.Empty;
 
     /// <summary>Gets or sets a brief description of the content.</summary>
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     /// <summary>  Gets or sets the rich data payload. For discoverers with SupportsManifestGeneration capability,
     /// this can contain the complete ContentManifest to avoid data loss.  </summary>
@@ -26,20 +26,27 @@ public class ContentSearchResult
     /// <summary>Gets or sets the type of the content (e.g., Mod, Map).</summary>
     public ContentType ContentType { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the ContentType (or other inferred fields)
+    /// were produced by an automatic heuristic and should be considered a guess that
+    /// the user can override.
+    /// </summary>
+    public bool IsInferred { get; set; } = false;
+
     /// <summary>Gets or sets the game this content is for (e.g., Generals, ZeroHour).</summary>
     public GameType TargetGame { get; set; }
 
     /// <summary>Gets or sets the name of the provider that supplied this result.</summary>
     public string ProviderName { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the name of the content author or publisher.</summary>
-    public string AuthorName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the name of the content author or publisher, if available.</summary>
+    public string? AuthorName { get; set; }
 
-    /// <summary>Gets or sets the URL for the content's icon.</summary>
-    public string IconUrl { get; set; } = string.Empty;
+    /// <summary>Gets or sets the URL for the content's icon (optional).</summary>
+    public string? IconUrl { get; set; }
 
-    /// <summary>Gets a list of URLs for screenshots.</summary>
-    public IList<string> Screenshots { get; } = new List<string>();
+    /// <summary>Gets a list of screenshot URLs.</summary>
+    public IList<string> ScreenshotUrls { get; } = new List<string>();
 
     /// <summary>Gets a list of tags associated with the content.</summary>
     public IList<string> Tags { get; } = new List<string>();

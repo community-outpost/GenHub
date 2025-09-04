@@ -13,15 +13,15 @@ public class PublisherInfo
     /// <summary>
     /// Gets or sets the publisher website.
     /// </summary>
-    public string Website { get; set; } = string.Empty;
+    public string? Website { get; set; }
 
     /// <summary>
     /// Gets or sets the publisher support URL.
     /// </summary>
-    public string SupportUrl { get; set; } = string.Empty;
+    public string? SupportUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the publisher contact email.
     /// </summary>
-    public string ContactEmail { get; set; } = string.Empty;
+    public string? ContactEmail { get; set; }
 }

@@ -1,5 +1,3 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Storage.Services;
@@ -21,17 +19,24 @@ public static class WorkspaceModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddWorkspaceServices(this IServiceCollection services)
     {
-        // Register workspace strategies
-        services.AddTransient<IWorkspaceStrategy, FullCopyStrategy>();
-        services.AddTransient<IWorkspaceStrategy, SymlinkOnlyStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
-        services.AddTransient<IWorkspaceStrategy, HardLinkStrategy>();
-
-        // Register workspace manager with proper dependencies
+        // Core workspace services
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
 
         // Register workspace validator
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
+        services.AddScoped<IFileOperationsService, FileOperationsService>();
+
+        // Strategy implementations
+        services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();
+        services.AddScoped<IWorkspaceStrategy, HardLinkStrategy>();
+        services.AddScoped<IWorkspaceStrategy, HybridCopySymlinkStrategy>();
+        services.AddScoped<IWorkspaceStrategy, SymlinkOnlyStrategy>();
+
+        // Also register concrete types for direct injection if needed
+        services.AddScoped<FullCopyStrategy>();
+        services.AddScoped<HardLinkStrategy>();
+        services.AddScoped<HybridCopySymlinkStrategy>();
+        services.AddScoped<SymlinkOnlyStrategy>();
 
         return services;
     }

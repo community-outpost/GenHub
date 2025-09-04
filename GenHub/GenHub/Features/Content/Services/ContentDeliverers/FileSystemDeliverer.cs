@@ -19,27 +19,11 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
-public class FileSystemDeliverer : IContentDeliverer
+public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider, IFileHashProvider hashProvider) : IContentDeliverer
 {
-    private readonly ILogger<FileSystemDeliverer> _logger;
-    private readonly IConfigurationProviderService _configProvider;
-    private readonly IFileHashProvider _hashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FileSystemDeliverer"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="configProvider">The configuration provider.</param>
-    /// <param name="hashProvider">The file hash provider.</param>
-    public FileSystemDeliverer(
-        ILogger<FileSystemDeliverer> logger,
-        IConfigurationProviderService configProvider,
-        IFileHashProvider hashProvider)
-    {
-        _logger = logger;
-        _configProvider = configProvider;
-        _hashProvider = hashProvider;
-    }
+    private readonly ILogger<FileSystemDeliverer> _logger = logger;
+    private readonly IConfigurationProviderService _configProvider = configProvider;
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
@@ -57,7 +41,9 @@ public class FileSystemDeliverer : IContentDeliverer
     public bool CanDeliver(ContentManifest manifest)
     {
         if (manifest?.Files == null)
+        {
             return false;
+        }
 
         return manifest.Files.All(f =>
             f.SourceType == ContentSourceType.ContentAddressable);
@@ -135,25 +121,37 @@ public class FileSystemDeliverer : IContentDeliverer
             foreach (var dep in packageManifest.Dependencies)
             {
                 manifestBuilder.AddDependency(
-                    dep.Id, dep.Name, dep.DependencyType, dep.InstallBehavior, dep.MinVersion, dep.MaxVersion, dep.CompatibleVersions, dep.IsExclusive, dep.ConflictsWith);
+                    dep.Id,
+                    dep.Name,
+                    dep.DependencyType,
+                    dep.InstallBehavior,
+                    dep.MinVersion ?? string.Empty,
+                    dep.MaxVersion ?? string.Empty,
+                    dep.CompatibleVersions,
+                    dep.IsExclusive,
+                    dep.ConflictsWith);
             }
 
             // Add content references
             foreach (var reference in packageManifest.ContentReferences)
             {
                 manifestBuilder.AddContentReference(
-                    reference.ContentId, reference.PublisherId, reference.ContentType, reference.MinVersion, reference.MaxVersion);
+                    reference.ContentId,
+                    reference.PublisherId ?? string.Empty,
+                    reference.ContentType,
+                    reference.MinVersion ?? string.Empty,
+                    reference.MaxVersion ?? string.Empty);
             }
 
             // Add delivered files to the manifest
             foreach (var file in deliveredFiles)
             {
-                await manifestBuilder.AddFileAsync(
+                await manifestBuilder.AddContentAddressableFileAsync(
                     file.RelativePath,
-                    ContentSourceType.ContentAddressable,
                     file.Hash ?? string.Empty,
-                    file.IsExecutable,
-                    file.Permissions);
+                    file.Size,
+                    isExecutable: file.IsExecutable,
+                    permissions: file.Permissions);
             }
 
             // Add required directories

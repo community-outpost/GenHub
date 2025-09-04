@@ -18,7 +18,10 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
 /// </remarks>
-public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
+public sealed class FullCopyStrategy(
+    IFileOperationsService fileOperations,
+    ILogger<FullCopyStrategy> logger)
+    : WorkspaceStrategyBase<FullCopyStrategy>(fileOperations, logger)
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
@@ -55,11 +58,11 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifests == null)
+        if (configuration?.Manifest?.Files == null)
             return 0;
 
         long totalSize = 0;
-        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
+        foreach (var file in configuration.Manifest.Files)
         {
             // Prevent negative sizes and overflow
             long safeSize = Math.Max(0, file.Size);
@@ -114,15 +117,7 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
 
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
 
-                // Ensure the directory (not the full file path) exists
-                var destinationDirectory = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(destinationDirectory))
-                {
-                    FileOperationsService.EnsureDirectoryExists(destinationDirectory);
-                }
-
-                // Handle different source types
-                if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                try
                 {
                     // Use CAS content
                     await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
@@ -137,17 +132,45 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
                         continue;
                     }
 
-                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-
-                    // Verify file integrity if hash is provided
-                    if (!string.IsNullOrEmpty(file.Hash))
+                    // Handle different source types
+                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                        if (!hashValid)
+                        // Use CAS content
+                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                    }
+                    else
+                    {
+                        // Use regular file from base installation
+                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
                         {
-                            Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                            continue;
+                        }
+
+                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+
+                        // Verify file integrity if hash is provided
+                        if (!string.IsNullOrEmpty(file.Hash))
+                        {
+                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                            if (!hashValid)
+                            {
+                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                            }
                         }
                     }
+
+                    totalBytesProcessed += file.Size;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(
+                        ex,
+                        "Failed to copy file {RelativePath} to {DestinationPath}",
+                        file.RelativePath,
+                        destinationPath);
+                    throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
                 }
 
                 totalBytesProcessed += file.Size;
@@ -179,6 +202,49 @@ public sealed class FullCopyStrategy : WorkspaceStrategyBase<FullCopyStrategy>
             workspaceInfo.Success = false;
             workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
             return workspaceInfo;
+        }
+    }
+
+    /// <summary>
+    /// Copies a file from the CAS (Content Addressable Storage) to the specified target path.
+    /// </summary>
+    /// <param name="hash">The hash of the file in CAS.</param>
+    /// <param name="targetPath">The destination path for the copied file.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task that represents the asynchronous copy operation.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the copy operation fails.</exception>
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    {
+        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+        if (!success)
+        {
+            Logger.LogError("Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, targetPath);
+            throw new InvalidOperationException($"Failed to copy from CAS for hash {hash} to {targetPath}");
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return;
+        }
+
+        FileOperationsService.EnsureDirectoryExists(targetPath);
+
+        await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+
+        // Verify file integrity if hash is provided
+        if (!string.IsNullOrEmpty(file.Hash))
+        {
+            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
+            if (!hashValid)
+            {
+                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+            }
         }
     }
 

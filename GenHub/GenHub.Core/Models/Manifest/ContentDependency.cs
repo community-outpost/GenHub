@@ -17,10 +17,10 @@ public class ContentDependency
     public ContentType DependencyType { get; set; }
 
     /// <summary>Gets or sets the minimum version required.</summary>
-    public string MinVersion { get; set; } = string.Empty;
+    public string? MinVersion { get; set; }
 
     /// <summary>Gets or sets the maximum version allowed.</summary>
-    public string MaxVersion { get; set; } = string.Empty;
+    public string? MaxVersion { get; set; }
 
     /// <summary>Gets or sets the list of compatible versions for this dependency.</summary>
     public List<string> CompatibleVersions { get; set; } = [];

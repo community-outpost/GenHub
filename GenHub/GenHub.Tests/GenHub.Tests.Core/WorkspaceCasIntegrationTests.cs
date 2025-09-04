@@ -172,40 +172,23 @@ public class WorkspaceCasIntegrationTests : IDisposable
             },
         };
 
-        // Create a dummy executable for the workspace
-        var dummyExe = Path.Combine(_testWorkspacePath, "test.exe");
-        await File.WriteAllTextAsync(dummyExe, "dummy executable content");
-
-        var workspaceConfig = new WorkspaceConfiguration
+        var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest> { manifest },
-            Strategy = WorkspaceStrategy.FullCopy,
-            BaseInstallationPath = _testWorkspacePath,
+            Manifest = manifest,
+            Strategy = WorkspaceStrategy.SymlinkOnly,
             WorkspaceRootPath = _testWorkspacePath,
+            BaseInstallationPath = _testWorkspacePath,
             GameVersion = new GameVersion
             {
-                Id = "test",
-                Name = "Test Game",
-                ExecutablePath = dummyExe,
-                GameType = GameType.Generals,
+                Id = "test-version",
+                Name = "Test Version",
             },
         };
 
-        using var cts = new CancellationTokenSource();
-        var result = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cts.Token);
+        var workspaceInfo = await _workspaceManager.PrepareWorkspaceAsync(config);
+        var expectedPath = Path.Combine(workspaceInfo.WorkspacePath, "data", "mymod.big");
 
-        // More detailed assertions
-        if (!result.Success)
-        {
-            var errorDetails = string.Join(", ", result.Errors);
-            Assert.True(result.Success, $"Workspace preparation failed: {errorDetails}");
-        }
-
-        Assert.NotNull(result.Data);
-        Assert.True(Directory.Exists(result.Data.WorkspacePath), $"Workspace directory should exist: {result.Data.WorkspacePath}");
-
-        var expectedPath = Path.Combine(result.Data.WorkspacePath, "data", "mymod.big");
         Assert.True(File.Exists(expectedPath), $"Expected file {expectedPath} does not exist");
     }
 }

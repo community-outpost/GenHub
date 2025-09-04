@@ -1,28 +1,25 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.IO;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Storage;
 
 /// <summary>
 /// Configuration settings for the Content-Addressable Storage (CAS) system.
 /// </summary>
-public class CasConfiguration
+public class CasConfiguration : ICloneable
 {
-    private const long DefaultMaxCacheSizeBytes = 50L * 1024 * 1024 * 1024; // 50GB
-    private const int DefaultMaxConcurrentOperations = 4;
-    private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(1);
-    private static readonly TimeSpan DefaultGarbageCollectionGracePeriod = TimeSpan.FromDays(7);
+    private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(StorageConstants.AutoGcIntervalDays);
+    private static readonly TimeSpan DefaultGcGracePeriod = TimeSpan.FromDays(7);
 
-    private TimeSpan _garbageCollectionGracePeriod = DefaultGarbageCollectionGracePeriod;
+    private TimeSpan _gcGracePeriod = DefaultGcGracePeriod;
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
-    private int _maxConcurrentOperations = DefaultMaxConcurrentOperations;
-    private long _maxCacheSizeBytes = DefaultMaxCacheSizeBytes;
+    private int _maxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
+    private long _maxCacheSizeBytes = CasDefaults.MaxCacheSizeBytes;
 
     /// <summary>
     /// Gets or sets a value indicating whether automatic garbage collection is enabled.
     /// </summary>
-    public bool EnableAutomaticGarbageCollection { get; set; } = true;
+    public bool EnableAutomaticGc { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the root path for the CAS pool.
@@ -35,15 +32,15 @@ public class CasConfiguration
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
     /// </summary>
-    public string HashAlgorithm { get; set; } = "SHA256";
+    public HashAlgorithm HashAlgorithm { get; set; } = HashAlgorithm.Sha256;
 
     /// <summary>
     /// Gets or sets the grace period before unreferenced objects can be garbage collected.
     /// </summary>
-    public TimeSpan GarbageCollectionGracePeriod
+    public TimeSpan GcGracePeriod
     {
-        get => _garbageCollectionGracePeriod;
-        set => _garbageCollectionGracePeriod = value > TimeSpan.Zero
+        get => _gcGracePeriod;
+        set => _gcGracePeriod = value > TimeSpan.Zero
             ? value
             : throw new ArgumentOutOfRangeException(nameof(value), "Must be positive");
     }
@@ -104,5 +101,24 @@ public class CasConfiguration
         {
             throw new ArgumentException($"Invalid CasRootPath: {CasRootPath}", ex);
         }
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the current CasConfiguration instance.
+    /// </summary>
+    /// <returns>A new CasConfiguration instance with all properties copied.</returns>
+    public object Clone()
+    {
+        return new CasConfiguration
+        {
+            EnableAutomaticGc = EnableAutomaticGc,
+            CasRootPath = CasRootPath,
+            HashAlgorithm = HashAlgorithm,
+            GcGracePeriod = GcGracePeriod,
+            MaxCacheSizeBytes = MaxCacheSizeBytes,
+            AutoGcInterval = AutoGcInterval,
+            MaxConcurrentOperations = MaxConcurrentOperations,
+            VerifyIntegrity = VerifyIntegrity,
+        };
     }
 }

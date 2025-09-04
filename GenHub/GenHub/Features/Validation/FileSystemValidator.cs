@@ -15,24 +15,15 @@ namespace GenHub.Features.Validation;
 /// <summary>
 /// Base class for file system validation logic, providing directory and file checks, hashing, and security.
 /// </summary>
-public abstract class FileSystemValidator
+/// <param name="logger">Logger instance.</param>
+/// <param name="hashProvider">Hash provider instance.</param>
+public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hashProvider)
 {
     /// <summary>
     /// Logger for validation events.
     /// </summary>
-    private readonly ILogger _logger;
-    private readonly IFileHashProvider _hashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FileSystemValidator"/> class.
-    /// </summary>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="hashProvider">Hash provider instance.</param>
-    protected FileSystemValidator(ILogger logger, IFileHashProvider hashProvider)
-    {
-        _logger = logger;
-        _hashProvider = hashProvider;
-    }
+    private readonly ILogger _logger = logger;
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <summary>
     /// Computes the SHA256 hash of a file asynchronously.

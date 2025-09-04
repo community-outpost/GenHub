@@ -1,44 +1,32 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
 /// <summary>
 /// Background service for CAS maintenance tasks like garbage collection.
 /// </summary>
-public class CasMaintenanceService : BackgroundService
+public class CasMaintenanceService(
+    IServiceProvider serviceProvider,
+    IOptions<CasConfiguration> config,
+    ILogger<CasMaintenanceService> logger) : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly CasConfiguration _config;
-    private readonly ILogger<CasMaintenanceService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CasMaintenanceService"/> class.
-    /// </summary>
-    /// <param name="serviceProvider">Service provider for scoped services.</param>
-    /// <param name="config">CAS configuration.</param>
-    /// <param name="logger">Logger instance.</param>
-    public CasMaintenanceService(
-        IServiceProvider serviceProvider,
-        IOptions<CasConfiguration> config,
-        ILogger<CasMaintenanceService> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _config = config.Value;
-        _logger = logger;
-    }
+    private const int ErrorRetryDelayMinutes = 5;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly CasConfiguration _config = config.Value;
+    private readonly ILogger<CasMaintenanceService> _logger = logger;
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!_config.EnableAutomaticGarbageCollection)
+        if (!_config.EnableAutomaticGc)
         {
             _logger.LogInformation("Automatic CAS garbage collection is disabled");
             return;
@@ -67,7 +55,7 @@ public class CasMaintenanceService : BackgroundService
                 _logger.LogError(ex, "Error during CAS maintenance cycle");
 
                 // Continue with next cycle after a delay
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(ErrorRetryDelayMinutes), stoppingToken);
             }
         }
 
@@ -86,11 +74,11 @@ public class CasMaintenanceService : BackgroundService
 
         if (gcResult.Success)
         {
-            _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Duration}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Duration);
+            _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Elapsed);
         }
         else
         {
-            _logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.ErrorMessage);
+            _logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.FirstError);
         }
 
         // Optionally run integrity validation periodically

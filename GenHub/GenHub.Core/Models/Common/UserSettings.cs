@@ -5,7 +5,7 @@ using System.Collections.Generic;
 namespace GenHub.Core.Models.Common;
 
 /// <summary>Represents application-level and user-specific settings for GenHub.</summary>
-public class UserSettings
+public class UserSettings : ICloneable
 {
     /// <summary>Gets or sets the application theme preference.</summary>
     public string? Theme { get; set; }
@@ -91,5 +91,37 @@ public class UserSettings
     public bool IsExplicitlySet(string propertyName)
     {
         return ExplicitlySetProperties.Contains(propertyName);
+    }
+
+    /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
+    /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
+    public object Clone()
+    {
+        return new UserSettings
+        {
+            Theme = Theme,
+            WindowWidth = WindowWidth,
+            WindowHeight = WindowHeight,
+            IsMaximized = IsMaximized,
+            WorkspacePath = WorkspacePath,
+            LastUsedProfileId = LastUsedProfileId,
+            LastSelectedTab = LastSelectedTab,
+            MaxConcurrentDownloads = MaxConcurrentDownloads,
+            AllowBackgroundDownloads = AllowBackgroundDownloads,
+            AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup,
+            LastUpdateCheckTimestamp = LastUpdateCheckTimestamp,
+            EnableDetailedLogging = EnableDetailedLogging,
+            DefaultWorkspaceStrategy = DefaultWorkspaceStrategy,
+            DownloadBufferSize = DownloadBufferSize,
+            DownloadTimeoutSeconds = DownloadTimeoutSeconds,
+            DownloadUserAgent = DownloadUserAgent,
+            SettingsFilePath = SettingsFilePath,
+            CachePath = CachePath,
+            ContentStoragePath = ContentStoragePath,
+            ContentDirectories = ContentDirectories != null ? new List<string>(ContentDirectories) : null,
+            GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? new List<string>(GitHubDiscoveryRepositories) : null,
+            ExplicitlySetProperties = new HashSet<string>(ExplicitlySetProperties),
+            CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
+        };
     }
 }

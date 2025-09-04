@@ -66,7 +66,7 @@ public class ModDBContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentId))

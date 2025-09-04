@@ -27,25 +27,25 @@ public partial class ContentItemViewModel : ObservableObject
     /// <summary>
     /// Gets the name of the content.
     /// </summary>
-    public string Name => Model.Name;
+    public string Name => Model.Name ?? string.Empty;
 
     /// <summary>
     /// Gets the description of the content.
     /// </summary>
-    public string Description => Model.Description;
+    public string Description => Model.Description ?? string.Empty;
 
     /// <summary>
     /// Gets the name of the content's author.
     /// </summary>
-    public string AuthorName => Model.AuthorName;
+    public string AuthorName => Model.AuthorName ?? string.Empty;
 
     /// <summary>
     /// Gets the version of the content.
     /// </summary>
-    public string Version => Model.Version;
+    public string Version => Model.Version ?? string.Empty;
 
     /// <summary>
     /// Gets the URL for the content's icon.
     /// </summary>
-    public string IconUrl => Model.IconUrl;
+    public string IconUrl => Model.IconUrl ?? string.Empty;
 }

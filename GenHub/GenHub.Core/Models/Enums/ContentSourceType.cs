@@ -1,5 +1,3 @@
-using System;
-
 namespace GenHub.Core.Models.Enums;
 
 /// <summary>
@@ -10,35 +8,35 @@ public enum ContentSourceType
     /// <summary>
     /// Content source is unknown or undefined (default).
     /// </summary>
-    Unknown = 0,
+    Unknown,
 
     /// <summary>
     /// Content comes from the base game installation.
     /// </summary>
-    GameInstallation = 1,
+    BaseGame,
 
     /// <summary>
     /// Content is stored in the Content-Addressable Storage (CAS) system.
     /// </summary>
-    ContentAddressable = 2,
+    ContentAddressable,
 
     /// <summary>
     /// Content is a local file on the filesystem.
     /// </summary>
-    LocalFile = 3,
+    LocalFile,
 
     /// <summary>
     /// Content needs to be downloaded from a remote URL.
     /// </summary>
-    RemoteDownload = 4,
+    RemoteDownload,
 
     /// <summary>
     /// Content is extracted from a package/archive file.
     /// </summary>
-    ExtractedPackage = 5,
+    ExtractedPackage,
 
     /// <summary>
     /// Content is a patch file that modifies existing content.
     /// </summary>
-    PatchFile = 6,
+    PatchFile,
 }

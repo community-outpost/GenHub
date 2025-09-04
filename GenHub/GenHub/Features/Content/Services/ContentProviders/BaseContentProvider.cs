@@ -128,7 +128,7 @@ public abstract class BaseContentProvider(
     /// <param name="contentId">The content identifier.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result containing the game manifest.</returns>
-    public abstract Task<ContentOperationResult<ContentManifest>> GetContentAsync(
+    public abstract Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 
@@ -146,7 +146,7 @@ public abstract class BaseContentProvider(
             // Validate manifest before preparation
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Validating,
+                Phase = ContentAcquisitionPhase.ValidatingManifest,
                 CurrentOperation = "Validating manifest structure...",
             });
 
@@ -156,8 +156,8 @@ public abstract class BaseContentProvider(
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    var errorMessage = string.Join("; ", errors.Select(e => e.Message));
-                    return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest validation failed: {errorMessage}");
+                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                        errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
 
@@ -175,18 +175,37 @@ public abstract class BaseContentProvider(
                 // Final validation of prepared content
                 progress?.Report(new ContentAcquisitionProgress
                 {
-                    Phase = ContentAcquisitionPhase.Completed,
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
                     CurrentOperation = "Validating prepared content...",
                 });
 
-                var integrityResult = await ContentValidator.ValidateContentIntegrityAsync(
+                // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
+                IProgress<ValidationProgress>? validationProgress = null;
+                if (progress != null)
+                {
+                    validationProgress = new Progress<ValidationProgress>(vp =>
+                    {
+                        // Map validation progress to content acquisition progress for UI display
+                        progress.Report(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.ValidatingFiles,
+                            ProgressPercentage = vp.PercentComplete,
+                            CurrentOperation = vp.CurrentFile ?? "Validating files",
+                            FilesProcessed = vp.Processed,
+                            TotalFiles = vp.Total,
+                        });
+                    });
+                }
+
+                var fullResult = await ContentValidator.ValidateAllAsync(
                     workingDirectory,
                     result.Data!,
-                    cancellationToken);
+                    validationProgress,
+                    cancellationToken: cancellationToken);
 
-                if (!integrityResult.IsValid)
+                if (!fullResult.IsValid)
                 {
-                    Logger.LogWarning("Content integrity validation found {IssueCount} issues for {ManifestId}", integrityResult.Issues.Count, manifest.Id);
+                    Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
                 }
             }
 
@@ -239,17 +258,37 @@ public abstract class BaseContentProvider(
         };
 
         // Copy screenshots and tags
-        resolved.Screenshots.Clear();
+        resolved.ScreenshotUrls.Clear();
         if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
-            foreach (var s in manifest.Metadata.ScreenshotUrls) resolved.Screenshots.Add(s);
+        {
+            foreach (var s in manifest.Metadata.ScreenshotUrls)
+            {
+                resolved.ScreenshotUrls.Add(s);
+            }
+        }
         else
-            foreach (var s in discovered.Screenshots) resolved.Screenshots.Add(s);
+        {
+            foreach (var s in discovered.ScreenshotUrls)
+            {
+                resolved.ScreenshotUrls.Add(s);
+            }
+        }
 
         resolved.Tags.Clear();
         if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)
-            foreach (var t in manifest.Metadata.Tags) resolved.Tags.Add(t);
+        {
+            foreach (var t in manifest.Metadata.Tags)
+            {
+                resolved.Tags.Add(t);
+            }
+        }
         else
-            foreach (var t in discovered.Tags) resolved.Tags.Add(t);
+        {
+            foreach (var t in discovered.Tags)
+            {
+                resolved.Tags.Add(t);
+            }
+        }
 
         resolved.SetData(manifest);
         return resolved;

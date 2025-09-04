@@ -328,7 +328,7 @@ public class FileOperationsService(
     /// <inheritdoc/>
     public async Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
     {
-        // This is a placeholder for a real patch implementation.
+        // TODO: This is a placeholder for a real patch implementation.
         // A real implementation would read the patch file and apply transformations
         // to the target file. For example, using a library for diff/patch or JSON Patch.
         _logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);

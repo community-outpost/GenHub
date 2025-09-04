@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Storage;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
@@ -16,28 +17,16 @@ namespace GenHub.Features.Storage.Services;
 /// <summary>
 /// Tracks references to CAS objects for garbage collection purposes.
 /// </summary>
-public class CasReferenceTracker
+public class CasReferenceTracker(
+    IOptions<CasConfiguration> config,
+    ILogger<CasReferenceTracker> logger)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private readonly CasConfiguration _config;
-    private readonly ILogger<CasReferenceTracker> _logger;
-    private readonly string _refsDirectory;
+    private readonly CasConfiguration _config = config.Value;
+    private readonly ILogger<CasReferenceTracker> _logger = logger;
+    private readonly string _refsDirectory = Path.Combine(config.Value.CasRootPath, "refs");
 
     private readonly SemaphoreSlim _writeSemaphore = new(1, 1);
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CasReferenceTracker"/> class.
-    /// </summary>
-    /// <param name="config">CAS configuration.</param>
-    /// <param name="logger">Logger instance.</param>
-    public CasReferenceTracker(IOptions<CasConfiguration> config, ILogger<CasReferenceTracker> logger)
-    {
-        _config = config.Value;
-        _logger = logger;
-        _refsDirectory = Path.Combine(_config.CasRootPath, "refs");
-
-        EnsureRefsDirectory();
-    }
 
     /// <summary>
     /// Tracks references from a game manifest.
@@ -48,14 +37,16 @@ public class CasReferenceTracker
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task TrackManifestReferencesAsync(string manifestId, ContentManifest manifest, CancellationToken cancellationToken = default)
     {
+        // Validate parameters before acquiring semaphore
+        if (string.IsNullOrWhiteSpace(manifestId))
+            throw new ArgumentException("Manifest ID cannot be null or empty", nameof(manifestId));
+        if (manifest == null)
+            throw new ArgumentNullException(nameof(manifest));
+
+        EnsureRefsDirectory();
         await _writeSemaphore.WaitAsync(cancellationToken);
         try
         {
-            if (string.IsNullOrWhiteSpace(manifestId))
-                throw new ArgumentException("Manifest ID cannot be null or empty", nameof(manifestId));
-            if (manifest == null)
-                throw new ArgumentNullException(nameof(manifest));
-
             try
             {
                 EnsureRefsDirectory();
@@ -300,10 +291,7 @@ public class CasReferenceTracker
 
         foreach (var directory in requiredDirectories)
         {
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            FileOperationsService.EnsureDirectoryExists(directory);
         }
     }
 }

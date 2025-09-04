@@ -18,7 +18,7 @@ namespace GenHub.Features.Workspace.Strategies;
 /// <remarks>
 /// HybridCopySymlinkStrategy provides a balance between copying essential files and symlinking large files.
 /// </remarks>
-public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopySymlinkStrategy>
+public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperations, ILogger<HybridCopySymlinkStrategy> logger) : WorkspaceStrategyBase<HybridCopySymlinkStrategy>(fileOperations, logger)
 {
     private const long LinkOverheadBytes = 1024L;
 
@@ -53,9 +53,8 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        long totalUsage = 0;
-
-        foreach (var manifest in configuration.Manifests)
+        long estimatedSize = 0;
+        foreach (var file in configuration.Manifest.Files)
         {
             foreach (var file in manifest.Files)
             {
@@ -83,7 +82,6 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
         Logger.LogInformation("Preparing workspace using hybrid copy-symlink strategy for {WorkspaceId}", configuration.Id);
         var workspaceInfo = CreateBaseWorkspaceInfo(configuration);
         var workspacePath = workspaceInfo.WorkspacePath;
-
         try
         {
             // Allow cancellation to propagate for tests
@@ -98,13 +96,21 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
 
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
-            var totalFiles = configuration.Manifests.SelectMany(m => m.Files).Count();
+            var totalFiles = configuration.Manifest.Files.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
+            var estimatedTotalBytes = EstimateDiskUsage(configuration);
             var copiedFiles = 0;
             var symlinkedFiles = 0;
+            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
 
-            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
+            // Pre-classify files for reporting
+            var essentialCount = configuration.Manifest.Files.Count(f => IsEssentialFile(f.RelativePath, f.Size));
+            var nonEssentialCount = totalFiles - essentialCount;
+            Logger.LogDebug(
+                "Classified {EssentialCount} essential files (will copy) and {NonEssentialCount} non-essential files (will symlink)",
+                essentialCount,
+                nonEssentialCount);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
@@ -114,10 +120,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                 var destinationPath = Path.Combine(workspacePath, file.RelativePath);
                 var isEssential = IsEssentialFile(file.RelativePath, file.Size);
 
-                FileOperationsService.EnsureDirectoryExists(destinationPath);
-
-                // Handle different source types
-                if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                try
                 {
                     // Use CAS content
                     var shouldCopy = ShouldCopyFile(file);
@@ -143,30 +146,68 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                         continue;
                     }
 
-                    if (isEssential)
+                    // Handle different source types
+                    if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        // Copy essential files
-                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                        copiedFiles++;
-                        totalBytesProcessed += file.Size;
-
-                        // Verify file integrity if hash is provided
-                        if (!string.IsNullOrEmpty(file.Hash))
+                        // Use CAS content
+                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                        if (isEssential)
                         {
-                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                            if (!hashValid)
-                            {
-                                Logger.LogWarning("Hash verification failed for essential file: {RelativePath}", file.RelativePath);
-                            }
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
+                        else
+                        {
+                            symlinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes;
                         }
                     }
                     else
                     {
-                        // Create symlinks for non-essential files
-                        await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, cancellationToken);
-                        symlinkedFiles++;
-                        totalBytesProcessed += LinkOverheadBytes; // Approximate symlink overhead
+                        // Use regular file from base installation
+                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+
+                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        {
+                            continue;
+                        }
+
+                        if (isEssential)
+                        {
+                            // Copy essential files
+                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+
+                            // Verify file integrity if hash is provided
+                            if (!string.IsNullOrEmpty(file.Hash))
+                            {
+                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                                if (!hashValid)
+                                {
+                                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Create symlinks for non-essential files
+                            await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, cancellationToken);
+                            symlinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes; // Approximate symlink overhead
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    var operation = isEssential ? "copy" : "create symlink for";
+                    Logger.LogError(
+                        ex,
+                        "Failed to {Operation} file {RelativePath} to {DestinationPath}",
+                        operation,
+                        file.RelativePath,
+                        destinationPath);
+                    throw new InvalidOperationException($"Failed to {operation} file {file.RelativePath}: {ex.Message}", ex);
                 }
 
                 processedFiles++;
@@ -175,8 +216,6 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
-            workspaceInfo.Success = true;
-
             Logger.LogInformation(
                 "Hybrid copy-symlink workspace prepared successfully at {WorkspacePath} with {CopiedCount} copied files and {SymlinkedCount} symlinks ({TotalSize} bytes)",
                 workspacePath,
@@ -195,9 +234,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
         {
             Logger.LogError(ex, "Failed to prepare hybrid copy-symlink workspace at {WorkspacePath}", workspacePath);
             CleanupWorkspaceOnFailure(workspacePath);
-            workspaceInfo.Success = false;
-            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
-            return workspaceInfo;
+            throw;
         }
     }
 
@@ -253,7 +290,7 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
                 var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
                 if (!hashValid)
                 {
-                    Logger.LogWarning("Hash verification failed for essential file: {RelativePath}", file.RelativePath);
+                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
                 }
             }
         }
@@ -262,17 +299,6 @@ public sealed class HybridCopySymlinkStrategy : WorkspaceStrategyBase<HybridCopy
             // Create symlinks for non-essential files
             await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
         }
-    }
-
-    /// <summary>
-    /// Determines if a file should be copied instead of symlinked.
-    /// </summary>
-    /// <param name="file">The manifest file to check.</param>
-    /// <returns>True if the file should be copied, false if it should be symlinked.</returns>
-    private static bool ShouldCopyFile(ManifestFile file)
-    {
-        return WorkspaceStrategyBase<HybridCopySymlinkStrategy>
-            .IsEssentialFile(file.RelativePath, file.Size);
     }
 
     private bool ShouldCopyFile(string targetPath)

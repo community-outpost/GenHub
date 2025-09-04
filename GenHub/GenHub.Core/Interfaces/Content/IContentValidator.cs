@@ -37,4 +37,14 @@ public interface IContentValidator
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Validation result containing any extraneous files found.</returns>
     Task<ValidationResult> DetectExtraneousFilesAsync(string contentPath, ContentManifest manifest, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs full validation for a manifest and its files (manifest structure, file integrity and extraneous files).
+    /// </summary>
+    /// <param name="contentPath">Path to the content directory to validate.</param>
+    /// <param name="manifest">The manifest to validate against.</param>
+    /// <param name="progress">Optional progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Validation result containing any issues found.</returns>
+    Task<ValidationResult> ValidateAllAsync(string contentPath, ContentManifest manifest, IProgress<GenHub.Core.Models.Validation.ValidationProgress>? progress = null, CancellationToken cancellationToken = default);
 }

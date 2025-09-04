@@ -1,51 +1,32 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
 /// <summary>
 /// High-level Content-Addressable Storage service with coordination and validation.
 /// </summary>
-public class CasService : ICasService
+public class CasService(
+    ICasStorage storage,
+    CasReferenceTracker referenceTracker,
+    ILogger<CasService> logger,
+    IOptions<CasConfiguration> config,
+    IFileHashProvider fileHashProvider,
+    IStreamHashProvider streamHashProvider) : ICasService
 {
-    private readonly ICasStorage _storage;
-    private readonly CasReferenceTracker _referenceTracker;
-    private readonly ILogger<CasService> _logger;
-    private readonly CasConfiguration _config;
-    private readonly IFileHashProvider _fileHashProvider;
-    private readonly IStreamHashProvider _streamHashProvider;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CasService"/> class.
-    /// </summary>
-    /// <param name="storage">Low-level CAS storage.</param>
-    /// <param name="referenceTracker">Reference tracking service.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="config">CAS configuration.</param>
-    /// <param name="fileHashProvider">File hash provider.</param>
-    /// <param name="streamHashProvider">Stream hash provider.</param>
-    public CasService(
-        ICasStorage storage,
-        CasReferenceTracker referenceTracker,
-        ILogger<CasService> logger,
-        IOptions<CasConfiguration> config,
-        IFileHashProvider fileHashProvider,
-        IStreamHashProvider streamHashProvider)
-    {
-        _storage = storage;
-        _referenceTracker = referenceTracker;
-        _logger = logger;
-        _config = config.Value;
-        _fileHashProvider = fileHashProvider;
-        _streamHashProvider = streamHashProvider;
-    }
+    private readonly ICasStorage _storage = storage;
+    private readonly CasReferenceTracker _referenceTracker = referenceTracker;
+    private readonly ILogger<CasService> _logger = logger;
+    private readonly CasConfiguration _config = config.Value;
+    private readonly IFileHashProvider _fileHashProvider = fileHashProvider;
+    private readonly IStreamHashProvider _streamHashProvider = streamHashProvider;
 
     /// <inheritdoc/>
     public async Task<CasOperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
@@ -84,7 +65,12 @@ public class CasService : ICasService
 
             // Store content in CAS
             await using var sourceStream = File.OpenRead(sourcePath);
-            await _storage.StoreObjectAsync(sourceStream, hash, cancellationToken);
+            var storedPath = await _storage.StoreObjectAsync(sourceStream, hash, cancellationToken);
+
+            if (storedPath == null)
+            {
+                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+            }
 
             _logger.LogInformation("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
             return CasOperationResult<string>.CreateSuccess(hash);
@@ -139,7 +125,12 @@ public class CasService : ICasService
             }
 
             // Store content in CAS
-            await _storage.StoreObjectAsync(contentStream, hash, cancellationToken);
+            var storedPath = await _storage.StoreObjectAsync(contentStream, hash, cancellationToken);
+
+            if (storedPath == null)
+            {
+                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+            }
 
             _logger.LogInformation("Stored content in CAS: {Hash}", hash);
             return CasOperationResult<string>.CreateSuccess(hash);
@@ -192,6 +183,11 @@ public class CasService : ICasService
         try
         {
             var stream = await _storage.OpenObjectStreamAsync(hash, cancellationToken);
+            if (stream == null)
+            {
+                return CasOperationResult<Stream>.CreateFailure($"Content not found in CAS: {hash}");
+            }
+
             return CasOperationResult<Stream>.CreateSuccess(stream);
         }
         catch (Exception ex)
@@ -205,7 +201,7 @@ public class CasService : ICasService
     public async Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
-        var result = new CasGarbageCollectionResult { Success = true };
+        var result = new CasGarbageCollectionResult(true, (string?)null);
 
         try
         {
@@ -223,7 +219,7 @@ public class CasService : ICasService
             var unreferencedHashes = System.Linq.Enumerable.Except(allHashes, referencedHashes);
 
             // Use configurable grace period
-            var gracePeriod = _config.GarbageCollectionGracePeriod;
+            var gracePeriod = _config.GcGracePeriod;
             long bytesFreed = 0;
             int objectsDeleted = 0;
 
@@ -232,7 +228,7 @@ public class CasService : ICasService
                 try
                 {
                     var creationTime = await _storage.GetObjectCreationTimeAsync(hash, cancellationToken);
-                    if (DateTime.UtcNow - creationTime > gracePeriod)
+                    if (creationTime == null || DateTime.UtcNow - creationTime.Value > gracePeriod)
                     {
                         // Get size before deletion
                         var objectPath = _storage.GetObjectPath(hash);
@@ -254,16 +250,13 @@ public class CasService : ICasService
 
             result.ObjectsDeleted = objectsDeleted;
             result.BytesFreed = bytesFreed;
-            result.Duration = DateTime.UtcNow - startTime;
 
             _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed} bytes freed", objectsDeleted, bytesFreed);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CAS garbage collection failed");
-            result.Success = false;
-            result.ErrorMessage = ex.Message;
-            result.Duration = DateTime.UtcNow - startTime;
+            result = new CasGarbageCollectionResult(false, ex.Message, DateTime.UtcNow - startTime);
         }
 
         return result;
@@ -349,7 +342,6 @@ public class CasService : ICasService
             var stats = new CasStats
             {
                 ObjectCount = allHashes.Length,
-                UniqueObjects = allHashes.Length,
             };
 
             // Calculate total size

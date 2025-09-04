@@ -18,10 +18,10 @@ public interface IConfigurationProviderService
     string GetWorkspacePath();
 
     /// <summary>
-    /// Gets the effective cache directory path.
+    /// Gets the effective cache path.
     /// </summary>
-    /// <returns>The cache directory path as a string.</returns>
-    string GetCacheDirectory();
+    /// <returns>The cache path as a string.</returns>
+    string GetCachePath();
 
     /// <summary>
     /// Gets the effective maximum number of concurrent downloads.
@@ -109,21 +109,21 @@ public interface IConfigurationProviderService
     UserSettings GetEffectiveSettings();
 
     /// <summary>
-    /// Gets the list of content directories for local discovery.
+    /// Gets the effective content directories for local discovery.
     /// </summary>
-    /// <returns>A list of content directory paths.</returns>
+    /// <returns>List of content directories.</returns>
     List<string> GetContentDirectories();
 
     /// <summary>
-    /// Gets the list of GitHub repositories for discovery.
+    /// Gets the effective GitHub repositories for discovery.
     /// </summary>
-    /// <returns>A list of GitHub repositories in "owner/repo" format.</returns>
+    /// <returns>List of GitHub repositories in "owner/repo" format.</returns>
     List<string> GetGitHubDiscoveryRepositories();
 
     /// <summary>
-    /// Gets the content storage path.
+    /// Gets the effective content storage path.
     /// </summary>
-    /// <returns>The content storage path.</returns>
+    /// <returns>The content storage path as a string.</returns>
     string GetContentStoragePath();
 
     /// <summary>
@@ -131,10 +131,4 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The CAS configuration.</returns>
     CasConfiguration GetCasConfiguration();
-
-    /// <summary>
-    /// Gets the effective user data path for application data storage.
-    /// </summary>
-    /// <returns>The user data path to use.</returns>
-    string GetUserDataPath();
 }

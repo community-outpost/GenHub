@@ -1,252 +1,192 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Workspace;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Launching
+namespace GenHub.Features.Launching;
+
+/// <summary>
+/// Service for launching games from prepared workspaces.
+/// </summary>
+public class GameLauncher(
+    ILogger<GameLauncher> logger) : IGameLauncher
 {
     /// <summary>
-    /// Service for launching games from prepared workspaces.
+    /// Launches a game using the provided configuration.
     /// </summary>
-    public class GameLauncher : IGameLauncher
+    /// <param name="config">The game launch configuration.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchResult"/> representing the result of the launch operation.</returns>
+    public async Task<LaunchResult> LaunchGameAsync(GameLaunchConfiguration config, CancellationToken cancellationToken = default)
     {
-        private readonly IGameProfileManager _profileManager;
-        private readonly IWorkspaceManager _workspaceManager;
-        private readonly IContentManifestPool _manifestPool;
-        private readonly IGameProcessManager _processManager;
-        private readonly ILaunchRegistry _launchRegistry;
-        private readonly ILogger<GameLauncher> _logger;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GameLauncher"/> class.
-        /// </summary>
-        /// <param name="profileManager">The game profile manager.</param>
-        /// <param name="workspaceManager">The workspace manager.</param>
-        /// <param name="manifestPool">The game manifest pool.</param>
-        /// <param name="processManager">The game process manager.</param>
-        /// <param name="launchRegistry">The launch registry.</param>
-        /// <param name="logger">The logger.</param>
-        public GameLauncher(
-            IGameProfileManager profileManager,
-            IWorkspaceManager workspaceManager,
-            IContentManifestPool manifestPool,
-            IGameProcessManager processManager,
-            ILaunchRegistry launchRegistry,
-            ILogger<GameLauncher> logger)
+        if (string.IsNullOrEmpty(config.ExecutablePath))
+            return LaunchResult.CreateFailure("Executable path cannot be null or empty", null);
+        try
         {
-            _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-            _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
-            _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-            _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
-            _launchRegistry = launchRegistry ?? throw new ArgumentNullException(nameof(launchRegistry));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        }
-
-        /// <inheritdoc/>
-        public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
-
-                // Get the profile
-                var profileResult = await _profileManager.GetProfileAsync(profileId, cancellationToken);
-                if (profileResult.Failed)
+            return await Task.Run(
+                () =>
                 {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure(profileResult.FirstError!);
-                }
-
-                var profile = profileResult.Data!;
-                return await LaunchProfileAsync(profile, progress, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // Convert to TaskCanceledException for test expectations
-                throw new TaskCanceledException();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to launch profile {ProfileId}", profileId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
-            }
-        }
-
-        /// <inheritdoc/>
-        public async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (profile == null)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Profile cannot be null");
-                }
-
-                // Generate launch ID at the beginning
-                var launchId = Guid.NewGuid().ToString();
-
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
-
-                var manifests = new List<ContentManifest>();
-                if (profile.EnabledContentIds.Any())
-                {
-                    foreach (var contentId in profile.EnabledContentIds)
+                    var startTime = DateTime.UtcNow;
+                    using var process = new Process
                     {
-                        var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
-                        if (manifestResult.Failed)
+                        StartInfo = new ProcessStartInfo
                         {
-                            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content with ID: {contentId}. Reason: {manifestResult.FirstError}", launchId, profile.Id);
-                        }
+                            FileName = config.ExecutablePath,
+                            WorkingDirectory = config.WorkingDirectory,
+                            Arguments = config.Arguments != null ? string.Join(" ", config.Arguments.Select(kvp => $"{kvp.Key} {kvp.Value}")) : string.Empty,
+                            UseShellExecute = false,
+                        },
+                    };
+                    if (!process.Start())
+                        return LaunchResult.CreateFailure("Failed to start process", null);
+                    var launchTime = DateTime.UtcNow - startTime;
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchTime);
+                }, cancellationToken);
+        }
+        catch (System.Exception ex)
+        {
+            logger.LogError(ex, "Failed to launch game");
+            return LaunchResult.CreateFailure(ex.Message, ex);
+        }
+    }
 
-                        if (manifestResult.Data != null)
-                        {
-                            manifests.Add(manifestResult.Data);
-                        }
-                        else
-                        {
-                            // This case indicates success but null data, which is unexpected for a required manifest.
-                            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content: Manifest for content ID '{contentId}' was not found.", launchId, profile.Id);
-                        }
+    /// <summary>
+    /// Gets information about a game process by its process ID.
+    /// </summary>
+    /// <param name="processId">The process ID of the game process.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="GameProcessInfo"/> containing the process information, or null if the process is not found.</returns>
+    public async Task<GameProcessInfo?> GetGameProcessInfoAsync(int processId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Task.Run(
+                () =>
+                {
+                    using var process = Process.GetProcessById(processId);
+
+                    // Note: StartInfo properties are often not available for external processes
+                    var workingDirectory = string.Empty;
+                    var commandLine = string.Empty;
+
+                    try
+                    {
+                        workingDirectory = process.StartInfo.WorkingDirectory ?? string.Empty;
+                        commandLine = process.StartInfo.Arguments ?? string.Empty;
                     }
-                }
+                    catch
+                    {
+                        // StartInfo properties may not be accessible for external processes
+                    }
 
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 40 });
-
-                var workspaceConfig = new WorkspaceConfiguration
-                {
-                    Id = profile.Id,
-                    Manifests = manifests,
-                    Strategy = profile.PreferredStrategy,
-                    GameVersion = profile.GameVersion, // Pass the whole GameVersion object
-                    BaseInstallationPath = profile.GameVersion?.ExecutablePath != null
-                        ? Path.GetDirectoryName(profile.GameVersion.ExecutablePath) ?? string.Empty
-                        : string.Empty,
-                };
-
-                var workspaceProgress = progress == null ? null : new Progress<WorkspacePreparationProgress>(p =>
-                {
-                    // Translate workspace progress (0-100) to the launch progress slice (40-90)
-                    var launchPercent = 40 + (int)(p.PercentComplete * 0.5);
-                    progress.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = launchPercent });
-                });
-
-                var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken);
-                if (workspaceResult.Failed)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceResult.FirstError!, launchId, profile.Id);
-                }
-
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-
-                var launchConfig = new GameLaunchConfiguration
-                {
-                    ExecutablePath = workspaceResult.Data!.ExecutablePath, // Use executable from workspace info
-                    WorkingDirectory = workspaceResult.Data!.WorkspacePath,
-                    Arguments = profile.LaunchArguments,
-                    EnvironmentVariables = profile.EnvironmentVariables,
-                };
-
-                var processResult = await _processManager.StartProcessAsync(launchConfig, cancellationToken);
-                if (processResult.Failed)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError!, launchId, profile.Id);
-                }
-
-                var launchInfo = new GameLaunchInfo
-                {
-                    LaunchId = launchId,
-                    ProfileId = profile.Id,
-                    WorkspaceId = workspaceResult.Data!.Id,
-                    ProcessInfo = processResult.Data!,
-                    LaunchedAt = DateTime.UtcNow,
-                };
-
-                await _launchRegistry.RegisterLaunchAsync(launchInfo);
-
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
-
-                _logger.LogInformation("Successfully launched profile: {ProfileName}", profile.Name);
-                return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchInfo.LaunchId, profile.Id);
-            }
-            catch (OperationCanceledException)
-            {
-                // Convert to TaskCanceledException for test expectations
-                throw new TaskCanceledException();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to launch profile {ProfileId}", profile?.Id ?? "unknown");
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
-            }
+                    return new GameProcessInfo
+                    {
+                        ProcessId = process.Id,
+                        ProcessName = process.ProcessName,
+                        StartTime = process.StartTime,
+                        WorkingDirectory = workingDirectory,
+                        CommandLine = commandLine,
+                        IsResponding = process.Responding,
+                    };
+                }, cancellationToken);
         }
-
-        /// <inheritdoc/>
-        public async Task<LaunchOperationResult<GameLaunchInfo>> TerminateGameAsync(string launchId, CancellationToken cancellationToken = default)
+        catch (System.Exception ex)
         {
-            var launchInfo = await _launchRegistry.GetLaunchInfoAsync(launchId);
-            if (launchInfo == null)
-            {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Launch ID not found.", launchId);
-            }
-
-            var terminateResult = await _processManager.TerminateProcessAsync(launchInfo.ProcessInfo.ProcessId, cancellationToken);
-
-            // Always unregister from registry, even if termination failed
-            await _launchRegistry.UnregisterLaunchAsync(launchId);
-
-            if (terminateResult.Failed)
-            {
-                _logger.LogWarning("Process termination failed for Launch ID: {LaunchId}, but unregistered from registry", launchId);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(terminateResult.FirstError!, launchId, launchInfo.ProfileId);
-            }
-
-            _logger.LogInformation("Successfully terminated game with Launch ID: {LaunchId}", launchId);
-            return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, launchInfo.ProfileId);
+            logger.LogError(ex, "Failed to get game process info for process ID {ProcessId}", processId);
+            return null;
         }
+    }
 
-        /// <inheritdoc/>
-        public async Task<LaunchOperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveGamesAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Terminates a game process by its process ID.
+    /// </summary>
+    /// <param name="processId">The process ID of the game process to terminate.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>True if the process was terminated successfully, false otherwise.</returns>
+    public async Task<bool> TerminateGameAsync(int processId, CancellationToken cancellationToken = default)
+    {
+        try
         {
-            var processResult = await _processManager.GetActiveProcessesAsync(cancellationToken);
-            if (processResult.Failed)
+            using var process = Process.GetProcessById(processId);
+
+            // Try graceful termination first
+            if (!process.CloseMainWindow())
             {
-                return LaunchOperationResult<IReadOnlyList<GameProcessInfo>>.CreateFailure(error: processResult.FirstError!);
+                // If graceful close fails, wait a bit then force kill
+                await Task.Delay(2000, cancellationToken);
+                if (!process.HasExited)
+                    process.Kill();
             }
 
-            return LaunchOperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess(processResult.Data!);
+            return true;
         }
-
-        /// <inheritdoc/>
-        public async Task<LaunchOperationResult<GameProcessInfo>> GetGameProcessInfoAsync(string launchId, CancellationToken cancellationToken = default)
+        catch (System.Exception ex)
         {
-            var launchInfo = await _launchRegistry.GetLaunchInfoAsync(launchId);
-            if (launchInfo == null)
-            {
-                return LaunchOperationResult<GameProcessInfo>.CreateFailure("Launch ID not found.", launchId);
-            }
-
-            var processInfoResult = await _processManager.GetProcessInfoAsync(launchInfo.ProcessInfo.ProcessId, cancellationToken);
-            if (processInfoResult.Failed)
-            {
-                return LaunchOperationResult<GameProcessInfo>.CreateFailure(processInfoResult.FirstError!, launchId, launchInfo.ProfileId);
-            }
-
-            return LaunchOperationResult<GameProcessInfo>.CreateSuccess(processInfoResult.Data!, launchId, launchInfo.ProfileId);
+            logger.LogError(ex, "Failed to terminate game process with ID {ProcessId}", processId);
+            return false;
         }
+    }
+
+    /// <summary>
+    /// Launches a game profile by its ID.
+    /// </summary>
+    /// <param name="profileId">The ID of the game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Launches a game using the provided game profile object.
+    /// </summary>
+    /// <param name="profile">The game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
+    public Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Gets a list of all active game processes managed by the launcher.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{T}"/> containing the list of active game processes.</returns>
+    public Task<LaunchOperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveGamesAsync(CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Gets information about a specific game process by its launch ID.
+    /// </summary>
+    /// <param name="launchId">The launch ID of the game process.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameProcessInfo}"/> containing the process information.</returns>
+    public Task<LaunchOperationResult<GameProcessInfo>> GetGameProcessInfoAsync(string launchId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Terminates a running game instance by its launch ID.
+    /// </summary>
+    /// <param name="launchId">The launch ID of the running game instance.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the termination operation.</returns>
+    public Task<LaunchOperationResult<GameLaunchInfo>> TerminateGameAsync(string launchId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
     }
 }

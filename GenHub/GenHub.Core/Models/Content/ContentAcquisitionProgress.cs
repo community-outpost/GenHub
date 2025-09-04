@@ -11,7 +11,6 @@ public class ContentAcquisitionProgress
 {
     /// <summary>
     /// Gets or sets the current phase of acquisition.
-    /// Common values: "Downloading", "Extracting", "Scanning", "Transforming".
     /// </summary>
     public ContentAcquisitionPhase Phase { get; set; } = ContentAcquisitionPhase.Downloading;
 

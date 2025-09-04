@@ -17,7 +17,7 @@ public interface IValidator<in T>
     /// </summary>
     /// <param name="item">The item to validate.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A validation result.</returns>
+    /// <returns>A task that yields a <see cref="ValidationResult"/> describing validation errors/warnings.</returns>
     Task<ValidationResult> ValidateAsync(T item, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -26,7 +26,7 @@ public interface IValidator<in T>
     /// <param name="item">The item to validate.</param>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A validation result.</returns>
+    /// <returns>A task that yields a <see cref="ValidationResult"/>. Progress may be reported via the provided <see cref="IProgress{ValidationProgress}"/>.</returns>
     Task<ValidationResult> ValidateAsync(
         T item,
         IProgress<ValidationProgress>? progress,
