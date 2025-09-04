@@ -37,15 +37,16 @@ public class CasReferenceTracker(
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task TrackManifestReferencesAsync(string manifestId, ContentManifest manifest, CancellationToken cancellationToken = default)
     {
+        // Validate parameters before acquiring semaphore
+        if (string.IsNullOrWhiteSpace(manifestId))
+            throw new ArgumentException("Manifest ID cannot be null or empty", nameof(manifestId));
+        if (manifest == null)
+            throw new ArgumentNullException(nameof(manifest));
+
         EnsureRefsDirectory();
         await _writeSemaphore.WaitAsync(cancellationToken);
         try
         {
-            if (string.IsNullOrWhiteSpace(manifestId))
-                throw new ArgumentException("Manifest ID cannot be null or empty", nameof(manifestId));
-            if (manifest == null)
-                throw new ArgumentNullException(nameof(manifest));
-
             try
             {
                 EnsureRefsDirectory();
