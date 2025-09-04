@@ -124,7 +124,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 $"{gameType}_{version}_{installationType}",
                 $"{gameType} {version}",
                 version)
-            .WithContentType(ContentType.BaseGame, gameType)
+            .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(
                 "EA Games",
                 "https://www.ea.com",
@@ -160,7 +160,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var builder = CreateBuilder()
             .WithBasicInfo(gameId, gameName, gameVersion)
-            .WithContentType(ContentType.StandaloneVersion, GameType.Generals)
+            .WithContentType(ContentType.GameClient, GameType.Generals)
             .WithMetadata($"Standalone game version: {gameName}")
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 
@@ -176,28 +176,31 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <summary>
     /// Creates a publisher referral manifest.
     /// </summary>
-    /// <param name="referralId">The referral identifier.</param>
-    /// <param name="referralName">The referral name.</param>
-    /// <param name="targetPublisherId">The target publisher identifier.</param>
-    /// <param name="referralUrl">The referral URL.</param>
-    /// <param name="description">The description.</param>
+    /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
+    /// <param name="referralName">Display name for the referral.</param>
+    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="targetPublisherId">The target publisher id being referred to.</param>
+    /// <param name="referralUrl">The URL for the referral.</param>
+    /// <param name="description">Optional description for the referral.</param>
     /// <returns>The created <see cref="ContentManifest"/>.</returns>
     public Task<ContentManifest> CreatePublisherReferralAsync(
-        string referralId,
+        string publisherId,
         string referralName,
+        string referralVersion,
         string targetPublisherId,
         string referralUrl,
         string description)
     {
         _logger.LogInformation(
             "Creating publisher referral {ReferralId} to {TargetPublisherId}",
-            referralId,
+            $"{publisherId}.{referralName}.{referralVersion}",
             targetPublisherId);
 
         var referral = new ContentManifest
         {
-            Id = referralId,
+            Id = $"{publisherId}.{referralName}.{referralVersion}",
             Name = referralName,
+            Version = referralVersion,
             ContentType = ContentType.PublisherReferral,
             Metadata = new ContentMetadata
             {
@@ -217,16 +220,18 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <summary>
     /// Creates a content referral manifest.
     /// </summary>
-    /// <param name="referralId">The referral identifier.</param>
-    /// <param name="referralName">The referral name.</param>
-    /// <param name="targetContentId">The target content identifier.</param>
-    /// <param name="targetPublisherId">The target publisher identifier.</param>
-    /// <param name="referralUrl">The referral URL.</param>
-    /// <param name="description">The description.</param>
+    /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
+    /// <param name="referralName">Display name for the referral.</param>
+    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="targetContentId">The id of the content being referred to.</param>
+    /// <param name="targetPublisherId">The publisher id of the target content.</param>
+    /// <param name="referralUrl">The URL for the referral.</param>
+    /// <param name="description">Optional description for the referral.</param>
     /// <returns>The created <see cref="ContentManifest"/>.</returns>
     public Task<ContentManifest> CreateContentReferralAsync(
-        string referralId,
+        string publisherId,
         string referralName,
+        string referralVersion,
         string targetContentId,
         string targetPublisherId,
         string referralUrl,
@@ -234,13 +239,14 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     {
         _logger.LogInformation(
             "Creating content referral {ReferralId} to {TargetContentId}",
-            referralId,
+            $"{publisherId}.{referralName}.{referralVersion}",
             targetContentId);
 
         var referral = new ContentManifest
         {
-            Id = referralId,
+            Id = $"{publisherId}.{referralName}.{referralVersion}",
             Name = referralName,
+            Version = referralVersion,
             ContentType = ContentType.ContentReferral,
             Metadata = new ContentMetadata
             {

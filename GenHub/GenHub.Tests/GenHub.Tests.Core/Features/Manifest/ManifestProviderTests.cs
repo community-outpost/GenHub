@@ -30,6 +30,11 @@ public class ManifestProviderTests
     private readonly Mock<IManifestCache> _cacheMock;
 
     /// <summary>
+    /// Mock manifest ID service.
+    /// </summary>
+    private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+
+    /// <summary>
     /// The manifest provider under test.
     /// </summary>
     private readonly ManifestProvider _manifestProvider;
@@ -41,7 +46,8 @@ public class ManifestProviderTests
     {
         _loggerMock = new Mock<ILogger<ManifestProvider>>();
         _cacheMock = new Mock<IManifestCache>();
-        _manifestProvider = new ManifestProvider(_loggerMock.Object, _cacheMock.Object);
+        _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _manifestProvider = new ManifestProvider(_loggerMock.Object, _cacheMock.Object, _manifestIdServiceMock.Object);
     }
 
     /// <summary>

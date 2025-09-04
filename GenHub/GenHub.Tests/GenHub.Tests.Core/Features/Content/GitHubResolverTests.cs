@@ -71,7 +71,7 @@ public class GitHubResolverTests
 
         // Setup manifest builder chaining and Build()
         var manifestBuilder = _manifestBuilderMock;
-        manifestBuilder.Setup(m => m.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+        manifestBuilder.Setup(m => m.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>()))
             .Returns(manifestBuilder.Object);

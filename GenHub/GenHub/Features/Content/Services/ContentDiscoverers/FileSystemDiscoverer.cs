@@ -141,7 +141,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
     {
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
             !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
-            !manifest.Id.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
+            !manifest.Id.Value.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

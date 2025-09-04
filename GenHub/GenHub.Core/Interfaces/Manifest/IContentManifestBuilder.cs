@@ -11,12 +11,15 @@ public interface IContentManifestBuilder
 {
     /// <summary>
     /// Sets basic content information.
+    /// For publisher content, call WithBasicInfo(publisherId, contentName, version, isBaseGame: false).
+    /// For base game installations, call WithBasicInfo(installationType, gameTypeOrName, version, isBaseGame: true).
     /// </summary>
-    /// <param name="id">The unique content identifier.</param>
-    /// <param name="name">The display name.</param>
-    /// <param name="version">The content version.</param>
+    /// <param name="publisherOrInstallType">Publisher id for publisher content, or installation type name for base game manifests.</param>
+    /// <param name="contentNameOrGameType">Content display name or game type (e.g., "zerohour").</param>
+    /// <param name="version">Content or game version.</param>
+    /// <param name="isBaseGame">True when generating a base game installation manifest.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithBasicInfo(string id, string name, string version);
+    IContentManifestBuilder WithBasicInfo(string publisherOrInstallType, string contentNameOrGameType, string version, bool isBaseGame = false);
 
     /// <summary>
     /// Sets the content type and target game.

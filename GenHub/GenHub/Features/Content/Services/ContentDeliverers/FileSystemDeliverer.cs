@@ -1,11 +1,13 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -100,7 +102,8 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                _hashProvider);
+                _hashProvider,
+                null!);
 
             manifestBuilder
                 .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
