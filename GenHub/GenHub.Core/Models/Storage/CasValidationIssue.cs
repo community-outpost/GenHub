@@ -23,7 +23,7 @@ public class CasValidationIssue
     /// <summary>
     /// Gets or sets the type of validation issue.
     /// </summary>
-    public CasValidationIssueType IssueType { get; set; }
+    public CasValidationIssueType IssueType { get; set; } = CasValidationIssueType.Warning;
 
     /// <summary>
     /// Gets or sets additional details about the issue.
