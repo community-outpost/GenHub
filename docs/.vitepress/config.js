@@ -33,6 +33,13 @@ export default withMermaid(
                     ]
                 },
                 {
+                    text: 'Development',
+                    items: [
+                        { text: 'Constants API Reference', link: '/dev/constants' },
+                        { text: 'Manifest ID System', link: '/dev/manifest-id-system' }
+                    ]
+                },
+                {
                     text: 'System Flowcharts',
                     items: [
                         { text: 'Overview', link: '/FlowCharts/' },

@@ -19,7 +19,7 @@ public static class ManifestIdValidator
         new(@"^[a-zA-Z0-9\-\.]+$", RegexOptions.Compiled);
 
     // Regex for base game IDs: installationType.gameType[.version]
-    private static readonly Regex BaseGameIdRegex =
+    private static readonly Regex PublisherIdRegexPattern =
         new(@"^(unknown|steam|ea|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)(?:\.\d+(?:\.\d+)*)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
@@ -73,7 +73,7 @@ public static class ManifestIdValidator
 
             if (validInstallationTypes.Contains(installationType) && validGameTypes.Contains(gameType))
             {
-                if (BaseGameIdRegex.IsMatch(manifestId))
+                if (PublisherIdRegexPattern.IsMatch(manifestId))
                 {
                     reason = string.Empty;
                     return true;
@@ -87,7 +87,7 @@ public static class ManifestIdValidator
         }
 
         // Reject IDs that start with valid installation type but are not valid base game IDs
-        if (segments.Length >= 2 && validInstallationTypes.Contains(segments[0].ToLowerInvariant()))
+        if (segments.Length >= 2 && validInstallationTypes.Contains(segments[0].ToLowerInvariant()) && !PublisherIdRegexPattern.IsMatch(manifestId))
         {
             reason = $"Manifest ID '{manifestId}' is invalid. Must follow either publisher.content.version or installationType.gameType.version format.";
             return false;

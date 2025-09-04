@@ -1,5 +1,3 @@
-using System;
-using GenHub.Core.Models.Manifest;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Manifest;
@@ -9,21 +7,13 @@ namespace GenHub.Core.Models.Manifest;
 /// Encapsulates validation and equality semantics for manifest ids.
 /// </summary>
 [JsonConverter(typeof(ManifestIdJsonConverter))]
-public readonly struct ManifestId : IEquatable<ManifestId>
+public readonly struct ManifestId(string value)
+: IEquatable<ManifestId>
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ManifestId"/> struct.
-    /// </summary>
-    /// <param name="value">The validated manifest id string.</param>
-    private ManifestId(string value)
-    {
-        Value = value;
-    }
-
     /// <summary>
     /// Gets the underlying string value of the manifest id.
     /// </summary>
-    public string Value { get; }
+    public string Value { get; } = value;
 
     /// <summary>
     /// Conversion from <see cref="string"/> to <see cref="ManifestId"/> which validates the input.

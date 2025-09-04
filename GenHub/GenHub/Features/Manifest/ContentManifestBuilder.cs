@@ -17,11 +17,13 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ContentManifestBuilder(
     ILogger<ContentManifestBuilder> logger,
-    IFileHashProvider hashProvider) : IContentManifestBuilder
+    IFileHashProvider hashProvider,
+    IManifestIdService manifestIdService) : IContentManifestBuilder
 {
     private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
+    private readonly IManifestIdService _manifestIdService = manifestIdService;
 
     /// <summary>
     /// Sets the basic information for the manifest.

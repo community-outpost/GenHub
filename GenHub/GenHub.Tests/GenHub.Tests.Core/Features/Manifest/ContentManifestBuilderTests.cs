@@ -1,6 +1,10 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -25,6 +29,11 @@ public class ContentManifestBuilderTests
     private readonly Mock<IFileHashProvider> _hashProviderMock;
 
     /// <summary>
+    /// Mock for the manifest ID service used in the builder.
+    /// </summary>
+    private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -36,12 +45,23 @@ public class ContentManifestBuilderTests
     {
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
         _hashProviderMock = new Mock<IFileHashProvider>();
+        _manifestIdServiceMock = new Mock<IManifestIdService>();
 
-        // Setup default hash provider behavior
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("dummy-hash-for-testing");
+        // Set up mock to return success for ValidateAndCreateManifestId
+        _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
+            .Returns((string id) => ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
-        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object);
+        // Set up mock to return success for GenerateBaseGameId
+        _manifestIdServiceMock.Setup(x => x.GenerateBaseGameId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string>()))
+            .Returns((GameInstallation gi, GameType gt, string v) =>
+                ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create("base-game-id")));
+
+        // Set up mock to return success for GeneratePublisherContentId
+        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((string p, string c, string v) =>
+                ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create("publisher-content-id")));
+
+        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object, _manifestIdServiceMock.Object);
     }
 
     /// <summary>

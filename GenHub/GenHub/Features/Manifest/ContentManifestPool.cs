@@ -143,45 +143,29 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         var manifestsDir = Path.Combine(_storageService.GetContentStorageRoot(), FileTypes.ManifestsDirectory);
 
         if (!Directory.Exists(manifestsDir))
-            return manifests;
+            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
 
         var manifestFiles = Directory.GetFiles(manifestsDir, FileTypes.ManifestFilePattern);
 
         foreach (var manifestFile in manifestFiles)
         {
-            var manifests = new List<ContentManifest>();
-            var manifestsDir = Path.Combine(_storageService.GetContentStorageRoot(), "Manifests");
-
-            if (!Directory.Exists(manifestsDir))
-                return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
-
-            var manifestFiles = Directory.GetFiles(manifestsDir, "*.manifest.json");
-
-            foreach (var manifestFile in manifestFiles)
+            try
             {
-                try
-                {
-                    var manifestJson = await File.ReadAllTextAsync(manifestFile, cancellationToken);
-                    var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
+                var manifestJson = await File.ReadAllTextAsync(manifestFile, cancellationToken);
+                var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
 
-                    if (manifest != null)
-                    {
-                        manifests.Add(manifest);
-                    }
-                }
-                catch (Exception ex)
+                if (manifest != null)
                 {
-                    _logger.LogWarning(ex, "Failed to read manifest from {ManifestFile}", manifestFile);
+                    manifests.Add(manifest);
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read manifest from {ManifestFile}", manifestFile);
+            }
+        }
 
-            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get all manifests");
-            return OperationResult<IEnumerable<ContentManifest>>.CreateFailure($"Failed to get all manifests: {ex.Message}");
-        }
+        return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <inheritdoc/>

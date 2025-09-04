@@ -102,7 +102,8 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                _hashProvider);
+                _hashProvider,
+                null!);
 
             manifestBuilder
                 .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)

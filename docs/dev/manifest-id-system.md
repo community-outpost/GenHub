@@ -59,13 +59,13 @@ public static class ManifestIdGenerator
     public static string GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 
     // Generate base game ID
     public static string GenerateBaseGameId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 }
 ```
 
@@ -78,13 +78,13 @@ public class ManifestIdService : IManifestIdService
     ContentOperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 
     // Generate base game ID with ResultBase pattern
     ContentOperationResult<ManifestId> GenerateBaseGameId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 
     // Validate and create ManifestId
     ContentOperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
@@ -122,7 +122,7 @@ public readonly struct ManifestId : IEquatable<ManifestId>
 
 ```csharp
 // Using ManifestIdService (recommended)
-var idResult = _manifestIdService.GeneratePublisherContentId("EA", "Generals Mod", "1.0");
+var idResult = _manifestIdService.GeneratePublisherContentId("EA", "Generals Mod", ManifestConstants.DefaultManifestSchemaVersion);
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // ea.generals.mod.1.0
@@ -134,7 +134,7 @@ else
 }
 
 // Using ManifestIdGenerator directly
-string idString = ManifestIdGenerator.GeneratePublisherContentId("EA", "Generals Mod", "1.0");
+string idString = ManifestIdGenerator.GeneratePublisherContentId("EA", "Generals Mod", ManifestConstants.DefaultManifestSchemaVersion);
 ManifestId id = ManifestId.Create(idString);
 ```
 
@@ -145,14 +145,14 @@ var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationT
 var gameType = GameType.Generals;
 
 // Using service
-var idResult = _manifestIdService.GenerateBaseGameId(installation, gameType, "1.0");
+var idResult = _manifestIdService.GenerateBaseGameId(installation, gameType, ManifestConstants.DefaultManifestSchemaVersion);
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // steam.generals.1.0
 }
 
 // Using generator directly
-string idString = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, "1.0");
+string idString = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, ManifestConstants.DefaultManifestSchemaVersion);
 ```
 
 ### Validating IDs
@@ -179,8 +179,8 @@ catch (ArgumentException ex)
 ### Creating Manifests with Builder
 
 ```csharp
-var builder = new ContentManifestBuilder(_logger, _manifestIdService)
-    .WithBasicInfo("EA", "Generals Mod", "1.0")
+var builder = new ContentManifestBuilder(_logger, _hashProvider, _manifestIdService)
+    .WithBasicInfo("EA", "Generals Mod", ManifestConstants.DefaultManifestSchemaVersion)
     .WithContentType(ContentType.Mod, GameType.Generals)
     .WithPublisher("EA Games", "https://ea.com", "support@ea.com");
 
@@ -216,7 +216,7 @@ The system uses the **ResultBase pattern** for robust error handling:
 
 ```csharp
 // Success case
-var result = _manifestIdService.GeneratePublisherContentId("EA", "Mod", "1.0");
+var result = _manifestIdService.GeneratePublisherContentId("EA", "Mod", ManifestConstants.DefaultManifestSchemaVersion);
 if (result.Success)
 {
     ManifestId id = result.Data;
@@ -282,5 +282,4 @@ The system ensures identical ID generation across all platforms:
 - **Custom ID Formats**: Support for extended validation rules
 - **Migration Tools**: Utilities for updating existing content to new ID format
 - **Performance Monitoring**: Metrics for ID generation performance
-- **Extended Validation**: Additional security and compliance checks</content>
-<parameter name="filePath">z:\GenHubTesting\docs\dev\manifest-id-system.md
+- **Extended Validation**: Additional security and compliance checks

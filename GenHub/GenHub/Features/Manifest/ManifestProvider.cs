@@ -141,7 +141,7 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for GameVersion {Id}", gameVersion.Id);
 
-            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, _manifestIdService);
+            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
             var generated = builder
                 .WithBasicInfo("EA Games", gameVersion.Name ?? "Unknown", gameVersion.Version ?? "Unknown", isBaseGame: false)
                 .WithContentType(ContentType.GameClient, gameVersion.GameType)
@@ -258,7 +258,7 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
 
-            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, _manifestIdService);
+            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
             var generated = builder
                 .WithBasicInfo(installation.InstallationType.ToString(), installation.HasZeroHour ? "zerohour" : "generals", versionForId ?? "1.0", isBaseGame: true)
             .WithContentType(ContentType.GameInstallation, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals)

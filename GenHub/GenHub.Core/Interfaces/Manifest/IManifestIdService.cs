@@ -5,6 +5,11 @@ using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Manifest;
 
+/// <summary>
+/// Defines the contract for manifest ID generation and validation services.
+/// Provides methods for creating deterministic, human-readable manifest identifiers
+/// with error handling through the ResultBase.
+/// </summary>
 public interface IManifestIdService
 {
     /// <summary>
