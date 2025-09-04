@@ -1,12 +1,10 @@
-using System;
-using System.IO;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Common.Services;
 
@@ -706,7 +704,7 @@ public class ConfigurationProviderServiceTests
         var result = provider.GetContentDirectories();
 
         // Assert
-        Assert.Contains(Path.Combine(appDataPath, "Manifests"), result);
+        Assert.Contains(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), result);
         Assert.Contains(Path.Combine(appDataPath, "CustomManifests"), result);
         Assert.True(result.Count >= 3);
     }

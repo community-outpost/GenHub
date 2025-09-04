@@ -4,10 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using GenHub.Core;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 
@@ -132,7 +131,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 "https://help.ea.com",
                 "support@ea.com")
             .WithMetadata($"Base game installation of {gameType} version {version} from {installationType}")
-            .AddRequiredDirectories("Data", "Maps")
+            .AddRequiredDirectories(DirectoryNames.Data, "Maps")
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files

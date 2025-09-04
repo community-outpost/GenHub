@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -26,7 +27,7 @@ public abstract class WorkspaceStrategyBase<T>(
 {
     private static readonly HashSet<string> EssentialExtensions =
     [
-        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
+        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", FileTypes.JsonFileExtension, ".txt", ".log",
     ];
 
     private static readonly HashSet<string> CncEssentialExtensions =

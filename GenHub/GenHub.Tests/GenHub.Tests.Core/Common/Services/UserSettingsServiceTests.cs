@@ -1,4 +1,5 @@
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -68,7 +69,7 @@ public class UserSettingsServiceTests : IDisposable
     public async Task SaveAsync_CreatesFileWithCorrectData()
     {
         var service = CreateService();
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
         service.Update(settings =>
         {
             settings.Theme = "Light";
@@ -99,7 +100,7 @@ public class UserSettingsServiceTests : IDisposable
         // Use a unique temp directory for this test
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
 
         // Create first service and save settings
         var service1 = CreateServiceWithPath(settingsPath);
@@ -136,7 +137,7 @@ public class UserSettingsServiceTests : IDisposable
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
 
         await File.WriteAllTextAsync(settingsPath, "{ invalid json }");
         var service = CreateServiceWithPath(settingsPath);
@@ -154,7 +155,7 @@ public class UserSettingsServiceTests : IDisposable
     public void UpdateSettings_ModifiesInMemoryState_DoesNotPersistImmediately()
     {
         var service = CreateService();
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
         service.Update(settings => settings.Theme = "Light");
         var currentSettings = service.Get();
         Assert.Equal("Light", currentSettings.Theme);
@@ -185,7 +186,7 @@ public class UserSettingsServiceTests : IDisposable
     public async Task SaveAsync_CreatesDirectoryIfNotExists()
     {
         var nestedPath = Path.Combine(_tempDirectory, "nested", "path");
-        var settingsPath = Path.Combine(nestedPath, "settings.json");
+        var settingsPath = Path.Combine(nestedPath, FileTypes.JsonFileExtension);
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -216,7 +217,7 @@ public class UserSettingsServiceTests : IDisposable
     {
         // Arrange
         var deepPath = Path.Combine(_tempDirectory, "very", "deep", "nested", "path");
-        var settingsPath = Path.Combine(deepPath, "settings.json");
+        var settingsPath = Path.Combine(deepPath, FileTypes.JsonFileExtension);
 
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
@@ -243,7 +244,7 @@ public class UserSettingsServiceTests : IDisposable
         // Arrange
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
         var partialJson = """{"windowWidth": 1600.0, "allowBackgroundDownloads": true}""";
 
         File.WriteAllText(settingsPath, partialJson);
@@ -358,7 +359,7 @@ public class UserSettingsServiceTests : IDisposable
     /// <returns>A new <see cref="UserSettingsService"/> instance using a temp file path.</returns>
     private UserSettingsService CreateService()
     {
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
         return CreateServiceWithPath(settingsPath);
     }
 

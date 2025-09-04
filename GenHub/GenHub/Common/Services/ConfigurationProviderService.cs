@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -257,7 +258,7 @@ public class ConfigurationProviderService : IConfigurationProviderService
 
         return new List<string>
         {
-            Path.Combine(_appConfig.GetConfiguredDataPath(), "Manifests"),
+            Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory),
             Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),

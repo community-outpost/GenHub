@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Storage;
@@ -7,15 +8,13 @@ namespace GenHub.Core.Models.Storage;
 /// </summary>
 public class CasConfiguration : ICloneable
 {
-    private const long DefaultMaxCacheSizeBytes = 50L * 1024 * 1024 * 1024; // 50GB
-    private const int DefaultMaxConcurrentOperations = 4;
-    private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(1);
+    private static readonly TimeSpan DefaultAutoGcInterval = TimeSpan.FromDays(StorageConstants.AutoGcIntervalDays);
     private static readonly TimeSpan DefaultGcGracePeriod = TimeSpan.FromDays(7);
 
     private TimeSpan _gcGracePeriod = DefaultGcGracePeriod;
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
-    private int _maxConcurrentOperations = DefaultMaxConcurrentOperations;
-    private long _maxCacheSizeBytes = DefaultMaxCacheSizeBytes;
+    private int _maxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
+    private long _maxCacheSizeBytes = CasDefaults.MaxCacheSizeBytes;
 
     /// <summary>
     /// Gets or sets a value indicating whether automatic garbage collection is enabled.

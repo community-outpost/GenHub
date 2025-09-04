@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -108,7 +109,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private int _garbageCollectionGracePeriodDays = 7;
 
     [ObservableProperty]
-    private int _autoGcIntervalDays = 1;
+    private int _autoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
@@ -458,7 +459,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             CasMaxConcurrentOperations = 4;
             CasVerifyIntegrity = true;
             GarbageCollectionGracePeriodDays = 7;
-            AutoGcIntervalDays = 1;
+            AutoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
             _logger.LogInformation("Settings reset to defaults");
 
@@ -518,7 +519,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = "Select Settings File Location",
-                    SuggestedFileName = "settings.json",
+                    SuggestedFileName = FileTypes.JsonFileExtension,
                     FileTypeChoices = null,
                 });
 

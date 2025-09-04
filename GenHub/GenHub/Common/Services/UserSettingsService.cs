@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
@@ -325,10 +326,10 @@ public class UserSettingsService : IUserSettingsService
         {
             // Fallback for test scenarios where appConfig might not be provided
             var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appDataPath, "GenHub", "settings.json");
+            return Path.Combine(appDataPath, "GenHub", FileTypes.JsonFileExtension);
         }
 
-        return Path.Combine(_appConfig.GetConfiguredDataPath(), "settings.json");
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.JsonFileExtension);
     }
 
     private void InitializeSettings()

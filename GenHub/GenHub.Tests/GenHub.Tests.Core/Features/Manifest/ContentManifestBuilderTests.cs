@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Manifest;
@@ -141,12 +142,12 @@ public class ContentManifestBuilderTests
         // Act
         var result = _builder
             .WithBasicInfo("test-id", "Test Name", "1.0")
-            .AddRequiredDirectories("Data", "Maps", "Models")
+            .AddRequiredDirectories(DirectoryNames.Data, "Maps", "Models")
             .Build();
 
         // Assert
         Assert.Equal(3, result.RequiredDirectories.Count);
-        Assert.Contains("Data", result.RequiredDirectories);
+        Assert.Contains(DirectoryNames.Data, result.RequiredDirectories);
         Assert.Contains("Maps", result.RequiredDirectories);
         Assert.Contains("Models", result.RequiredDirectories);
     }

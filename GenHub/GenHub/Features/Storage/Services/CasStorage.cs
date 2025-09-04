@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
@@ -7,7 +8,6 @@ using Microsoft.Extensions.Options;
 using System;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,9 +24,9 @@ public class CasStorage(
 {
     private readonly CasConfiguration _config = config.Value;
     private readonly ILogger<CasStorage> _logger = logger;
-    private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
-    private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, "temp");
-    private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
+    private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, StorageConstants.ObjectsDirectory);
+    private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, DirectoryNames.Temp);
+    private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, StorageConstants.LocksDirectory);
     private readonly IFileHashProvider _hashProvider = hashProvider;
 
     // Ensure directory structure exists on first use
@@ -291,9 +291,6 @@ public class CasStorage(
 
     private async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)
     {
-        const int maxRetries = 10;
-        const int retryDelayMs = 100;
-
         // Ensure the lock file's directory exists
         var lockDirectory = Path.GetDirectoryName(lockPath);
         if (!string.IsNullOrEmpty(lockDirectory))
@@ -301,7 +298,7 @@ public class CasStorage(
             Directory.CreateDirectory(lockDirectory);
         }
 
-        for (int i = 0; i < maxRetries; i++)
+        for (int i = 0; i < StorageConstants.MaxRetries; i++)
         {
             try
             {
@@ -311,10 +308,10 @@ public class CasStorage(
 
                 return new CasLock(lockPath, lockStream);
             }
-            catch (IOException) when (i < maxRetries - 1)
+            catch (IOException) when (i < StorageConstants.MaxRetries - 1)
             {
                 // Lock file is in use, wait and retry
-                await Task.Delay(retryDelayMs, cancellationToken);
+                await Task.Delay(StorageConstants.RetryDelayMs, cancellationToken);
             }
         }
 

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
@@ -63,7 +64,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
-            var manifestFiles = Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories);
+            var manifestFiles = Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories);
             foreach (var manifestFile in manifestFiles)
             {
                 try
@@ -107,7 +108,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         var localManifestDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
-            "Manifests");
+            FileTypes.ManifestsDirectory);
 
         // Also check for custom manifest directories
         var customManifestDir = Path.Combine(
@@ -193,9 +194,9 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
             _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
 
             // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
-            var manifestFiles = Directory.EnumerateFiles(directory, "*.manifest.json", SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
-                    .Where(f => !f.EndsWith(".manifest.json")));
+            var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.ManifestFilePattern, SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories)
+                    .Where(f => !f.EndsWith(FileTypes.ManifestFileExtension)));
 
             foreach (var manifestFile in manifestFiles)
             {
@@ -222,7 +223,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         _logger.LogInformation("Scanning for embedded manifests...");
         var assembly = Assembly.GetExecutingAssembly();
         var manifestResourceNames = assembly.GetManifestResourceNames()
-            .Where(r => r.StartsWith("GenHub.Manifests.") && r.EndsWith(".json"));
+            .Where(r => r.StartsWith("GenHub.Manifests.") && r.EndsWith(FileTypes.JsonFileExtension));
 
         foreach (var resourceName in manifestResourceNames)
         {
