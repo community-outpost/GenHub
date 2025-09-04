@@ -9,6 +9,10 @@ Launcher for C&C: Generals and Zero Hour with patch management and mod support
 - [ ] Comprehensive mod support with easy installation
 - [ ] Compatibility fixes for Windows 10/11
 
+## Documentation
+
+For detailed documentation and guides, visit our [Wiki](https://generalshub.netlify.app/wiki/).
+
 ## Contact
 
 Join our Discord server for support, suggestions, and community discussions: [Community Outpost Discord](https://discord.gg/ZGtT3Qwd3Y)
