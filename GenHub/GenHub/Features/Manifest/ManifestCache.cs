@@ -10,8 +10,9 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ManifestCache() : IManifestCache
 {
+    private static readonly object DummyValue = new();
     private readonly ConcurrentDictionary<string, ContentManifest> _manifests = new();
-    private readonly ConcurrentDictionary<string, bool> _casObjectExists = new();
+    private readonly ConcurrentDictionary<string, object> _casObjectHashes = new();
 
     /// <inheritdoc />
     public ContentManifest? GetManifest(string manifestId)
@@ -38,7 +39,7 @@ public class ManifestCache() : IManifestCache
     /// <returns>True if the object is known to exist, false otherwise.</returns>
     public bool CasObjectExists(string hash)
     {
-        return _casObjectExists.ContainsKey(hash);
+        return _casObjectHashes.ContainsKey(hash);
     }
 
     /// <summary>
@@ -47,6 +48,6 @@ public class ManifestCache() : IManifestCache
     /// <param name="hash">The hash of the CAS object.</param>
     public void MarkCasObjectAsExisting(string hash)
     {
-        _casObjectExists.TryAdd(hash, true);
+        _casObjectHashes.TryAdd(hash, DummyValue);
     }
 }
