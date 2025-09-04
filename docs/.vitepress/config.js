@@ -19,6 +19,7 @@ export default withMermaid(
             nav: [
                 { text: 'Home', link: '/' },
                 { text: 'Get Started', link: '/onboarding' },
+                { text: 'API Reference', link: '/api/constants' },
                 { text: 'Architecture', link: '/architecture' },
                 { text: 'Flowcharts', link: '/FlowCharts/' }
             ],
@@ -30,6 +31,13 @@ export default withMermaid(
                         { text: 'Introduction', link: '/' },
                         { text: 'Developer Onboarding', link: '/onboarding' },
                         { text: 'Architecture Overview', link: '/architecture' }
+                    ]
+                },
+                {
+                    text: 'API Reference',
+                    items: [
+                        { text: 'Constants', link: '/api/constants' },
+                        { text: 'Converters', link: '/api/converters' }
                     ]
                 },
                 {
