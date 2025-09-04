@@ -36,7 +36,7 @@ public class CasStorage(
     public string GetObjectPath(string hash)
     {
         EnsureDirectoriesCreated();
-        ValidateHash(hash);
+        ValidateHashFormat(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());
     }
@@ -66,7 +66,7 @@ public class CasStorage(
     {
         try
         {
-            ValidateHash(hash);
+            ValidateHashFormat(hash);
 
             // Ensure directory structure exists before acquiring locks
             EnsureDirectoriesCreated();
@@ -244,7 +244,7 @@ public class CasStorage(
         }
     }
 
-    private static void ValidateHash(string hash)
+    private static void ValidateHashFormat(string hash)
     {
         if (string.IsNullOrWhiteSpace(hash))
             throw new ArgumentException("Hash cannot be null or empty", nameof(hash));
