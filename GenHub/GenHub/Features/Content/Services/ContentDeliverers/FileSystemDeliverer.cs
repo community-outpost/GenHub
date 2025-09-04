@@ -146,13 +146,12 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             // Add delivered files to the manifest
             foreach (var file in deliveredFiles)
             {
-                await manifestBuilder.AddFileAsync(
+                await manifestBuilder.AddContentAddressableFileAsync(
                     file.RelativePath,
-                    file.SourcePath ?? string.Empty,
-                    ContentSourceType.ContentAddressable,
                     file.Hash ?? string.Empty,
-                    file.IsExecutable,
-                    file.Permissions);
+                    file.Size,
+                    isExecutable: file.IsExecutable,
+                    permissions: file.Permissions);
             }
 
             // Add required directories

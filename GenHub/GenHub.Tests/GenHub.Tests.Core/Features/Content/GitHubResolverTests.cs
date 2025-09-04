@@ -81,11 +81,10 @@ public class GitHubResolverTests
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithInstallationInstructions(It.IsAny<WorkspaceStrategy>()))
             .Returns(manifestBuilder.Object);
-        manifestBuilder.Setup(m => m.AddFileAsync(
+        manifestBuilder.Setup(m => m.AddRemoteFileAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<ContentSourceType>(),
-                It.IsAny<string>(),
                 It.IsAny<bool>(),
                 It.IsAny<FilePermissions>()))
             .ReturnsAsync(manifestBuilder.Object);

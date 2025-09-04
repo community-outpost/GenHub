@@ -168,7 +168,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
         await builder.AddFilesFromDirectoryAsync(gameDirectory, ContentSourceType.ContentAddressable);
 
         // Mark the main executable
-        await builder.AddFileAsync(executablePath, sourcePath: string.Empty, sourceType: ContentSourceType.ContentAddressable, isExecutable: true);
+        await builder.AddLocalFileAsync(executablePath, string.Empty, ContentSourceType.ContentAddressable, isExecutable: true);
 
         return builder;
     }

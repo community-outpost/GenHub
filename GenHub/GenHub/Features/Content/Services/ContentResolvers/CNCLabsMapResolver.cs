@@ -62,11 +62,10 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
                         screenshotUrls: mapDetails.ScreenshotUrls);
 
                 // Add the map file
-                await manifest.AddFileAsync(
+                await manifest.AddRemoteFileAsync(
                     Path.GetFileName(mapDetails.downloadUrl),
-                    string.Empty,
-                    ContentSourceType.RemoteDownload,
-                    mapDetails.downloadUrl);
+                    mapDetails.downloadUrl,
+                    ContentSourceType.RemoteDownload);
 
                 // Add required directories for maps
                 manifest.AddRequiredDirectories("Maps");

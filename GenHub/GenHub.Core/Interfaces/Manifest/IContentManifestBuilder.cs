@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
@@ -82,18 +80,6 @@ public interface IContentManifestBuilder
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ContentSourceType sourceType = ContentSourceType.ContentAddressable, string fileFilter = "*", bool isExecutable = false);
-
-    /// <summary>
-    /// Adds a single file with specific properties.
-    /// </summary>
-    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="sourcePath">The source path of the file for hash computation (empty if not available locally).</param>
-    /// <param name="sourceType">How this file should be handled.</param>
-    /// <param name="downloadUrl">Download URL for remote files.</param>
-    /// <param name="isExecutable">Whether the file is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddFileAsync(string relativePath, string sourcePath = "", ContentSourceType sourceType = ContentSourceType.ContentAddressable, string downloadUrl = "", bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>
     /// Adds a local file from the filesystem.

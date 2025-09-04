@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
@@ -228,46 +227,6 @@ public class ContentManifestBuilder(
         }
 
         _logger.LogInformation("Added {FileCount} files from directory: {Directory}", _manifest.Files.Count, sourceDirectory);
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a file to the manifest.
-    /// </summary>
-    /// <param name="relativePath">Relative path in workspace.</param>
-    /// <param name="sourcePath">Source path for hash computation.</param>
-    /// <param name="sourceType">Source type.</param>
-    /// <param name="downloadUrl">Download URL.</param>
-    /// <param name="isExecutable">Is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <returns>The builder instance.</returns>
-    public async Task<IContentManifestBuilder> AddFileAsync(
-        string relativePath,
-        string sourcePath = "",
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        string downloadUrl = "",
-        bool isExecutable = false,
-        FilePermissions? permissions = null)
-    {
-        var manifestFile = new ManifestFile
-        {
-            RelativePath = relativePath,
-            SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : null,
-            SourceType = sourceType,
-            IsExecutable = isExecutable,
-            DownloadUrl = downloadUrl,
-            Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
-        };
-
-        if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
-        {
-            var fileInfo = new FileInfo(sourcePath);
-            manifestFile.Size = fileInfo.Length;
-            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
-        }
-
-        _manifest.Files.Add(manifestFile);
-        _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType})", relativePath, sourceType);
         return this;
     }
 
@@ -557,5 +516,45 @@ public class ContentManifestBuilder(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return (extension == ".exe" || extension == ".dll" || extension == ".so" || extension == string.Empty) && File.Exists(filePath);
+    }
+
+    /// <summary>
+    /// Adds a file to the manifest.
+    /// </summary>
+    /// <param name="relativePath">Relative path in workspace.</param>
+    /// <param name="sourcePath">Source path for hash computation.</param>
+    /// <param name="sourceType">Source type.</param>
+    /// <param name="downloadUrl">Download URL.</param>
+    /// <param name="isExecutable">Is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>The builder instance.</returns>
+    private async Task<IContentManifestBuilder> AddFileAsync(
+        string relativePath,
+        string sourcePath = "",
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        string downloadUrl = "",
+        bool isExecutable = false,
+        FilePermissions? permissions = null)
+    {
+        var manifestFile = new ManifestFile
+        {
+            RelativePath = relativePath,
+            SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : null,
+            SourceType = sourceType,
+            IsExecutable = isExecutable,
+            DownloadUrl = downloadUrl,
+            Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
+        };
+
+        if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
+        {
+            var fileInfo = new FileInfo(sourcePath);
+            manifestFile.Size = fileInfo.Length;
+            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
+        }
+
+        _manifest.Files.Add(manifestFile);
+        _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType})", relativePath, sourceType);
+        return this;
     }
 }
