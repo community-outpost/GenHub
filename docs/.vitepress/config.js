@@ -39,6 +39,7 @@ export default withMermaid(
                 {
                     text: 'Features',
                     items: [
+                        { text: 'Overview', link: '/features/index' },
                         { text: 'App Update', link: '/features/app-update' },
                         { text: 'Content System', link: '/features/content' },
                         { text: 'Manifest Service', link: '/features/manifest' },
