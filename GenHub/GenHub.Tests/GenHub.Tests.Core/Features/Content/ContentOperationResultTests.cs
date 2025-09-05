@@ -6,13 +6,12 @@ using Xunit;
 namespace GenHub.Tests.Core.Features.Content;
 
 /// <summary>
-/// Unit tests for <see cref="ContentOperationResult{T}"/> focusing on multi-error handling and propagation.
+/// Unit tests for <see cref="OperationResult{T}"/> focusing on multi-error handling and propagation.
 /// </summary>
-public class ContentOperationResultTests
+public class OperationResultTests
 {
     /// <summary>
-    /// Verifies that <see cref="ContentOperationResult{T}.CreateFailure(IEnumerable{string})"/>
-    /// preserves multiple error messages and exposes them via the result properties.
+    /// Verifies that CreateFailure with multiple errors preserves error messages.
     /// </summary>
     [Fact]
     public void CreateFailure_WithMultipleErrors_PreservesErrors()
@@ -21,7 +20,7 @@ public class ContentOperationResultTests
         var errors = new[] { "First error", "Second error", "Third error" };
 
         // Act
-        var result = ContentOperationResult<string>.CreateFailure(errors);
+        var result = OperationResult<string>.CreateFailure(errors);
 
         // Assert
         Assert.False(result.Success);
@@ -43,7 +42,7 @@ public class ContentOperationResultTests
         var src = new TestResult(errors);
 
         // Act
-        var result = ContentOperationResult<int>.CreateFailure(src);
+        var result = OperationResult<int>.CreateFailure(src);
 
         // Assert
         Assert.False(result.Success);

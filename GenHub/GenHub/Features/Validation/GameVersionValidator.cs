@@ -128,7 +128,7 @@ public class GameVersionValidator(
         {
             if (!expectedRelativePaths.Contains(actualRelativePath))
             {
-                issues.Add(new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Path = actualRelativePath, Message = "An unexpected file was found in the working directory." });
+                issues.Add(new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Path = actualRelativePath, Message = "An unexpected file was found in the working directory.", Severity = ValidationSeverity.Warning });
             }
         }
 

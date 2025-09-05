@@ -191,6 +191,32 @@ GenHub implements a **three-tier content pipeline architecture** that provides c
 
 This architecture enables multiple providers to coexist, each orchestrating their own internal pipeline while being coordinated by the system-wide orchestrator.
 
+**Result Pattern Integration in Pipeline Operations**:
+
+- **ContentOperationResult&lt;T&gt;**: Used for all content provider operations with typed data
+- **DetectionResult**: Specialized for content discovery and validation operations
+- **ValidationResult**: Used for manifest and content validation with detailed issue tracking
+- **DownloadResult**: Specialized for content download operations with progress tracking
+
+**Error Handling in Pipeline Components**:
+
+```csharp
+// Example: Content provider error handling with new patterns
+var searchResult = await _contentProvider.SearchAsync(query);
+if (!searchResult.Success)
+{
+    _logger.LogError("Content search failed: {Error}", searchResult.FirstError);
+    return ContentOperationResult<List<ContentSearchResult>>.CreateFailure(
+        searchResult.Errors.ToList());
+}
+```
+
+**Progress Reporting in Pipeline Operations**:
+
+- **ContentAcquisitionProgress**: Tracks the complete content acquisition pipeline
+- **DownloadProgress**: Provides detailed download progress with speed metrics
+- **ValidationProgress**: Reports validation operation progress
+
 ### 2.2 Tier 1: Content Orchestrator (System Coordination)
 
 **Primary Responsibility**: System-wide coordination of multiple content providers, caching, and integration with the content storage, game profile, and workspace systems.
@@ -366,6 +392,53 @@ This architecture allows providers to select the most appropriate component base
 
 **Multi-Level Caching Architecture**:
 
+**Result Pattern Integration in Caching Operations**:
+
+**Cache Operation Results**:
+- **ContentOperationResult&lt;T&gt;**: Used for cache retrieval and storage operations
+- **ValidationResult**: Used for cache validation and integrity checking
+- **ProfileOperationResult&lt;T&gt;**: Used for cached profile operations
+
+**Cache Invalidation with Result Patterns**:
+
+```csharp
+// Example: Cache invalidation with new result patterns
+var invalidateResult = await _cache.InvalidatePatternAsync("content:*");
+if (!invalidateResult.Success)
+{
+    _logger.LogWarning("Cache invalidation failed: {Error}", invalidateResult.FirstError);
+    // Continue with stale data rather than failing the operation
+}
+```
+
+**Error Handling in Cached Operations**:
+
+```csharp
+// Example: Cached content search with error handling
+var cacheKey = $"search::{query.SearchTerm}::{query.ContentType}";
+var cachedResult = await _cache.GetAsync<ContentOperationResult<List<ContentSearchResult>>>(cacheKey);
+
+if (cachedResult != null)
+{
+    // Return cached result, but check if it contains errors
+    if (!cachedResult.Success && cachedResult.FirstError != null)
+    {
+        _logger.LogWarning("Cached result contains error: {Error}", cachedResult.FirstError);
+        // Remove invalid cached result
+        await _cache.RemoveAsync(cacheKey);
+    }
+    else
+    {
+        return cachedResult;
+    }
+}
+```
+
+**Cache Performance Monitoring**:
+- **ContentOperationResult&lt;T&gt;**: Tracks cache hit/miss ratios with performance metrics
+- **DownloadResult**: Monitors cached download operations
+- **ValidationResult**: Validates cached content integrity
+
 **Level 1: Orchestrator Caching** - System-wide performance optimization
 
 - **Search Result Caching**: `ContentOrchestrator` caches `SearchAsync` results for repeated queries
@@ -411,6 +484,67 @@ return result;
 ## 4. Game Profile Management and Runtime Orchestration
 
 ### 4.1 Profile Management Infrastructure
+
+**Result Pattern Integration in Profile Management**:
+
+**Profile Operation Results**:
+- **ProfileOperationResult&lt;T&gt;**: Used for all profile CRUD operations with validation
+- **ValidationResult**: Used for profile validation with detailed issue tracking
+- **ContentOperationResult&lt;T&gt;**: Used for content-related profile operations
+
+**Launch Operation Results**:
+- **LaunchOperationResult&lt;T&gt;**: Used for launch operations with session tracking
+- **ProcessOperationResult&lt;T&gt;**: Used for process management during launches
+- **LaunchResult**: Used for simple launch status reporting
+
+**Profile Management Error Handling**:
+
+```csharp
+// Example: Profile creation with new result patterns
+var createResult = await _profileManager.CreateProfileAsync(request);
+if (!createResult.Success)
+{
+    _logger.LogError("Profile creation failed: {Error}", createResult.FirstError);
+
+    // Handle validation errors specifically
+    if (createResult.ValidationErrors.Any())
+    {
+        foreach (var validationError in createResult.ValidationErrors)
+        {
+            _logger.LogWarning("Validation error: {Error}", validationError);
+        }
+    }
+
+    return ProfileOperationResult<GameProfile>.CreateFailure(
+        createResult.ValidationErrors,
+        createResult.FirstError);
+}
+```
+
+**Launch Orchestration with Result Patterns**:
+
+```csharp
+// Example: Profile launch with comprehensive result handling
+var launchResult = await _gameLauncher.LaunchProfileAsync(profileId);
+if (!launchResult.Success)
+{
+    _logger.LogError("Profile launch failed: {Error}", launchResult.FirstError);
+
+    // Handle different launch phases
+    if (launchResult.Data?.Phase == LaunchPhase.ValidatingProfile)
+    {
+        // Profile validation failed
+        return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+            launchResult.FirstError,
+            profileId: profileId);
+    }
+}
+```
+
+**Progress Reporting in Profile Operations**:
+- **LaunchProgress**: Tracks launch pipeline progress with phase information
+- **WorkspacePreparationProgress**: Reports workspace creation progress
+- **ContentAcquisitionProgress**: Tracks content resolution progress
 
 **Primary Responsibility**: Provide comprehensive game profile management with CRUD operations, validation, and integration with content and workspace systems.
 
@@ -528,8 +662,8 @@ GameProfile objects seamlessly integrate with the workspace system:
 
 **Operation Result Hierarchy**:
 
-- **ResultBase**: Abstract foundation with Success, Errors, Elapsed, CompletedAt properties
-- **ContentOperationResult\<T\>**: Generic content operation wrapper with Success, Data, and ErrorMessage
+- **ResultBase**: Abstract foundation with Success, Errors, FirstError (computed), Elapsed, CompletedAt properties
+- **ContentOperationResult\<T\>**: Generic content operation wrapper with Success, Data, FirstError, Errors, Elapsed
 - **DetectionResult**: Specialized for installation and version detection operations
 - **ValidationResult**: Focused on validation operations with `ValidationIssue` collections
 - **LaunchResult**: Basic game launching operation results
@@ -540,11 +674,11 @@ GameProfile objects seamlessly integrate with the workspace system:
 
 **Progress Reporting Hierarchy**:
 
-- **ContentAcquisitionProgress**: Detailed progress for the entire content acquisition pipeline, reporting the current `Phase`, percentage, files processed, etc.
-- **DownloadProgress**: File download progress with BytesReceived, TotalBytes, BytesPerSecond
-- **WorkspacePreparationProgress**: Workspace assembly progress with FilesProcessed, TotalFiles, CurrentOperation
-- **ValidationProgress**: Validation operation progress with CurrentItem, TotalItems, CurrentOperation
+- **ContentAcquisitionProgress**: Content acquisition pipeline progress with Phase, PercentComplete, CurrentOperation, FilesProcessed, TotalFiles
+- **DownloadProgress**: File download progress with BytesReceived, TotalBytes, Percentage, BytesPerSecond, FormattedProgress, FormattedSpeed
+- **WorkspacePreparationProgress**: Workspace assembly progress with FilesProcessed, TotalFiles, CurrentOperation, PercentComplete
 - **LaunchProgress**: Launch pipeline progress with Phase, PercentComplete, CurrentOperation
+- **ValidationProgress**: Validation operation progress with CurrentItem, TotalItems, CurrentOperation
 
 ### 5.3 Configuration and Metadata Models
 

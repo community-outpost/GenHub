@@ -1,5 +1,7 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,13 +31,13 @@ public class CasService(
     private readonly IStreamHashProvider _streamHashProvider = streamHashProvider;
 
     /// <inheritdoc/>
-    public async Task<CasOperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
     {
         try
         {
             if (!File.Exists(sourcePath))
             {
-                return CasOperationResult<string>.CreateFailure($"Source file not found: {sourcePath}");
+                return OperationResult<string>.CreateFailure($"Source file not found: {sourcePath}");
             }
 
             // Compute hash if not provided
@@ -46,7 +48,7 @@ public class CasService(
                 var actualHash = await _fileHashProvider.ComputeFileHashAsync(sourcePath, cancellationToken);
                 if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return CasOperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
                 }
 
                 hash = expectedHash;
@@ -60,7 +62,7 @@ public class CasService(
             if (await _storage.ObjectExistsAsync(hash, cancellationToken))
             {
                 _logger.LogDebug("Content already exists in CAS: {Hash}", hash);
-                return CasOperationResult<string>.CreateSuccess(hash);
+                return OperationResult<string>.CreateSuccess(hash);
             }
 
             // Store content in CAS
@@ -69,21 +71,21 @@ public class CasService(
 
             if (storedPath == null)
             {
-                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+                return OperationResult<string>.CreateFailure($"Failed to store content in CAS");
             }
 
             _logger.LogInformation("Stored content in CAS: {Hash} from {SourcePath}", hash, sourcePath);
-            return CasOperationResult<string>.CreateSuccess(hash);
+            return OperationResult<string>.CreateSuccess(hash);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to store content in CAS from {SourcePath}", sourcePath);
-            return CasOperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
+            return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<CasOperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -94,14 +96,14 @@ public class CasService(
                 // We need to compute the hash to verify it matches
                 if (!contentStream.CanSeek)
                 {
-                    return CasOperationResult<string>.CreateFailure("Stream must be seekable when expectedHash is provided");
+                    return OperationResult<string>.CreateFailure("Stream must be seekable when expectedHash is provided");
                 }
 
                 var actualHash = await _streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
                 contentStream.Position = 0;
                 if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    return CasOperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
+                    return OperationResult<string>.CreateFailure($"Hash mismatch: expected {expectedHash}, but got {actualHash}");
                 }
 
                 hash = expectedHash;
@@ -110,7 +112,7 @@ public class CasService(
             {
                 if (!contentStream.CanSeek)
                 {
-                    return CasOperationResult<string>.CreateFailure("Stream must be seekable to compute hash");
+                    return OperationResult<string>.CreateFailure("Stream must be seekable to compute hash");
                 }
 
                 hash = await _streamHashProvider.ComputeStreamHashAsync(contentStream, cancellationToken);
@@ -121,7 +123,7 @@ public class CasService(
             if (await _storage.ObjectExistsAsync(hash, cancellationToken))
             {
                 _logger.LogDebug("Content already exists in CAS: {Hash}", hash);
-                return CasOperationResult<string>.CreateSuccess(hash);
+                return OperationResult<string>.CreateSuccess(hash);
             }
 
             // Store content in CAS
@@ -129,71 +131,71 @@ public class CasService(
 
             if (storedPath == null)
             {
-                return CasOperationResult<string>.CreateFailure($"Failed to store content in CAS");
+                return OperationResult<string>.CreateFailure($"Failed to store content in CAS");
             }
 
             _logger.LogInformation("Stored content in CAS: {Hash}", hash);
-            return CasOperationResult<string>.CreateSuccess(hash);
+            return OperationResult<string>.CreateSuccess(hash);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to store stream content in CAS");
-            return CasOperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
+            return OperationResult<string>.CreateFailure($"Storage failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<CasOperationResult<string>> GetContentPathAsync(string hash, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<string>> GetContentPathAsync(string hash, CancellationToken cancellationToken = default)
     {
         try
         {
             if (await _storage.ObjectExistsAsync(hash, cancellationToken))
             {
                 var path = _storage.GetObjectPath(hash);
-                return CasOperationResult<string>.CreateSuccess(path);
+                return OperationResult<string>.CreateSuccess(path);
             }
 
-            return CasOperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
+            return OperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get content path for hash {Hash}", hash);
-            return CasOperationResult<string>.CreateFailure($"Path lookup failed: {ex.Message}");
+            return OperationResult<string>.CreateFailure($"Path lookup failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<CasOperationResult<bool>> ExistsAsync(string hash, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> ExistsAsync(string hash, CancellationToken cancellationToken = default)
     {
         try
         {
             var exists = await _storage.ObjectExistsAsync(hash, cancellationToken);
-            return CasOperationResult<bool>.CreateSuccess(exists);
+            return OperationResult<bool>.CreateSuccess(exists);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to check existence of hash {Hash}", hash);
-            return CasOperationResult<bool>.CreateFailure($"Existence check failed: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Existence check failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<CasOperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default)
     {
         try
         {
             var stream = await _storage.OpenObjectStreamAsync(hash, cancellationToken);
             if (stream == null)
             {
-                return CasOperationResult<Stream>.CreateFailure($"Content not found in CAS: {hash}");
+                return OperationResult<Stream>.CreateFailure($"Content not found in CAS: {hash}");
             }
 
-            return CasOperationResult<Stream>.CreateSuccess(stream);
+            return OperationResult<Stream>.CreateSuccess(stream);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open content stream for hash {Hash}", hash);
-            return CasOperationResult<Stream>.CreateFailure($"Stream open failed: {ex.Message}");
+            return OperationResult<Stream>.CreateFailure($"Stream open failed: {ex.Message}");
         }
     }
 

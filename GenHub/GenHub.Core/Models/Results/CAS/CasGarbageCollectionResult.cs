@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using GenHub.Core.Models.Results;
-
-namespace GenHub.Core.Models.Storage;
+namespace GenHub.Core.Models.Results.CAS;
 
 /// <summary>
 /// Result of a CAS garbage collection operation.
@@ -17,7 +13,7 @@ public class CasGarbageCollectionResult : ResultBase
     /// <param name="elapsed">Time taken for the operation.</param>
     public CasGarbageCollectionResult(bool success, IEnumerable<string>? errors = null, TimeSpan elapsed = default)
         : base(success, errors, elapsed)
-    {
+{
     }
 
     /// <summary>
@@ -31,29 +27,19 @@ public class CasGarbageCollectionResult : ResultBase
     {
     }
 
-    /// <summary>
-    /// Gets or sets the number of objects that were deleted.
-    /// </summary>
+    /// <summary>Gets or sets the number of objects that were deleted.</summary>
     public int ObjectsDeleted { get; set; }
 
-    /// <summary>
-    /// Gets or sets the total number of bytes freed.
-    /// </summary>
+    /// <summary>Gets or sets the total number of bytes freed.</summary>
     public long BytesFreed { get; set; }
 
-    /// <summary>
-    /// Gets or sets the total number of objects scanned during collection.
-    /// </summary>
+    /// <summary>Gets or sets the total number of objects scanned during collection.</summary>
     public int ObjectsScanned { get; set; }
 
-    /// <summary>
-    /// Gets or sets the number of objects that were referenced and kept.
-    /// </summary>
+    /// <summary>Gets or sets the number of objects that were referenced and kept.</summary>
     public int ObjectsReferenced { get; set; }
 
-    /// <summary>
-    /// Gets the percentage of storage freed.
-    /// </summary>
+    /// <summary>Gets the percentage of storage freed.</summary>
     public double PercentageFreed
     {
         get

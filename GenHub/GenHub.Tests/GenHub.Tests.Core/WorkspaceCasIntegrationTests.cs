@@ -95,7 +95,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
                 var storeResult = _casService.StoreContentAsync(fileStream).GetAwaiter().GetResult();
                 if (!storeResult.Success || string.IsNullOrEmpty(storeResult.Data))
                 {
-                    throw new InvalidOperationException($"Failed to store test content in CAS: {storeResult.ErrorMessage}");
+                    throw new InvalidOperationException($"Failed to store test content in CAS: {storeResult.FirstError}");
                 }
 
                 _testHash = storeResult.Data;
@@ -154,7 +154,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
 
         // Debug: Verify we can get the CAS path
         var casPathResult = await _casService.GetContentPathAsync(_testHash);
-        Assert.True(casPathResult.Success, $"Should be able to get CAS path for {_testHash}: {casPathResult.ErrorMessage}");
+        Assert.True(casPathResult.Success, $"Should be able to get CAS path for {_testHash}: {casPathResult.FirstError}");
         Assert.True(File.Exists(casPathResult.Data), $"CAS file should exist at {casPathResult.Data}");
 
         var manifest = new ContentManifest

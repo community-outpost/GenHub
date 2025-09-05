@@ -142,6 +142,6 @@ public class GitHubResolverTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Missing required metadata", result.ErrorMessage);
+        Assert.Contains("Missing required metadata", result.FirstError);
     }
 }

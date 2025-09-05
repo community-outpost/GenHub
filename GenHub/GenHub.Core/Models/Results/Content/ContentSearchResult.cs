@@ -16,8 +16,7 @@ public class ContentSearchResult
     /// <summary>Gets or sets a brief description of the content.</summary>
     public string? Description { get; set; }
 
-    /// <summary>  Gets or sets the rich data payload. For discoverers with SupportsManifestGeneration capability,
-    /// this can contain the complete ContentManifest to avoid data loss.  </summary>
+    /// <summary>Gets or sets the rich data payload. For discoverers with SupportsManifestGeneration capability, this can contain the complete ContentManifest to avoid data loss.</summary>
     public object? Data { get; set; }
 
     /// <summary>Gets or sets the version of the content.</summary>
@@ -26,11 +25,7 @@ public class ContentSearchResult
     /// <summary>Gets or sets the type of the content (e.g., Mod, Map).</summary>
     public ContentType ContentType { get; set; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether the ContentType (or other inferred fields)
-    /// were produced by an automatic heuristic and should be considered a guess that
-    /// the user can override.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether the ContentType (or other inferred fields) were produced by an automatic heuristic and should be considered a guess that the user can override.</summary>
     public bool IsInferred { get; set; } = false;
 
     /// <summary>Gets or sets the game this content is for (e.g., Generals, ZeroHour).</summary>
@@ -72,24 +67,16 @@ public class ContentSearchResult
     /// <summary>Gets or sets a value indicating whether an update is available for this content.</summary>
     public bool HasUpdate { get; set; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether this is a partial result that needs resolution to get full details.
-    /// </summary>
+    /// <summary>Gets or sets a value indicating whether this is a partial result that needs resolution to get full details.</summary>
     public bool RequiresResolution { get; set; }
 
-    /// <summary>
-    /// Gets or sets the resolver ID needed to get full content details (if RequiresResolution is true).
-    /// </summary>
+    /// <summary>Gets or sets the resolver ID needed to get full content details (if RequiresResolution is true).</summary>
     public string? ResolverId { get; set; }
 
-    /// <summary>
-    /// Gets or sets the source URL for resolution (e.g., specific mod page URL).
-    /// </summary>
+    /// <summary>Gets or sets the source URL for resolution (e.g., specific mod page URL).</summary>
     public string? SourceUrl { get; set; }
 
-    /// <summary>
-    /// Gets additional metadata for resolvers.
-    /// </summary>
+    /// <summary>Gets additional metadata for resolvers.</summary>
     public IDictionary<string, string> ResolverMetadata { get; } = new Dictionary<string, string>();
 
     /// <summary>Returns the data payload cast to type T, or null if unavailable or of wrong type.</summary>

@@ -48,7 +48,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
     }
 
     /// <inheritdoc />
-    public async Task<ContentOperationResult<ContentManifest>> DeliverContentAsync(
+    public async Task<OperationResult<ContentManifest>> DeliverContentAsync(
         ContentManifest packageManifest,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
@@ -122,8 +122,8 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
 
                 if (!downloadResult.Success)
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to download {file.RelativePath}: {downloadResult.ErrorMessage}");
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
                 // Add the delivered file using the builder
@@ -157,17 +157,17 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                 deliveredManifest.WithInstallationInstructions(packageManifest.InstallationInstructions.WorkspaceStrategy);
             }
 
-            return ContentOperationResult<ContentManifest>.CreateSuccess(deliveredManifest.Build());
+            return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest.Build());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc />
-    public Task<ContentOperationResult<bool>> ValidateContentAsync(
+    public Task<OperationResult<bool>> ValidateContentAsync(
         ContentManifest manifest, CancellationToken cancellationToken = default)
     {
         try
@@ -178,16 +178,16 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                 if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri) ||
                     !(uri.Scheme == "http" || uri.Scheme == "https"))
                 {
-                    return Task.FromResult(ContentOperationResult<bool>.CreateSuccess(false));
+                    return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
                 }
             }
 
-            return Task.FromResult(ContentOperationResult<bool>.CreateSuccess(true));
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(ContentOperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
 }

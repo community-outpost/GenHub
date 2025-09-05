@@ -47,11 +47,11 @@ public class ContentOrchestratorTests
 
         provider1Mock.Setup(p => p.IsEnabled).Returns(true);
         provider1Mock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results1));
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results1));
 
         provider2Mock.Setup(p => p.IsEnabled).Returns(true);
         provider2Mock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results2));
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results2));
 
         var providers = new[] { provider1Mock.Object, provider2Mock.Object };
 
@@ -93,9 +93,9 @@ public class ContentOrchestratorTests
         var providerMock = new Mock<IContentProvider>();
         providerMock.Setup(p => p.SourceName).Returns("TestProvider");
         providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
         providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
 
         _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));

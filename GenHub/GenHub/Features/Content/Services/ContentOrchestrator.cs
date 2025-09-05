@@ -78,14 +78,14 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing an aggregated list of search results from all providers.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the query is null.</exception>
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         if (query.Take <= 0 || query.Take > 1000)
         {
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Take must be between 1 and 1000");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Take must be between 1 and 1000");
         }
 
         _logger.LogDebug("Starting orchestrated content search with query: {SearchTerm}, ContentType: {ContentType}", query.SearchTerm, query.ContentType);
@@ -96,7 +96,7 @@ public class ContentOrchestrator : IContentOrchestrator
         if (cachedResults != null)
         {
             _logger.LogDebug("Returning cached search results for query: {SearchTerm}", query.SearchTerm);
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
         }
 
         var allResults = new List<ContentSearchResult>();
@@ -111,7 +111,7 @@ public class ContentOrchestrator : IContentOrchestrator
         if (!searchTasks.Any())
         {
             _logger.LogWarning("No enabled providers available for search");
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("No enabled providers available");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("No enabled providers available");
         }
 
         var searchTasksAsync = searchTasks
@@ -144,10 +144,10 @@ public class ContentOrchestrator : IContentOrchestrator
                     {
                         lock (errors)
                         {
-                            errors.Add($"{provider.SourceName}: {result.ErrorMessage}");
+                            errors.Add($"{provider.SourceName}: {result.FirstError}");
                         }
 
-                        _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.ErrorMessage);
+                        _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
                 }
                 catch (Exception ex)
@@ -176,7 +176,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogInformation("Content search completed. Total results: {ResultCount}, Errors: {ErrorCount}", sortedResults.Count, errors.Count);
 
-        return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(sortedResults);
+        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(sortedResults);
     }
 
     /// <summary>
@@ -188,7 +188,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing the game manifest.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="providerName"/> or <paramref name="contentId"/> is null.</exception>
-    public async Task<ContentOperationResult<ContentManifest>> GetContentManifestAsync(
+    public async Task<OperationResult<ContentManifest>> GetContentManifestAsync(
         string providerName, string contentId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(providerName);
@@ -200,13 +200,13 @@ public class ContentOrchestrator : IContentOrchestrator
         if (cachedManifest != null)
         {
             _logger.LogDebug("Returning cached manifest for {ProviderName}::{ContentId}", providerName, contentId);
-            return ContentOperationResult<ContentManifest>.CreateSuccess(cachedManifest);
+            return OperationResult<ContentManifest>.CreateSuccess(cachedManifest);
         }
 
         var provider = _providers.FirstOrDefault(p => p.SourceName == providerName);
         if (provider == null)
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Provider not found: {providerName}");
+            return OperationResult<ContentManifest>.CreateFailure($"Provider not found: {providerName}");
         }
 
         _logger.LogDebug("Retrieving manifest from provider {ProviderName} for content {ContentId}", providerName, contentId);
@@ -229,7 +229,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="contentType">Optional content type filter.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that returns a result containing featured content search results.</returns>
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> GetFeaturedContentAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> GetFeaturedContentAsync(
         ContentType? contentType = null, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery
@@ -242,8 +242,8 @@ public class ContentOrchestrator : IContentOrchestrator
 
         var result = await SearchAsync(query, cancellationToken);
         return result.Success
-            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? Enumerable.Empty<ContentSearchResult>())
-            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(result.Errors);
+            ? OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? Enumerable.Empty<ContentSearchResult>())
+            : OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(result.Errors);
     }
 
     /// <summary>
@@ -251,10 +251,10 @@ public class ContentOrchestrator : IContentOrchestrator
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task that returns a result containing available content providers.</returns>
-    public Task<ContentOperationResult<IEnumerable<IContentProvider>>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default)
+    public Task<OperationResult<IEnumerable<IContentProvider>>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default)
     {
         var providers = _providers.ToList();
-        return Task.FromResult(ContentOperationResult<IEnumerable<IContentProvider>>.CreateSuccess(providers));
+        return Task.FromResult(OperationResult<IEnumerable<IContentProvider>>.CreateSuccess(providers));
     }
 
     /// <summary>
@@ -330,20 +330,20 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing the game manifest.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="contentSearchResult"/> is null.</exception>
-    public async Task<ContentOperationResult<ContentManifest>> ResolveManifestAsync(
+    public async Task<OperationResult<ContentManifest>> ResolveManifestAsync(
         ContentSearchResult contentSearchResult, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(contentSearchResult);
 
         if (string.IsNullOrEmpty(contentSearchResult.ResolverId))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure(
+            return OperationResult<ContentManifest>.CreateFailure(
                 $"Discovered content '{contentSearchResult.Name}' does not have a ResolverId.");
         }
 
         if (!_resolvers.TryGetValue(contentSearchResult.ResolverId, out IContentResolver? resolver))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure(
+            return OperationResult<ContentManifest>.CreateFailure(
                 $"No resolver found for ResolverId: {contentSearchResult.ResolverId}");
         }
 
@@ -353,11 +353,11 @@ public class ContentOrchestrator : IContentOrchestrator
             var validationResult = await _contentValidator.ValidateManifestAsync(manifestResult.Data, cancellationToken);
             if (!validationResult.IsValid)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure(
+                return OperationResult<ContentManifest>.CreateFailure(
                     validationResult.Issues.Select(i => $"Manifest validation failed: {i.Message}"));
             }
 
-            return ContentOperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
+            return OperationResult<ContentManifest>.CreateSuccess(manifestResult.Data);
         }
 
         return manifestResult;
@@ -371,7 +371,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="progress">Optional progress reporter for acquisition status.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing the acquired game manifest.</returns>
-    public async Task<ContentOperationResult<ContentManifest>> AcquireContentAsync(
+    public async Task<OperationResult<ContentManifest>> AcquireContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -386,7 +386,7 @@ public class ContentOrchestrator : IContentOrchestrator
             var provider = _providers.FirstOrDefault(p => p.SourceName == searchResult.ProviderName);
             if (provider == null)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure(
+                return OperationResult<ContentManifest>.CreateFailure(
                     $"Provider not found: {searchResult.ProviderName}");
             }
 
@@ -402,8 +402,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
                 if (!manifestResult.Success || manifestResult.Data == null)
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to get manifest: {manifestResult.ErrorMessage}");
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to get manifest: {manifestResult.FirstError}");
                 }
 
                 manifest = manifestResult.Data;
@@ -423,7 +423,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                    return OperationResult<ContentManifest>.CreateFailure(
                         errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
@@ -444,8 +444,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, progress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
-                        $"Content preparation failed: {prepareResult.ErrorMessage}");
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Content preparation failed: {prepareResult.FirstError}");
                 }
 
                 // Step 5: Full validation (manifest + files)
@@ -486,7 +486,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     var errors = fullValidation.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                     if (errors.Any())
                     {
-                        return ContentOperationResult<ContentManifest>.CreateFailure(
+                        return OperationResult<ContentManifest>.CreateFailure(
                             errors.Select(e => $"Content validation failed: {e.Message}"));
                     }
                 }
@@ -510,7 +510,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 });
 
                 _logger.LogInformation("Content {ContentName} acquired and stored in manifest pool", searchResult.Name);
-                return ContentOperationResult<ContentManifest>.CreateSuccess(prepareResult.Data);
+                return OperationResult<ContentManifest>.CreateSuccess(prepareResult.Data);
             }
             finally
             {
@@ -528,7 +528,7 @@ public class ContentOrchestrator : IContentOrchestrator
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to acquire content {ContentId}", searchResult.Id);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content acquisition failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content acquisition failed: {ex.Message}");
         }
     }
 
@@ -537,11 +537,11 @@ public class ContentOrchestrator : IContentOrchestrator
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing all acquired game manifests.</returns>
-    public async Task<ContentOperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
+    public async Task<OperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
         CancellationToken cancellationToken = default)
     {
         var manifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
-        return ContentOperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
+        return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <summary>
@@ -550,7 +550,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="manifestId">The unique identifier of the manifest to remove.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating success or failure of the removal operation.</returns>
-    public async Task<ContentOperationResult<bool>> RemoveAcquiredContentAsync(
+    public async Task<OperationResult<bool>> RemoveAcquiredContentAsync(
         string manifestId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifestId);
@@ -563,12 +563,12 @@ public class ContentOrchestrator : IContentOrchestrator
             // Invalidate related cache entries
             await _cache.InvalidateAsync($"manifest::{manifestId}", cancellationToken);
 
-            return ContentOperationResult<bool>.CreateSuccess(true);
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove content {ManifestId} from pool", manifestId);
-            return ContentOperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
         }
     }
 

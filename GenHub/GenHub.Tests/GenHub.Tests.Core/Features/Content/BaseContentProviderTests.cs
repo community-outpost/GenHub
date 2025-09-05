@@ -131,7 +131,7 @@ public class BaseContentProviderTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Manifest validation failed", result.ErrorMessage);
+        Assert.Contains("Manifest validation failed", result.FirstError);
     }
 
     /// <summary>
@@ -166,16 +166,16 @@ public class BaseContentProviderTests
 
         protected override IContentDeliverer Deliverer => _deliverer;
 
-        public override Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(string contentId, CancellationToken cancellationToken = default)
+        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(string contentId, CancellationToken cancellationToken = default)
         {
             var manifest = new ContentManifest { Id = contentId, Name = $"Content {contentId}" };
-            return Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
         }
 
-        protected override Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+        protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
             ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)
         {
-            return Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
         }
     }
 }

@@ -67,14 +67,14 @@ public class ContentStorageService : IContentStorageService
         Path.Combine(_storageRoot, DirectoryNames.Data, manifestId);
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<ContentManifest>> StoreContentAsync(
+    public async Task<OperationResult<ContentManifest>> StoreContentAsync(
         ContentManifest manifest,
         string sourceDirectory,
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(sourceDirectory))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure(
+            return OperationResult<ContentManifest>.CreateFailure(
                 $"Source directory does not exist: {sourceDirectory}");
         }
 
@@ -96,7 +96,7 @@ public class ContentStorageService : IContentStorageService
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
             _logger.LogInformation("Successfully stored content for manifest {ManifestId}", manifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateSuccess(updatedManifest);
+            return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);
         }
         catch (Exception ex)
         {
@@ -113,12 +113,12 @@ public class ContentStorageService : IContentStorageService
                 _logger.LogWarning(cleanupEx, "Failed to cleanup after storage failure for {ManifestId}", manifest.Id);
             }
 
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Storage failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Storage failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<string>> RetrieveContentAsync(
+    public async Task<OperationResult<string>> RetrieveContentAsync(
         string manifestId,
         string targetDirectory,
         CancellationToken cancellationToken = default)
@@ -127,7 +127,7 @@ public class ContentStorageService : IContentStorageService
 
         if (!Directory.Exists(contentDir))
         {
-            return ContentOperationResult<string>.CreateFailure(
+            return OperationResult<string>.CreateFailure(
                 $"Content not found for manifest {manifestId}");
         }
 
@@ -137,17 +137,17 @@ public class ContentStorageService : IContentStorageService
             await CopyDirectoryAsync(contentDir, targetDirectory, cancellationToken);
 
             _logger.LogDebug("Retrieved content for manifest {ManifestId} to {TargetDirectory}", manifestId, targetDirectory);
-            return ContentOperationResult<string>.CreateSuccess(targetDirectory);
+            return OperationResult<string>.CreateSuccess(targetDirectory);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve content for manifest {ManifestId}", manifestId);
-            return ContentOperationResult<string>.CreateFailure($"Retrieval failed: {ex.Message}");
+            return OperationResult<string>.CreateFailure($"Retrieval failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);
@@ -155,16 +155,16 @@ public class ContentStorageService : IContentStorageService
         bool exists = Directory.Exists(contentDir) && File.Exists(manifestPath);
         if (exists)
         {
-            return await Task.FromResult(ContentOperationResult<bool>.CreateSuccess(true));
+            return await Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
         else
         {
-            return await Task.FromResult(ContentOperationResult<bool>.CreateFailure($"Content not found for manifest {manifestId}"));
+            return await Task.FromResult(OperationResult<bool>.CreateFailure($"Content not found for manifest {manifestId}"));
         }
     }
 
     /// <inheritdoc/>
-    public async Task<ContentOperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);
@@ -179,12 +179,12 @@ public class ContentStorageService : IContentStorageService
             });
 
             _logger.LogInformation("Removed stored content for manifest {ManifestId}", manifestId);
-            return ContentOperationResult<bool>.CreateSuccess(true);
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove content for manifest {ManifestId}", manifestId);
-            return ContentOperationResult<bool>.CreateFailure($"Removal failed: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Removal failed: {ex.Message}");
         }
     }
 
