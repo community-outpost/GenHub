@@ -26,7 +26,7 @@ public interface IContentDeliverer : IContentSource
     /// <param name="progress">Optional progress reporter for content acquisition.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A result containing the delivered manifest or error information.</returns>
-    Task<ContentOperationResult<ContentManifest>> DeliverContentAsync(
+    Task<OperationResult<ContentManifest>> DeliverContentAsync(
         ContentManifest packageManifest,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
@@ -38,7 +38,7 @@ public interface IContentDeliverer : IContentSource
     /// <param name="manifest">The manifest to validate for delivery.</param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
     /// <returns>A result indicating whether the content can be delivered.</returns>
-    Task<ContentOperationResult<bool>> ValidateContentAsync(
+    Task<OperationResult<bool>> ValidateContentAsync(
         ContentManifest manifest,
         CancellationToken cancellationToken = default);
 }

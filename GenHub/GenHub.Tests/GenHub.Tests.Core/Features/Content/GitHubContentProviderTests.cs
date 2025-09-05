@@ -69,10 +69,10 @@ public class GitHubContentProviderTests
         var resolvedManifest = new ContentManifest { Id = "gh.test.mod", Name = "Resolved Test Mod" };
 
         _discovererMock.Setup(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
 
         _resolverMock.Setup(r => r.ResolveAsync(discoveredItem, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
 
         _validatorMock.Setup(v => v.ValidateManifestAsync(resolvedManifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("gh.test.mod", new List<ValidationIssue>())); // Valid result
@@ -108,7 +108,7 @@ public class GitHubContentProviderTests
 
         _delivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
         _delivererMock.Setup(d => d.DeliverContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("gh.test.mod", new List<ValidationIssue>())); // Valid result
@@ -117,7 +117,7 @@ public class GitHubContentProviderTests
         var result = await _provider.PrepareContentAsync(manifest, targetDirectory);
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got: {result.ErrorMessage}");
+        Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
 
         // The base class should orchestrate the calls
         _delivererMock.Verify(d => d.CanDeliver(It.IsAny<ContentManifest>()), Times.AtLeastOnce());

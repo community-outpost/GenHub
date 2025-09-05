@@ -66,7 +66,7 @@ public partial class ContentBrowserViewModel(IContentOrchestrator contentOrchest
             }
             else
             {
-                ErrorMessage = result.ErrorMessage ?? string.Empty;
+                ErrorMessage = result.FirstError ?? string.Empty;
             }
         }
         catch (Exception ex)

@@ -87,7 +87,7 @@ public class CasMaintenanceService(
             _logger.LogDebug("Running CAS integrity validation");
             var validationResult = await casService.ValidateIntegrityAsync(cancellationToken);
 
-            if (validationResult.IsValid)
+            if (validationResult.Success)
             {
                 _logger.LogInformation("CAS integrity validation passed: {ObjectsValidated} objects validated", validationResult.ObjectsValidated);
             }

@@ -18,8 +18,8 @@ public interface IContentOrchestrator
     /// </summary>
     /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="ContentOperationResult{T}"/> containing an aggregated list of <see cref="ContentSearchResult"/>.</returns>
-    Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
+    /// <returns>A <see cref="OperationResult{T}"/> containing an aggregated list of <see cref="ContentSearchResult"/>.</returns>
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resolves a <see cref="ContentSearchResult"/> item into a full <see cref="ContentManifest"/>.
@@ -28,7 +28,7 @@ public interface IContentOrchestrator
     /// <param name="contentId">The unique identifier of the content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing the game manifest.</returns>
-    Task<ContentOperationResult<ContentManifest>> GetContentManifestAsync(
+    Task<OperationResult<ContentManifest>> GetContentManifestAsync(
         string providerName,
         string contentId,
         CancellationToken cancellationToken = default);
@@ -41,7 +41,7 @@ public interface IContentOrchestrator
     /// <param name="progress">Optional progress reporter for acquisition status.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing the acquired game manifest.</returns>
-    Task<ContentOperationResult<ContentManifest>> AcquireContentAsync(
+    Task<OperationResult<ContentManifest>> AcquireContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default);
@@ -51,7 +51,7 @@ public interface IContentOrchestrator
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing all acquired game manifests.</returns>
-    Task<ContentOperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
+    Task<OperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -60,7 +60,7 @@ public interface IContentOrchestrator
     /// <param name="manifestId">The unique identifier of the manifest to remove.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating success or failure of the removal operation.</returns>
-    Task<ContentOperationResult<bool>> RemoveAcquiredContentAsync(
+    Task<OperationResult<bool>> RemoveAcquiredContentAsync(
         string manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -69,7 +69,7 @@ public interface IContentOrchestrator
     /// <param name="contentType">Optional filter by content type.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing information about the featured content.</returns>
-    Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> GetFeaturedContentAsync(
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> GetFeaturedContentAsync(
         ContentType? contentType = null,
         CancellationToken cancellationToken = default);
 
@@ -78,7 +78,7 @@ public interface IContentOrchestrator
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result object containing information about the available content providers.</returns>
-    Task<ContentOperationResult<IEnumerable<IContentProvider>>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<IEnumerable<IContentProvider>>> GetAvailableProvidersAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Registers a new content provider with the service.

@@ -33,22 +33,22 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
     /// </summary>
     /// <param name="discoveredItem">The discovered content item to resolve.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved details.</returns>
-    public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved details.</returns>
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    {
+        if (discoveredItem?.SourceUrl == null)
         {
-            if (discoveredItem?.SourceUrl == null)
-            {
-                return ContentOperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
-            }
+            return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
+        }
 
-            try
+        try
             {
                 var response = await _httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
                 var mapDetails = ParseMapDetailPage(response);
 
                 if (string.IsNullOrEmpty(mapDetails.downloadUrl))
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
+                    return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
                 }
 
                 var manifest = _manifestBuilder
@@ -70,12 +70,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
                 // Add required directories for maps
                 manifest.AddRequiredDirectories("Maps");
 
-                return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+                return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
+                return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
             }
         }
 

@@ -36,7 +36,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         var result = await _storageService.StoreContentAsync(manifest, sourceDirectory, cancellationToken);
         if (!result.Success)
         {
-            throw new InvalidOperationException($"Failed to store content for manifest {manifest.Id}: {result.ErrorMessage}");
+            throw new InvalidOperationException($"Failed to store content for manifest {manifest.Id}: {result.FirstError}");
         }
 
         _logger.LogDebug("Successfully stored manifest {ManifestId} in pool", manifest.Id);
@@ -122,7 +122,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         var result = await _storageService.RemoveContentAsync(manifestId, cancellationToken);
         if (!result.Success)
         {
-            throw new InvalidOperationException($"Failed to remove content for manifest {manifestId}: {result.ErrorMessage}");
+            throw new InvalidOperationException($"Failed to remove content for manifest {manifestId}: {result.FirstError}");
         }
 
         _logger.LogDebug("Successfully removed manifest {ManifestId} from pool", manifestId);

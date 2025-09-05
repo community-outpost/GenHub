@@ -45,19 +45,19 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
     /// </summary>
     /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="T:GenHub.Core.Models.Results.ContentOperationResult"/> containing discovered maps.</returns>
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(ContentSearchQuery query, CancellationToken cancellationToken = default)
+    /// <returns>A <see cref="T:GenHub.Core.Models.Results.OperationResult"/> containing discovered maps.</returns>
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         try
         {
             if (query == null)
             {
-                return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Query cannot be null");
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Query cannot be null");
             }
 
             if (string.IsNullOrWhiteSpace(query.SearchTerm))
             {
-                return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(Enumerable.Empty<ContentSearchResult>());
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(Enumerable.Empty<ContentSearchResult>());
             }
 
             var searchUrl = $"https://search.cnclabs.com/?cse=labs&q={Uri.EscapeDataString(query.SearchTerm ?? string.Empty)}";
@@ -77,12 +77,12 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
                 SourceUrl = map.detailUrl,
                 ResolverMetadata = { ["mapId"] = map.id.ToString(), },
             });
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover maps from CNC Labs");
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
 

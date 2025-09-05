@@ -18,7 +18,7 @@ public interface IContentProvider : IContentSource
     /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>Fully resolved content search results ready for installation.</returns>
-    Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default);
 
@@ -28,7 +28,7 @@ public interface IContentProvider : IContentSource
     /// <param name="contentId">The unique identifier of the content.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A complete, validated game manifest ready for workspace preparation.</returns>
-    Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 
@@ -41,7 +41,7 @@ public interface IContentProvider : IContentSource
     /// <param name="progress">Optional progress reporting.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The final manifest with all content ready for workspace preparation.</returns>
-    Task<ContentOperationResult<ContentManifest>> PrepareContentAsync(
+    Task<OperationResult<ContentManifest>> PrepareContentAsync(
         ContentManifest manifest,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,

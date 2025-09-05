@@ -376,7 +376,7 @@ public class FileOperationsService(
             if (!result.Success)
             {
                 throw new HttpRequestException(
-                    $"Download failed: {result.ErrorMessage}");
+                    $"Download failed: {result.FirstError}");
             }
 
             _logger.LogInformation(
@@ -417,7 +417,7 @@ public class FileOperationsService(
                 return result.Data;
             }
 
-            _logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.ErrorMessage);
+            _logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
             return null;
         }
         catch (Exception ex)
@@ -483,7 +483,7 @@ public class FileOperationsService(
             var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.ErrorMessage);
+                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
@@ -533,7 +533,7 @@ public class FileOperationsService(
                 return streamResult.Data;
             }
 
-            _logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.ErrorMessage);
+            _logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
             return null;
         }
         catch (Exception ex)

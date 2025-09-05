@@ -38,7 +38,8 @@ public class ValidationResultTests
     public void IsValid_ReturnsExpected_BasedOnIssues(ValidationIssueType issueType, bool expectedValid)
     {
         // Arrange
-        var issues = new List<ValidationIssue> { new() { IssueType = issueType } };
+        var severity = issueType == ValidationIssueType.AddonDetected ? ValidationSeverity.Warning : ValidationSeverity.Error;
+        var issues = new List<ValidationIssue> { new() { IssueType = issueType, Severity = severity } };
 
         // Act
         var result = new ValidationResult("id", issues);
