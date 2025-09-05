@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-    xmlns:conv="clr-namespace:GenHub.GenHub.Infrastructure.Converters"
+    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
     x:DataType="vm:GameProfileItemViewModel">
     

@@ -124,7 +124,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 $"{gameType}_{version}_{installationType}",
                 $"{gameType} {version}",
                 version)
-            .WithContentType(ContentType.BaseGame, gameType)
+            .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(
                 "EA Games",
                 "https://www.ea.com",
@@ -160,7 +160,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var builder = CreateBuilder()
             .WithBasicInfo(gameId, gameName, gameVersion)
-            .WithContentType(ContentType.StandaloneVersion, GameType.Generals)
+            .WithContentType(ContentType.GameClient, GameType.Generals)
             .WithMetadata($"Standalone game version: {gameName}")
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 

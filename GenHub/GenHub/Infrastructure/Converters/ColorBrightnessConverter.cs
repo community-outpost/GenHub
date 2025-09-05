@@ -3,7 +3,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Media;
 using System.Globalization;
 
-namespace GenHub.GenHub.Infrastructure.Converters;
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a color to its brightness value (0.0 to 1.0).
@@ -29,6 +29,7 @@ public class ColorBrightnessConverter : IValueConverter
     /// Not implemented. Converts a brightness value back to a color.
     /// </summary>
     /// <inheritdoc/>
+    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();

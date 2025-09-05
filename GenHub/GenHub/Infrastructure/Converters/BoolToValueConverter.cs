@@ -2,47 +2,69 @@ using System;
 using Avalonia.Data.Converters;
 using System.Globalization;
 
-namespace GenHub.GenHub.Infrastructure.Converters;
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a boolean value to a specified value for true/false cases.
+/// Converts boolean values to specified true/false values.
 /// </summary>
-public class BoolToValueConverter : IValueConverter
+public class BoolToValueConverter(object? trueValue = null, object? falseValue = null) : IValueConverter
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BoolToValueConverter"/> class.
+    /// </summary>
+    public BoolToValueConverter()
+        : this(null, null)
+    {
+    }
+
     /// <summary>
     /// Gets or sets the value to return when the input is true.
     /// </summary>
-    public object? TrueValue { get; set; }
+    public object? TrueValue { get; set; } = trueValue;
 
     /// <summary>
     /// Gets or sets the value to return when the input is false.
     /// </summary>
-    public object? FalseValue { get; set; }
+    public object? FalseValue { get; set; } = falseValue;
 
     /// <summary>
-    /// Converts a boolean value to the corresponding TrueValue or FalseValue.
+    /// Converts a boolean value to the configured true/false value.
     /// </summary>
-    /// <param name="value">The value produced by the binding source.</param>
-    /// <param name="targetType">The type of the binding target property.</param>
-    /// <param name="parameter">The converter parameter to use.</param>
-    /// <param name="culture">The culture to use in the converter.</param>
-    /// <returns>The converted value.</returns>
+    /// <param name="value">The boolean value to convert.</param>
+    /// <param name="targetType">The target type for the conversion.</param>
+    /// <param name="parameter">Optional parameter for conversion.</param>
+    /// <param name="culture">The culture to use for conversion.</param>
+    /// <returns>The configured true or false value.</returns>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is bool b)
+        if (value is bool boolValue)
         {
-            return b ? TrueValue : FalseValue;
+            return boolValue ? TrueValue : FalseValue;
         }
 
         return FalseValue;
     }
 
     /// <summary>
-    /// Not implemented. Converts a value back to a boolean.
+    /// Converts back from the configured value to boolean.
     /// </summary>
-    /// <inheritdoc/>
+    /// <param name="value">The value to convert back.</param>
+    /// <param name="targetType">The target type for the conversion.</param>
+    /// <param name="parameter">Optional parameter for conversion.</param>
+    /// <param name="culture">The culture to use for conversion.</param>
+    /// <returns>The boolean value.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        if (value?.Equals(TrueValue) == true)
+        {
+            return true;
+        }
+
+        if (value?.Equals(FalseValue) == true)
+        {
+            return false;
+        }
+
+        return false;
     }
 }

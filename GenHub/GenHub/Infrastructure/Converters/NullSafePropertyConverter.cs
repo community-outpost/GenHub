@@ -1,29 +1,37 @@
-using System;
 using Avalonia.Data.Converters;
+using System;
 using System.Globalization;
 
-namespace GenHub.GenHub.Infrastructure.Converters;
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a value to a null-safe property (returns empty string if null).
+/// Safely handles null values in property binding.
 /// </summary>
 public class NullSafePropertyConverter : IValueConverter
-{
-    /// <summary>
-    /// Converts a value to a null-safe property (returns empty string if null).
-    /// </summary>
-    /// <inheritdoc/>
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value ?? string.Empty;
-    }
+        /// <summary>
+        /// Converts a value while handling nulls safely.
+        /// </summary>
+        /// <param name="value">The value to convert.</param>
+        /// <param name="targetType">The target type for the conversion.</param>
+        /// <param name="parameter">Optional parameter for conversion.</param>
+        /// <param name="culture">The culture to use for conversion.</param>
+        /// <returns>The converted value or a safe fallback.</returns>
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return value ?? (parameter?.ToString() ?? string.Empty);
+        }
 
-    /// <summary>
-    /// Not implemented. Converts a value back to its original type.
-    /// </summary>
-    /// <inheritdoc/>
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
+        /// <summary>
+        /// Converts a value back while handling nulls safely.
+        /// </summary>
+        /// <param name="value">The value to convert back.</param>
+        /// <param name="targetType">The target type for the conversion.</param>
+        /// <param name="parameter">Optional parameter for conversion.</param>
+        /// <param name="culture">The culture to use for conversion.</param>
+        /// <returns>The converted value.</returns>
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return value;
+        }
     }
-}

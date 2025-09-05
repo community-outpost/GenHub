@@ -1,4 +1,3 @@
-<!-- filepath: .vs\docs\flowcharts\Acquisition-Flow.md -->
 # Flowchart: Content Acquisition Layer
 
 This flowchart details the critical transformation step where a `GameManifest` with package-level instructions is converted into one with specific, actionable file operations.
