@@ -7,6 +7,7 @@ using System.Windows.Input;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.GitHub;
@@ -34,7 +35,7 @@ public partial class UpdateNotificationViewModel : ObservableObject
     /// Gets or sets the repository name.
     /// </summary>
     [ObservableProperty]
-    private string _repositoryName = "GenHub";
+    private string _repositoryName = AppConstants.AppName;
 
     /// <summary>
     /// Gets or sets the status message.

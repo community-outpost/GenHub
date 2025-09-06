@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using GenHub.Core.Constants;
 
 namespace GenHub.Windows;
 
@@ -11,7 +12,22 @@ internal static class NativeMethods
     /// <summary>
     /// The command to restore a window.
     /// </summary>
-    internal const int SW_RESTORE = 9;
+    internal const int SW_RESTORE = ProcessConstants.SW_RESTORE;
+
+    /// <summary>
+    /// The command to show a window.
+    /// </summary>
+    internal const int SW_SHOW = ProcessConstants.SW_SHOW;
+
+    /// <summary>
+    /// The command to minimize a window.
+    /// </summary>
+    internal const int SW_MINIMIZE = ProcessConstants.SW_MINIMIZE;
+
+    /// <summary>
+    /// The command to maximize a window.
+    /// </summary>
+    internal const int SW_MAXIMIZE = ProcessConstants.SW_MAXIMIZE;
 
     /// <summary>
     /// Brings the specified window to the foreground and activates it.

@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.AppUpdate;
@@ -65,7 +66,7 @@ public class WindowsUpdateInstaller(
 
             await process.WaitForExitAsync(cancellationToken);
 
-            var success = process.ExitCode == 0;
+            var success = process.ExitCode == ProcessConstants.ExitCodeSuccess;
             ReportProgress(
                 progress,
                 success ? "Installation completed successfully" : "Installation failed",
@@ -120,7 +121,7 @@ public class WindowsUpdateInstaller(
 
             await process.WaitForExitAsync(cancellationToken);
 
-            var success = process.ExitCode == 0;
+            var success = process.ExitCode == ProcessConstants.ExitCodeSuccess;
             ReportProgress(
                 progress,
                 success ? "MSI installation completed successfully" : "MSI installation failed",

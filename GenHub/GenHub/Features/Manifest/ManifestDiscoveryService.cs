@@ -107,13 +107,13 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         // Then discover from local filesystem locations
         var localManifestDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
+            AppConstants.AppName,
             FileTypes.ManifestsDirectory);
 
         // Also check for custom manifest directories
         var customManifestDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
+            AppConstants.AppName,
             "CustomManifests");
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
@@ -195,7 +195,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
 
             // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
             var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.ManifestFilePattern, SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
                     .Where(f => !f.EndsWith(FileTypes.ManifestFileExtension)));
 
             foreach (var manifestFile in manifestFiles)

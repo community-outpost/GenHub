@@ -20,6 +20,9 @@ public class CasDefaultsTests
             // Cache size should be 50GB
             Assert.Equal(50L * 1024 * 1024 * 1024, CasDefaults.MaxCacheSizeBytes);
 
+            // Default cache size in GB should be 50
+            Assert.Equal(50, CasDefaults.DefaultMaxCacheSizeGB);
+
             // Concurrent operations should be 4
             Assert.Equal(4, CasDefaults.MaxConcurrentOperations);
         });
@@ -69,12 +72,17 @@ public class CasDefaultsTests
     }
 
     /// <summary>
-    /// Tests that long constants are of correct type.
+    /// Tests that default cache size in GB constant has reasonable value.
     /// </summary>
     [Fact]
-    public void CasDefaults_LongConstants_ShouldBeCorrectType()
+    public void CasDefaults_DefaultMaxCacheSizeGB_ShouldHaveReasonableValue()
     {
         // Arrange & Act & Assert
-        Assert.IsType<long>(CasDefaults.MaxCacheSizeBytes);
+        Assert.Multiple(() =>
+        {
+            Assert.True(CasDefaults.DefaultMaxCacheSizeGB > 0);
+            Assert.True(CasDefaults.DefaultMaxCacheSizeGB <= 1000); // Not too high
+            Assert.True(CasDefaults.DefaultMaxCacheSizeGB >= 1); // At least 1GB
+        });
     }
 }

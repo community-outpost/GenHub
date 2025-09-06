@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -94,12 +95,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
             author: string.Empty,
             previewImage: string.Empty,
             screenshots: new List<string>(),
-            fileSize: 0,
-            downloadCount: 0,
+            fileSize: ContentConstants.DefaultFileSize,
+            downloadCount: ContentConstants.DefaultDownloadCount,
             submissionDate: DateTime.MinValue,
             downloadUrl: string.Empty,
             fileType: string.Empty,
-            rating: 0f);
+            rating: ContentConstants.DefaultRating);
     }
 
     /// <summary>
@@ -124,12 +125,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
         string author = "",
         string previewImage = "",
         List<string>? screenshots = null,
-        long fileSize = 0,
-        int downloadCount = 0,
+        long fileSize = ContentConstants.DefaultFileSize,
+        int downloadCount = ContentConstants.DefaultDownloadCount,
         DateTime submissionDate = default,
         string downloadUrl = "",
         string fileType = "",
-        float rating = 0f
+        float rating = ContentConstants.DefaultRating
     )
     {
         public List<string> ScreenshotUrls => screenshots ?? new List<string>();

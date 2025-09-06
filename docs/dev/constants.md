@@ -10,68 +10,34 @@ GenHub uses a centralized constants system to ensure consistency across the appl
 
 ### ApiConstants
 
-API and network related constants for HTTP operations and GitHub integration.
-
-#### GitHub API Endpoints
-
-- `GitHubApiBaseUrl`: GitHub API base URL (`"https://api.github.com"`)
-- `GitHubRawBaseUrl`: GitHub raw content base URL (`"https://raw.githubusercontent.com"`)
-- `GitHubRepoApiEndpoint`: Repository API endpoint template (`"/repos/{owner}/{repo}"`)
-- `GitHubReleasesApiEndpoint`: Releases API endpoint template (`"/repos/{owner}/{repo}/releases"`)
-- `GitHubLatestReleaseApiEndpoint`: Latest release API endpoint template (`"/repos/{owner}/{repo}/releases/latest"`)
-- `GitHubReleaseAssetsApiEndpoint`: Release assets API endpoint template (`"/repos/{owner}/{repo}/releases/{releaseId}/assets"`)
-- `GitHubContentsApiEndpoint`: Repository contents API endpoint template (`"/repos/{owner}/{repo}/contents/{path}"`)
-
-#### HTTP Status Codes
-
-- `HttpOk`: HTTP OK status code (200)
-- `HttpCreated`: HTTP Created status code (201)
-- `HttpNoContent`: HTTP No Content status code (204)
-- `HttpBadRequest`: HTTP Bad Request status code (400)
-- `HttpUnauthorized`: HTTP Unauthorized status code (401)
-- `HttpForbidden`: HTTP Forbidden status code (403)
-- `HttpNotFound`: HTTP Not Found status code (404)
-- `HttpInternalServerError`: HTTP Internal Server Error status code (500)
-
-#### Network Timeouts
-
-- `DefaultHttpTimeoutSeconds`: Default HTTP request timeout in seconds (30)
-- `LongHttpTimeoutSeconds`: Long HTTP request timeout for large downloads in seconds (300)
-- `ShortHttpTimeoutSeconds`: Short HTTP request timeout for quick operations in seconds (10)
+API and network related constants.
 
 #### User Agents
 
-- `DefaultUserAgent`: Default user agent string for HTTP requests (`"GenHub/1.0"`)
-- `GitHubApiUserAgent`: GitHub API user agent string (`"GenHub-GitHub-API/1.0"`)
+- `DefaultUserAgent`: Default user agent string for HTTP requests (constructed from `AppConstants.AppName` and `AppConstants.AppVersion`)
 
-#### Rate Limiting
+#### GitHub
 
-- `GitHubApiRateLimitAuthenticated`: GitHub API rate limit per hour for authenticated requests (5000)
-- `GitHubApiRateLimitUnauthenticated`: GitHub API rate limit per hour for unauthenticated requests (60)
-- `DefaultApiRequestDelayMs`: Default delay between API requests in milliseconds (1000)
-
-#### Content Types
-
-- `ContentTypeJson`: JSON content type (`"application/json"`)
-- `ContentTypeOctetStream`: Octet stream content type for binary data (`"application/octet-stream"`)
-- `ContentTypeFormUrlEncoded`: Form URL encoded content type (`"application/x-www-form-urlencoded"`)
+- `GitHubDomain`: GitHub domain name (`"github.com"`)
+- `GitHubUrlRegexPattern`: GitHub URL regex pattern for parsing repository URLs (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
 ### AppConstants
 
 Application-wide constants for GenHub.
 
-- `Version`: Current version of GenHub (`"1.0"`)
-- `ApplicationName`: Application name (`"GenHub"`)
+- `AppName`: The name of the application (`"GenHub"`)
+- `AppVersion`: The version of the application (`"1.0"`)
 - `DefaultTheme`: Default UI theme (Theme.Dark)
 - `DefaultThemeName`: Default theme name as string (`"Dark"`)
-- `DefaultUserAgent`: Default user agent string (`"GenHub/1.0"`)
 
 ### CasDefaults
 
 Default values and limits for Content-Addressable Storage (CAS).
 
 - `MaxCacheSizeBytes`: Default maximum cache size in bytes (50GB)
+- `DefaultMaxCacheSizeGB`: Default maximum cache size in gigabytes (50)
 - `MaxConcurrentOperations`: Default maximum concurrent CAS operations (4)
+- `GcGracePeriodDays`: Default garbage collection grace period in days (7)
 
 ### ConfigurationKeys
 
@@ -112,26 +78,34 @@ Configuration key constants for appsettings.json and environment variables.
 
 - `AppDataPath`: Configuration key for application data path (`"GenHub:AppDataPath"`)
 
+### ConversionConstants
+
+Constants for unit conversions used throughout the application.
+
+- `BytesPerKilobyte`: Number of bytes in one kilobyte (1024)
+- `BytesPerMegabyte`: Number of bytes in one megabyte (1048576)
+- `BytesPerGigabyte`: Number of bytes in one gigabyte (1073741824)
+
 ### DirectoryNames
 
-Standard directory names used for organizing content storage.
+Directory names used for organizing content storage.
 
-- `Data`: Directory for storing content data
-- `Cache`: Directory for storing cache files
-- `Temp`: Directory for storing temporary files
-- `Logs`: Directory for storing log files
-- `Backups`: Directory for storing backup files
+- `Data`: Directory for storing content data (`"Data"`)
+- `Cache`: Directory for storing cache files (`"Cache"`)
+- `CasPool`: Directory for Content-Addressable Storage (CAS) pool (`"cas-pool"`)
 
 ### DownloadDefaults
 
 Default values and limits for download operations.
 
-- `BufferSizeBytes`: Default buffer size for file download operations (80KB)
+- `BufferSizeBytes`: Default buffer size for file download operations (81920)
 - `BufferSizeKB`: Default buffer size in kilobytes for display purposes (80.0)
+- `MinBufferSizeKB`: Minimum buffer size in kilobytes for validation (4.0)
+- `MaxBufferSizeKB`: Maximum buffer size in kilobytes for validation (1024.0)
 - `MaxConcurrentDownloads`: Default maximum number of concurrent downloads (3)
 - `MaxRetryAttempts`: Default maximum retry attempts for failed downloads (3)
 - `TimeoutSeconds`: Default download timeout in seconds (600)
-- `RetryDelaySeconds`: Default retry delay in seconds (1)
+- `FileBufferSizeBytes`: Default buffer size for file operations (4096)
 
 ### FileTypes
 
@@ -152,6 +126,12 @@ File and directory name constants to prevent typos and ensure consistency.
 
 - `SettingsFileName`: Default settings file name (`"settings.json"`)
 
+### IoConstants
+
+Constants for input/output operations.
+
+- `DefaultFileBufferSize`: Default buffer size for file operations (4096 bytes)
+
 ### ProcessConstants
 
 Process and system constants.
@@ -171,29 +151,13 @@ Process and system constants.
 - `SW_MINIMIZE`: Windows API constant for minimizing a window (6)
 - `SW_MAXIMIZE`: Windows API constant for maximizing a window (3)
 
-#### Process Priority Constants
-
-- `REALTIME_PRIORITY_CLASS`: Process priority class for real-time priority (0x00000100)
-- `HIGH_PRIORITY_CLASS`: Process priority class for high priority (0x00000080)
-- `ABOVE_NORMAL_PRIORITY_CLASS`: Process priority class for above normal priority (0x00008000)
-- `NORMAL_PRIORITY_CLASS`: Process priority class for normal priority (0x00000020)
-- `BELOW_NORMAL_PRIORITY_CLASS`: Process priority class for below normal priority (0x00004000)
-- `IDLE_PRIORITY_CLASS`: Process priority class for idle priority (0x00000040)
-
 ### StorageConstants
 
 Storage and CAS (Content-Addressable Storage) related constants.
 
 #### CAS Retry Constants
 
-- `MaxRetries`: Maximum retry attempts for CAS operations (10)
-- `RetryDelayMs`: Delay between retry attempts (100ms)
-- `MaxRetryDelayMs`: Maximum delay for exponential backoff (5000ms)
-
-#### CAS Directory Structure
-
-- `ObjectsDirectory`: Directory for CAS objects (`"objects"`)
-- `LocksDirectory`: Directory for CAS locks (`"locks"`)
+- `MaxRetries`: Maximum number of retry attempts for CAS operations (10)
 
 #### CAS Maintenance Constants
 
@@ -203,10 +167,9 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 Time intervals and durations used throughout the application.
 
-- `DownloadProgressInterval`: Default progress reporting interval for downloads (500ms)
 - `UpdaterTimeout`: Default timeout for updater operations (10 minutes)
-- `CasMaintenanceRetryDelay`: Default CAS maintenance error retry delay (5 minutes)
-- `MemoryUpdateInterval`: Memory update interval for UI (2 seconds)
+- `DownloadTimeout`: Default timeout for download operations (30 minutes)
+- `NotificationHideDelay`: Delay for hiding UI notifications (3000ms)
 
 ### UiConstants
 
@@ -214,9 +177,6 @@ UI-related constants for consistent user experience.
 
 - `DefaultWindowWidth`: Default main window width in pixels (1200)
 - `DefaultWindowHeight`: Default main window height in pixels (800)
-- `MinWindowWidth`: Minimum allowed window width (800)
-- `MinWindowHeight`: Minimum allowed window height (600)
-- `MemoryUpdateIntervalSeconds`: Memory update interval in seconds for UI display (2)
 
 ### ValidationLimits
 
@@ -231,33 +191,16 @@ Validation limits and constraints.
 
 ## Usage Examples
 
-### File Operations with Storage Constants
-
-```csharp
-// CAS operations with retry logic
-var retryCount = 0;
-while (retryCount < StorageConstants.MaxRetries)
-{
-    try
-    {
-        // Perform CAS operation
-        break;
-    }
-    catch (Exception)
-    {
-        retryCount++;
-        await Task.Delay(StorageConstants.RetryDelayMs * retryCount);
-    }
-}
-```
-
 ### Directory Operations with DirectoryNames
 
 ```csharp
 // Using directory constants for consistent paths
 var dataPath = Path.Combine(basePath, DirectoryNames.Data);
 var cachePath = Path.Combine(basePath, DirectoryNames.Cache);
-var tempPath = Path.Combine(basePath, DirectoryNames.Temp);
+var casPoolPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    AppConstants.AppName,
+    DirectoryNames.CasPool);
 ```
 
 ### File Type Validation with FileTypes
@@ -280,9 +223,38 @@ else if (fileName.EndsWith(FileTypes.JsonFileExtension))
 // Using API constants for HTTP requests
 using var client = new HttpClient();
 client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
-client.Timeout = TimeSpan.FromSeconds(ApiConstants.DefaultHttpTimeoutSeconds);
 
-var response = await client.GetAsync($"{ApiConstants.GitHubApiBaseUrl}/repos/{owner}/{repo}");
+// DefaultUserAgent is constructed as: $"{AppConstants.AppName}/{AppConstants.AppVersion}"
+// Result: "GenHub/1.0"
+```
+
+### GitHub URL Validation with ApiConstants
+
+```csharp
+// Using GitHub constants for URL validation
+public bool IsGitHubUrl(string url)
+{
+    if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        return false;
+
+    return uri.Host.Equals(ApiConstants.GitHubDomain, StringComparison.OrdinalIgnoreCase);
+}
+
+// Using GitHub regex pattern for parsing
+public (string owner, string repo, string? tag) ParseGitHubUrl(string url)
+{
+    var regex = new Regex(ApiConstants.GitHubUrlRegexPattern, RegexOptions.Compiled);
+    var match = regex.Match(url);
+
+    if (!match.Success)
+        return (null, null, null);
+
+    var owner = match.Groups["owner"].Value;
+    var repo = match.Groups["repo"].Value;
+    var tag = match.Groups["tag"].Success ? match.Groups["tag"].Value : null;
+
+    return (owner, repo, tag);
+}
 ```
 
 ### Download Configuration with DownloadDefaults
@@ -305,10 +277,20 @@ var downloadConfig = new DownloadConfiguration
 var window = new Window
 {
     Width = UiConstants.DefaultWindowWidth,
-    Height = UiConstants.DefaultWindowHeight,
-    MinWidth = UiConstants.MinWindowWidth,
-    MinHeight = UiConstants.MinWindowHeight
+    Height = UiConstants.DefaultWindowHeight
 };
+```
+
+### Application Name Usage with AppConstants
+
+```csharp
+// Using AppConstants.AppName for consistent application naming
+var appDataPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    AppConstants.AppName);
+
+var userAgent = $"{AppConstants.AppName}/{AppConstants.AppVersion}";
+// Result: "GenHub/1.0" (same as ApiConstants.DefaultUserAgent)
 ```
 
 ### Validation with ValidationLimits
@@ -332,17 +314,32 @@ var casConfig = new CasConfiguration
     MaxConcurrentOperations = CasDefaults.MaxConcurrentOperations,
     AutoGcInterval = TimeSpan.FromDays(StorageConstants.AutoGcIntervalDays)
 };
+
+// Using retry constants for CAS operations
+for (int attempt = 0; attempt < StorageConstants.MaxRetries; attempt++)
+{
+    try
+    {
+        // CAS operation
+        break;
+    }
+    catch (IOException)
+    {
+        if (attempt == StorageConstants.MaxRetries - 1)
+            throw;
+        
+        await Task.Delay(100);
+    }
+}
 ```
 
 ### Time Intervals Usage
 
 ```csharp
-// Using time intervals for scheduling
-var timer = new Timer(UpdateProgress, null,
-    TimeSpan.Zero, TimeIntervals.DownloadProgressInterval);
-
-var memoryTimer = new Timer(UpdateMemory, null,
-    TimeSpan.Zero, TimeIntervals.MemoryUpdateInterval);
+// Using time intervals for timeouts
+var updaterTimeout = TimeIntervals.UpdaterTimeout;
+var downloadTimeout = TimeIntervals.DownloadTimeout;
+var notificationDelay = TimeIntervals.NotificationHideDelay;
 ```
 
 ## Maintenance
@@ -358,15 +355,17 @@ When adding new constants:
 
 ### Constants File Organization
 
-- **ApiConstants**: Network, HTTP, and API-related constants
+- **ApiConstants**: Network and API-related constants
 - **AppConstants**: Application-wide settings and metadata
 - **CasDefaults**: Content-Addressable Storage defaults
 - **ConfigurationKeys**: Configuration file keys and paths
+- **ConversionConstants**: Unit conversion constants
 - **DirectoryNames**: Standard directory naming conventions
 - **DownloadDefaults**: Download operation defaults
 - **FileTypes**: File extensions and naming patterns
+- **IoConstants**: Input/output operation constants
 - **ProcessConstants**: System process and exit code constants
-- **StorageConstants**: Storage and CAS operation constants
+- **StorageConstants**: Storage and CAS operation constants (retry limits, maintenance intervals)
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
 - **ValidationLimits**: Input validation boundaries
@@ -382,6 +381,4 @@ When adding new constants:
 
 ## Related Documentation
 
-- [Storage Architecture](../storage-architecture.md)
-- [Configuration Management](../configuration-management.md)
-- [API Integration Guide](../api-integration.md)
+- [Complete System Architecture](../architecture.md)

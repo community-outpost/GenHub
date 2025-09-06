@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
@@ -74,7 +75,7 @@ public class ModDBContentProvider : BaseContentProvider
             return ContentOperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
         }
 
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = 1 };
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
         if (!searchResult.Success || !searchResult.Data!.Any())

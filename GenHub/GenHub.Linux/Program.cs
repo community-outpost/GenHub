@@ -1,6 +1,7 @@
 ﻿using System;
 using Avalonia;
 using GenHub.Core;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Infrastructure.DependencyInjection;
@@ -18,7 +19,7 @@ namespace GenHub.Linux;
 public class Program
 {
     private const string UpdaterUserAgent = "GenHub-Updater/1.0";
-    private static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan UpdaterTimeout = TimeIntervals.UpdaterTimeout;
 
     /// <summary>
     /// Main entry point for the application.

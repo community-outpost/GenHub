@@ -16,17 +16,7 @@ public static class DirectoryNames
     public const string Cache = "Cache";
 
     /// <summary>
-    /// Directory for storing temporary files.
+    /// Directory for Content-Addressable Storage (CAS) pool.
     /// </summary>
-    public const string Temp = "Temp";
-
-    /// <summary>
-    /// Directory for storing log files.
-    /// </summary>
-    public const string Logs = "Logs";
-
-    /// <summary>
-    /// Directory for storing backup files.
-    /// </summary>
-    public const string Backups = "Backups";
+    public const string CasPool = "cas-pool";
 }

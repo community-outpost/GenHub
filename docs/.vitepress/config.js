@@ -5,9 +5,11 @@ export default withMermaid(
     defineConfig({
         title: 'GeneralsHub',
         description: 'C&C Launcher Documentation',
-        // Use a root base during local development so vitepress dev serves at '/'
-        // and only use the '/wiki/' base for production (GitHub Pages).
-        base: (process.env.NODE_ENV === 'production' || process.env.GITHUB_ACTIONS === 'true') ? '/wiki/' : '/',
+        base:
+            process.env.NODE_ENV === 'production' ||
+            process.env.GITHUB_ACTIONS === 'true'
+                ? '/wiki/'
+                : '/',
         
         head: [
             ['link', { rel: 'icon', href: '/assets/icon.png' }]
@@ -20,6 +22,8 @@ export default withMermaid(
                 { text: 'Home', link: '/' },
                 { text: 'Get Started', link: '/onboarding' },
                 { text: 'Architecture', link: '/architecture' },
+                { text: 'Features', link: '/features/index' },
+                { text: 'API Reference', link: '/dev/index' },
                 { text: 'Flowcharts', link: '/FlowCharts/' }
             ],
             
@@ -30,6 +34,30 @@ export default withMermaid(
                         { text: 'Introduction', link: '/' },
                         { text: 'Developer Onboarding', link: '/onboarding' },
                         { text: 'Architecture Overview', link: '/architecture' }
+                    ]
+                },
+                {
+                    text: 'Features',
+                    items: [
+                        { text: 'Overview', link: '/features/index' },
+                        { text: 'App Update', link: '/features/app-update' },
+                        { text: 'Content System', link: '/features/content' },
+                        { text: 'Manifest Service', link: '/features/manifest' },
+                        { text: 'Storage & CAS', link: '/features/storage' },
+                        { text: 'Validation', link: '/features/validation' },
+                        { text: 'Workspace', link: '/features/workspace' },
+                        { text: 'Launching', link: '/features/launching' },
+                        { text: 'GameProfiles System', link: '/features/gameprofiles' }
+                    ]
+                },
+                {
+                    text: 'API Reference',
+                    items: [
+                        { text: 'Overview', link: '/dev/index' },
+                        { text: 'Result Pattern', link: '/dev/result-pattern' },
+                        { text: 'Constants', link: '/dev/constants' },
+                        { text: 'Models', link: '/dev/models' },
+                        { text: 'Content Manifest', link: '/dev/content-manifest' }
                     ]
                 },
                 {
@@ -72,7 +100,7 @@ export default withMermaid(
         
         // Optional: Configure mermaid for dark mode
         mermaidPlugin: {
-            class: 'mermaid my-class', // set additional css classes for parent container 
+            class: 'mermaid my-class'
         }
     })
 )

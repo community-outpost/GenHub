@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Factories;
@@ -26,7 +27,7 @@ public static class AppUpdateModule
         services.AddSingleton<IVersionComparator, SemVerComparator>();
         services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
         services.AddSingleton<IAppUpdateService, AppUpdateService>();
-        services.AddSingleton<IGitHubClient>(new GitHubClient(new ProductHeaderValue("GenHub")));
+        services.AddSingleton<IGitHubClient>(new GitHubClient(new ProductHeaderValue(AppConstants.AppName)));
 
         // Register UpdateInstaller factory and platform-specific implementations
         services.AddSingleton<UpdateInstallerFactory>();

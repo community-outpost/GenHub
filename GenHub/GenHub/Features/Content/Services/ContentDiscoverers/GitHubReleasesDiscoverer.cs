@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,7 +49,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             .Select(r =>
             {
                 var parts = r.Split('/');
-                if (parts.Length != 2)
+                if (parts.Length != ContentConstants.GitHubRepoPartsCount)
                 {
                     _logger.LogWarning("Invalid repository format: {Repository}. Expected 'owner/repo'", r);
                     return (owner: string.Empty, repo: string.Empty);
