@@ -155,6 +155,10 @@ Process and system constants.
 
 Storage and CAS (Content-Addressable Storage) related constants.
 
+#### CAS Retry Constants
+
+- `MaxRetries`: Maximum number of retry attempts for CAS operations (10)
+
 #### CAS Maintenance Constants
 
 - `AutoGcIntervalDays`: Default automatic garbage collection interval in days (1)
@@ -310,6 +314,23 @@ var casConfig = new CasConfiguration
     MaxConcurrentOperations = CasDefaults.MaxConcurrentOperations,
     AutoGcInterval = TimeSpan.FromDays(StorageConstants.AutoGcIntervalDays)
 };
+
+// Using retry constants for CAS operations
+for (int attempt = 0; attempt < StorageConstants.MaxRetries; attempt++)
+{
+    try
+    {
+        // CAS operation
+        break;
+    }
+    catch (IOException)
+    {
+        if (attempt == StorageConstants.MaxRetries - 1)
+            throw;
+        
+        await Task.Delay(100);
+    }
+}
 ```
 
 ### Time Intervals Usage
@@ -344,7 +365,7 @@ When adding new constants:
 - **FileTypes**: File extensions and naming patterns
 - **IoConstants**: Input/output operation constants
 - **ProcessConstants**: System process and exit code constants
-- **StorageConstants**: Storage and CAS operation constants
+- **StorageConstants**: Storage and CAS operation constants (retry limits, maintenance intervals)
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
 - **ValidationLimits**: Input validation boundaries

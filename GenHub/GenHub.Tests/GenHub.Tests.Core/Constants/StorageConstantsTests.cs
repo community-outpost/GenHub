@@ -17,8 +17,29 @@ public class StorageConstantsTests
         // Arrange & Act & Assert
         Assert.Multiple(() =>
         {
+            // CAS retry constants
+            Assert.Equal(10, StorageConstants.MaxRetries);
+
             // CAS maintenance constants
             Assert.Equal(1, StorageConstants.AutoGcIntervalDays);
+        });
+    }
+
+    /// <summary>
+    /// Tests that retry constants have reasonable values.
+    /// </summary>
+    [Fact]
+    public void StorageConstants_RetryConstants_ShouldHaveReasonableValues()
+    {
+        // Arrange & Act & Assert
+        Assert.Multiple(() =>
+        {
+            // MaxRetries should be positive
+            Assert.True(StorageConstants.MaxRetries > 0);
+
+            // MaxRetries should be reasonable (not too low or too high)
+            Assert.True(StorageConstants.MaxRetries >= 3);
+            Assert.True(StorageConstants.MaxRetries <= 20);
         });
     }
 
@@ -49,6 +70,7 @@ public class StorageConstantsTests
         // Arrange & Act & Assert
         Assert.Multiple(() =>
         {
+            Assert.IsType<int>(StorageConstants.MaxRetries);
             Assert.IsType<int>(StorageConstants.AutoGcIntervalDays);
         });
     }

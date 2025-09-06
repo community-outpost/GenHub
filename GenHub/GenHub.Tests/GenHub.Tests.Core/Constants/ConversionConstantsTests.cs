@@ -24,21 +24,6 @@ public class ConversionConstantsTests
     }
 
     /// <summary>
-    /// Tests that conversion constants are positive.
-    /// </summary>
-    [Fact]
-    public void ConversionConstants_ShouldBePositive()
-    {
-        // Arrange & Act & Assert
-        Assert.Multiple(() =>
-        {
-            Assert.True(ConversionConstants.BytesPerKilobyte > 0);
-            Assert.True(ConversionConstants.BytesPerMegabyte > 0);
-            Assert.True(ConversionConstants.BytesPerGigabyte > 0);
-        });
-    }
-
-    /// <summary>
     /// Tests that conversion constants are powers of 1024.
     /// </summary>
     [Fact]

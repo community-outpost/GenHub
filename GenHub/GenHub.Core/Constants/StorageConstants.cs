@@ -5,6 +5,13 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class StorageConstants
 {
+    // CAS retry constants
+
+    /// <summary>
+    /// Maximum number of retry attempts for CAS operations.
+    /// </summary>
+    public const int MaxRetries = 10;
+
     // CAS maintenance constants
 
     /// <summary>
