@@ -85,7 +85,7 @@ public class ManifestProviderTests
         // Arrange
         var installation = new GameInstallation(
             installationPath: @"C:\TestPath",
-            installationType: GameInstallationType.Origin,
+            installationType: GameInstallationType.EaApp,
             logger: null)
         {
             HasGenerals = true,
@@ -93,11 +93,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "Origin.Generals",
+            Id = "EaApp.Generals",
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("Origin.Generals"))
+        _cacheMock.Setup(x => x.GetManifest("EaApp.Generals"))
                   .Returns(expectedManifest);
 
         // Act
@@ -105,8 +105,8 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Origin.Generals", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("Origin.Generals"), Times.Once);
+        Assert.Equal("EaApp.Generals", result.Id);
+        _cacheMock.Verify(x => x.GetManifest("EaApp.Generals"), Times.Once);
     }
 
     /// <summary>

@@ -21,32 +21,22 @@ public enum GameInstallationType
     EaApp = 2,
 
     /// <summary>
-    /// Origin installation of the game.
-    /// </summary>
-    Origin = 3,
-
-    /// <summary>
     /// The First Decade installation of the game.
     /// </summary>
-    TheFirstDecade = 4,
-
-    /// <summary>
-    /// RGMechanics installation of the game.
-    /// </summary>
-    RGMechanics = 5,
+    TheFirstDecade = 3,
 
     /// <summary>
     /// CD ISO installation of the game.
     /// </summary>
-    CDISO = 6,
+    CDISO = 4,
 
     /// <summary>
     /// Wine/Proton installation on Linux.
     /// </summary>
-    Wine = 7,
+    Wine = 5,
 
     /// <summary>
     /// Manual/retail installation.
     /// </summary>
-    Retail = 8,
+    Retail = 6,
 }
