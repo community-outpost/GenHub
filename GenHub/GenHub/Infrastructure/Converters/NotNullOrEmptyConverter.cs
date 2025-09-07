@@ -10,11 +10,11 @@ namespace GenHub.Infrastructure.Converters;
 public class NotNullOrEmptyConverter : IValueConverter
 {
     /// <summary>
-    /// Converts a value to true if it is not null or, if a string, not empty.
+    /// Converts a value to true if it is not null or, if a string, not empty or whitespace.
     /// </summary>
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is string s ? !string.IsNullOrEmpty(s) : value != null;
+        => value is string s ? !string.IsNullOrWhiteSpace(s) : value != null;
 
     /// <summary>
     /// Not implemented - throws NotImplementedException.

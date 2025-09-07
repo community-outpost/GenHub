@@ -7,25 +7,17 @@ namespace GenHub.Infrastructure.Converters;
 /// <summary>
 /// Converts boolean values to specified true/false values.
 /// </summary>
-public class BoolToValueConverter(object? trueValue = null, object? falseValue = null) : IValueConverter
+public class BoolToValueConverter : IValueConverter
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BoolToValueConverter"/> class.
-    /// </summary>
-    public BoolToValueConverter()
-        : this(null, null)
-    {
-    }
-
     /// <summary>
     /// Gets or sets the value to return when the input is true.
     /// </summary>
-    public object? TrueValue { get; set; } = trueValue;
+    public object? TrueValue { get; set; }
 
     /// <summary>
     /// Gets or sets the value to return when the input is false.
     /// </summary>
-    public object? FalseValue { get; set; } = falseValue;
+    public object? FalseValue { get; set; }
 
     /// <summary>
     /// Converts a boolean value to the configured true/false value.

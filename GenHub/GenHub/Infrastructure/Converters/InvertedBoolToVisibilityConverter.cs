@@ -12,7 +12,7 @@ public class InvertedBoolToVisibilityConverter : IValueConverter
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is bool b && !b ? "Visible" : "Collapsed";
+        return value is bool b ? (!b ? "Visible" : "Collapsed") : "Visible";
     }
 
     /// <inheritdoc />

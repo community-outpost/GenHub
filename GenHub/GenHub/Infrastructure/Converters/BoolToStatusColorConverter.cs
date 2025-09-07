@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Data.Converters;
 using System.Globalization;
+using GenHub.Core.Constants;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -12,7 +13,7 @@ public class BoolToStatusColorConverter : IValueConverter
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is bool b && b ? "#4CAF50" : "#F44336";
+        return value is bool b && b ? UiConstants.StatusSuccessColor : UiConstants.StatusErrorColor;
     }
 
     /// <inheritdoc />

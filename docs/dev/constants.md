@@ -178,6 +178,11 @@ UI-related constants for consistent user experience.
 - `DefaultWindowWidth`: Default main window width in pixels (1200)
 - `DefaultWindowHeight`: Default main window height in pixels (800)
 
+#### Status Colors
+
+- `StatusSuccessColor`: Color used to indicate success or positive status (`"#4CAF50"`)
+- `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
+
 ### ValidationLimits
 
 Validation limits and constraints.
@@ -279,6 +284,13 @@ var window = new Window
     Width = UiConstants.DefaultWindowWidth,
     Height = UiConstants.DefaultWindowHeight
 };
+
+// Using status colors for consistent UI theming
+var successBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusSuccessColor));
+var errorBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusErrorColor));
+
+// Using in XAML data binding with BoolToStatusColorConverter
+// <TextBlock Text="Status" Foreground="{Binding IsActive, Converter={StaticResource BoolToStatusColorConverter}}" />
 ```
 
 ### Application Name Usage with AppConstants
