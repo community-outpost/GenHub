@@ -48,7 +48,7 @@ public class GameTypeToIconConverter : IValueConverter
     /// <param name="targetType">The type to convert to.</param>
     /// <param name="parameter">An optional parameter to be used in the converter logic.</param>
     /// <param name="culture">The culture to use in the converter.</param>
-    /// <returns>Throws <see cref="NotSupportedException"/>.</returns>
+    /// <returns>This method does not return a value; it always throws <see cref="NotSupportedException"/>.</returns>
     /// <exception cref="NotSupportedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {

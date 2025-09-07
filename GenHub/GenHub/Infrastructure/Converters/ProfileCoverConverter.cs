@@ -32,7 +32,7 @@ public class ProfileCoverConverter : IValueConverter
         /// <param name="targetType">The target type for the conversion.</param>
         /// <param name="parameter">Optional parameter for conversion.</param>
         /// <param name="culture">The culture to use for conversion.</param>
-        /// <returns>Not implemented.</returns>
+        /// <returns>This method does not return a value; it always throws <see cref="NotImplementedException"/>.</returns>
         /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {

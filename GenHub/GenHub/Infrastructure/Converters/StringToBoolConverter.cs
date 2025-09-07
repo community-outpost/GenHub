@@ -22,7 +22,7 @@ public class StringToBoolConverter : IValueConverter
         if (value is string stringValue)
         {
             // Check if the parameter specifies to invert the result
-            bool invert = parameter?.ToString()?.Equals("invert", StringComparison.OrdinalIgnoreCase) == true;
+            bool invert = parameter?.ToString()?.Equals("invert", StringComparison.OrdinalIgnoreCase) ?? false;
 
             bool hasValue = !string.IsNullOrWhiteSpace(stringValue);
 
@@ -39,7 +39,7 @@ public class StringToBoolConverter : IValueConverter
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">Optional parameter.</param>
     /// <param name="culture">The culture.</param>
-    /// <returns>Not implemented.</returns>
+    /// <returns>This method does not return a value; it always throws <see cref="NotImplementedException"/>.</returns>
     /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
