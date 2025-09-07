@@ -18,7 +18,7 @@ public class DetectionResultTests
     {
         var items = new List<string> { "a", "b" };
         var elapsed = TimeSpan.FromSeconds(1);
-        var result = DetectionResult<string>.Succeeded(items, elapsed);
+        var result = DetectionResult<string>.CreateSuccess(items, elapsed);
         Assert.True(result.Success);
         Assert.Equal(items, result.Items);
         Assert.Equal(elapsed, result.Elapsed);
@@ -26,13 +26,13 @@ public class DetectionResultTests
     }
 
     /// <summary>
-    /// Verifies that Failed sets properties correctly.
+    /// Verifies that CreateFailure sets properties correctly.
     /// </summary>
     [Fact]
-    public void Failed_SetsPropertiesCorrectly()
+    public void CreateFailure_SetsPropertiesCorrectly()
     {
         var error = "fail";
-        var result = DetectionResult<string>.Failed(error);
+        var result = DetectionResult<string>.CreateFailure(error);
         Assert.False(result.Success);
         Assert.Contains(error, result.Errors);
         Assert.Empty(result.Items);

@@ -16,12 +16,12 @@ public sealed class DetectionResult<T>(
     /// <param name="items">The detected items.</param>
     /// <param name="elapsed">The elapsed time.</param>
     /// <returns>A successful detection result.</returns>
-    public static DetectionResult<T> Succeeded(IEnumerable<T> items, TimeSpan elapsed) =>
+    public static DetectionResult<T> CreateSuccess(IEnumerable<T> items, TimeSpan elapsed) =>
         new DetectionResult<T>(true, items, Array.Empty<string>(), elapsed);
 
     /// <summary>Factory for a failed result.</summary>
     /// <param name="error">The error message.</param>
     /// <returns>A failed detection result.</returns>
-    public static new DetectionResult<T> Failed(string error) =>
+    public static DetectionResult<T> CreateFailure(string error) =>
         new DetectionResult<T>(false, Array.Empty<T>(), new[] { error }, TimeSpan.Zero);
 }

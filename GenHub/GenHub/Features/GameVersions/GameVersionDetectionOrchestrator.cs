@@ -37,7 +37,7 @@ public sealed class GameVersionDetectionOrchestrator(
             if (!result.Success)
             {
                 logger.LogWarning("Installation detection failed: {Errors}", string.Join("; ", result.Errors));
-                return DetectionResult<GameVersion>.Failed(string.Join("; ", result.Errors));
+                return DetectionResult<GameVersion>.CreateFailure(string.Join("; ", result.Errors));
             }
 
             logger.LogDebug("Found {InstallationCount} installations, detecting versions", result.Items.Count);
@@ -59,8 +59,8 @@ public sealed class GameVersionDetectionOrchestrator(
 
             stopwatch.Stop();
             var finalResult = errors.Any()
-                ? DetectionResult<GameVersion>.Failed(string.Join("; ", errors))
-                : DetectionResult<GameVersion>.Succeeded(allVersions, stopwatch.Elapsed);
+                ? DetectionResult<GameVersion>.CreateFailure(string.Join("; ", errors))
+                : DetectionResult<GameVersion>.CreateSuccess(allVersions, stopwatch.Elapsed);
 
             logger.LogInformation(
                 "Game version detection completed in {ElapsedMs}ms with {VersionCount} versions found",
