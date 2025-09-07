@@ -21,6 +21,14 @@ API and network related constants.
 - `GitHubDomain`: GitHub domain name (`"github.com"`)
 - `GitHubUrlRegexPattern`: GitHub URL regex pattern for parsing repository URLs (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
+### UriConstants
+
+URI scheme constants for handling different types of URIs and paths.
+
+- `AvarUriScheme`: URI scheme for Avalonia embedded resources (`"avares://"`)
+- `HttpUriScheme`: HTTP URI scheme (`"http://"`)
+- `HttpsUriScheme`: HTTPS URI scheme (`"https://"`)
+
 ### AppConstants
 
 Application-wide constants for GenHub.
