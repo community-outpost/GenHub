@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Models.GitHub;
@@ -21,13 +19,21 @@ public sealed class GitHubUrlParseResult(bool success, string owner = "", string
     /// <param name="owner">Repository owner (username or organization).</param>
     /// <param name="repo">Repository name.</param>
     /// <param name="tag">Optional release tag.</param>
-    /// <returns>A GitHubUrlParseResult representing a successful parse.</returns>
-    public static GitHubUrlParseResult CreateSuccess(string owner, string repo, string? tag) =>
-        new(true, owner, repo, tag);
+    /// <returns>
+    /// A <see cref="GitHubUrlParseResult"/> representing a successful parse.
+    /// </returns>
+    public static GitHubUrlParseResult CreateSuccess(
+        string owner,
+        string repo,
+        string? tag) => new(true, owner, repo, tag);
 
-    /// <summary>Creates a failed parse result containing one or more error messages.</summary>
+    /// <summary>
+    /// Creates a failed parse result containing one or more error messages.
+    /// </summary>
     /// <param name="errors">Error messages describing the failure reason(s).</param>
-    /// <returns>A GitHubUrlParseResult representing a failed parse.</returns>
-    public static GitHubUrlParseResult CreateFailure(params string[] errors) =>
-        new(false, errors: errors);
+    /// <returns>
+    /// A <see cref="GitHubUrlParseResult"/> representing a failed parse.
+    /// </returns>
+    public static GitHubUrlParseResult CreateFailure(
+        params string[] errors) => new(false, errors: errors);
 }
