@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -413,7 +414,7 @@ public class ContentOrchestrator : IContentOrchestrator
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.ValidatingManifest,
-                ProgressPercentage = 20,
+                ProgressPercentage = ContentConstants.ProgressStepValidatingManifest,
                 CurrentOperation = "Validating content manifest",
             });
 
@@ -437,7 +438,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = 40,
+                    ProgressPercentage = ContentConstants.ProgressStepDownloading,
                     CurrentOperation = "Preparing content via provider pipeline",
                 });
 
@@ -452,7 +453,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    ProgressPercentage = 70,
+                    ProgressPercentage = ContentConstants.ProgressStepValidatingFiles,
                     CurrentOperation = "Validating prepared content files",
                 });
 
@@ -463,7 +464,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     validationProgress = new Progress<ValidationProgress>(vp =>
                     {
                         // Map validation progress (0-100) into 70-80% range for acquisition
-                        var pct = 70 + (int)(vp.PercentComplete / 10.0);
+                        var pct = ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0);
                         progress.Report(new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.ValidatingFiles,
@@ -495,7 +496,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Extracting,
-                    ProgressPercentage = 85,
+                    ProgressPercentage = ContentConstants.ProgressStepExtracting,
                     CurrentOperation = "Adding to content library",
                 });
 
@@ -505,7 +506,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Completed,
-                    ProgressPercentage = 100,
+                    ProgressPercentage = ContentConstants.ProgressStepCompleted,
                     CurrentOperation = "Content acquired successfully",
                 });
 

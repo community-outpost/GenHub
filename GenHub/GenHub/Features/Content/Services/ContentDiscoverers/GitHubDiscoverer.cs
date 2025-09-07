@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,7 +42,7 @@ public class GitHubDiscoverer : IContentDiscoverer
             .Select(r =>
             {
                 var parts = r.Split('/');
-                return parts.Length == 2 ? (owner: parts[0], repo: parts[1]) : (owner: string.Empty, repo: string.Empty);
+                return parts.Length == ContentConstants.GitHubRepoPartsCount ? (owner: parts[0], repo: parts[1]) : (owner: string.Empty, repo: string.Empty);
             })
             .Where(t => !string.IsNullOrEmpty(t.owner) && !string.IsNullOrEmpty(t.repo))
             .ToList();

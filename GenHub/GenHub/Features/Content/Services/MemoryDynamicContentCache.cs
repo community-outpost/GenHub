@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -34,7 +35,7 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
         }
         else
         {
-            options.SetSlidingExpiration(TimeSpan.FromMinutes(30));
+            options.SetSlidingExpiration(TimeSpan.FromMinutes(ContentConstants.DefaultCacheExpirationMinutes));
         }
 
         _memoryCache.Set(key, value, options);

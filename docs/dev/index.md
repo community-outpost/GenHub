@@ -107,13 +107,6 @@ public class ConfigurationProviderService : IConfigurationProviderService
 }
 ```
 
-This ensures:
-
-- Defaults are always available  
-- User preferences override defaults  
-- Validation prevents invalid states  
-- Strong typing for safety
-
 ---
 
 ### Logging

@@ -24,9 +24,9 @@ public class CasStorage(
 {
     private readonly CasConfiguration _config = config.Value;
     private readonly ILogger<CasStorage> _logger = logger;
-    private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, StorageConstants.ObjectsDirectory);
-    private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, DirectoryNames.Temp);
-    private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, StorageConstants.LocksDirectory);
+    private readonly string _objectsDirectory = Path.Combine(config.Value.CasRootPath, "objects");
+    private readonly string _tempDirectory = Path.Combine(config.Value.CasRootPath, "temp");
+    private readonly string _lockDirectory = Path.Combine(config.Value.CasRootPath, "locks");
     private readonly IFileHashProvider _hashProvider = hashProvider;
 
     // Ensure directory structure exists on first use
@@ -308,10 +308,10 @@ public class CasStorage(
 
                 return new CasLock(lockPath, lockStream);
             }
-            catch (IOException) when (i < StorageConstants.MaxRetries - 1)
+            catch (IOException) when (i < 10 - 1)
             {
                 // Lock file is in use, wait and retry
-                await Task.Delay(StorageConstants.RetryDelayMs, cancellationToken);
+                await Task.Delay(100, cancellationToken);
             }
         }
 

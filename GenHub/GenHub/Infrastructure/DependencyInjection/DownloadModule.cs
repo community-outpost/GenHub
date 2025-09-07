@@ -1,5 +1,6 @@
 using System;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,9 +11,6 @@ namespace GenHub.Infrastructure.DependencyInjection;
 /// </summary>
 public static class DownloadModule
 {
-    private const int DefaultDownloadTimeoutMinutes = 30;
-    private const string DefaultDownloadUserAgent = "GenHub/1.0";
-
     /// <summary>
     /// Registers download services for dependency injection.
     /// </summary>
@@ -35,10 +33,10 @@ public static class DownloadModule
             var userAgent = configProvider.GetDownloadUserAgent();
             var timeoutSeconds = configProvider.GetDownloadTimeoutSeconds();
 
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? DefaultDownloadUserAgent);
+            client.DefaultRequestHeaders.Add("User-Agent", userAgent ?? ApiConstants.DefaultUserAgent);
             client.Timeout = timeoutSeconds > 0
                 ? TimeSpan.FromSeconds(timeoutSeconds)
-                : TimeSpan.FromMinutes(DefaultDownloadTimeoutMinutes);
+                : TimeIntervals.DownloadTimeout;
         });
 
         return services;

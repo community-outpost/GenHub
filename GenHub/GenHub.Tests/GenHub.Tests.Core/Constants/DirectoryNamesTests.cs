@@ -19,9 +19,7 @@ public class DirectoryNamesTests
         {
             Assert.Equal("Data", DirectoryNames.Data);
             Assert.Equal("Cache", DirectoryNames.Cache);
-            Assert.Equal("Temp", DirectoryNames.Temp);
-            Assert.Equal("Logs", DirectoryNames.Logs);
-            Assert.Equal("Backups", DirectoryNames.Backups);
+            Assert.Equal("cas-pool", DirectoryNames.CasPool);
         });
     }
 
@@ -38,12 +36,8 @@ public class DirectoryNamesTests
             Assert.NotEmpty(DirectoryNames.Data);
             Assert.NotNull(DirectoryNames.Cache);
             Assert.NotEmpty(DirectoryNames.Cache);
-            Assert.NotNull(DirectoryNames.Temp);
-            Assert.NotEmpty(DirectoryNames.Temp);
-            Assert.NotNull(DirectoryNames.Logs);
-            Assert.NotEmpty(DirectoryNames.Logs);
-            Assert.NotNull(DirectoryNames.Backups);
-            Assert.NotEmpty(DirectoryNames.Backups);
+            Assert.NotNull(DirectoryNames.CasPool);
+            Assert.NotEmpty(DirectoryNames.CasPool);
         });
     }
 
@@ -58,9 +52,7 @@ public class DirectoryNamesTests
         {
             DirectoryNames.Data,
             DirectoryNames.Cache,
-            DirectoryNames.Temp,
-            DirectoryNames.Logs,
-            DirectoryNames.Backups,
+            DirectoryNames.CasPool,
         };
 
         // Act & Assert
@@ -76,19 +68,15 @@ public class DirectoryNamesTests
         // Arrange & Act & Assert
         Assert.Multiple(() =>
         {
-            // Should start with uppercase letter
+            // Should start with uppercase letter or lowercase for special cases
             Assert.True(char.IsUpper(DirectoryNames.Data[0]));
             Assert.True(char.IsUpper(DirectoryNames.Cache[0]));
-            Assert.True(char.IsUpper(DirectoryNames.Temp[0]));
-            Assert.True(char.IsUpper(DirectoryNames.Logs[0]));
-            Assert.True(char.IsUpper(DirectoryNames.Backups[0]));
+            Assert.True(char.IsLower(DirectoryNames.CasPool[0]));
 
-            // Should not contain spaces or special characters
+            // Should not contain spaces
             Assert.DoesNotContain(" ", DirectoryNames.Data);
             Assert.DoesNotContain(" ", DirectoryNames.Cache);
-            Assert.DoesNotContain(" ", DirectoryNames.Temp);
-            Assert.DoesNotContain(" ", DirectoryNames.Logs);
-            Assert.DoesNotContain(" ", DirectoryNames.Backups);
+            Assert.DoesNotContain(" ", DirectoryNames.CasPool);
         });
     }
 }

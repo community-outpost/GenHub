@@ -19,12 +19,9 @@ public class StorageConstantsTests
         {
             // CAS retry constants
             Assert.Equal(10, StorageConstants.MaxRetries);
-            Assert.Equal(100, StorageConstants.RetryDelayMs);
-            Assert.Equal(5000, StorageConstants.MaxRetryDelayMs);
 
-            // CAS directory structure
-            Assert.Equal("objects", StorageConstants.ObjectsDirectory);
-            Assert.Equal("locks", StorageConstants.LocksDirectory);
+            // CAS maintenance constants
+            Assert.Equal(1, StorageConstants.AutoGcIntervalDays);
         });
     }
 
@@ -40,68 +37,27 @@ public class StorageConstantsTests
             // MaxRetries should be positive
             Assert.True(StorageConstants.MaxRetries > 0);
 
-            // RetryDelayMs should be positive and reasonable
-            Assert.True(StorageConstants.RetryDelayMs > 0);
-            Assert.True(StorageConstants.RetryDelayMs < 10000); // Less than 10 seconds
-
-            // MaxRetryDelayMs should be greater than RetryDelayMs
-            Assert.True(StorageConstants.MaxRetryDelayMs > StorageConstants.RetryDelayMs);
+            // MaxRetries should be reasonable (not too low or too high)
+            Assert.True(StorageConstants.MaxRetries >= 3);
+            Assert.True(StorageConstants.MaxRetries <= 20);
         });
     }
 
     /// <summary>
-    /// Tests that directory name constants are not null or empty.
+    /// Tests that maintenance constants have reasonable values.
     /// </summary>
     [Fact]
-    public void StorageConstants_DirectoryConstants_ShouldNotBeNullOrEmpty()
+    public void StorageConstants_MaintenanceConstants_ShouldHaveReasonableValues()
     {
         // Arrange & Act & Assert
         Assert.Multiple(() =>
         {
-            Assert.NotNull(StorageConstants.ObjectsDirectory);
-            Assert.NotEmpty(StorageConstants.ObjectsDirectory);
-            Assert.NotNull(StorageConstants.LocksDirectory);
-            Assert.NotEmpty(StorageConstants.LocksDirectory);
-        });
-    }
+            // AutoGcIntervalDays should be positive
+            Assert.True(StorageConstants.AutoGcIntervalDays > 0);
 
-    /// <summary>
-    /// Tests that directory name constants are unique.
-    /// </summary>
-    [Fact]
-    public void StorageConstants_DirectoryConstants_ShouldBeUnique()
-    {
-        // Arrange
-        var directoryNames = new[]
-        {
-            StorageConstants.ObjectsDirectory,
-            StorageConstants.LocksDirectory,
-        };
-
-        // Act & Assert
-        Assert.Distinct(directoryNames);
-    }
-
-    /// <summary>
-    /// Tests that directory name constants follow proper naming conventions.
-    /// </summary>
-    [Fact]
-    public void StorageConstants_DirectoryConstants_ShouldFollowNamingConventions()
-    {
-        // Arrange & Act & Assert
-        Assert.Multiple(() =>
-        {
-            // Should be lowercase
-            Assert.Equal(StorageConstants.ObjectsDirectory, StorageConstants.ObjectsDirectory.ToLower());
-            Assert.Equal(StorageConstants.LocksDirectory, StorageConstants.LocksDirectory.ToLower());
-
-            // Should not contain spaces or special characters
-            Assert.DoesNotContain(" ", StorageConstants.ObjectsDirectory);
-            Assert.DoesNotContain(" ", StorageConstants.LocksDirectory);
-
-            // Should not contain uppercase letters
-            Assert.DoesNotMatch("[A-Z]", StorageConstants.ObjectsDirectory);
-            Assert.DoesNotMatch("[A-Z]", StorageConstants.LocksDirectory);
+            // AutoGcIntervalDays should be reasonable (not too frequent or too infrequent)
+            Assert.True(StorageConstants.AutoGcIntervalDays >= 1);
+            Assert.True(StorageConstants.AutoGcIntervalDays <= 30);
         });
     }
 
@@ -115,37 +71,7 @@ public class StorageConstantsTests
         Assert.Multiple(() =>
         {
             Assert.IsType<int>(StorageConstants.MaxRetries);
-            Assert.IsType<int>(StorageConstants.RetryDelayMs);
-            Assert.IsType<int>(StorageConstants.MaxRetryDelayMs);
+            Assert.IsType<int>(StorageConstants.AutoGcIntervalDays);
         });
-    }
-
-    /// <summary>
-    /// Tests that string constants are of correct type.
-    /// </summary>
-    [Fact]
-    public void StorageConstants_StringConstants_ShouldBeCorrectType()
-    {
-        // Arrange & Act & Assert
-        Assert.Multiple(() =>
-        {
-            Assert.IsType<string>(StorageConstants.ObjectsDirectory);
-            Assert.IsType<string>(StorageConstants.LocksDirectory);
-        });
-    }
-
-    /// <summary>
-    /// Tests that retry delay progression is logical.
-    /// </summary>
-    [Fact]
-    public void StorageConstants_RetryDelayProgression_ShouldBeLogical()
-    {
-        // Arrange
-        var baseDelay = StorageConstants.RetryDelayMs;
-        var maxDelay = StorageConstants.MaxRetryDelayMs;
-
-        // Act & Assert
-        // Max delay should be significantly larger than base delay for exponential backoff
-        Assert.True(maxDelay >= baseDelay * 2);
     }
 }

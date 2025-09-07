@@ -26,8 +26,8 @@ public class CasConfiguration : ICloneable
     /// </summary>
     public string CasRootPath { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "GenHub",
-        "cas-pool");
+        AppConstants.AppName,
+        DirectoryNames.CasPool);
 
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
