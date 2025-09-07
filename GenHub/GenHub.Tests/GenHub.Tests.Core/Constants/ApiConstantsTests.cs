@@ -18,7 +18,7 @@ public class ApiConstantsTests
         Assert.Multiple(() =>
         {
             // User agents
-            Assert.Equal($"{AppConstants.AppName}/{AppConstants.AppVersion}", ApiConstants.DefaultUserAgent);
+            Assert.Equal(ApiConstants.DefaultUserAgent, $"{AppConstants.AppName}/{AppConstants.AppVersion}");
 
             // GitHub
             Assert.Equal("github.com", ApiConstants.GitHubDomain);
@@ -48,7 +48,7 @@ public class ApiConstantsTests
     {
         // Arrange & Act & Assert
         var expectedUserAgent = $"{AppConstants.AppName}/{AppConstants.AppVersion}";
-        Assert.Equal(expectedUserAgent, ApiConstants.DefaultUserAgent);
+        Assert.Equal(ApiConstants.DefaultUserAgent, expectedUserAgent);
     }
 
     /// <summary>

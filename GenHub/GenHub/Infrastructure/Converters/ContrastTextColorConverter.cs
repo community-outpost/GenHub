@@ -2,6 +2,7 @@ using System;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using System.Globalization;
+using GenHub.Core.Constants;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -18,20 +19,12 @@ public class ContrastTextColorConverter : IValueConverter
     {
         if (value is Color color)
         {
-            const double rCoeff = 0.299;
-            const double gCoeff = 0.587;
-            const double bCoeff = 0.114;
-            var brightness = ((color.R * rCoeff) + (color.G * gCoeff) + (color.B * bCoeff)) / 255.0;
-            return brightness > 0.5 ? Brushes.Black : Brushes.White;
+            return CalculateContrastTextColor(color);
         }
 
         if (value is string colorString && Color.TryParse(colorString, out var parsedColor))
         {
-            const double rCoeff = 0.299;
-            const double gCoeff = 0.587;
-            const double bCoeff = 0.114;
-            var brightness = ((parsedColor.R * rCoeff) + (parsedColor.G * gCoeff) + (parsedColor.B * bCoeff)) / 255.0;
-            return brightness > 0.5 ? Brushes.Black : Brushes.White;
+            return CalculateContrastTextColor(parsedColor);
         }
 
         return Brushes.White;
@@ -45,5 +38,19 @@ public class ContrastTextColorConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Calculates the appropriate contrasting text color (black or white) for a given background color.
+    /// </summary>
+    /// <param name="color">The background color to calculate contrast for.</param>
+    /// <returns>A brush with the contrasting text color (black or white).</returns>
+    private static IBrush CalculateContrastTextColor(Color color)
+    {
+        var brightness = ((color.R * ConversionConstants.LuminanceRedCoefficient) +
+                         (color.G * ConversionConstants.LuminanceGreenCoefficient) +
+                         (color.B * ConversionConstants.LuminanceBlueCoefficient)) / 255.0;
+
+        return brightness > ConversionConstants.BrightnessThreshold ? Brushes.Black : Brushes.White;
     }
 }
