@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -22,7 +23,7 @@ public interface IManifestIdService
     ContentOperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 
     /// <summary>
     /// Generates a manifest ID for a base game installation.
@@ -34,7 +35,7 @@ public interface IManifestIdService
     ContentOperationResult<ManifestId> GenerateBaseGameId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = "1.0");
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
 
     /// <summary>
     /// Validates a manifest ID string and returns a strongly-typed ManifestId if valid.

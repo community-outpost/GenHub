@@ -23,18 +23,17 @@ public class ManifestIdServiceTests
     }
 
     /// <summary>
-    /// Tests successful generation of publisher content ID.
+    /// Tests that GeneratePublisherContentId uses default manifest schema version when not provided.
     /// </summary>
     [Fact]
-    public void GeneratePublisherContentId_WithValidInputs_ReturnsSuccess()
+    public void GeneratePublisherContentId_UsesDefaultManifestSchemaVersion_WhenNotProvided()
     {
         // Arrange
         var publisherId = "test-publisher";
         var contentName = "test-content";
-        var manifestSchemaVersion = "1.0";
 
         // Act
-        var result = _service.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+        var result = _service.GeneratePublisherContentId(publisherId, contentName);
 
         // Assert
         Assert.True(result.Success);
@@ -65,18 +64,17 @@ public class ManifestIdServiceTests
     }
 
     /// <summary>
-    /// Tests successful generation of base game ID.
+    /// Tests that GenerateBaseGameId uses default manifest schema version when not provided.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_WithValidInputs_ReturnsSuccess()
+    public void GenerateBaseGameId_UsesDefaultManifestSchemaVersion_WhenNotProvided()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
-        var manifestSchemaVersion = "1.0";
 
         // Act
-        var result = _service.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+        var result = _service.GenerateBaseGameId(installation, gameType);
 
         // Assert
         Assert.True(result.Success);

@@ -1,9 +1,10 @@
-using System;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -23,7 +24,7 @@ public class ManifestIdService : IManifestIdService
     public ContentOperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = "1.0")
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
     {
         try
         {
@@ -51,7 +52,7 @@ public class ManifestIdService : IManifestIdService
     public ContentOperationResult<ManifestId> GenerateBaseGameId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = "1.0")
+        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
     {
         try
         {
