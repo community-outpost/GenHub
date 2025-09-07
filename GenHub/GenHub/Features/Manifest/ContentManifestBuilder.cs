@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
@@ -16,25 +17,107 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ContentManifestBuilder(
     ILogger<ContentManifestBuilder> logger,
-    IFileHashProvider hashProvider) : IContentManifestBuilder
+    IFileHashProvider hashProvider,
+    IManifestIdService manifestIdService) : IContentManifestBuilder
 {
     private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
+    private readonly IManifestIdService _manifestIdService = manifestIdService;
 
     /// <summary>
     /// Sets the basic information for the manifest.
+    /// Use <paramref name="isBaseGame"/> to indicate this is a base game installation.
     /// </summary>
-    /// <param name="id">Manifest ID.</param>
-    /// <param name="name">Manifest name.</param>
+    /// <param name="publisherOrInstallType">Publisher id or installation type.</param>
+    /// <param name="contentNameOrGameType">Content name or game type string (e.g. "zerohour").</param>
     /// <param name="version">Manifest version.</param>
+    /// <param name="isBaseGame">True when this is a generated base game manifest.</param>
     /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder WithBasicInfo(string id, string name, string version)
+    public IContentManifestBuilder WithBasicInfo(string publisherOrInstallType, string contentNameOrGameType, string version, bool isBaseGame = false)
     {
-        _manifest.Id = id;
-        _manifest.Name = name;
+        if (isBaseGame)
+        {
+            // Build a temporary GameInstallation to generate the ID
+            var installTypeParsed = Enum.TryParse<GameInstallationType>(publisherOrInstallType, true, out var installType)
+                ? installType
+                : GameInstallationType.Unknown;
+
+            var tempInstallation = new GameInstallation(string.Empty, installTypeParsed);
+            tempInstallation.HasZeroHour = string.Equals(contentNameOrGameType, "zerohour", StringComparison.OrdinalIgnoreCase);
+
+            var gameType = string.Equals(contentNameOrGameType, "zerohour", StringComparison.OrdinalIgnoreCase)
+                ? GameType.ZeroHour
+                : GameType.Generals;
+
+            // Use ManifestIdService for consistent ID generation with ResultBase pattern
+            var idResult = _manifestIdService.GenerateBaseGameId(tempInstallation, gameType, version);
+            if (idResult.Success)
+            {
+                _manifest.Id = idResult.Data.Value;
+            }
+            else
+            {
+                _logger.LogWarning("Failed to generate base game manifest ID: {Error}. Using fallback.", idResult.ErrorMessage);
+
+                // Fallback to direct generation if service fails
+                _manifest.Id = ManifestId.Create(
+                    ManifestIdGenerator.GenerateBaseGameId(tempInstallation, gameType, version));
+            }
+        }
+        else
+        {
+            // If the publisherOrInstallType looks like a publisher name (contains spaces),
+            // generate a canonical publisher.content.version id. Otherwise treat the value
+            // as an explicit manifest id (tests often pass 'test-id').
+            if (publisherOrInstallType.Contains(' '))
+            {
+                // Use ManifestIdService for consistent ID generation with ResultBase pattern
+                var idResult = _manifestIdService.GeneratePublisherContentId(publisherOrInstallType, contentNameOrGameType, version);
+                if (idResult.Success)
+                {
+                    _manifest.Id = idResult.Data.Value;
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.ErrorMessage);
+
+                    // Fallback to direct generation if service fails
+                    _manifest.Id = ManifestId.Create(
+                        ManifestIdGenerator.GeneratePublisherContentId(publisherOrInstallType, contentNameOrGameType, version));
+                }
+            }
+            else
+            {
+                // For explicit manifest IDs, validate through the service
+                var idResult = _manifestIdService.ValidateAndCreateManifestId(publisherOrInstallType);
+                if (idResult.Success)
+                {
+                    _manifest.Id = idResult.Data.Value;
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to validate manifest ID '{Id}': {Error}. Using fallback.", publisherOrInstallType, idResult.ErrorMessage);
+
+                    // Fallback to direct creation if validation fails
+                    _manifest.Id = ManifestId.Create(publisherOrInstallType);
+                }
+            }
+        }
+
+        _manifest.Name = contentNameOrGameType;
         _manifest.Version = version;
-        _logger.LogDebug("Set basic info: ID={Id}, Name={Name}, Version={Version}", id, name, version);
+
+        _logger.LogDebug(
+            "Set basic info: ID={Id}, Name={Name}, Version={Version}, IsBaseGame={IsBaseGame}",
+            _manifest.Id,
+            _manifest.Name,
+            _manifest.Version,
+            isBaseGame);
+
+        // Ensure the generated ID conforms to the project's validation rules.
+        ManifestIdValidator.EnsureValid(_manifest.Id);
+
         return this;
     }
 
@@ -490,7 +573,7 @@ public class ContentManifestBuilder(
         {
             RelativePath = targetRelativePath,
             PatchSourceFile = patchSourceFile,
-            SourceType = ContentSourceType.RemoteDownload,
+            SourceType = ContentSourceType.PatchFile,
         };
 
         _manifest.Files.Add(manifestFile);

@@ -60,6 +60,14 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 - **ContentDependency**: Prerequisite specification with Id, Name, DependencyType, InstallBehavior, VersionConstraints
 - **InstallationInstructions**: Execution guidance with PreferredStrategy, PreInstallSteps, PostInstallSteps
 
+**Manifest Identification System**:
+
+- **ManifestId**: Strongly-typed value object providing deterministic, human-readable content identification with compile-time validation and implicit conversions
+- **ManifestIdGenerator**: Low-level utility for generating deterministic IDs with cross-platform normalization and filesystem-safe output
+- **ManifestIdService**: Service layer implementing ResultBase pattern for type-safe ID operations with proper error handling
+- **ManifestIdValidator**: Comprehensive validation ensuring ID format compliance and security with regex-based rules
+- **ManifestIdJsonConverter**: JSON serialization support enabling seamless persistence and API integration
+
 **Manifest Creation Infrastructure**:
 
 - **IContentManifestBuilder**: Fluent builder interface for programmatic manifest construction
@@ -128,6 +136,7 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 
 **CAS Integration**:
 Workspace strategies now fully integrate with the Content Addressable Storage system through  CAS operations:
+
 - **CAS File Linking**: Strategies can link files directly from CAS storage using hash-based references
 - **CAS Reference Tracking**: WorkspaceManager coordinates with CasReferenceTracker to track which CAS objects are referenced by each workspace
 - **Automatic Cleanup**: CAS references are automatically managed during workspace creation and cleanup
@@ -169,6 +178,7 @@ Workspace strategies now fully integrate with the Content Addressable Storage sy
 
 **Launch Process Flow**:
 Game launching follows a comprehensive pipeline:
+
 1. **Profile Validation**: Verify profile exists and is properly configured
 2. **Content Resolution**: Resolve all enabled content through IContentManifestPool
 3. **Workspace Preparation**: Create isolated workspace using configured strategy
@@ -432,6 +442,7 @@ return result;
 
 **Profile Validation Framework**:
 The profile management system includes comprehensive validation:
+
 - **Profile Uniqueness**: Ensures profile names and IDs are unique
 - **GameVersion Compatibility**: Validates that referenced GameVersion exists and is compatible
 - **Content Validation**: Verifies that EnabledContentIds reference valid, available content
@@ -488,6 +499,7 @@ The system provides seamless integration between profile management and launch o
 
 **Profile-Workspace Integration**:
 GameProfile objects seamlessly integrate with the workspace system:
+
 - **Strategy Selection**: Profile's PreferredStrategy determines workspace creation approach
 - **Content Integration**: EnabledContentIds are resolved to manifests for workspace preparation
 - **Launch Customization**: Profile's LaunchArguments and EnvironmentVariables customize process creation
@@ -779,13 +791,12 @@ User selects "My Modded Zero Hour" profile from the game profile launcher interf
 
 **Multi-Provider Content Integration**:
 The launched profile seamlessly integrates content from multiple sources:
+
 - **Base Game**: From Steam installation detected by WindowsInstallationDetector
 - **Primary Mod**: Acquired through GitHubContentProvider pipeline
-- **Maps**: Acquired through CNCLabsContentProvider pipeline  
+- **Maps**: Acquired through CNCLabsContentProvider pipeline
 - **Patches**: Acquired through ModDBContentProvider pipeline
-- **CAS Content**: Linked from content-addressable storage for shared assets
-
-### 8.2 Complex Profile Management with Content Dependencies
+- **CAS Content**: Linked from content-addressable storage for shared assets### 8.2 Complex Profile Management with Content Dependencies
 
 **Profile Creation Workflow**:
 User creates "Tournament Setup" profile with complex content dependencies.
@@ -807,6 +818,7 @@ User creates "Tournament Setup" profile with complex content dependencies.
 
 **Content Management Integration**:
 The profile system seamlessly integrates with content management:
+
 - **Content Discovery**: Users can browse and install content through the three-tier pipeline
 - **Profile Integration**: Installed content automatically becomes available for profile configuration
 - **Dependency Management**: System automatically resolves and validates content dependencies
@@ -839,6 +851,7 @@ Profile launch with mixed local and CAS content demonstrates advanced integratio
 
 **CAS Lifecycle Management**:
 The system provides comprehensive CAS lifecycle management:
+
 - **Reference Tracking**: Each workspace tracks its CAS dependencies
 - **Cleanup Coordination**: Workspace deletion automatically unreferences CAS objects
 - **Garbage Collection**: Unused CAS objects can be safely removed

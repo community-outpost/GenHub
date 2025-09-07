@@ -1,212 +1,300 @@
-# Constants API Reference
+# Constants Reference
 
-This document provides comprehensive documentation for all constants used throughout the GenHub application. Constants are organized into logical groups for better maintainability and consistency.
+This document provides comprehensive documentation for all constants used throughout the GenHub application. Constants are defined in static classes within the `GenHub.Core.Constants` namespace and follow StyleCop conventions.
 
 ## Overview
 
-GenHub uses a centralized constants system to ensure consistency across the application. All constants are defined in static classes within the `GenHub.Core.Constants` namespace and follow StyleCop conventions.
+GenHub uses a centralized constants system to ensure consistency across the application. Constants are organized into logical groups for better maintainability and consistency.
 
-## Constants Files
+---
 
-### ApiConstants
+## ApiConstants Class
 
 API and network related constants.
 
-#### User Agents
+### User Agents
 
-- `DefaultUserAgent`: Default user agent string for HTTP requests (constructed from `AppConstants.AppName` and `AppConstants.AppVersion`)
+- `DefaultUserAgent`: Default user agent string for HTTP requests (constructed as `"GenHub/1.0"` from `AppConstants.ApplicationName` and `AppConstants.Version`)
 
-#### GitHub
+### GitHub
 
 - `GitHubDomain`: GitHub domain name (`"github.com"`)
-- `GitHubUrlRegexPattern`: GitHub URL regex pattern for parsing repository URLs (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
+- `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs  
+  (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
-### AppConstants
+---
+
+## AppConstants Class
 
 Application-wide constants for GenHub.
 
-- `AppName`: The name of the application (`"GenHub"`)
-- `AppVersion`: The version of the application (`"1.0"`)
-- `DefaultTheme`: Default UI theme (Theme.Dark)
-- `DefaultThemeName`: Default theme name as string (`"Dark"`)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ApplicationName` | `"GenHub"` | Application name |
+| `Version` | `"1.0"` | Current version of GenHub |
+| `DefaultTheme` | `Theme.Dark` | Default UI theme |
+| `DefaultThemeName` | `"Dark"` | Default theme name as string |
+| `DefaultUserAgent` | `"GenHub/1.0"` | Default user agent string |
 
-### CasDefaults
+---
+
+## CasDefaults Class
 
 Default values and limits for Content-Addressable Storage (CAS).
 
-- `MaxCacheSizeBytes`: Default maximum cache size in bytes (50GB)
-- `DefaultMaxCacheSizeGB`: Default maximum cache size in gigabytes (50)
-- `MaxConcurrentOperations`: Default maximum concurrent CAS operations (4)
-- `GcGracePeriodDays`: Default garbage collection grace period in days (7)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MaxCacheSizeBytes` | `53687091200` (50GB) | Default maximum cache size |
+| `DefaultMaxCacheSizeGB` | `50` | Default maximum cache size in gigabytes |
+| `MaxConcurrentOperations` | `4` | Default maximum concurrent CAS operations |
+| `GcGracePeriodDays` | `7` | Default garbage collection grace period in days |
 
-### ConfigurationKeys
+---
 
-Configuration key constants for appsettings.json and environment variables.
+## ConfigurationKeys Class
 
-#### Workspace Configuration
+Configuration key constants for `appsettings.json` and environment variables.
 
-- `WorkspaceDefaultPath`: Configuration key for default workspace path (`"GenHub:Workspace:DefaultPath"`)
-- `WorkspaceDefaultStrategy`: Configuration key for default workspace strategy (`"GenHub:Workspace:DefaultStrategy"`)
+### Workspace Configuration
+- `WorkspaceDefaultPath`: `"GenHub:Workspace:DefaultPath"`
+- `WorkspaceDefaultStrategy`: `"GenHub:Workspace:DefaultStrategy"`
 
-#### Cache Configuration
+### Cache Configuration
+- `CacheDefaultPath`: `"GenHub:Cache:DefaultPath"`
 
-- `CacheDefaultPath`: Configuration key for default cache directory path (`"GenHub:Cache:DefaultPath"`)
+### UI Configuration
+- `UiDefaultTheme`: `"GenHub:UI:DefaultTheme"`
+- `UiDefaultWindowWidth`: `"GenHub:UI:DefaultWindowWidth"`
+- `UiDefaultWindowHeight`: `"GenHub:UI:DefaultWindowHeight"`
 
-#### UI Configuration
+### Downloads Configuration
+- `DownloadsDefaultTimeoutSeconds`: `"GenHub:Downloads:DefaultTimeoutSeconds"`
+- `DownloadsDefaultUserAgent`: `"GenHub:Downloads:DefaultUserAgent"`
+- `DownloadsDefaultMaxConcurrent`: `"GenHub:Downloads:DefaultMaxConcurrent"`
+- `DownloadsDefaultBufferSize`: `"GenHub:Downloads:DefaultBufferSize"`
 
-- `UiDefaultTheme`: Configuration key for default UI theme (`"GenHub:UI:DefaultTheme"`)
-- `UiDefaultWindowWidth`: Configuration key for default window width (`"GenHub:UI:DefaultWindowWidth"`)
-- `UiDefaultWindowHeight`: Configuration key for default window height (`"GenHub:UI:DefaultWindowHeight"`)
+### Downloads Policy Configuration
+- `DownloadsPolicyMinConcurrent`: `"GenHub:Downloads:Policy:MinConcurrent"`
+- `DownloadsPolicyMaxConcurrent`: `"GenHub:Downloads:Policy:MaxConcurrent"`
+- `DownloadsPolicyMinTimeoutSeconds`: `"GenHub:Downloads:Policy:MinTimeoutSeconds"`
+- `DownloadsPolicyMaxTimeoutSeconds`: `"GenHub:Downloads:Policy:MaxTimeoutSeconds"`
+- `DownloadsPolicyMinBufferSizeBytes`: `"GenHub:Downloads:Policy:MinBufferSizeBytes"`
+- `DownloadsPolicyMaxBufferSizeBytes`: `"GenHub:Downloads:Policy:MaxBufferSizeBytes"`
 
-#### Downloads Configuration
+### App Data Configuration
+- `AppDataPath`: `"GenHub:AppDataPath"`
 
-- `DownloadsDefaultTimeoutSeconds`: Configuration key for default download timeout (`"GenHub:Downloads:DefaultTimeoutSeconds"`)
-- `DownloadsDefaultUserAgent`: Configuration key for default user agent (`"GenHub:Downloads:DefaultUserAgent"`)
-- `DownloadsDefaultMaxConcurrent`: Configuration key for default maximum concurrent downloads (`"GenHub:Downloads:DefaultMaxConcurrent"`)
-- `DownloadsDefaultBufferSize`: Configuration key for default download buffer size (`"GenHub:Downloads:DefaultBufferSize"`)
+---
 
-#### Downloads Policy Configuration
-
-- `DownloadsPolicyMinConcurrent`: Configuration key for minimum concurrent downloads policy (`"GenHub:Downloads:Policy:MinConcurrent"`)
-- `DownloadsPolicyMaxConcurrent`: Configuration key for maximum concurrent downloads policy (`"GenHub:Downloads:Policy:MaxConcurrent"`)
-- `DownloadsPolicyMinTimeoutSeconds`: Configuration key for minimum download timeout policy (`"GenHub:Downloads:Policy:MinTimeoutSeconds"`)
-- `DownloadsPolicyMaxTimeoutSeconds`: Configuration key for maximum download timeout policy (`"GenHub:Downloads:Policy:MaxTimeoutSeconds"`)
-- `DownloadsPolicyMinBufferSizeBytes`: Configuration key for minimum download buffer size policy (`"GenHub:Downloads:Policy:MinBufferSizeBytes"`)
-- `DownloadsPolicyMaxBufferSizeBytes`: Configuration key for maximum download buffer size policy (`"GenHub:Downloads:Policy:MaxBufferSizeBytes"`)
-
-#### App Data Configuration
-
-- `AppDataPath`: Configuration key for application data path (`"GenHub:AppDataPath"`)
-
-### ConversionConstants
+## ConversionConstants Class
 
 Constants for unit conversions used throughout the application.
 
-- `BytesPerKilobyte`: Number of bytes in one kilobyte (1024)
-- `BytesPerMegabyte`: Number of bytes in one megabyte (1048576)
-- `BytesPerGigabyte`: Number of bytes in one gigabyte (1073741824)
+- `BytesPerKilobyte`: 1024  
+- `BytesPerMegabyte`: 1048576  
+- `BytesPerGigabyte`: 1073741824  
 
-### DirectoryNames
+---
+
+## DirectoryNames Class
 
 Directory names used for organizing content storage.
 
-- `Data`: Directory for storing content data (`"Data"`)
-- `Cache`: Directory for storing cache files (`"Cache"`)
-- `CasPool`: Directory for Content-Addressable Storage (CAS) pool (`"cas-pool"`)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Data` | `"Data"` | Directory for content data |
+| `Cache` | `"Cache"` | Directory for cache files |
+| `CasPool` | `"cas-pool"` | Directory for CAS pool |
+| `Temp` | `"Temp"` | Directory for temporary files |
+| `Logs` | `"Logs"` | Directory for log files |
+| `Backups` | `"Backups"` | Directory for backup files |
 
-### DownloadDefaults
+---
+
+## DownloadDefaults Class
 
 Default values and limits for download operations.
 
-- `BufferSizeBytes`: Default buffer size for file download operations (81920)
-- `BufferSizeKB`: Default buffer size in kilobytes for display purposes (80.0)
-- `MinBufferSizeKB`: Minimum buffer size in kilobytes for validation (4.0)
-- `MaxBufferSizeKB`: Maximum buffer size in kilobytes for validation (1024.0)
-- `MaxConcurrentDownloads`: Default maximum number of concurrent downloads (3)
-- `MaxRetryAttempts`: Default maximum retry attempts for failed downloads (3)
-- `TimeoutSeconds`: Default download timeout in seconds (600)
-- `FileBufferSizeBytes`: Default buffer size for file operations (4096)
+- `BufferSizeBytes`: 81920  
+- `BufferSizeKB`: 80.0  
+- `MinBufferSizeKB`: 4.0  
+- `MaxBufferSizeKB`: 1024.0  
+- `MaxConcurrentDownloads`: 3  
+- `MaxRetryAttempts`: 3  
+- `TimeoutSeconds`: 600  
 
-### FileTypes
+---
+
+## FileTypes Class
 
 File and directory name constants to prevent typos and ensure consistency.
 
-#### Manifest Files
+### Manifest Files
 
-- `ManifestsDirectory`: Directory for manifest files (`"Manifests"`)
-- `ManifestFilePattern`: File pattern for manifest files (`"*.manifest.json"`)
-- `ManifestFileExtension`: File extension for manifest files (`".manifest.json"`)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ManifestsDirectory` | `"Manifests"` | Directory for manifest files |
+| `ManifestFilePattern` | `"*.manifest.json"` | File pattern for manifest files |
+| `ManifestFileExtension` | `".manifest.json"` | File extension for manifest files |
 
-#### JSON Files
+### JSON Files
 
-- `JsonFileExtension`: File extension for JSON files (`".json"`)
-- `JsonFilePattern`: File pattern for JSON files (`"*.json"`)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `JsonFileExtension` | `".json"` | File extension for JSON files |
+| `JsonFilePattern` | `"*.json"` | File pattern for JSON files |
+| `SettingsFileName` | `"settings.json"` | Default settings file name |
 
-#### Settings
+---
 
-- `SettingsFileName`: Default settings file name (`"settings.json"`)
+## ManifestConstants Class
 
-### IoConstants
+Constants related to manifest ID generation, validation, and file operations.
 
-Constants for input/output operations.
+### Manifest ID Generation
 
-- `DefaultFileBufferSize`: Default buffer size for file operations (4096 bytes)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `DefaultManifestSchemaVersion` | `"1.0"` | Default manifest schema version |
+| `PublisherContentIdPrefix` | `"publisher"` | Prefix for publisher content IDs |
+| `BaseGameIdPrefix` | `"basegame"` | Prefix for base game IDs |
+| `SimpleIdPrefix` | `"simple"` | Prefix for simple test IDs |
 
-### ProcessConstants
+### Manifest Validation
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MaxManifestIdLength` | `256` | Maximum length for manifest IDs |
+| `MinManifestIdLength` | `3` | Minimum length for manifest IDs |
+| `MaxManifestSegments` | `5` | Maximum number of segments in manifest ID |
+| `MinManifestSegments` | `1` | Minimum number of segments in manifest ID |
+
+### Manifest ID Regex Patterns
+
+| Constant | Description |
+|----------|-------------|
+| `PublisherIdRegexPattern` | Regex for publisher content IDs |
+| `GameInstallationIdRegexPattern` | Regex for base game IDs |
+| `SimpleIdRegexPattern` | Regex for simple IDs |
+
+**Publisher Content ID Pattern:**
+
+```regex
+^(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z0-9\-]+$
+```
+
+---
+
+## IoConstants Class
+
+- `DefaultFileBufferSize`: 4096  
+
+---
+
+## ProcessConstants Class
 
 Process and system constants.
 
-#### Exit Codes
+### Exit Codes
 
-- `ExitCodeSuccess`: Standard exit code indicating successful execution (0)
-- `ExitCodeGeneralError`: Standard exit code indicating general error (1)
-- `ExitCodeInvalidArguments`: Exit code indicating invalid arguments (2)
-- `ExitCodeFileNotFound`: Exit code indicating file not found (3)
-- `ExitCodeAccessDenied`: Exit code indicating access denied (5)
+- `ExitCodeSuccess`: 0   
 
-#### Windows API Constants
+### Windows API Constants
 
-- `SW_RESTORE`: Windows API constant for restoring a minimized window (9)
-- `SW_SHOW`: Windows API constant for showing a window in its current state (5)
-- `SW_MINIMIZE`: Windows API constant for minimizing a window (6)
-- `SW_MAXIMIZE`: Windows API constant for maximizing a window (3)
+- `SW_RESTORE`: 9  
+- `SW_SHOW`: 5  
+- `SW_MINIMIZE`: 6  
+- `SW_MAXIMIZE`: 3  
 
-### StorageConstants
+---
+
+## StorageConstants Class
 
 Storage and CAS (Content-Addressable Storage) related constants.
 
-#### CAS Retry Constants
+### CAS Retry Constants
 
-- `MaxRetries`: Maximum number of retry attempts for CAS operations (10)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MaxRetries` | `10` | Maximum retry attempts for CAS operations |
+| `RetryDelayMs` | `100` | Delay between retry attempts (ms) |
+| `MaxRetryDelayMs` | `5000` | Maximum delay for exponential backoff (ms) |
 
-#### CAS Maintenance Constants
+### CAS Directory Structure
 
-- `AutoGcIntervalDays`: Default automatic garbage collection interval in days (1)
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ObjectsDirectory` | `"objects"` | Directory for CAS objects |
+| `LocksDirectory` | `"locks"` | Directory for CAS locks |
 
-### TimeIntervals
+### CAS Maintenance
 
-Time intervals and durations used throughout the application.
+- `AutoGcIntervalDays`: 1  
 
-- `UpdaterTimeout`: Default timeout for updater operations (10 minutes)
-- `DownloadTimeout`: Default timeout for download operations (30 minutes)
-- `NotificationHideDelay`: Delay for hiding UI notifications (3000ms)
+---
 
-### UiConstants
+## TimeIntervals Class
 
-UI-related constants for consistent user experience.
+- `UpdaterTimeout`: 10 minutes  
+- `DownloadTimeout`: 30 minutes  
+- `NotificationHideDelay`: 3000ms  
 
-- `DefaultWindowWidth`: Default main window width in pixels (1200)
-- `DefaultWindowHeight`: Default main window height in pixels (800)
+---
 
-### ValidationLimits
+## UiConstants Class
 
-Validation limits and constraints.
+- `DefaultWindowWidth`: 1200  
+- `DefaultWindowHeight`: 800  
 
-- `MinConcurrentDownloads`: Minimum allowed concurrent downloads (1)
-- `MaxConcurrentDownloads`: Maximum allowed concurrent downloads (10)
-- `MinDownloadTimeoutSeconds`: Minimum allowed download timeout in seconds (30)
-- `MaxDownloadTimeoutSeconds`: Maximum allowed download timeout in seconds (3600)
-- `MinDownloadBufferSizeBytes`: Minimum allowed download buffer size in bytes (4096)
-- `MaxDownloadBufferSizeBytes`: Maximum allowed download buffer size in bytes (1048576)
+---
+
+## ValidationLimits Class
+
+- `MinConcurrentDownloads`: 1  
+- `MaxConcurrentDownloads`: 10  
+- `MinDownloadTimeoutSeconds`: 30  
+- `MaxDownloadTimeoutSeconds`: 3600  
+- `MinDownloadBufferSizeBytes`: 4096  
+- `MaxDownloadBufferSizeBytes`: 1048576  
+
+---
 
 ## Usage Examples
 
-### Directory Operations with DirectoryNames
+### Application Configuration
 
 ```csharp
-// Using directory constants for consistent paths
+using GenHub.Core.Constants;
+
+// Build user agent string
+var userAgent = AppConstants.DefaultUserAgent; // "GenHub/1.0"
+
+// Get application info
+var appName = AppConstants.ApplicationName;
+var version = AppConstants.Version;
+```
+
+### Directory Operations
+
+```csharp
+using GenHub.Core.Constants;
+
+// Build standard directory paths
 var dataPath = Path.Combine(basePath, DirectoryNames.Data);
 var cachePath = Path.Combine(basePath, DirectoryNames.Cache);
+var tempPath = Path.Combine(basePath, DirectoryNames.Temp);
 var casPoolPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-    AppConstants.AppName,
+    AppConstants.ApplicationName,
     DirectoryNames.CasPool);
 ```
 
-### File Type Validation with FileTypes
+### File Type Validation
 
 ```csharp
-// Using file type constants for validation
+using GenHub.Core.Constants;
+
+// Check file types
 if (fileName.EndsWith(FileTypes.ManifestFileExtension))
 {
     // Handle manifest file
@@ -217,21 +305,32 @@ else if (fileName.EndsWith(FileTypes.JsonFileExtension))
 }
 ```
 
+### Manifest ID Operations
+
+```csharp
+using GenHub.Core.Constants;
+
+// Generate publisher content ID
+var publisherId = $"{ManifestConstants.PublisherContentIdPrefix}.{contentName}.{ManifestConstants.DefaultManifestSchemaVersion}";
+
+// Validate manifest ID length
+if (manifestId.Length < ManifestConstants.MinManifestIdLength ||
+    manifestId.Length > ManifestConstants.MaxManifestIdLength)
+{
+    throw new ArgumentException("Manifest ID length is invalid");
+}
+```
+
 ### HTTP Operations with ApiConstants
 
 ```csharp
-// Using API constants for HTTP requests
 using var client = new HttpClient();
 client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
-
-// DefaultUserAgent is constructed as: $"{AppConstants.AppName}/{AppConstants.AppVersion}"
-// Result: "GenHub/1.0"
 ```
 
-### GitHub URL Validation with ApiConstants
+### GitHub URL Validation
 
 ```csharp
-// Using GitHub constants for URL validation
 public bool IsGitHubUrl(string url)
 {
     if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
@@ -239,28 +338,11 @@ public bool IsGitHubUrl(string url)
 
     return uri.Host.Equals(ApiConstants.GitHubDomain, StringComparison.OrdinalIgnoreCase);
 }
-
-// Using GitHub regex pattern for parsing
-public (string owner, string repo, string? tag) ParseGitHubUrl(string url)
-{
-    var regex = new Regex(ApiConstants.GitHubUrlRegexPattern, RegexOptions.Compiled);
-    var match = regex.Match(url);
-
-    if (!match.Success)
-        return (null, null, null);
-
-    var owner = match.Groups["owner"].Value;
-    var repo = match.Groups["repo"].Value;
-    var tag = match.Groups["tag"].Success ? match.Groups["tag"].Value : null;
-
-    return (owner, repo, tag);
-}
 ```
 
-### Download Configuration with DownloadDefaults
+### Download Configuration
 
 ```csharp
-// Using download defaults for configuration
 var downloadConfig = new DownloadConfiguration
 {
     BufferSize = DownloadDefaults.BufferSizeBytes,
@@ -270,33 +352,28 @@ var downloadConfig = new DownloadConfiguration
 };
 ```
 
-### UI Configuration with UiConstants
+### CAS Operations
 
 ```csharp
-// Using UI constants for window sizing
-var window = new Window
+var retryCount = 0;
+while (retryCount < StorageConstants.MaxRetries)
 {
-    Width = UiConstants.DefaultWindowWidth,
-    Height = UiConstants.DefaultWindowHeight
-};
-```
-
-### Application Name Usage with AppConstants
-
-```csharp
-// Using AppConstants.AppName for consistent application naming
-var appDataPath = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-    AppConstants.AppName);
-
-var userAgent = $"{AppConstants.AppName}/{AppConstants.AppVersion}";
-// Result: "GenHub/1.0" (same as ApiConstants.DefaultUserAgent)
+    try
+    {
+        // Perform CAS operation
+        break;
+    }
+    catch (Exception)
+    {
+        retryCount++;
+        await Task.Delay(StorageConstants.RetryDelayMs * retryCount);
+    }
+}
 ```
 
 ### Validation with ValidationLimits
 
 ```csharp
-// Using validation limits for input validation
 public bool ValidateConcurrentDownloads(int value)
 {
     return value >= ValidationLimits.MinConcurrentDownloads &&
@@ -304,81 +381,57 @@ public bool ValidateConcurrentDownloads(int value)
 }
 ```
 
-### CAS Configuration with CasDefaults
-
-```csharp
-// Using CAS defaults for storage configuration
-var casConfig = new CasConfiguration
-{
-    MaxCacheSizeBytes = CasDefaults.MaxCacheSizeBytes,
-    MaxConcurrentOperations = CasDefaults.MaxConcurrentOperations,
-    AutoGcInterval = TimeSpan.FromDays(StorageConstants.AutoGcIntervalDays)
-};
-
-// Using retry constants for CAS operations
-for (int attempt = 0; attempt < StorageConstants.MaxRetries; attempt++)
-{
-    try
-    {
-        // CAS operation
-        break;
-    }
-    catch (IOException)
-    {
-        if (attempt == StorageConstants.MaxRetries - 1)
-            throw;
-        
-        await Task.Delay(100);
-    }
-}
-```
-
 ### Time Intervals Usage
 
 ```csharp
-// Using time intervals for timeouts
 var updaterTimeout = TimeIntervals.UpdaterTimeout;
 var downloadTimeout = TimeIntervals.DownloadTimeout;
 var notificationDelay = TimeIntervals.NotificationHideDelay;
 ```
 
+---
+
 ## Maintenance
 
 When adding new constants:
 
-1. Choose the appropriate constants file based on functionality
-2. Follow naming conventions (PascalCase for constants)
-3. Add comprehensive XML documentation
-4. Update this documentation
-5. Add tests for new constants
-6. Ensure StyleCop compliance
+1. Choose the appropriate constants file based on functionality  
+2. Follow naming conventions (PascalCase for constants)  
+3. Add comprehensive XML documentation  
+4. Update this documentation  
+5. Add tests for new constants  
+6. Ensure StyleCop compliance  
 
 ### Constants File Organization
 
-- **ApiConstants**: Network and API-related constants
-- **AppConstants**: Application-wide settings and metadata
-- **CasDefaults**: Content-Addressable Storage defaults
-- **ConfigurationKeys**: Configuration file keys and paths
-- **ConversionConstants**: Unit conversion constants
-- **DirectoryNames**: Standard directory naming conventions
-- **DownloadDefaults**: Download operation defaults
-- **FileTypes**: File extensions and naming patterns
-- **IoConstants**: Input/output operation constants
-- **ProcessConstants**: System process and exit code constants
-- **StorageConstants**: Storage and CAS operation constants (retry limits, maintenance intervals)
-- **TimeIntervals**: Time spans and intervals
-- **UiConstants**: User interface sizing and behavior
-- **ValidationLimits**: Input validation boundaries
+- **ApiConstants**: Network and API-related constants  
+- **AppConstants**: Application-wide settings and metadata  
+- **CasDefaults**: Content-Addressable Storage defaults  
+- **ConfigurationKeys**: Configuration file keys and paths  
+- **ConversionConstants**: Unit conversion constants  
+- **DirectoryNames**: Standard directory naming conventions  
+- **DownloadDefaults**: Download operation defaults  
+- **FileTypes**: File extensions and naming patterns  
+- **IoConstants**: Input/output operation constants  
+- **ManifestConstants**: Manifest ID and validation constants  
+- **ProcessConstants**: System process and exit code constants  
+- **StorageConstants**: Storage and CAS operation constants  
+- **TimeIntervals**: Time spans and intervals  
+- **UiConstants**: User interface sizing and behavior  
+- **ValidationLimits**: Input validation boundaries  
 
 ### Best Practices
 
-1. **Centralization**: All constants should be defined in the appropriate constants file
-2. **Documentation**: Every constant should have XML documentation explaining its purpose
-3. **Testing**: Constants should be tested for correctness and reasonable values
-4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase
-5. **Naming**: Use descriptive names that clearly indicate the constant's purpose
-6. **Grouping**: Related constants should be grouped together within their respective files
+1. **Centralization**: All constants should be defined in the appropriate constants file  
+2. **Documentation**: Every constant should have XML documentation explaining its purpose  
+3. **Testing**: Constants should be tested for correctness and reasonable values  
+4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase  
+5. **Naming**: Use descriptive names that clearly indicate the constant's purpose  
+6. **Grouping**: Related constants should be grouped together within their respective files  
+
+---
 
 ## Related Documentation
 
+- [Manifest ID System](manifest-id-system.md)  
 - [Complete System Architecture](../architecture.md)

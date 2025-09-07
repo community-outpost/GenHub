@@ -12,7 +12,7 @@ public class ContentBundle
     /// <summary>
     /// Gets or sets the unique bundle identifier.
     /// </summary>
-    public string Id { get; set; } = string.Empty;
+    public ManifestId Id { get; set; } = ManifestId.Create("testbundle.content.1.0");
 
     /// <summary>
     /// Gets or sets the bundle display name.

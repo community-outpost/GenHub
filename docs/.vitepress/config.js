@@ -57,7 +57,8 @@ export default withMermaid(
                         { text: 'Result Pattern', link: '/dev/result-pattern' },
                         { text: 'Constants', link: '/dev/constants' },
                         { text: 'Models', link: '/dev/models' },
-                        { text: 'Content Manifest', link: '/dev/content-manifest' }
+                        { text: 'Content Manifest', link: '/dev/content-manifest' },
+                        { text: 'Manifest ID System', link: '/dev/manifest-id-system' }
                     ]
                 },
                 {
