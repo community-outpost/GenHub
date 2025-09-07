@@ -68,7 +68,6 @@ public class AppUpdateService(
                     currentVersion,
                     latestRelease.TagName);
                 var result = UpdateCheckResult.UpdateAvailable(latestRelease);
-                result.CurrentVersion = currentVersion;
                 return result;
             }
 

@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.AppUpdate;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,7 @@ public class UpdateNotificationViewModelTests
     {
         var svc = new Mock<IAppUpdateService>();
         svc.Setup(x => x.CheckForUpdatesAsync("o", "r", It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new UpdateCheckResult { IsUpdateAvailable = true, LatestVersion = "1.2.3" });
+           .ReturnsAsync(UpdateCheckResult.UpdateAvailable(new GitHubRelease { TagName = "1.2.3", HtmlUrl = "https://example.com", Body = "Release notes", Name = "Release 1.2.3" }));
         var vm = new UpdateNotificationViewModel(svc.Object, Mock.Of<IUpdateInstaller>(), Mock.Of<ILogger<UpdateNotificationViewModel>>())
         {
             RepositoryOwner = "o",
