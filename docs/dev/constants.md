@@ -28,6 +28,9 @@ URI scheme constants for handling different types of URIs and paths.
 - `AvarUriScheme`: URI scheme for Avalonia embedded resources (`"avares://"`)
 - `HttpUriScheme`: HTTP URI scheme (`"http://"`)
 - `HttpsUriScheme`: HTTPS URI scheme (`"https://"`)
+- `GeneralsIconUri`: Icon URI for Generals game type (`"avares://GenHub/Assets/Icons/generals-icon.png"`)
+- `ZeroHourIconUri`: Icon URI for Zero Hour game type (`"avares://GenHub/Assets/Icons/zerohour-icon.png"`)
+- `DefaultIconUri`: Default icon URI for unknown game types (`"avares://GenHub/Assets/Icons/generalshub-icon.png"`)
 
 ### AppConstants
 
@@ -93,6 +96,13 @@ Constants for unit conversions used throughout the application.
 - `BytesPerKilobyte`: Number of bytes in one kilobyte (1024)
 - `BytesPerMegabyte`: Number of bytes in one megabyte (1048576)
 - `BytesPerGigabyte`: Number of bytes in one gigabyte (1073741824)
+
+#### Color Conversion Constants
+
+- `LuminanceRedCoefficient`: Coefficient for red channel in luminance calculation (0.299)
+- `LuminanceGreenCoefficient`: Coefficient for green channel in luminance calculation (0.587)
+- `LuminanceBlueCoefficient`: Coefficient for blue channel in luminance calculation (0.114)
+- `BrightnessThreshold`: Threshold value for determining if a color is light or dark (0.5)
 
 ### DirectoryNames
 

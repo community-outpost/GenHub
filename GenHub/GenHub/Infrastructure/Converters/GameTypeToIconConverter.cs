@@ -1,7 +1,8 @@
+using Avalonia.Data.Converters;
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 using System;
 using System.Globalization;
-using Avalonia.Data.Converters;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -32,13 +33,13 @@ public class GameTypeToIconConverter : IValueConverter
         {
             return gt switch
             {
-                GameType.Generals => "avares://GenHub/Assets/Icons/generals-icon.png",
-                GameType.ZeroHour => "avares://GenHub/Assets/Icons/zerohour-icon.png",
-                _ => "avares://GenHub/Assets/Icons/generalshub-icon.png",
+                GameType.Generals => UriConstants.GeneralsIconUri,
+                GameType.ZeroHour => UriConstants.ZeroHourIconUri,
+                _ => UriConstants.DefaultIconUri,
             };
         }
 
-        return "avares://GenHub/Assets/Icons/generalshub-icon.png";
+        return UriConstants.DefaultIconUri;
     }
 
     /// <summary>
