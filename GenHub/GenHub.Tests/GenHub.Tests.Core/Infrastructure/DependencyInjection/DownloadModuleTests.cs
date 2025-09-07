@@ -25,6 +25,10 @@ public class DownloadModuleTests
         var services = new ServiceCollection();
         var configProvider = CreateMockConfigProvider();
 
+        // Register the IConfigurationProviderService that DownloadModule expects
+        services.AddSingleton(configProvider);
+        services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
+
         // Act
         services.AddDownloadServices(configProvider);
         var provider = services.BuildServiceProvider();

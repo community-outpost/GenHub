@@ -3,8 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using System;
@@ -29,9 +29,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _disposed = false;
 
     // Use private fields for properties that need validation
-    private int _maxConcurrentDownloads = 3;
-    private double _downloadBufferSizeKB = 80.0;
-    private int _downloadTimeoutSeconds = 600;
+    private int _maxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
+    private double _downloadBufferSizeKB = DownloadDefaults.BufferSizeKB;
+    private int _downloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
 
     [ObservableProperty]
     private string _theme = "Dark";
@@ -40,13 +40,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private string? _workspacePath;
 
     [ObservableProperty]
-    private string _maxConcurrentDownloadsText = "3";
+    private string _maxConcurrentDownloadsText = DownloadDefaults.MaxConcurrentDownloads.ToString();
 
     [ObservableProperty]
-    private string _downloadBufferSizeKBText = "80.0";
+    private string _downloadBufferSizeKBText = DownloadDefaults.BufferSizeKB.ToString("F1");
 
     [ObservableProperty]
-    private string _downloadTimeoutSecondsText = "600";
+    private string _downloadTimeoutSecondsText = DownloadDefaults.TimeoutSeconds.ToString();
 
     [ObservableProperty]
     private bool _autoCheckForUpdatesOnStartup = true;
@@ -73,10 +73,43 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private double _currentMemoryUsage = 0;
 
     [ObservableProperty]
-    private string _downloadUserAgent = "GenHub/1.0";
+    private string _downloadUserAgent = ApiConstants.DefaultUserAgent;
 
     [ObservableProperty]
     private string? _settingsFilePath;
+
+    [ObservableProperty]
+    private string? _cachePath;
+
+    [ObservableProperty]
+    private string _contentDirectoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string _gitHubDiscoveryRepositoriesText = string.Empty;
+
+    [ObservableProperty]
+    private string? _contentStoragePath;
+
+    [ObservableProperty]
+    private string _casRootPath = string.Empty;
+
+    [ObservableProperty]
+    private bool _enableAutomaticGc = true;
+
+    [ObservableProperty]
+    private long _maxCacheSizeGB = CasDefaults.DefaultMaxCacheSizeGB;
+
+    [ObservableProperty]
+    private int _casMaxConcurrentOperations = 4;
+
+    [ObservableProperty]
+    private bool _casVerifyIntegrity = true;
+
+    [ObservableProperty]
+    private int _garbageCollectionGracePeriodDays = 7;
+
+    [ObservableProperty]
+    private int _autoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
@@ -212,7 +245,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (double.TryParse(value, out double result))
         {
-            var clampedValue = Math.Clamp(result, 4.0, 1024.0);
+            var clampedValue = Math.Clamp(result, DownloadDefaults.MinBufferSizeKB, DownloadDefaults.MaxBufferSizeKB);
             if (Math.Abs(_downloadBufferSizeKB - clampedValue) > 0.1)
             {
                 _downloadBufferSizeKB = clampedValue;
@@ -236,7 +269,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (int.TryParse(value, out int result))
         {
-            var clampedValue = Math.Clamp(result, 10, 3600);
+            var clampedValue = Math.Clamp(result, ValidationLimits.MinDownloadTimeoutSeconds, ValidationLimits.MaxDownloadTimeoutSeconds);
             if (_downloadTimeoutSeconds != clampedValue)
             {
                 _downloadTimeoutSeconds = clampedValue;
@@ -282,7 +315,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            DownloadUserAgent = "GenHub/1.0";
+            DownloadUserAgent = ApiConstants.DefaultUserAgent;
         }
     }
 
@@ -293,18 +326,31 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var settings = _userSettingsService.GetSettings();
-            Theme = settings.Theme ?? "Dark";
+            var settings = _userSettingsService.Get();
+            Theme = settings.Theme ?? AppConstants.DefaultThemeName;
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
             AllowBackgroundDownloads = settings.AllowBackgroundDownloads;
             EnableDetailedLogging = settings.EnableDetailedLogging;
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
-            DownloadBufferSizeKB = settings.DownloadBufferSize / 1024.0; // Convert bytes to KB
+            DownloadBufferSizeKB = settings.DownloadBufferSize / (double)ConversionConstants.BytesPerKilobyte; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
-            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? "GenHub/1.0" : settings.DownloadUserAgent;
+            DownloadUserAgent = string.IsNullOrWhiteSpace(settings.DownloadUserAgent) ? ApiConstants.DefaultUserAgent : settings.DownloadUserAgent;
             SettingsFilePath = settings.SettingsFilePath;
+            CachePath = settings.CachePath;
+            ContentDirectoriesText = string.Join(Environment.NewLine, settings.ContentDirectories ?? new());
+            GitHubDiscoveryRepositoriesText = string.Join(Environment.NewLine, settings.GitHubDiscoveryRepositories ?? new());
+            ContentStoragePath = settings.ContentStoragePath;
+
+            // Load CAS settings
+            CasRootPath = settings.CasConfiguration.CasRootPath;
+            EnableAutomaticGc = settings.CasConfiguration.EnableAutomaticGc;
+            MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / ConversionConstants.BytesPerGigabyte;
+            CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
+            CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
+            GarbageCollectionGracePeriodDays = (int)settings.CasConfiguration.GcGracePeriod.TotalDays;
+            AutoGcIntervalDays = (int)settings.CasConfiguration.AutoGcInterval.TotalDays;
 
             _logger.LogDebug("Settings loaded successfully");
         }
@@ -331,7 +377,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _userSettingsService.UpdateSettings(settings =>
+            _userSettingsService.Update(settings =>
             {
                 settings.Theme = Theme;
                 settings.WorkspacePath = WorkspacePath;
@@ -340,10 +386,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
-                settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * 1024); // Convert KB to bytes
+                settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * ConversionConstants.BytesPerKilobyte); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;
                 settings.SettingsFilePath = SettingsFilePath;
+                settings.CachePath = CachePath;
+                settings.ContentDirectories = (ContentDirectoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.GitHubDiscoveryRepositories = (GitHubDiscoveryRepositoriesText ?? string.Empty)
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .ToList();
+                settings.ContentStoragePath = ContentStoragePath;
+
+                // Update CAS settings
+                settings.CasConfiguration.CasRootPath = CasRootPath;
+                settings.CasConfiguration.EnableAutomaticGc = EnableAutomaticGc;
+                settings.CasConfiguration.MaxCacheSizeBytes = MaxCacheSizeGB * ConversionConstants.BytesPerGigabyte;
+                settings.CasConfiguration.MaxConcurrentOperations = CasMaxConcurrentOperations;
+                settings.CasConfiguration.VerifyIntegrity = CasVerifyIntegrity;
+                settings.CasConfiguration.GcGracePeriod = TimeSpan.FromDays(GarbageCollectionGracePeriodDays);
+                settings.CasConfiguration.AutoGcInterval = TimeSpan.FromDays(AutoGcIntervalDays);
             });
 
             await _userSettingsService.SaveAsync();
@@ -354,7 +417,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             ShowSaveNotification = true;
 
             // Hide notification after 3 seconds
-            _ = Task.Delay(3000).ContinueWith(_ => ShowSaveNotification = false);
+            _ = Task.Delay(TimeIntervals.NotificationHideDelay).ContinueWith(_ => ShowSaveNotification = false);
         }
         catch (Exception ex)
         {
@@ -372,17 +435,31 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            Theme = "Dark";
+            Theme = AppConstants.DefaultThemeName;
             WorkspacePath = null;
-            MaxConcurrentDownloads = 3;
+            MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
             DefaultWorkspaceStrategy = WorkspaceStrategy.HybridCopySymlink;
-            DownloadBufferSizeKB = 80.0; // 80KB default
-            DownloadTimeoutSeconds = 600;
-            DownloadUserAgent = "GenHub/1.0";
+            DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
+            DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
+            DownloadUserAgent = ApiConstants.DefaultUserAgent;
             SettingsFilePath = null;
+            CachePath = null;
+            ContentDirectoriesText = string.Empty;
+            GitHubDiscoveryRepositoriesText = string.Empty;
+            ContentStoragePath = null;
+
+            // Reset CAS settings
+            CasRootPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName, DirectoryNames.CasPool);
+            EnableAutomaticGc = true;
+            MaxCacheSizeGB = 50;
+            CasMaxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
+            CasVerifyIntegrity = true;
+            GarbageCollectionGracePeriodDays = CasDefaults.GcGracePeriodDays;
+            AutoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
             _logger.LogInformation("Settings reset to defaults");
 
@@ -442,7 +519,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = "Select Settings File Location",
-                    SuggestedFileName = "settings.json",
+                    SuggestedFileName = FileTypes.JsonFileExtension,
                     FileTypeChoices = null,
                 });
 
@@ -460,20 +537,50 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    [RelayCommand]
+    private async Task BrowseCasRootPath()
+    {
+        try
+        {
+            _logger.LogDebug("Browse CAS root path requested");
+
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel != null)
+            {
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Select Content-Addressable Storage Root Directory",
+                    AllowMultiple = false,
+                });
+
+                if (folders.Count > 0)
+                {
+                    CasRootPath = folders[0].Path.LocalPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while browsing for CAS root path");
+        }
+    }
+
     private bool ValidateSettings()
     {
         // Validate max concurrent downloads
-        if (MaxConcurrentDownloads < 1 || MaxConcurrentDownloads > 10)
+        if (MaxConcurrentDownloads < ValidationLimits.MinConcurrentDownloads || MaxConcurrentDownloads > ValidationLimits.MaxConcurrentDownloads)
         {
             _logger.LogWarning("Invalid MaxConcurrentDownloads value: {Value}. Resetting to 3.", MaxConcurrentDownloads);
-            MaxConcurrentDownloads = 3;
+            MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
         }
 
         // Validate buffer size
-        if (DownloadBufferSizeKB < 4.0 || DownloadBufferSizeKB > 1024.0)
+        if (DownloadBufferSizeKB < DownloadDefaults.MinBufferSizeKB || DownloadBufferSizeKB > DownloadDefaults.MaxBufferSizeKB)
         {
             _logger.LogWarning("Invalid DownloadBufferSizeKB value: {Value}. Resetting to 80KB.", DownloadBufferSizeKB);
-            DownloadBufferSizeKB = 80.0;
+            DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB;
         }
 
         // Validate game install path if specified
@@ -517,7 +624,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             // WorkingSet64 is the current physical memory used by the process, but Task Manager's "Memory (Private Working Set)" may differ.
             // For a value closer to Task Manager's "Memory (Private Working Set)", use PrivateMemorySize64.
-            CurrentMemoryUsage = process.PrivateMemorySize64 / 1024.0 / 1024.0; // Convert to MB
+            CurrentMemoryUsage = process.PrivateMemorySize64 / (double)ConversionConstants.BytesPerMegabyte; // Convert to MB
         }
         catch (Exception ex)
         {

@@ -1,17 +1,10 @@
-using System;
-using System.IO;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
-using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
-using Xunit;
 
 namespace GenHub.Tests.Core.Common.Services;
 
@@ -25,12 +18,14 @@ public class DownloadServiceTests
     /// </summary>
     /// <param name="handler">The HTTP message handler to use.</param>
     /// <param name="loggerMock">The mock logger output.</param>
+    /// <param name="hashProvider">The hash provider to use (optional).</param>
     /// <returns>A new <see cref="DownloadService"/> instance.</returns>
-    public static DownloadService CreateService(HttpMessageHandler handler, out Mock<ILogger<DownloadService>> loggerMock)
+    public static DownloadService CreateService(HttpMessageHandler handler, out Mock<ILogger<DownloadService>> loggerMock, IFileHashProvider? hashProvider = null)
     {
         loggerMock = new Mock<ILogger<DownloadService>>();
         var httpClient = new HttpClient(handler);
-        return new DownloadService(loggerMock.Object, httpClient);
+        var hashProviderInstance = hashProvider ?? new Sha256HashProvider();
+        return new DownloadService(loggerMock.Object, httpClient, hashProviderInstance);
     }
 
     /// <summary>
@@ -191,7 +186,8 @@ public class DownloadServiceTests
         {
             File.WriteAllBytes(tempFile, bytes);
             var handler = new Mock<HttpMessageHandler>();
-            var service = CreateService(handler.Object, out _);
+            var hashProvider = new Sha256HashProvider();
+            var service = CreateService(handler.Object, out _, hashProvider);
 
             // Act
             var hash = await service.ComputeFileHashAsync(tempFile);

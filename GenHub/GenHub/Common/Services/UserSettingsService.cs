@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
@@ -65,24 +66,29 @@ public class UserSettingsService : IUserSettingsService
     }
 
     /// <inheritdoc/>
-    public UserSettings GetSettings()
+    public UserSettings Get()
     {
         lock (_lock)
         {
             // Return a deep copy to prevent external modification
-            var json = JsonSerializer.Serialize(_settings, JsonOptions);
-            return JsonSerializer.Deserialize<UserSettings>(json, JsonOptions) ?? new UserSettings();
+            return (UserSettings)_settings.Clone();
         }
     }
 
     /// <inheritdoc/>
-    public void UpdateSettings(Action<UserSettings> applyChanges)
+    public void Update(Action<UserSettings> applyChanges)
     {
         ArgumentNullException.ThrowIfNull(applyChanges);
 
         lock (_lock)
         {
-            applyChanges(_settings);
+            // Work on a copy to ensure exception safety
+            var settingsCopy = (UserSettings)_settings.Clone();
+
+            applyChanges(settingsCopy);
+
+            // Only update internal state if no exception occurred
+            _settings = settingsCopy;
 
             // If the settings file path was changed, update the internal field
             if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
@@ -143,7 +149,7 @@ public class UserSettingsService : IUserSettingsService
         lock (_lock)
         {
             pathToSave = _settingsFilePath;
-            settingsToSave = GetSettings();
+            settingsToSave = Get();
         }
 
         try
@@ -180,35 +186,14 @@ public class UserSettingsService : IUserSettingsService
     /// Sets the settings file path for testing purposes.
     /// </summary>
     /// <param name="path">The path to set.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or consists only of white-space characters.</exception>
     protected void SetSettingsFilePath(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
         _settingsFilePath = path;
         _settings = LoadSettings(path);
     }
 
-    private static string GetDefaultSettingsFilePath()
-    {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-
-        if (OperatingSystem.IsLinux())
-        {
-            var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
-            appDataPath = !string.IsNullOrEmpty(xdgConfigHome)
-                ? xdgConfigHome
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Library",
-                "Application Support");
-        }
-
-        return Path.Combine(appDataPath, "GenHub", "settings.json");
-    }
-
-    // Remove the complex NormalizeAndValidateLocked method - move to SettingsProvider
     private static void NormalizeAndValidateLocked(UserSettings s, IAppConfiguration appConfig)
     {
         // Only apply basic validation/clamping, no defaults
@@ -333,6 +318,18 @@ public class UserSettingsService : IUserSettingsService
             _logger.LogError(ex, "JSON parsing error loading settings from {Path}, using defaults", path);
             return new UserSettings();
         }
+    }
+
+    private string GetDefaultSettingsFilePath()
+    {
+        if (_appConfig == null)
+        {
+            // Fallback for test scenarios where appConfig might not be provided
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Combine(appDataPath, AppConstants.AppName, FileTypes.JsonFileExtension);
+        }
+
+        return Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.JsonFileExtension);
     }
 
     private void InitializeSettings()

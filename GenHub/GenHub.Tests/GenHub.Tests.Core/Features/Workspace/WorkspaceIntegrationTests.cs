@@ -1,11 +1,14 @@
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using GenHub.Infrastructure.DependencyInjection;
@@ -28,16 +31,38 @@ public class WorkspaceIntegrationTests : IDisposable
     /// Initializes a new instance of the <see cref="WorkspaceIntegrationTests"/> class.
     /// </summary>
     public WorkspaceIntegrationTests()
-        {
+    {
         _tempGameInstall = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         _tempWorkspaceRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
 
-        // Add mock download service
+        // Add mock download service for FileOperationsService
         var mockDownloadService = new Mock<IDownloadService>();
-        services.AddSingleton(mockDownloadService.Object);
+        services.AddSingleton<IDownloadService>(mockDownloadService.Object);
+
+        // Register hash providers
+        services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
+        services.AddSingleton<IStreamHashProvider, Sha256HashProvider>();
+
+        // Register CAS storage and reference tracker
+        services.Configure<CasConfiguration>(config =>
+        {
+            config.CasRootPath = _tempWorkspaceRoot;
+        });
+
+        // Mock ConfigurationProviderService instead of using real one
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
+        services.AddSingleton<IConfigurationProviderService>(mockConfigProvider.Object);
+
+        services.AddSingleton<ICasStorage, CasStorage>();
+        services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasService, CasService>();
+
+        // Register FileOperationsService for workspace strategies
+        services.AddSingleton<IFileOperationsService, FileOperationsService>();
 
         // Add configuration services
         var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
@@ -47,7 +72,7 @@ public class WorkspaceIntegrationTests : IDisposable
         // Setup mock returns
         mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHub"));
         mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(_tempWorkspaceRoot);
-        mockUserSettings.Setup(x => x.GetSettings()).Returns(new UserSettings());
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
 
         services.AddSingleton(mockConfiguration.Object);
         services.AddSingleton(mockAppConfig.Object);
@@ -72,7 +97,7 @@ public class WorkspaceIntegrationTests : IDisposable
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
     public async Task EndToEndWorkspaceCreation_AllStrategies(WorkspaceStrategy strategy)
-        {
+    {
         var manager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
         var config = CreateTestConfiguration(strategy);
 
@@ -108,21 +133,30 @@ public class WorkspaceIntegrationTests : IDisposable
     public async Task PrepareWorkspaceAsync_CreatesDirectory()
     {
         var mockDownloadService = new Mock<IDownloadService>();
+        var mockCasService = new Mock<ICasService>();
         var fileOps = new FileOperationsService(
             new Mock<ILogger<FileOperationsService>>().Object,
-            mockDownloadService.Object);
-        var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
-        var strategy = new HybridCopySymlinkStrategy(fileOps, logger.Object);
+            mockDownloadService.Object,
+            mockCasService.Object);
 
-        // Create proper mock for IConfigurationProviderService
+        var logger = new Mock<ILogger<FullCopyStrategy>>();
+        var strategy = new FullCopyStrategy(fileOps, logger.Object);
+
         var mockConfigProvider = new Mock<IConfigurationProviderService>();
         mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns(_tempWorkspaceRoot);
         mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(_tempWorkspaceRoot);
 
         var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
-        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger);
 
-        var config = CreateTestConfiguration(WorkspaceStrategy.HybridCopySymlink);
+        // Use a real CasReferenceTracker with dummy dependencies
+        var dummyLogger = new Mock<ILogger<CasReferenceTracker>>().Object;
+        var dummyOptions = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
+        dummyOptions.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = _tempWorkspaceRoot });
+        var casReferenceTracker = new CasReferenceTracker(dummyOptions.Object, dummyLogger);
+
+        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker);
+
+        var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
         var info = await manager.PrepareWorkspaceAsync(config);
 
@@ -137,11 +171,11 @@ public class WorkspaceIntegrationTests : IDisposable
     /// Performs cleanup by disposing of temporary resources.
     /// </summary>
     public void Dispose()
-        {
+    {
         try
         {
             if (Directory.Exists(_tempGameInstall))
-        {
+            {
                 Directory.Delete(_tempGameInstall, true);
             }
         }
@@ -153,7 +187,7 @@ public class WorkspaceIntegrationTests : IDisposable
         try
         {
             if (Directory.Exists(_tempWorkspaceRoot))
-        {
+            {
                 Directory.Delete(_tempWorkspaceRoot, true);
             }
         }
@@ -170,7 +204,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <param name="strategy">The workspace strategy.</param>
     /// <returns>A completed <see cref="Task"/>.</returns>
     private static Task VerifyWorkspaceStrategy(WorkspaceInfo workspace, WorkspaceStrategy strategy)
-        {
+    {
         var testFile = Directory.GetFiles(workspace.WorkspacePath, "*.exe").First();
         var fileInfo = new FileInfo(testFile);
 
@@ -193,7 +227,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <param name="strategy">The workspace strategy.</param>
     /// <returns>A configured <see cref="WorkspaceConfiguration"/>.</returns>
     private WorkspaceConfiguration CreateTestConfiguration(WorkspaceStrategy strategy)
-        {
+    {
         var manifest = new ContentManifest();
         var testFiles = new[]
         {
@@ -213,6 +247,7 @@ public class WorkspaceIntegrationTests : IDisposable
                 RelativePath = file,
                 Size = fi.Exists ? fi.Length : 0,
                 IsExecutable = file.EndsWith(".exe"),
+                SourceType = ContentSourceType.LocalFile,
             });
         }
 
@@ -236,7 +271,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous setup.</returns>
     private async Task SetupTestGameInstallation()
-        {
+    {
         Directory.CreateDirectory(_tempGameInstall);
         var testFiles = new[]
         {

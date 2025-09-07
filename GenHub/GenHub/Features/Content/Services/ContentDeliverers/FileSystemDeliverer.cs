@@ -19,10 +19,11 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
-public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider) : IContentDeliverer
+public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider, IFileHashProvider hashProvider) : IContentDeliverer
 {
     private readonly ILogger<FileSystemDeliverer> _logger = logger;
     private readonly IConfigurationProviderService _configProvider = configProvider;
+    private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
@@ -45,7 +46,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
         }
 
         return manifest.Files.All(f =>
-            f.SourceType == ManifestFileSourceType.Content);
+            f.SourceType == ContentSourceType.ContentAddressable);
     }
 
     /// <inheritdoc />
@@ -88,7 +89,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                     RelativePath = file.RelativePath,
                     Size = new FileInfo(sourcePath).Length,
                     Hash = file.Hash,
-                    SourceType = ManifestFileSourceType.Content,
+                    SourceType = ContentSourceType.ContentAddressable,
                     IsRequired = file.IsRequired,
                     SourcePath = sourcePath,
                 });
@@ -98,7 +99,8 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
 
             // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
-                LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>());
+                LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
+                _hashProvider);
 
             manifestBuilder
                 .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
@@ -144,12 +146,12 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             // Add delivered files to the manifest
             foreach (var file in deliveredFiles)
             {
-                await manifestBuilder.AddFileAsync(
+                await manifestBuilder.AddContentAddressableFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
                     file.Hash ?? string.Empty,
-                    file.IsExecutable,
-                    file.Permissions);
+                    file.Size,
+                    isExecutable: file.IsExecutable,
+                    permissions: file.Permissions);
             }
 
             // Add required directories

@@ -1,4 +1,3 @@
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -18,14 +17,12 @@ public static class WorkspaceModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddWorkspaceServices(this IServiceCollection services)
     {
-        // Register file operations service with download service dependency
-        services.AddScoped<IFileOperationsService, FileOperationsService>();
-
-        // Register workspace manager and validator
+        // Core workspace services
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
+        services.AddScoped<IFileOperationsService, FileOperationsService>();
 
-        // Register workspace strategies as IWorkspaceStrategy
+        // Strategy implementations
         services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();
         services.AddScoped<IWorkspaceStrategy, HardLinkStrategy>();
         services.AddScoped<IWorkspaceStrategy, HybridCopySymlinkStrategy>();

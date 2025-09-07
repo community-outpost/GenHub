@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
@@ -15,22 +14,11 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// Service for downloading files with progress reporting and hash verification.
 /// </summary>
-public class DownloadService : IDownloadService
+public class DownloadService(
+    ILogger<DownloadService> logger,
+    HttpClient httpClient,
+    IFileHashProvider hashProvider) : IDownloadService
 {
-    private readonly ILogger<DownloadService> _logger;
-    private readonly HttpClient _httpClient;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DownloadService"/> class.
-    /// </summary>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="httpClient">HTTP client for downloads.</param>
-    public DownloadService(ILogger<DownloadService> logger, HttpClient httpClient)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-    }
-
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
         DownloadConfiguration configuration,
@@ -72,20 +60,7 @@ public class DownloadService : IDownloadService
     /// <inheritdoc/>
     public async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            throw new ArgumentException("File path is required", nameof(filePath));
-        }
-
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException($"File not found: {filePath}");
-        }
-
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
-        using var sha256 = SHA256.Create();
-        var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+        return await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
     private HttpRequestMessage CreateRequest(DownloadConfiguration configuration)
@@ -124,7 +99,7 @@ public class DownloadService : IDownloadService
                 lastException = ex;
                 if (attempt < configuration.MaxRetryAttempts)
                 {
-                    _logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
+                    logger.LogWarning(ex, "Download attempt {Attempt} failed for {Url}, retrying...", attempt, configuration.Url);
                 }
                 else
                 {
@@ -154,7 +129,7 @@ public class DownloadService : IDownloadService
         using var request = CreateRequest(configuration);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
         response.EnsureSuccessStatusCode();
 
         var totalBytes = response.Content.Headers.ContentLength ?? 0;
@@ -192,7 +167,7 @@ public class DownloadService : IDownloadService
         bool hashVerified = false;
         if (!string.IsNullOrWhiteSpace(configuration.ExpectedHash))
         {
-            var actualHash = await ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
+            var actualHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
             hashVerified = string.Equals(actualHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase);
             if (!hashVerified)
             {
@@ -202,7 +177,7 @@ public class DownloadService : IDownloadService
                 }
                 catch
                 {
-                    _logger.LogWarning("Failed to delete corrupted file: {FilePath}", configuration.DestinationPath);
+                    logger.LogWarning("Failed to delete corrupted file: {FilePath}", configuration.DestinationPath);
                 }
 
                 return DownloadResult.CreateFailed($"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}", downloadedBytes, stopwatch.Elapsed);

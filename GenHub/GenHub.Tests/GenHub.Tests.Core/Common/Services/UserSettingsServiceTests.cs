@@ -1,4 +1,5 @@
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -43,10 +44,10 @@ public class UserSettingsServiceTests : IDisposable
     /// Verifies that GetSettings returns raw user values when no file exists.
     /// </summary>
     [Fact]
-    public void GetSettings_WhenNoFileExists_ReturnsRawUserSettings()
+    public void Get_WhenNoFileExists_ReturnsRawUserSettings()
     {
         var service = CreateService();
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
         // UserSettingsService should return raw C# defaults, not application defaults
         Assert.Null(settings.Theme);
@@ -68,8 +69,8 @@ public class UserSettingsServiceTests : IDisposable
     public async Task SaveAsync_CreatesFileWithCorrectData()
     {
         var service = CreateService();
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
-        service.UpdateSettings(settings =>
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
+        service.Update(settings =>
         {
             settings.Theme = "Light";
             settings.WindowWidth = 1600.0;
@@ -99,11 +100,11 @@ public class UserSettingsServiceTests : IDisposable
         // Use a unique temp directory for this test
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
 
         // Create first service and save settings
         var service1 = CreateServiceWithPath(settingsPath);
-        service1.UpdateSettings(settings =>
+        service1.Update(settings =>
         {
             settings.Theme = "Light";
             settings.WorkspacePath = "/test/path";
@@ -120,7 +121,7 @@ public class UserSettingsServiceTests : IDisposable
         // Load with explicit appConfig to ensure defaults
         var appConfig = CreateAppConfigMock();
         var service2 = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
-        var loadedSettings = service2.GetSettings();
+        var loadedSettings = service2.Get();
 
         Assert.Equal("Light", loadedSettings.Theme);
         Assert.Equal("/test/path", loadedSettings.WorkspacePath);
@@ -136,11 +137,11 @@ public class UserSettingsServiceTests : IDisposable
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
 
         await File.WriteAllTextAsync(settingsPath, "{ invalid json }");
         var service = CreateServiceWithPath(settingsPath);
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
         // Should return raw C# defaults when JSON is corrupted
         Assert.Null(settings.Theme);
@@ -154,9 +155,9 @@ public class UserSettingsServiceTests : IDisposable
     public void UpdateSettings_ModifiesInMemoryState_DoesNotPersistImmediately()
     {
         var service = CreateService();
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
-        service.UpdateSettings(settings => settings.Theme = "Light");
-        var currentSettings = service.GetSettings();
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
+        service.Update(settings => settings.Theme = "Light");
+        var currentSettings = service.Get();
         Assert.Equal("Light", currentSettings.Theme);
         Assert.False(File.Exists(settingsPath));
     }
@@ -168,13 +169,13 @@ public class UserSettingsServiceTests : IDisposable
     public void GetSettings_ReturnsIndependentCopy()
     {
         var service = CreateService();
-        var settings1 = service.GetSettings();
-        var settings2 = service.GetSettings();
+        var settings1 = service.Get();
+        var settings2 = service.Get();
         settings1.Theme = "Light";
 
         // Verify original theme is preserved (either "Dark" or null, but consistent)
         var originalTheme = settings2.Theme ?? "Dark";
-        Assert.Equal(originalTheme, service.GetSettings().Theme ?? "Dark");
+        Assert.Equal(originalTheme, service.Get().Theme ?? "Dark");
     }
 
     /// <summary>
@@ -185,7 +186,7 @@ public class UserSettingsServiceTests : IDisposable
     public async Task SaveAsync_CreatesDirectoryIfNotExists()
     {
         var nestedPath = Path.Combine(_tempDirectory, "nested", "path");
-        var settingsPath = Path.Combine(nestedPath, "settings.json");
+        var settingsPath = Path.Combine(nestedPath, FileTypes.JsonFileExtension);
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -204,7 +205,7 @@ public class UserSettingsServiceTests : IDisposable
     public void UpdateSettings_WithNullAction_ThrowsArgumentNullException()
     {
         var service = CreateService();
-        Assert.Throws<ArgumentNullException>(() => service.UpdateSettings(null!));
+        Assert.Throws<ArgumentNullException>(() => service.Update(null!));
     }
 
     /// <summary>
@@ -216,7 +217,7 @@ public class UserSettingsServiceTests : IDisposable
     {
         // Arrange
         var deepPath = Path.Combine(_tempDirectory, "very", "deep", "nested", "path");
-        var settingsPath = Path.Combine(deepPath, "settings.json");
+        var settingsPath = Path.Combine(deepPath, FileTypes.JsonFileExtension);
 
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
@@ -243,7 +244,7 @@ public class UserSettingsServiceTests : IDisposable
         // Arrange
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, "settings.json");
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
         var partialJson = """{"windowWidth": 1600.0, "allowBackgroundDownloads": true}""";
 
         File.WriteAllText(settingsPath, partialJson);
@@ -251,14 +252,76 @@ public class UserSettingsServiceTests : IDisposable
         // Act - Create service that loads from the existing file
         var appConfig = CreateAppConfigMock();
         var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath, loadFromFile: true);
-        var settings = service.GetSettings();
+        var settings = service.Get();
 
-        // Assert - Only JSON values should be set, rest should be defaults
+        // Assert - Only JSON values should be set, rest should be C# defaults
         Assert.Null(settings.Theme); // Not in JSON, should be null
         Assert.Equal(1600.0, settings.WindowWidth); // From JSON
-        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be 0
+        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be C# default (0)
         Assert.Equal(0, settings.MaxConcurrentDownloads); // Not in JSON, should be 0
         Assert.True(settings.AllowBackgroundDownloads); // From JSON
+    }
+
+    /// <summary>
+    /// Verifies that CachePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_CachePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var cachePath = "/test/cache/path";
+
+        service.Update(settings => settings.CachePath = cachePath);
+        var currentSettings = service.Get();
+
+        Assert.Equal(cachePath, currentSettings.CachePath);
+    }
+
+    /// <summary>
+    /// Verifies that ContentStoragePath can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_ContentStoragePath_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var contentPath = "/test/content/path";
+
+        service.Update(settings => settings.ContentStoragePath = contentPath);
+        var currentSettings = service.Get();
+
+        Assert.Equal(contentPath, currentSettings.ContentStoragePath);
+    }
+
+    /// <summary>
+    /// Verifies that DownloadBufferSize can be set and retrieved correctly.
+    /// </summary>
+    [Fact]
+    public void UpdateSettings_DownloadBufferSize_CanBeSetAndRetrieved()
+    {
+        var service = CreateService();
+        var bufferSize = 16384;
+
+        service.Update(settings => settings.DownloadBufferSize = bufferSize);
+        var currentSettings = service.Get();
+
+        Assert.Equal(bufferSize, currentSettings.DownloadBufferSize);
+    }
+
+    /// <summary>
+    /// Verifies that EnableDetailedLogging can be set and retrieved correctly.
+    /// </summary>
+    /// <param name="enableLogging">The value to set for EnableDetailedLogging in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UpdateSettings_EnableDetailedLogging_CanBeSetAndRetrieved(bool enableLogging)
+    {
+        var service = CreateService();
+
+        service.Update(settings => settings.EnableDetailedLogging = enableLogging);
+        var currentSettings = service.Get();
+
+        Assert.Equal(enableLogging, currentSettings.EnableDetailedLogging);
     }
 
     private static IAppConfiguration CreateAppConfigMock()
@@ -296,7 +359,7 @@ public class UserSettingsServiceTests : IDisposable
     /// <returns>A new <see cref="UserSettingsService"/> instance using a temp file path.</returns>
     private UserSettingsService CreateService()
     {
-        var settingsPath = Path.Combine(_tempDirectory, "settings.json");
+        var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
         return CreateServiceWithPath(settingsPath);
     }
 
@@ -320,14 +383,11 @@ public class UserSettingsServiceTests : IDisposable
         public TestableUserSettingsService(ILogger<UserSettingsService> logger, IAppConfiguration appConfig, string settingsFilePath, bool loadFromFile = false)
             : base(logger, appConfig, initialize: false)
         {
-            if (loadFromFile && File.Exists(settingsFilePath))
-            {
-                SetSettingsFilePath(settingsFilePath);
-            }
-            else
-            {
-                SetSettingsFilePath(settingsFilePath);
-            }
+            // The base constructor with `initialize: false` creates an empty settings object.
+            // We then set the path, which will load from the file if it exists.
+            // If `loadFromFile` is false and the file exists, it will still be loaded by `SetSettingsFilePath`,
+            // but the tests are structured to delete the file first in those cases.
+            SetSettingsFilePath(settingsFilePath);
         }
     }
 }

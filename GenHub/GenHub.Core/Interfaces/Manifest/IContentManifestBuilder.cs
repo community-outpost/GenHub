@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
@@ -81,18 +79,61 @@ public interface IContentManifestBuilder
     /// <param name="fileFilter">Optional file filter (e.g., "*.dll", "*.exe").</param>
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string fileFilter = "*", bool isExecutable = false);
+    Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(string sourceDirectory, ContentSourceType sourceType = ContentSourceType.ContentAddressable, string fileFilter = "*", bool isExecutable = false);
 
     /// <summary>
-    /// Adds a single file with specific properties.
+    /// Adds a local file from the filesystem.
     /// </summary>
-    /// <param name="relativePath">The relative path of the file.</param>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="sourcePath">The source path of the file on the local filesystem.</param>
     /// <param name="sourceType">How this file should be handled.</param>
-    /// <param name="downloadUrl">Download URL for remote files.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddFileAsync(string relativePath, ManifestFileSourceType sourceType = ManifestFileSourceType.Content, string downloadUrl = "", bool isExecutable = false, FilePermissions? permissions = null);
+    Task<IContentManifestBuilder> AddLocalFileAsync(string relativePath, string sourcePath, ContentSourceType sourceType = ContentSourceType.ContentAddressable, bool isExecutable = false, FilePermissions? permissions = null);
+
+    /// <summary>
+    /// Adds a remote file to be downloaded.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="downloadUrl">Download URL for the remote file.</param>
+    /// <param name="sourceType">How this file should be handled.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    Task<IContentManifestBuilder> AddRemoteFileAsync(string relativePath, string downloadUrl, ContentSourceType sourceType = ContentSourceType.ContentAddressable, bool isExecutable = false, FilePermissions? permissions = null);
+
+    /// <summary>
+    /// Adds a base game file from the detected game installation.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="sourcePath">The source path of the file in the base game installation.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    Task<IContentManifestBuilder> AddBaseGameFileAsync(string relativePath, string sourcePath, bool isExecutable = false, FilePermissions? permissions = null);
+
+    /// <summary>
+    /// Adds a content-addressable file from the CAS system.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="hash">The content hash for CAS lookup.</param>
+    /// <param name="size">The expected file size.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    Task<IContentManifestBuilder> AddContentAddressableFileAsync(string relativePath, string hash, long size, bool isExecutable = false, FilePermissions? permissions = null);
+
+    /// <summary>
+    /// Adds a file from an extracted package/archive.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="packagePath">The path to the package file.</param>
+    /// <param name="internalPath">The path within the package.</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    Task<IContentManifestBuilder> AddExtractedPackageFileAsync(string relativePath, string packagePath, string internalPath, bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>
     /// Adds a pre-existing ManifestFile object to the manifest.

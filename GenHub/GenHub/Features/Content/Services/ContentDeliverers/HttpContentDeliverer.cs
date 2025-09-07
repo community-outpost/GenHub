@@ -127,9 +127,10 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                 }
 
                 // Add the delivered file using the builder
-                await deliveredManifest.AddFileAsync(
+                await deliveredManifest.AddRemoteFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    file.DownloadUrl ?? string.Empty,
+                    ContentSourceType.ContentAddressable,
                     isExecutable: file.IsExecutable,
                     permissions: file.Permissions);
 
@@ -139,9 +140,10 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
             // Add any other files (without DownloadUrl) as-is
             foreach (var file in packageManifest.Files.Where(f => string.IsNullOrEmpty(f.DownloadUrl)))
             {
-                await deliveredManifest.AddFileAsync(
+                await deliveredManifest.AddLocalFileAsync(
                     file.RelativePath,
-                    ManifestFileSourceType.Content,
+                    file.SourcePath ?? string.Empty,
+                    ContentSourceType.ContentAddressable,
                     isExecutable: file.IsExecutable,
                     permissions: file.Permissions);
             }

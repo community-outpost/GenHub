@@ -1,12 +1,10 @@
-using System;
-using System.IO;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Common.Services;
 
@@ -31,7 +29,7 @@ public class ConfigurationProviderServiceTests
         _defaultUserSettings = new UserSettings();
 
         // Setup default returns for user settings
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(_defaultUserSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(_defaultUserSettings);
     }
 
     /// <summary>
@@ -89,7 +87,7 @@ public class ConfigurationProviderServiceTests
         {
             var userSettings = new UserSettings { WorkspacePath = userPath };
             userSettings.MarkAsExplicitlySet(nameof(UserSettings.WorkspacePath));
-            _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+            _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
             var provider = CreateProvider();
 
@@ -117,7 +115,7 @@ public class ConfigurationProviderServiceTests
         var appDefault = "/app/default/workspace";
         var userSettings = new UserSettings { WorkspacePath = null };
 
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -141,7 +139,7 @@ public class ConfigurationProviderServiceTests
         var nonExistentPath = "/non/existent/path/that/should/never/exist";
         var userSettings = new UserSettings { WorkspacePath = nonExistentPath };
 
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -164,7 +162,7 @@ public class ConfigurationProviderServiceTests
         var appDefault = "/app/default/workspace";
         var userSettings = new UserSettings { WorkspacePath = string.Empty };
 
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultWorkspacePath()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -178,10 +176,10 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetCacheDirectory returns app configuration default.
+    /// Verifies that GetCachePath returns app configuration default.
     /// </summary>
     [Fact]
-    public void GetCacheDirectory_ReturnsAppDefault()
+    public void GetCachePath_ReturnsAppDefault()
     {
         // Arrange
         var appDefault = "/app/cache/directory";
@@ -190,7 +188,7 @@ public class ConfigurationProviderServiceTests
         var provider = CreateProvider();
 
         // Act
-        var result = provider.GetCacheDirectory();
+        var result = provider.GetCachePath();
 
         // Assert
         Assert.Equal(appDefault, result);
@@ -206,7 +204,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { MaxConcurrentDownloads = 5 };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.MaxConcurrentDownloads));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetMinConcurrentDownloads()).Returns(1);
         _mockAppConfig.Setup(x => x.GetMaxConcurrentDownloads()).Returns(10);
 
@@ -228,7 +226,7 @@ public class ConfigurationProviderServiceTests
     {
         // Arrange - Don't mark as explicitly set
         var userSettings = new UserSettings { MaxConcurrentDownloads = 0 };
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultMaxConcurrentDownloads()).Returns(8);
         _mockAppConfig.Setup(x => x.GetMinConcurrentDownloads()).Returns(1);
         _mockAppConfig.Setup(x => x.GetMaxConcurrentDownloads()).Returns(10);
@@ -253,7 +251,7 @@ public class ConfigurationProviderServiceTests
         var userSettings = new UserSettings { MaxConcurrentDownloads = -1 };
 
         // Don't mark as explicitly set - should use app default
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultMaxConcurrentDownloads()).Returns(3);
         _mockAppConfig.Setup(x => x.GetMinConcurrentDownloads()).Returns(1);
         _mockAppConfig.Setup(x => x.GetMaxConcurrentDownloads()).Returns(10);
@@ -277,7 +275,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { AllowBackgroundDownloads = false };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -296,7 +294,7 @@ public class ConfigurationProviderServiceTests
     {
         // Arrange - Don't mark as explicitly set
         var userSettings = new UserSettings { AllowBackgroundDownloads = false };
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -316,7 +314,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { DownloadTimeoutSeconds = 300 };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.DownloadTimeoutSeconds));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetMinDownloadTimeoutSeconds()).Returns(10);
         _mockAppConfig.Setup(x => x.GetMaxDownloadTimeoutSeconds()).Returns(3600);
 
@@ -340,7 +338,7 @@ public class ConfigurationProviderServiceTests
         var userSettings = new UserSettings { DownloadTimeoutSeconds = 0 };
 
         // Don't mark as explicitly set
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultDownloadTimeoutSeconds()).Returns(600);
         _mockAppConfig.Setup(x => x.GetMinDownloadTimeoutSeconds()).Returns(10);
         _mockAppConfig.Setup(x => x.GetMaxDownloadTimeoutSeconds()).Returns(3600);
@@ -365,7 +363,7 @@ public class ConfigurationProviderServiceTests
         var userAgent = "CustomAgent/2.0";
         var userSettings = new UserSettings { DownloadUserAgent = userAgent };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.DownloadUserAgent));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -386,7 +384,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var appDefault = "AppDefault/1.0";
         var userSettings = new UserSettings { DownloadUserAgent = string.Empty };
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultUserAgent()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -408,7 +406,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var appDefault = "AppDefault/1.0";
         var userSettings = new UserSettings { DownloadUserAgent = string.Empty };
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultUserAgent()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -430,7 +428,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var appDefault = "AppDefault/1.0";
         var userSettings = new UserSettings { DownloadUserAgent = "   " };
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultUserAgent()).Returns(appDefault);
 
         var provider = CreateProvider();
@@ -453,7 +451,7 @@ public class ConfigurationProviderServiceTests
         var bufferSize = 16384;
         var userSettings = new UserSettings { DownloadBufferSize = bufferSize };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.DownloadBufferSize));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetMinDownloadBufferSizeBytes()).Returns(4096);
         _mockAppConfig.Setup(x => x.GetMaxDownloadBufferSizeBytes()).Returns(1048576);
 
@@ -480,7 +478,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { DefaultWorkspaceStrategy = strategy };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -503,7 +501,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { AutoCheckForUpdatesOnStartup = userValue };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -526,7 +524,7 @@ public class ConfigurationProviderServiceTests
         // Arrange
         var userSettings = new UserSettings { EnableDetailedLogging = userValue };
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.EnableDetailedLogging));
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();
 
@@ -556,7 +554,7 @@ public class ConfigurationProviderServiceTests
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads));
         userSettings.MarkAsExplicitlySet(nameof(UserSettings.EnableDetailedLogging));
 
-        _mockUserSettings.Setup(x => x.GetSettings()).Returns(userSettings);
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetDefaultCacheDirectory()).Returns("/cache");
         _mockAppConfig.Setup(x => x.GetMinConcurrentDownloads()).Returns(1);
         _mockAppConfig.Setup(x => x.GetMaxConcurrentDownloads()).Returns(10);
@@ -567,7 +565,189 @@ public class ConfigurationProviderServiceTests
         Assert.Equal(7, provider.GetMaxConcurrentDownloads());
         Assert.False(provider.GetAllowBackgroundDownloads());
         Assert.True(provider.GetEnableDetailedLogging());
-        Assert.Equal("/cache", provider.GetCacheDirectory());
+        Assert.Equal("/cache", provider.GetCachePath());
+    }
+
+    /// <summary>
+    /// Verifies that GetCachePath returns user setting when it's valid.
+    /// </summary>
+    [Fact]
+    public void GetCachePath_WithValidUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var tempDir = Path.GetTempPath();
+        var userCache = Path.Combine(tempDir, "user-cache");
+        Directory.CreateDirectory(userCache);
+
+        try
+        {
+            var userSettings = new UserSettings { CachePath = userCache };
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.CachePath));
+            _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+            var provider = CreateProvider();
+
+            // Act
+            var result = provider.GetCachePath();
+
+            // Assert
+            Assert.Equal(userCache, result);
+            _mockAppConfig.Verify(x => x.GetDefaultCacheDirectory(), Times.Never);
+        }
+        finally
+        {
+            if (Directory.Exists(userCache))
+                Directory.Delete(userCache, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that GetCachePath returns app default when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetCachePath_WithNullUserSetting_ReturnsAppDefault()
+    {
+        // Arrange
+        var appDefault = "/app/cache/directory";
+        var userSettings = new UserSettings { CachePath = null };
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetDefaultCacheDirectory()).Returns(appDefault);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCachePath();
+
+        // Assert
+        Assert.Equal(appDefault, result);
+        _mockAppConfig.Verify(x => x.GetDefaultCacheDirectory(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentStoragePath returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetContentStoragePath_WithValidUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userPath = "/user/content/path";
+        var userSettings = new UserSettings { ContentStoragePath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ContentStoragePath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentStoragePath();
+
+        // Assert
+        Assert.Equal(userPath, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentStoragePath returns default when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetContentStoragePath_WithNullUserSetting_ReturnsDefault()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        var userSettings = new UserSettings { ContentStoragePath = null };
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentStoragePath();
+
+        // Assert
+        Assert.Equal(Path.Combine(appDataPath, "Content"), result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentDirectories returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userDirs = new List<string> { "/user/dir1", "/user/dir2" };
+        var userSettings = new UserSettings { ContentDirectories = userDirs };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ContentDirectories));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Equal(userDirs, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetContentDirectories returns defaults when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithNullUserSetting_ReturnsDefaults()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        var userSettings = new UserSettings { ContentDirectories = new List<string>() };
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Contains(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), result);
+        Assert.Contains(Path.Combine(appDataPath, "CustomManifests"), result);
+        Assert.True(result.Count >= 3);
+    }
+
+    /// <summary>
+    /// Verifies that GetGitHubDiscoveryRepositories returns user setting when available.
+    /// </summary>
+    [Fact]
+    public void GetGitHubDiscoveryRepositories_WithUserSetting_ReturnsUserSetting()
+    {
+        // Arrange
+        var userRepos = new List<string> { "user/repo1", "user/repo2" };
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = userRepos };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.GitHubDiscoveryRepositories));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetGitHubDiscoveryRepositories();
+
+        // Assert
+        Assert.Equal(userRepos, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetGitHubDiscoveryRepositories returns defaults when user setting is null.
+    /// </summary>
+    [Fact]
+    public void GetGitHubDiscoveryRepositories_WithNullUserSetting_ReturnsDefaults()
+    {
+        // Arrange
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = new List<string>() };
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetGitHubDiscoveryRepositories();
+
+        // Assert
+        Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
+        Assert.Single(result);
     }
 
     /// <summary>

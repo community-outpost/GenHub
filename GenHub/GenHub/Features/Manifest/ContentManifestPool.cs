@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
@@ -14,7 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Manifest;
 
 /// <summary>
-/// Persistent storage and management of acquired GameManifests using the content storage service.
+/// Persistent storage and management of acquired ContentManifests using the content storage service.
 /// </summary>
 public class ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger) : IContentManifestPool
 {
@@ -65,12 +66,12 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     public async Task<IEnumerable<ContentManifest>> GetAllManifestsAsync(CancellationToken cancellationToken = default)
     {
         var manifests = new List<ContentManifest>();
-        var manifestsDir = Path.Combine(_storageService.GetContentStorageRoot(), "Manifests");
+        var manifestsDir = Path.Combine(_storageService.GetContentStorageRoot(), FileTypes.ManifestsDirectory);
 
         if (!Directory.Exists(manifestsDir))
             return manifests;
 
-        var manifestFiles = Directory.GetFiles(manifestsDir, "*.manifest.json");
+        var manifestFiles = Directory.GetFiles(manifestsDir, FileTypes.ManifestFilePattern);
 
         foreach (var manifestFile in manifestFiles)
         {

@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
@@ -20,6 +21,7 @@ public class FileOperationsServiceTests : IDisposable
 {
     private readonly Mock<ILogger<FileOperationsService>> _logger;
     private readonly Mock<IDownloadService> _downloadService;
+    private readonly Mock<ICasService> _casService;
     private readonly FileOperationsService _service;
     private readonly string _tempDir;
 
@@ -30,7 +32,8 @@ public class FileOperationsServiceTests : IDisposable
     {
         _logger = new Mock<ILogger<FileOperationsService>>();
         _downloadService = new Mock<IDownloadService>();
-        _service = new FileOperationsService(_logger.Object, _downloadService.Object);
+        _casService = new Mock<ICasService>();
+        _service = new FileOperationsService(_logger.Object, _downloadService.Object, _casService.Object);
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDir);
     }
@@ -236,7 +239,7 @@ public class FileOperationsServiceTests : IDisposable
             .ReturnsAsync(DownloadResult.CreateFailed("Failed"));
 
         var loggerMock = new Mock<ILogger<FileOperationsService>>();
-        var fileOps = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object);
+        var fileOps = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object, _casService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() =>

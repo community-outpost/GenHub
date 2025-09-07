@@ -1,10 +1,11 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Common;
 
 /// <summary>Represents application-level and user-specific settings for GenHub.</summary>
-public class UserSettings
+public class UserSettings : ICloneable
 {
     /// <summary>Gets or sets the application theme preference.</summary>
     public string? Theme { get; set; }
@@ -72,6 +73,11 @@ public class UserSettings
     /// <summary>Gets or sets the set of property names explicitly set by the user, allowing distinction between user intent and C# defaults.</summary>
     public HashSet<string> ExplicitlySetProperties { get; set; } = new();
 
+    /// <summary>
+    /// Gets or sets the Content-Addressable Storage configuration.
+    /// </summary>
+    public CasConfiguration CasConfiguration { get; set; } = new();
+
     /// <summary>Marks a property as explicitly set by the user.</summary>
     /// <param name="propertyName">The name of the property to mark as explicitly set.</param>
     public void MarkAsExplicitlySet(string propertyName)
@@ -85,5 +91,37 @@ public class UserSettings
     public bool IsExplicitlySet(string propertyName)
     {
         return ExplicitlySetProperties.Contains(propertyName);
+    }
+
+    /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
+    /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
+    public object Clone()
+    {
+        return new UserSettings
+        {
+            Theme = Theme,
+            WindowWidth = WindowWidth,
+            WindowHeight = WindowHeight,
+            IsMaximized = IsMaximized,
+            WorkspacePath = WorkspacePath,
+            LastUsedProfileId = LastUsedProfileId,
+            LastSelectedTab = LastSelectedTab,
+            MaxConcurrentDownloads = MaxConcurrentDownloads,
+            AllowBackgroundDownloads = AllowBackgroundDownloads,
+            AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup,
+            LastUpdateCheckTimestamp = LastUpdateCheckTimestamp,
+            EnableDetailedLogging = EnableDetailedLogging,
+            DefaultWorkspaceStrategy = DefaultWorkspaceStrategy,
+            DownloadBufferSize = DownloadBufferSize,
+            DownloadTimeoutSeconds = DownloadTimeoutSeconds,
+            DownloadUserAgent = DownloadUserAgent,
+            SettingsFilePath = SettingsFilePath,
+            CachePath = CachePath,
+            ContentStoragePath = ContentStoragePath,
+            ContentDirectories = ContentDirectories != null ? new List<string>(ContentDirectories) : null,
+            GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? new List<string>(GitHubDiscoveryRepositories) : null,
+            ExplicitlySetProperties = new HashSet<string>(ExplicitlySetProperties),
+            CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
+        };
     }
 }

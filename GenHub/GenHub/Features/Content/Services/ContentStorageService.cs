@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -41,9 +42,9 @@ public class ContentStorageService : IContentStorageService
         var requiredDirs = new[]
         {
             _storageRoot,
-            Path.Combine(_storageRoot, "Manifests"),
-            Path.Combine(_storageRoot, "Data"),
-            Path.Combine(_storageRoot, "Cache"),
+            Path.Combine(_storageRoot, FileTypes.ManifestsDirectory),
+            Path.Combine(_storageRoot, DirectoryNames.Data),
+            Path.Combine(_storageRoot, DirectoryNames.Cache),
         };
 
         foreach (var dir in requiredDirs)
@@ -59,11 +60,11 @@ public class ContentStorageService : IContentStorageService
 
     /// <inheritdoc/>
     public string GetManifestStoragePath(string manifestId) =>
-        Path.Combine(_storageRoot, "Manifests", $"{manifestId}.manifest.json");
+        Path.Combine(_storageRoot, FileTypes.ManifestsDirectory, $"{manifestId}{FileTypes.ManifestFileExtension}");
 
     /// <inheritdoc/>
     public string GetContentDirectoryPath(string manifestId) =>
-        Path.Combine(_storageRoot, "Data", manifestId);
+        Path.Combine(_storageRoot, DirectoryNames.Data, manifestId);
 
     /// <inheritdoc/>
     public async Task<ContentOperationResult<ContentManifest>> StoreContentAsync(
@@ -200,7 +201,7 @@ public class ContentStorageService : IContentStorageService
                 stats.TotalFileCount = allFiles.Length;
                 stats.TotalSizeBytes = allFiles.Sum(f => new FileInfo(f).Length);
 
-                var manifestFiles = Directory.GetFiles(Path.Combine(_storageRoot, "Manifests"), "*.manifest.json");
+                var manifestFiles = Directory.GetFiles(Path.Combine(_storageRoot, FileTypes.ManifestsDirectory), FileTypes.ManifestFilePattern);
                 stats.ManifestCount = manifestFiles.Length;
 
                 var driveInfo = new DriveInfo(Path.GetPathRoot(_storageRoot)!);

@@ -310,6 +310,145 @@
         </StackPanel>
       </Border>
 
+      <!-- Content-Addressable Storage (CAS) Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🔗 Content-Addressable Storage (CAS)" Classes="section-header" />
+          
+          <!-- CAS Root Path -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="CAS Root Directory" Classes="setting-label" />
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox Grid.Column="0" 
+                       Text="{Binding CasRootPath}"
+                       Watermark="Default (%AppData%/GenHub/cas-pool)"
+                       LostFocus="OnTextBoxLostFocus" />
+              <Button Grid.Column="1" 
+                      Content="Browse"
+                      Command="{Binding BrowseCasRootPathCommand}"
+                      Classes="browse-button" />
+            </Grid>
+            <TextBlock Text="Directory where deduplicated content is stored. All workspaces reference files from here." 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Max Cache Size -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Maximum Cache Size (GB)" Classes="setting-label" />
+            <NumericUpDown Value="{Binding MaxCacheSizeGB}"
+                           Minimum="1"
+                           Maximum="1000"
+                           Increment="5"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Maximum size for the CAS pool before garbage collection runs (1-1000 GB)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Max Concurrent Operations -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Maximum Concurrent CAS Operations" Classes="setting-label" />
+            <NumericUpDown Value="{Binding CasMaxConcurrentOperations}"
+                           Minimum="1"
+                           Maximum="16"
+                           Increment="1"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Number of simultaneous CAS operations (1-16, default: 4)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Garbage Collection Settings -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Enable automatic garbage collection"
+                      IsChecked="{Binding EnableAutomaticGc}" />
+            <TextBlock Text="Automatically clean up unreferenced content to free disk space" 
+                       Classes="setting-description" Margin="24,0,0,0" />
+          </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
+            <TextBlock Text="Garbage Collection Grace Period (Days)" Classes="setting-label" />
+            <NumericUpDown Value="{Binding GarbageCollectionGracePeriodDays}"
+                           Minimum="1"
+                           Maximum="365"
+                           Increment="1"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="How long to keep unreferenced content before deletion (1-365 days)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <StackPanel Spacing="8" IsVisible="{Binding EnableAutomaticGc}">
+            <TextBlock Text="Auto GC Interval (Days)" Classes="setting-label" />
+            <NumericUpDown Value="{Binding AutoGcIntervalDays}"
+                           Minimum="1"
+                           Maximum="30"
+                           Increment="1"
+                           HorizontalAlignment="Left"
+                           Width="120"
+                           FormatString="F0"
+                           LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="How often to run automatic garbage collection (1-30 days)" 
+                       Classes="setting-description" />
+          </StackPanel>
+
+          <!-- Integrity Verification -->
+          <StackPanel Spacing="8">
+            <CheckBox Content="Verify file integrity during operations"
+                      IsChecked="{Binding CasVerifyIntegrity}" />
+            <TextBlock Text="Check file hashes to ensure data integrity (recommended, slight performance impact)" 
+                       Classes="setting-description" Margin="24,0,0,0" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Cache Path -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🗄️ Storage" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="Cache Directory" Classes="setting-label" />
+            <TextBox Text="{Binding CachePath}" Watermark="Default (platform-dependent)" LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Override the default cache directory for downloads and temp files." Classes="setting-description" />
+          </StackPanel>
+          <StackPanel Spacing="8">
+            <TextBlock Text="Content Storage Directory" Classes="setting-label" />
+            <TextBox Text="{Binding ContentStoragePath}" Watermark="Default (%AppData%/GenHub/Content)" LostFocus="OnTextBoxLostFocus" />
+            <TextBlock Text="Override the default directory where downloaded content is stored permanently." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Content Directories -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="📂 Local Content Directories" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="Content Directories (one per line)" Classes="setting-label" />
+            <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. C:\Games\GenHub\Mods" />
+            <TextBlock Text="Specify directories to scan for local content. One path per line." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- GitHub Discovery Repositories -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🌐 GitHub Discovery" Classes="section-header" />
+          <StackPanel Spacing="8">
+            <TextBlock Text="GitHub Repositories (one per line, owner/repo)" Classes="setting-label" />
+            <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. some-author/some-mod" />
+            <TextBlock Text="Specify GitHub repositories to scan for releases. One owner/repo per line." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
       <!-- Action Buttons -->
       <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
         <Button Content="Reset to Defaults"

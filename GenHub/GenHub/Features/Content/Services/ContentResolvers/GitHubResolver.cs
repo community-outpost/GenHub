@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
@@ -29,7 +30,7 @@ public class GitHubResolver(
     //   /(?<repo>[^/]+) -> repo
     //   (?:/releases/tag/(?<tag>[^/]+))? -> optional tag
     private static readonly Regex GitHubUrlRegex = new(
-        @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?",
+        ApiConstants.GitHubUrlRegexPattern,
         RegexOptions.Compiled);
 
     private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient;
@@ -100,7 +101,11 @@ public class GitHubResolver(
             // Add files from GitHub assets
             foreach (var asset in release.Assets)
             {
-                await manifest.AddFileAsync(asset.Name, ManifestFileSourceType.Download, asset.BrowserDownloadUrl, isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
+                await manifest.AddRemoteFileAsync(
+                    asset.Name,
+                    asset.BrowserDownloadUrl,
+                    ContentSourceType.RemoteDownload,
+                    isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
             }
 
             return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
@@ -124,7 +129,7 @@ public class GitHubResolver(
             return GitHubUrlParseResult.CreateFailure("Invalid URL format.");
         }
 
-        if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
+        if (!uri.Host.Equals(ApiConstants.GitHubDomain, StringComparison.OrdinalIgnoreCase))
         {
             return GitHubUrlParseResult.CreateFailure("URL must be from github.com.");
         }

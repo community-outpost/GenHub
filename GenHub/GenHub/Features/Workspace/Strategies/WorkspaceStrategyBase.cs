@@ -1,7 +1,10 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -24,7 +27,7 @@ public abstract class WorkspaceStrategyBase<T>(
 {
     private static readonly HashSet<string> EssentialExtensions =
     [
-        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", ".json", ".txt", ".log",
+        ".exe", ".dll", ".ini", ".cfg", ".dat", ".xml", FileTypes.JsonFileExtension, ".txt", ".log",
     ];
 
     private static readonly HashSet<string> CncEssentialExtensions =
@@ -315,5 +318,114 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         return totalSize;
+    }
+
+    /// <summary>
+    /// Strategy-specific implementation for linking/copying CAS content.
+    /// </summary>
+    /// <param name="hash">The hash of the CAS content.</param>
+    /// <param name="targetPath">The target path for the CAS file in the workspace.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected abstract Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Processes a manifest file according to its source type. Dispatcher for all strategies.
+    /// </summary>
+    /// <param name="file">The manifest file to process.</param>
+    /// <param name="workspacePath">The root path of the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual async Task ProcessManifestFileAsync(ManifestFile file, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        var targetPath = Path.Combine(workspacePath, file.RelativePath);
+        switch (file.SourceType)
+        {
+            case ContentSourceType.ContentAddressable:
+                await ProcessCasFileAsync(file, targetPath, cancellationToken);
+                break;
+            case ContentSourceType.BaseGame:
+                await ProcessBaseGameFileAsync(file, targetPath, configuration, cancellationToken);
+                break;
+            case ContentSourceType.LocalFile:
+                await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+                break;
+            default:
+                throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
+        }
+    }
+
+    /// <summary>
+    /// Processes a CAS file with fallback logic. Strategies should call this for CAS files.
+    /// </summary>
+    /// <param name="file">The manifest file representing the CAS content.</param>
+    /// <param name="targetPath">The target path for the file in the workspace.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual async Task ProcessCasFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(file.Hash))
+        {
+            throw new ArgumentException($"ManifestFile {file.RelativePath} has no hash for CAS retrieval");
+        }
+
+        try
+        {
+            // First try the strategy-specific CAS link creation
+            await CreateCasLinkAsync(file.Hash, targetPath, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Strategy-specific CAS link creation failed for hash {Hash} at {Path}, attempting direct service fallback", file.Hash, targetPath);
+
+            // Fallback to direct service operations
+            try
+            {
+                var linked = await FileOperations.LinkFromCasAsync(file.Hash, targetPath, useHardLink: false, cancellationToken);
+                if (!linked)
+                {
+                    // Final fallback to copy
+                    var copied = await FileOperations.CopyFromCasAsync(file.Hash, targetPath, cancellationToken);
+                    if (!copied)
+                    {
+                        throw new CasStorageException($"CAS content not available for hash {file.Hash}", ex);
+                    }
+                }
+            }
+            catch (Exception fallbackEx)
+            {
+                Logger.LogError(fallbackEx, "All CAS operations failed for hash {Hash} at {Path}", file.Hash, targetPath);
+                throw new CasStorageException($"CAS content not available for hash {file.Hash}", fallbackEx);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Stub for processing base game files. Should be implemented in concrete strategies as needed.
+    /// </summary>
+    /// <param name="file">The manifest file representing the base game content.</param>
+    /// <param name="targetPath">The target path for the file in the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // Default: throw if not implemented
+        throw new NotImplementedException("ProcessBaseGameFileAsync must be implemented in the strategy if used.");
+    }
+
+    /// <summary>
+    /// Stub for processing local files. Should be implemented in concrete strategies as needed.
+    /// </summary>
+    /// <param name="file">The manifest file representing the local file content.</param>
+    /// <param name="targetPath">The target path for the file in the workspace.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // Default: throw if not implemented
+        throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
     }
 }

@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -19,28 +19,21 @@ namespace GenHub.Features.Validation;
 /// <summary>
 /// Validates the integrity of a specific game version workspace using manifest-driven checks.
 /// </summary>
-public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, IValidator<GameVersion>
+/// <param name="logger">Logger instance.</param>
+/// <param name="manifestProvider">Manifest provider.</param>
+/// <param name="contentValidator">Content validator for core validation logic.</param>
+/// <param name="hashProvider">File hash provider for file system validation.</param>
+public class GameVersionValidator(
+    ILogger<GameVersionValidator> logger,
+    IManifestProvider manifestProvider,
+    IContentValidator contentValidator,
+    IFileHashProvider hashProvider)
+    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))), IGameVersionValidator, IValidator<GameVersion>
 {
-    private readonly ILogger<GameVersionValidator> _logger;
-    private readonly IManifestProvider _manifestProvider;
-    private readonly IContentValidator _contentValidator;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameVersionValidator"/> class.
-    /// </summary>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="manifestProvider">Manifest provider.</param>
-    /// <param name="contentValidator">Content validator for core validation logic.</param>
-    public GameVersionValidator(
-        ILogger<GameVersionValidator> logger,
-        IManifestProvider manifestProvider,
-        IContentValidator contentValidator)
-        : base(logger ?? throw new ArgumentNullException(nameof(logger)))
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-        _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-    }
+    private readonly ILogger<GameVersionValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
+    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
 
     /// <inheritdoc/>
     public async Task<ValidationResult> ValidateAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)
@@ -83,9 +76,9 @@ public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, 
 
         progress?.Report(new ValidationProgress(3, 4, "Content integrity validation"));
 
-        // Use ContentValidator for full content validation (integrity + extraneous files)
-        var fullValidationResult = await _contentValidator.ValidateAllAsync(gameVersion.WorkingDirectory, manifest, progress, cancellationToken);
-        issues.AddRange(fullValidationResult.Issues);
+        // Use ContentValidator for file integrity
+        var integrityValidationResult = await _contentValidator.ValidateContentIntegrityAsync(gameVersion.WorkingDirectory, manifest, cancellationToken);
+        issues.AddRange(integrityValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(4, 4, "Game version specific checks"));
 
@@ -99,15 +92,6 @@ public class GameVersionValidator : FileSystemValidator, IGameVersionValidator, 
     private async Task<List<ValidationIssue>> ValidateGameVersionSpecificAsync(GameVersion gameVersion, ContentManifest manifest, CancellationToken cancellationToken)
     {
         var issues = new List<ValidationIssue>();
-
-        // Addon detection (manifest-driven)
-        foreach (var file in manifest.Files)
-        {
-            if (file.SourceType == ManifestFileSourceType.OptionalAddon)
-            {
-                issues.Add(new ValidationIssue { IssueType = ValidationIssueType.AddonDetected, Path = file.RelativePath, Message = "Detected optional addon as specified in manifest." });
-            }
-        }
 
         // Get actual files for known addon detection
         var actualFiles = await Task.Run(

@@ -1,14 +1,12 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Interfaces.Manifest;
 
 /// <summary>
-/// Persistent storage and management of acquired GameManifests.
-/// This is a temporary interface that will be replaced by a dedicated CAS system later.
+/// Persistent storage and management of acquired ContentManifests.
+/// Provides high-level manifest operations and metadata management,
+/// working alongside ICasService and IContentStorageService for complete content management.
 /// </summary>
 public interface IContentManifestPool
 {
@@ -31,14 +29,14 @@ public interface IContentManifestPool
     Task<ContentManifest?> GetManifestAsync(string manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all acquired GameManifests from the pool.
+    /// Gets all acquired ContentManifests from the pool.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A collection of all acquired game manifests.</returns>
     Task<IEnumerable<ContentManifest>> GetAllManifestsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Searches for GameManifests in the pool based on query criteria.
+    /// Searches for ContentManifests in the pool based on query criteria.
     /// </summary>
     /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>

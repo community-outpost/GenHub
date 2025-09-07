@@ -1,11 +1,13 @@
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -25,8 +27,19 @@ public class WorkspaceManagerTests
         mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
 
         var mockLogger = new Mock<ILogger<WorkspaceManager>>();
-        var manager = new WorkspaceManager(System.Array.Empty<IWorkspaceStrategy>(), mockConfigProvider.Object, mockLogger.Object);
-        var config = new WorkspaceConfiguration();
+        var strategies = System.Array.Empty<IWorkspaceStrategy>();
+
+        // Create CasReferenceTracker with required dependencies
+        var mockCasConfig = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
+        mockCasConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = "/test/cas" });
+        var mockCasLogger = new Mock<ILogger<CasReferenceTracker>>();
+        var casReferenceTracker = new CasReferenceTracker(mockCasConfig.Object, mockCasLogger.Object);
+
+        var manager = new WorkspaceManager(strategies, mockConfigProvider.Object, mockLogger.Object, casReferenceTracker);
+        var config = new WorkspaceConfiguration
+        {
+            Strategy = (WorkspaceStrategy)999,
+        };
         await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
     }
 }

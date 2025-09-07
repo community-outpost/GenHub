@@ -61,7 +61,11 @@ public partial class App : Application
 
     private void ApplyWindowSettings(MainWindow mainWindow)
     {
-        if (_configurationProvider == null) return;
+        if (_configurationProvider == null)
+        {
+            return;
+        }
+
         try
         {
             // Use configuration provider which properly handles defaults
@@ -84,13 +88,17 @@ public partial class App : Application
 
     private async void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
-        if (_userSettingsService == null || _serviceProvider == null) return;
+        if (_serviceProvider == null)
+        {
+            return;
+        }
+
         try
         {
             // Save current window state
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {
-                _userSettingsService.UpdateSettings(settings =>
+                _userSettingsService.Update(settings =>
                 {
                     if (desktop.MainWindow.WindowState != Avalonia.Controls.WindowState.Maximized)
                     {

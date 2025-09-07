@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
@@ -80,4 +81,42 @@ public interface IFileOperationsService
         string destinationPath,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stores a file in CAS and returns its hash.
+    /// </summary>
+    /// <param name="sourcePath">The path to the source file.</param>
+    /// <param name="expectedHash">Optional expected hash for verification.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The content hash if successful.</returns>
+    Task<string?> StoreInCasAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Copies a file from CAS to the specified destination path using its hash.
+    /// The destination path determines the final filename and location.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the operation succeeded; otherwise, false.</returns>
+    Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a link (hard or symbolic) from CAS to the specified destination path.
+    /// The destination path determines the final filename and location.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="destinationPath">The destination file path.</param>
+    /// <param name="useHardLink">Whether to use a hard link instead of symbolic link.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the operation succeeded.</returns>
+    Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Opens a stream to content stored in CAS.
+    /// </summary>
+    /// <param name="hash">The content hash in CAS.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A stream to read the content, or null if not found.</returns>
+    Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default);
 }

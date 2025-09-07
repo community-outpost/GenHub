@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
@@ -71,7 +72,7 @@ public class GitHubContentProvider : BaseContentProvider
     public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = 1 };
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
         if (!searchResult.Success || !searchResult.Data!.Any())
