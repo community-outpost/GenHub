@@ -14,18 +14,18 @@ public interface IContentManifestPool
     /// <summary>
     /// Adds a ContentManifest to the pool after content acquisition.
     /// </summary>
-    /// <param name="manifest">The game manifest to store.</param>
+    /// <param name="manifest">The content manifest to store.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> indicating success.</returns>
     Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Adds a ContentManifest to the pool and stores its content files from a source directory.
     /// </summary>
-    /// <param name="manifest">The game manifest to store.</param>
+    /// <param name="manifest">The content manifest to store.</param>
     /// <param name="sourceDirectory">The directory containing the content files.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> indicating success.</returns>
     Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -33,14 +33,14 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>The game manifest if found, null otherwise.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> containing the <see cref="ContentManifest"/> if found, or null otherwise.</returns>
     Task<OperationResult<ContentManifest?>> GetManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all acquired ContentManifests from the pool.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A collection of all acquired game manifests.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> containing a collection of all acquired <see cref="ContentManifest"/>s.</returns>
     Task<OperationResult<IEnumerable<ContentManifest>>> GetAllManifestsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -48,7 +48,7 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="query">The search criteria.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A collection of matching game manifests.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> containing a collection of matching <see cref="ContentManifest"/>s.</returns>
     Task<OperationResult<IEnumerable<ContentManifest>>> SearchManifestsAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -56,7 +56,7 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest to remove.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> indicating success.</returns>
     Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -64,7 +64,7 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>True if the manifest is acquired, false otherwise.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> indicating whether the manifest is acquired.</returns>
     Task<OperationResult<bool>> IsManifestAcquiredAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -72,6 +72,6 @@ public interface IContentManifestPool
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>The path to the content directory if it exists, null otherwise.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation that returns an <see cref="OperationResult{T}"/> containing the path to the content directory if it exists, or null otherwise.</returns>
     Task<OperationResult<string?>> GetContentDirectoryAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 }
