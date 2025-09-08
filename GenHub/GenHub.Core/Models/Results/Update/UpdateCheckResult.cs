@@ -75,7 +75,7 @@ public class UpdateCheckResult : ResultBase
     /// </summary>
     /// <returns>An <see cref="UpdateCheckResult"/> with default values for initialization.</returns>
     public static UpdateCheckResult CreateInitial() =>
-        new(false, "0.0.0", "0.0.0", string.Empty,
+        new(false, string.Empty, string.Empty, string.Empty,
             "Click 'Check For Updates' to begin.",
             "Ready to check for updates");
 
@@ -116,9 +116,10 @@ public class UpdateCheckResult : ResultBase
     /// Creates an <see cref="UpdateCheckResult"/> indicating an update is available.
     /// </summary>
     /// <param name="release">The available release.</param>
+    /// <param name="currentVersion">The current version.</param>
     /// <returns>An <see cref="UpdateCheckResult"/> with update information.</returns>
-    public static UpdateCheckResult UpdateAvailable(GitHubRelease release) =>
-        new(true, string.Empty, release.TagName ?? string.Empty,
+    public static UpdateCheckResult UpdateAvailable(GitHubRelease release, string currentVersion) =>
+        new(true, currentVersion, release.TagName ?? string.Empty,
             release.HtmlUrl ?? string.Empty,
             release.Body ?? string.Empty,
             release.Name ?? string.Empty,

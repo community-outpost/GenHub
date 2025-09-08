@@ -24,7 +24,7 @@ public class UpdateNotificationViewModelTests
     {
         var svc = new Mock<IAppUpdateService>();
         svc.Setup(x => x.CheckForUpdatesAsync("o", "r", It.IsAny<CancellationToken>()))
-           .ReturnsAsync(UpdateCheckResult.UpdateAvailable(new GitHubRelease { TagName = "1.2.3", HtmlUrl = "https://example.com", Body = "Release notes", Name = "Release 1.2.3" }));
+           .ReturnsAsync(UpdateCheckResult.UpdateAvailable(new GitHubRelease { TagName = "1.2.3", HtmlUrl = "https://example.com", Body = "Release notes", Name = "Release 1.2.3" }, "1.0.0"));
         var vm = new UpdateNotificationViewModel(svc.Object, Mock.Of<IUpdateInstaller>(), Mock.Of<ILogger<UpdateNotificationViewModel>>())
         {
             RepositoryOwner = "o",

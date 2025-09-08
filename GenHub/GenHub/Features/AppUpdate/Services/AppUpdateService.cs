@@ -67,7 +67,7 @@ public class AppUpdateService(
                     "Update available: {CurrentVersion} -> {LatestVersion}",
                     currentVersion,
                     latestRelease.TagName);
-                var result = UpdateCheckResult.UpdateAvailable(latestRelease);
+                var result = UpdateCheckResult.UpdateAvailable(latestRelease, currentVersion);
                 return result;
             }
 

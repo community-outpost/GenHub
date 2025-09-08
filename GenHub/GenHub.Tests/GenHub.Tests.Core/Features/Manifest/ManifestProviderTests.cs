@@ -99,11 +99,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "1.0.origin.generals",
+            Id = "1.0.eaapp.generals",
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("1.0.origin.generals"))
+        _cacheMock.Setup(x => x.GetManifest("1.0.eaapp.generals"))
                   .Returns(expectedManifest);
 
         // Act
@@ -111,8 +111,8 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.0.origin.generals", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("1.0.origin.generals"), Times.Once);
+        Assert.Equal("1.0.eaapp.generals", result.Id);
+        _cacheMock.Verify(x => x.GetManifest("1.0.eaapp.generals"), Times.Once);
     }
 
     /// <summary>
