@@ -85,31 +85,6 @@ public static class ManifestIdGenerator
     }
 
     /// <summary>
-    /// Normalizes a version string, preserving dots and converting dashes and plus signs to dots.
-    /// </summary>
-    private static string NormalizeVersion(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return input;
-
-        var trimmed = input.Trim();
-
-        // Convert dashes and plus signs to dots
-        var withDots = trimmed.Replace('-', '.').Replace('+', '.');
-
-        // Remove any other non-alphanumeric characters except dots
-        var normalized = Regex.Replace(withDots, "[^a-zA-Z0-9.]", string.Empty);
-
-        // Remove leading/trailing dots
-        normalized = normalized.Trim('.');
-
-        // Replace multiple consecutive dots with single dots
-        normalized = Regex.Replace(normalized, "\\.+", ".");
-
-        return normalized;
-    }
-
-    /// <summary>
     /// Gets a string representation for GameInstallationType.
     /// </summary>
     /// <param name="installationType">The installation type enum value.</param>
