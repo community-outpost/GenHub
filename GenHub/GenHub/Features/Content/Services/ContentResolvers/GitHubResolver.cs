@@ -78,11 +78,12 @@ public class GitHubResolver(
                 return ContentOperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
             }
 
+            var manifestVersionInt = int.TryParse(release.TagName, out var parsedVersion) ? parsedVersion : 0;
             var manifest = _manifestBuilder
                 .WithBasicInfo(
                     discoveredItem.Id,
                     release.Name ?? discoveredItem.Name,
-                    release.TagName)
+                    manifestVersionInt)
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(release.Author)
                     .WithMetadata(

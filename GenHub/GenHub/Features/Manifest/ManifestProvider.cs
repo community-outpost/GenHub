@@ -142,15 +142,16 @@ public class ManifestProvider : IManifestProvider
             _logger.LogInformation("Generating fallback manifest for GameVersion {Id}", gameVersion.Id);
 
             var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
+            var gameVersionInt = int.TryParse(gameVersion.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = builder
-                .WithBasicInfo("EA Games", gameVersion.Name ?? "Unknown", gameVersion.Version ?? "Unknown", isBaseGame: false)
+                .WithBasicInfo("EA Games", gameVersion.Name ?? "Unknown", gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameVersion.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameVersion.Name}")
                 .AddFile(new ManifestFile
                 {
                     RelativePath = Path.GetFileName(gameVersion.ExecutablePath),
-                    SourceType = ContentSourceType.BaseGame,
+                    SourceType = ContentSourceType.GameInstallation,
                     IsExecutable = true,
                     IsRequired = true,
                 })
@@ -200,26 +201,10 @@ public class ManifestProvider : IManifestProvider
         tempInstallForId.HasZeroHour = installation.HasZeroHour;
         var versionForId = installation.AvailableVersions?.Count > 0 ? installation.AvailableVersions[0].Version : "1.0";
         var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
-        var deterministicId = ManifestIdGenerator.GenerateBaseGameId(tempInstallForId, gameType, versionForId ?? "1.0");
+        var userVersion = int.TryParse(versionForId, out var parsedVersion) ? parsedVersion : 0;
+        var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, userVersion);
 
-        // 1. Try legacy/versionless id (e.g. "Origin.Generals") to preserve compatibility.
-        var legacyId = $"{installation.InstallationType}.{(installation.HasZeroHour ? "ZeroHour" : "Generals")}";
-        try
-        {
-            var legacyResult = await _manifestPool.GetManifestAsync(ManifestId.Create(legacyId), cancellationToken);
-            if (legacyResult.Success && legacyResult.Data != null)
-            {
-                // Validate cached manifest; expect the legacy id
-                ValidateCachedManifest(legacyResult.Data, legacyId);
-                return legacyResult.Data;
-            }
-        }
-        catch (ArgumentException)
-        {
-            // ignore
-        }
-
-        // 2. Try CAS using deterministic id
+        // Try CAS using deterministic id
         var casResult = await _manifestPool.GetManifestAsync(ManifestId.Create(deterministicId), cancellationToken);
         if (casResult.Success && casResult.Data != null)
         {
@@ -260,7 +245,7 @@ public class ManifestProvider : IManifestProvider
 
             var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
             var generated = builder
-                .WithBasicInfo(installation.InstallationType.ToString(), installation.HasZeroHour ? "zerohour" : "generals", versionForId ?? "1.0", isBaseGame: true)
+                .WithBasicInfo(installation.InstallationType, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals, userVersion)
             .WithContentType(ContentType.GameInstallation, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals)
             .WithPublisher(installation.InstallationType.ToString(), string.Empty)
             .WithMetadata($"Generated manifest for installation at {installation.InstallationPath}")

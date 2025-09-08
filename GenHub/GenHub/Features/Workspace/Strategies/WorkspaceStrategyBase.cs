@@ -345,8 +345,8 @@ public abstract class WorkspaceStrategyBase<T>(
             case ContentSourceType.ContentAddressable:
                 await ProcessCasFileAsync(file, targetPath, cancellationToken);
                 break;
-            case ContentSourceType.BaseGame:
-                await ProcessBaseGameFileAsync(file, targetPath, configuration, cancellationToken);
+            case ContentSourceType.GameInstallation:
+                await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
                 await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
@@ -402,17 +402,17 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Stub for processing base game files. Should be implemented in concrete strategies as needed.
+    /// Stub for processing game installation files. Should be implemented in concrete strategies as needed.
     /// </summary>
-    /// <param name="file">The manifest file representing the base game content.</param>
+    /// <param name="file">The manifest file representing the game installation content.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessBaseGameFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
-        throw new NotImplementedException("ProcessBaseGameFileAsync must be implemented in the strategy if used.");
+        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
     }
 
     /// <summary>

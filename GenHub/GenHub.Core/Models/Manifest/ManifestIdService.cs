@@ -19,16 +19,16 @@ public class ManifestIdService : IManifestIdService
     /// </summary>
     /// <param name="publisherId">Publisher identifier used as the first segment.</param>
     /// <param name="contentName">Human readable content name used as the second segment.</param>
-    /// <param name="manifestSchemaVersion">Manifest schema version in phased format.</param>
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A <see cref="ContentOperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
     public ContentOperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
+        int userVersion = 0)
     {
         try
         {
-            var idString = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+            var idString = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
             var manifestId = ManifestId.Create(idString);
             return ContentOperationResult<ManifestId>.CreateSuccess(manifestId);
         }
@@ -38,25 +38,25 @@ public class ManifestIdService : IManifestIdService
         }
         catch (Exception)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate publisher content ID: {publisherId}.{contentName}.{manifestSchemaVersion}");
+            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate publisher content ID: {publisherId}.{contentName}.{userVersion}");
         }
     }
 
     /// <summary>
-    /// Generates a manifest ID for a base game installation.
+    /// Generates a manifest ID for a game installation.
     /// </summary>
     /// <param name="installation">The game installation used to derive the installation segment.</param>
     /// <param name="gameType">The specific game type for the manifest ID.</param>
-    /// <param name="manifestSchemaVersion">Manifest schema version in phased format.</param>
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A <see cref="ContentOperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
-    public ContentOperationResult<ManifestId> GenerateBaseGameId(
+    public ContentOperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
+        int userVersion = 0)
     {
         try
         {
-            var idString = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+            var idString = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
             var manifestId = ManifestId.Create(idString);
             return ContentOperationResult<ManifestId>.CreateSuccess(manifestId);
         }
@@ -70,7 +70,7 @@ public class ManifestIdService : IManifestIdService
         }
         catch (Exception)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate base game ID: {installation.InstallationType}.{gameType}.{manifestSchemaVersion}");
+            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate game installation ID: {installation.InstallationType}.{gameType}.{userVersion}");
         }
     }
 

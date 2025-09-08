@@ -155,7 +155,7 @@ Constants related to manifest ID generation, validation, and file operations.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `DefaultManifestSchemaVersion` | `"1.0"` | Default manifest schema version |
+| `DefaultManifestSchemaVersion` | `1` | Default manifest schema version |
 | `PublisherContentIdPrefix` | `"publisher"` | Prefix for publisher content IDs |
 | `BaseGameIdPrefix` | `"basegame"` | Prefix for base game IDs |
 | `SimpleIdPrefix` | `"simple"` | Prefix for simple test IDs |
@@ -197,7 +197,7 @@ Process and system constants.
 
 ### Exit Codes
 
-- `ExitCodeSuccess`: 0   
+- `ExitCodeSuccess`: 0
 
 ### Windows API Constants
 

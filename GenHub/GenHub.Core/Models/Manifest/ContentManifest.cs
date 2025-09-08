@@ -15,7 +15,7 @@ public class ContentManifest
     public string ManifestVersion { get; set; } = "1.0";
 
     /// <summary>Gets or sets the unique identifier for this content package.</summary>
-    public ManifestId Id { get; set; } = ManifestId.Create("test.content.1.0");
+    public ManifestId Id { get; set; } = ManifestId.Create("1.0.test.content");
 
     /// <summary>Gets or sets the human-readable name for the content.</summary>
     public string Name { get; set; } = string.Empty;

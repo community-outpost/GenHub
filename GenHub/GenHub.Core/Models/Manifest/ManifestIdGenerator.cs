@@ -12,54 +12,54 @@ public static class ManifestIdGenerator
 {
     /// <summary>
     /// Generates a manifest ID for publisher-provided content.
-    /// Format: publisherId.contentName.manifestSchemaVersion.
+    /// Format: schemaVersion.manifestVersion.publisher.content.
     /// </summary>
     /// <param name="publisherId">Publisher identifier used as the first segment.</param>
     /// <param name="contentName">Human readable content name used as the second segment.</param>
-    /// <param name="manifestSchemaVersion">Manifest schema version in phased format (e.g., "3.25" = Phase 3, version 25). Defaults to current supported version.</param>
-    /// <returns>A normalized manifest identifier in the form 'publisher.content.schemaVersion'.</returns>
-    public static string GeneratePublisherContentId(string publisherId, string contentName, string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <returns>A normalized manifest identifier in the form 'schemaVersion.manifestVersion.publisher.content'.</returns>
+    public static string GeneratePublisherContentId(string publisherId, string contentName, int userVersion = 0)
     {
         if (string.IsNullOrWhiteSpace(publisherId))
             throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
         if (string.IsNullOrWhiteSpace(contentName))
             throw new ArgumentException("Content name cannot be empty", nameof(contentName));
-        if (string.IsNullOrWhiteSpace(manifestSchemaVersion))
-            throw new ArgumentException("Manifest schema version cannot be empty", nameof(manifestSchemaVersion));
+        if (userVersion < 0)
+            throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
         var safePublisher = Normalize(publisherId);
         var safeName = Normalize(contentName);
-        var safeVersion = NormalizeVersion(manifestSchemaVersion);
+        var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{userVersion}";
 
-        // Handle empty segments by using a placeholder to maintain 3-segment structure
+        // Handle empty segments by using a placeholder to maintain structure
         if (string.IsNullOrEmpty(safeName))
         {
             safeName = "unknown";
         }
 
-        return $"{safePublisher}.{safeName}.{safeVersion}";
+        return $"{fullVersion}.{safePublisher}.{safeName}";
     }
 
     /// <summary>
-    /// Generates a manifest ID for a base game installation.
-    /// Format: installationType.gameType.manifestSchemaVersion.
+    /// Generates a manifest ID for a game installation.
+    /// Format: manifestVersion.userVersion.installationType.gameType.
     /// </summary>
     /// <param name="installation">The game installation used to derive the installation segment.</param>
     /// <param name="gameType">The specific game type (Generals or ZeroHour) for the manifest ID.</param>
-    /// <param name="manifestSchemaVersion">Manifest schema version in phased format (e.g., "3.25" = Phase 3, version 25). Defaults to current supported version.</param>
-    /// <returns>A normalized manifest identifier in the form 'installation.game.schemaVersion'.</returns>
-    public static string GenerateBaseGameId(GameInstallation installation, GameType gameType, string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion)
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <returns>A normalized manifest identifier in the form 'manifestVersion.userVersion.installation.game'.</returns>
+    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, int userVersion = 0)
     {
         if (installation == null)
             throw new ArgumentNullException(nameof(installation));
-        if (string.IsNullOrWhiteSpace(manifestSchemaVersion))
-            throw new ArgumentException("Manifest schema version cannot be empty", nameof(manifestSchemaVersion));
+        if (userVersion < 0)
+            throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
         var installType = GetInstallationTypeString(installation.InstallationType);
         var gameTypeString = gameType == GameType.ZeroHour ? "zerohour" : "generals";
-        var safeVersion = NormalizeVersion(manifestSchemaVersion);
+        var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{userVersion}";
 
-        return $"{installType}.{gameTypeString}.{safeVersion}";
+        return $"{fullVersion}.{installType}.{gameTypeString}";
     }
 
     /// <summary>

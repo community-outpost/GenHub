@@ -1,5 +1,4 @@
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Interfaces.Manifest;
@@ -10,21 +9,29 @@ namespace GenHub.Core.Interfaces.Manifest;
 public interface IContentManifestBuilder
 {
     /// <summary>
-    /// Sets basic content information.
-    /// For publisher content, call WithBasicInfo(publisherId, contentName, version, isBaseGame: false).
-    /// For base game installations, call WithBasicInfo(installationType, gameTypeOrName, version, isBaseGame: true).
+    /// Sets basic content information for game installations (used internally by GenHub).
+    /// This overload is specifically for generating manifests for EA/Steam game installations.
     /// </summary>
-    /// <param name="publisherOrInstallType">Publisher id for publisher content, or installation type name for base game manifests.</param>
-    /// <param name="contentNameOrGameType">Content display name or game type (e.g., "zerohour").</param>
-    /// <param name="version">Content or game version.</param>
-    /// <param name="isBaseGame">True when generating a base game installation manifest.</param>
+    /// <param name="installType">The game installation type (EA, Steam, etc.).</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithBasicInfo(string publisherOrInstallType, string contentNameOrGameType, string version, bool isBaseGame = false);
+    IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information for publisher content (used by external publishers).
+    /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion);
 
     /// <summary>
     /// Sets the content type and target game.
     /// </summary>
-    /// <param name="contentType">The type of content (BaseGame, Mod, Addon, etc.).</param>
+    /// <param name="contentType">The type of content (GameInstallation, Mod, Addon, etc.).</param>
     /// <param name="targetGame">The target game type.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithContentType(ContentType contentType, GameType targetGame);
@@ -107,14 +114,14 @@ public interface IContentManifestBuilder
     Task<IContentManifestBuilder> AddRemoteFileAsync(string relativePath, string downloadUrl, ContentSourceType sourceType = ContentSourceType.ContentAddressable, bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>
-    /// Adds a base game file from the detected game installation.
+    /// Adds a game installation file from the detected game installation.
     /// </summary>
     /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="sourcePath">The source path of the file in the base game installation.</param>
+    /// <param name="sourcePath">The source path of the file in the game installation.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddBaseGameFileAsync(string relativePath, string sourcePath, bool isExecutable = false, FilePermissions? permissions = null);
+    Task<IContentManifestBuilder> AddGameInstallationFileAsync(string relativePath, string sourcePath, bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>
     /// Adds a content-addressable file from the CAS system.

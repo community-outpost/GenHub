@@ -7,7 +7,7 @@ using GenHub.Core.Models.GameVersions;
 namespace GenHub.Core.Models.Gaming;
 
 /// <summary>
-/// Represents a user-defined game configuration combining base game with selected content.
+/// Represents a user-defined game configuration combining game installation with selected content.
 /// This is a basic implementation for future expansion.
 /// </summary>
 public class GameProfile

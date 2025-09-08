@@ -18,24 +18,24 @@ public interface IManifestIdService
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
     /// <param name="contentName">The content name.</param>
-    /// <param name="manifestSchemaVersion">The manifest schema version.</param>
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
     ContentOperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
-        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
+        int userVersion = 0);
 
     /// <summary>
-    /// Generates a manifest ID for a base game installation.
+    /// Generates a manifest ID for a game installation.
     /// </summary>
     /// <param name="installation">The game installation used to derive the installation segment.</param>
     /// <param name="gameType">The specific game type for the manifest ID.</param>
-    /// <param name="manifestSchemaVersion">The manifest schema version.</param>
+    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
-    ContentOperationResult<ManifestId> GenerateBaseGameId(
+    ContentOperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        string manifestSchemaVersion = ManifestConstants.DefaultManifestSchemaVersion);
+        int userVersion = 0);
 
     /// <summary>
     /// Validates a manifest ID string and returns a strongly-typed ManifestId if valid.

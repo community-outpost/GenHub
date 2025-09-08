@@ -84,11 +84,11 @@ public class ContentOrchestratorTests
         // Arrange
         var searchResult = new ContentSearchResult
         {
-            Id = "test.mod",
+            Id = "1.0.test.publisher.mod",
             Name = "Test Mod",
             ProviderName = "TestProvider",
         };
-        var manifest = new ContentManifest { Id = "test.mod", Name = "Test Mod" };
+        var manifest = new ContentManifest { Id = "1.0.test.publisher.mod", Name = "Test Mod" };
 
         var providerMock = new Mock<IContentProvider>();
         providerMock.Setup(p => p.SourceName).Returns("TestProvider");

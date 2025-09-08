@@ -57,8 +57,9 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
         try
         {
             // Use builder to create delivered manifest
+            var manifestVersionInt = int.TryParse(packageManifest.Version, out var parsedVersion) ? parsedVersion : 0;
             var deliveredManifest = _manifestBuilder
-                .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
+                .WithBasicInfo(packageManifest.Id, packageManifest.Name, manifestVersionInt)
                 .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
                 .WithPublisher(
                     packageManifest.Publisher?.Name ?? string.Empty,

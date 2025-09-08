@@ -159,7 +159,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
 
         var manifest = new ContentManifest
         {
-            Id = "test-manifest",
+            Id = "1.0.test.publisher.manifest",
             Files = new List<ManifestFile>
             {
                 new ManifestFile

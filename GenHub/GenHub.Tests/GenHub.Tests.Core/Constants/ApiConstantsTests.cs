@@ -48,7 +48,7 @@ public class ApiConstantsTests
     {
         // Arrange & Act & Assert
         var expectedUserAgent = $"{AppConstants.AppName}/{AppConstants.AppVersion}";
-        Assert.Equal(expectedUserAgent, ApiConstants.DefaultUserAgent);
+        Assert.Equal(ApiConstants.DefaultUserAgent, expectedUserAgent);
     }
 
     /// <summary>

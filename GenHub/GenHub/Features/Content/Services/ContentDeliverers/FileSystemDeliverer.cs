@@ -105,8 +105,15 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                 _hashProvider,
                 null!);
 
+            int manifestVersionInt;
+            if (!int.TryParse(packageManifest.Version, out manifestVersionInt))
+            {
+                _logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
+                return ContentOperationResult<ContentManifest>.CreateFailure("Invalid manifest version format");
+            }
+
             manifestBuilder
-                .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
+                .WithBasicInfo(packageManifest.Id, packageManifest.Name, manifestVersionInt)
                 .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
                 .WithPublisher(
                     packageManifest.Publisher?.Name ?? string.Empty,

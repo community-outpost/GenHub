@@ -21,13 +21,13 @@ public class ManifestIdGeneratorTests
         // Arrange
         var publisherId = "test-publisher";
         var contentName = "test-content";
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert
-        Assert.Equal("test.publisher.test.content.1.0", result);
+        Assert.Equal("1.0.test.publisher.test.content", result);
     }
 
     /// <summary>
@@ -45,36 +45,36 @@ public class ManifestIdGeneratorTests
     {
         // Arrange
         var publisherId = "test";
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, userVersion);
 
         // Assert
-        Assert.Equal($"test.{expected}.1.0", result);
+        Assert.Equal($"1.0.test.{expected}", result);
     }
 
     /// <summary>
-    /// Tests that GeneratePublisherContentId correctly normalizes complex version strings.
+    /// Tests that GeneratePublisherContentId correctly handles different user versions.
     /// </summary>
-    /// <param name="version">The version string to normalize.</param>
-    /// <param name="expectedVersion">The expected normalized version.</param>
+    /// <param name="userVersion">The user version number.</param>
+    /// <param name="expectedVersion">The expected version in the ID.</param>
     [Theory]
-    [InlineData("1.0.0-beta", "1.0.0.beta")]
-    [InlineData("2.1.3-alpha.1", "2.1.3.alpha.1")]
-    [InlineData("1.0.0+build.123", "1.0.0.build.123")]
-    [InlineData("0.1.0-rc.1", "0.1.0.rc.1")]
-    public void GeneratePublisherContentId_WithComplexVersions_NormalizesCorrectly(string version, string expectedVersion)
+    [InlineData(0, "1.0")]
+    [InlineData(1, "1.1")]
+    [InlineData(5, "1.5")]
+    [InlineData(20, "1.20")]
+    public void GeneratePublisherContentId_WithDifferentUserVersions_ReturnsCorrectFormat(int userVersion, string expectedVersion)
     {
         // Arrange
         var publisherId = "test";
         var contentName = "content";
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, version);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert
-        Assert.Equal($"test.content.{expectedVersion}", result);
+        Assert.Equal($"{expectedVersion}.test.content", result);
     }
 
     /// <summary>
@@ -82,20 +82,17 @@ public class ManifestIdGeneratorTests
     /// </summary>
     /// <param name="publisherId">The publisher ID to test.</param>
     /// <param name="contentName">The content name to test.</param>
-    /// <param name="manifestSchemaVersion">The manifest schema version to test.</param>
     /// <param name="expectedMessage">The expected error message.</param>
     [Theory]
-    [InlineData("", "content", "1.0", "Publisher ID cannot be empty")]
-    [InlineData(" ", "content", "1.0", "Publisher ID cannot be empty")]
-    [InlineData("publisher", "", "1.0", "Content name cannot be empty")]
-    [InlineData("publisher", " ", "1.0", "Content name cannot be empty")]
-    [InlineData("publisher", "content", "", "Manifest schema version cannot be empty")]
-    [InlineData("publisher", "content", " ", "Manifest schema version cannot be empty")]
-    public void GeneratePublisherContentId_WithInvalidInputs_ThrowsArgumentException(string publisherId, string contentName, string manifestSchemaVersion, string expectedMessage)
+    [InlineData("", "content", "Publisher ID cannot be empty")]
+    [InlineData(" ", "content", "Publisher ID cannot be empty")]
+    [InlineData("publisher", "", "Content name cannot be empty")]
+    [InlineData("publisher", " ", "Content name cannot be empty")]
+    public void GeneratePublisherContentId_WithInvalidInputs_ThrowsArgumentException(string publisherId, string contentName, string expectedMessage)
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion));
+            ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, 0));
 
         Assert.Contains(expectedMessage, exception.Message);
     }
@@ -109,129 +106,129 @@ public class ManifestIdGeneratorTests
         // Arrange
         var publisherId = "test-publisher";
         var contentName = "test-content";
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result1 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
-        var result2 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+        var result1 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result2 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert
         Assert.Equal(result1, result2);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId returns the expected format with valid inputs.
+    /// Tests that GenerateGameInstallationId returns the expected format with valid inputs.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_WithValidInputs_ReturnsExpectedFormat()
+    public void GenerateGameInstallationId_WithValidInputs_ReturnsExpectedFormat()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
-        Assert.Equal("steam.generals.1.0", result);
+        Assert.Equal("1.0.steam.generals", result);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId returns correct format for all installation types.
+    /// Tests that GenerateGameInstallationId returns correct format for all installation types.
     /// </summary>
     /// <param name="installationType">The installation type to test.</param>
     /// <param name="gameType">The game type to test.</param>
     /// <param name="expected">The expected result string.</param>
     [Theory]
-    [InlineData(GameInstallationType.Steam, GameType.Generals, "steam.generals.1.0")]
-    [InlineData(GameInstallationType.EaApp, GameType.ZeroHour, "eaapp.zerohour.1.0")]
-    [InlineData(GameInstallationType.Origin, GameType.Generals, "origin.generals.1.0")]
-    [InlineData(GameInstallationType.TheFirstDecade, GameType.ZeroHour, "thefirstdecade.zerohour.1.0")]
-    [InlineData(GameInstallationType.RGMechanics, GameType.Generals, "rgmechanics.generals.1.0")]
-    [InlineData(GameInstallationType.CDISO, GameType.ZeroHour, "cdiso.zerohour.1.0")]
-    [InlineData(GameInstallationType.Wine, GameType.Generals, "wine.generals.1.0")]
-    [InlineData(GameInstallationType.Retail, GameType.ZeroHour, "retail.zerohour.1.0")]
-    [InlineData(GameInstallationType.Unknown, GameType.Generals, "unknown.generals.1.0")]
-    public void GenerateBaseGameId_WithAllInstallationTypes_ReturnsCorrectFormat(GameInstallationType installationType, GameType gameType, string expected)
+    [InlineData(GameInstallationType.Steam, GameType.Generals, "1.0.steam.generals")]
+    [InlineData(GameInstallationType.EaApp, GameType.ZeroHour, "1.0.eaapp.zerohour")]
+    [InlineData(GameInstallationType.Origin, GameType.Generals, "1.0.origin.generals")]
+    [InlineData(GameInstallationType.TheFirstDecade, GameType.ZeroHour, "1.0.thefirstdecade.zerohour")]
+    [InlineData(GameInstallationType.RGMechanics, GameType.Generals, "1.0.rgmechanics.generals")]
+    [InlineData(GameInstallationType.CDISO, GameType.ZeroHour, "1.0.cdiso.zerohour")]
+    [InlineData(GameInstallationType.Wine, GameType.Generals, "1.0.wine.generals")]
+    [InlineData(GameInstallationType.Retail, GameType.ZeroHour, "1.0.retail.zerohour")]
+    [InlineData(GameInstallationType.Unknown, GameType.Generals, "1.0.unknown.generals")]
+    public void GenerateGameInstallationId_WithAllInstallationTypes_ReturnsCorrectFormat(GameInstallationType installationType, GameType gameType, string expected)
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", installationType);
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal(expected, result);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId correctly normalizes complex version strings.
+    /// Tests that GenerateGameInstallationId handles different user versions correctly.
     /// </summary>
-    /// <param name="version">The version string to normalize.</param>
-    /// <param name="expectedVersion">The expected normalized version.</param>
+    /// <param name="userVersion">The user version number.</param>
+    /// <param name="expectedVersion">The expected version in the ID.</param>
     [Theory]
-    [InlineData("1.0.0-beta", "1.0.0.beta")]
-    [InlineData("2.1.3-alpha.1", "2.1.3.alpha.1")]
-    [InlineData("1.0.0+build.123", "1.0.0.build.123")]
-    public void GenerateBaseGameId_WithComplexVersions_NormalizesCorrectly(string version, string expectedVersion)
+    [InlineData(0, "1.0")]
+    [InlineData(1, "1.1")]
+    [InlineData(5, "1.5")]
+    public void GenerateGameInstallationId_WithDifferentUserVersions_ReturnsCorrectFormat(int userVersion, string expectedVersion)
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
 
         // Act
-        var result = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, version);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
-        Assert.Equal($"steam.generals.{expectedVersion}", result);
+        Assert.Equal($"{expectedVersion}.steam.generals", result);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId throws ArgumentNullException for null installation.
+    /// Tests that GenerateGameInstallationId throws ArgumentNullException for null installation.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_WithNullInstallation_ThrowsArgumentNullException()
+    public void GenerateGameInstallationId_WithNullInstallation_ThrowsArgumentNullException()
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            ManifestIdGenerator.GenerateBaseGameId(null!, GameType.Generals, "1.0"));
+            ManifestIdGenerator.GenerateGameInstallationId(null!, GameType.Generals, 0));
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId throws ArgumentException for invalid manifest schema versions.
+    /// Tests that GenerateGameInstallationId throws ArgumentException for invalid user versions.
     /// </summary>
-    /// <param name="manifestSchemaVersion">The manifest schema version to test.</param>
+    /// <param name="userVersion">The user version to test.</param>
     [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    public void GenerateBaseGameId_WithInvalidManifestSchemaVersion_ThrowsArgumentException(string manifestSchemaVersion)
+    [InlineData(-1)]
+    [InlineData(-5)]
+    public void GenerateGameInstallationId_WithInvalidUserVersion_ThrowsArgumentException(int userVersion)
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            ManifestIdGenerator.GenerateBaseGameId(installation, GameType.Generals, manifestSchemaVersion));
+            ManifestIdGenerator.GenerateGameInstallationId(installation, GameType.Generals, userVersion));
 
-        Assert.Contains("Manifest schema version cannot be empty", exception.Message);
+        Assert.Contains("User version cannot be negative", exception.Message);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId produces deterministic results.
+    /// Tests that GenerateGameInstallationId produces deterministic results.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_IsDeterministic()
+    public void GenerateGameInstallationId_IsDeterministic()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result1 = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
-        var result2 = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+        var result1 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
+        var result2 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal(result1, result2);
@@ -252,66 +249,63 @@ public class ManifestIdGeneratorTests
     {
         // Arrange
         var publisherId = "test";
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, userVersion);
 
         // Assert
-        Assert.Equal($"test.{expected}.1.0", result);
+        Assert.Equal($"1.0.test.{expected}", result);
         Assert.False(result.StartsWith("."));
         Assert.False(result.EndsWith("."));
         Assert.DoesNotContain("..", result);
     }
 
     /// <summary>
-    /// Tests that GeneratePublisherContentId handles version normalization with leading and trailing dots.
+    /// Tests that GeneratePublisherContentId handles different user versions correctly.
     /// </summary>
-    /// <param name="version">The version string to test.</param>
-    /// <param name="expectedVersion">The expected normalized version.</param>
+    /// <param name="userVersion">The user version number.</param>
+    /// <param name="expectedVersion">The expected version in the ID.</param>
     [Theory]
-    [InlineData("  1.0  ", "1.0")]
-    [InlineData("1.0.", "1.0")]
-    [InlineData(".1.0", "1.0")]
-    [InlineData("1..0", "1.0")]
-    [InlineData("1...0", "1.0")]
-    public void GeneratePublisherContentId_VersionNormalization_NoLeadingTrailingDots(string version, string expectedVersion)
+    [InlineData(0, "1.0")]
+    [InlineData(1, "1.1")]
+    [InlineData(10, "1.10")]
+    public void GeneratePublisherContentId_UserVersionFormatting_Correct(int userVersion, string expectedVersion)
     {
         // Arrange
         var publisherId = "test";
         var contentName = "content";
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, version);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert
-        Assert.Equal($"test.content.{expectedVersion}", result);
+        Assert.Equal($"{expectedVersion}.test.content", result);
         Assert.False(result.StartsWith("."));
         Assert.False(result.EndsWith("."));
         Assert.DoesNotContain("..", result);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId handles version normalization with leading and trailing dots.
+    /// Tests that GenerateGameInstallationId handles different user versions correctly.
     /// </summary>
-    /// <param name="version">The version string to test.</param>
-    /// <param name="expectedVersion">The expected normalized version.</param>
+    /// <param name="userVersion">The user version number.</param>
+    /// <param name="expectedVersion">The expected version in the ID.</param>
     [Theory]
-    [InlineData("  1.0  ", "1.0")]
-    [InlineData("1.0.", "1.0")]
-    [InlineData(".1.0", "1.0")]
-    [InlineData("1..0", "1.0")]
-    public void GenerateBaseGameId_VersionNormalization_NoLeadingTrailingDots(string version, string expectedVersion)
+    [InlineData(0, "1.0")]
+    [InlineData(1, "1.1")]
+    [InlineData(10, "1.10")]
+    public void GenerateGameInstallationId_UserVersionFormatting_Correct(int userVersion, string expectedVersion)
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
 
         // Act
-        var result = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, version);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
-        Assert.Equal($"steam.generals.{expectedVersion}", result);
+        Assert.Equal($"{expectedVersion}.steam.generals", result);
         Assert.False(result.StartsWith("."));
         Assert.False(result.EndsWith("."));
         Assert.DoesNotContain("..", result);
@@ -326,13 +320,13 @@ public class ManifestIdGeneratorTests
         // Arrange
         var publisherId = "test";
         var contentName = "!!!"; // Normalizes to empty
-        var manifestSchemaVersion = "1.0";
+        var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert
-        Assert.Equal("test.unknown.1.0", result); // Should handle empty segments gracefully with placeholder
+        Assert.Equal("1.0.test.unknown", result); // Should handle empty segments gracefully with placeholder
     }
 
     /// <summary>
@@ -344,30 +338,30 @@ public class ManifestIdGeneratorTests
         // Arrange
         var publisherId = "Test@Publisher#123";
         var contentName = "C&C Generals!!!";
-        var manifestSchemaVersion = "1.0.0-beta.1";
+        var userVersion = 1;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
 
         // Assert - Should always produce the same result regardless of platform
-        Assert.Equal("test.publisher.123.c.c.generals.1.0.0.beta.1", result);
+        Assert.Equal("1.1.test.publisher.123.c.c.generals", result);
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId produces deterministic results across platforms.
+    /// Tests that GenerateGameInstallationId produces deterministic results across platforms.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_CrossPlatformDeterministic()
+    public void GenerateGameInstallationId_CrossPlatformDeterministic()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games\\Test", GameInstallationType.TheFirstDecade);
         var gameType = GameType.ZeroHour;
-        var manifestSchemaVersion = "2.1.3-alpha.1";
+        var userVersion = 2;
 
         // Act
-        var result = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, manifestSchemaVersion);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert - Should always produce the same result regardless of platform
-        Assert.Equal("thefirstdecade.zerohour.2.1.3.alpha.1", result);
+        Assert.Equal("1.2.thefirstdecade.zerohour", result);
     }
 }

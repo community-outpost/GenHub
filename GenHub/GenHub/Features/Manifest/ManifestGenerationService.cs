@@ -34,15 +34,15 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
         string contentDirectory,
         string contentId,
         string contentName,
-        string contentVersion,
+        int manifestVersion,
         ContentType contentType,
         GameType targetGame,
         params ContentDependency[] dependencies)
     {
-        _logger.LogInformation("Creating content manifest for {ContentName} v{ContentVersion}", contentName, contentVersion);
+        _logger.LogInformation("Creating content manifest for {ContentName} v{ManifestVersion}", contentName, manifestVersion);
 
         var builder = CreateBuilder()
-            .WithBasicInfo(contentId, contentName, contentVersion)
+            .WithBasicInfo(contentId, contentName, manifestVersion)
             .WithContentType(contentType, targetGame)
             .WithMetadata($"Content manifest for {contentName}");
         foreach (var dep in dependencies)
@@ -68,15 +68,15 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// </summary>
     /// <param name="bundleId">The bundle identifier.</param>
     /// <param name="bundleName">The bundle name.</param>
-    /// <param name="bundleVersion">The bundle version.</param>
+    /// <param name="manifestVersion">The manifest version.</param>
     /// <param name="publisher">The publisher information.</param>
     /// <param name="items">The bundle items.</param>
     /// <returns>The created <see cref="ContentBundle"/>.</returns>
     public async Task<ContentBundle> CreateContentBundleAsync(
         string bundleId,
         string bundleName,
-        string bundleVersion,
-        PublisherInfo publisher,
+        int manifestVersion,
+        PublisherInfo? publisher,
         params BundleItem[] items)
     {
         _logger.LogInformation("Creating content bundle {BundleId} with {ItemCount} items", bundleId, items.Length);
@@ -85,8 +85,8 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
         {
             Id = bundleId,
             Name = bundleName,
-            Version = bundleVersion,
-            Publisher = publisher,
+            Version = manifestVersion.ToString(),
+            Publisher = publisher ?? new PublisherInfo { Name = "Unknown Publisher" },
             Items = items.OrderBy(i => i.DisplayOrder).ToList(),
             Metadata = new ContentMetadata
             {
@@ -100,42 +100,39 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     }
 
     /// <summary>
-    /// Creates a base game manifest for the specified game installation.
+    /// Creates a game installation manifest for the specified game installation.
     /// </summary>
     /// <param name="gameInstallationPath">The path to the game installation.</param>
     /// <param name="gameType">The game type.</param>
     /// <param name="installationType">The installation type.</param>
-    /// <param name="version">The game version.</param>
+    /// <param name="manifestVersion">The manifest version.</param>
     /// <returns>The manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
-        string version)
+        int manifestVersion)
     {
         _logger.LogInformation(
-            "Creating base game manifest for {GameType} {InstallationType} v{Version}",
+            "Creating game installation manifest for {GameType} {InstallationType} v{ManifestVersion}",
             gameType,
             installationType,
-            version);
+            manifestVersion);
 
         var builder = CreateBuilder()
-            .WithBasicInfo(
-                $"{gameType}_{version}_{installationType}",
-                $"{gameType} {version}",
-                version)
+            .WithBasicInfo(installationType, gameType, manifestVersion)
             .WithContentType(ContentType.GameInstallation, gameType)
             .WithPublisher(
                 "EA Games",
                 "https://www.ea.com",
                 "https://help.ea.com",
                 "support@ea.com")
-            .WithMetadata($"Base game installation of {gameType} version {version} from {installationType}")
+            .WithMetadata($"Game installation of {gameType} (manifest version {manifestVersion}) from {installationType}")
             .AddRequiredDirectories(DirectoryNames.Data, "Maps")
             .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
 
         // Add all game files
-        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.BaseGame);
+        await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);
 
         return builder;
     }
@@ -146,22 +143,22 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="gameDirectory">The game directory.</param>
     /// <param name="gameId">The game identifier.</param>
     /// <param name="gameName">The game name.</param>
-    /// <param name="gameVersion">The game version.</param>
+    /// <param name="manifestVersion">The manifest version.</param>
     /// <param name="executablePath">The path to the main executable.</param>
     /// <returns>The manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameVersionManifestAsync(
         string gameDirectory,
         string gameId,
         string gameName,
-        string gameVersion,
+        int manifestVersion,
         string executablePath)
     {
-        _logger.LogInformation("Creating standalone game manifest for {GameName} v{GameVersion}", gameName, gameVersion);
+        _logger.LogInformation("Creating standalone game manifest for {GameName} v{ManifestVersion}", gameName, manifestVersion);
 
         var builder = CreateBuilder()
-            .WithBasicInfo(gameId, gameName, gameVersion)
+            .WithBasicInfo("EA Games", gameName, manifestVersion)
             .WithContentType(ContentType.GameClient, GameType.Generals)
-            .WithMetadata($"Standalone game version: {gameName}")
+            .WithMetadata($"Standalone game version: {gameName} (manifest version {manifestVersion})")
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy);
 
         // Add all game files
@@ -178,7 +175,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// </summary>
     /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
     /// <param name="referralName">Display name for the referral.</param>
-    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
     /// <param name="targetPublisherId">The target publisher id being referred to.</param>
     /// <param name="referralUrl">The URL for the referral.</param>
     /// <param name="description">Optional description for the referral.</param>
@@ -186,21 +183,21 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     public Task<ContentManifest> CreatePublisherReferralAsync(
         string publisherId,
         string referralName,
-        string referralVersion,
+        int manifestVersion,
         string targetPublisherId,
         string referralUrl,
         string description)
     {
         _logger.LogInformation(
             "Creating publisher referral {ReferralId} to {TargetPublisherId}",
-            $"{publisherId}.{referralName}.{referralVersion}",
+            $"{publisherId}.{referralName}.{manifestVersion}",
             targetPublisherId);
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{referralVersion}",
+            Id = $"{publisherId}.{referralName}.{manifestVersion}",
             Name = referralName,
-            Version = referralVersion,
+            Version = manifestVersion.ToString(),
             ContentType = ContentType.PublisherReferral,
             Metadata = new ContentMetadata
             {
@@ -222,7 +219,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// </summary>
     /// <param name="publisherId">The publisher identifier used to generate the referral id.</param>
     /// <param name="referralName">Display name for the referral.</param>
-    /// <param name="referralVersion">Version string for the referral.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
     /// <param name="targetContentId">The id of the content being referred to.</param>
     /// <param name="targetPublisherId">The publisher id of the target content.</param>
     /// <param name="referralUrl">The URL for the referral.</param>
@@ -231,7 +228,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     public Task<ContentManifest> CreateContentReferralAsync(
         string publisherId,
         string referralName,
-        string referralVersion,
+        int manifestVersion,
         string targetContentId,
         string targetPublisherId,
         string referralUrl,
@@ -239,14 +236,14 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     {
         _logger.LogInformation(
             "Creating content referral {ReferralId} to {TargetContentId}",
-            $"{publisherId}.{referralName}.{referralVersion}",
+            $"{publisherId}.{referralName}.{manifestVersion}",
             targetContentId);
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{referralVersion}",
+            Id = $"{publisherId}.{referralName}.{manifestVersion}",
             Name = referralName,
-            Version = referralVersion,
+            Version = manifestVersion.ToString(),
             ContentType = ContentType.ContentReferral,
             Metadata = new ContentMetadata
             {

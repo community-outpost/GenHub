@@ -50,17 +50,17 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifests = new Dictionary<string, ContentManifest>
         {
-            ["base1"] = new() { Id = "base1", ContentType = ContentType.GameInstallation },
-            ["mod1"] = new() { Id = "mod1", ContentType = ContentType.Mod },
-            ["base2"] = new() { Id = "base2", ContentType = ContentType.GameInstallation },
+            ["1.0.base1.installation.game"] = new() { Id = "1.0.base1.installation.game", ContentType = ContentType.GameInstallation },
+            ["1.0.mod1.publisher.content"] = new() { Id = "1.0.mod1.publisher.content", ContentType = ContentType.Mod },
+            ["1.0.base2.installation.game"] = new() { Id = "1.0.base2.installation.game", ContentType = ContentType.GameInstallation },
         };
 
         // Act
-        var baseGames = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.GameInstallation);
+        var gameInstallations = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.GameInstallation);
         var mods = ManifestDiscoveryService.GetManifestsByType(manifests, ContentType.Mod);
 
         // Assert
-        Assert.Equal(2, baseGames.Count());
+        Assert.Equal(2, gameInstallations.Count());
         Assert.Single(mods);
     }
 
@@ -73,9 +73,9 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifests = new Dictionary<string, ContentManifest>
         {
-            ["generals1"] = new() { Id = "generals1", TargetGame = GameType.Generals },
-            ["zerohour1"] = new() { Id = "zerohour1", TargetGame = GameType.ZeroHour },
-            ["generals2"] = new() { Id = "generals2", TargetGame = GameType.Generals },
+            ["1.0.generals1.installation.game"] = new() { Id = "1.0.generals1.installation.game", TargetGame = GameType.Generals },
+            ["1.0.zerohour1.installation.game"] = new() { Id = "1.0.zerohour1.installation.game", TargetGame = GameType.ZeroHour },
+            ["1.0.generals2.installation.game"] = new() { Id = "1.0.generals2.installation.game", TargetGame = GameType.Generals },
         };
 
         // Act
@@ -96,10 +96,10 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "test",
+            Id = "1.0.test.publisher.content",
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "missing-dep", InstallBehavior = DependencyInstallBehavior.RequireExisting },
+                new() { Id = "1.0.missing.publisher.content", InstallBehavior = DependencyInstallBehavior.RequireExisting },
             },
         };
         var availableManifests = new Dictionary<string, ContentManifest>();
@@ -120,16 +120,16 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "test",
+            Id = "1.0.test.publisher.content",
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "dep1", InstallBehavior = DependencyInstallBehavior.RequireExisting },
-                new() { Id = "dep2", InstallBehavior = DependencyInstallBehavior.Suggest },
+                new() { Id = "1.0.dep1.publisher.content", InstallBehavior = DependencyInstallBehavior.RequireExisting },
+                new() { Id = "1.0.dep2.publisher.content", InstallBehavior = DependencyInstallBehavior.Suggest },
             },
         };
         var availableManifests = new Dictionary<string, ContentManifest>
         {
-            ["dep1"] = new() { Id = "dep1", Version = "1.0" },
+            ["1.0.dep1.publisher.content"] = new() { Id = "1.0.dep1.publisher.content", Version = "1.0" },
         };
 
         // Act
@@ -148,7 +148,7 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "test",
+            Id = "1.0.test.publisher.content",
             Dependencies = new List<ContentDependency>(),
         };
         var availableManifests = new Dictionary<string, ContentManifest>();

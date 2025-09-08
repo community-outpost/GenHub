@@ -19,7 +19,7 @@ namespace GenHub.Features.Content.Services;
 /// Provides implementation for validating content manifests and their integrity.
 /// Focuses specifically on content-related validation (manifests, files, dependencies).
 /// </summary>
-public partial class ContentValidator : IContentValidator, IValidator<ContentManifest>
+public class ContentValidator : IContentValidator, IValidator<ContentManifest>
 {
     private readonly IFileOperationsService _fileOperations;
     private readonly ILogger<ContentValidator> _logger;

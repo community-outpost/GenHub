@@ -15,7 +15,7 @@ namespace GenHub.Core.Interfaces.GameVersions
         /// <summary>
         /// Given a set of base installations, produce all GameVersion variants.
         /// </summary>
-        /// <param name="installations">The set of base game installations.</param>
+        /// <param name="installations">The set of game installations.</param>
         /// <param name="cancellationToken">A cancellation token.</param>
         /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, with a <see cref="DetectionResult{GameVersion}"/> containing detected versions.</returns>
         Task<DetectionResult<GameVersion>> DetectVersionsFromInstallationsAsync(

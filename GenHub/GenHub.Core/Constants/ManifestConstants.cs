@@ -1,5 +1,3 @@
-using System;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -8,9 +6,9 @@ namespace GenHub.Core.Constants;
 public static class ManifestConstants
 {
     /// <summary>
-    /// Default manifest schema version.
+    /// Default manifest format version.
     /// </summary>
-    public const string DefaultManifestSchemaVersion = "1.0";
+    public const int DefaultManifestFormatVersion = 1;
 
     /// <summary>
     /// Prefix for publisher content IDs.
@@ -18,9 +16,9 @@ public static class ManifestConstants
     public const string PublisherContentIdPrefix = "publisher";
 
     /// <summary>
-    /// Prefix for base game IDs.
+    /// Prefix for game installation IDs.
     /// </summary>
-    public const string BaseGameIdPrefix = "basegame";
+    public const string BaseGameIdPrefix = "gameinstallation";
 
     /// <summary>
     /// Prefix for simple test IDs.
@@ -50,12 +48,12 @@ public static class ManifestConstants
     /// <summary>
     /// Regex pattern for publisher content IDs.
     /// </summary>
-    public const string PublisherIdRegexPattern = @"^(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z0-9\-]+$";
+    public const string PublisherIdRegexPattern = @"^\d+(?:\.\d+)*\.[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*$";
 
     /// <summary>
-    /// Regex pattern for base game IDs.
+    /// Regex pattern for game installation IDs.
     /// </summary>
-    public const string GameInstallationIdRegexPattern = @"^(unknown|steam|ea|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)(?:\.\d+(?:\.\d+)*)?$";
+    public const string GameInstallationIdRegexPattern = @"^\d+(?:\.\d+)*\.(unknown|steam|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)$";
 
     /// <summary>
     /// Regex pattern for simple IDs.

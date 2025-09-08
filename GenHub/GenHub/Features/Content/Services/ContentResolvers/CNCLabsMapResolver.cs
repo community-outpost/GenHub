@@ -52,8 +52,9 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
                     return ContentOperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
                 }
 
+                var manifestVersionInt = int.TryParse(mapDetails.version, out var parsedVersion) ? parsedVersion : 0;
                 var manifest = _manifestBuilder
-                    .WithBasicInfo(discoveredItem.Id, mapDetails.name, mapDetails.version)
+                    .WithBasicInfo(discoveredItem.Id, mapDetails.name, manifestVersionInt)
                     .WithContentType(ContentType.MapPack, GameType.ZeroHour)
                     .WithPublisher(mapDetails.author)
                     .WithMetadata(

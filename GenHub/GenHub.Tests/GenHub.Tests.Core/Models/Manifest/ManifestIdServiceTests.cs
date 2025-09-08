@@ -23,10 +23,10 @@ public class ManifestIdServiceTests
     }
 
     /// <summary>
-    /// Tests that GeneratePublisherContentId uses default manifest schema version when not provided.
+    /// Tests that GeneratePublisherContentId uses default user version when not provided.
     /// </summary>
     [Fact]
-    public void GeneratePublisherContentId_UsesDefaultManifestSchemaVersion_WhenNotProvided()
+    public void GeneratePublisherContentId_UsesDefaultUserVersion_WhenNotProvided()
     {
         // Arrange
         var publisherId = "test-publisher";
@@ -37,7 +37,7 @@ public class ManifestIdServiceTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal("test.publisher.test.content.1.0", result.Data.Value);
+        Assert.Equal("1.0.test.publisher.test.content", result.Data.Value);
         Assert.Null(result.ErrorMessage);
     }
 
@@ -55,7 +55,7 @@ public class ManifestIdServiceTests
     public void GeneratePublisherContentId_WithInvalidInputs_ReturnsFailure(string publisherId, string contentName, string expectedError)
     {
         // Act
-        var result = _service.GeneratePublisherContentId(publisherId, contentName, "1.0");
+        var result = _service.GeneratePublisherContentId(publisherId, contentName, 0);
 
         // Assert
         Assert.False(result.Success);
@@ -64,32 +64,32 @@ public class ManifestIdServiceTests
     }
 
     /// <summary>
-    /// Tests that GenerateBaseGameId uses default manifest schema version when not provided.
+    /// Tests that GenerateGameInstallationId uses default user version when not provided.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_UsesDefaultManifestSchemaVersion_WhenNotProvided()
+    public void GenerateGameInstallationId_UsesDefaultUserVersion_WhenNotProvided()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
         var gameType = GameType.Generals;
 
         // Act
-        var result = _service.GenerateBaseGameId(installation, gameType);
+        var result = _service.GenerateGameInstallationId(installation, gameType);
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal("steam.generals.1.0", result.Data.Value);
+        Assert.Equal("1.0.steam.generals", result.Data.Value);
         Assert.Null(result.ErrorMessage);
     }
 
     /// <summary>
-    /// Tests failure when generating base game ID with null installation.
+    /// Tests failure when generating game installation ID with null installation.
     /// </summary>
     [Fact]
-    public void GenerateBaseGameId_WithNullInstallation_ReturnsFailure()
+    public void GenerateGameInstallationId_WithNullInstallation_ReturnsFailure()
     {
         // Act
-        var result = _service.GenerateBaseGameId(null!, GameType.Generals, "1.0");
+        var result = _service.GenerateGameInstallationId(null!, GameType.Generals, 0);
 
         // Assert
         Assert.False(result.Success);
@@ -104,7 +104,7 @@ public class ManifestIdServiceTests
     public void ValidateAndCreateManifestId_WithValidId_ReturnsSuccess()
     {
         // Arrange
-        var validId = "test.publisher.test.content.1.0";
+        var validId = "1.0.test.publisher.test.content";
 
         // Act
         var result = _service.ValidateAndCreateManifestId(validId);
@@ -147,7 +147,7 @@ public class ManifestIdServiceTests
         // (This is difficult to test without more complex setup, but we verify the pattern exists)
 
         // Act - Call a method that should handle exceptions
-        var result = _service.GeneratePublisherContentId("test", "content", "1.0");
+        var result = _service.GeneratePublisherContentId("test", "content", 0);
 
         // Assert - Should either succeed or fail gracefully
         Assert.NotNull(result);
@@ -163,16 +163,16 @@ public class ManifestIdServiceTests
     public void AllMethods_ReturnProperResultBaseImplementations()
     {
         // Test GeneratePublisherContentId
-        var result1 = _service.GeneratePublisherContentId("test", "content", "1.0");
+        var result1 = _service.GeneratePublisherContentId("test", "content", 0);
         Assert.IsAssignableFrom<ResultBase>(result1);
 
-        // Test GenerateBaseGameId
+        // Test GenerateGameInstallationId
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
-        var result2 = _service.GenerateBaseGameId(installation, GameType.Generals, "1.0");
+        var result2 = _service.GenerateGameInstallationId(installation, GameType.Generals, 0);
         Assert.IsAssignableFrom<ResultBase>(result2);
 
         // Test ValidateAndCreateManifestId
-        var result3 = _service.ValidateAndCreateManifestId("test.content.1.0");
+        var result3 = _service.ValidateAndCreateManifestId("1.0.test.publisher.test.content");
         Assert.IsAssignableFrom<ResultBase>(result3);
     }
 
@@ -183,13 +183,13 @@ public class ManifestIdServiceTests
     public void SuccessAndFailureStates_AreMutuallyExclusive()
     {
         // Test success case
-        var successResult = _service.GeneratePublisherContentId("test", "content", "1.0");
+        var successResult = _service.GeneratePublisherContentId("test", "content", 0);
         Assert.True(successResult.Success);
         Assert.NotNull(successResult.Data.Value);
         Assert.Null(successResult.ErrorMessage);
 
         // Test failure case
-        var failureResult = _service.GeneratePublisherContentId(string.Empty, "content", "1.0");
+        var failureResult = _service.GeneratePublisherContentId(string.Empty, "content", 0);
         Assert.False(failureResult.Success);
         Assert.Null(failureResult.Data.Value);
         Assert.NotNull(failureResult.ErrorMessage);

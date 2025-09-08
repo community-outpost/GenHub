@@ -14,12 +14,12 @@ public class ManifestIdTests
     /// </summary>
     /// <param name="validId">A valid manifest ID string.</param>
     [Theory]
-    [InlineData("publisher.content.version")]
-    [InlineData("ea.generals.1.0")]
-    [InlineData("steam.generals.1.04")]
-    [InlineData("testid.content.1.0")]
-    [InlineData("simple.id")]
-    [InlineData("complexpublisher.content.name.1.0")]
+    [InlineData("1.0.publisher.content")]
+    [InlineData("1.0.eaapp.generals")]
+    [InlineData("1.0.steam.generals")]
+    [InlineData("1.0.testid.content")]
+    [InlineData("1.0.simple.id.test")]
+    [InlineData("1.0.complexpublisher.content.name")]
     public void Create_WithValidManifestIdStrings_CreatesManifestId(string validId)
     {
         // Act
@@ -37,8 +37,8 @@ public class ManifestIdTests
     [Theory]
     [InlineData("", "cannot be null or empty")]
     [InlineData("   ", "cannot be null or empty")]
-    [InlineData("special@chars", "invalid. Must follow either")]
-    [InlineData("spaces in id", "invalid. Must follow either")]
+    [InlineData("special@chars", "invalid")]
+    [InlineData("spaces in id", "invalid")]
     public void Create_WithInvalidManifestIdStrings_ThrowsArgumentException(string invalidId, string expectedError)
     {
         // Act & Assert
@@ -53,7 +53,7 @@ public class ManifestIdTests
     public void ImplicitConversion_FromStringToManifestId_Works()
     {
         // Arrange
-        string idString = "testpublisher.content.1.0";
+        string idString = "1.0.testpublisher.content";
 
         // Act
         ManifestId manifestId = idString;
@@ -69,13 +69,13 @@ public class ManifestIdTests
     public void ImplicitConversion_FromManifestIdToString_Works()
     {
         // Arrange
-        var manifestId = ManifestId.Create("testpublisher.content.1.0");
+        var manifestId = ManifestId.Create("1.0.testpublisher.content");
 
         // Act
         string idString = manifestId;
 
         // Assert
-        Assert.Equal("testpublisher.content.1.0", idString);
+        Assert.Equal("1.0.testpublisher.content", idString);
     }
 
     /// <summary>
@@ -85,8 +85,8 @@ public class ManifestIdTests
     public void EqualityOperator_WithEqualManifestIds_ReturnsTrue()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("testpublisher.content.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.testpublisher.content");
 
         // Act & Assert
         Assert.True(id1 == id2);
@@ -100,8 +100,8 @@ public class ManifestIdTests
     public void EqualityOperator_WithDifferentManifestIds_ReturnsFalse()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("differentpublisher.content.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.differentpublisher.content");
 
         // Act & Assert
         Assert.False(id1 == id2);
@@ -115,8 +115,8 @@ public class ManifestIdTests
     public void Equality_IsCaseInsensitive()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("TESTPUBLISHER.CONTENT.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.TESTPUBLISHER.CONTENT");
 
         // Act & Assert
         Assert.True(id1 == id2);
@@ -130,9 +130,9 @@ public class ManifestIdTests
     public void Equals_WithManifestId_Works()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("testpublisher.content.1.0");
-        var id3 = ManifestId.Create("differentpublisher.content.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.testpublisher.content");
+        var id3 = ManifestId.Create("1.0.differentpublisher.content");
 
         // Act & Assert
         Assert.True(id1.Equals(id2));
@@ -146,8 +146,8 @@ public class ManifestIdTests
     public void Equals_WithObject_Works()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("testpublisher.content.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.testpublisher.content");
         var differentObject = new object();
 
         // Act & Assert
@@ -163,8 +163,8 @@ public class ManifestIdTests
     public void GetHashCode_IsConsistent()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("testpublisher.content.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.testpublisher.content");
 
         // Act & Assert
         Assert.Equal(id1.GetHashCode(), id2.GetHashCode());
@@ -177,8 +177,8 @@ public class ManifestIdTests
     public void GetHashCode_IsCaseInsensitive()
     {
         // Arrange
-        var id1 = ManifestId.Create("testpublisher.content.1.0");
-        var id2 = ManifestId.Create("TESTPUBLISHER.CONTENT.1.0");
+        var id1 = ManifestId.Create("1.0.testpublisher.content");
+        var id2 = ManifestId.Create("1.0.TESTPUBLISHER.CONTENT");
 
         // Act & Assert
         Assert.Equal(id1.GetHashCode(), id2.GetHashCode());
@@ -191,13 +191,13 @@ public class ManifestIdTests
     public void ToString_ReturnsValue()
     {
         // Arrange
-        var id = ManifestId.Create("testpublisher.content.1.0");
+        var id = ManifestId.Create("1.0.testpublisher.content");
 
         // Act
         var result = id.ToString();
 
         // Assert
-        Assert.Equal("testpublisher.content.1.0", result);
+        Assert.Equal("1.0.testpublisher.content", result);
     }
 
     /// <summary>
@@ -207,52 +207,50 @@ public class ManifestIdTests
     public void ManifestId_IsReadonlyStruct()
     {
         // Arrange
-        var id = ManifestId.Create("testpublisher.content.1.0");
+        var id = ManifestId.Create("1.0.testpublisher.content");
 
         // Act & Assert - Should not be able to modify (readonly struct)
-        Assert.Equal("testpublisher.content.1.0", id.Value);
+        Assert.Equal("1.0.testpublisher.content", id.Value);
     }
 
     /// <summary>
-    /// Tests ManifestId with various valid base game ID formats.
+    /// Tests ManifestId with various valid game installation ID formats.
     /// </summary>
-    /// <param name="baseGameId">A valid base game ID string.</param>
+    /// <param name="gameInstallationId">A valid game installation ID string.</param>
     [Theory]
-    [InlineData("steam.generals.1.0")]
-    [InlineData("eaapp.zerohour.1.04")]
-    [InlineData("origin.generals.2.0")]
-    [InlineData("thefirstdecade.zerohour.1.04")]
-    [InlineData("rgmechanics.generals.1.0")]
-    [InlineData("cdiso.zerohour.1.0")]
-    [InlineData("wine.generals.1.0")]
-    [InlineData("retail.zerohour.1.0")]
-    [InlineData("unknown.generals.1.0")]
-    [InlineData("steam.generals")] // 2-segment base game ID
-    [InlineData("origin.generals")] // 2-segment base game ID
-    [InlineData("steam.zerohour")] // 2-segment base game ID
-    public void Create_WithValidBaseGameIds_CreatesManifestId(string baseGameId)
+    [InlineData("1.0.steam.generals")]
+    [InlineData("1.0.eaapp.zerohour")]
+    [InlineData("1.0.origin.generals")]
+    [InlineData("1.0.thefirstdecade.zerohour")]
+    [InlineData("1.0.rgmechanics.generals")]
+    [InlineData("1.0.cdiso.zerohour")]
+    [InlineData("1.0.wine.generals")]
+    [InlineData("1.0.retail.zerohour")]
+    [InlineData("1.0.unknown.generals")]
+    public void Create_WithValidGameInstallationIds_CreatesManifestId(string gameInstallationId)
     {
         // Act
-        var manifestId = ManifestId.Create(baseGameId);
+        var manifestId = ManifestId.Create(gameInstallationId);
 
         // Assert
-        Assert.Equal(baseGameId, manifestId.Value);
+        Assert.Equal(gameInstallationId, manifestId.Value);
     }
 
     /// <summary>
-    /// Tests ManifestId with invalid base game ID formats.
+    /// Tests ManifestId with invalid game installation ID formats.
     /// </summary>
-    /// <param name="invalidBaseGameId">An invalid base game ID string.</param>
+    /// <param name="invalidGameInstallationId">An invalid game installation ID string.</param>
     [Theory]
-    [InlineData("steam.generals.1.0.extra")] // Too many segments
-    [InlineData("invalid.generals.1.0")] // Invalid installation type
-    [InlineData("steam.invalid.1.0")] // Invalid game type
-    [InlineData("invalid.generals")] // Invalid installation type (2-segment)
-    [InlineData("steam.invalid")] // Invalid game type (2-segment)
-    public void Create_WithInvalidBaseGameIds_ThrowsArgumentException(string invalidBaseGameId)
+    [InlineData("1.0.steam.generals.extra")] // Too many segments
+    [InlineData("1.0.invalid.generals")] // Invalid installation type
+    [InlineData("1.0.steam.invalid")] // Invalid game type
+    [InlineData("1.0.steam")] // Too few segments
+    [InlineData("1.0.origin")] // Too few segments
+    [InlineData("1.0.eaapp")] // Too few segments
+    public void Create_WithInvalidGameInstallationIds_ThrowsArgumentException(string invalidGameInstallationId)
     {
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => ManifestId.Create(invalidBaseGameId));
+        var exception = Assert.Throws<ArgumentException>(() => ManifestId.Create(invalidGameInstallationId));
         Assert.Contains("invalid", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -262,13 +260,13 @@ public class ManifestIdTests
     [Fact]
     public void Create_HandlesEdgeCases()
     {
-        // Test with minimum valid ID
-        var minimalId = ManifestId.Create("a.b");
-        Assert.Equal("a.b", minimalId.Value);
+        // Test with minimum valid ID (4 segments)
+        var minimalId = ManifestId.Create("1.0.test.content");
+        Assert.Equal("1.0.test.content", minimalId.Value);
 
         // Test with maximum reasonable segments
-        var complexId = ManifestId.Create("publishercontent.name.version.patch");
-        Assert.Equal("publishercontent.name.version.patch", complexId.Value);
+        var complexId = ManifestId.Create("1.0.publisher.content.name.version");
+        Assert.Equal("1.0.publisher.content.name.version", complexId.Value);
     }
 
     /// <summary>
@@ -278,7 +276,7 @@ public class ManifestIdTests
     public void Value_PreservesExactString()
     {
         // Arrange
-        const string originalId = "testpublisher.content.1.0.0.beta";
+        const string originalId = "1.0.testpublisher.content.version.beta";
 
         // Act
         var manifestId = ManifestId.Create(originalId);
