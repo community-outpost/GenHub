@@ -31,13 +31,13 @@ public class GameInstallationDetectionOrchestratorTests
         var mockD1 = new Mock<IGameInstallationDetector>();
         mockD1.SetupGet(d => d.CanDetectOnCurrentPlatform).Returns(true);
         mockD1.Setup(d => d.DetectInstallationsAsync(It.IsAny<CancellationToken>()))
-              .ReturnsAsync(DetectionResult<GameInstallation>.Succeeded(
+              .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(
                   new[] { instA }, TimeSpan.Zero));
 
         var mockD2 = new Mock<IGameInstallationDetector>();
         mockD2.SetupGet(d => d.CanDetectOnCurrentPlatform).Returns(true);
         mockD2.Setup(d => d.DetectInstallationsAsync(It.IsAny<CancellationToken>()))
-              .ReturnsAsync(DetectionResult<GameInstallation>.Succeeded(
+              .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(
                   new[] { instB }, TimeSpan.Zero));
 
         var svc = new GameInstallationDetectionOrchestrator(
@@ -64,7 +64,7 @@ public class GameInstallationDetectionOrchestratorTests
         var mockD = new Mock<IGameInstallationDetector>();
         mockD.SetupGet(d => d.CanDetectOnCurrentPlatform).Returns(true);
         mockD.Setup(d => d.DetectInstallationsAsync(It.IsAny<CancellationToken>()))
-             .ReturnsAsync(DetectionResult<GameInstallation>.Failed("detector error"));
+             .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("detector error"));
 
         var svc = new GameInstallationDetectionOrchestrator(
             new[] { mockD.Object },

@@ -22,9 +22,18 @@ API and network related constants.
 - `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs  
   (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
----
+### UriConstants
 
-## AppConstants Class
+URI scheme constants for handling different types of URIs and paths.
+
+- `AvarUriScheme`: URI scheme for Avalonia embedded resources (`"avares://"`)
+- `HttpUriScheme`: HTTP URI scheme (`"http://"`)
+- `HttpsUriScheme`: HTTPS URI scheme (`"https://"`)
+- `GeneralsIconUri`: Icon URI for Generals game type (`"avares://GenHub/Assets/Icons/generals-icon.png"`)
+- `ZeroHourIconUri`: Icon URI for Zero Hour game type (`"avares://GenHub/Assets/Icons/zerohour-icon.png"`)
+- `DefaultIconUri`: Default icon URI for unknown game types (`"avares://GenHub/Assets/Icons/generalshub-icon.png"`)
+
+### AppConstants
 
 Application-wide constants for GenHub.
 
@@ -94,9 +103,14 @@ Constants for unit conversions used throughout the application.
 - `BytesPerMegabyte`: 1048576  
 - `BytesPerGigabyte`: 1073741824  
 
----
+#### Color Conversion Constants
 
-## DirectoryNames Class
+- `LuminanceRedCoefficient`: Coefficient for red channel in luminance calculation (0.299)
+- `LuminanceGreenCoefficient`: Coefficient for green channel in luminance calculation (0.587)
+- `LuminanceBlueCoefficient`: Coefficient for blue channel in luminance calculation (0.114)
+- `BrightnessThreshold`: Threshold value for determining if a color is light or dark (0.5)
+
+### DirectoryNames
 
 Directory names used for organizing content storage.
 
@@ -241,7 +255,12 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
-## UiConstants Class
+#### Status Colors
+
+- `StatusSuccessColor`: Color used to indicate success or positive status (`"#4CAF50"`)
+- `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
+
+### ValidationLimits
 
 - `DefaultWindowWidth`: 1200  
 - `DefaultWindowHeight`: 800  
@@ -351,7 +370,6 @@ var downloadConfig = new DownloadConfiguration
     MaxRetryAttempts = DownloadDefaults.MaxRetryAttempts
 };
 ```
-
 ### CAS Operations
 
 ```csharp
@@ -369,6 +387,39 @@ while (retryCount < StorageConstants.MaxRetries)
         await Task.Delay(StorageConstants.RetryDelayMs * retryCount);
     }
 }
+```
+
+---
+
+### UI Constants Example
+
+```csharp
+var window = new Window
+{
+    Width = UiConstants.DefaultWindowWidth,
+    Height = UiConstants.DefaultWindowHeight
+};
+
+// Using status colors for consistent UI theming
+var successBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusSuccessColor));
+var errorBrush = new SolidColorBrush(Color.Parse(UiConstants.StatusErrorColor));
+
+// Example XAML data binding with BoolToStatusColorConverter
+// <TextBlock Text="Status" Foreground="{Binding IsActive, Converter={StaticResource BoolToStatusColorConverter}}" />
+```
+
+---
+
+### Application Name Usage with AppConstants
+
+```csharp
+// Using AppConstants.AppName for consistent application naming
+var appDataPath = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    AppConstants.AppName);
+
+var userAgent = $"{AppConstants.AppName}/{AppConstants.AppVersion}";
+// Result: "GenHub/1.0" (same as ApiConstants.DefaultUserAgent)
 ```
 
 ### Validation with ValidationLimits

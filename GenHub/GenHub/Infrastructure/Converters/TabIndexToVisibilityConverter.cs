@@ -32,6 +32,8 @@ public class TabIndexToVisibilityConverter : IValueConverter
     /// Not implemented.
     /// </summary>
     /// <inheritdoc/>
+    /// <returns>This method does not return a value; it always throws <see cref="NotImplementedException"/>.</returns>
+    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo? culture)
     {
         throw new NotImplementedException();

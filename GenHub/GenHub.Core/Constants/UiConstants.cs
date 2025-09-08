@@ -14,4 +14,16 @@ public static class UiConstants
     /// Default main window height in pixels.
     /// </summary>
     public const double DefaultWindowHeight = 800;
+
+    // Status colors
+
+    /// <summary>
+    /// Color used to indicate success or positive status.
+    /// </summary>
+    public const string StatusSuccessColor = "#4CAF50";
+
+    /// <summary>
+    /// Color used to indicate error or negative status.
+    /// </summary>
+    public const string StatusErrorColor = "#F44336";
 }

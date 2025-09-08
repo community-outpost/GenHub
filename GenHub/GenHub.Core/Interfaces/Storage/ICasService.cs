@@ -1,6 +1,5 @@
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 
 namespace GenHub.Core.Interfaces.Storage;
@@ -17,7 +16,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
-    Task<CasOperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default);
+    Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stores content from a stream in the CAS and returns the content hash.
@@ -26,7 +25,7 @@ public interface ICasService
     /// <param name="expectedHash">Optional expected hash for verification.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The content hash if successful.</returns>
-    Task<CasOperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default);
+    Task<OperationResult<string>> StoreContentAsync(Stream contentStream, string? expectedHash = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the file system path to content stored in CAS by hash.
@@ -34,7 +33,7 @@ public interface ICasService
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The file system path if the content exists.</returns>
-    Task<CasOperationResult<string>> GetContentPathAsync(string hash, CancellationToken cancellationToken = default);
+    Task<OperationResult<string>> GetContentPathAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks whether content with the given hash exists in CAS.
@@ -42,7 +41,7 @@ public interface ICasService
     /// <param name="hash">The content hash to check.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the content exists, false otherwise.</returns>
-    Task<CasOperationResult<bool>> ExistsAsync(string hash, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> ExistsAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Opens a read-only stream to content stored in CAS.
@@ -50,7 +49,7 @@ public interface ICasService
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A stream to read the content.</returns>
-    Task<CasOperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default);
+    Task<OperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Runs garbage collection to remove unreferenced content.

@@ -65,7 +65,7 @@ public abstract class BaseContentProvider(
     protected abstract IContentDeliverer Deliverer { get; }
 
     /// <inheritdoc />
-    public virtual async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
+    public virtual async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -75,8 +75,8 @@ public abstract class BaseContentProvider(
         var discoveryResult = await Discoverer.DiscoverAsync(query, cancellationToken);
         if (!discoveryResult.Success || discoveryResult.Data == null)
         {
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
-                $"Discovery failed: {discoveryResult.ErrorMessage}");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                $"Discovery failed: {discoveryResult.FirstError}");
         }
 
         var resolvedResults = new List<ContentSearchResult>();
@@ -110,7 +110,7 @@ public abstract class BaseContentProvider(
                     Logger.LogWarning(
                         "Resolution failed for {ContentName}: {Error}",
                         discovered.Name,
-                        resolutionResult.ErrorMessage ?? "Unknown error");
+                        resolutionResult.FirstError ?? "Unknown error");
                 }
             }
             else
@@ -119,7 +119,7 @@ public abstract class BaseContentProvider(
             }
         }
 
-        return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(resolvedResults);
+        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(resolvedResults);
     }
 
     /// <summary>
@@ -128,12 +128,12 @@ public abstract class BaseContentProvider(
     /// <param name="contentId">The content identifier.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result containing the game manifest.</returns>
-    public abstract Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    public abstract Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
 
     /// <inheritdoc/>
-    public virtual async Task<ContentOperationResult<ContentManifest>> PrepareContentAsync(
+    public virtual async Task<OperationResult<ContentManifest>> PrepareContentAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
@@ -156,7 +156,7 @@ public abstract class BaseContentProvider(
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
                 if (errors.Any())
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                    return OperationResult<ContentManifest>.CreateFailure(
                         errors.Select(e => $"Manifest validation failed: {e.Message}"));
                 }
             }
@@ -214,7 +214,7 @@ public abstract class BaseContentProvider(
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare content for manifest {ManifestId}", manifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content preparation failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content preparation failed: {ex.Message}");
         }
     }
 
@@ -226,7 +226,7 @@ public abstract class BaseContentProvider(
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prepared manifest.</returns>
-    protected abstract Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected abstract Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,

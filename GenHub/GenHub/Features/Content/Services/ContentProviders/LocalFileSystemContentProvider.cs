@@ -77,7 +77,7 @@ public class LocalFileSystemContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _fileSystemDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
@@ -85,19 +85,19 @@ public class LocalFileSystemContentProvider : BaseContentProvider
 
         if (!searchResult.Success || !searchResult.Data!.Any())
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
         }
 
         var result = searchResult.Data!.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
-            ? ContentOperationResult<ContentManifest>.CreateSuccess(manifest)
-            : ContentOperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
     }
 
     /// <inheritdoc />
-    protected override async Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -108,6 +108,6 @@ public class LocalFileSystemContentProvider : BaseContentProvider
 
         // For local file system, content is already available locally
         // Just return the manifest as-is
-        return await Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+        return await Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
     }
 }

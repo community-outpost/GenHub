@@ -28,7 +28,7 @@ public class GameVersionDetectionOrchestratorTests
     {
         var mockInst = new Mock<IGameInstallationDetectionOrchestrator>();
         mockInst.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(DetectionResult<GameInstallation>.Failed("install error"));
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("install error"));
 
         var mockVer = new Mock<IGameVersionDetector>();
         var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
@@ -53,7 +53,7 @@ public class GameVersionDetectionOrchestratorTests
         };
         var mockInst = new Mock<IGameInstallationDetectionOrchestrator>();
         mockInst.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(DetectionResult<GameInstallation>.Succeeded(
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(
                     installations, TimeSpan.Zero));
 
         var versions = new List<GameVersion>
@@ -71,7 +71,7 @@ public class GameVersionDetectionOrchestratorTests
         var mockVer = new Mock<IGameVersionDetector>();
         mockVer.Setup(x => x.DetectVersionsFromInstallationsAsync(
                     installations, It.IsAny<CancellationToken>()))
-               .ReturnsAsync(DetectionResult<GameVersion>.Succeeded(
+               .ReturnsAsync(DetectionResult<GameVersion>.CreateSuccess(
                     versions, TimeSpan.Zero));
 
         var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
@@ -99,7 +99,7 @@ public class GameVersionDetectionOrchestratorTests
             new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam),
         };
 
-        var installationResult = DetectionResult<GameInstallation>.Succeeded(installations, System.TimeSpan.FromSeconds(1));
+        var installationResult = DetectionResult<GameInstallation>.CreateSuccess(installations, System.TimeSpan.FromSeconds(1));
         mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
             .ReturnsAsync(installationResult);
 
@@ -116,7 +116,7 @@ public class GameVersionDetectionOrchestratorTests
             },
         };
 
-        var versionResult = DetectionResult<GameVersion>.Succeeded(versions, System.TimeSpan.FromSeconds(1));
+        var versionResult = DetectionResult<GameVersion>.CreateSuccess(versions, System.TimeSpan.FromSeconds(1));
         mockVersionDetector.Setup(x => x.DetectVersionsFromInstallationsAsync(installations, default))
             .ReturnsAsync(versionResult);
 
@@ -145,7 +145,7 @@ public class GameVersionDetectionOrchestratorTests
         var mockVersionDetector = new Mock<IGameVersionDetector>();
         var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
 
-        var installationResult = DetectionResult<GameInstallation>.Failed("No installations found");
+        var installationResult = DetectionResult<GameInstallation>.CreateFailure("No installations found");
         mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
             .ReturnsAsync(installationResult);
 

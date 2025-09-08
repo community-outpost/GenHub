@@ -106,15 +106,7 @@ public partial class UpdateNotificationViewModel : ObservableObject
         _installationProgress = new UpdateProgress { Status = "Ready", PercentComplete = 0 };
 
         // Initialize with default non-null values to prevent binding errors
-        _updateCheckResult = new UpdateCheckResult
-        {
-            IsUpdateAvailable = false,
-            ReleaseTitle = "Ready to check for updates",
-            ReleaseNotes = "Click 'Check For Updates' to begin.",
-            CurrentVersion = "0.0.0",
-            LatestVersion = "0.0.0",
-            UpdateUrl = string.Empty,
-        };
+        _updateCheckResult = UpdateCheckResult.CreateInitial();
 
         CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
         DismissCommand = new RelayCommand(DismissUpdate);
@@ -203,15 +195,9 @@ public partial class UpdateNotificationViewModel : ObservableObject
             StatusMessage = "Checking for updates...";
 
             // Update the current result to show checking state
-            UpdateCheckResult = new UpdateCheckResult
-            {
-                IsUpdateAvailable = false,
-                ReleaseTitle = "Checking for updates...",
-                ReleaseNotes = "Please wait while we check for updates.",
-                CurrentVersion = UpdateCheckResult?.CurrentVersion ?? "0.0.0",
-                LatestVersion = UpdateCheckResult?.LatestVersion ?? "0.0.0",
-                UpdateUrl = string.Empty,
-            };
+            UpdateCheckResult = UpdateCheckResult.CreateChecking(
+                UpdateCheckResult?.CurrentVersion ?? "0.0.0",
+                UpdateCheckResult?.LatestVersion ?? "0.0.0");
 
             _logger.LogInformation("Starting update check");
 
@@ -358,15 +344,9 @@ public partial class UpdateNotificationViewModel : ObservableObject
     /// </summary>
     private void DismissUpdate()
     {
-        UpdateCheckResult = new UpdateCheckResult
-        {
-            IsUpdateAvailable = false,
-            ReleaseTitle = string.Empty,
-            ReleaseNotes = string.Empty,
-            CurrentVersion = UpdateCheckResult?.CurrentVersion ?? "0.0.0",
-            LatestVersion = UpdateCheckResult?.LatestVersion ?? "0.0.0",
-            UpdateUrl = string.Empty,
-        };
+        UpdateCheckResult = UpdateCheckResult.CreateDismissed(
+            UpdateCheckResult?.CurrentVersion ?? "0.0.0",
+            UpdateCheckResult?.LatestVersion ?? "0.0.0");
 
         StatusMessage = string.Empty;
         HasError = false;

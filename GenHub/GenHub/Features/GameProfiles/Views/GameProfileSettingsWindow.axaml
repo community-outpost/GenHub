@@ -4,7 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
         xmlns:models="clr-namespace:GenHub.Core.Models;assembly=GenHub.Core"
-        xmlns:conv="clr-namespace:GenHub.GenHub.Infrastructure.Converters"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
         xmlns:helpers="clr-namespace:GenHub.Helpers"
         mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="600"
         x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsWindow"

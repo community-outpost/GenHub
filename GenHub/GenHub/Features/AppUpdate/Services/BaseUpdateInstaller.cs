@@ -403,8 +403,8 @@ public abstract class BaseUpdateInstaller(
 
         if (!result.Success)
         {
-            _logger.LogError("Download failed: {Error}", result.ErrorMessage);
-            throw new InvalidOperationException($"Download failed: {result.ErrorMessage}");
+            _logger.LogError("Download failed: {Error}", result.FirstError);
+            throw new InvalidOperationException($"Download failed: {result.FirstError}");
         }
 
         _logger.LogInformation(

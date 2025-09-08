@@ -46,7 +46,7 @@ public class ContentManifestBuilder(
         }
         else
         {
-            _logger.LogWarning("Failed to generate game installation manifest ID: {Error}. Using fallback.", idResult.ErrorMessage);
+            _logger.LogWarning("Failed to generate game installation manifest ID: {Error}. Using fallback.", idResult.FirstError);
 
             // Fallback to direct generation if service fails
             _manifest.Id = ManifestId.Create(
@@ -88,7 +88,7 @@ public class ContentManifestBuilder(
         }
         else
         {
-            _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.ErrorMessage);
+            _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
 
             // Fallback to direct generation if service fails
             _manifest.Id = ManifestId.Create(

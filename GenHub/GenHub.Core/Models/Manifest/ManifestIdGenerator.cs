@@ -95,9 +95,7 @@ public static class ManifestIdGenerator
         {
             GameInstallationType.Steam => "steam",
             GameInstallationType.EaApp => "eaapp",
-            GameInstallationType.Origin => "origin",
             GameInstallationType.TheFirstDecade => "thefirstdecade",
-            GameInstallationType.RGMechanics => "rgmechanics",
             GameInstallationType.CDISO => "cdiso",
             GameInstallationType.Wine => "wine",
             GameInstallationType.Retail => "retail",

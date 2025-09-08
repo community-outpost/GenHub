@@ -10,14 +10,14 @@ export default withMermaid(
             process.env.GITHUB_ACTIONS === 'true'
                 ? '/wiki/'
                 : '/',
-        
+
         head: [
             ['link', { rel: 'icon', href: '/assets/icon.png' }]
         ],
-        
+
         themeConfig: {
             logo: './assets/logo.png',
-            
+
             nav: [
                 { text: 'Home', link: '/' },
                 { text: 'Get Started', link: '/onboarding' },
@@ -26,7 +26,7 @@ export default withMermaid(
                 { text: 'API Reference', link: '/dev/index' },
                 { text: 'Flowcharts', link: '/FlowCharts/' }
             ],
-            
+
             sidebar: [
                 {
                     text: 'Getting Started',
@@ -48,6 +48,20 @@ export default withMermaid(
                         { text: 'Workspace', link: '/features/workspace' },
                         { text: 'Launching', link: '/features/launching' },
                         { text: 'GameProfiles System', link: '/features/gameprofiles' }
+                    ]
+                },
+                {
+                    text: 'Converters',
+                    items: [
+                        { text: 'Overview', link: '/dev/converters/' },
+                        { text: 'Boolean Converters', link: '/dev/converters/bool-converters' },
+                        { text: 'Null Converters', link: '/dev/converters/null-converters' },
+                        { text: 'String Converters', link: '/dev/converters/string-converters' },
+                        { text: 'Color Converters', link: '/dev/converters/color-converters' },
+                        { text: 'Profile Converters', link: '/dev/converters/profile-converters' },
+                        { text: 'Enum Converters', link: '/dev/converters/enum-converters' },
+                        { text: 'Navigation Converters', link: '/dev/converters/navigation-converters' },
+                        { text: 'Data Type Converters', link: '/dev/converters/data-type-converters' }
                     ]
                 },
                 {
@@ -75,17 +89,17 @@ export default withMermaid(
                     ]
                 }
             ],
-            
+
             socialLinks: [
                 { icon: 'github', link: 'https://github.com/community-outpost/GenHub' }
             ],
-            
+
             footer: {
                 message: 'GeneralsHub Docs',
                 copyright: '© 2025 GeneralsHub'
             }
         },
-        
+
         // Mermaid configuration
         mermaid: {
             theme: 'default',
@@ -98,10 +112,15 @@ export default withMermaid(
                 tertiaryColor: '#1e90ff'
             }
         },
-        
+
         // Optional: Configure mermaid for dark mode
         mermaidPlugin: {
             class: 'mermaid my-class'
         }
-    })
+    }),
+
+    // Mermaid configuration
+    {
+        theme: 'default'
+    }
 )

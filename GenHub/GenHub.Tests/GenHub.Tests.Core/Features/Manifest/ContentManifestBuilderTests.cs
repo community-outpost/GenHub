@@ -49,18 +49,18 @@ public class ContentManifestBuilderTests
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
-            .Returns((string id) => ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
+            .Returns((string id) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
         _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>()))
             .Returns((GameInstallation gi, GameType gt, int v) =>
-                ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
+                OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
         _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .Returns((string p, string c, int v) =>
             {
                 var generated = ManifestIdGenerator.GeneratePublisherContentId(p, c, v);
-                return ContentOperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
+                return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
         _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object, _manifestIdServiceMock.Object);

@@ -38,7 +38,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal("1.0.test.publisher.test.content", result.Data.Value);
-        Assert.Null(result.ErrorMessage);
+        Assert.Null(result.FirstError);
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Null(result.Data.Value);
-        Assert.Contains(expectedError, result.ErrorMessage);
+        Assert.Contains(expectedError, result.FirstError);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal("1.0.steam.generals", result.Data.Value);
-        Assert.Null(result.ErrorMessage);
+        Assert.Null(result.FirstError);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Null(result.Data.Value);
-        Assert.Contains("Installation cannot be null", result.ErrorMessage);
+        Assert.Contains("Installation cannot be null", result.FirstError);
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal(validId, result.Data.Value);
-        Assert.Null(result.ErrorMessage);
+        Assert.Null(result.FirstError);
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ public class ManifestIdServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Null(result.Data.Value);
-        Assert.Contains("invalid", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("invalid", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -152,8 +152,8 @@ public class ManifestIdServiceTests
         // Assert - Should either succeed or fail gracefully
         Assert.NotNull(result);
 
-        // Either Success is true, or Success is false with ErrorMessage
-        Assert.True(result.Success || (!result.Success && result.ErrorMessage != null));
+        // Either Success is true, or Success is false with FirstError
+        Assert.True(result.Success || (!result.Success && result.FirstError != null));
     }
 
     /// <summary>
@@ -186,12 +186,12 @@ public class ManifestIdServiceTests
         var successResult = _service.GeneratePublisherContentId("test", "content", 0);
         Assert.True(successResult.Success);
         Assert.NotNull(successResult.Data.Value);
-        Assert.Null(successResult.ErrorMessage);
+        Assert.Null(successResult.FirstError);
 
         // Test failure case
         var failureResult = _service.GeneratePublisherContentId(string.Empty, "content", 0);
         Assert.False(failureResult.Success);
         Assert.Null(failureResult.Data.Value);
-        Assert.NotNull(failureResult.ErrorMessage);
+        Assert.NotNull(failureResult.FirstError);
     }
 }

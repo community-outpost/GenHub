@@ -47,8 +47,8 @@ public class GitHubResolver(
     /// </summary>
     /// <param name="discoveredItem">The discovered content to resolve.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved manifest or an error.</returns>
-    public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(
+    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved manifest or an error.</returns>
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
@@ -59,7 +59,7 @@ public class GitHubResolver(
                 || !discoveredItem.ResolverMetadata.TryGetValue("repo", out var repo)
                 || !discoveredItem.ResolverMetadata.TryGetValue("tag", out var tag))
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
+                return OperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
             }
 
             var release = string.IsNullOrEmpty(tag)
@@ -75,7 +75,7 @@ public class GitHubResolver(
 
             if (release == null)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
+                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
             }
 
             var manifestVersionInt = int.TryParse(release.TagName, out var parsedVersion) ? parsedVersion : 0;
@@ -96,7 +96,7 @@ public class GitHubResolver(
             if (release.Assets == null || !release.Assets.Any())
             {
                 _logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
-                return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+                return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
 
             // Add files from GitHub assets
@@ -109,12 +109,12 @@ public class GitHubResolver(
                     isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
             }
 
-            return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+            return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
     }
 

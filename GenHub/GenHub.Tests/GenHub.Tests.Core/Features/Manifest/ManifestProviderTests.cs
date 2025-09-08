@@ -91,7 +91,7 @@ public class ManifestProviderTests
         // Arrange
         var installation = new GameInstallation(
             installationPath: @"C:\TestPath",
-            installationType: GameInstallationType.Origin,
+            installationType: GameInstallationType.EaApp,
             logger: null)
         {
             HasGenerals = true,

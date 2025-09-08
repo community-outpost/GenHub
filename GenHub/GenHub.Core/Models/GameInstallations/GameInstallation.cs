@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Core.Models.GameInstallations;
 
 /// <summary>
-/// Represents a detected or user-registered game installation (Steam, EA, Origin, etc).
+/// Represents a detected or user-registered game installation (Steam, EA App, etc).
 /// </summary>
 public class GameInstallation : IGameInstallation
 {

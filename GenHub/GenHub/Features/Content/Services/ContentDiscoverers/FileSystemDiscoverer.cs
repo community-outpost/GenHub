@@ -59,7 +59,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         ContentSourceCapabilities.SupportsManifestGeneration;
 
     /// <inheritdoc />
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         var discoveredItems = new List<ContentSearchResult>();
@@ -73,7 +73,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover manifests from content directories");
-            return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to discover manifests {ex.Message}");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Failed to discover manifests {ex.Message}");
         }
 
         foreach (var manifestEntry in discoveredManifests)
@@ -126,7 +126,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         }
 
         _logger.LogInformation("FileSystemDiscoverer found {Count} manifests matching query", discoveredItems.Count);
-        return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
+        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
     }
 
     private void InitializeContentDirectories()

@@ -20,7 +20,7 @@ public interface IManifestIdService
     /// <param name="contentName">The content name.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
-    ContentOperationResult<ManifestId> GeneratePublisherContentId(
+    OperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
         int userVersion = 0);
@@ -32,7 +32,7 @@ public interface IManifestIdService
     /// <param name="gameType">The specific game type for the manifest ID.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
-    ContentOperationResult<ManifestId> GenerateGameInstallationId(
+    OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
         int userVersion = 0);
@@ -42,5 +42,5 @@ public interface IManifestIdService
     /// </summary>
     /// <param name="manifestIdString">The manifest ID string to validate.</param>
     /// <returns>A result containing the validated manifest ID or an error.</returns>
-    ContentOperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
+    OperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
 }

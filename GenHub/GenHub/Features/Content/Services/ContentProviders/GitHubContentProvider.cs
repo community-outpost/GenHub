@@ -69,7 +69,7 @@ public class GitHubContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
@@ -77,19 +77,19 @@ public class GitHubContentProvider : BaseContentProvider
 
         if (!searchResult.Success || !searchResult.Data!.Any())
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
         }
 
         var result = searchResult.Data!.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
-            ? ContentOperationResult<ContentManifest>.CreateSuccess(manifest)
-            : ContentOperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
     }
 
     /// <inheritdoc />
-    protected override async Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -102,13 +102,13 @@ public class GitHubContentProvider : BaseContentProvider
             // Use the deliverer to handle content acquisition
             if (!Deliverer.CanDeliver(manifest))
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
+                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
             }
 
             var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
             if (!deliveryResult.Success)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {deliveryResult.ErrorMessage}");
+                return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {deliveryResult.FirstError}");
             }
 
             // Ensure we have valid data before validation
@@ -146,12 +146,12 @@ public class GitHubContentProvider : BaseContentProvider
             }
 
             Logger.LogInformation("Successfully prepared GitHub content {ManifestId}", manifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateSuccess(resultManifest);
+            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare GitHub content for {ManifestId}", manifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"GitHub content preparation failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"GitHub content preparation failed: {ex.Message}");
         }
     }
 }

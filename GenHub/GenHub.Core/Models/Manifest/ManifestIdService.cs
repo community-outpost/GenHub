@@ -20,8 +20,8 @@ public class ManifestIdService : IManifestIdService
     /// <param name="publisherId">Publisher identifier used as the first segment.</param>
     /// <param name="contentName">Human readable content name used as the second segment.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <returns>A <see cref="ContentOperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
-    public ContentOperationResult<ManifestId> GeneratePublisherContentId(
+    /// <returns>A <see cref="OperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
+    public OperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
         string contentName,
         int userVersion = 0)
@@ -30,15 +30,15 @@ public class ManifestIdService : IManifestIdService
         {
             var idString = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
             var manifestId = ManifestId.Create(idString);
-            return ContentOperationResult<ManifestId>.CreateSuccess(manifestId);
+            return OperationResult<ManifestId>.CreateSuccess(manifestId);
         }
         catch (ArgumentException ex)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure(ex.Message);
+            return OperationResult<ManifestId>.CreateFailure(ex.Message);
         }
         catch (Exception)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate publisher content ID: {publisherId}.{contentName}.{userVersion}");
+            return OperationResult<ManifestId>.CreateFailure($"Failed to generate publisher content ID: {publisherId}.{contentName}.{userVersion}");
         }
     }
 
@@ -48,8 +48,8 @@ public class ManifestIdService : IManifestIdService
     /// <param name="installation">The game installation used to derive the installation segment.</param>
     /// <param name="gameType">The specific game type for the manifest ID.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <returns>A <see cref="ContentOperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
-    public ContentOperationResult<ManifestId> GenerateGameInstallationId(
+    /// <returns>A <see cref="OperationResult{ManifestId}"/> containing the generated ID or error details.</returns>
+    public OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
         int userVersion = 0)
@@ -58,19 +58,19 @@ public class ManifestIdService : IManifestIdService
         {
             var idString = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
             var manifestId = ManifestId.Create(idString);
-            return ContentOperationResult<ManifestId>.CreateSuccess(manifestId);
+            return OperationResult<ManifestId>.CreateSuccess(manifestId);
         }
         catch (ArgumentNullException)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure("Installation cannot be null");
+            return OperationResult<ManifestId>.CreateFailure("Installation cannot be null");
         }
         catch (ArgumentException ex)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure(ex.Message);
+            return OperationResult<ManifestId>.CreateFailure(ex.Message);
         }
         catch (Exception)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to generate game installation ID: {installation.InstallationType}.{gameType}.{userVersion}");
+            return OperationResult<ManifestId>.CreateFailure($"Failed to generate game installation ID: {installation.InstallationType}.{gameType}.{userVersion}");
         }
     }
 
@@ -78,21 +78,21 @@ public class ManifestIdService : IManifestIdService
     /// Validates a manifest ID string and returns a strongly-typed ManifestId if valid.
     /// </summary>
     /// <param name="manifestIdString">The manifest ID string to validate.</param>
-    /// <returns>A <see cref="ContentOperationResult{ManifestId}"/> containing the validated ID or error details.</returns>
-    public ContentOperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString)
+    /// <returns>A <see cref="OperationResult{ManifestId}"/> containing the validated ID or error details.</returns>
+    public OperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString)
     {
         try
         {
             var manifestId = ManifestId.Create(manifestIdString);
-            return ContentOperationResult<ManifestId>.CreateSuccess(manifestId);
+            return OperationResult<ManifestId>.CreateSuccess(manifestId);
         }
         catch (ArgumentException ex)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure(ex.Message);
+            return OperationResult<ManifestId>.CreateFailure(ex.Message);
         }
         catch (Exception)
         {
-            return ContentOperationResult<ManifestId>.CreateFailure($"Failed to validate manifest ID: {manifestIdString}");
+            return OperationResult<ManifestId>.CreateFailure($"Failed to validate manifest ID: {manifestIdString}");
         }
     }
 }

@@ -37,7 +37,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
     /// <inheritdoc />
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         var results = new List<ContentSearchResult>();
@@ -109,8 +109,8 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         }
 
         return errors.Any() && !results.Any()
-            ? ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(errors)
-            : ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            ? OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(errors)
+            : OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 
     // Inference logic extracted to GitHubInferenceHelper

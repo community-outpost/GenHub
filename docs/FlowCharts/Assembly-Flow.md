@@ -1,4 +1,3 @@
-<!-- filepath: .vs\docs\flowcharts\Assembly-Flow.md -->
 # Flowchart: Workspace Assembly Layer
 
 This flowchart details the final stage where a fully resolved and acquired `GameManifest` is used to build the isolated game workspace.

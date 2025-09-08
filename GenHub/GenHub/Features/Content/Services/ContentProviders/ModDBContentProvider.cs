@@ -67,12 +67,12 @@ public class ModDBContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(contentId))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
         }
 
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
@@ -80,20 +80,20 @@ public class ModDBContentProvider : BaseContentProvider
 
         if (!searchResult.Success || !searchResult.Data!.Any())
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure(
-                $"Content not found for ID '{contentId}': {searchResult.ErrorMessage ?? "No matching results"}");
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
         var result = searchResult.Data!.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
-            ? ContentOperationResult<ContentManifest>.CreateSuccess(manifest)
-            : ContentOperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
     }
 
     /// <inheritdoc />
-    protected override Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -104,6 +104,6 @@ public class ModDBContentProvider : BaseContentProvider
 
         // For now, return the manifest as-is since ModDB content preparation
         // would be implemented based on ModDB's specific requirements
-        return Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
     }
 }

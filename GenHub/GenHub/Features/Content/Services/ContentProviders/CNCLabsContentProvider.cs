@@ -62,7 +62,7 @@ public class CNCLabsContentProvider : BaseContentProvider
     protected override IContentDeliverer Deliverer => _httpDeliverer;
 
     /// <inheritdoc />
-    public override async Task<ContentOperationResult<ContentManifest>> GetValidatedContentAsync(
+    public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
@@ -70,19 +70,19 @@ public class CNCLabsContentProvider : BaseContentProvider
 
         if (!searchResult.Success || !searchResult.Data!.Any())
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
         }
 
         var result = searchResult.Data!.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
-            ? ContentOperationResult<ContentManifest>.CreateSuccess(manifest)
-            : ContentOperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
     }
 
     /// <inheritdoc />
-    protected override Task<ContentOperationResult<ContentManifest>> PrepareContentInternalAsync(
+    protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -100,12 +100,12 @@ public class CNCLabsContentProvider : BaseContentProvider
 
             // For CNC Labs content, typically just return the manifest as content preparation
             // is handled by the delivery pipeline
-            return Task.FromResult(ContentOperationResult<ContentManifest>.CreateSuccess(manifest));
+            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare CNC Labs content for manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(ContentOperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}"));
+            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"CNC Labs content preparation failed: {ex.Message}"));
         }
     }
 }
