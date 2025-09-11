@@ -29,7 +29,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             var configProviderMock = new Mock<IConfigurationProviderService>();
             var tempDir = Path.GetTempPath();
 
-            configProviderMock.Setup(x => x.GetUserDataPath()).Returns(tempDir);
+            configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             // Add required dependencies
@@ -89,7 +89,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             var configProviderMock = new Mock<IConfigurationProviderService>();
             var tempDir = Path.GetTempPath();
 
-            configProviderMock.Setup(x => x.GetUserDataPath()).Returns(tempDir);
+            configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             services.AddLogging();
@@ -141,7 +141,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             var configProviderMock = new Mock<IConfigurationProviderService>();
             var tempDir = Path.GetTempPath();
 
-            configProviderMock.Setup(x => x.GetUserDataPath()).Returns(tempDir);
+            configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             // Add required dependencies
@@ -177,7 +177,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             var configProviderMock = new Mock<IConfigurationProviderService>();
             var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
-            configProviderMock.Setup(x => x.GetUserDataPath()).Returns(tempDir);
+            configProviderMock.Setup(x => x.GetWorkspacePath()).Returns(tempDir);
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             services.AddLogging();

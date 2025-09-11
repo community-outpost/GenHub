@@ -43,7 +43,7 @@ namespace GenHub.Tests.Core.Features.GameInstallations
                 Id = installationId,
             };
 
-            var detectionResult = DetectionResult<GameInstallation>.Succeeded(new[] { installation }, TimeSpan.Zero);
+            var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(new[] { installation }, TimeSpan.Zero);
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(detectionResult);
 
@@ -63,7 +63,7 @@ namespace GenHub.Tests.Core.Features.GameInstallations
         public async Task GetInstallationAsync_WithInvalidId_ShouldReturnFailure()
         {
             // Arrange
-            var detectionResult = DetectionResult<GameInstallation>.Succeeded(Array.Empty<GameInstallation>(), TimeSpan.Zero);
+            var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(Array.Empty<GameInstallation>(), TimeSpan.Zero);
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(detectionResult);
 
@@ -83,7 +83,7 @@ namespace GenHub.Tests.Core.Features.GameInstallations
         public async Task GetInstallationAsync_WithDetectionFailure_ShouldReturnFailure()
         {
             // Arrange
-            var detectionResult = DetectionResult<GameInstallation>.Failed("Detection failed");
+            var detectionResult = DetectionResult<GameInstallation>.CreateFailure("Detection failed");
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(detectionResult);
 

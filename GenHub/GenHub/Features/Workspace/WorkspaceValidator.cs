@@ -442,7 +442,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         issues.Add(new ValidationIssue
                         {
-                            IssueType = ValidationIssueType.BrokenLink,
+                            IssueType = ValidationIssueType.MissingFile,
                             Severity = ValidationSeverity.Error,
                             Message = $"Broken symlink: {file} -> {targetPath}",
                             Path = file,

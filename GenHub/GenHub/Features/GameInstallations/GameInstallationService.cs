@@ -97,7 +97,7 @@ namespace GenHub.Features.GameInstallations
                 var detectionResult = await _detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
                 if (detectionResult.Success)
                 {
-                    _cachedInstallations = detectionResult.Installations;
+                    _cachedInstallations = detectionResult.Items;
                 }
             }
             finally

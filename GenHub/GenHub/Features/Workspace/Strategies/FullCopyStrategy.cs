@@ -23,16 +23,6 @@ public sealed class FullCopyStrategy(
     ILogger<FullCopyStrategy> logger)
     : WorkspaceStrategyBase<FullCopyStrategy>(fileOperations, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FullCopyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">The file operations service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public FullCopyStrategy(IFileOperationsService fileOperations, ILogger<FullCopyStrategy> logger)
-        : base(fileOperations, logger)
-    {
-    }
-
     /// <inheritdoc/>
     public override string Name => "Full Copy";
 
@@ -58,17 +48,20 @@ public sealed class FullCopyStrategy(
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifest?.Files == null)
+        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalSize = 0;
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var manifest in configuration.Manifests)
         {
-            // Prevent negative sizes and overflow
-            long safeSize = Math.Max(0, file.Size);
-            if (long.MaxValue - totalSize < safeSize)
-                return long.MaxValue; // Indicate overflow
-            totalSize += safeSize;
+            foreach (var file in manifest.Files)
+            {
+                // Prevent negative sizes and overflow
+                long safeSize = Math.Max(0, file.Size);
+                if (long.MaxValue - totalSize < safeSize)
+                    return long.MaxValue; // Indicate overflow
+                totalSize += safeSize;
+            }
         }
 
         return totalSize;
@@ -119,19 +112,6 @@ public sealed class FullCopyStrategy(
 
                 try
                 {
-                    // Use CAS content
-                    await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                }
-                else
-                {
-                    // Use regular file from base installation
-                    var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-
-                    if (!ValidateSourceFile(sourcePath, file.RelativePath))
-                    {
-                        continue;
-                    }
-
                     // Handle different source types
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
@@ -173,13 +153,12 @@ public sealed class FullCopyStrategy(
                     throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
                 }
 
-                totalBytesProcessed += file.Size;
                 processedFiles++;
                 ReportProgress(progress, processedFiles, totalFiles, "Copying", file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
-            workspaceInfo.Success = true;
+            workspaceInfo.IsPrepared = true;
 
             Logger.LogInformation(
                 "Full copy workspace prepared successfully at {WorkspacePath} with {FileCount} files ({TotalSize} bytes)",
@@ -199,52 +178,9 @@ public sealed class FullCopyStrategy(
         {
             Logger.LogError(ex, "Failed to prepare full copy workspace at {WorkspacePath}", workspacePath);
             CleanupWorkspaceOnFailure(workspacePath);
-            workspaceInfo.Success = false;
+            workspaceInfo.IsPrepared = false;
             workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
             return workspaceInfo;
-        }
-    }
-
-    /// <summary>
-    /// Copies a file from the CAS (Content Addressable Storage) to the specified target path.
-    /// </summary>
-    /// <param name="hash">The hash of the file in CAS.</param>
-    /// <param name="targetPath">The destination path for the copied file.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task that represents the asynchronous copy operation.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if the copy operation fails.</exception>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
-    {
-        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
-        if (!success)
-        {
-            Logger.LogError("Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, targetPath);
-            throw new InvalidOperationException($"Failed to copy from CAS for hash {hash} to {targetPath}");
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
-        {
-            return;
-        }
-
-        FileOperationsService.EnsureDirectoryExists(targetPath);
-
-        await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
-
-        // Verify file integrity if hash is provided
-        if (!string.IsNullOrEmpty(file.Hash))
-        {
-            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
-            if (!hashValid)
-            {
-                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-            }
         }
     }
 

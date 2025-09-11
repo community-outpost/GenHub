@@ -171,6 +171,10 @@ public class WorkspaceIntegrationTests : IDisposable
 
         var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
+        // Act
+        var result = await manager.PrepareWorkspaceAsync(config, null, CancellationToken.None);
+
+        // Assert
         Assert.True(result.Success, $"Workspace preparation failed: {(result.HasErrors ? result.FirstError : "An unknown error occurred.")}");
         Assert.NotNull(result.Data);
         Assert.True(Directory.Exists(result.Data.WorkspacePath));

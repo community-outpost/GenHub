@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
@@ -54,18 +55,18 @@ public class WorkspaceManager(
 
         var workspaceInfo = await strategy.PrepareAsync(configuration, progress, cancellationToken);
 
-        if (!workspaceInfo.Success)
+        if (!workspaceInfo.IsPrepared)
         {
             var messages = workspaceInfo.ValidationIssues?.Select(i => i.Message)
                            ?? new[] { "Workspace preparation failed" };
-            return OperationResult<WorkspaceInfo>.CreateFailure(messages);
+            return OperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", messages) ?? "Workspace preparation failed");
         }
 
         // Save workspace metadata
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
 
         // Track CAS references for the workspace
-        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifest, cancellationToken);
+        await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests, cancellationToken);
 
         _logger.LogInformation("Workspace {Id} prepared successfully at {Path}", workspaceInfo.Id, workspaceInfo.WorkspacePath);
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
@@ -176,9 +177,9 @@ public class WorkspaceManager(
         await SaveAllWorkspacesAsync(workspaces, cancellationToken);
     }
 
-    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, ContentManifest manifest, CancellationToken cancellationToken)
+    private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var casReferences = manifest.Files
+        var casReferences = manifests.SelectMany(m => m.Files)
             .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
             .Select(f => f.Hash!)
             .ToList();

@@ -15,25 +15,12 @@ namespace GenHub.Features.Workspace.Strategies;
 /// Workspace strategy that creates symbolic links to all game files.
 /// Minimal disk usage, requires administrator privileges.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
-/// </remarks>
 public sealed class SymlinkOnlyStrategy(
     IFileOperationsService fileOperations,
     ILogger<SymlinkOnlyStrategy> logger)
     : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
-{
-    private const long LinkOverheadBytes = 1024L;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SymlinkOnlyStrategy"/> class.
-    /// </summary>
-    /// <param name="fileOperations">Service for file operations.</param>
-    /// <param name="logger">Logger instance for logging.</param>
-    public SymlinkOnlyStrategy(IFileOperationsService fileOperations, ILogger<SymlinkOnlyStrategy> logger)
-        : base(fileOperations, logger)
     {
-    }
+    private const long LinkOverheadBytes = 1024L;
 
     /// <inheritdoc/>
     public override string Name => "Symlink Only";
@@ -102,7 +89,7 @@ public sealed class SymlinkOnlyStrategy(
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file using the base class method that has proper fallback logic
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -126,6 +113,8 @@ public sealed class SymlinkOnlyStrategy(
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, 0, configuration);
 
+            workspaceInfo.IsPrepared = true;
+
             Logger.LogInformation(
                 "Symlink-only workspace prepared successfully at {WorkspacePath} with {FileCount} symlinks",
                 workspacePath,
@@ -143,51 +132,9 @@ public sealed class SymlinkOnlyStrategy(
         {
             Logger.LogError(ex, "Failed to prepare symlink-only workspace at {WorkspacePath}", workspacePath);
             CleanupWorkspaceOnFailure(workspacePath);
-            workspaceInfo.Success = false;
+            workspaceInfo.IsPrepared = false;
             workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
             return workspaceInfo;
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
-    {
-        Logger.LogDebug("Creating CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
-        FileOperationsService.EnsureDirectoryExists(targetPath);
-
-        // Use the service method to create the link from CAS
-        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, cancellationToken);
-        if (!success)
-        {
-            throw new InvalidOperationException($"Failed to create symlink from CAS hash {hash} to {targetPath}");
-        }
-
-        Logger.LogDebug("Successfully created CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
-        {
-            return;
-        }
-
-        Logger.LogDebug("Creating symlink for local file {RelativePath} from {SourcePath} to {TargetPath}", file.RelativePath, sourcePath, targetPath);
-
-        FileOperationsService.EnsureDirectoryExists(targetPath);
-
-        try
-        {
-            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
-            Logger.LogDebug("Successfully created symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
-            throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
         }
     }
 

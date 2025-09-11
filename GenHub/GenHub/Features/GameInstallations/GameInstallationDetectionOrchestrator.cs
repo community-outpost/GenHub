@@ -42,8 +42,8 @@ public sealed class GameInstallationDetectionOrchestrator(
                 var result = await detector.DetectInstallationsAsync(cancellationToken);
                 if (result.Success)
                 {
-                    allGameInstallations.AddRange(result.Installations);
-                    logger.LogDebug("Detector {DetectorName} found {ResultCount} installations", detectorName, result.Installations.Count);
+                    allGameInstallations.AddRange(result.Items);
+                    logger.LogDebug("Detector {DetectorName} found {ResultCount} installations", detectorName, result.Items.Count);
                 }
                 else
                 {
@@ -82,6 +82,6 @@ public sealed class GameInstallationDetectionOrchestrator(
         CancellationToken cancellationToken = default)
     {
         var result = await DetectAllInstallationsAsync(cancellationToken);
-        return result.Success ? result.Installations.ToList() : new List<GameInstallation>();
+        return result.Success ? result.Items.ToList() : new List<GameInstallation>();
     }
 }

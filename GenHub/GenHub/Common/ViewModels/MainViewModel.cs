@@ -158,7 +158,7 @@ public partial class MainViewModel : ObservableObject
 
             if (result.Success)
             {
-                foreach (var installation in result.Installations)
+                foreach (var installation in result.Items)
                 {
                     var installationString = installation?.ToString();
                     if (!string.IsNullOrEmpty(installationString))
@@ -167,7 +167,7 @@ public partial class MainViewModel : ObservableObject
                     }
                 }
 
-                _logger?.LogInformation("Found {Count} game installations", result.Installations.Count);
+                _logger?.LogInformation("Found {Count} game installations", result.Items.Count);
             }
             else
             {

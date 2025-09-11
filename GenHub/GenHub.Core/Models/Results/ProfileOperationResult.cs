@@ -15,7 +15,7 @@ public class ProfileOperationResult<T> : OperationResult<T>
     /// <param name="errorCode">The error code, if any.</param>
     /// <param name="elapsed">The elapsed time.</param>
     protected ProfileOperationResult(bool success, T? data, string? error = null, string? errorCode = null, TimeSpan elapsed = default)
-        : base(success, data, error, elapsed)
+        : base(success, data, error != null ? new[] { error } : null, elapsed)
     {
         ErrorCode = errorCode;
     }

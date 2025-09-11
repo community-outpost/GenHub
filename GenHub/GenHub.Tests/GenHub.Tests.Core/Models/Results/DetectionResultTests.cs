@@ -20,7 +20,7 @@ public class DetectionResultTests
         var elapsed = TimeSpan.FromSeconds(1);
         var result = DetectionResult<string>.CreateSuccess(items, elapsed);
         Assert.True(result.Success);
-        Assert.Equal(items, result.Installations);
+        Assert.Equal(items, result.Items);
         Assert.Equal(elapsed, result.Elapsed);
         Assert.Empty(result.Errors);
     }
@@ -34,7 +34,7 @@ public class DetectionResultTests
         var error = "fail";
         var result = DetectionResult<string>.CreateFailure(error);
         Assert.False(result.Success);
-        Assert.Empty(result.Installations);
+        Assert.Empty(result.Items);
         Assert.Contains(error, result.Errors);
     }
 }

@@ -14,27 +14,14 @@ namespace GenHub.Common.Services;
 /// Unified configuration service that intelligently combines app config and user settings to provide effective values.
 /// This is the single service that other components should depend on for all configuration needs.
 /// </summary>
-public class ConfigurationProviderService : IConfigurationProviderService
+public class ConfigurationProviderService(
+    IAppConfiguration appConfig,
+    IUserSettingsService userSettings,
+    ILogger<ConfigurationProviderService> logger) : IConfigurationProviderService
 {
-    private readonly IAppConfiguration _appConfig;
-    private readonly IUserSettingsService _userSettings;
-    private readonly ILogger<ConfigurationProviderService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConfigurationProviderService"/> class.
-    /// </summary>
-    /// <param name="appConfig">The application-level configuration service.</param>
-    /// <param name="userSettings">The user settings service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public ConfigurationProviderService(
-        IAppConfiguration appConfig,
-        IUserSettingsService userSettings,
-        ILogger<ConfigurationProviderService> logger)
-    {
-        _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
-        _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IAppConfiguration _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
+    private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
+    private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc />
     public string GetWorkspacePath()

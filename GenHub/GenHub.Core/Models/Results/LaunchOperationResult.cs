@@ -24,7 +24,7 @@ public class LaunchOperationResult<T> : OperationResult<T>
         string? launchId = null,
         string? profileId = null,
         TimeSpan elapsed = default)
-        : base(success, data, error, elapsed)
+        : base(success, data, error != null ? new[] { error } : null, elapsed)
     {
         LaunchId = launchId;
         ProfileId = profileId;

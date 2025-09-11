@@ -17,518 +17,503 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace GenHub.Tests.Core.Features.Launching
+namespace GenHub.Tests.Core.Features.Launching;
+
+/// <summary>
+/// Tests for <see cref="GameLauncher"/>.
+/// </summary>
+public class GameLauncherTests
 {
+    private readonly Mock<IGameProfileManager> _profileManagerMock = new();
+    private readonly Mock<IWorkspaceManager> _workspaceManagerMock = new();
+    private readonly Mock<IGameProcessManager> _processManagerMock = new();
+    private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
+    private readonly Mock<ILaunchRegistry> _launchRegistryMock = new();
+    private readonly Mock<ILogger<GameLauncher>> _loggerMock = new();
+    private readonly GameLauncher _gameLauncher;
+
     /// <summary>
-    /// Tests for <see cref="GameLauncher"/>.
+    /// Initializes a new instance of the <see cref="GameLauncherTests"/> class.
     /// </summary>
-    public class GameLauncherTests
+    public GameLauncherTests()
     {
-        private readonly Mock<IGameProfileManager> _profileManagerMock;
-        private readonly Mock<IWorkspaceManager> _workspaceManagerMock;
-        private readonly Mock<IGameProcessManager> _processManagerMock;
-        private readonly Mock<IContentManifestPool> _manifestPoolMock;
-        private readonly Mock<ILaunchRegistry> _launchRegistryMock;
-        private readonly Mock<ILogger<GameLauncher>> _loggerMock;
-        private readonly GameLauncher _gameLauncher;
+        _gameLauncher = new GameLauncher(_loggerMock.Object);
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="GameLauncherTests"/> class.
-        /// </summary>
-        public GameLauncherTests()
+    /// <summary>
+    /// Launches a profile asynchronously and asserts success.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithValidProfile_ShouldSucceed()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
+        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(processInfo.ProcessId, result.Data.ProcessInfo.ProcessId);
+        _launchRegistryMock.Verify(x => x.RegisterLaunchAsync(It.Is<GameLaunchInfo>(i => i.ProfileId == profile.Id)), Times.Once);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously with a non-existent profile and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithProfileNotFound_ShouldFail()
+    {
+        // Arrange
+        var profileId = Guid.NewGuid().ToString();
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile not found"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Profile not found", result.FirstError);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously with a missing manifest and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithManifestNotFound_ShouldFail()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Manifest not found"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Failed to resolve content", result.FirstError!);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously with null manifest and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithNullManifest_ShouldFail()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Failed to resolve content", result.FirstError!);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously with workspace preparation failure and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithWorkspaceFailure_ShouldFail()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateFailure("Workspace prep failed"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Workspace prep failed", result.FirstError);
+    }
+
+    /// <summary>
+    /// Launches a profile asynchronously with process start failure and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithProcessStartFailure_ShouldFail()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateFailure("Process start failed"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Process start failed", result.FirstError);
+    }
+
+    /// <summary>
+    /// Terminates a game asynchronously with a valid launch ID and asserts success.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateGameAsync_WithValidLaunchId_ShouldSucceed()
+    {
+        // Arrange
+        var launchId = Guid.NewGuid().ToString();
+        var launchInfo = new GameLaunchInfo
         {
-            _profileManagerMock = new Mock<IGameProfileManager>();
-            _workspaceManagerMock = new Mock<IWorkspaceManager>();
-            _processManagerMock = new Mock<IGameProcessManager>();
-            _manifestPoolMock = new Mock<IContentManifestPool>();
-            _launchRegistryMock = new Mock<ILaunchRegistry>();
-            _loggerMock = new Mock<ILogger<GameLauncher>>();
+            LaunchId = launchId,
+            ProfileId = "p1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+            LaunchedAt = DateTime.UtcNow,
+        };
 
-            _gameLauncher = new GameLauncher(
-                _profileManagerMock.Object,
-                _workspaceManagerMock.Object,
-                _manifestPoolMock.Object,
-                _processManagerMock.Object,
-                _launchRegistryMock.Object,
-                _loggerMock.Object);
-        }
+        _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync(launchInfo);
+        _processManagerMock.Setup(x => x.TerminateProcessAsync(123, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        /// <summary>
-        /// Launches a profile asynchronously and asserts success.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithValidProfile_ShouldSucceed()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
-            var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
-            var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        // Act
+        var result = await _gameLauncher.TerminateGameAsync(launchId);
 
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        // Assert
+        Assert.True(result.Success);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Once);
+    }
 
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+    /// <summary>
+    /// Terminates a game asynchronously with an invalid launch ID and asserts failure.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateGameAsync_WithInvalidLaunchId_ShouldFail()
+    {
+        // Arrange
+        var launchId = Guid.NewGuid().ToString();
+        _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync((GameLaunchInfo?)null);
 
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        // Act
+        var result = await _gameLauncher.TerminateGameAsync(launchId);
 
-            _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Launch ID not found", result.FirstError);
+    }
 
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+    /// <summary>
+    /// Launches a profile asynchronously with progress tracking and asserts progress is reported.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithProgressTracking_ShouldReportProgress()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", IsPrepared = true, ExecutablePath = "game.exe" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
+        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        var progressReports = new List<LaunchProgress>();
+        var progressLock = new object();
+        var progressComplete = new TaskCompletionSource<bool>();
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Data);
-            Assert.Equal(processInfo.ProcessId, result.Data.ProcessInfo.ProcessId);
-            _launchRegistryMock.Verify(x => x.RegisterLaunchAsync(It.Is<GameLaunchInfo>(i => i.ProfileId == profile.Id)), Times.Once);
-        }
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
-        /// <summary>
-        /// Launches a profile asynchronously with a non-existent profile and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithProfileNotFound_ShouldFail()
-        {
-            // Arrange
-            var profileId = Guid.NewGuid().ToString();
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Profile not found"));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
 
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profileId);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Profile not found", result.FirstError);
-        }
-
-        /// <summary>
-        /// Launches a profile asynchronously with a missing manifest and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithManifestNotFound_ShouldFail()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Manifest not found"));
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Failed to resolve content", result.FirstError!);
-        }
-
-        /// <summary>
-        /// Launches a profile asynchronously with null manifest and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithNullManifest_ShouldFail()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Failed to resolve content", result.FirstError!);
-        }
-
-        /// <summary>
-        /// Launches a profile asynchronously with workspace preparation failure and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithWorkspaceFailure_ShouldFail()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateFailure("Workspace prep failed"));
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Workspace prep failed", result.FirstError);
-        }
-
-        /// <summary>
-        /// Launches a profile asynchronously with process start failure and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithProcessStartFailure_ShouldFail()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
-            var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
-            _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<GameProcessInfo>.CreateFailure("Process start failed"));
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Process start failed", result.FirstError);
-        }
-
-        /// <summary>
-        /// Terminates a game asynchronously with a valid launch ID and asserts success.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task TerminateGameAsync_WithValidLaunchId_ShouldSucceed()
-        {
-            // Arrange
-            var launchId = Guid.NewGuid().ToString();
-            var launchInfo = new GameLaunchInfo
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback<WorkspaceConfiguration, IProgress<WorkspacePreparationProgress>, CancellationToken>((_, p, _) =>
             {
-                LaunchId = launchId,
-                ProfileId = "p1",
-                WorkspaceId = "workspace1",
-                ProcessInfo = new GameProcessInfo { ProcessId = 123 },
-                LaunchedAt = DateTime.UtcNow,
-            };
+                // Simulate workspace progress reporting that will trigger launcher progress updates
+                p?.Report(new WorkspacePreparationProgress { FilesProcessed = 1, TotalFiles = 4, CurrentOperation = "Copying", CurrentFile = "test.exe" });
+                p?.Report(new WorkspacePreparationProgress { FilesProcessed = 2, TotalFiles = 4, CurrentOperation = "Copying", CurrentFile = "config.ini" });
+                p?.Report(new WorkspacePreparationProgress { FilesProcessed = 3, TotalFiles = 4, CurrentOperation = "Linking", CurrentFile = "data.big" });
+                p?.Report(new WorkspacePreparationProgress { FilesProcessed = 4, TotalFiles = 4, CurrentOperation = "Finalizing", CurrentFile = string.Empty });
+            })
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
 
-            _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync(launchInfo);
-            _processManagerMock.Setup(x => x.TerminateProcessAsync(123, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
 
-            // Act
-            var result = await _gameLauncher.TerminateGameAsync(launchId);
-
-            // Assert
-            Assert.True(result.Success);
-            _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Once);
-        }
-
-        /// <summary>
-        /// Terminates a game asynchronously with an invalid launch ID and asserts failure.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task TerminateGameAsync_WithInvalidLaunchId_ShouldFail()
+        var progress = new Progress<LaunchProgress>(p =>
         {
-            // Arrange
-            var launchId = Guid.NewGuid().ToString();
-            _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync((GameLaunchInfo?)null);
-
-            // Act
-            var result = await _gameLauncher.TerminateGameAsync(launchId);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Launch ID not found", result.FirstError);
-        }
-
-        /// <summary>
-        /// Launches a profile asynchronously with progress tracking and asserts progress is reported.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithProgressTracking_ShouldReportProgress()
-        {
-            // Arrange
-            var profile = CreateTestProfile();
-            var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", Success = true, ExecutablePath = "game.exe" };
-            var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
-            var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
-            var progressReports = new List<LaunchProgress>();
-            var progressLock = new object();
-            var progressComplete = new TaskCompletionSource<bool>();
-
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .Callback<WorkspaceConfiguration, IProgress<WorkspacePreparationProgress>, CancellationToken>((_, p, _) =>
-                {
-                    // Simulate workspace progress reporting that will trigger launcher progress updates
-                    p?.Report(new WorkspacePreparationProgress { FilesProcessed = 1, TotalFiles = 4, CurrentOperation = "Copying", CurrentFile = "test.exe" });
-                    p?.Report(new WorkspacePreparationProgress { FilesProcessed = 2, TotalFiles = 4, CurrentOperation = "Copying", CurrentFile = "config.ini" });
-                    p?.Report(new WorkspacePreparationProgress { FilesProcessed = 3, TotalFiles = 4, CurrentOperation = "Linking", CurrentFile = "data.big" });
-                    p?.Report(new WorkspacePreparationProgress { FilesProcessed = 4, TotalFiles = 4, CurrentOperation = "Finalizing", CurrentFile = string.Empty });
-                })
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
-
-            _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
-
-            var progress = new Progress<LaunchProgress>(p =>
-            {
-                lock (progressLock)
-                {
-                    progressReports.Add(p);
-                    if (p.Phase == LaunchPhase.Running)
-                    {
-                        progressComplete.TrySetResult(true);
-                    }
-                }
-            });
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile.Id, progress);
-
-            // Wait for Running phase to be reported (with timeout)
-            await Task.WhenAny(progressComplete.Task, Task.Delay(1000));
-
-            // Assert
-            Assert.True(result.Success);
-            List<LaunchProgress> reports;
             lock (progressLock)
             {
-                reports = progressReports.ToList(); // Create a copy for safe enumeration
+                progressReports.Add(p);
+                if (p.Phase == LaunchPhase.Running)
+                {
+                    progressComplete.TrySetResult(true);
+                }
             }
+        });
 
-            Assert.NotEmpty(reports);
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id, progress);
 
-            // Verify all expected phases are present
-            Assert.Contains(reports, p => p.Phase == LaunchPhase.ValidatingProfile);
-            Assert.Contains(reports, p => p.Phase == LaunchPhase.ResolvingContent);
-            Assert.Contains(reports, p => p.Phase == LaunchPhase.PreparingWorkspace);
-            Assert.Contains(reports, p => p.Phase == LaunchPhase.Starting);
-            Assert.Contains(reports, p => p.Phase == LaunchPhase.Running);
+        // Wait for Running phase to be reported (with timeout)
+        await Task.WhenAny(progressComplete.Task, Task.Delay(1000));
 
-            // Verify progress percentages are reasonable
-            Assert.Contains(reports, p => p.PercentComplete == 0);   // ValidatingProfile
-            Assert.Contains(reports, p => p.PercentComplete == 10);  // ResolvingContent
-            Assert.Contains(reports, p => p.PercentComplete >= 40 && p.PercentComplete < 90);  // PreparingWorkspace (multiple reports)
-            Assert.Contains(reports, p => p.PercentComplete == 90);  // Starting
-            Assert.Contains(reports, p => p.PercentComplete == 100); // Running
+        // Assert
+        Assert.True(result.Success);
+        List<LaunchProgress> reports;
+        lock (progressLock)
+        {
+            reports = progressReports.ToList(); // Create a copy for safe enumeration
         }
 
-        /// <summary>
-        /// Launches a profile with cancellation token and verifies cancellation is handled.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithCancellation_ShouldRespectCancellation()
+        Assert.NotEmpty(reports);
+
+        // Verify all expected phases are present
+        Assert.Contains(reports, p => p.Phase == LaunchPhase.ValidatingProfile);
+        Assert.Contains(reports, p => p.Phase == LaunchPhase.ResolvingContent);
+        Assert.Contains(reports, p => p.Phase == LaunchPhase.PreparingWorkspace);
+        Assert.Contains(reports, p => p.Phase == LaunchPhase.Starting);
+        Assert.Contains(reports, p => p.Phase == LaunchPhase.Running);
+
+        // Verify progress percentages are reasonable
+        Assert.Contains(reports, p => p.PercentComplete == 0);   // ValidatingProfile
+        Assert.Contains(reports, p => p.PercentComplete == 10);  // ResolvingContent
+        Assert.Contains(reports, p => p.PercentComplete >= 40 && p.PercentComplete < 90);  // PreparingWorkspace (multiple reports)
+        Assert.Contains(reports, p => p.PercentComplete == 90);  // Starting
+        Assert.Contains(reports, p => p.PercentComplete == 100); // Running
+    }
+
+    /// <summary>
+    /// Launches a profile with cancellation token and verifies cancellation is handled.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithCancellation_ShouldRespectCancellation()
+    {
+        // Arrange
+        var profileId = "test-profile";
+        var cts = new CancellationTokenSource();
+        cts.Cancel(); // Cancel immediately
+
+        // Act & Assert
+        await Assert.ThrowsAsync<TaskCanceledException>(async () =>
         {
-            // Arrange
-            var profileId = "test-profile";
-            var cts = new CancellationTokenSource();
-            cts.Cancel(); // Cancel immediately
+            await _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token);
+        });
+    }
 
-            // Act & Assert
-            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
-            {
-                await _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token);
-            });
-        }
+    /// <summary>
+    /// Launches a profile with empty enabled content and asserts success.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithEmptyEnabledContent_ShouldSucceed()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.EnabledContentIds = new List<string>(); // Empty content
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
 
-        /// <summary>
-        /// Launches a profile with empty enabled content and asserts success.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithEmptyEnabledContent_ShouldSucceed()
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+    }
+
+    /// <summary>
+    /// Terminates a game with process termination failure and asserts partial success.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldStillUnregister()
+    {
+        // Arrange
+        var launchId = Guid.NewGuid().ToString();
+        var launchInfo = new GameLaunchInfo
         {
-            // Arrange
-            var profile = CreateTestProfile();
-            profile.EnabledContentIds = new List<string>(); // Empty content
-            var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
-            var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
+            LaunchId = launchId,
+            ProfileId = "p1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = 123 },
+            LaunchedAt = DateTime.UtcNow,
+        };
 
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync(launchInfo);
+        _processManagerMock.Setup(x => x.TerminateProcessAsync(123, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Process termination failed"));
 
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        // Act
+        var result = await _gameLauncher.TerminateGameAsync(launchId);
 
-            _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Process termination failed", result.FirstError);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Once);
+    }
 
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.NotNull(result.Data);
-        }
-
-        /// <summary>
-        /// Terminates a game with process termination failure and asserts partial success.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldStillUnregister()
-        {
-            // Arrange
-            var launchId = Guid.NewGuid().ToString();
-            var launchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = "p1",
-                WorkspaceId = "workspace1",
-                ProcessInfo = new GameProcessInfo { ProcessId = 123 },
-                LaunchedAt = DateTime.UtcNow,
-            };
-
-            _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync(launchId)).ReturnsAsync(launchInfo);
-            _processManagerMock.Setup(x => x.TerminateProcessAsync(123, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<bool>.CreateFailure("Process termination failed"));
-
-            // Act
-            var result = await _gameLauncher.TerminateGameAsync(launchId);
-
-            // Assert
-            Assert.False(result.Success);
-            Assert.Contains("Process termination failed", result.FirstError);
-            _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Once);
-        }
-
-        /// <summary>
-        /// Gets all active launches and verifies registry interaction.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task GetActiveGamesAsync_ShouldReturnActiveProcesses()
-        {
-            // Arrange
-            var activeProcesses = new List<GameProcessInfo>
+    /// <summary>
+    /// Gets all active launches and verifies registry interaction.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task GetActiveGamesAsync_ShouldReturnActiveProcesses()
+    {
+        // Arrange
+        var activeProcesses = new List<GameProcessInfo>
             {
                 new() { ProcessId = 123, ProcessName = "game1.exe" },
                 new() { ProcessId = 456, ProcessName = "game2.exe" },
             };
 
-            _processManagerMock.Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess(activeProcesses));
+        _processManagerMock.Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess(activeProcesses));
 
-            // Act
-            var result = await _gameLauncher.GetActiveGamesAsync();
+        // Act
+        var result = await _gameLauncher.GetActiveGamesAsync();
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.Equal(2, result.Data!.Count);
-            Assert.Contains(result.Data, p => p.ProcessId == 123);
-            Assert.Contains(result.Data, p => p.ProcessId == 456);
-        }
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.Count);
+        Assert.Contains(result.Data, p => p.ProcessId == 123);
+        Assert.Contains(result.Data, p => p.ProcessId == 456);
+    }
 
-        /// <summary>
-        /// Gets launch registry information through the registry service.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchRegistry_ShouldTrackActiveLaunches()
-        {
-            // Arrange
-            var activeLaunches = new List<GameLaunchInfo>
+    /// <summary>
+    /// Gets launch registry information through the registry service.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchRegistry_ShouldTrackActiveLaunches()
+    {
+        // Arrange
+        var activeLaunches = new List<GameLaunchInfo>
             {
                 new() { LaunchId = "launch1", ProfileId = "profile1", WorkspaceId = "workspace1", ProcessInfo = new GameProcessInfo { ProcessId = 123 } },
                 new() { LaunchId = "launch2", ProfileId = "profile2", WorkspaceId = "workspace2", ProcessInfo = new GameProcessInfo { ProcessId = 456 } },
             };
 
-            _launchRegistryMock.Setup(x => x.GetAllActiveLaunchesAsync())
-                .ReturnsAsync(activeLaunches);
+        _launchRegistryMock.Setup(x => x.GetAllActiveLaunchesAsync())
+            .ReturnsAsync(activeLaunches);
 
-            // Act - Test the registry directly since GameLauncher doesn't expose this method
-            var result = await _launchRegistryMock.Object.GetAllActiveLaunchesAsync();
+        // Act - Test the registry directly since GameLauncher doesn't expose this method
+        var result = await _launchRegistryMock.Object.GetAllActiveLaunchesAsync();
 
-            // Assert
-            Assert.Equal(2, result.Count());
-            Assert.Contains(result, l => l.LaunchId == "launch1");
-            Assert.Contains(result, l => l.LaunchId == "launch2");
+        // Assert
+        Assert.Equal(2, result.Count());
+        Assert.Contains(result, l => l.LaunchId == "launch1");
+        Assert.Contains(result, l => l.LaunchId == "launch2");
 
-            // Verify that the launcher can retrieve individual launch info
-            _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync("launch1"))
-                .ReturnsAsync(activeLaunches[0]);
+        // Verify that the launcher can retrieve individual launch info
+        _launchRegistryMock.Setup(x => x.GetLaunchInfoAsync("launch1"))
+            .ReturnsAsync(activeLaunches[0]);
 
-            var individualResult = await _launchRegistryMock.Object.GetLaunchInfoAsync("launch1");
-            Assert.NotNull(individualResult);
-            Assert.Equal("launch1", individualResult.LaunchId);
-        }
+        var individualResult = await _launchRegistryMock.Object.GetLaunchInfoAsync("launch1");
+        Assert.NotNull(individualResult);
+        Assert.Equal("launch1", individualResult.LaunchId);
+    }
 
-        /// <summary>
-        /// Launches a profile with multiple content manifests and verifies all are resolved.
-        /// </summary>
-        /// <returns>The async task.</returns>
-        [Fact]
-        public async Task LaunchProfileAsync_WithMultipleContentManifests_ShouldResolveAll()
+    /// <summary>
+    /// Launches a profile with multiple content manifests and verifies all are resolved.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithMultipleContentManifests_ShouldResolveAll()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.EnabledContentIds = new List<string> { "manifest1", "manifest2", "manifest3" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Setup multiple manifests
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest1" }));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest2" }));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest3" }));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile);
+
+        // Assert
+        Assert.True(result.Success);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Creates a test <see cref="GameProfile"/> with required members set.
+    /// </summary>
+    /// <returns>A valid <see cref="GameProfile"/>.</returns>
+    private GameProfile CreateTestProfile()
+    {
+        return new GameProfile
         {
-            // Arrange
-            var profile = CreateTestProfile();
-            profile.EnabledContentIds = new List<string> { "manifest1", "manifest2", "manifest3" };
-            var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
-            var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
-
-            _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-
-            // Setup multiple manifests
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest1" }));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest2" }));
-            _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest3" }));
-
-            _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
-
-            _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
-
-            // Act
-            var result = await _gameLauncher.LaunchProfileAsync(profile);
-
-            // Assert
-            Assert.True(result.Success);
-            _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()), Times.Once);
-            _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()), Times.Once);
-            _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        /// <summary>
-        /// Creates a test <see cref="GameProfile"/> with required members set.
-        /// </summary>
-        /// <returns>A valid <see cref="GameProfile"/>.</returns>
-        private GameProfile CreateTestProfile()
-        {
-            return new GameProfile
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = "Test Profile",
-                GameInstallationId = "install-1",
-                GameVersionId = "version-1",
-                GameVersion = new GameVersion { Id = "version-1", ExecutablePath = @"C:\Games\game.exe" },
-                EnabledContentIds = new List<string> { "manifest1" },
-            };
-        }
+            Id = Guid.NewGuid().ToString(),
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameVersion = new GameVersion { Id = "version-1", ExecutablePath = @"C:\Games\game.exe" },
+            EnabledContentIds = new List<string> { "manifest1" },
+        };
     }
 }

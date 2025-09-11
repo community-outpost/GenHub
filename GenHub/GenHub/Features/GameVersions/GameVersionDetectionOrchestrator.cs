@@ -40,16 +40,16 @@ public sealed class GameVersionDetectionOrchestrator(
                 return DetectionResult<GameVersion>.CreateFailure(string.Join("; ", result.Errors));
             }
 
-            logger.LogDebug("Found {InstallationCount} installations, detecting versions", result.Installations.Count);
+            logger.LogDebug("Found {InstallationCount} installations, detecting versions", result.Items.Count);
 
             var allVersions = new List<GameVersion>();
             var errors = new List<string>();
 
-            var versionResult = await versionDetector.DetectVersionsFromInstallationsAsync(result.Installations, cancellationToken);
+            var versionResult = await versionDetector.DetectVersionsFromInstallationsAsync(result.Items, cancellationToken);
             if (versionResult.Success)
             {
-                allVersions.AddRange(versionResult.Installations);
-                logger.LogInformation("Successfully detected {VersionCount} game versions", versionResult.Installations.Count);
+                allVersions.AddRange(versionResult.Items);
+                logger.LogInformation("Successfully detected {VersionCount} game versions", versionResult.Items.Count);
             }
             else
             {
@@ -83,6 +83,6 @@ public sealed class GameVersionDetectionOrchestrator(
     {
         logger.LogDebug("Getting detected versions");
         var result = await DetectAllVersionsAsync(cancellationToken);
-        return result.Success ? result.Installations.ToList() : new List<GameVersion>();
+        return result.Success ? result.Items.ToList() : new List<GameVersion>();
     }
 }

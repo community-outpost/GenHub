@@ -17,23 +17,52 @@ namespace GenHub.Tests.Core.Features.Workspace
     /// </summary>
     public class WorkspaceManagerTests : IDisposable
     {
-        var mockConfigProvider = new Mock<IConfigurationProviderService>();
-        mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
+        private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
+        private readonly Mock<ILogger<WorkspaceManager>> _mockLogger;
+        private readonly IWorkspaceStrategy[] _strategies;
+        private readonly CasReferenceTracker _casReferenceTracker;
+        private readonly WorkspaceManager _manager;
 
-        var mockLogger = new Mock<ILogger<WorkspaceManager>>();
-        var strategies = System.Array.Empty<IWorkspaceStrategy>();
-
-        // Create CasReferenceTracker with required dependencies
-        var mockCasConfig = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
-        mockCasConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = "/test/cas" });
-        var mockCasLogger = new Mock<ILogger<CasReferenceTracker>>();
-        var casReferenceTracker = new CasReferenceTracker(mockCasConfig.Object, mockCasLogger.Object);
-
-        var manager = new WorkspaceManager(strategies, mockConfigProvider.Object, mockLogger.Object, casReferenceTracker);
-        var config = new WorkspaceConfiguration
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WorkspaceManagerTests"/> class.
+        /// </summary>
+        public WorkspaceManagerTests()
         {
-            Strategy = (WorkspaceStrategy)999,
-        };
-        await Assert.ThrowsAsync<System.InvalidOperationException>(() => manager.PrepareWorkspaceAsync(config));
+            _mockConfigProvider = new Mock<IConfigurationProviderService>();
+            _mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
+
+            _mockLogger = new Mock<ILogger<WorkspaceManager>>();
+            _strategies = System.Array.Empty<IWorkspaceStrategy>();
+
+            // Create CasReferenceTracker with required dependencies
+            var mockCasConfig = new Mock<Microsoft.Extensions.Options.IOptions<CasConfiguration>>();
+            mockCasConfig.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = "/test/cas" });
+            var mockCasLogger = new Mock<ILogger<CasReferenceTracker>>();
+            _casReferenceTracker = new CasReferenceTracker(mockCasConfig.Object, mockCasLogger.Object);
+
+            _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker);
+        }
+
+        /// <summary>
+        /// Tests that PrepareWorkspaceAsync throws InvalidOperationException for invalid strategy.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task PrepareWorkspaceAsync_InvalidStrategy_ThrowsInvalidOperationException()
+        {
+            var config = new WorkspaceConfiguration
+            {
+                Strategy = (WorkspaceStrategy)999,
+            };
+            await Assert.ThrowsAsync<System.InvalidOperationException>(() => _manager.PrepareWorkspaceAsync(config));
+        }
+
+        /// <summary>
+        /// Disposes the test resources.
+        /// </summary>
+        public void Dispose()
+        {
+            // Cleanup if needed
+        }
     }
 }
