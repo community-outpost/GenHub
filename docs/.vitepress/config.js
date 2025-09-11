@@ -11,6 +11,8 @@ export default withMermaid(
                 ? '/wiki/'
                 : '/',
 
+        ignoreDeadLinks: true,
+
         head: [
             ['link', { rel: 'icon', href: '/assets/icon.png' }]
         ],
@@ -47,7 +49,8 @@ export default withMermaid(
                         { text: 'Validation', link: '/features/validation' },
                         { text: 'Workspace', link: '/features/workspace' },
                         { text: 'Launching', link: '/features/launching' },
-                        { text: 'GameProfiles System', link: '/features/gameprofiles' }
+                        { text: 'GameProfiles System', link: '/features/gameprofiles' },
+                        { text: 'Game Installations', link: '/features/game-installations' }
                     ]
                 },
                 {

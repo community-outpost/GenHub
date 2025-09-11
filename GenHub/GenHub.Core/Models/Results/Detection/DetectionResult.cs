@@ -23,5 +23,11 @@ public sealed class DetectionResult<T>(
     /// <param name="error">The error message.</param>
     /// <returns>A failed detection result.</returns>
     public static DetectionResult<T> CreateFailure(string error) =>
-        new DetectionResult<T>(false, Array.Empty<T>(), new[] { error }, TimeSpan.Zero);
+        CreateFailure(new[] { error });
+
+    /// <summary>Factory for a failed result with multiple errors.</summary>
+    /// <param name="errors">The error messages.</param>
+    /// <returns>A failed detection result.</returns>
+    public static DetectionResult<T> CreateFailure(IEnumerable<string> errors) =>
+        new DetectionResult<T>(false, Array.Empty<T>(), errors, TimeSpan.Zero);
 }

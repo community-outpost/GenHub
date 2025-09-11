@@ -3,8 +3,6 @@ title: Features Overview
 description: Comprehensive guide to GeneralsHub's core features and capabilities
 ---
 
-# Features Overview
-
 GeneralsHub provides a comprehensive suite of features designed to enhance your
 Command & Conquer: Generals and Zero Hour experience.  
 This section covers the core functionality that makes GeneralsHub the ultimate
@@ -27,6 +25,14 @@ you always have the newest features and fixes.
 Comprehensive content management for game files, mods, patches, and community
 creations. Supports multiple content providers (including GitHub repositories)
 and provides discovery, resolution, and delivery pipelines.
+
+---
+
+### [Game Installations](./game-installations)
+
+Automatic detection and management of game installations across multiple platforms.
+Scans for Command & Conquer Generals and Zero Hour installations, validates integrity,
+and provides seamless integration with launching and content management features.
 
 ---
 
@@ -116,7 +122,7 @@ Features integrate through well-defined interfaces and shared models:
 
 ## Feature Categories
 
-- **Installation & Setup**: Game installation, validation, and configuration  
+- **Installation & Setup**: Game installation detection, validation, and configuration  
 - **Content Management**: Mods, patches, add-ons, and community content  
 - **Profile Management**: Game profiles, workspaces, and custom configurations  
 - **Launching & Execution**: Advanced launch options and runtime monitoring  

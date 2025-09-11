@@ -1,7 +1,10 @@
+using System;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.GameInstallations;
+using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -9,8 +12,13 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for launching game profiles.
 /// </summary>
-public partial class GameProfileLauncherViewModel : ViewModelBase
+public partial class GameProfileLauncherViewModel(
+    IGameInstallationService? installationService,
+    ILogger<GameProfileLauncherViewModel>? logger) : ViewModelBase
 {
+    private readonly IGameInstallationService? _installationService = installationService;
+    private readonly ILogger<GameProfileLauncherViewModel>? _logger = logger;
+
     [ObservableProperty]
     private ObservableCollection<GameProfileItemViewModel> _profiles = new();
 
@@ -19,10 +27,14 @@ public partial class GameProfileLauncherViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isEditMode;
 
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileLauncherViewModel"/> class for design-time or test usage.
     /// </summary>
     public GameProfileLauncherViewModel()
+        : this(null, null)
     {
     }
 
@@ -54,20 +66,65 @@ public partial class GameProfileLauncherViewModel : ViewModelBase
     /// <summary>
     /// Gets the command to scan for games.
     /// </summary>
-    public IRelayCommand ScanForGamesCommand { get; } = new RelayCommand(() => { });
-
-    /// <summary>
-    /// Gets the command to create a new profile.
-    /// </summary>
     public IRelayCommand CreateNewProfileCommand { get; } = new RelayCommand(() => { });
 
     /// <summary>
     /// Performs asynchronous initialization for the Downloads tab.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public virtual Task InitializeAsync()
+    public virtual async Task InitializeAsync()
     {
-        return Task.CompletedTask;
+        try
+        {
+            StatusMessage = "Loading profiles...";
+            Profiles.Clear();
+
+            // TODO: Load actual profiles when IGameProfileManager is available
+            await Task.Delay(1); // Make method properly async
+            StatusMessage = "Profiles loaded";
+            _logger?.LogInformation("Game profile launcher initialized");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error initializing profiles");
+            StatusMessage = "Error loading profiles";
+        }
+    }
+
+    /// <summary>
+    /// Scans for games and refreshes installations.
+    /// </summary>
+    [RelayCommand]
+    private async Task ScanForGames()
+    {
+        if (_installationService == null || _logger == null)
+        {
+            StatusMessage = "Game installation service not available";
+            return;
+        }
+
+        try
+        {
+            StatusMessage = "Scanning for games...";
+
+            // Scan for all installations
+            var installations = await _installationService.GetAllInstallationsAsync();
+            if (installations.Success && installations.Data != null)
+            {
+                StatusMessage = $"Scan complete. Found {installations.Data.Count} game installations";
+                _logger.LogInformation("Game scan completed successfully. Found {Count} installations", installations.Data.Count);
+            }
+            else
+            {
+                StatusMessage = $"Scan failed: {string.Join(", ", installations.Errors)}";
+                _logger.LogWarning("Game scan failed: {Errors}", string.Join(", ", installations.Errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error scanning for games");
+            StatusMessage = "Error during scan";
+        }
     }
 
     /// <summary>
