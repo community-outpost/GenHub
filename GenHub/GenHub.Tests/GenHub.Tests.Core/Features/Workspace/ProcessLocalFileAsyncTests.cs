@@ -215,7 +215,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
         var config = CreateTestConfiguration(strategyType);
 
         // Add a file that doesn't exist in the source
-        config.Manifest.Files.Add(new ManifestFile
+        config.Manifests[0].Files.Add(new ManifestFile
         {
             RelativePath = "nonexistent.file",
             Size = 1000,
@@ -292,15 +292,18 @@ public class ProcessLocalFileAsyncTests : IDisposable
             WorkspaceRootPath = _tempWorkspaceDir,
             BaseInstallationPath = _tempSourceDir,
             GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest
+            Manifests = new List<ContentManifest>
             {
-                Files = new List<ManifestFile>
+                new ContentManifest
                 {
-                    new()
+                    Files = new List<ManifestFile>
                     {
-                        RelativePath = "test.exe",
-                        Size = 1000,
-                        SourceType = ContentSourceType.LocalFile,
+                        new()
+                        {
+                            RelativePath = "test.exe",
+                            Size = 1000,
+                            SourceType = ContentSourceType.LocalFile,
+                        },
                     },
                 },
             },

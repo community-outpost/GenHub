@@ -49,8 +49,9 @@ public class GameInstallationDetectionOrchestratorTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.Contains(instA, result.Items);
-        Assert.Contains(instB, result.Items);
+        Assert.Equal(2, result.Items.Count);
+        Assert.Contains(result.Items, i => i.InstallationPath == "C:\\Steam\\Games");
+        Assert.Contains(result.Items, i => i.InstallationPath == "C:\\EA\\Games");
     }
 
     /// <summary>

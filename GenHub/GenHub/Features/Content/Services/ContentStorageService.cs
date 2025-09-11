@@ -20,24 +20,20 @@ namespace GenHub.Features.Content.Services;
 /// <summary>
 /// Concrete implementation of content storage service.
 /// </summary>
-public class ContentStorageService : IContentStorageService
+public class ContentStorageService(
+    ILogger<ContentStorageService> logger,
+    IConfigurationProviderService configurationProviderService) : IContentStorageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private readonly string _storageRoot;
-    private readonly ILogger<ContentStorageService> _logger;
+    private readonly string _storageRoot = configurationProviderService.GetContentStoragePath();
+    private readonly ILogger<ContentStorageService> _logger = logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="configurationProviderService">The configuration provider service.</param>
-    public ContentStorageService(ILogger<ContentStorageService> logger, IConfigurationProviderService configurationProviderService)
+    public ContentStorageService()
+        : this(null!, null!)
     {
-        _logger = logger;
-
-        // Use configuration provider for content storage path
-        _storageRoot = configurationProviderService.GetContentStoragePath();
-
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
         var requiredDirs = new[]
         {

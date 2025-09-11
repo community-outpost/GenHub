@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 
-namespace GenHub.Core.Models.Gaming;
+namespace GenHub.Core.Models.GameProfile;
 
 /// <summary>
 /// Represents a user-defined game configuration combining game installation with selected content.

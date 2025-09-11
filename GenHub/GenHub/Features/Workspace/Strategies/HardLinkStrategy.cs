@@ -50,12 +50,12 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
             // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifest.Files.Count * LinkOverheadBytes;
+            return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
         }
         else
         {
             // Different volumes: will fall back to copying
-            return configuration.Manifest.Files.Sum(f => f.Size);
+            return configuration.Manifests.SelectMany(m => m.Files).Sum(f => f.Size);
         }
     }
 
@@ -74,6 +74,9 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Clean existing workspace if force recreate is requested
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
@@ -84,11 +87,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var estimatedTotalBytes = EstimateDiskUsage(configuration);
-
             var hardLinkedFiles = 0;
             var copiedFiles = 0;
 
@@ -105,12 +107,11 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     destRoot);
             }
 
-            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
-
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -118,15 +119,21 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
                 try
                 {
-                    FileOperationsService.EnsureDirectoryExists(destinationPath);
-
                     // Handle different source types
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         // Use CAS content
                         await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                        hardLinkedFiles++;
-                        totalBytesProcessed += LinkOverheadBytes;
+                        if (sameVolume)
+                        {
+                            hardLinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes;
+                        }
+                        else
+                        {
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
                     }
                     else
                     {
@@ -191,6 +198,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
+            workspaceInfo.IsPrepared = true;
 
             Logger.LogInformation(
                 "Hard link workspace prepared successfully at {WorkspacePath} with {HardLinked} hard links and {Copied} copies ({TotalSize} bytes)",
@@ -201,13 +209,19 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare hard link workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
-
-            throw;
+            workspaceInfo.IsPrepared = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 
@@ -218,20 +232,17 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     /// <param name="targetPath">The destination path where the hard link or copy should be created.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    /// <exception cref="InvalidOperationException">Thrown when both hard link creation and copy fallback fail.</exception>
     protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
     {
         var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, cancellationToken);
-        if (success)
-        {
-            return;
-        }
-
-        Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
-        success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
         if (!success)
         {
-            throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
+            Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
+            success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+            if (!success)
+            {
+                throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
+            }
         }
     }
 
