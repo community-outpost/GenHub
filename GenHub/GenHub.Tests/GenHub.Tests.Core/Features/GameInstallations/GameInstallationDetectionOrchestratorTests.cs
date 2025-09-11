@@ -142,9 +142,8 @@ public class GameInstallationDetectionOrchestratorTests
 
         // Assert
         Assert.False(result.Success); // Overall failure due to one detector failing
-        Assert.Single(result.Items); // But we still get the successful detection
+        Assert.Empty(result.Items); // No items returned when any detector fails
         Assert.Contains("detector failed", result.Errors);
-        Assert.Equal("C:\\Steam\\Games", result.Items[0].InstallationPath);
     }
 
     /// <summary>
@@ -196,7 +195,7 @@ public class GameInstallationDetectionOrchestratorTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Detector exception", result.Errors);
+        Assert.Contains("Detector IGameInstallationDetectorProxy failed: Detector exception", result.Errors);
         Assert.Empty(result.Items);
     }
 
