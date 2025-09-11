@@ -26,23 +26,23 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
     /// </summary>
     /// <param name="discoveredItem">The discovered content.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A ContentOperationResult&lt;ContentManifest&gt; containing the game manifest.</returns>
-    public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    /// <returns>A OperationResult&lt;ContentManifest&gt; containing the game manifest.</returns>
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
     {
         if (discoveredItem == null)
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure("ContentSearchResult cannot be null.");
+            return OperationResult<ContentManifest>.CreateFailure("ContentSearchResult cannot be null.");
         }
 
         if (string.IsNullOrWhiteSpace(discoveredItem.SourceUrl))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure("SourceUrl cannot be null or empty.");
+            return OperationResult<ContentManifest>.CreateFailure("SourceUrl cannot be null or empty.");
         }
 
         var manifestPath = discoveredItem.SourceUrl;
         if (!File.Exists(manifestPath))
         {
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Manifest file not found at: {manifestPath}");
+            return OperationResult<ContentManifest>.CreateFailure($"Manifest file not found at: {manifestPath}");
         }
 
         try
@@ -52,15 +52,15 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
 
             if (manifest == null)
             {
-                return ContentOperationResult<ContentManifest>.CreateFailure("Failed to deserialize manifest.");
+                return OperationResult<ContentManifest>.CreateFailure("Failed to deserialize manifest.");
             }
 
-            return ContentOperationResult<ContentManifest>.CreateSuccess(manifest);
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to resolve manifest from local file: {Path}", manifestPath);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Failed to read or parse local manifest: {ex.Message}");
         }
     }
 }

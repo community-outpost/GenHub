@@ -1,11 +1,13 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -50,7 +52,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
     }
 
     /// <inheritdoc />
-    public async Task<ContentOperationResult<ContentManifest>> DeliverContentAsync(
+    public async Task<OperationResult<ContentManifest>> DeliverContentAsync(
         ContentManifest packageManifest,
         string targetDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
@@ -69,7 +71,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                 var sourcePath = ResolveLocalPath(file, packageManifest.Id);
                 if (!File.Exists(sourcePath))
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure(
+                    return OperationResult<ContentManifest>.CreateFailure(
                         $"Local file not found: {sourcePath}");
                 }
 
@@ -100,10 +102,18 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                _hashProvider);
+                _hashProvider,
+                null!);
+
+            int manifestVersionInt;
+            if (!int.TryParse(packageManifest.Version, out manifestVersionInt))
+            {
+                _logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
+                return OperationResult<ContentManifest>.CreateFailure("Invalid manifest version format");
+            }
 
             manifestBuilder
-                .WithBasicInfo(packageManifest.Id, packageManifest.Name, packageManifest.Version)
+                .WithBasicInfo(packageManifest.Id, packageManifest.Name, manifestVersionInt)
                 .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
                 .WithPublisher(
                     packageManifest.Publisher?.Name ?? string.Empty,
@@ -165,17 +175,17 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
 
             var deliveredManifest = manifestBuilder.Build();
 
-            return ContentOperationResult<ContentManifest>.CreateSuccess(deliveredManifest);
+            return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to deliver local content for manifest {ManifestId}", packageManifest.Id);
-            return ContentOperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
+            return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
 
     /// <inheritdoc />
-    public Task<ContentOperationResult<bool>> ValidateContentAsync(
+    public Task<OperationResult<bool>> ValidateContentAsync(
         ContentManifest manifest, CancellationToken cancellationToken = default)
     {
         try
@@ -185,16 +195,16 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                 var sourcePath = ResolveLocalPath(file, manifest.Id);
                 if (!File.Exists(sourcePath))
                 {
-                    return Task.FromResult(ContentOperationResult<bool>.CreateSuccess(false));
+                    return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
                 }
             }
 
-            return Task.FromResult(ContentOperationResult<bool>.CreateSuccess(true));
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
-            return Task.FromResult(ContentOperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
 

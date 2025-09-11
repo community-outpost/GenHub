@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,26 +34,27 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
     /// </summary>
     /// <param name="discoveredItem">The discovered content item to resolve.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A <see cref="ContentOperationResult{ContentManifest}"/> containing the resolved details.</returns>
-    public async Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved details.</returns>
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default)
+    {
+        if (discoveredItem?.SourceUrl == null)
         {
-            if (discoveredItem?.SourceUrl == null)
-            {
-                return ContentOperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
-            }
+            return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
+        }
 
-            try
+        try
             {
                 var response = await _httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
                 var mapDetails = ParseMapDetailPage(response);
 
                 if (string.IsNullOrEmpty(mapDetails.downloadUrl))
                 {
-                    return ContentOperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
+                    return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
                 }
 
+                var manifestVersionInt = int.TryParse(mapDetails.version, out var parsedVersion) ? parsedVersion : 0;
                 var manifest = _manifestBuilder
-                    .WithBasicInfo(discoveredItem.Id, mapDetails.name, mapDetails.version)
+                    .WithBasicInfo(discoveredItem.Id, mapDetails.name, manifestVersionInt)
                     .WithContentType(ContentType.MapPack, GameType.ZeroHour)
                     .WithPublisher(mapDetails.author)
                     .WithMetadata(
@@ -70,12 +72,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
                 // Add required directories for maps
                 manifest.AddRequiredDirectories("Maps");
 
-                return ContentOperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+                return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
-                return ContentOperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
+                return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
             }
         }
 
@@ -94,12 +96,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
             author: string.Empty,
             previewImage: string.Empty,
             screenshots: new List<string>(),
-            fileSize: 0,
-            downloadCount: 0,
+            fileSize: ContentConstants.DefaultFileSize,
+            downloadCount: ContentConstants.DefaultDownloadCount,
             submissionDate: DateTime.MinValue,
             downloadUrl: string.Empty,
             fileType: string.Empty,
-            rating: 0f);
+            rating: ContentConstants.DefaultRating);
     }
 
     /// <summary>
@@ -124,12 +126,12 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
         string author = "",
         string previewImage = "",
         List<string>? screenshots = null,
-        long fileSize = 0,
-        int downloadCount = 0,
+        long fileSize = ContentConstants.DefaultFileSize,
+        int downloadCount = ContentConstants.DefaultDownloadCount,
         DateTime submissionDate = default,
         string downloadUrl = "",
         string fileType = "",
-        float rating = 0f
+        float rating = ContentConstants.DefaultRating
     )
     {
         public List<string> ScreenshotUrls => screenshots ?? new List<string>();

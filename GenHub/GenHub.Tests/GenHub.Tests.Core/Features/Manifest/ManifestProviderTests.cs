@@ -30,6 +30,11 @@ public class ManifestProviderTests
     private readonly Mock<IManifestCache> _cacheMock;
 
     /// <summary>
+    /// Mock manifest ID service.
+    /// </summary>
+    private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+
+    /// <summary>
     /// The manifest provider under test.
     /// </summary>
     private readonly ManifestProvider _manifestProvider;
@@ -41,7 +46,8 @@ public class ManifestProviderTests
     {
         _loggerMock = new Mock<ILogger<ManifestProvider>>();
         _cacheMock = new Mock<IManifestCache>();
-        _manifestProvider = new ManifestProvider(_loggerMock.Object, _cacheMock.Object);
+        _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _manifestProvider = new ManifestProvider(_loggerMock.Object, _cacheMock.Object, _manifestIdServiceMock.Object);
     }
 
     /// <summary>
@@ -54,16 +60,16 @@ public class ManifestProviderTests
         // Arrange
         var gameVersion = new GameVersion
         {
-            Id = "test-version",
+            Id = "1.0.test.publisher.version",
             Name = "Test Version",
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "test-version",
+            Id = "1.0.test.publisher.version",
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("test-version"))
+        _cacheMock.Setup(x => x.GetManifest("1.0.test.publisher.version"))
                   .Returns(expectedManifest);
 
         // Act
@@ -71,8 +77,8 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("test-version", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("test-version"), Times.Once);
+        Assert.Equal("1.0.test.publisher.version", result.Id);
+        _cacheMock.Verify(x => x.GetManifest("1.0.test.publisher.version"), Times.Once);
     }
 
     /// <summary>
@@ -85,7 +91,7 @@ public class ManifestProviderTests
         // Arrange
         var installation = new GameInstallation(
             installationPath: @"C:\TestPath",
-            installationType: GameInstallationType.Origin,
+            installationType: GameInstallationType.EaApp,
             logger: null)
         {
             HasGenerals = true,
@@ -93,11 +99,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "Origin.Generals",
+            Id = "1.0.eaapp.generals",
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("Origin.Generals"))
+        _cacheMock.Setup(x => x.GetManifest("1.0.eaapp.generals"))
                   .Returns(expectedManifest);
 
         // Act
@@ -105,8 +111,8 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Origin.Generals", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("Origin.Generals"), Times.Once);
+        Assert.Equal("1.0.eaapp.generals", result.Id);
+        _cacheMock.Verify(x => x.GetManifest("1.0.eaapp.generals"), Times.Once);
     }
 
     /// <summary>
@@ -127,11 +133,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "Steam.ZeroHour",
+            Id = "1.0.steam.zerohour",
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("Steam.ZeroHour"))
+        _cacheMock.Setup(x => x.GetManifest("1.0.steam.zerohour"))
                   .Returns(expectedManifest);
 
         // Act
@@ -139,7 +145,7 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Steam.ZeroHour", result.Id);
+        Assert.Equal("1.0.steam.zerohour", result.Id);
     }
 
     /// <summary>
@@ -170,17 +176,17 @@ public class ManifestProviderTests
         // Arrange
         var gameVersion = new GameVersion
         {
-            Id = "expected-id",
+            Id = "1.0.expected.publisher.content",
             Name = "Test Version",
         };
 
         // Simulate manifest returned with mismatched Id
         var mismatchedManifest = new ContentManifest
         {
-            Id = "wrong-id",
+            Id = "1.0.wrong.publisher.content",
             Name = "Test Manifest",
         };
-        _cacheMock.Setup(x => x.GetManifest("expected-id"))
+        _cacheMock.Setup(x => x.GetManifest("1.0.expected.publisher.content"))
                   .Returns(mismatchedManifest);
 
         // Act & Assert
@@ -197,7 +203,7 @@ public class ManifestProviderTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "test-manifest",
+            Id = "1.0.test.publisher.content",
             Files =
             [
                 new()

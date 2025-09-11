@@ -13,6 +13,6 @@ public interface IContentDiscoverer : IContentSource
     /// </summary>
     /// <param name="query">The search criteria to apply during discovery.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="T:GenHub.Core.Models.Results.ContentOperationResult"/> containing discovered content search results.</returns>
-    Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
+    /// <returns>A <see cref="T:GenHub.Core.Models.Results.OperationResult"/> containing discovered content search results.</returns>
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
 }

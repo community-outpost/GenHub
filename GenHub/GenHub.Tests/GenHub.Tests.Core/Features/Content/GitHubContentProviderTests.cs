@@ -65,17 +65,17 @@ public class GitHubContentProviderTests
     {
         // Arrange
         var query = new ContentSearchQuery { SearchTerm = "Test" };
-        var discoveredItem = new ContentSearchResult { Id = "gh.test.mod", RequiresResolution = true, ResolverId = "GitHubRelease" };
-        var resolvedManifest = new ContentManifest { Id = "gh.test.mod", Name = "Resolved Test Mod" };
+        var discoveredItem = new ContentSearchResult { Id = "1.0.gh.test.publisher.mod", RequiresResolution = true, ResolverId = "GitHubRelease" };
+        var resolvedManifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Name = "Resolved Test Mod" };
 
         _discovererMock.Setup(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
 
         _resolverMock.Setup(r => r.ResolveAsync(discoveredItem, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
 
         _validatorMock.Setup(v => v.ValidateManifestAsync(resolvedManifest, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("gh.test.mod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.gh.test.publisher.mod", new List<ValidationIssue>())); // Valid result
 
         // Act
         var result = await _provider.SearchAsync(query);
@@ -102,22 +102,22 @@ public class GitHubContentProviderTests
     public async Task PrepareContentAsync_CallsDelivererAndValidator_Successfully()
     {
         // Arrange
-        var manifest = new ContentManifest { Id = "gh.test.mod", Files = new List<ManifestFile>() };
-        var deliveredManifest = new ContentManifest { Id = "gh.test.mod", Files = [new ManifestFile { RelativePath = "file.txt" }] };
+        var manifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Files = new List<ManifestFile>() };
+        var deliveredManifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Files = [new ManifestFile { RelativePath = "file.txt" }] };
         var targetDirectory = Path.GetTempPath();
 
         _delivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
         _delivererMock.Setup(d => d.DeliverContentAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ContentOperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("gh.test.mod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.gh.test.publisher.mod", new List<ValidationIssue>())); // Valid result
 
         // Act
         var result = await _provider.PrepareContentAsync(manifest, targetDirectory);
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got: {result.ErrorMessage}");
+        Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
 
         // The base class should orchestrate the calls
         _delivererMock.Verify(d => d.CanDeliver(It.IsAny<ContentManifest>()), Times.AtLeastOnce());

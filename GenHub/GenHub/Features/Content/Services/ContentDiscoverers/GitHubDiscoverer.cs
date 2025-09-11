@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,7 +42,7 @@ public class GitHubDiscoverer : IContentDiscoverer
             .Select(r =>
             {
                 var parts = r.Split('/');
-                return parts.Length == 2 ? (owner: parts[0], repo: parts[1]) : (owner: string.Empty, repo: string.Empty);
+                return parts.Length == ContentConstants.GitHubRepoPartsCount ? (owner: parts[0], repo: parts[1]) : (owner: string.Empty, repo: string.Empty);
             })
             .Where(t => !string.IsNullOrEmpty(t.owner) && !string.IsNullOrEmpty(t.repo))
             .ToList();
@@ -67,7 +68,7 @@ public class GitHubDiscoverer : IContentDiscoverer
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result containing discovered content search results.</returns>
-    public async Task<ContentOperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         var discoveredItems = new List<ContentSearchResult>();
@@ -116,7 +117,7 @@ public class GitHubDiscoverer : IContentDiscoverer
             }
         }
 
-        return ContentOperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
+        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
     }
 
     private bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)

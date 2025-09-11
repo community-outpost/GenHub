@@ -20,6 +20,6 @@ public interface IContentResolver
     /// </summary>
     /// <param name="discoveredItem">The discovered content to resolve.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="ContentManifest"/> wrapped in <see cref="ContentOperationResult{ContentManifest}"/>.</returns>
-    Task<ContentOperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default);
+    /// <returns>A <see cref="ContentManifest"/> wrapped in <see cref="OperationResult{ContentManifest}"/>.</returns>
+    Task<OperationResult<ContentManifest>> ResolveAsync(ContentSearchResult discoveredItem, CancellationToken cancellationToken = default);
 }

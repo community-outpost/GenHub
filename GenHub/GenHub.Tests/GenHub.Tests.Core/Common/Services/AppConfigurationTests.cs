@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -70,7 +71,7 @@ public class AppConfigurationTests
     {
         // Arrange
         var configuredPath = "/custom/workspace/path";
-        SetupConfigurationValue("GenHub:Workspace:DefaultPath", configuredPath);
+        SetupConfigurationValue(ConfigurationKeys.WorkspaceDefaultPath, configuredPath);
 
         var service = CreateService();
 
@@ -97,7 +98,7 @@ public class AppConfigurationTests
         var expectedPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
-            "Workspace");
+            "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -117,7 +118,7 @@ public class AppConfigurationTests
         var expectedPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "GenHub",
-            "Workspace");
+            "Data");
         Assert.Equal(expectedPath, result);
     }
 
@@ -129,7 +130,7 @@ public class AppConfigurationTests
     {
         // Arrange
         var configuredPath = "/custom/cache/path";
-        SetupConfigurationValue("GenHub:Cache:DefaultPath", configuredPath);
+        SetupConfigurationValue(ConfigurationKeys.CacheDefaultPath, configuredPath);
 
         var service = CreateService();
 
@@ -168,7 +169,7 @@ public class AppConfigurationTests
     {
         // Arrange
         var configuredTimeout = 1200;
-        SetupConfigurationValue("GenHub:Downloads:DefaultTimeoutSeconds", configuredTimeout.ToString());
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultTimeoutSeconds, configuredTimeout.ToString());
 
         var service = CreateService();
 
@@ -186,7 +187,7 @@ public class AppConfigurationTests
     public void GetDefaultDownloadTimeoutSeconds_WithMissingConfiguration_ReturnsDefaultValue()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultTimeoutSeconds", null);
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultTimeoutSeconds, null);
 
         var service = CreateService();
 
@@ -205,7 +206,7 @@ public class AppConfigurationTests
     {
         // Arrange
         var configuredAgent = "CustomGenHub/2.0";
-        SetupConfigurationValue("GenHub:Downloads:DefaultUserAgent", configuredAgent);
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultUserAgent, configuredAgent);
 
         var service = CreateService();
 
@@ -223,7 +224,7 @@ public class AppConfigurationTests
     public void GetDefaultUserAgent_WithMissingConfiguration_ReturnsDefaultValue()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultUserAgent", null);
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultUserAgent, null);
 
         var service = CreateService();
 
@@ -288,7 +289,7 @@ public class AppConfigurationTests
     public void GetDefaultMaxConcurrentDownloads_WithConfiguredValue_ReturnsConfiguredValue(int configuredMax)
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultMaxConcurrent", configuredMax.ToString());
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultMaxConcurrent, configuredMax.ToString());
 
         var service = CreateService();
 
@@ -306,7 +307,7 @@ public class AppConfigurationTests
     public void GetDefaultMaxConcurrentDownloads_WithMissingConfiguration_ReturnsDefaultValue()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultMaxConcurrent", null);
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultMaxConcurrent, null);
 
         var service = CreateService();
 
@@ -329,7 +330,7 @@ public class AppConfigurationTests
     public void GetDefaultDownloadBufferSize_WithConfiguredValue_ReturnsConfiguredValue(int configuredBuffer)
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultBufferSize", configuredBuffer.ToString());
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultBufferSize, configuredBuffer.ToString());
 
         var service = CreateService();
 
@@ -347,7 +348,7 @@ public class AppConfigurationTests
     public void GetDefaultDownloadBufferSize_WithMissingConfiguration_ReturnsDefaultValue()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Downloads:DefaultBufferSize", null);
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultBufferSize, null);
 
         var service = CreateService();
 
@@ -370,7 +371,7 @@ public class AppConfigurationTests
     public void GetDefaultWorkspaceStrategy_WithConfiguredValue_ReturnsConfiguredValue(WorkspaceStrategy configuredStrategy)
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Workspace:DefaultStrategy", configuredStrategy.ToString());
+        SetupConfigurationValue(ConfigurationKeys.WorkspaceDefaultStrategy, configuredStrategy.ToString());
 
         var service = CreateService();
 
@@ -388,7 +389,7 @@ public class AppConfigurationTests
     public void GetDefaultWorkspaceStrategy_WithMissingConfiguration_ReturnsDefaultValue()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Workspace:DefaultStrategy", null);
+        SetupConfigurationValue(ConfigurationKeys.WorkspaceDefaultStrategy, null);
 
         var service = CreateService();
 
@@ -406,10 +407,10 @@ public class AppConfigurationTests
     public void AllMethods_CalledMultipleTimes_WorkCorrectly()
     {
         // Arrange
-        SetupConfigurationValue("GenHub:Workspace:DefaultPath", "/workspace");
-        SetupConfigurationValue("GenHub:Cache:DefaultPath", "/cache");
-        SetupConfigurationValue("GenHub:Downloads:DefaultTimeoutSeconds", "900");
-        SetupConfigurationValue("GenHub:Downloads:DefaultUserAgent", "TestAgent/1.0");
+        SetupConfigurationValue(ConfigurationKeys.WorkspaceDefaultPath, "/workspace");
+        SetupConfigurationValue(ConfigurationKeys.CacheDefaultPath, "/cache");
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultTimeoutSeconds, "900");
+        SetupConfigurationValue(ConfigurationKeys.DownloadsDefaultUserAgent, "TestAgent/1.0");
 
         var service = CreateService();
 
@@ -438,7 +439,7 @@ public class AppConfigurationTests
 
         // Assert
         Assert.Contains("GenHub", workspacePath);
-        Assert.Contains("Workspace", workspacePath);
+        Assert.Contains("Data", workspacePath);
         Assert.Contains("GenHub", cachePath);
         Assert.Contains("Cache", cachePath);
 

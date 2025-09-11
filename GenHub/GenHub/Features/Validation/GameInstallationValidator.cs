@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Validation;
 
 /// <summary>
-/// Validates the integrity of a base game installation directory (e.g., from Steam, EA App).
+/// Validates the integrity of a game installation directory (e.g., from Steam, EA App).
 /// Focuses on installation-specific validation concerns.
 /// </summary>
 public class GameInstallationValidator(

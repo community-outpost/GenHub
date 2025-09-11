@@ -37,6 +37,7 @@ public class NavigationTabConverter : IValueConverter
     }
 
     /// <inheritdoc/>
+    /// <exception cref="NotSupportedException">Thrown when attempting to convert back non-integer values, as this converter only supports one-way conversion for non-integer types.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo? culture)
     {
         if (value is int index && Enum.IsDefined(typeof(NavigationTab), index))

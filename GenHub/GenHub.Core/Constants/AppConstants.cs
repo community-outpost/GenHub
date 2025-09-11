@@ -8,14 +8,14 @@ namespace GenHub.Core.Constants;
 public static class AppConstants
 {
     /// <summary>
-    /// The current version of GenHub used in user agent strings and API calls.
+    /// The name of the application.
     /// </summary>
-    public const string Version = "1.0";
+    public const string AppName = "GenHub";
 
     /// <summary>
-    /// The application name used in user agent strings.
+    /// The version of the application.
     /// </summary>
-    public const string ApplicationName = "GenHub";
+    public const string AppVersion = "1.0";
 
     /// <summary>
     /// The default UI theme for the application.
@@ -26,9 +26,4 @@ public static class AppConstants
     /// The default theme name as a string (for backward compatibility).
     /// </summary>
     public const string DefaultThemeName = "Dark";
-
-    /// <summary>
-    /// The default user agent string for HTTP requests.
-    /// </summary>
-    public static readonly string DefaultUserAgent = $"{ApplicationName}/{Version}";
 }

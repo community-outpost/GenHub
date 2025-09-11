@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 
@@ -16,25 +16,98 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ContentManifestBuilder(
     ILogger<ContentManifestBuilder> logger,
-    IFileHashProvider hashProvider) : IContentManifestBuilder
+    IFileHashProvider hashProvider,
+    IManifestIdService manifestIdService) : IContentManifestBuilder
 {
     private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
+    private readonly IManifestIdService _manifestIdService = manifestIdService;
 
     /// <summary>
-    /// Sets the basic information for the manifest.
+    /// Sets the basic information for the manifest for game installations (used internally by GenHub).
+    /// This overload is specifically for generating manifests for EA/Steam game installations.
     /// </summary>
-    /// <param name="id">Manifest ID.</param>
-    /// <param name="name">Manifest name.</param>
-    /// <param name="version">Manifest version.</param>
+    /// <param name="installType">The game installation type (EA, Steam, etc.).</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder WithBasicInfo(string id, string name, string version)
+    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion)
     {
-        _manifest.Id = id;
-        _manifest.Name = name;
-        _manifest.Version = version;
-        _logger.LogDebug("Set basic info: ID={Id}, Name={Name}, Version={Version}", id, name, version);
+        // Build a temporary GameInstallation to generate the ID
+        var tempInstallation = new GameInstallation(string.Empty, installType);
+        tempInstallation.HasZeroHour = gameType == GameType.ZeroHour;
+
+        // Use ManifestIdService for consistent ID generation with ResultBase pattern
+        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
+        if (idResult.Success)
+        {
+            _manifest.Id = idResult.Data.Value;
+        }
+        else
+        {
+            _logger.LogWarning("Failed to generate game installation manifest ID: {Error}. Using fallback.", idResult.FirstError);
+
+            // Fallback to direct generation if service fails
+            _manifest.Id = ManifestId.Create(
+                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion));
+        }
+
+        _manifest.Name = gameType.ToString().ToLowerInvariant();
+        _manifest.Version = manifestVersion.ToString();
+
+        _logger.LogDebug(
+            "Set basic info for game installation: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, InstallType={InstallType}, GameType={GameType}",
+            _manifest.Id,
+            _manifest.Name,
+            _manifest.Version,
+            installType,
+            gameType);
+
+        // Ensure the generated ID conforms to the project's validation rules.
+        ManifestIdValidator.EnsureValid(_manifest.Id);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the basic information for the manifest for publisher content (used by external publishers).
+    /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion)
+    {
+        // Always generate the canonical ID from publisher name, content name, and version.
+        var idResult = _manifestIdService.GeneratePublisherContentId(publisherId, contentName, manifestVersion);
+        if (idResult.Success)
+        {
+            _manifest.Id = idResult.Data.Value;
+        }
+        else
+        {
+            _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+
+            // Fallback to direct generation if service fails
+            _manifest.Id = ManifestId.Create(
+                ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestVersion));
+        }
+
+        _manifest.Name = contentName;
+        _manifest.Version = manifestVersion.ToString();
+
+        _logger.LogDebug(
+            "Set basic info for publisher content: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, Publisher={Publisher}",
+            _manifest.Id,
+            _manifest.Name,
+            _manifest.Version,
+            publisherId);
+
+        // Ensure the generated ID conforms to the project's validation rules.
+        ManifestIdValidator.EnsureValid(_manifest.Id);
+
         return this;
     }
 
@@ -269,14 +342,14 @@ public class ContentManifestBuilder(
     }
 
     /// <summary>
-    /// Adds a base game file from the detected game installation.
+    /// Adds a game installation file from the detected game installation.
     /// </summary>
     /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="sourcePath">The source path of the file in the base game installation.</param>
+    /// <param name="sourcePath">The source path of the file in the game installation.</param>
     /// <param name="isExecutable">Whether the file is executable.</param>
     /// <param name="permissions">File permissions.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public async Task<IContentManifestBuilder> AddBaseGameFileAsync(
+    public async Task<IContentManifestBuilder> AddGameInstallationFileAsync(
         string relativePath,
         string sourcePath,
         bool isExecutable = false,
@@ -284,10 +357,10 @@ public class ContentManifestBuilder(
     {
         if (string.IsNullOrEmpty(sourcePath))
         {
-            throw new ArgumentException("sourcePath cannot be null or empty for base game files.", nameof(sourcePath));
+            throw new ArgumentException("sourcePath cannot be null or empty for game installation files.", nameof(sourcePath));
         }
 
-        return await AddFileAsync(relativePath, sourcePath, ContentSourceType.BaseGame, string.Empty, isExecutable, permissions);
+        return await AddFileAsync(relativePath, sourcePath, ContentSourceType.GameInstallation, string.Empty, isExecutable, permissions);
     }
 
     /// <summary>
@@ -490,7 +563,7 @@ public class ContentManifestBuilder(
         {
             RelativePath = targetRelativePath,
             PatchSourceFile = patchSourceFile,
-            SourceType = ContentSourceType.RemoteDownload,
+            SourceType = ContentSourceType.PatchFile,
         };
 
         _manifest.Files.Add(manifestFile);

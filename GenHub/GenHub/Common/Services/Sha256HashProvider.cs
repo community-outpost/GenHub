@@ -3,6 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 
 namespace GenHub.Common.Services;
@@ -20,7 +21,7 @@ public class Sha256HashProvider() : IFileHashProvider, IStreamHashProvider
     /// <returns>The SHA256 hash as a lowercase hex string.</returns>
     public async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, IoConstants.DefaultFileBufferSize, useAsync: true);
         using var sha256 = SHA256.Create();
         var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();

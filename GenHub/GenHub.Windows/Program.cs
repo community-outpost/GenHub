@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Avalonia;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Workspace;
@@ -22,7 +23,7 @@ namespace GenHub.Windows;
 public class Program
 {
     private const string MutexName = "Global\\GenHub";
-    private static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan UpdaterTimeout = TimeIntervals.UpdaterTimeout;
     private static Mutex? mutex;
 
     /// <summary>

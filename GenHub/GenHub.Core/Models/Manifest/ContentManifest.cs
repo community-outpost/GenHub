@@ -15,7 +15,7 @@ public class ContentManifest
     public string ManifestVersion { get; set; } = "1.0";
 
     /// <summary>Gets or sets the unique identifier for this content package.</summary>
-    public string Id { get; set; } = string.Empty;
+    public ManifestId Id { get; set; } = ManifestId.Create("1.0.test.content");
 
     /// <summary>Gets or sets the human-readable name for the content.</summary>
     public string Name { get; set; } = string.Empty;
@@ -36,19 +36,19 @@ public class ContentManifest
     public ContentMetadata Metadata { get; set; } = new();
 
     /// <summary>Gets or sets the dependencies required for this content to function.</summary>
-    public List<ContentDependency> Dependencies { get; set; } = [];
+    public List<ContentDependency> Dependencies { get; set; } = new();
 
     /// <summary>Gets or sets content references for cross-publisher linking.</summary>
-    public List<ContentReference> ContentReferences { get; set; } = [];
+    public List<ContentReference> ContentReferences { get; set; } = new();
 
     /// <summary>Gets or sets the list of known addons for this game (manifest-driven, not hardcoded).</summary>
     public List<string> KnownAddons { get; set; } = new();
 
     /// <summary>Gets or sets all files included in this content package.</summary>
-    public List<ManifestFile> Files { get; set; } = [];
+    public List<ManifestFile> Files { get; set; } = new();
 
     /// <summary>Gets or sets the required directory structure.</summary>
-    public List<string> RequiredDirectories { get; set; } = [];
+    public List<string> RequiredDirectories { get; set; } = new();
 
     /// <summary>Gets or sets the installation instructions and hooks.</summary>
     public InstallationInstructions InstallationInstructions { get; set; } = new();

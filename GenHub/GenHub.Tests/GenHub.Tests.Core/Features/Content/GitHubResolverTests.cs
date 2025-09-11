@@ -71,7 +71,7 @@ public class GitHubResolverTests
 
         // Setup manifest builder chaining and Build()
         var manifestBuilder = _manifestBuilderMock;
-        manifestBuilder.Setup(m => m.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+        manifestBuilder.Setup(m => m.WithBasicInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>()))
             .Returns(manifestBuilder.Object);
@@ -92,7 +92,7 @@ public class GitHubResolverTests
         // Build returns a real manifest
         manifestBuilder.Setup(m => m.Build()).Returns(new ContentManifest
         {
-            Id = "github.test.mod.v1",
+            Id = "1.0.github.test.publisher.mod",
             Name = "Test Mod Release",
             Version = "v1.0",
             Publisher = new PublisherInfo { Name = "Test Author" },
@@ -115,7 +115,7 @@ public class GitHubResolverTests
         Assert.True(result.Success);
         ContentManifest manifest = result.Data!;
         Assert.NotNull(manifest);
-        Assert.Equal("github.test.mod.v1", manifest.Id);
+        Assert.Equal("1.0.github.test.publisher.mod", manifest.Id);
         Assert.Equal("Test Mod Release", manifest.Name);
         Assert.Equal("v1.0", manifest.Version);
         Assert.Equal("Test Author", manifest.Publisher.Name);
@@ -142,6 +142,6 @@ public class GitHubResolverTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Missing required metadata", result.ErrorMessage);
+        Assert.Contains("Missing required metadata", result.FirstError);
     }
 }

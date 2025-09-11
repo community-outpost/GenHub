@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
@@ -18,21 +19,10 @@ namespace GenHub.Features.Content.Services;
 /// Provides implementation for validating content manifests and their integrity.
 /// Focuses specifically on content-related validation (manifests, files, dependencies).
 /// </summary>
-public class ContentValidator : IContentValidator, IValidator<ContentManifest>
+public class ContentValidator(IFileOperationsService fileOperations, ILogger<ContentValidator> logger) : IContentValidator, IValidator<ContentManifest>
 {
-    private readonly IFileOperationsService _fileOperations;
-    private readonly ILogger<ContentValidator> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentValidator"/> class.
-    /// </summary>
-    /// <param name="fileOperations">File operations service.</param>
-    /// <param name="logger">Logger instance.</param>
-    public ContentValidator(IFileOperationsService fileOperations, ILogger<ContentValidator> logger)
-    {
-        _fileOperations = fileOperations;
-        _logger = logger;
-    }
+    private readonly IFileOperationsService _fileOperations = fileOperations;
+    private readonly ILogger<ContentValidator> _logger = logger;
 
     /// <inheritdoc/>
     public Task<ValidationResult> ValidateAsync(ContentManifest manifest, CancellationToken cancellationToken = default)
@@ -270,6 +260,12 @@ public class ContentValidator : IContentValidator, IValidator<ContentManifest>
         if (string.IsNullOrWhiteSpace(manifest.Id))
         {
             issues.Add(new ValidationIssue("Manifest Id is missing.", ValidationSeverity.Error));
+        }
+
+        // Enforce deterministic ID scheme using centralized validator
+        if (!string.IsNullOrWhiteSpace(manifest.Id) && !ManifestIdValidator.IsValid(manifest.Id, out var idReason))
+        {
+            issues.Add(new ValidationIssue(idReason, ValidationSeverity.Error));
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Name))

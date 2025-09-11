@@ -26,7 +26,7 @@ public enum WorkspaceStrategy
     HardLink,
 
     /// <summary>
-    /// A strategy that creates symbolic links for all files, intended for base game manifests.
+    /// A strategy that creates symbolic links for all files, intended for game installation manifests.
     /// </summary>
     FullSymlink,
 

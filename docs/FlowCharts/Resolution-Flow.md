@@ -1,4 +1,3 @@
-<!-- filepath: .vs\docs\flowcharts\Resolution-Flow.md -->
 # Flowchart: Content Resolution Layer
 
 This flowchart details the process of resolving a lightweight `DiscoveredContent` object into a detailed, installable `GameManifest`.

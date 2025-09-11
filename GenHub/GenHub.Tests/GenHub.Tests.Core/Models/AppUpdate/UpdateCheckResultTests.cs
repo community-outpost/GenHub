@@ -14,7 +14,7 @@ public class UpdateCheckResultTests
     [Fact]
     public void UpdateCheckResult_DefaultConstruction_SetsExpectedDefaults()
     {
-        var result = new UpdateCheckResult();
+        var result = UpdateCheckResult.CreateInitial();
         Assert.False(result.IsUpdateAvailable);
         Assert.Equal(string.Empty, result.CurrentVersion);
         Assert.NotNull(result.ErrorMessages);

@@ -2,7 +2,7 @@ using System;
 using Avalonia.Data.Converters;
 using System.Globalization;
 
-namespace GenHub.GenHub.Infrastructure.Converters;
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a boolean to the inverse Avalonia.Controls.Visibility.
@@ -11,9 +11,14 @@ public class InvertedBoolToVisibilityConverter : IValueConverter
 {
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is bool b && !b ? "Visible" : "Collapsed";
+    {
+        return value is bool b ? (!b ? "Visible" : "Collapsed") : "Visible";
+    }
 
     /// <inheritdoc />
+    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => throw new NotImplementedException();
+    {
+        throw new NotImplementedException();
+    }
 }

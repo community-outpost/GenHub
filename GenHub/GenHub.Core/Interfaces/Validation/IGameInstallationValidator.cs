@@ -5,12 +5,12 @@ using GenHub.Core.Models.Validation;
 namespace GenHub.Core.Interfaces.Validation;
 
 /// <summary>
-/// Defines a service for validating base game installations using manifest-driven checks.
+/// Defines a service for validating game installations using manifest-driven checks.
 /// </summary>
 public interface IGameInstallationValidator
 {
     /// <summary>
-    /// Validates a base game installation.
+    /// Validates a game installation.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -18,7 +18,7 @@ public interface IGameInstallationValidator
     Task<ValidationResult> ValidateAsync(GameInstallation installation, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates a base game installation with progress reporting.
+    /// Validates a game installation with progress reporting.
     /// </summary>
     /// <param name="installation">The game installation to validate.</param>
     /// <param name="progress">Progress reporter for MVVM integration.</param>
