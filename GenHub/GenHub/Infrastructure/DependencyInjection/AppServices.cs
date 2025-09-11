@@ -21,12 +21,8 @@ public static class AppServices
         this IServiceCollection services,
         Func<IServiceCollection, IConfigurationProviderService, IServiceCollection>? platformModuleFactory = null)
     {
-        // Register configuration services first
-        services.AddConfigurationModule();
-
-        // Build a temporary provider to resolve the configuration provider
-        using var tempProvider = services.BuildServiceProvider();
-        var configProvider = tempProvider.GetRequiredService<IConfigurationProviderService>();
+        // Register configuration services and get the provider
+        var configProvider = services.AddConfigurationModule();
 
         // Register core services in dependency order
         services.AddLoggingModule(configProvider);
