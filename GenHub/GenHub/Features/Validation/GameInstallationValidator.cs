@@ -83,8 +83,22 @@ public class GameInstallationValidator(
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
 
         // Use ContentValidator for full content validation (integrity + extraneous files)
-        var fullValidation = await _contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
-        issues.AddRange(fullValidation.Issues);
+        try
+        {
+            var fullValidation = await _contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
+            issues.AddRange(fullValidation.Issues);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Content validation failed for installation '{Path}'", installation.InstallationPath);
+            issues.Add(new ValidationIssue
+            {
+                IssueType = ValidationIssueType.CorruptedFile,
+                Path = installation.InstallationPath,
+                Message = $"Content validation failed: {ex.Message}",
+                Severity = ValidationSeverity.Error,
+            });
+        }
 
         // Installation-specific validations (directories, etc.)
         var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();

@@ -243,7 +243,7 @@ public class GameInstallationValidatorTests
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
-                .Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
                 {
                         new ValidationIssue { IssueType = ValidationIssueType.DirectoryMissing, Path = "RequiredDir", Message = "Required directory not found" },
@@ -327,7 +327,7 @@ public class GameInstallationValidatorTests
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
-                .Setup(c => c.DetectExtraneousFilesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
                 {
                         new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Path = "unexpected.txt", Severity = ValidationSeverity.Warning, Message = "Unexpected file found" },
@@ -371,7 +371,7 @@ public class GameInstallationValidatorTests
                 .ReturnsAsync(manifest);
 
             _contentValidatorMock
-                .Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("Content validator error"));
 
             var installation = new GameInstallation(

@@ -37,7 +37,13 @@ public class GameLauncherTests
     /// </summary>
     public GameLauncherTests()
     {
-        _gameLauncher = new GameLauncher(_loggerMock.Object);
+        _gameLauncher = new GameLauncher(
+            _loggerMock.Object,
+            _profileManagerMock.Object,
+            _workspaceManagerMock.Object,
+            _processManagerMock.Object,
+            _manifestPoolMock.Object,
+            _launchRegistryMock.Object);
     }
 
     /// <summary>
@@ -51,12 +57,12 @@ public class GameLauncherTests
         var profile = CreateTestProfile();
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
-        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        var manifest = new ContentManifest { Id = "1.0.test.publisher.mod", Name = "Test Content" };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
@@ -106,7 +112,7 @@ public class GameLauncherTests
         var profile = CreateTestProfile();
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Manifest not found"));
 
         // Act
@@ -128,7 +134,7 @@ public class GameLauncherTests
         var profile = CreateTestProfile();
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
 
         // Act
@@ -136,7 +142,7 @@ public class GameLauncherTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Failed to resolve content", result.FirstError!);
+        Assert.Contains("Content manifest '1.0.test.publisher.mod' not found", result.FirstError!);
     }
 
     /// <summary>
@@ -148,10 +154,10 @@ public class GameLauncherTests
     {
         // Arrange
         var profile = CreateTestProfile();
-        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        var manifest = new ContentManifest { Id = "1.0.test.publisher.mod", Name = "Test Content" };
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateFailure("Workspace prep failed"));
@@ -174,10 +180,10 @@ public class GameLauncherTests
         // Arrange
         var profile = CreateTestProfile();
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
-        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        var manifest = new ContentManifest { Id = "1.0.test.publisher.mod", Name = "Test Content" };
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
@@ -252,7 +258,7 @@ public class GameLauncherTests
         var profile = CreateTestProfile();
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", IsPrepared = true, ExecutablePath = "game.exe" };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
-        var manifest = new ContentManifest { Id = "manifest1", Name = "Test Content" };
+        var manifest = new ContentManifest { Id = "1.0.test.publisher.mod", Name = "Test Content" };
         var progressReports = new List<LaunchProgress>();
         var progressLock = new object();
         var progressComplete = new TaskCompletionSource<bool>();
@@ -260,7 +266,7 @@ public class GameLauncherTests
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.publisher.mod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
@@ -331,6 +337,12 @@ public class GameLauncherTests
         var profileId = "test-profile";
         var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
+
+        var profile = CreateTestProfile();
+        profile.Id = profileId;
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
         // Act & Assert
         await Assert.ThrowsAsync<TaskCanceledException>(async () =>
@@ -470,7 +482,7 @@ public class GameLauncherTests
     {
         // Arrange
         var profile = CreateTestProfile();
-        profile.EnabledContentIds = new List<string> { "manifest1", "manifest2", "manifest3" };
+        profile.EnabledContentIds = new List<string> { "1.0.test.manifest1.mod", "1.0.test.manifest2.mod", "1.0.test.manifest3.mod" };
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "game.exe" };
 
@@ -478,12 +490,12 @@ public class GameLauncherTests
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
         // Setup multiple manifests
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest1" }));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest2" }));
-        _manifestPoolMock.Setup(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "manifest3" }));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.manifest1.mod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "1.0.test.manifest1.mod" }));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.manifest2.mod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "1.0.test.manifest2.mod" }));
+        _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.test.manifest3.mod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "1.0.test.manifest3.mod" }));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
@@ -496,9 +508,9 @@ public class GameLauncherTests
 
         // Assert
         Assert.True(result.Success);
-        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest1", It.IsAny<CancellationToken>()), Times.Once);
-        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest2", It.IsAny<CancellationToken>()), Times.Once);
-        _manifestPoolMock.Verify(x => x.GetManifestAsync("manifest3", It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("1.0.test.manifest1.mod", It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("1.0.test.manifest2.mod", It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(x => x.GetManifestAsync("1.0.test.manifest3.mod", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -513,7 +525,7 @@ public class GameLauncherTests
             Name = "Test Profile",
             GameInstallationId = "install-1",
             GameVersion = new GameVersion { Id = "version-1", ExecutablePath = @"C:\Games\game.exe" },
-            EnabledContentIds = new List<string> { "manifest1" },
+            EnabledContentIds = new List<string> { "1.0.test.publisher.mod" },
         };
     }
 }
