@@ -130,34 +130,8 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
 
         if (strategy != null)
         {
-            // Use reflection to get properties if not on the interface
-            var strategyType = WorkspaceStrategy.FullCopy;
-            var requiresAdmin = false;
-            var requiresSameVolume = false;
-            var estimateMethod = strategy.GetType().GetMethod("EstimateDiskUsage");
-            var propAdmin = strategy.GetType().GetProperty("RequiresAdminRights");
-            var propSameVolume = strategy.GetType().GetProperty("RequiresSameVolume");
-            var propStrategyType = strategy.GetType().GetProperty("StrategyType");
-            if (propAdmin != null)
-            {
-                var val = propAdmin.GetValue(strategy);
-                requiresAdmin = val is bool b && b;
-            }
-
-            if (propSameVolume != null)
-            {
-                var val = propSameVolume.GetValue(strategy);
-                requiresSameVolume = val is bool b && b;
-            }
-
-            if (propStrategyType != null)
-            {
-                var val = propStrategyType.GetValue(strategy);
-                if (val is WorkspaceStrategy sType)
-                    strategyType = sType;
-            }
-
-            if (requiresAdmin)
+            // Use properties directly from the interface
+            if (strategy.RequiresAdminRights)
             {
                 if (!IsRunningAsAdministrator())
                 {
@@ -171,7 +145,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                 }
             }
 
-            if (requiresSameVolume)
+            if (strategy.RequiresSameVolume)
             {
                 var sourceRoot = Path.GetPathRoot(sourcePath);
                 var destRoot = Path.GetPathRoot(destinationPath);
@@ -191,22 +165,14 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             try
             {
                 var drive = new DriveInfo(Path.GetPathRoot(destinationPath) ?? destinationPath);
-                long estimatedUsage = 0L;
-                if (estimateMethod != null)
+                long estimatedUsage = strategy.EstimateDiskUsage(new WorkspaceConfiguration
                 {
-                    var tempConfig = new WorkspaceConfiguration
-                    {
-                        Id = "temp-validation",
-                        GameVersion = new GameVersion { Id = "temp" },
-                        Manifests = new List<ContentManifest> { new ContentManifest { Files = new List<ManifestFile>() } },
-                        WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
-                        BaseInstallationPath = sourcePath,
-                        Strategy = (WorkspaceStrategy)strategyType,
-                    };
-
-                    var result = estimateMethod.Invoke(strategy, [tempConfig]);
-                    estimatedUsage = result is long longValue ? longValue : 0L;
-                }
+                    Id = "temp-validation",
+                    GameVersion = new GameVersion { Id = "temp" },
+                    Manifests = new List<ContentManifest> { new ContentManifest { Files = new List<ManifestFile>() } },
+                    WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
+                    BaseInstallationPath = sourcePath,
+                });
 
                 var safetyMargin = estimatedUsage * 0.1; // 10% safety margin
                 if (drive.AvailableFreeSpace < estimatedUsage + safetyMargin)

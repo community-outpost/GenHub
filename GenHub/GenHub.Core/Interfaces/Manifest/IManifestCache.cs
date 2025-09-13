@@ -13,7 +13,7 @@ public interface IManifestCache
     /// </summary>
     /// <param name="manifestId">The ID of the manifest to retrieve.</param>
     /// <returns>The <see cref="ContentManifest"/> if found; otherwise, null.</returns>
-    ContentManifest? GetManifest(string manifestId);
+    ContentManifest? GetManifest(ManifestId manifestId);
 
     /// <summary>
     /// Adds or updates a manifest in the cache.

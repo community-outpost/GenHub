@@ -129,7 +129,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 "support@ea.com")
             .WithMetadata($"Game installation of {gameType} (manifest version {manifestVersion}) from {installationType}")
             .AddRequiredDirectories(DirectoryNames.Data, "Maps")
-            .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
+            .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
 
         // Add all game files
         await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);

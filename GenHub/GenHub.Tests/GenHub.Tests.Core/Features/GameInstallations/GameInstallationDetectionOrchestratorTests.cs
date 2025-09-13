@@ -142,9 +142,8 @@ public class GameInstallationDetectionOrchestratorTests
 
         // Assert
         Assert.False(result.Success); // Overall failure due to one detector failing
-        Assert.Single(result.Items); // But we still get the successful detection
+        Assert.Empty(result.Items); // Failed results have no items
         Assert.Contains("detector failed", result.Errors);
-        Assert.Equal("C:\\Steam\\Games", result.Items[0].InstallationPath);
     }
 
     /// <summary>

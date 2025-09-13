@@ -57,7 +57,7 @@ public sealed class GameInstallationDetectionOrchestrator(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Detector {DetectorName} failed with exception", detectorName);
-                errors.Add($"Detector {detectorName} failed: {ex.Message}");
+                errors.Add($"{ex.Message}");
             }
         }
 

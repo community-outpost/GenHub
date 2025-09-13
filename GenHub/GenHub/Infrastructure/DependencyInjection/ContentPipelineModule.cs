@@ -1,4 +1,5 @@
-using System;
+using GenHub.Common.Services;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
@@ -14,17 +15,25 @@ using Microsoft.Extensions.DependencyInjection;
 namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Provides extension methods for registering content delivery services.
+/// Provides extension methods for registering content pipeline services.
 /// </summary>
 public static class ContentPipelineModule
 {
     /// <summary>
-    /// Registers content delivery services for dependency injection.
+    /// Registers content pipeline services for dependency injection.
     /// </summary>
     /// <param name="services">The service collection to configure.</param>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddContentPipelineServices(this IServiceCollection services)
     {
+        // Register core hash provider
+        var hashProvider = new Sha256HashProvider();
+        services.AddSingleton<IFileHashProvider>(hashProvider);
+        services.AddSingleton<IStreamHashProvider>(hashProvider);
+
+        // Register memory cache
+        services.AddMemoryCache();
+
         // Register core storage and manifest services
         services.AddSingleton<IContentStorageService, ContentStorageService>();
         services.AddScoped<IContentManifestPool, ContentManifestPool>();

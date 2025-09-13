@@ -33,15 +33,15 @@ public static class AppServices
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
+        services.AddContentPipelineServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
-        services.AddContentPipelineServices();
-        services.AddCasServices();
+        services.AddCasServices(configProvider);
         services.AddDownloadServices(configProvider);
 
         // Register GameProfile services (depends on above services)
-        // services.AddGameProfileServices(configProvider); // TODO: Uncomment when GameProfile services are available
-        // services.AddLaunchingServices(); // TODO: Uncomment when Launching services are available
+        services.AddGameProfileServices(configProvider);
+        services.AddLaunchingServices(configProvider);
 
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();

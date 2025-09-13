@@ -156,8 +156,8 @@ public class ManifestProviderTests
     public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResources()
     {
         // Arrange
-        var gameVersion = new GameVersion { Id = "non-existent" };
-        _cacheMock.Setup(x => x.GetManifest(It.IsAny<string>())).Returns((ContentManifest?)null);
+        var gameVersion = new GameVersion { Id = "1.0.test.publisher.nonexistent" };
+        _cacheMock.Setup(x => x.GetManifest(It.IsAny<ManifestId>())).Returns((ContentManifest?)null);
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(gameVersion);

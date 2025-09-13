@@ -15,8 +15,9 @@ public static class CasModule
     /// Registers CAS services with the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configProvider">The configuration provider service.</param>
     /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddCasServices(this IServiceCollection services)
+    public static IServiceCollection AddCasServices(this IServiceCollection services, IConfigurationProviderService configProvider)
     {
         // CAS integration services
         services.AddSingleton<ICasService, CasService>();
@@ -24,7 +25,6 @@ public static class CasModule
         services.AddSingleton<CasReferenceTracker>();
 
         // Configuration
-        var configProvider = services.BuildServiceProvider().GetRequiredService<IConfigurationProviderService>();
         var userCasConfig = configProvider.GetCasConfiguration();
         services.Configure<CasConfiguration>(config =>
         {

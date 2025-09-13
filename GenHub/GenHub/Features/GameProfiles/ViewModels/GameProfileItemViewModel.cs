@@ -149,7 +149,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <param name="coverPath">The cover path.</param>
     public GameProfileItemViewModel(IGameProfile profile, string iconPath, string coverPath)
     {
-        _name = profile.Version;
+        _name = profile.Name;
         _iconPath = iconPath;
         _coverPath = coverPath;
         _version = profile.Version;

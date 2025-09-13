@@ -1,11 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Launching;
@@ -30,6 +30,9 @@ public class GameLauncherTests
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<ILaunchRegistry> _launchRegistryMock = new();
     private readonly Mock<ILogger<GameLauncher>> _loggerMock = new();
+    private readonly Mock<IGameInstallationService> _gameInstallationServiceMock = new();
+    private readonly Mock<IConfigurationProviderService> _configurationProviderServiceMock = new();
+    private readonly Mock<IManifestProvider> _manifestProviderMock = new();
     private readonly GameLauncher _gameLauncher;
 
     /// <summary>
@@ -37,13 +40,31 @@ public class GameLauncherTests
     /// </summary>
     public GameLauncherTests()
     {
+        // Setup configuration provider mock
+        _configurationProviderServiceMock.Setup(x => x.GetWorkspacePath()).Returns(@"C:\Workspaces");
+        _configurationProviderServiceMock.Setup(x => x.GetContentStoragePath()).Returns(@"C:\Content");
+
+        // Setup game installation service mock
+        var testInstallation = new GameInstallation(@"C:\Games\CommandAndConquer", GameInstallationType.Steam);
+        _gameInstallationServiceMock.Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(testInstallation));
+
+        // Setup launch registry mock
+        _launchRegistryMock.Setup(x => x.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Returns(Task.CompletedTask);
+        _launchRegistryMock.Setup(x => x.UnregisterLaunchAsync(It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
         _gameLauncher = new GameLauncher(
             _loggerMock.Object,
             _profileManagerMock.Object,
             _workspaceManagerMock.Object,
             _processManagerMock.Object,
             _manifestPoolMock.Object,
-            _launchRegistryMock.Object);
+            _launchRegistryMock.Object,
+            _gameInstallationServiceMock.Object,
+            _manifestProviderMock.Object,
+            _configurationProviderServiceMock.Object);
     }
 
     /// <summary>

@@ -243,6 +243,21 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
 
+        // Prefer an executable that exists inside the workspace if available
+        var manifestExe = configuration.Manifests.SelectMany(m => m.Files)
+            .FirstOrDefault(f => f.IsExecutable ||
+                                 f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        if (manifestExe != null)
+        {
+            var candidate = Path.Combine(workspaceInfo.WorkspacePath, manifestExe.RelativePath);
+            if (File.Exists(candidate))
+            {
+                workspaceInfo.ExecutablePath = candidate;
+                workspaceInfo.WorkingDirectory = Path.GetDirectoryName(candidate) ?? workspaceInfo.WorkspacePath;
+                return;
+            }
+        }
+
         // Set executable path from GameVersion configuration
         if (!string.IsNullOrEmpty(configuration.GameVersion.ExecutablePath))
         {

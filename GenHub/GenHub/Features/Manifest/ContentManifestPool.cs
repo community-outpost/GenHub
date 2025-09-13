@@ -321,7 +321,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
 
         return errors.Any()
-            ? OperationResult<bool>.CreateFailure(string.Join("; ", errors))
+            ? OperationResult<bool>.CreateFailure(string.Join(", ", errors))
             : OperationResult<bool>.CreateSuccess(true);
     }
 }

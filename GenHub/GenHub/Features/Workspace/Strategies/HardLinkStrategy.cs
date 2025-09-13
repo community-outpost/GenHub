@@ -145,6 +145,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                             continue;
                         }
 
+                        var wasCopied = false;
                         if (sameVolume)
                         {
                             try
@@ -161,6 +162,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                                 await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                                 copiedFiles++;
                                 totalBytesProcessed += file.Size;
+                                wasCopied = true;
                             }
                         }
                         else
@@ -169,10 +171,11 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                             await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                             copiedFiles++;
                             totalBytesProcessed += file.Size;
+                            wasCopied = true;
                         }
 
                         // Verify file integrity if hash is provided (only for copied files)
-                        if (!string.IsNullOrEmpty(file.Hash) && (copiedFiles > 0 || !sameVolume))
+                        if (!string.IsNullOrEmpty(file.Hash) && wasCopied)
                         {
                             var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                             if (!hashValid)
@@ -292,5 +295,12 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
             }
         }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // For game installation files, treat them the same as local files
+        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
     }
 }

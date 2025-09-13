@@ -29,7 +29,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     public override string Description => "Copies essential files (executables, configs, small files) and creates symlinks for large media files. Balanced disk usage and compatibility.";
 
     /// <inheritdoc/>
-    public override bool RequiresAdminRights => OperatingSystem.IsWindows();
+    public override bool RequiresAdminRights => Environment.OSVersion.Platform == PlatformID.Win32NT;
 
     /// <inheritdoc/>
     public override bool RequiresSameVolume => false;
@@ -256,8 +256,10 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         }
     }
 
-    private bool ShouldCopyFile(string relativePath, long fileSize)
+    /// <inheritdoc/>
+    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        return WorkspaceStrategyBase<HybridCopySymlinkStrategy>.IsEssentialFile(relativePath, fileSize);
+        // For game installation files, treat them the same as local files
+        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
     }
 }

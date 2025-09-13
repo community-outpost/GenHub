@@ -27,16 +27,6 @@ public class GameProfileRepository(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameProfileRepository"/> class.
-    /// </summary>
-    public GameProfileRepository()
-        : this(string.Empty, null!)
-    {
-        // Ensure profiles directory exists
-        Directory.CreateDirectory(_profilesDirectory);
-    }
-
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> SaveProfileAsync(GameProfile profile, CancellationToken cancellationToken = default)
     {

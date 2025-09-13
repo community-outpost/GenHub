@@ -81,7 +81,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while creating a game profile.");
+            _logger.LogError(ex, "An unexpected error occurred while creating a game profile {ProfileName}.", request?.Name);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -135,7 +135,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while updating a game profile.");
+            _logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -164,7 +164,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while deleting a game profile.");
+            _logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -197,7 +197,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting a game profile.");
+            _logger.LogError(ex, "An unexpected error occurred while getting game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -226,7 +226,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting available content.");
+            _logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameVersion?.GameType);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
         }
     }

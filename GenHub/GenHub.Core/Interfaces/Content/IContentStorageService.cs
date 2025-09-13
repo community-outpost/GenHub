@@ -25,14 +25,14 @@ public interface IContentStorageService
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <returns>The absolute path where the manifest should be stored.</returns>
-    string GetManifestStoragePath(string manifestId);
+    string GetManifestStoragePath(ManifestId manifestId);
 
     /// <summary>
     /// Gets the content directory path for a specific manifest.
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <returns>The absolute path where the manifest's content files are stored.</returns>
-    string GetContentDirectoryPath(string manifestId);
+    string GetContentDirectoryPath(ManifestId manifestId);
 
     /// <summary>
     /// Stores content from a source directory into permanent storage.
@@ -54,7 +54,7 @@ public interface IContentStorageService
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating success or failure.</returns>
     Task<OperationResult<string>> RetrieveContentAsync(
-        string manifestId,
+        ManifestId manifestId,
         string targetDirectory,
         CancellationToken cancellationToken = default);
 
@@ -64,7 +64,7 @@ public interface IContentStorageService
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>True if the content is stored, false otherwise.</returns>
-    Task<OperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> IsContentStoredAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Removes stored content for a specific manifest.
@@ -72,7 +72,7 @@ public interface IContentStorageService
     /// <param name="manifestId">The unique identifier of the manifest.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating success or failure.</returns>
-    Task<OperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets storage statistics and usage information.

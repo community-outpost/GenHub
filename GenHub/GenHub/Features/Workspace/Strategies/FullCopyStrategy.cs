@@ -226,4 +226,11 @@ public sealed class FullCopyStrategy(
             }
         }
     }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // For game installation files, treat them the same as local files
+        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+    }
 }

@@ -1,7 +1,9 @@
 using System;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Features.GameInstallations;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +33,13 @@ public static class GameProfileModule
         });
         services.AddScoped<IGameProfileManager, GameProfileManager>();
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
+        services.AddSingleton<IProfileLauncherFacade, ProfileLauncherFacade>();
+        services.AddSingleton<IProfileEditorFacade, ProfileEditorFacade>();
+
+        // Register game installation services
+        services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
+        services.AddScoped<IGameInstallationService, GameInstallationService>();
+
         return services;
     }
 

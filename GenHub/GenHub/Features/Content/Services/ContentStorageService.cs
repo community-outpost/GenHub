@@ -20,20 +20,25 @@ namespace GenHub.Features.Content.Services;
 /// <summary>
 /// Concrete implementation of content storage service.
 /// </summary>
-public class ContentStorageService(
-    ILogger<ContentStorageService> logger,
-    IConfigurationProviderService configurationProviderService) : IContentStorageService
+public class ContentStorageService : IContentStorageService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-    private readonly string _storageRoot = configurationProviderService.GetContentStoragePath();
-    private readonly ILogger<ContentStorageService> _logger = logger;
+    private readonly string _storageRoot;
+    private readonly ILogger<ContentStorageService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
-    public ContentStorageService()
-        : this(null!, null!)
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="configurationProviderService">The configuration provider service.</param>
+    public ContentStorageService(
+        ILogger<ContentStorageService> logger,
+        IConfigurationProviderService configurationProviderService)
     {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var configService = configurationProviderService ?? throw new ArgumentNullException(nameof(configurationProviderService));
+        _storageRoot = configService.GetContentStoragePath();
+
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
         var requiredDirs = new[]
         {
@@ -55,11 +60,11 @@ public class ContentStorageService(
     public string GetContentStorageRoot() => _storageRoot;
 
     /// <inheritdoc/>
-    public string GetManifestStoragePath(string manifestId) =>
+    public string GetManifestStoragePath(ManifestId manifestId) =>
         Path.Combine(_storageRoot, FileTypes.ManifestsDirectory, $"{manifestId}{FileTypes.ManifestFileExtension}");
 
     /// <inheritdoc/>
-    public string GetContentDirectoryPath(string manifestId) =>
+    public string GetContentDirectoryPath(ManifestId manifestId) =>
         Path.Combine(_storageRoot, DirectoryNames.Data, manifestId);
 
     /// <inheritdoc/>
@@ -115,7 +120,7 @@ public class ContentStorageService(
 
     /// <inheritdoc/>
     public async Task<OperationResult<string>> RetrieveContentAsync(
-        string manifestId,
+        ManifestId manifestId,
         string targetDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -143,7 +148,7 @@ public class ContentStorageService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> IsContentStoredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);
@@ -160,7 +165,7 @@ public class ContentStorageService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);

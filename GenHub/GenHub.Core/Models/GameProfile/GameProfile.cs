@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 
@@ -7,7 +8,7 @@ namespace GenHub.Core.Models.GameProfile;
 /// Represents a user-defined game configuration combining game installation with selected content.
 /// This is a basic implementation for future expansion.
 /// </summary>
-public class GameProfile
+public class GameProfile : IGameProfile
 {
     /// <summary>
     /// Gets or sets the unique identifier for this profile.
@@ -30,6 +31,16 @@ public class GameProfile
     public GameVersion GameVersion { get; set; } = new();
 
     /// <summary>
+    /// Gets the version string of the game.
+    /// </summary>
+    public string Version => GameVersion.Id;
+
+    /// <summary>
+    /// Gets or sets the path to the executable for this profile.
+    /// </summary>
+    public string ExecutablePath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the game installation ID for this profile.
     /// </summary>
     public string GameInstallationId { get; set; } = string.Empty;
@@ -43,6 +54,11 @@ public class GameProfile
     /// Gets or sets the workspace strategy for this profile.
     /// </summary>
     public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
+
+    /// <summary>
+    /// Gets the preferred workspace strategy for this profile.
+    /// </summary>
+    WorkspaceStrategy IGameProfile.PreferredStrategy => WorkspaceStrategy;
 
     /// <summary>
     /// Gets or sets launch options and parameters.

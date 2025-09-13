@@ -124,7 +124,7 @@ public class ManifestProvider : IManifestProvider
                         return manifest;
                     }
 
-                    _logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, addResult?.AllErrors ?? "unknown");
+                    _logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, string.Join(", ", addResult?.Errors ?? Array.Empty<string>()));
 
                     return manifest;
                 }
@@ -179,7 +179,7 @@ public class ManifestProvider : IManifestProvider
 
             var addRes = await _manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
             if (addRes?.Success != true)
-                _logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, addRes?.AllErrors ?? "unknown");
+                _logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
 
             return generated;
         }
@@ -227,7 +227,7 @@ public class ManifestProvider : IManifestProvider
                     // For embedded installation manifests, provide the installation path as source when available.
                     var addRes = await _manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
                     if (addRes?.Success != true)
-                        _logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, addRes?.AllErrors ?? "unknown");
+                        _logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
                     return manifest;
                 }
             }
@@ -257,7 +257,7 @@ public class ManifestProvider : IManifestProvider
             ManifestIdValidator.EnsureValid(generated.Id);
             var addRes2 = await _manifestPool.AddManifestAsync(generated, installation.InstallationPath ?? string.Empty, cancellationToken);
             if (addRes2?.Success != true)
-                _logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, addRes2?.AllErrors ?? "unknown");
+                _logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? Array.Empty<string>()));
             return generated;
         }
 
@@ -316,7 +316,7 @@ public class ManifestProvider : IManifestProvider
 
         public Task<OperationResult<ContentManifest?>> GetManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
         {
-            var m = _cache.GetManifest(manifestId.Value);
+            var m = _cache.GetManifest(manifestId);
             return Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(m));
         }
 
@@ -339,7 +339,7 @@ public class ManifestProvider : IManifestProvider
 
         public Task<OperationResult<bool>> IsManifestAcquiredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
         {
-            var m = _cache.GetManifest(manifestId.Value);
+            var m = _cache.GetManifest(manifestId);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(m != null));
         }
 

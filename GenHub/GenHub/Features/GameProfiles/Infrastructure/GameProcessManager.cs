@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,11 +33,25 @@ public class GameProcessManager(
         {
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = configuration.ExecutablePath,
-                WorkingDirectory = configuration.WorkingDirectory,
+                WorkingDirectory = configuration.WorkingDirectory
+                    ?? Path.GetDirectoryName(configuration.ExecutablePath)
+                    ?? Environment.CurrentDirectory,
                 UseShellExecute = false,
                 CreateNoWindow = false,
             };
+
+            // Handle .bat/.cmd files on Windows
+            var extension = Path.GetExtension(configuration.ExecutablePath).ToLowerInvariant();
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd"))
+            {
+                processStartInfo.FileName = "cmd.exe";
+                processStartInfo.ArgumentList.Add("/c");
+                processStartInfo.ArgumentList.Add(configuration.ExecutablePath);
+            }
+            else
+            {
+                processStartInfo.FileName = configuration.ExecutablePath;
+            }
 
             // Add arguments
             if (configuration.Arguments != null)

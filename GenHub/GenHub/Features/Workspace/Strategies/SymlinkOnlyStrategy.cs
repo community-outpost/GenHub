@@ -29,7 +29,7 @@ public sealed class SymlinkOnlyStrategy(
     public override string Description => "Creates symbolic links to all game files. Minimal disk usage but requires administrator privileges.";
 
     /// <inheritdoc/>
-    public override bool RequiresAdminRights => OperatingSystem.IsWindows();
+    public override bool RequiresAdminRights => Environment.OSVersion.Platform == PlatformID.Win32NT;
 
     /// <inheritdoc/>
     public override bool RequiresSameVolume => false;
@@ -178,5 +178,12 @@ public sealed class SymlinkOnlyStrategy(
             Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
         }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // For game installation files, treat them the same as local files
+        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
     }
 }

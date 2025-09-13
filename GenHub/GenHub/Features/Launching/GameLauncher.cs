@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
@@ -27,7 +29,10 @@ public class GameLauncher(
     IWorkspaceManager workspaceManager,
     IGameProcessManager processManager,
     IContentManifestPool manifestPool,
-    ILaunchRegistry launchRegistry) : IGameLauncher
+    ILaunchRegistry launchRegistry,
+    IGameInstallationService gameInstallationService,
+    IManifestProvider manifestProvider,
+    IConfigurationProviderService configurationProvider) : IGameLauncher
 {
     /// <summary>
     /// Launches a game using the provided configuration.
@@ -222,9 +227,26 @@ public class GameLauncher(
                 Manifests = manifests,
                 GameVersion = profile.GameVersion,
                 Strategy = profile.WorkspaceStrategy,
-                WorkspaceRootPath = Path.Combine(Path.GetTempPath(), "GenHub", "Workspaces"),
-                BaseInstallationPath = profile.GameInstallationId, // This might need adjustment
+                WorkspaceRootPath = configurationProvider.GetWorkspacePath(),
+                BaseInstallationPath = profile.GameInstallationId, // This will be resolved below
             };
+
+            // Resolve the base installation path from the installation ID
+            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installationResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve game installation '{profile.GameInstallationId}': {installationResult.FirstError}", launchId, profile.Id);
+            }
+
+            workspaceConfig.BaseInstallationPath = installationResult.Data!.InstallationPath;
+
+            // Ensure base installation manifest is present
+            var baseManifest = await manifestProvider.GetManifestAsync(installationResult.Data, cancellationToken);
+            if (baseManifest != null && !manifests.Any(m => m.Id == baseManifest.Id))
+            {
+                manifests.Add(baseManifest);
+                workspaceConfig.Manifests = manifests;
+            }
 
             var workspaceProgress = new Progress<WorkspacePreparationProgress>(wp =>
             {

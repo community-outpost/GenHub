@@ -36,8 +36,8 @@ public sealed class GameVersionDetectionOrchestrator(
             var result = await installationOrchestrator.DetectAllInstallationsAsync(cancellationToken);
             if (!result.Success)
             {
-                logger.LogWarning("Installation detection failed: {Errors}", string.Join("; ", result.Errors));
-                return DetectionResult<GameVersion>.CreateFailure(string.Join("; ", result.Errors));
+                logger.LogWarning("Installation detection failed: {Errors}", string.Join(", ", result.Errors));
+                return DetectionResult<GameVersion>.CreateFailure(string.Join(", ", result.Errors));
             }
 
             logger.LogDebug("Found {InstallationCount} installations, detecting versions", result.Items.Count);
@@ -54,12 +54,12 @@ public sealed class GameVersionDetectionOrchestrator(
             else
             {
                 errors.AddRange(versionResult.Errors);
-                logger.LogWarning("Version detection failed: {Errors}", string.Join("; ", versionResult.Errors));
+                logger.LogWarning("Version detection failed: {Errors}", string.Join(", ", versionResult.Errors));
             }
 
             stopwatch.Stop();
             var finalResult = errors.Any()
-                ? DetectionResult<GameVersion>.CreateFailure(string.Join("; ", errors))
+                ? DetectionResult<GameVersion>.CreateFailure(string.Join(", ", errors))
                 : DetectionResult<GameVersion>.CreateSuccess(allVersions, stopwatch.Elapsed);
 
             logger.LogInformation(
