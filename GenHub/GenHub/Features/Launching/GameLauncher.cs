@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -10,6 +11,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
@@ -32,8 +34,11 @@ public class GameLauncher(
     ILaunchRegistry launchRegistry,
     IGameInstallationService gameInstallationService,
     IManifestProvider manifestProvider,
+    ICasService casService,
     IConfigurationProviderService configurationProvider) : IGameLauncher
 {
+    private static readonly ConcurrentDictionary<string, object> _profileLaunchLocks = new();
+
     /// <summary>
     /// Launches a game using the provided configuration.
     /// </summary>
@@ -186,127 +191,16 @@ public class GameLauncher(
     {
         ArgumentNullException.ThrowIfNull(profile);
 
+        // Check if already launching
+        var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+        if (existingLaunches.Any(l => l.ProfileId == profile.Id))
+        {
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Profile {profile.Id} is already launching or running");
+        }
+
+        // Proceed with launch
         var launchId = Guid.NewGuid().ToString();
-
-        try
-        {
-            // Check for cancellation early
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // Report validating profile
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
-
-            // Resolve content manifests
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
-
-            var manifests = new List<ContentManifest>();
-            foreach (var contentId in profile.EnabledContentIds)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
-                if (!manifestResult.Success)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content '{contentId}': {manifestResult.FirstError}", launchId, profile.Id);
-                }
-
-                if (manifestResult.Data == null)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Content manifest '{contentId}' not found", launchId, profile.Id);
-                }
-
-                manifests.Add(manifestResult.Data);
-            }
-
-            // Prepare workspace
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
-
-            var workspaceConfig = new WorkspaceConfiguration
-            {
-                Id = profile.Id,
-                Manifests = manifests,
-                GameVersion = profile.GameVersion,
-                Strategy = profile.WorkspaceStrategy,
-                WorkspaceRootPath = configurationProvider.GetWorkspacePath(),
-                BaseInstallationPath = profile.GameInstallationId, // This will be resolved below
-            };
-
-            // Resolve the base installation path from the installation ID
-            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (!installationResult.Success)
-            {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve game installation '{profile.GameInstallationId}': {installationResult.FirstError}", launchId, profile.Id);
-            }
-
-            workspaceConfig.BaseInstallationPath = installationResult.Data!.InstallationPath;
-
-            // Ensure base installation manifest is present
-            var baseManifest = await manifestProvider.GetManifestAsync(installationResult.Data, cancellationToken);
-            if (baseManifest != null && !manifests.Any(m => m.Id == baseManifest.Id))
-            {
-                manifests.Add(baseManifest);
-                workspaceConfig.Manifests = manifests;
-            }
-
-            var workspaceProgress = new Progress<WorkspacePreparationProgress>(wp =>
-            {
-                // Convert workspace progress to launch progress
-                var percentComplete = 20 + (int)(wp.FilesProcessed / (double)wp.TotalFiles * 60); // 20-80%
-                progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
-            });
-
-            var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken);
-            if (!workspaceResult.Success)
-            {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceResult.FirstError!, launchId, profile.Id);
-            }
-
-            var workspaceInfo = workspaceResult.Data!;
-
-            // Start the process
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-
-            var launchConfig = new GameLaunchConfiguration
-            {
-                ExecutablePath = workspaceInfo.ExecutablePath ?? profile.GameVersion.ExecutablePath,
-                WorkingDirectory = workspaceInfo.WorkspacePath,
-                Arguments = profile.LaunchOptions,
-            };
-
-            var processResult = await processManager.StartProcessAsync(launchConfig, cancellationToken);
-            if (!processResult.Success)
-            {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError!, launchId, profile.Id);
-            }
-
-            var processInfo = processResult.Data!;
-
-            // Create launch info and register
-            var launchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = profile.Id,
-                WorkspaceId = workspaceInfo.Id,
-                ProcessInfo = processInfo,
-                LaunchedAt = DateTime.UtcNow,
-            };
-
-            await launchRegistry.RegisterLaunchAsync(launchInfo);
-
-            // Report completion
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
-
-            return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
-        }
-        catch (OperationCanceledException)
-        {
-            throw new TaskCanceledException();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to launch profile {ProfileId}", profile.Id);
-            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}", launchId, profile.Id);
-        }
+        return await LaunchProfileInternalAsync(profile, progress, cancellationToken, launchId);
     }
 
     /// <summary>
@@ -403,5 +297,169 @@ public class GameLauncher(
             logger.LogError(ex, "Failed to terminate game for launch {LaunchId}", launchId);
             return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to terminate game: {ex.Message}", launchId);
         }
+    }
+
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileInternalAsync(GameProfile profile, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken, string launchId)
+    {
+        try
+        {
+            // Check for cancellation early
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Report validating profile
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
+
+            // Resolve content manifests
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
+
+            var manifests = new List<ContentManifest>();
+            foreach (var contentId in profile.EnabledContentIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
+                if (!manifestResult.Success)
+                {
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content '{contentId}': {manifestResult.FirstError}", launchId, profile.Id);
+                }
+
+                if (manifestResult.Data == null)
+                {
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Content manifest '{contentId}' not found", launchId, profile.Id);
+                }
+
+                manifests.Add(manifestResult.Data);
+            }
+
+            // Prepare workspace
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
+
+            // Preflight check: ensure all CAS content is available
+            var casCheckResult = await PreflightCasCheckAsync(manifests, cancellationToken);
+            if (!casCheckResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(casCheckResult.FirstError!, launchId, profile.Id);
+            }
+
+            var workspaceConfig = new WorkspaceConfiguration
+            {
+                Id = profile.Id,
+                Manifests = manifests,
+                GameVersion = profile.GameVersion,
+                Strategy = profile.WorkspaceStrategy,
+                WorkspaceRootPath = configurationProvider.GetWorkspacePath(),
+                BaseInstallationPath = profile.GameInstallationId, // This will be resolved below
+            };
+
+            // Resolve the base installation path from the installation ID
+            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installationResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve game installation '{profile.GameInstallationId}': {installationResult.FirstError}", launchId, profile.Id);
+            }
+
+            workspaceConfig.BaseInstallationPath = installationResult.Data!.InstallationPath;
+
+            // Ensure base installation manifest is present
+            var baseManifest = await manifestProvider.GetManifestAsync(installationResult.Data, cancellationToken);
+            if (baseManifest != null && !manifests.Any(m => m.Id == baseManifest.Id))
+            {
+                manifests.Add(baseManifest);
+                workspaceConfig.Manifests = manifests;
+            }
+
+            var workspaceProgress = new Progress<WorkspacePreparationProgress>(wp =>
+            {
+                // Convert workspace progress to launch progress
+                var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60); // 20-80%
+                progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
+            });
+
+            var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken);
+            if (!workspaceResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceResult.FirstError!, launchId, profile.Id);
+            }
+
+            var workspaceInfo = workspaceResult.Data!;
+
+            // Start the process
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
+
+            var launchConfig = new GameLaunchConfiguration
+            {
+                ExecutablePath = workspaceInfo.ExecutablePath ?? profile.GameVersion.ExecutablePath,
+                WorkingDirectory = workspaceInfo.WorkspacePath,
+                Arguments = profile.LaunchOptions,
+                EnvironmentVariables = profile.EnvironmentVariables,
+            };
+
+            var processResult = await processManager.StartProcessAsync(launchConfig, cancellationToken);
+            if (!processResult.Success)
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError!, launchId, profile.Id);
+            }
+
+            var processInfo = processResult.Data!;
+
+            // Create launch info and register
+            var launchInfo = new GameLaunchInfo
+            {
+                LaunchId = launchId,
+                ProfileId = profile.Id,
+                WorkspaceId = workspaceInfo.Id,
+                ProcessInfo = processInfo,
+                LaunchedAt = DateTime.UtcNow,
+            };
+
+            await launchRegistry.RegisterLaunchAsync(launchInfo);
+
+            // Report completion
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
+
+            return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
+        }
+        catch (OperationCanceledException)
+        {
+            throw new TaskCanceledException();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to launch profile {ProfileId}", profile.Id);
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}", launchId, profile.Id);
+        }
+    }
+
+    /// <summary>
+    /// Performs a preflight check to ensure all CAS content required by the manifests is available.
+    /// </summary>
+    /// <param name="manifests">The manifests to check.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A result indicating success or failure.</returns>
+    private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
+    {
+        var missingHashes = new List<string>();
+
+        foreach (var manifest in manifests)
+        {
+            if (manifest.Files != null)
+            {
+                foreach (var file in manifest.Files.Where(f => f.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
+                {
+                    var existsResult = await casService.ExistsAsync(file.Hash, cancellationToken);
+                    if (!existsResult.Success || !existsResult.Data)
+                    {
+                        missingHashes.Add(file.Hash);
+                    }
+                }
+            }
+        }
+
+        if (missingHashes.Any())
+        {
+            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingHashes.Distinct())}");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 }

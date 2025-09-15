@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
@@ -24,7 +25,8 @@ public class WorkspaceManager(
     IEnumerable<IWorkspaceStrategy> strategies,
     IConfigurationProviderService configurationProvider,
     ILogger<WorkspaceManager> logger,
-    CasReferenceTracker casReferenceTracker
+    CasReferenceTracker casReferenceTracker,
+    IWorkspaceValidator workspaceValidator
 ) : IWorkspaceManager
 {
     private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetContentStoragePath(), "workspaces.json");
@@ -32,6 +34,7 @@ public class WorkspaceManager(
     private readonly IEnumerable<IWorkspaceStrategy> _strategies = strategies;
     private readonly ILogger<WorkspaceManager> _logger = logger;
     private readonly CasReferenceTracker _casReferenceTracker = casReferenceTracker;
+    private readonly IWorkspaceValidator _workspaceValidator = workspaceValidator;
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.
@@ -60,6 +63,17 @@ public class WorkspaceManager(
             var messages = workspaceInfo.ValidationIssues?.Select(i => i.Message)
                            ?? new[] { "Workspace preparation failed" };
             return OperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", messages) ?? "Workspace preparation failed");
+        }
+
+        // Validate workspace after preparation if requested
+        if (configuration.ValidateAfterPreparation)
+        {
+            var validationResult = await _workspaceValidator.ValidateWorkspaceAsync(workspaceInfo, cancellationToken);
+            if (!validationResult.Success || !validationResult.Data!.IsValid)
+            {
+                var errors = validationResult.Data!.Issues.Where(i => i.Severity == ValidationSeverity.Error).Select(i => i.Message);
+                return OperationResult<WorkspaceInfo>.CreateFailure($"Workspace validation failed: {string.Join(", ", errors)}");
+            }
         }
 
         // Save workspace metadata

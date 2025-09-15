@@ -6,7 +6,9 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
@@ -167,7 +169,11 @@ public class WorkspaceIntegrationTests : IDisposable
         dummyOptions.Setup(x => x.Value).Returns(new CasConfiguration { CasRootPath = _tempWorkspaceRoot });
         var casReferenceTracker = new CasReferenceTracker(dummyOptions.Object, dummyLogger);
 
-        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker);
+        var mockWorkspaceValidator = new Mock<IWorkspaceValidator>();
+        mockWorkspaceValidator.Setup(x => x.ValidateWorkspaceAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ValidationResult>.CreateSuccess(new ValidationResult("test", new List<ValidationIssue>())));
+
+        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker, mockWorkspaceValidator.Object);
 
         var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 

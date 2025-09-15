@@ -19,6 +19,7 @@ namespace GenHub.Tests.Core.Features.Workspace
     {
         private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
         private readonly Mock<ILogger<WorkspaceManager>> _mockLogger;
+        private readonly Mock<IWorkspaceValidator> _mockWorkspaceValidator;
         private readonly IWorkspaceStrategy[] _strategies;
         private readonly CasReferenceTracker _casReferenceTracker;
         private readonly WorkspaceManager _manager;
@@ -32,6 +33,7 @@ namespace GenHub.Tests.Core.Features.Workspace
             _mockConfigProvider.Setup(x => x.GetContentStoragePath()).Returns("/test/content/path");
 
             _mockLogger = new Mock<ILogger<WorkspaceManager>>();
+            _mockWorkspaceValidator = new Mock<IWorkspaceValidator>();
             _strategies = System.Array.Empty<IWorkspaceStrategy>();
 
             // Create CasReferenceTracker with required dependencies
@@ -40,7 +42,7 @@ namespace GenHub.Tests.Core.Features.Workspace
             var mockCasLogger = new Mock<ILogger<CasReferenceTracker>>();
             _casReferenceTracker = new CasReferenceTracker(mockCasConfig.Object, mockCasLogger.Object);
 
-            _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker);
+            _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker, _mockWorkspaceValidator.Object);
         }
 
         /// <summary>

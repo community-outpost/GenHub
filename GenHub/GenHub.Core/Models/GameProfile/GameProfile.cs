@@ -66,6 +66,11 @@ public class GameProfile : IGameProfile
     public Dictionary<string, string> LaunchOptions { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets environment variables for the profile.
+    /// </summary>
+    public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets when this profile was created.
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
@@ -22,47 +23,24 @@ namespace GenHub.Features.GameProfiles.Services;
 /// Facade for game profile launching operations, coordinating between multiple services
 /// to provide a simplified interface for launching game profiles.
 /// </summary>
-public class ProfileLauncherFacade : IProfileLauncherFacade
+public class ProfileLauncherFacade(
+    IGameProfileManager profileManager,
+    IGameLauncher gameLauncher,
+    IWorkspaceManager workspaceManager,
+    ILaunchRegistry launchRegistry,
+    IContentManifestPool manifestPool,
+    IGameInstallationService installationService,
+    IConfigurationProviderService config,
+    ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
-    private readonly IGameProfileManager _profileManager;
-    private readonly IGameLauncher _gameLauncher;
-    private readonly IWorkspaceManager _workspaceManager;
-    private readonly ILaunchRegistry _launchRegistry;
-    private readonly IContentManifestPool _manifestPool;
-    private readonly IGameInstallationService _installationService;
-    private readonly IConfigurationProviderService _config;
-    private readonly ILogger<ProfileLauncherFacade> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ProfileLauncherFacade"/> class.
-    /// </summary>
-    /// <param name="profileManager">The game profile manager.</param>
-    /// <param name="gameLauncher">The game launcher service.</param>
-    /// <param name="workspaceManager">The workspace manager.</param>
-    /// <param name="launchRegistry">The launch registry service.</param>
-    /// <param name="manifestPool">The content manifest pool.</param>
-    /// <param name="installationService">The game installation service.</param>
-    /// <param name="config">The configuration provider service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public ProfileLauncherFacade(
-        IGameProfileManager profileManager,
-        IGameLauncher gameLauncher,
-        IWorkspaceManager workspaceManager,
-        ILaunchRegistry launchRegistry,
-        IContentManifestPool manifestPool,
-        IGameInstallationService installationService,
-        IConfigurationProviderService config,
-        ILogger<ProfileLauncherFacade> logger)
-    {
-        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-        _gameLauncher = gameLauncher ?? throw new ArgumentNullException(nameof(gameLauncher));
-        _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
-        _launchRegistry = launchRegistry ?? throw new ArgumentNullException(nameof(launchRegistry));
-        _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-        _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IGameProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+    private readonly IGameLauncher _gameLauncher = gameLauncher ?? throw new ArgumentNullException(nameof(gameLauncher));
+    private readonly IWorkspaceManager _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
+    private readonly ILaunchRegistry _launchRegistry = launchRegistry ?? throw new ArgumentNullException(nameof(launchRegistry));
+    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+    private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
+    private readonly IConfigurationProviderService _config = config ?? throw new ArgumentNullException(nameof(config));
+    private readonly ILogger<ProfileLauncherFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, CancellationToken cancellationToken = default)
@@ -130,37 +108,52 @@ public class ProfileLauncherFacade : IProfileLauncherFacade
                 errors.Add("Game installation is required for launch");
             }
 
+            // A game profile must have content enabled to be launchable
             if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any())
             {
                 errors.Add("At least one content item must be enabled for launch");
+                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
             }
 
-            // Ensure at least one ContentType.GameInstallation manifest will be included
-            if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
+            var hasGameInstallationManifest = false;
+            var hasGameClientManifest = false;
+
+            // A game profile must explicitly enable both GameInstallation and GameClient content
+            // to be considered complete and launchable:
+            // - GameInstallation provides the base game files
+            // - GameClient provides the executable variant to launch
+            foreach (var contentId in profile.EnabledContentIds)
             {
-                var hasGameInstallationManifest = false;
-                foreach (var contentId in profile.EnabledContentIds)
+                try
                 {
-                    try
+                    var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+                    if (manifestResult.Success && manifestResult.Data != null)
                     {
-                        var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
-                        if (manifestResult.Success && manifestResult.Data != null &&
-                            manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+                        if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameInstallation)
                         {
                             hasGameInstallationManifest = true;
-                            break;
+                        }
+                        else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.GameClient)
+                        {
+                            hasGameClientManifest = true;
                         }
                     }
-                    catch (ArgumentException)
-                    {
-                        // Skip invalid manifest IDs
-                    }
                 }
-
-                if (!hasGameInstallationManifest)
+                catch (ArgumentException ex)
                 {
-                    errors.Add("At least one game installation content item must be enabled for launch");
+                    // Skip invalid manifest IDs
+                    _logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
                 }
+            }
+
+            if (!hasGameInstallationManifest)
+            {
+                errors.Add("At least one game installation content item must be enabled for launch");
+            }
+
+            if (!hasGameClientManifest)
+            {
+                errors.Add("At least one game client content item must be enabled for launch");
             }
 
             if (errors.Any())
@@ -252,7 +245,12 @@ public class ProfileLauncherFacade : IProfileLauncherFacade
 
             // Build list of manifests from enabled content IDs only
             var manifests = new List<ContentManifest>();
-            foreach (var contentId in profile.EnabledContentIds ?? Enumerable.Empty<string>())
+            var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds ?? Enumerable.Empty<string>());
+
+            // Resolve dependencies recursively
+            await ResolveDependenciesAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), resolvedContentIds, cancellationToken);
+
+            foreach (var contentId in resolvedContentIds)
             {
                 try
                 {
@@ -306,6 +304,50 @@ public class ProfileLauncherFacade : IProfileLauncherFacade
         {
             _logger.LogError(ex, "Failed to prepare workspace for profile {ProfileId}", profileId);
             return ProfileOperationResult<WorkspaceInfo>.CreateFailure($"Failed to prepare workspace: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Resolves dependencies recursively for the given content IDs.
+    /// </summary>
+    /// <param name="contentIds">The initial content IDs.</param>
+    /// <param name="resolvedIds">The set to add resolved IDs to.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    private async Task ResolveDependenciesAsync(IEnumerable<string> contentIds, HashSet<string> resolvedIds, CancellationToken cancellationToken)
+    {
+        var toProcess = new Queue<string>(contentIds);
+
+        while (toProcess.Count > 0)
+        {
+            var contentId = toProcess.Dequeue();
+            if (resolvedIds.Contains(contentId))
+                continue;
+
+            resolvedIds.Add(contentId);
+
+            try
+            {
+                var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    var manifest = manifestResult.Data;
+                    if (manifest.Dependencies != null)
+                    {
+                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
+                        {
+                            if (!resolvedIds.Contains(dep.Id))
+                            {
+                                toProcess.Enqueue(dep.Id);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                // Skip invalid IDs
+                _logger.LogWarning(ex, "Skipping invalid manifest ID during dependency resolution: {ContentId}", contentId);
+            }
         }
     }
 }

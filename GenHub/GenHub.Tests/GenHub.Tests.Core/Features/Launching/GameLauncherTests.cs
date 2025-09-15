@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -33,6 +34,7 @@ public class GameLauncherTests
     private readonly Mock<IGameInstallationService> _gameInstallationServiceMock = new();
     private readonly Mock<IConfigurationProviderService> _configurationProviderServiceMock = new();
     private readonly Mock<IManifestProvider> _manifestProviderMock = new();
+    private readonly Mock<ICasService> _casServiceMock = new();
     private readonly GameLauncher _gameLauncher;
 
     /// <summary>
@@ -55,6 +57,10 @@ public class GameLauncherTests
         _launchRegistryMock.Setup(x => x.UnregisterLaunchAsync(It.IsAny<string>()))
             .Returns(Task.CompletedTask);
 
+        // Setup CAS service mock
+        _casServiceMock.Setup(x => x.ExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         _gameLauncher = new GameLauncher(
             _loggerMock.Object,
             _profileManagerMock.Object,
@@ -64,6 +70,7 @@ public class GameLauncherTests
             _launchRegistryMock.Object,
             _gameInstallationServiceMock.Object,
             _manifestProviderMock.Object,
+            _casServiceMock.Object,
             _configurationProviderServiceMock.Object);
     }
 

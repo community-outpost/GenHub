@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -21,43 +22,22 @@ namespace GenHub.Features.GameProfiles.Services;
 /// Facade for game profile editing operations, coordinating between multiple services
 /// to provide a simplified interface for profile management.
 /// </summary>
-public class ProfileEditorFacade : IProfileEditorFacade
+public class ProfileEditorFacade(
+    IGameProfileManager profileManager,
+    IContentOrchestrator contentOrchestrator,
+    IGameInstallationService installationService,
+    IWorkspaceManager workspaceManager,
+    IContentManifestPool manifestPool,
+    IConfigurationProviderService config,
+    ILogger<ProfileEditorFacade> logger) : IProfileEditorFacade
 {
-    private readonly IGameProfileManager _profileManager;
-    private readonly IContentOrchestrator _contentOrchestrator;
-    private readonly IGameInstallationService _installationService;
-    private readonly IWorkspaceManager _workspaceManager;
-    private readonly IContentManifestPool _manifestPool;
-    private readonly IConfigurationProviderService _config;
-    private readonly ILogger<ProfileEditorFacade> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ProfileEditorFacade"/> class.
-    /// </summary>
-    /// <param name="profileManager">The game profile manager.</param>
-    /// <param name="contentOrchestrator">The content orchestrator.</param>
-    /// <param name="installationService">The game installation service.</param>
-    /// <param name="workspaceManager">The workspace manager.</param>
-    /// <param name="manifestPool">The content manifest pool.</param>
-    /// <param name="config">The configuration provider service.</param>
-    /// <param name="logger">The logger instance.</param>
-    public ProfileEditorFacade(
-        IGameProfileManager profileManager,
-        IContentOrchestrator contentOrchestrator,
-        IGameInstallationService installationService,
-        IWorkspaceManager workspaceManager,
-        IContentManifestPool manifestPool,
-        IConfigurationProviderService config,
-        ILogger<ProfileEditorFacade> logger)
-    {
-        _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-        _contentOrchestrator = contentOrchestrator ?? throw new ArgumentNullException(nameof(contentOrchestrator));
-        _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
-        _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
-        _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-        _config = config ?? throw new ArgumentNullException(nameof(config));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly IGameProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
+    private readonly IContentOrchestrator _contentOrchestrator = contentOrchestrator ?? throw new ArgumentNullException(nameof(contentOrchestrator));
+    private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
+    private readonly IWorkspaceManager _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
+    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+    private readonly IConfigurationProviderService _config = config ?? throw new ArgumentNullException(nameof(config));
+    private readonly ILogger<ProfileEditorFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> CreateProfileWithWorkspaceAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)
@@ -128,11 +108,16 @@ public class ProfileEditorFacade : IProfileEditorFacade
             if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
             {
                 var manifests = new List<ContentManifest>();
-                foreach (var contentId in profile.EnabledContentIds)
+                var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds);
+
+                // Resolve dependencies recursively
+                await ResolveDependenciesAsync(profile.EnabledContentIds, resolvedContentIds, cancellationToken);
+
+                foreach (var contentId in resolvedContentIds)
                 {
                     try
                     {
-                        var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
+                        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
                         if (manifestResult.Success && manifestResult.Data != null)
                         {
                             manifests.Add(manifestResult.Data);
@@ -146,6 +131,7 @@ public class ProfileEditorFacade : IProfileEditorFacade
                 }
 
                 workspaceConfig.Manifests = manifests;
+                profile.EnabledContentIds = resolvedContentIds.ToList();
             }
 
             var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
@@ -154,7 +140,11 @@ public class ProfileEditorFacade : IProfileEditorFacade
                 profile.ActiveWorkspaceId = workspaceResult.Data.Id;
 
                 // persist ActiveWorkspaceId
-                await _profileManager.UpdateProfileAsync(profile.Id, new UpdateProfileRequest(), cancellationToken);
+                var updateRequest = new UpdateProfileRequest
+                {
+                    ActiveWorkspaceId = profile.ActiveWorkspaceId,
+                };
+                await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
                 _logger.LogInformation("Created workspace {WorkspaceId} for profile {ProfileId}", workspaceResult.Data.Id, profile.Id);
             }
 
@@ -212,11 +202,16 @@ public class ProfileEditorFacade : IProfileEditorFacade
                 if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
                 {
                     var manifests = new List<ContentManifest>();
-                    foreach (var contentId in profile.EnabledContentIds)
+                    var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds);
+
+                    // Resolve dependencies recursively
+                    await ResolveDependenciesAsync(profile.EnabledContentIds, resolvedContentIds, cancellationToken);
+
+                    foreach (var contentId in resolvedContentIds)
                     {
                         try
                         {
-                            var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
+                            var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
                             if (manifestResult.Success && manifestResult.Data != null)
                             {
                                 manifests.Add(manifestResult.Data);
@@ -230,6 +225,7 @@ public class ProfileEditorFacade : IProfileEditorFacade
                     }
 
                     workspaceConfig.Manifests = manifests;
+                    profile.EnabledContentIds = resolvedContentIds.ToList();
                 }
 
                 var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
@@ -238,7 +234,11 @@ public class ProfileEditorFacade : IProfileEditorFacade
                     profile.ActiveWorkspaceId = workspaceResult.Data.Id;
 
                     // persist ActiveWorkspaceId
-                    await _profileManager.UpdateProfileAsync(profile.Id, new UpdateProfileRequest(), cancellationToken);
+                    var updateRequest = new UpdateProfileRequest
+                    {
+                        ActiveWorkspaceId = profile.ActiveWorkspaceId,
+                    };
+                    await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
                     _logger.LogInformation("Refreshed workspace {WorkspaceId} for profile {ProfileId}", workspaceResult.Data.Id, profile.Id);
                 }
             }
@@ -379,6 +379,50 @@ public class ProfileEditorFacade : IProfileEditorFacade
         {
             _logger.LogError(ex, "Failed to validate profile {ProfileId}", profile?.Id);
             return ProfileOperationResult<bool>.CreateFailure($"Profile validation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Resolves dependencies recursively for the given content IDs.
+    /// </summary>
+    /// <param name="contentIds">The initial content IDs.</param>
+    /// <param name="resolvedIds">The set to add resolved IDs to.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    private async Task ResolveDependenciesAsync(IEnumerable<string> contentIds, HashSet<string> resolvedIds, CancellationToken cancellationToken)
+    {
+        var toProcess = new Queue<string>(contentIds);
+
+        while (toProcess.Count > 0)
+        {
+            var contentId = toProcess.Dequeue();
+            if (resolvedIds.Contains(contentId))
+                continue;
+
+            resolvedIds.Add(contentId);
+
+            try
+            {
+                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    var manifest = manifestResult.Data;
+                    if (manifest.Dependencies != null)
+                    {
+                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
+                        {
+                            if (!resolvedIds.Contains(dep.Id))
+                            {
+                                toProcess.Enqueue(dep.Id);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                // Skip invalid IDs
+                _logger.LogWarning(ex, "Skipping invalid manifest ID during dependency resolution: {ContentId}", contentId);
+            }
         }
     }
 }

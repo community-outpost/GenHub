@@ -48,9 +48,9 @@ public class UpdateProfileRequest
     public string? WorkingDirectory { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether this profile is active.
+    /// Gets or sets the active workspace ID.
     /// </summary>
-    public bool? IsActive { get; set; }
+    public string? ActiveWorkspaceId { get; set; }
 
     /// <summary>
     /// Gets or sets the icon path.

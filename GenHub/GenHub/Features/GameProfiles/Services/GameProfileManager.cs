@@ -119,6 +119,8 @@ public class GameProfileManager(
             if (request.EnabledContentIds != null) profile.EnabledContentIds = request.EnabledContentIds;
             if (request.PreferredStrategy.HasValue) profile.WorkspaceStrategy = request.PreferredStrategy.Value;
             if (request.LaunchArguments != null) profile.LaunchOptions = request.LaunchArguments;
+            if (request.EnvironmentVariables != null) profile.EnvironmentVariables = request.EnvironmentVariables;
+            if (request.ActiveWorkspaceId != null) profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
 

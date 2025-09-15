@@ -33,8 +33,8 @@ public static class GameProfileModule
         });
         services.AddScoped<IGameProfileManager, GameProfileManager>();
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
-        services.AddSingleton<IProfileLauncherFacade, ProfileLauncherFacade>();
-        services.AddSingleton<IProfileEditorFacade, ProfileEditorFacade>();
+        services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
+        services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
 
         // Register game installation services
         services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
