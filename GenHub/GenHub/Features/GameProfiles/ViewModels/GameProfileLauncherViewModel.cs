@@ -72,7 +72,7 @@ public partial class GameProfileLauncherViewModel(
     /// Performs asynchronous initialization for the Downloads tab.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public virtual async Task InitializeAsync()
+    public virtual Task InitializeAsync()
     {
         try
         {
@@ -80,7 +80,6 @@ public partial class GameProfileLauncherViewModel(
             Profiles.Clear();
 
             // TODO: Load actual profiles when IGameProfileManager is available
-            await Task.Delay(1); // Make method properly async
             StatusMessage = "Profiles loaded";
             _logger?.LogInformation("Game profile launcher initialized");
         }
@@ -89,6 +88,8 @@ public partial class GameProfileLauncherViewModel(
             _logger?.LogError(ex, "Error initializing profiles");
             StatusMessage = "Error loading profiles";
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -97,10 +98,15 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private async Task ScanForGames()
     {
-        if (_installationService == null || _logger == null)
+        if (_installationService == null)
         {
             StatusMessage = "Game installation service not available";
             return;
+        }
+
+        if (_logger == null)
+        {
+            StatusMessage = "Logger not available - scan may proceed without detailed logging";
         }
 
         try
@@ -112,17 +118,17 @@ public partial class GameProfileLauncherViewModel(
             if (installations.Success && installations.Data != null)
             {
                 StatusMessage = $"Scan complete. Found {installations.Data.Count} game installations";
-                _logger.LogInformation("Game scan completed successfully. Found {Count} installations", installations.Data.Count);
+                _logger?.LogInformation("Game scan completed successfully. Found {Count} installations", installations.Data.Count);
             }
             else
             {
                 StatusMessage = $"Scan failed: {string.Join(", ", installations.Errors)}";
-                _logger.LogWarning("Game scan failed: {Errors}", string.Join(", ", installations.Errors));
+                _logger?.LogWarning("Game scan failed: {Errors}", string.Join(", ", installations.Errors));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scanning for games");
+            _logger?.LogError(ex, "Error scanning for games");
             StatusMessage = "Error during scan";
         }
     }

@@ -32,7 +32,11 @@ public class GameInstallationService(IGameInstallationDetectionOrchestrator dete
             return OperationResult<GameInstallation>.CreateFailure("Installation ID cannot be null or empty.");
         }
 
-        await EnsureCacheInitializedAsync(cancellationToken);
+        var initResult = await TryInitializeCacheAsync(cancellationToken);
+        if (!initResult.Success)
+        {
+            return OperationResult<GameInstallation>.CreateFailure(initResult.Errors.First());
+        }
 
         if (_cachedInstallations == null)
         {
@@ -58,7 +62,11 @@ public class GameInstallationService(IGameInstallationDetectionOrchestrator dete
     {
         try
         {
-            await EnsureCacheInitializedAsync(cancellationToken);
+            var initResult = await TryInitializeCacheAsync(cancellationToken);
+            if (!initResult.Success)
+            {
+                return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors.First());
+            }
 
             if (_cachedInstallations == null)
             {
@@ -96,23 +104,35 @@ public class GameInstallationService(IGameInstallationDetectionOrchestrator dete
     }
 
     /// <summary>
-    /// Ensures the installation cache is initialized.
+    /// Attempts to initialize the installation cache if not already initialized.
     /// </summary>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task EnsureCacheInitializedAsync(CancellationToken cancellationToken)
+    /// <returns>A task representing the asynchronous operation, containing a result indicating success/failure.</returns>
+    private async Task<OperationResult<bool>> TryInitializeCacheAsync(CancellationToken cancellationToken)
     {
-        if (_cachedInstallations != null) return;
+        if (_cachedInstallations != null)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
 
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
-            if (_cachedInstallations != null) return;
+            if (_cachedInstallations != null)
+            {
+                return OperationResult<bool>.CreateSuccess(true);
+            }
 
             var detectionResult = await _detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
             if (detectionResult.Success)
             {
                 _cachedInstallations = detectionResult.Items;
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+            else
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
             }
         }
         finally

@@ -72,14 +72,9 @@ public sealed class GameInstallationDetectionOrchestrator(
             detectorCount,
             sw.ElapsedMilliseconds);
 
-        if (errors.Any())
-        {
-            return DetectionResult<GameInstallation>.CreateFailure(errors);
-        }
-        else
-        {
-            return DetectionResult<GameInstallation>.CreateSuccess(allGameInstallations, sw.Elapsed);
-        }
+        return errors.Any()
+             ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))
+             : DetectionResult<GameInstallation>.CreateSuccess(allGameInstallations, sw.Elapsed);
     }
 
     /// <inheritdoc/>
