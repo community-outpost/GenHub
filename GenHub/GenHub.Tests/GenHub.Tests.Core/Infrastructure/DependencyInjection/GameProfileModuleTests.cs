@@ -109,6 +109,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             services.AddLogging();
+            services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
 
             // Mock missing dependencies
             services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
