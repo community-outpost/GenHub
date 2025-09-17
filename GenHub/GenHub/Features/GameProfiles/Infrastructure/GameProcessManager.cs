@@ -64,18 +64,22 @@ public class GameProcessManager(
                         processStartInfo.ArgumentList.Add(arg.Key);
                         if (!string.IsNullOrEmpty(arg.Value))
                         {
-                            processStartInfo.ArgumentList.Add(arg.Value);
+                            // Quote the value if it contains spaces
+                            var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                            processStartInfo.ArgumentList.Add(quotedValue);
                         }
                     }
                     else if (string.IsNullOrEmpty(arg.Key))
                     {
-                        // Positional argument
-                        processStartInfo.ArgumentList.Add(arg.Value);
+                        // Positional argument - quote if contains spaces
+                        var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                        processStartInfo.ArgumentList.Add(quotedValue);
                     }
                     else
                     {
-                        // Key=value format
-                        processStartInfo.ArgumentList.Add($"{arg.Key}={arg.Value}");
+                        // Key=value format - quote the value if it contains spaces
+                        var quotedValue = arg.Value.Contains(' ') ? $"\"{arg.Value}\"" : arg.Value;
+                        processStartInfo.ArgumentList.Add($"{arg.Key}={quotedValue}");
                     }
                 }
             }
@@ -97,6 +101,22 @@ public class GameProcessManager(
 
             // Track the process
             _managedProcesses[process.Id] = process;
+
+            if (configuration.WaitForExit)
+            {
+                var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
+                process.WaitForExit(timeoutMs);
+            }
+
+            try
+            {
+                process.EnableRaisingEvents = true;
+                process.Exited += (_, __) => _managedProcesses.TryRemove(process.Id, out Process? _);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", process.Id);
+            }
 
             var processInfo = new GameProcessInfo
             {

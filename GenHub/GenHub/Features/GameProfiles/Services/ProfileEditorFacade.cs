@@ -9,7 +9,6 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -29,6 +28,7 @@ public class ProfileEditorFacade(
     IWorkspaceManager workspaceManager,
     IContentManifestPool manifestPool,
     IConfigurationProviderService config,
+    IDependencyResolver dependencyResolver,
     ILogger<ProfileEditorFacade> logger) : IProfileEditorFacade
 {
     private readonly IGameProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
@@ -37,6 +37,7 @@ public class ProfileEditorFacade(
     private readonly IWorkspaceManager _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
     private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly IConfigurationProviderService _config = config ?? throw new ArgumentNullException(nameof(config));
+    private readonly IDependencyResolver _dependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
     private readonly ILogger<ProfileEditorFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -67,6 +68,14 @@ public class ProfileEditorFacade(
                 if (gameInstallationContent.Any())
                 {
                     profile.EnabledContentIds = gameInstallationContent.Select(c => c.Id.ToString()).ToList();
+
+                    // Also auto-enable a GameClient content if available
+                    var gameClientContent = contentResult.Data
+                        .FirstOrDefault(c => c.ContentType == Core.Models.Enums.ContentType.GameClient);
+                    if (gameClientContent != null && !profile.EnabledContentIds.Contains(gameClientContent.Id.ToString()))
+                    {
+                        profile.EnabledContentIds.Add(gameClientContent.Id.ToString());
+                    }
 
                     // Update the profile with enabled content
                     var updateRequest = new UpdateProfileRequest
@@ -107,31 +116,14 @@ public class ProfileEditorFacade(
             // Build manifests from enabled content IDs
             if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
             {
-                var manifests = new List<ContentManifest>();
-                var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds);
-
-                // Resolve dependencies recursively
-                await ResolveDependenciesAsync(profile.EnabledContentIds, resolvedContentIds, cancellationToken);
-
-                foreach (var contentId in resolvedContentIds)
+                var resolutionResult = await _dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds, cancellationToken);
+                if (!resolutionResult.Success)
                 {
-                    try
-                    {
-                        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                        if (manifestResult.Success && manifestResult.Data != null)
-                        {
-                            manifests.Add(manifestResult.Data);
-                        }
-                    }
-                    catch (ArgumentException)
-                    {
-                        // Skip invalid manifest IDs
-                        _logger.LogWarning("Skipping invalid manifest ID: {ContentId}", contentId);
-                    }
+                    return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                 }
 
-                workspaceConfig.Manifests = manifests;
-                profile.EnabledContentIds = resolvedContentIds.ToList();
+                workspaceConfig.Manifests = resolutionResult.ResolvedManifests.ToList();
+                profile.EnabledContentIds = resolutionResult.ResolvedContentIds.ToList();
             }
 
             var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
@@ -201,31 +193,14 @@ public class ProfileEditorFacade(
                 // Build manifests from enabled content IDs
                 if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
                 {
-                    var manifests = new List<ContentManifest>();
-                    var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds);
-
-                    // Resolve dependencies recursively
-                    await ResolveDependenciesAsync(profile.EnabledContentIds, resolvedContentIds, cancellationToken);
-
-                    foreach (var contentId in resolvedContentIds)
+                    var resolutionResult = await _dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds, cancellationToken);
+                    if (!resolutionResult.Success)
                     {
-                        try
-                        {
-                            var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                            if (manifestResult.Success && manifestResult.Data != null)
-                            {
-                                manifests.Add(manifestResult.Data);
-                            }
-                        }
-                        catch (ArgumentException)
-                        {
-                            // Skip invalid manifest IDs
-                            _logger.LogWarning("Skipping invalid manifest ID: {ContentId}", contentId);
-                        }
+                        return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                     }
 
-                    workspaceConfig.Manifests = manifests;
-                    profile.EnabledContentIds = resolvedContentIds.ToList();
+                    workspaceConfig.Manifests = resolutionResult.ResolvedManifests.ToList();
+                    profile.EnabledContentIds = resolutionResult.ResolvedContentIds.ToList();
                 }
 
                 var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
@@ -306,8 +281,9 @@ public class ProfileEditorFacade(
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
             }
 
-            // Filter by game version (this is a simplified implementation)
-            // In a real implementation, you'd need to map gameVersionId to GameType
+            // TODO: Implement proper mapping of gameVersionId to GameType.
+            // This requires retrieving the GameVersion by ID from a service and extracting its GameType.
+            // For now, return all manifests as a temporary measure until the service is implemented.
             var relevantContent = manifestsResult.Data?.ToList() ?? new List<ContentManifest>();
 
             _logger.LogInformation("Discovered {Count} content items for game version {GameVersionId}", relevantContent.Count, gameVersionId);
@@ -379,50 +355,6 @@ public class ProfileEditorFacade(
         {
             _logger.LogError(ex, "Failed to validate profile {ProfileId}", profile?.Id);
             return ProfileOperationResult<bool>.CreateFailure($"Profile validation failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resolves dependencies recursively for the given content IDs.
-    /// </summary>
-    /// <param name="contentIds">The initial content IDs.</param>
-    /// <param name="resolvedIds">The set to add resolved IDs to.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    private async Task ResolveDependenciesAsync(IEnumerable<string> contentIds, HashSet<string> resolvedIds, CancellationToken cancellationToken)
-    {
-        var toProcess = new Queue<string>(contentIds);
-
-        while (toProcess.Count > 0)
-        {
-            var contentId = toProcess.Dequeue();
-            if (resolvedIds.Contains(contentId))
-                continue;
-
-            resolvedIds.Add(contentId);
-
-            try
-            {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
-                {
-                    var manifest = manifestResult.Data;
-                    if (manifest.Dependencies != null)
-                    {
-                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
-                        {
-                            if (!resolvedIds.Contains(dep.Id))
-                            {
-                                toProcess.Enqueue(dep.Id);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (ArgumentException ex)
-            {
-                // Skip invalid IDs
-                _logger.LogWarning(ex, "Skipping invalid manifest ID during dependency resolution: {ContentId}", contentId);
-            }
         }
     }
 }

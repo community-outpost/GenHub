@@ -84,4 +84,24 @@ public class GameProfile : IGameProfile
     /// Gets or sets the currently active workspace ID for this profile.
     /// </summary>
     public string? ActiveWorkspaceId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the custom executable path.
+    /// </summary>
+    public string? CustomExecutablePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the working directory.
+    /// </summary>
+    public string? WorkingDirectory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the icon path.
+    /// </summary>
+    public string? IconPath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the theme color.
+    /// </summary>
+    public string? ThemeColor { get; set; }
 }

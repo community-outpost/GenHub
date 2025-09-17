@@ -101,14 +101,15 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             }
         }
 
-        // Validate manifest has files
-        if (!configuration.Manifests.Any() || configuration.Manifests.All(m => !m.Files.Any()))
+        // Validate that manifests have files (required for workspace preparation)
+        if (configuration.Manifests.Any() &&
+            configuration.Manifests.All(m => (m.Files?.Any() ?? false) == false))
         {
             issues.Add(new ValidationIssue
             {
                 IssueType = ValidationIssueType.MissingFile,
                 Severity = ValidationSeverity.Error,
-                Message = "Manifest must contain at least one file",
+                Message = "All manifests must contain at least one file to be processed by workspace strategies",
                 Path = nameof(configuration.Manifests),
             });
         }

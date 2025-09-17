@@ -193,7 +193,7 @@ public class WorkspaceManager(
 
     private async Task TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var casReferences = manifests.SelectMany(m => m.Files)
+        var casReferences = manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
             .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
             .Select(f => f.Hash!)
             .ToList();

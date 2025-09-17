@@ -195,7 +195,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{manifestVersion}",
+            Id = ManifestId.Create($"{publisherId}.{referralName}.{manifestVersion}"),
             Name = referralName,
             Version = manifestVersion.ToString(),
             ContentType = ContentType.PublisherReferral,
@@ -241,7 +241,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{manifestVersion}",
+            Id = ManifestId.Create($"{publisherId}.{referralName}.{manifestVersion}"),
             Name = referralName,
             Version = manifestVersion.ToString(),
             ContentType = ContentType.ContentReferral,

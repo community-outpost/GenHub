@@ -30,7 +30,7 @@ public class DownloadModuleTests
         services.AddSingleton<IFileHashProvider, Sha256HashProvider>();
 
         // Act
-        services.AddDownloadServices(configProvider);
+        services.AddDownloadServices();
         var provider = services.BuildServiceProvider();
 
         // Assert

@@ -139,6 +139,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
                     ],
                 },
             },
+            GameVersion = new GameVersion { ExecutablePath = "generals.exe" },
         };
 
         // Act

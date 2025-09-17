@@ -50,12 +50,12 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
             // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
+            return configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).Count() * LinkOverheadBytes;
         }
         else
         {
             // Different volumes: will fall back to copying
-            return configuration.Manifests.SelectMany(m => m.Files).Sum(f => f.Size);
+            return configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).Sum(f => f.Size);
         }
     }
 
@@ -87,7 +87,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -145,7 +145,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                             continue;
                         }
 
-                        var wasCopied = false;
+                        var verifyHash = !sameVolume; // For different volumes, always copy, so verify
                         if (sameVolume)
                         {
                             try
@@ -162,7 +162,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                                 await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                                 copiedFiles++;
                                 totalBytesProcessed += file.Size;
-                                wasCopied = true;
+                                verifyHash = true; // Since copied, verify
                             }
                         }
                         else
@@ -171,11 +171,11 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                             await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                             copiedFiles++;
                             totalBytesProcessed += file.Size;
-                            wasCopied = true;
+                            verifyHash = true; // Copied, verify
                         }
 
-                        // Verify file integrity if hash is provided (only for copied files)
-                        if (!string.IsNullOrEmpty(file.Hash) && wasCopied)
+                        // Verify file integrity if hash is provided and file was copied
+                        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
                         {
                             var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                             if (!hashValid)
@@ -259,13 +259,14 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             return;
         }
 
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         // Check if source and destination are on the same volume
         var sourceRoot = Path.GetPathRoot(sourcePath);
         var destRoot = Path.GetPathRoot(targetPath);
         var sameVolume = string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
 
+        var verifyHash = !sameVolume;
         if (sameVolume)
         {
             try
@@ -278,16 +279,18 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
                 // Fall back to copy
                 await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+                verifyHash = true;
             }
         }
         else
         {
             // Different volumes, must copy
             await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+            verifyHash = true;
         }
 
-        // Verify file integrity if hash is provided (only for copied files)
-        if (!string.IsNullOrEmpty(file.Hash))
+        // Verify file integrity if hash is provided and file was copied
+        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
         {
             var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
             if (!hashValid)

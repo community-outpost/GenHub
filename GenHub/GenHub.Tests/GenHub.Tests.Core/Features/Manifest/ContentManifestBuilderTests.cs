@@ -130,7 +130,7 @@ public class ContentManifestBuilderTests
         var result = _builder
             .WithBasicInfo("Test Publisher", "Test Name", 1)
             .AddDependency(
-                id: "1.0.dep.publisher.content",
+                id: ManifestId.Create("1.0.dep.publisher.content"),
                 name: "Dependency Name",
                 dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.AutoInstall,
@@ -138,20 +138,20 @@ public class ContentManifestBuilderTests
                 maxVersion: "2.0",
                 compatibleVersions: new List<string> { "1.1", "1.2" },
                 isExclusive: true,
-                conflictsWith: new List<string> { "1.0.conflict.publisher.content" })
+                conflictsWith: new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") })
             .Build();
 
         // Assert
         Assert.Single(result.Dependencies);
         var dependency = result.Dependencies[0];
-        Assert.Equal("1.0.dep.publisher.content", dependency.Id);
+        Assert.Equal(ManifestId.Create("1.0.dep.publisher.content"), dependency.Id);
         Assert.Equal("Dependency Name", dependency.Name);
         Assert.Equal(ContentType.GameInstallation, dependency.DependencyType);
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
         Assert.True(dependency.IsExclusive);
-        Assert.Equal(new List<string> { "1.0.conflict.publisher.content" }, dependency.ConflictsWith);
+        Assert.Equal(new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") }, dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
     }
 

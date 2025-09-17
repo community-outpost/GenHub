@@ -20,7 +20,7 @@ public static class ManifestModule
     {
         // Core manifest services
         services.AddSingleton<IManifestCache, ManifestCache>();
-        services.AddSingleton<IManifestProvider, ManifestProvider>();
+        services.AddScoped<IManifestProvider, ManifestProvider>();
         services.AddSingleton<IManifestIdService>(new ManifestIdService());
 
         // Discovery and generation services

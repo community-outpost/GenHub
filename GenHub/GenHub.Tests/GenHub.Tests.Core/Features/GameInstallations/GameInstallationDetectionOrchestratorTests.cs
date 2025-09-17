@@ -141,8 +141,8 @@ public class GameInstallationDetectionOrchestratorTests
         var result = await svc.DetectAllInstallationsAsync();
 
         // Assert
-        Assert.False(result.Success); // Overall failure due to one detector failing
-        Assert.Empty(result.Items); // Failed results have no items
+        Assert.True(result.Success); // Overall success with warnings
+        Assert.Single(result.Items); // Success results have items
         Assert.Contains("detector failed", result.Errors);
     }
 

@@ -45,8 +45,7 @@ public class Program
             try
             {
                 // Register shared services and Linux-specific services
-                services.ConfigureApplicationServices((s, configProvider) =>
-                    s.AddLinuxServices(configProvider));
+                services.ConfigureApplicationServices(s => s.AddLinuxServices());
             }
             catch (Exception configEx)
             {

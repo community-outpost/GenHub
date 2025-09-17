@@ -410,11 +410,11 @@ public class GameLauncherTests
     }
 
     /// <summary>
-    /// Terminates a game with process termination failure and asserts partial success.
+    /// Terminates a game with process termination failure and ensures launch is not unregistered.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldStillUnregister()
+    public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldNotUnregister()
     {
         // Arrange
         var launchId = Guid.NewGuid().ToString();
@@ -437,7 +437,7 @@ public class GameLauncherTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Process termination failed", result.FirstError);
-        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Once);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(launchId), Times.Never);
     }
 
     /// <summary>

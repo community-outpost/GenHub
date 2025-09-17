@@ -20,12 +20,11 @@ public static class GameLaunchingModule
     /// Registers launching services with the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddLaunchingServices(this IServiceCollection services, IConfigurationProviderService configurationProvider)
+    public static IServiceCollection AddLaunchingServices(this IServiceCollection services)
     {
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
-        services.AddSingleton<IGameLauncher>(sp =>
+        services.AddScoped<IGameLauncher>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<GameLauncher>>();
             var profileManager = sp.GetRequiredService<IGameProfileManager>();

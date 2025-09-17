@@ -45,7 +45,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
 
             // Act
-            services.AddGameProfileServices(configProviderMock.Object);
+            services.AddGameProfileServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -85,7 +85,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddSingleton(provider => new Mock<IGameInstallationService>().Object);
 
             // Act
-            services.AddLaunchingServices(configProviderMock.Object);
+            services.AddLaunchingServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -118,7 +118,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
 
             // Act
-            services.AddGameProfileServices(configProviderMock.Object);
+            services.AddGameProfileServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -140,7 +140,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddLogging();
 
             // Act
-            services.AddLaunchingServices(configProviderMock.Object);
+            services.AddLaunchingServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -173,7 +173,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
 
             // Act
-            services.AddGameProfileServices(configProviderMock.Object);
+            services.AddGameProfileServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -204,11 +204,12 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             configProviderMock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(tempDir, "Content"));
 
             services.AddLogging();
+            services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
 
             try
             {
                 // Act
-                services.AddGameProfileServices(configProviderMock.Object);
+                services.AddGameProfileServices();
                 var serviceProvider = services.BuildServiceProvider();
 
                 // Force service creation to trigger directory creation
@@ -255,7 +256,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddSingleton<ILaunchRegistry>(new Mock<ILaunchRegistry>().Object);
 
             // Act
-            services.AddGameProfileServices(configProviderMock.Object);
+            services.AddGameProfileServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert
@@ -289,7 +290,7 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
             services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
 
             // Act
-            services.AddGameProfileServices(configProviderMock.Object);
+            services.AddGameProfileServices();
             var serviceProvider = services.BuildServiceProvider();
 
             // Assert

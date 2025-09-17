@@ -37,7 +37,7 @@ public class GameLauncher(
     ICasService casService,
     IConfigurationProviderService configurationProvider) : IGameLauncher
 {
-    private static readonly ConcurrentDictionary<string, object> _profileLaunchLocks = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
 
     /// <summary>
     /// Launches a game using the provided configuration.
@@ -191,16 +191,26 @@ public class GameLauncher(
     {
         ArgumentNullException.ThrowIfNull(profile);
 
-        // Check if already launching
-        var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
-        if (existingLaunches.Any(l => l.ProfileId == profile.Id))
+        // Use profile-specific semaphore to prevent race conditions
+        var semaphore = _profileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(cancellationToken);
+        try
         {
-            return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Profile {profile.Id} is already launching or running");
-        }
+            // Check if already launching (inside the semaphore to prevent race)
+            var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
+            if (existingLaunches.Any(l => l.ProfileId == profile.Id && !l.TerminatedAt.HasValue))
+            {
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Profile {profile.Id} is already launching or running");
+            }
 
-        // Proceed with launch
-        var launchId = Guid.NewGuid().ToString();
-        return await LaunchProfileInternalAsync(profile, progress, cancellationToken, launchId);
+            // Proceed with launch
+            var launchId = Guid.NewGuid().ToString();
+            return await LaunchProfileInternalAsync(profile, progress, cancellationToken, launchId);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     /// <summary>
@@ -281,8 +291,6 @@ public class GameLauncher(
             var result = await processManager.TerminateProcessAsync(launchInfo.ProcessInfo.ProcessId, cancellationToken);
             if (!result.Success)
             {
-                // Still unregister even if termination failed
-                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(result.FirstError!, launchId, launchInfo.ProfileId);
             }
 
@@ -317,7 +325,7 @@ public class GameLauncher(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
+                var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
                 if (!manifestResult.Success)
                 {
                     return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content '{contentId}': {manifestResult.FirstError}", launchId, profile.Id);
@@ -348,7 +356,6 @@ public class GameLauncher(
                 GameVersion = profile.GameVersion,
                 Strategy = profile.WorkspaceStrategy,
                 WorkspaceRootPath = configurationProvider.GetWorkspacePath(),
-                BaseInstallationPath = profile.GameInstallationId, // This will be resolved below
             };
 
             // Resolve the base installation path from the installation ID

@@ -65,7 +65,7 @@ public class ContentStorageService : IContentStorageService
 
     /// <inheritdoc/>
     public string GetContentDirectoryPath(ManifestId manifestId) =>
-        Path.Combine(_storageRoot, DirectoryNames.Data, manifestId);
+        Path.Combine(_storageRoot, DirectoryNames.Data, manifestId.Value);
 
     /// <inheritdoc/>
     public async Task<OperationResult<ContentManifest>> StoreContentAsync(
@@ -77,6 +77,21 @@ public class ContentStorageService : IContentStorageService
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Source directory does not exist: {sourceDirectory}");
+        }
+
+        // Validate manifest for security issues
+        var securityValidation = ValidateManifestSecurity(manifest);
+        if (!securityValidation.Success)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Manifest security validation failed: {securityValidation.FirstError}");
+        }
+
+        // For GameInstallation content, skip physical file copying and just store metadata
+        if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+        {
+            _logger.LogInformation("Storing GameInstallation manifest {ManifestId} metadata only (skipping file copy)", manifest.Id);
+            return await StoreManifestOnlyAsync(manifest, cancellationToken);
         }
 
         var contentDir = GetContentDirectoryPath(manifest.Id);
@@ -218,6 +233,30 @@ public class ContentStorageService : IContentStorageService
         }
     }
 
+    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest)
+    {
+        if (manifest.Files != null)
+        {
+            foreach (var file in manifest.Files)
+            {
+                if (string.IsNullOrEmpty(file.RelativePath))
+                {
+                    return OperationResult<bool>.CreateFailure("File entries must have a relative path");
+                }
+
+                // Check for path traversal attacks
+                if (file.RelativePath.Contains("..") ||
+                    file.RelativePath.Contains("/../") ||
+                    file.RelativePath.Contains("\\..\\"))
+                {
+                    return OperationResult<bool>.CreateFailure($"File {file.RelativePath} contains illegal path traversal");
+                }
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)
     {
         using var sha256 = SHA256.Create();
@@ -239,6 +278,44 @@ public class ContentStorageService : IContentStorageService
         }
 
         await Task.CompletedTask;
+    }
+
+    private async Task<OperationResult<ContentManifest>> StoreManifestOnlyAsync(
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        var manifestPath = GetManifestStoragePath(manifest.Id);
+
+        try
+        {
+            // Create manifest directory if needed
+            var manifestDir = Path.GetDirectoryName(manifestPath);
+            if (!string.IsNullOrEmpty(manifestDir))
+                Directory.CreateDirectory(manifestDir);
+
+            // Store manifest metadata only
+            var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+            await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
+
+            _logger.LogInformation("Successfully stored manifest metadata for {ManifestId}", manifest.Id);
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store manifest metadata for {ManifestId}", manifest.Id);
+
+            // Cleanup on failure
+            try
+            {
+                FileOperationsService.DeleteFileIfExists(manifestPath);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogWarning(cleanupEx, "Failed to cleanup manifest file after storage failure for {ManifestId}", manifest.Id);
+            }
+
+            return OperationResult<ContentManifest>.CreateFailure($"Manifest storage failed: {ex.Message}");
+        }
     }
 
     private async Task<ContentManifest> StoreContentFilesAsync(

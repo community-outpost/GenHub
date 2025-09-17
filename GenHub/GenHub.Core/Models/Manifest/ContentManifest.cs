@@ -11,7 +11,7 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public class ContentManifest
 {
-    /// <summary>Gets or sets the manifest format version for backward compatibility.</summary>
+    /// <summary>Gets or sets the manifest format version.</summary>
     public string ManifestVersion { get; set; } = "1.0";
 
     /// <summary>Gets or sets the unique identifier for this content package.</summary>

@@ -9,7 +9,6 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Workspace;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
@@ -31,6 +30,7 @@ public class ProfileLauncherFacade(
     IContentManifestPool manifestPool,
     IGameInstallationService installationService,
     IConfigurationProviderService config,
+    IDependencyResolver dependencyResolver,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     private readonly IGameProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
@@ -40,6 +40,7 @@ public class ProfileLauncherFacade(
     private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
     private readonly IConfigurationProviderService _config = config ?? throw new ArgumentNullException(nameof(config));
+    private readonly IDependencyResolver _dependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
     private readonly ILogger<ProfileLauncherFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -248,24 +249,13 @@ public class ProfileLauncherFacade(
             var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds ?? Enumerable.Empty<string>());
 
             // Resolve dependencies recursively
-            await ResolveDependenciesAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), resolvedContentIds, cancellationToken);
-
-            foreach (var contentId in resolvedContentIds)
+            var resolutionResult = await _dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
+            if (!resolutionResult.Success)
             {
-                try
-                {
-                    var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
-                    if (manifestResult.Success && manifestResult.Data != null)
-                    {
-                        manifests.Add(manifestResult.Data);
-                    }
-                }
-                catch (ArgumentException)
-                {
-                    // Skip invalid manifest IDs
-                    _logger.LogWarning("Skipping invalid manifest ID: {ContentId}", contentId);
-                }
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
             }
+
+            manifests = resolutionResult.ResolvedManifests.ToList();
 
             // Create workspace configuration
             var workspaceConfig = new WorkspaceConfiguration
@@ -304,50 +294,6 @@ public class ProfileLauncherFacade(
         {
             _logger.LogError(ex, "Failed to prepare workspace for profile {ProfileId}", profileId);
             return ProfileOperationResult<WorkspaceInfo>.CreateFailure($"Failed to prepare workspace: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resolves dependencies recursively for the given content IDs.
-    /// </summary>
-    /// <param name="contentIds">The initial content IDs.</param>
-    /// <param name="resolvedIds">The set to add resolved IDs to.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    private async Task ResolveDependenciesAsync(IEnumerable<string> contentIds, HashSet<string> resolvedIds, CancellationToken cancellationToken)
-    {
-        var toProcess = new Queue<string>(contentIds);
-
-        while (toProcess.Count > 0)
-        {
-            var contentId = toProcess.Dequeue();
-            if (resolvedIds.Contains(contentId))
-                continue;
-
-            resolvedIds.Add(contentId);
-
-            try
-            {
-                var manifestResult = await _manifestPool.GetManifestAsync(contentId, cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null)
-                {
-                    var manifest = manifestResult.Data;
-                    if (manifest.Dependencies != null)
-                    {
-                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
-                        {
-                            if (!resolvedIds.Contains(dep.Id))
-                            {
-                                toProcess.Enqueue(dep.Id);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (ArgumentException ex)
-            {
-                // Skip invalid IDs
-                _logger.LogWarning(ex, "Skipping invalid manifest ID during dependency resolution: {ContentId}", contentId);
-            }
         }
     }
 }

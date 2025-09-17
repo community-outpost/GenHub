@@ -84,8 +84,6 @@ public sealed class SymlinkOnlyStrategy(
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
-
-            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file using the base class method that has proper fallback logic
@@ -142,7 +140,7 @@ public sealed class SymlinkOnlyStrategy(
     protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
     {
         Logger.LogDebug("Creating CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         // Use the service method to create the link from CAS
         var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, cancellationToken);
@@ -166,7 +164,7 @@ public sealed class SymlinkOnlyStrategy(
 
         Logger.LogDebug("Creating symlink for local file {RelativePath} from {SourcePath} to {TargetPath}", file.RelativePath, sourcePath, targetPath);
 
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         try
         {

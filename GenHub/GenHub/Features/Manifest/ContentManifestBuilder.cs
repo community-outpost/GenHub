@@ -42,7 +42,7 @@ public class ContentManifestBuilder(
         var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
         if (idResult.Success)
         {
-            _manifest.Id = idResult.Data.Value;
+            _manifest.Id = idResult.Data;
         }
         else
         {
@@ -84,7 +84,7 @@ public class ContentManifestBuilder(
         var idResult = _manifestIdService.GeneratePublisherContentId(publisherId, contentName, manifestVersion);
         if (idResult.Success)
         {
-            _manifest.Id = idResult.Data.Value;
+            _manifest.Id = idResult.Data;
         }
         else
         {
@@ -193,7 +193,7 @@ public class ContentManifestBuilder(
     /// <param name="conflictsWith">Conflicting dependency IDs.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder AddDependency(
-        string id,
+        ManifestId id,
         string name,
         ContentType dependencyType,
         DependencyInstallBehavior installBehavior,
@@ -201,7 +201,7 @@ public class ContentManifestBuilder(
         string maxVersion = "",
         List<string>? compatibleVersions = null,
         bool isExclusive = false,
-        List<string>? conflictsWith = null)
+        List<ManifestId>? conflictsWith = null)
     {
         var dependency = new ContentDependency
         {
@@ -212,7 +212,7 @@ public class ContentManifestBuilder(
             MaxVersion = maxVersion,
             CompatibleVersions = compatibleVersions ?? new List<string>(),
             IsExclusive = isExclusive,
-            ConflictsWith = conflictsWith ?? new List<string>(),
+            ConflictsWith = conflictsWith ?? new List<ManifestId>(),
             InstallBehavior = installBehavior,
         };
         _manifest.Dependencies.Add(dependency);
@@ -230,7 +230,7 @@ public class ContentManifestBuilder(
     /// <param name="maxVersion">Maximum version.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder AddContentReference(
-        string contentId,
+        ManifestId contentId,
         string publisherId,
         ContentType contentType,
         string minVersion = "",

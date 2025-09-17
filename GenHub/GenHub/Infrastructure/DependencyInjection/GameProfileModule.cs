@@ -20,14 +20,13 @@ public static class GameProfileModule
     /// Registers game profile services with the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configProvider">The configuration provider service.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddGameProfileServices(this IServiceCollection services, IConfigurationProviderService configProvider)
+    public static IServiceCollection AddGameProfileServices(this IServiceCollection services)
     {
-        // Get profiles directory from configuration
-        var profilesDirectory = GetProfilesDirectory(configProvider);
         services.AddSingleton<IGameProfileRepository>(serviceProvider =>
         {
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            var profilesDirectory = GetProfilesDirectory(configProvider);
             var logger = serviceProvider.GetRequiredService<ILogger<GameProfileRepository>>();
             return new GameProfileRepository(profilesDirectory, logger);
         });
@@ -35,10 +34,7 @@ public static class GameProfileModule
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
         services.AddScoped<IProfileLauncherFacade, ProfileLauncherFacade>();
         services.AddScoped<IProfileEditorFacade, ProfileEditorFacade>();
-
-        // Register game installation services
-        services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
-        services.AddScoped<IGameInstallationService, GameInstallationService>();
+        services.AddScoped<IDependencyResolver, DependencyResolver>();
 
         return services;
     }

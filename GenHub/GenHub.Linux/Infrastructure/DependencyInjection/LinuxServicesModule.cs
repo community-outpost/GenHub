@@ -17,18 +17,16 @@ public static class LinuxServicesModule
     /// Registers Linux-specific services with the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configProvider">The shared configuration provider instance.</param>
     /// <returns>The updated service collection.</returns>
-    public static IServiceCollection AddLinuxServices(
-        this IServiceCollection services,
-        IConfigurationProviderService configProvider)
+    public static IServiceCollection AddLinuxServices(this IServiceCollection services)
     {
         // Configure HttpClient for Linux update installer using config provider
-        var userAgent = configProvider.GetDownloadUserAgent();
-        var timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
-
-        services.AddHttpClient<LinuxUpdateInstaller>(client =>
+        services.AddHttpClient<LinuxUpdateInstaller>((serviceProvider, client) =>
         {
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            var userAgent = configProvider.GetDownloadUserAgent();
+            var timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
+
             client.Timeout = timeout;
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
         });

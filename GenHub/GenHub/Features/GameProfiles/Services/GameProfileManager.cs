@@ -119,8 +119,10 @@ public class GameProfileManager(
             if (request.EnabledContentIds != null) profile.EnabledContentIds = request.EnabledContentIds;
             if (request.PreferredStrategy.HasValue) profile.WorkspaceStrategy = request.PreferredStrategy.Value;
             if (request.LaunchArguments != null) profile.LaunchOptions = request.LaunchArguments;
-            if (request.EnvironmentVariables != null) profile.EnvironmentVariables = request.EnvironmentVariables;
-            if (request.ActiveWorkspaceId != null) profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
+            if (request.CustomExecutablePath != null) profile.CustomExecutablePath = request.CustomExecutablePath;
+            if (request.WorkingDirectory != null) profile.WorkingDirectory = request.WorkingDirectory;
+            if (request.IconPath != null) profile.IconPath = request.IconPath;
+            if (request.ThemeColor != null) profile.ThemeColor = request.ThemeColor;
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
 

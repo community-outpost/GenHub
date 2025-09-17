@@ -1,3 +1,4 @@
+using System;
 using GenHub.Common.ViewModels;
 using GenHub.Core;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -29,7 +30,11 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<GameProfileSettingsViewModel>();
-        services.AddSingleton<GameProfileItemViewModel>();
+
+        // Register factory for GameProfileItemViewModel (has required constructor parameters)
+        services.AddTransient<Func<IGameProfile, string, string, GameProfileItemViewModel>>(sp =>
+            (profile, icon, cover) => new GameProfileItemViewModel(profile, icon, cover));
+
         return services;
     }
 }

@@ -95,7 +95,7 @@ public sealed class FullCopyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -212,7 +212,7 @@ public sealed class FullCopyStrategy(
             return;
         }
 
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
 

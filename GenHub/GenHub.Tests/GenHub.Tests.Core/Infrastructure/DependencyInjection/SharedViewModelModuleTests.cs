@@ -1,5 +1,6 @@
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -42,19 +43,71 @@ public class SharedViewModelModuleTests
         var fileHashProviderMock = new Mock<IFileHashProvider>();
         services.AddSingleton<IFileHashProvider>(fileHashProviderMock.Object);
 
+        // Mock content pipeline dependencies
+        var githubDiscovererMock = new Mock<IContentDiscoverer>();
+        githubDiscovererMock.SetupGet(d => d.SourceName).Returns("GitHub");
+        githubDiscovererMock.SetupGet(d => d.Description).Returns("GitHub discoverer");
+        githubDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        githubDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(githubDiscovererMock.Object);
+        var cncDiscovererMock = new Mock<IContentDiscoverer>();
+        cncDiscovererMock.SetupGet(d => d.SourceName).Returns("CNC Labs");
+        cncDiscovererMock.SetupGet(d => d.Description).Returns("CNC Labs discoverer");
+        cncDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        cncDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(cncDiscovererMock.Object);
+        var moddbDiscovererMock = new Mock<IContentDiscoverer>();
+        moddbDiscovererMock.SetupGet(d => d.SourceName).Returns("ModDB");
+        moddbDiscovererMock.SetupGet(d => d.Description).Returns("ModDB discoverer");
+        moddbDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        moddbDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(moddbDiscovererMock.Object);
+        var fileSystemDiscovererMock = new Mock<IContentDiscoverer>();
+        fileSystemDiscovererMock.SetupGet(d => d.SourceName).Returns("FileSystem");
+        fileSystemDiscovererMock.SetupGet(d => d.Description).Returns("FileSystem discoverer");
+        fileSystemDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        fileSystemDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(fileSystemDiscovererMock.Object);
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.SetupGet(r => r.ResolverId).Returns("GitHub");
+        services.AddSingleton<IContentResolver>(resolverMock.Object);
+        var cncResolverMock = new Mock<IContentResolver>();
+        cncResolverMock.SetupGet(r => r.ResolverId).Returns("CNCLabsMap");
+        services.AddSingleton<IContentResolver>(cncResolverMock.Object);
+        var moddbResolverMock = new Mock<IContentResolver>();
+        moddbResolverMock.SetupGet(r => r.ResolverId).Returns("ModDB");
+        services.AddSingleton<IContentResolver>(moddbResolverMock.Object);
+        var localResolverMock = new Mock<IContentResolver>();
+        localResolverMock.SetupGet(r => r.ResolverId).Returns("Local");
+        services.AddSingleton<IContentResolver>(localResolverMock.Object);
+        var delivererMock = new Mock<IContentDeliverer>();
+        delivererMock.SetupGet(d => d.SourceName).Returns("HTTP");
+        delivererMock.SetupGet(d => d.Description).Returns("HTTP deliverer");
+        delivererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        delivererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDeliverer>(delivererMock.Object);
+        var fileSystemDelivererMock = new Mock<IContentDeliverer>();
+        fileSystemDelivererMock.SetupGet(d => d.SourceName).Returns("FileSystem");
+        fileSystemDelivererMock.SetupGet(d => d.Description).Returns("FileSystem deliverer");
+        fileSystemDelivererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        fileSystemDelivererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDeliverer>(fileSystemDelivererMock.Object);
+        var validatorMock = new Mock<IContentValidator>();
+        services.AddSingleton<IContentValidator>(validatorMock.Object);
+
         // Register required modules in correct order
-        services.AddLoggingModule(configProvider);
+        services.AddLoggingModule();
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
         services.AddContentPipelineServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
-        services.AddCasServices(configProvider);
-        services.AddDownloadServices(configProvider);
+        services.AddCasServices();
+        services.AddDownloadServices();
         services.AddAppUpdateModule();
-        services.AddGameProfileServices(configProvider);
-        services.AddLaunchingServices(configProvider);
+        services.AddGameProfileServices();
+        services.AddLaunchingServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService

@@ -8,7 +8,7 @@ namespace GenHub.Core.Models.Manifest;
 public class ContentDependency
 {
     /// <summary>Gets or sets the dependency ID.</summary>
-    public string Id { get; set; } = string.Empty;
+    public ManifestId Id { get; set; } = ManifestId.Create("1.0.test.dependency.content");
 
     /// <summary>Gets or sets the dependency name.</summary>
     public string Name { get; set; } = string.Empty;
@@ -29,7 +29,7 @@ public class ContentDependency
     public bool IsExclusive { get; set; } = false;
 
     /// <summary>Gets or sets the list of conflicting dependency IDs.</summary>
-    public List<string> ConflictsWith { get; set; } = [];
+    public List<ManifestId> ConflictsWith { get; set; } = [];
 
     /// <summary>Gets or sets the installation behavior for this dependency.</summary>
     public DependencyInstallBehavior InstallBehavior { get; set; } = DependencyInstallBehavior.RequireExisting;

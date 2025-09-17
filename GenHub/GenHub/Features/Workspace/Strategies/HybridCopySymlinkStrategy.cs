@@ -89,7 +89,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
 
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -230,7 +230,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             return;
         }
 
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         var isEssential = IsEssentialFile(file.RelativePath, file.Size);
 

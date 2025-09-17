@@ -79,7 +79,8 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = "Loading profiles...";
             Profiles.Clear();
 
-            // TODO: Load actual profiles when IGameProfileManager is available
+            // TODO: Wire up UI to load profiles from IGameProfileManager in a future UI-focused PR.
+            // This involves integrating the profile service into the view model initialization.
             await Task.Delay(1); // Make method properly async
             StatusMessage = "Profiles loaded";
             _logger?.LogInformation("Game profile launcher initialized");
