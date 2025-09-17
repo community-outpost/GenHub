@@ -141,8 +141,8 @@ public class GameInstallationDetectionOrchestratorTests
         var result = await svc.DetectAllInstallationsAsync();
 
         // Assert
-        Assert.True(result.Success); // Overall success with warnings
-        Assert.Single(result.Items); // Success results have items
+        Assert.False(result.Success); // Overall failure due to one detector failing
+        Assert.Empty(result.Items); // No items returned when any detector fails
         Assert.Contains("detector failed", result.Errors);
     }
 
@@ -195,7 +195,7 @@ public class GameInstallationDetectionOrchestratorTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("Detector exception", result.Errors);
+        Assert.Contains("Detector IGameInstallationDetectorProxy failed: Detector exception", result.Errors);
         Assert.Empty(result.Items);
     }
 

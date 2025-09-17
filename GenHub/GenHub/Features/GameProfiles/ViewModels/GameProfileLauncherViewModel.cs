@@ -98,10 +98,15 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private async Task ScanForGames()
     {
-        if (_installationService == null || _logger == null)
+        if (_installationService == null)
         {
             StatusMessage = "Game installation service not available";
             return;
+        }
+
+        if (_logger == null)
+        {
+            StatusMessage = "Logger not available - scan may proceed without detailed logging";
         }
 
         try
@@ -113,17 +118,17 @@ public partial class GameProfileLauncherViewModel(
             if (installations.Success && installations.Data != null)
             {
                 StatusMessage = $"Scan complete. Found {installations.Data.Count} game installations";
-                _logger.LogInformation("Game scan completed successfully. Found {Count} installations", installations.Data.Count);
+                _logger?.LogInformation("Game scan completed successfully. Found {Count} installations", installations.Data.Count);
             }
             else
             {
                 StatusMessage = $"Scan failed: {string.Join(", ", installations.Errors)}";
-                _logger.LogWarning("Game scan failed: {Errors}", string.Join(", ", installations.Errors));
+                _logger?.LogWarning("Game scan failed: {Errors}", string.Join(", ", installations.Errors));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error scanning for games");
+            _logger?.LogError(ex, "Error scanning for games");
             StatusMessage = "Error during scan";
         }
     }
@@ -135,6 +140,6 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void LaunchProfile(GameProfileItemViewModel profile)
     {
-        // Dummy implementation for PR3 integration
+        // TODO:  Wire up actual launch logic in a future UI-focused PR.
     }
 }

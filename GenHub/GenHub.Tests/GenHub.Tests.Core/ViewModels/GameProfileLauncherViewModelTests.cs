@@ -4,6 +4,7 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace GenHub.Tests.Core.ViewModels;
@@ -20,8 +21,7 @@ public class GameProfileLauncherViewModelTests
     public void Constructor_WithValidParameters_InitializesCorrectly()
     {
         var installationService = new Mock<IGameInstallationService>();
-        var logger = new Mock<ILogger<GameProfileLauncherViewModel>>();
-        var vm = new GameProfileLauncherViewModel(installationService.Object, logger.Object);
+        var vm = new GameProfileLauncherViewModel(installationService.Object, NullLogger<GameProfileLauncherViewModel>.Instance);
 
         Assert.NotNull(vm);
         Assert.Empty(vm.Profiles);
@@ -53,8 +53,7 @@ public class GameProfileLauncherViewModelTests
     public async Task InitializeAsync_LoadsProfiles_Successfully()
     {
         var installationService = new Mock<IGameInstallationService>();
-        var logger = new Mock<ILogger<GameProfileLauncherViewModel>>();
-        var vm = new GameProfileLauncherViewModel(installationService.Object, logger.Object);
+        var vm = new GameProfileLauncherViewModel(installationService.Object, NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.InitializeAsync();
 
@@ -79,14 +78,11 @@ public class GameProfileLauncherViewModelTests
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
 
-        var logger = new Mock<ILogger<GameProfileLauncherViewModel>>();
-        var vm = new GameProfileLauncherViewModel(installationService.Object, logger.Object);
+        var vm = new GameProfileLauncherViewModel(installationService.Object, NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
         Assert.Equal("Scan complete. Found 2 game installations", vm.StatusMessage);
-
-        // Note: Logger verification removed due to Moq limitations with extension methods
     }
 
     /// <summary>
@@ -97,19 +93,16 @@ public class GameProfileLauncherViewModelTests
     public async Task ScanForGamesCommand_WithFailedScan_ShowsFailure()
     {
         var installationService = new Mock<IGameInstallationService>();
-        var errors = new List<string> { "Detection failed", "Network error" };
+        const string expectedError = "Detection service unavailable";
 
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("Scan failed"));
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(expectedError));
 
-        var logger = new Mock<ILogger<GameProfileLauncherViewModel>>();
-        var vm = new GameProfileLauncherViewModel(installationService.Object, logger.Object);
+        var vm = new GameProfileLauncherViewModel(installationService.Object, NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
-        Assert.Equal("Scan failed: Scan failed", vm.StatusMessage);
-
-        // Note: Logger verification removed due to Moq limitations with extension methods
+        Assert.Equal($"Scan failed: {expectedError}", vm.StatusMessage);
     }
 
     /// <summary>
@@ -123,14 +116,11 @@ public class GameProfileLauncherViewModelTests
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));
 
-        var logger = new Mock<ILogger<GameProfileLauncherViewModel>>();
-        var vm = new GameProfileLauncherViewModel(installationService.Object, logger.Object);
+        var vm = new GameProfileLauncherViewModel(installationService.Object, NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
         Assert.Equal("Error during scan", vm.StatusMessage);
-
-        // Note: Logger verification removed due to Moq limitations with extension methods
     }
 
     /// <summary>
