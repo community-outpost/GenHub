@@ -40,4 +40,13 @@ public enum ContentType
 
     /// <summary>Link to specific content.</summary>
     ContentReferral,
+
+    /// <summary>Story-driven gameplay with objectives.</summary>
+    Mission,
+
+    /// <summary>Free-play or skirmish mode on a map.</summary>
+    Map,
+
+    /// <summary>Unknown content type</summary>
+    UnknownContentType,
 }

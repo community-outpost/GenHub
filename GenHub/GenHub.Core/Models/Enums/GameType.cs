@@ -14,4 +14,9 @@ public enum GameType
     /// Command and Conquer: Generals – Zero Hour.
     /// </summary>
     ZeroHour,
+
+    /// <summary>
+    /// Unknown game type.
+    /// </summary>
+    Unknown,
 }
