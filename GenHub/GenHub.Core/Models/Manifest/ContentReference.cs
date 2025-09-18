@@ -10,7 +10,7 @@ public class ContentReference
     /// <summary>
     /// Gets or sets the referenced content ID.
     /// </summary>
-    public string ContentId { get; set; } = string.Empty;
+    public ManifestId ContentId { get; set; } = ManifestId.Create("1.0.test.reference.content");
 
     /// <summary>
     /// Gets or sets the publisher ID (if cross-publisher).

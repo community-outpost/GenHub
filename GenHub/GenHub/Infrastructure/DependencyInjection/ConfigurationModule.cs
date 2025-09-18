@@ -13,11 +13,11 @@ namespace GenHub.Infrastructure.DependencyInjection;
 public static class ConfigurationModule
 {
     /// <summary>
-    /// Registers configuration services with the service collection and returns the configuration provider.
+    /// Registers configuration services with the service collection.
     /// </summary>
     /// <param name="services">The service collection to register services with.</param>
-    /// <returns>The configuration provider service instance.</returns>
-    public static IConfigurationProviderService AddConfigurationModule(this IServiceCollection services)
+    /// <returns>The updated service collection.</returns>
+    public static IServiceCollection AddConfigurationModule(this IServiceCollection services)
     {
         // Create bootstrap logger factory for configuration services
         var bootstrapLoggerFactory = LoggerFactory.Create(builder =>
@@ -50,8 +50,6 @@ public static class ConfigurationModule
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
         services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
 
-        // Build temporary provider to get configuration service for other modules
-        using var tempProvider = services.BuildServiceProvider();
-        return tempProvider.GetRequiredService<IConfigurationProviderService>();
+        return services;
     }
 }

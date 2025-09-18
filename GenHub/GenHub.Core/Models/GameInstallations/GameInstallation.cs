@@ -41,7 +41,7 @@ public class GameInstallation : IGameInstallation
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    /// <summary>Gets or sets the installation type (for backward compatibility).</summary>
+    /// <summary>Gets or sets the installation type.</summary>
     public GameInstallationType InstallationType { get; set; }
 
     /// <summary>Gets or sets the available versions for this installation.</summary>

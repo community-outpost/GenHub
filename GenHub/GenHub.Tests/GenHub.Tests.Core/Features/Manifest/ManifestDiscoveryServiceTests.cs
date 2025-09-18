@@ -96,10 +96,10 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "1.0.test.publisher.content",
+            Id = ManifestId.Create("1.0.test.publisher.content"),
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "1.0.missing.publisher.content", InstallBehavior = DependencyInstallBehavior.RequireExisting },
+                new() { Id = ManifestId.Create("1.0.missing.publisher.content"), InstallBehavior = DependencyInstallBehavior.RequireExisting },
             },
         };
         var availableManifests = new Dictionary<string, ContentManifest>();
@@ -120,16 +120,16 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "1.0.test.publisher.content",
+            Id = ManifestId.Create("1.0.test.publisher.content"),
             Dependencies = new List<ContentDependency>
             {
-                new() { Id = "1.0.dep1.publisher.content", InstallBehavior = DependencyInstallBehavior.RequireExisting },
-                new() { Id = "1.0.dep2.publisher.content", InstallBehavior = DependencyInstallBehavior.Suggest },
+                new() { Id = ManifestId.Create("1.0.dep1.publisher.content"), InstallBehavior = DependencyInstallBehavior.RequireExisting },
+                new() { Id = ManifestId.Create("1.0.dep2.publisher.content"), InstallBehavior = DependencyInstallBehavior.Suggest },
             },
         };
         var availableManifests = new Dictionary<string, ContentManifest>
         {
-            ["1.0.dep1.publisher.content"] = new() { Id = "1.0.dep1.publisher.content", Version = "1.0" },
+            ["1.0.dep1.publisher.content"] = new() { Id = ManifestId.Create("1.0.dep1.publisher.content"), Version = "1.0" },
         };
 
         // Act
@@ -148,7 +148,7 @@ public class ManifestDiscoveryServiceTests
         // Arrange
         var manifest = new ContentManifest
         {
-            Id = "1.0.test.publisher.content",
+            Id = ManifestId.Create("1.0.test.publisher.content"),
             Dependencies = new List<ContentDependency>(),
         };
         var availableManifests = new Dictionary<string, ContentManifest>();

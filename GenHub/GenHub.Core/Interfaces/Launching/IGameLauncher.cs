@@ -1,36 +1,52 @@
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Launching;
 
 /// <summary>
-/// Defines the game launching service.
+/// Defines the service responsible for launching and managing game profiles.
 /// </summary>
 public interface IGameLauncher
 {
     /// <summary>
-    /// Launches a game with the specified configuration.
+    /// Launches a game profile by its ID.
     /// </summary>
-    /// <param name="configuration">The configuration for launching the game.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>The result of the game launch operation.</returns>
-    Task<LaunchResult> LaunchGameAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default);
+    /// <param name="profileId">The ID of the game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
+    Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets information about a running game process.
+    /// Launches a game using the provided game profile object.
     /// </summary>
-    /// <param name="processId">The process ID of the running game.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>The game process information, or <c>null</c> if not found.</returns>
-    Task<GameProcessInfo?> GetGameProcessInfoAsync(int processId, CancellationToken cancellationToken = default);
+    /// <param name="profile">The game profile to launch.</param>
+    /// <param name="progress">Optional progress reporter for launch progress.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the launch operation.</returns>
+    Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Terminates a running game process.
+    /// Terminates a running game instance by its launch ID.
     /// </summary>
-    /// <param name="processId">The process ID of the game to terminate.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns><c>true</c> if the process was terminated; otherwise, <c>false</c>.</returns>
-    Task<bool> TerminateGameAsync(int processId, CancellationToken cancellationToken = default);
+    /// <param name="launchId">The launch ID of the running game instance.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameLaunchInfo}"/> representing the result of the termination operation.</returns>
+    Task<LaunchOperationResult<GameLaunchInfo>> TerminateGameAsync(string launchId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a list of all active game processes managed by the launcher.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{T}"/> containing the list of active game processes, where T is IReadOnlyList&lt;GameProcessInfo&gt;.</returns>
+    Task<LaunchOperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveGamesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets information about a specific game process by its launch ID.
+    /// </summary>
+    /// <param name="launchId">The launch ID of the game process.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
+    /// <returns>A <see cref="LaunchOperationResult{GameProcessInfo}"/> containing the process information.</returns>
+    Task<LaunchOperationResult<GameProcessInfo>> GetGameProcessInfoAsync(string launchId, CancellationToken cancellationToken = default);
 }

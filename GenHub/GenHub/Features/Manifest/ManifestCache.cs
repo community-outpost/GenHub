@@ -15,7 +15,7 @@ public class ManifestCache() : IManifestCache
     private readonly ConcurrentDictionary<string, object> _casObjectHashes = new();
 
     /// <inheritdoc />
-    public ContentManifest? GetManifest(string manifestId)
+    public ContentManifest? GetManifest(ManifestId manifestId)
     {
         return _manifests.TryGetValue(manifestId, out var manifest) ? manifest : null;
     }

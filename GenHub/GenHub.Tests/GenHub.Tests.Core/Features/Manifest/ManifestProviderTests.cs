@@ -6,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -27,12 +28,17 @@ public class ManifestProviderTests
     /// <summary>
     /// Mock manifest cache.
     /// </summary>
-    private readonly Mock<IManifestCache> _cacheMock;
+    private readonly Mock<IContentManifestPool> _poolMock;
 
     /// <summary>
     /// Mock manifest ID service.
     /// </summary>
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+
+    /// <summary>
+    /// Mock content manifest builder.
+    /// </summary>
+    private readonly Mock<IContentManifestBuilder> _manifestBuilderMock;
 
     /// <summary>
     /// The manifest provider under test.
@@ -45,9 +51,10 @@ public class ManifestProviderTests
     public ManifestProviderTests()
     {
         _loggerMock = new Mock<ILogger<ManifestProvider>>();
-        _cacheMock = new Mock<IManifestCache>();
+        _poolMock = new Mock<IContentManifestPool>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
-        _manifestProvider = new ManifestProvider(_loggerMock.Object, _cacheMock.Object, _manifestIdServiceMock.Object);
+        _manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        _manifestProvider = new ManifestProvider(_loggerMock.Object, _poolMock.Object, _manifestIdServiceMock.Object, _manifestBuilderMock.Object);
     }
 
     /// <summary>
@@ -69,8 +76,8 @@ public class ManifestProviderTests
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("1.0.test.publisher.version"))
-                  .Returns(expectedManifest);
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.test.publisher.version"), default))
+                  .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(gameVersion);
@@ -78,7 +85,7 @@ public class ManifestProviderTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal("1.0.test.publisher.version", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("1.0.test.publisher.version"), Times.Once);
+        _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.0.test.publisher.version"), default), Times.Once);
     }
 
     /// <summary>
@@ -103,8 +110,8 @@ public class ManifestProviderTests
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("1.0.eaapp.generals"))
-                  .Returns(expectedManifest);
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.generals"), default))
+                  .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(installation);
@@ -112,7 +119,7 @@ public class ManifestProviderTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal("1.0.eaapp.generals", result.Id);
-        _cacheMock.Verify(x => x.GetManifest("1.0.eaapp.generals"), Times.Once);
+        _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.generals"), default), Times.Once);
     }
 
     /// <summary>
@@ -137,8 +144,8 @@ public class ManifestProviderTests
             Name = "Test Manifest",
         };
 
-        _cacheMock.Setup(x => x.GetManifest("1.0.steam.zerohour"))
-                  .Returns(expectedManifest);
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.steam.zerohour"), default))
+                  .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(installation);
@@ -156,8 +163,9 @@ public class ManifestProviderTests
     public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResources()
     {
         // Arrange
-        var gameVersion = new GameVersion { Id = "non-existent" };
-        _cacheMock.Setup(x => x.GetManifest(It.IsAny<string>())).Returns((ContentManifest?)null);
+        var gameVersion = new GameVersion { Id = "1.0.test.publisher.nonexistent" };
+        _poolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), default))
+                  .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
 
         // Act
         var result = await _manifestProvider.GetManifestAsync(gameVersion);
@@ -186,8 +194,8 @@ public class ManifestProviderTests
             Id = "1.0.wrong.publisher.content",
             Name = "Test Manifest",
         };
-        _cacheMock.Setup(x => x.GetManifest("1.0.expected.publisher.content"))
-                  .Returns(mismatchedManifest);
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.expected.publisher.content"), default))
+                  .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mismatchedManifest));
 
         // Act & Assert
         await Assert.ThrowsAsync<ManifestValidationException>(

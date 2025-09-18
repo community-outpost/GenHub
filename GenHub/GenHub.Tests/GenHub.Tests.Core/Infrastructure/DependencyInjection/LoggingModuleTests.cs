@@ -22,9 +22,10 @@ public class LoggingModuleTests
         // Arrange
         var services = new ServiceCollection();
         var configProvider = CreateMockConfigProvider();
+        services.AddSingleton<IConfigurationProviderService>(configProvider);
 
         // Act
-        services.AddLoggingModule(configProvider);
+        services.AddLoggingModule();
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert

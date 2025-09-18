@@ -46,11 +46,10 @@ public class GameInstallationValidatorTests
     /// <summary>
     /// Verifies that progress is reported during validation.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task ValidateAsync_WithProgressCallback_ReportsProgress()
     {
-        // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
@@ -131,11 +130,10 @@ public class GameInstallationValidatorTests
     /// <summary>
     /// Tests that ValidateAsync adds an issue when manifest is not found.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task ValidateAsync_ManifestNotFound_AddsIssue()
     {
-        // Arrange
         _manifestProviderMock
             .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ContentManifest?)null);
@@ -145,10 +143,8 @@ public class GameInstallationValidatorTests
             GameInstallationType.Steam,
             new Mock<ILogger<GameInstallation>>().Object);
 
-        // Act
         var result = await _validator.ValidateAsync(installation, null, default);
 
-        // Assert
         Assert.False(result.IsValid);
         Assert.Single(result.Issues);
         Assert.Equal(ValidationIssueType.MissingFile, result.Issues[0].IssueType);
@@ -157,16 +153,16 @@ public class GameInstallationValidatorTests
     /// <summary>
     /// Tests that ValidateAsync adds a missing file issue.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
     {
         var manifest = new ContentManifest
         {
             Files = new()
-            {
-                new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
-            },
+                {
+                    new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
+                },
         };
         _manifestProviderMock
             .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
@@ -211,11 +207,10 @@ public class GameInstallationValidatorTests
     /// <summary>
     /// Tests that ValidateAsync throws OperationCanceledException when cancelled.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledException()
     {
-        // Arrange
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -224,8 +219,202 @@ public class GameInstallationValidatorTests
             GameInstallationType.Steam,
             new Mock<ILogger<GameInstallation>>().Object);
 
-        // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             _validator.ValidateAsync(installation, null, cts.Token));
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync detects missing required directories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_MissingRequiredDirectory_AddsMissingDirectoryIssue()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Files = new() { new ManifestFile { RelativePath = "file1.txt", Size = 0, Hash = string.Empty } },
+                RequiredDirectories = new List<string> { "RequiredDir" },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .ReturnsAsync(manifest);
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
+                {
+                        new ValidationIssue { IssueType = ValidationIssueType.DirectoryMissing, Path = "RequiredDir", Message = "Required directory not found" },
+                }));
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.DirectoryMissing);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync handles empty manifest gracefully.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_EmptyManifest_HandlesGracefully()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Files = new List<ManifestFile>(),
+                RequiredDirectories = new List<string>(),
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .ReturnsAsync(manifest);
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            Assert.True(result.IsValid);
+            Assert.Empty(result.Issues);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync detects unexpected files as warnings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_UnexpectedFiles_DetectsAsWarnings()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var expectedFilePath = Path.Combine(tempDir.FullName, "expected.txt");
+            var unexpectedFilePath = Path.Combine(tempDir.FullName, "unexpected.txt");
+            await File.WriteAllTextAsync(expectedFilePath, "expected content");
+            await File.WriteAllTextAsync(unexpectedFilePath, "unexpected content");
+
+            var manifest = new ContentManifest
+            {
+                Files = new()
+                    {
+                        new ManifestFile { RelativePath = "expected.txt", Size = 16, Hash = string.Empty },
+                    },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .ReturnsAsync(manifest);
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
+                {
+                        new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Path = "unexpected.txt", Severity = ValidationSeverity.Warning, Message = "Unexpected file found" },
+                }));
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            Assert.True(result.IsValid);
+            Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.UnexpectedFile);
+            Assert.All(
+                result.Issues.Where(i => i.IssueType == ValidationIssueType.UnexpectedFile),
+                i => Assert.Equal(ValidationSeverity.Warning, i.Severity));
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Tests that ValidateAsync handles content validator exceptions gracefully.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_ContentValidatorException_HandlesGracefully()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = new ContentManifest
+            {
+                Files = new() { new ManifestFile { RelativePath = "test.txt", Size = 0, Hash = string.Empty } },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), default))
+                .ReturnsAsync(manifest);
+
+            _contentValidatorMock
+                .Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("Content validator error"));
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Steam,
+                new Mock<ILogger<GameInstallation>>().Object);
+
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            Assert.False(result.IsValid);
+            Assert.Contains(result.Issues, i => i.Message.Contains("Content validator error"));
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Custom progress implementation that captures reports synchronously.
+    /// </summary>
+    private class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly List<T> _reports = new();
+        private readonly object _lock = new();
+
+        public IReadOnlyList<T> Reports
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _reports.ToList();
+                }
+            }
+        }
+
+        public void Report(T value)
+        {
+            lock (_lock)
+            {
+                _reports.Add(value);
+            }
+        }
     }
 }

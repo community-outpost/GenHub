@@ -48,17 +48,20 @@ public sealed class FullCopyStrategy(
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifest?.Files == null)
+        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalSize = 0;
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var manifest in configuration.Manifests)
         {
-            // Prevent negative sizes and overflow
-            long safeSize = Math.Max(0, file.Size);
-            if (long.MaxValue - totalSize < safeSize)
-                return long.MaxValue; // Indicate overflow
-            totalSize += safeSize;
+            foreach (var file in manifest.Files)
+            {
+                // Prevent negative sizes and overflow
+                long safeSize = Math.Max(0, file.Size);
+                if (long.MaxValue - totalSize < safeSize)
+                    return long.MaxValue; // Indicate overflow
+                totalSize += safeSize;
+            }
         }
 
         return totalSize;
@@ -79,6 +82,9 @@ public sealed class FullCopyStrategy(
 
         try
         {
+            // Allow cancellation to propagate for tests
+            cancellationToken.ThrowIfCancellationRequested();
+
             // Clean existing workspace if force recreate is requested
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
@@ -89,17 +95,16 @@ public sealed class FullCopyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var totalFiles = configuration.Manifest.Files.Count;
+            var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var estimatedTotalBytes = EstimateDiskUsage(configuration);
 
-            Logger.LogDebug("Processing {TotalFiles} files with estimated size {EstimatedSize} bytes", totalFiles, estimatedTotalBytes);
-
+            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file
-            foreach (var file in configuration.Manifest.Files)
+            foreach (var file in allFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -107,8 +112,6 @@ public sealed class FullCopyStrategy(
 
                 try
                 {
-                    FileOperationsService.EnsureDirectoryExists(destinationPath);
-
                     // Handle different source types
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
@@ -155,6 +158,7 @@ public sealed class FullCopyStrategy(
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
+            workspaceInfo.IsPrepared = true;
 
             Logger.LogInformation(
                 "Full copy workspace prepared successfully at {WorkspacePath} with {FileCount} files ({TotalSize} bytes)",
@@ -164,12 +168,19 @@ public sealed class FullCopyStrategy(
 
             return workspaceInfo;
         }
+        catch (OperationCanceledException)
+        {
+            // Let cancellation propagate for tests
+            CleanupWorkspaceOnFailure(workspacePath);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare full copy workspace at {WorkspacePath}", workspacePath);
-
             CleanupWorkspaceOnFailure(workspacePath);
-            throw;
+            workspaceInfo.IsPrepared = false;
+            workspaceInfo.ValidationIssues.Add(new() { Message = ex.Message, Severity = Core.Models.Validation.ValidationSeverity.Error });
+            return workspaceInfo;
         }
     }
 
@@ -201,7 +212,7 @@ public sealed class FullCopyStrategy(
             return;
         }
 
-        FileOperationsService.EnsureDirectoryExists(targetPath);
+        FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
 
@@ -214,5 +225,12 @@ public sealed class FullCopyStrategy(
                 Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
             }
         }
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    {
+        // For game installation files, treat them the same as local files
+        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
     }
 }
