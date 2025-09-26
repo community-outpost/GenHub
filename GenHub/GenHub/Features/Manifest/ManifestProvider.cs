@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
@@ -326,7 +327,7 @@ public class ManifestProvider : IManifestProvider
             return Task.FromResult(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess(all));
         }
 
-        public Task<OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>> SearchManifestsAsync(Core.Models.Content.ContentSearchQuery query, CancellationToken cancellationToken = default)
+        public Task<OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>> SearchManifestsAsync(ContentSearchQuery query, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess(Array.Empty<ContentManifest>()));
         }

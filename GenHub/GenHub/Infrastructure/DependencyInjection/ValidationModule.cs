@@ -4,9 +4,12 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.ContentDiscoverers;
+using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -24,6 +27,11 @@ public static class ValidationModule
     {
         // Register core content validator first (used by all other validators)
         services.AddTransient<IContentValidator, ContentValidator>();
+
+        // Register CSV components for enhanced validation capabilities
+        services.AddTransient<IContentDiscoverer, CSVDiscoverer>();
+        services.AddTransient<IContentResolver, CSVResolver>();
+        services.AddHttpClient();
 
         // Register domain-specific validators that use ContentValidator internally
         services.AddTransient<IGameInstallationValidator, GameInstallationValidator>();

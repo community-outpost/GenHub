@@ -20,15 +20,15 @@ public static class InstallationExtensions
     {
         logger?.LogDebug("Converting {InstallationType} installation to domain model", installation.InstallationType);
 
-        var installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
-        if (string.IsNullOrEmpty(installationPath))
+        var gameInstallation = new GameInstallation(installation.InstallationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
         {
-            installationPath = installation.InstallationPath;
-        }
+            HasGenerals = installation.HasGenerals,
+            GeneralsPath = installation.GeneralsPath,
+            HasZeroHour = installation.HasZeroHour,
+            ZeroHourPath = installation.ZeroHourPath,
+        };
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>);
-
-        logger?.LogDebug("Successfully converted installation to domain model: {InstallationPath}", installationPath);
+        logger?.LogDebug("Successfully converted installation to domain model: {InstallationPath}", installation.InstallationPath);
         return gameInstallation;
     }
 

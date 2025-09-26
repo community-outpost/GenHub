@@ -15,7 +15,7 @@ public static class CsvConstants
     public const char CsvDelimiter = ',';
 
     /// <summary>Maximum number of columns expected in CSV files.</summary>
-    public const int MaxCsvColumns = 6;
+    public const int MaxCsvColumns = 8;
 
     /// <summary>Minimum number of columns required in CSV files.</summary>
     public const int MinCsvColumns = 4;
@@ -32,11 +32,17 @@ public static class CsvConstants
     /// <summary>Column index for SHA256 hash in CSV files (0-based).</summary>
     public const int Sha256ColumnIndex = 3;
 
-    /// <summary>Column index for version in CSV files (0-based).</summary>
-    public const int VersionColumnIndex = 4;
+    /// <summary>Column index for game type in CSV files (0-based).</summary>
+    public const int GameTypeColumnIndex = 4;
 
     /// <summary>Column index for language in CSV files (0-based).</summary>
     public const int LanguageColumnIndex = 5;
+
+    /// <summary>Column index for isRequired in CSV files (0-based).</summary>
+    public const int IsRequiredColumnIndex = 6;
+
+    /// <summary>Column index for metadata in CSV files (0-based).</summary>
+    public const int MetadataColumnIndex = 7;
 
     /// <summary>Default buffer size for CSV file reading operations.</summary>
     public const int DefaultCsvBufferSize = 8192;
@@ -51,10 +57,13 @@ public static class CsvConstants
     public const int CsvRetryDelayMs = 1000;
 
     /// <summary>Default CSV URL for Generals content.</summary>
-    public const string DefaultGeneralsCsvUrl = "https://raw.githubusercontent.com/TheSuperHackers/GeneralsGamePatch/refs/heads/main/Patch104pZH/Resources/FileHashRegistry/Generals-108-GeneralsZH-104.csv";
+    public const string DefaultGeneralsCsvUrl = "https://raw.githubusercontent.com/Community-Outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv";
 
     /// <summary>Default CSV URL for Zero Hour content.</summary>
-    public const string DefaultZeroHourCsvUrl = "https://raw.githubusercontent.com/TheSuperHackers/GeneralsGamePatch/refs/heads/main/Patch104pZH/Resources/FileHashRegistry/Generals-108-GeneralsZH-104.csv";
+    public const string DefaultZeroHourCsvUrl = "https://raw.githubusercontent.com/Community-Outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv";
+
+    /// <summary>Default index.json URL for CSV registry metadata.</summary>
+    public const string DefaultCsvIndexUrl = "https://raw.githubusercontent.com/Community-Outpost/GenHub/main/docs/GameInstallationFilesRegistry/index.json";
 
     /// <summary>CSV resolver identifier.</summary>
     public const string CsvResolverId = "CSVResolver";

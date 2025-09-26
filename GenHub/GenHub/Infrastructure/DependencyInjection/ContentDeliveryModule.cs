@@ -43,17 +43,20 @@ public static class ContentPipelineModule
         services.AddTransient<IContentProvider, CNCLabsContentProvider>();
         services.AddTransient<IContentProvider, ModDBContentProvider>();
         services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
+        services.AddTransient<IContentProvider, CsvContentProvider>();
 
         // Register content discoverers
         services.AddTransient<IContentDiscoverer, GitHubDiscoverer>();
         services.AddTransient<IContentDiscoverer, GitHubReleasesDiscoverer>();
         services.AddTransient<IContentDiscoverer, CNCLabsMapDiscoverer>();
         services.AddTransient<IContentDiscoverer, FileSystemDiscoverer>();
+        services.AddTransient<IContentDiscoverer, CSVDiscoverer>();
 
         // Register content resolvers
         services.AddTransient<IContentResolver, GitHubResolver>();
         services.AddTransient<IContentResolver, CNCLabsMapResolver>();
         services.AddTransient<IContentResolver, LocalManifestResolver>();
+        services.AddTransient<IContentResolver, CSVResolver>();
 
         // Register content deliverers
         services.AddTransient<IContentDeliverer, HttpContentDeliverer>();

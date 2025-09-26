@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
 
-namespace GenHub.Core.Models.Content;
-
 /// <summary>
 /// Represents a query for searching content across providers.
 /// </summary>
 public class ContentSearchQuery
 {
+    private string? _language;
+
     /// <summary>
     /// Gets or sets the primary search term.
     /// </summary>
@@ -78,4 +78,47 @@ public class ContentSearchQuery
     /// Gets or sets sort value.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the optional language filter used by CSV content pipeline.
+    /// </summary>
+    /// <remarks>
+    /// Accepts case-insensitive input and is normalized to uppercase to match CSV schema values.
+    /// Values: "All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW".
+    /// </remarks>
+    public string? Language
+    {
+        get => _language;
+        set => _language = NormalizeLanguage(value);
+    }
+
+    private static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return language;
+        }
+
+        // Trim and replace underscores with hyphens
+        var normalized = language.Trim().Replace('_', '-');
+
+        // Convert to uppercase
+        normalized = normalized.ToUpperInvariant();
+
+        // Special case for "ALL" to "All"
+        if (normalized == "ALL")
+        {
+            return "All";
+        }
+
+        // Map variants
+        return normalized switch
+        {
+            "PT" => "PT-BR",
+            "ZH" => "ZH-CN",
+            "ZHTW" or "ZH-TW" => "ZH-TW",
+            "ZHCN" or "ZH-CN" => "ZH-CN",
+            _ => normalized,
+        };
+    }
 }

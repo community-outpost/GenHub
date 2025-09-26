@@ -2,12 +2,15 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -22,7 +25,10 @@ public class GameInstallationValidator(
     ILogger<GameInstallationValidator> logger,
     IManifestProvider manifestProvider,
     IContentValidator contentValidator,
-    IFileHashProvider hashProvider)
+    IFileHashProvider hashProvider,
+    IContentDiscoverer? csvDiscoverer = null,
+    IContentResolver? csvResolver = null,
+    HttpClient? httpClient = null)
     : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))),
       IGameInstallationValidator, IValidator<GameInstallation>
 {
@@ -30,6 +36,112 @@ public class GameInstallationValidator(
     private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
     private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
     private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
+    private readonly IContentDiscoverer? _csvDiscoverer = csvDiscoverer;
+    private readonly IContentResolver? _csvResolver = csvResolver;
+    private readonly HttpClient? _httpClient = httpClient;
+
+    /// <summary>
+    /// Attempts to validate the installation using CSV-based content discovery and resolution.
+    /// This serves as a fallback or alternative validation method when traditional manifest-based
+    /// validation is not available or desired.
+    /// </summary>
+    /// <param name="installation">The game installation to validate.</param>
+    /// <param name="progress">Progress reporter for MVVM integration.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="ValidationResult"/> representing the CSV-based validation outcome, or null if CSV validation is not available.</returns>
+    private async Task<ValidationResult?> TryCsvValidationAsync(
+        GameInstallation installation,
+        IProgress<ValidationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        // Check if CSV components are available
+        if (_csvDiscoverer == null || _csvResolver == null || _httpClient == null)
+        {
+            _logger.LogDebug("CSV validation components not available, skipping CSV validation");
+            return null;
+        }
+
+        try
+        {
+            _logger.LogInformation("Attempting CSV-based validation for installation '{Path}'", installation.InstallationPath);
+
+            // Determine target game for CSV discovery
+            var targetGame = installation.HasGenerals ? GameType.Generals :
+                           installation.HasZeroHour ? GameType.ZeroHour : (GameType?)null;
+
+            if (targetGame == null)
+            {
+                _logger.LogDebug("No supported game type found for CSV validation");
+                return null;
+            }
+
+            // Create search query for CSV discovery
+            var query = new ContentSearchQuery
+            {
+                TargetGame = targetGame.Value,
+                Language = "All", // Use "All" to get all language variants
+                ContentType = ContentType.GameInstallation,
+                Take = 1, // We only need the latest version
+            };
+
+            // Discover CSV content
+            progress?.Report(new ValidationProgress(1, 4, "Discovering CSV content"));
+            var discoveryResult = await _csvDiscoverer.DiscoverAsync(query, cancellationToken);
+            if (!discoveryResult.Success || discoveryResult.Data == null || !discoveryResult.Data.Any())
+            {
+                _logger.LogDebug("No CSV content discovered for game type {GameType}", targetGame);
+                return null;
+            }
+
+            var discoveredItem = discoveryResult.Data.First();
+
+            // Resolve CSV content to manifest
+            progress?.Report(new ValidationProgress(2, 4, "Resolving CSV manifest"));
+            var resolutionResult = await _csvResolver.ResolveAsync(discoveredItem, cancellationToken);
+            if (!resolutionResult.Success || resolutionResult.Data == null)
+            {
+                _logger.LogWarning("Failed to resolve CSV content: {Error}", resolutionResult.FirstError);
+                return null;
+            }
+
+            var csvManifest = resolutionResult.Data;
+
+            // Validate the CSV manifest
+            progress?.Report(new ValidationProgress(3, 4, "Validating CSV manifest"));
+            var manifestValidationResult = await _contentValidator.ValidateManifestAsync(csvManifest, cancellationToken);
+            if (!manifestValidationResult.IsValid)
+            {
+                var errors = manifestValidationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
+                if (errors.Any())
+                {
+                    _logger.LogWarning("CSV manifest validation failed with {Count} errors", errors.Count);
+                    return null;
+                }
+            }
+
+            // Perform full content validation using CSV manifest
+            progress?.Report(new ValidationProgress(4, 4, "Validating content against CSV manifest"));
+            var fullValidation = await _contentValidator.ValidateAllAsync(
+                installation.InstallationPath,
+                csvManifest,
+                progress,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "CSV-based validation completed for '{Path}' with {Count} issues",
+                installation.InstallationPath,
+                fullValidation.Issues.Count);
+
+            return new ValidationResult(
+                installation.InstallationPath,
+                fullValidation.Issues.ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CSV validation failed for installation '{Path}'", installation.InstallationPath);
+            return null;
+        }
+    }
 
     /// <summary>
     /// Validates the specified game installation.
@@ -69,6 +181,14 @@ public class GameInstallationValidator(
         cancellationToken.ThrowIfCancellationRequested();
         if (manifest == null)
         {
+            // Try CSV validation as fallback
+            var csvResult = await TryCsvValidationAsync(installation, progress, cancellationToken);
+            if (csvResult != null)
+            {
+                _logger.LogInformation("Using CSV-based validation as manifest fallback succeeded");
+                return csvResult;
+            }
+
             issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = installation.InstallationPath, Message = "Manifest not found for installation." });
             progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
             return new ValidationResult(installation.InstallationPath, issues);

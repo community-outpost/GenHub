@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -11,22 +12,22 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GenHub.Features.Content.Services.ContentDeliverers;
+namespace GenHub.Features.Content.Services.ContentResolvers;
 
 /// <summary>
-/// CSV content deliverer that downloads and parses CSV files to create content manifests.
+/// CSV content resolver that downloads and parses CSV files to create content manifests.
 /// Implements <see cref="IContentResolver"/> for CSV-based content discovery and resolution.
 /// </summary>
 /// <remarks>
 /// This class is responsible for resolving discovered CSV content items into full <see cref="ContentManifest"/> objects.
 /// It downloads CSV files from URLs specified in the discovery metadata, parses the content, and creates
 /// <see cref="ManifestFile"/> entries for each valid file entry in the CSV.
-/// The resolver supports filtering by game type and version to ensure only relevant files are included.
+/// The resolver supports filtering by game type and language to ensure only relevant files are included.
 /// </remarks>
-public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) : IContentResolver
+public class CSVResolver(HttpClient httpClient, ILogger<CSVResolver> logger) : IContentResolver
 {
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-    private readonly ILogger<CSVDeliverer> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly ILogger<CSVResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
     /// Gets the resolver identifier for CSV content.
@@ -41,7 +42,7 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
 
     /// <summary>
     /// Resolve a discovered CSV item into a <see cref="ContentManifest"/> by downloading and parsing the CSV,
-    /// filtering rows by game, and producing <see cref="ManifestFile"/> entries.
+    /// filtering rows by game and language, and producing <see cref="ManifestFile"/> entries.
     /// </summary>
     /// <param name="discoveredItem">The discovered content item containing CSV metadata.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
@@ -50,10 +51,10 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
     /// This method performs the following steps:
     /// <list type="number">
     /// <item>Extracts the CSV URL from the <paramref name="discoveredItem"/> using multiple fallback strategies</item>
-    /// <item>Determines the target game type from discovery metadata</item>
+    /// <item>Determines the target game type and language from discovery metadata</item>
     /// <item>Downloads the CSV file from the extracted URL</item>
     /// <item>Parses the CSV content line by line, validating each entry</item>
-    /// <item>Filters entries based on game type and version criteria</item>
+    /// <item>Filters entries based on game type, version, and language criteria</item>
     /// <item>Creates <see cref="ManifestFile"/> objects for valid entries</item>
     /// <item>Constructs and returns a complete <see cref="ContentManifest"/></item>
     /// </list>
@@ -143,6 +144,21 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
                 // Ignore
             }
 
+            // Determine requested language (if the discoverer set it)
+            string? targetLanguage = null;
+            try
+            {
+                var resolverMetadata = discoveredItem.GetType().GetProperty("ResolverMetadata")?.GetValue(discoveredItem);
+                if (resolverMetadata is IDictionary<string, string> dict && dict.TryGetValue("language", out var languageString))
+                {
+                    targetLanguage = languageString;
+                }
+            }
+            catch
+            {
+                // Ignore
+            }
+
             // Download CSV as stream
             using var response = await _httpClient.GetAsync(csvUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -193,8 +209,10 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
                 var sizeString = parts[CsvConstants.SizeColumnIndex].Trim();
                 var md5 = parts[CsvConstants.Md5ColumnIndex].Trim();
                 var sha256 = parts[CsvConstants.Sha256ColumnIndex].Trim();
-                string? entryVersion = parts.Length >= CsvConstants.VersionColumnIndex + 1 ? parts[CsvConstants.VersionColumnIndex].Trim() : null;
-                string? entryLanguage = parts.Length >= CsvConstants.LanguageColumnIndex + 1 ? parts[CsvConstants.LanguageColumnIndex].Trim() : null;
+                string? entryGameType = parts.Length > CsvConstants.GameTypeColumnIndex ? parts[CsvConstants.GameTypeColumnIndex].Trim() : null;
+                string? entryLanguage = parts.Length > CsvConstants.LanguageColumnIndex ? parts[CsvConstants.LanguageColumnIndex].Trim() : null;
+                bool isRequired = parts.Length > CsvConstants.IsRequiredColumnIndex && bool.TryParse(parts[CsvConstants.IsRequiredColumnIndex].Trim(), out var req) ? req : true;
+                string? metadata = parts.Length > CsvConstants.MetadataColumnIndex ? parts[CsvConstants.MetadataColumnIndex].Trim() : null;
 
                 if (string.IsNullOrEmpty(relativePath))
                 {
@@ -208,23 +226,25 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
                     continue;
                 }
 
-                // Decide whether this entry belongs to the requested game
+                // Decide whether this entry belongs to the requested game and language
+                bool includeEntry = true;
+
+                // Filter by game if specified
                 if (targetGame != null)
                 {
-                    bool include = false;
+                    includeEntry = false;
 
-                    // Prefer explicit version column if present
-                    if (!string.IsNullOrWhiteSpace(entryVersion))
+                    // Prefer explicit gameType column if present
+                    if (!string.IsNullOrWhiteSpace(entryGameType))
                     {
-                        var versionLower = entryVersion.ToLowerInvariant();
-                        if (targetGame == GameType.Generals && (versionLower.Contains("1.08") || versionLower.Contains("generals") || versionLower.Contains("generals1.08") || versionLower.Contains("generals_1.08")))
+                        var gameTypeLower = entryGameType.ToLowerInvariant();
+                        if (targetGame == GameType.Generals && gameTypeLower.Contains("generals"))
                         {
-                            include = true;
+                            includeEntry = true;
                         }
-                        else if (targetGame == GameType.ZeroHour &&
-                                 (versionLower.Contains("1.04") || versionLower.Contains("zerohour") || versionLower.Contains("zero hour") || versionLower.Contains("zero-hour")))
+                        else if (targetGame == GameType.ZeroHour && gameTypeLower.Contains("zerohour"))
                         {
-                            include = true;
+                            includeEntry = true;
                         }
                     }
                     else
@@ -233,23 +253,29 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
                         var pathLower = relativePath.ToLowerInvariant();
                         if (targetGame == GameType.Generals && (pathLower.Contains("generals") || pathLower.Contains("generals_") || pathLower.Contains("generals1.08")))
                         {
-                            include = true;
+                            includeEntry = true;
                         }
 
                         if (targetGame == GameType.ZeroHour && (pathLower.Contains("zerohour") || pathLower.Contains("zero") || pathLower.Contains("zh_") || pathLower.Contains("zero_hour")))
                         {
-                            include = true;
+                            includeEntry = true;
                         }
-                    }
-
-                    // If no rule matched, skip this row (we avoid mixing games).
-                    if (!include)
-                    {
-                        continue;
                     }
                 }
 
-                // TargetGame is null or Unknown -> include all rows
+                // Filter by language if specified
+                if (includeEntry && !string.IsNullOrWhiteSpace(targetLanguage) && !string.Equals(targetLanguage, "All", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Include if language matches or entry is "All" (shared files)
+                    includeEntry = string.Equals(entryLanguage, targetLanguage, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(entryLanguage, "All", StringComparison.OrdinalIgnoreCase);
+                }
+
+                // If no rule matched, skip this row
+                if (!includeEntry)
+                {
+                    continue;
+                }
 
                 // Create ManifestFile (store sha256 as Hash by default)
                 var manifestFile = new ManifestFile
@@ -258,7 +284,7 @@ public class CSVDeliverer(HttpClient httpClient, ILogger<CSVDeliverer> logger) :
                     Size = size,
                     Hash = sha256 ?? string.Empty,
                     SourceType = ContentSourceType.Unknown,
-                    IsRequired = true,
+                    IsRequired = isRequired,
                 };
 
                 files.Add(manifestFile);

@@ -7,7 +7,11 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -26,12 +30,12 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </remarks>
 public class CSVDiscoverer(
     ILogger<CSVDiscoverer> logger,
-    ManifestDiscoveryService manifestDiscoveryService,
-    IConfigurationProviderService configurationProvider) : IContentDiscoverer
+    IConfigurationProviderService configurationProvider,
+    HttpClient httpClient) : IContentDiscoverer
 {
     private readonly ILogger<CSVDiscoverer> _logger = logger;
-    private readonly ManifestDiscoveryService _manifestDiscoveryService = manifestDiscoveryService;
     private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
+    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
     /// <summary>
     /// Gets the resolver identifier for CSV content.
@@ -75,43 +79,151 @@ public class CSVDiscoverer(
     /// For each supported game type, it creates a <see cref="ContentSearchResult"/> with appropriate
     /// metadata including CSV URLs and resolver information. The results can then be resolved
     /// by the corresponding CSV resolver to obtain full <see cref="ContentManifest"/> objects.
+    /// Language parameters are normalized to uppercase and included in the manifest ID generation.
     /// </remarks>
-    public Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
-        var results = new List<ContentSearchResult>();
-
-        // Generals 1.08
-        if (query.TargetGame == GameType.Generals)
+        try
         {
-            var searchResult = new ContentSearchResult
+            // Normalize language to uppercase
+            var normalizedLanguage = string.IsNullOrWhiteSpace(query.Language)
+                ? "All"
+                : query.Language.ToUpperInvariant();
+
+            // Try to load from index.json first
+            var indexUrl = CsvConstants.DefaultCsvIndexUrl; // Use default for now
+            CsvRegistryIndex? registryIndex = null;
+
+            try
             {
-                Id = "generals-1.08",
-                Name = "Command & Conquer Generals 1.08",
-                ResolverId = ResolverId,
-            };
-            searchResult.ResolverMetadata.Add("game", "Generals");
-            searchResult.ResolverMetadata.Add("version", "1.08");
-            searchResult.ResolverMetadata.Add("csvUrl", CsvConstants.DefaultGeneralsCsvUrl);
-            results.Add(searchResult);
+                _logger.LogDebug("Attempting to load CSV registry from index.json: {Url}", indexUrl);
+                var indexJson = await _httpClient.GetStringAsync(indexUrl, cancellationToken);
+                registryIndex = JsonSerializer.Deserialize<CsvRegistryIndex>(indexJson, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                });
+
+                if (registryIndex?.Registries == null || !registryIndex.Registries.Any())
+                {
+                    _logger.LogWarning("Index.json loaded but contains no valid registries");
+                    registryIndex = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load index.json from {Url}, falling back to configuration", indexUrl);
+            }
+
+            var results = new List<ContentSearchResult>();
+
+            // Generals 1.08
+            if (query.TargetGame == GameType.Generals)
+            {
+                var searchResult = CreateSearchResult("Generals", "1.08", normalizedLanguage, registryIndex);
+                if (searchResult != null)
+                {
+                    results.Add(searchResult);
+                }
+            }
+
+            // Zero Hour 1.04
+            if (query.TargetGame == GameType.ZeroHour)
+            {
+                var searchResult = CreateSearchResult("ZeroHour", "1.04", normalizedLanguage, registryIndex);
+                if (searchResult != null)
+                {
+                    results.Add(searchResult);
+                }
+            }
+
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("CSV discovery was cancelled");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Operation cancelled");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CSV discovery failed");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Generates a deterministic manifest ID for CSV content.
+    /// </summary>
+    /// <param name="gameType">The game type (Generals or ZeroHour).</param>
+    /// <param name="version">The game version.</param>
+    /// <param name="language">The language code (normalized to uppercase).</param>
+    /// <returns>A deterministic manifest ID in the format "GameType-Version-Language".</returns>
+    private static string GenerateManifestId(string gameType, string version, string language)
+    {
+        return $"{gameType}-{version}-{language}";
+    }
+
+    /// <summary>
+    /// Creates a ContentSearchResult for the specified game, using registry data if available.
+    /// </summary>
+    /// <param name="gameType">The game type (Generals or ZeroHour).</param>
+    /// <param name="version">The game version.</param>
+    /// <param name="language">The normalized language code.</param>
+    /// <param name="registryIndex">The loaded registry index, or null if not available.</param>
+    /// <returns>A ContentSearchResult, or null if no suitable registry found.</returns>
+    private ContentSearchResult? CreateSearchResult(
+        string gameType,
+        string version,
+        string language,
+        CsvRegistryIndex? registryIndex)
+    {
+        string csvUrl;
+        List<string>? supportedLanguages = null;
+
+        // Try to get data from registry index
+        if (registryIndex != null)
+        {
+            var registry = registryIndex.Registries
+                .FirstOrDefault(r => r.GameType == gameType && r.Version == version && r.IsActive);
+
+            if (registry != null)
+            {
+                csvUrl = registry.Url;
+                supportedLanguages = registry.Languages;
+            }
+            else
+            {
+                _logger.LogWarning("No active registry found for {GameType} {Version} in index.json", gameType, version);
+                return null;
+            }
+        }
+        else
+        {
+            // Fallback to default URLs
+            csvUrl = gameType == "Generals" ? CsvConstants.DefaultGeneralsCsvUrl : CsvConstants.DefaultZeroHourCsvUrl;
         }
 
-        // Zero Hour 1.04
-        if (query.TargetGame == GameType.ZeroHour)
+        var manifestId = GenerateManifestId(gameType, version, language);
+        var searchResult = new ContentSearchResult
         {
-            var searchResult = new ContentSearchResult
-            {
-                Id = "zerohour-1.04",
-                Name = "Command & Conquer Generals: Zero Hour 1.04",
-                ResolverId = ResolverId,
-            };
-            searchResult.ResolverMetadata.Add("game", "ZeroHour");
-            searchResult.ResolverMetadata.Add("version", "1.04");
-            searchResult.ResolverMetadata.Add("csvUrl", CsvConstants.DefaultZeroHourCsvUrl);
-            results.Add(searchResult);
+            Id = manifestId,
+            Name = gameType == "Generals"
+                ? $"Command & Conquer Generals {version} ({language})"
+                : $"Command & Conquer Generals: Zero Hour {version} ({language})",
+            ResolverId = ResolverId,
+        };
+
+        searchResult.ResolverMetadata.Add("game", gameType);
+        searchResult.ResolverMetadata.Add("version", version);
+        searchResult.ResolverMetadata.Add("language", language);
+        searchResult.ResolverMetadata.Add("csvUrl", csvUrl);
+
+        if (supportedLanguages != null)
+        {
+            searchResult.ResolverMetadata.Add("supportedLanguages", string.Join(",", supportedLanguages));
         }
 
-        return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results));
+        return searchResult;
     }
 }
