@@ -106,26 +106,24 @@ public class GameProfileManager(
 
             if (request.Name != null)
             {
-                var nameValidationError = ValidateProfileName(request.Name);
-                if (nameValidationError != null)
+                if (!TryValidateProfileName(request.Name, out var nameValidationError))
                 {
-                    return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError);
+                    return ProfileOperationResult<GameProfile>.CreateFailure(nameValidationError!);
                 }
 
                 profile.Name = request.Name;
             }
 
-            if (request.Description != null) profile.Description = request.Description;
-            if (request.EnabledContentIds != null) profile.EnabledContentIds = request.EnabledContentIds;
-            if (request.PreferredStrategy.HasValue) profile.WorkspaceStrategy = request.PreferredStrategy.Value;
-            if (request.LaunchArguments != null) profile.LaunchOptions = request.LaunchArguments;
-            if (request.CustomExecutablePath != null) profile.CustomExecutablePath = request.CustomExecutablePath;
-            if (request.WorkingDirectory != null) profile.WorkingDirectory = request.WorkingDirectory;
-            if (request.IconPath != null) profile.IconPath = request.IconPath;
-            if (request.ThemeColor != null) profile.ThemeColor = request.ThemeColor;
+            profile.Description = request.Description ?? profile.Description;
+            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds;
+            profile.WorkspaceStrategy = request.PreferredStrategy ?? profile.WorkspaceStrategy;
+            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions;
+            profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
+            profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
+            profile.IconPath = request.IconPath ?? profile.IconPath;
+            profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
-
             if (saveResult.Success)
             {
                 _logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
@@ -239,15 +237,24 @@ public class GameProfileManager(
     /// Validates the profile name.
     /// </summary>
     /// <param name="name">The profile name to validate.</param>
-    /// <returns>Null if valid, otherwise an error message.</returns>
-    private string? ValidateProfileName(string name)
+    /// <param name="errorMessage">The error message if invalid; null if valid.</param>
+    /// <returns>True if valid, false otherwise.</returns>
+    private bool TryValidateProfileName(string name, out string? errorMessage)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "Profile name cannot be empty.";
+        {
+            errorMessage = "Profile name cannot be empty.";
+            return false;
+        }
+
         if (name.Length > 100)
-            return "Profile name is too long.";
+        {
+            errorMessage = "Profile name is too long.";
+            return false;
+        }
 
         // Add more rules as needed (e.g., invalid characters)
-        return null;
+        errorMessage = null;
+        return true;
     }
 }

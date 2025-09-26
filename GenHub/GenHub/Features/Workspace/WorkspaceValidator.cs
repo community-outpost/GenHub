@@ -7,8 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
@@ -121,13 +119,16 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
     /// Validates system prerequisites for a workspace strategy.
     /// </summary>
     /// <param name="strategy">The workspace strategy to validate.</param>
-    /// <param name="sourcePath">The source installation path.</param>
-    /// <param name="destinationPath">The destination workspace path.</param>
+    /// <param name="configuration">The full workspace configuration, including manifests for accurate estimation.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The validation result.</returns>
-    public Task<ValidationResult> ValidatePrerequisitesAsync(IWorkspaceStrategy? strategy, string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidatePrerequisitesAsync(IWorkspaceStrategy? strategy, WorkspaceConfiguration configuration, CancellationToken cancellationToken = default)
     {
         var issues = new List<ValidationIssue>();
+
+        // Extract paths from configuration for validation
+        var sourcePath = configuration.BaseInstallationPath;
+        var destinationPath = Path.Combine(configuration.WorkspaceRootPath, configuration.Id);
 
         if (strategy != null)
         {
@@ -166,14 +167,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             try
             {
                 var drive = new DriveInfo(Path.GetPathRoot(destinationPath) ?? destinationPath);
-                long estimatedUsage = strategy.EstimateDiskUsage(new WorkspaceConfiguration
-                {
-                    Id = "temp-validation",
-                    GameVersion = new GameVersion { Id = "temp" },
-                    Manifests = new List<ContentManifest> { new ContentManifest { Files = new List<ManifestFile>() } },
-                    WorkspaceRootPath = Path.GetDirectoryName(destinationPath) ?? destinationPath,
-                    BaseInstallationPath = sourcePath,
-                });
+                long estimatedUsage = strategy.EstimateDiskUsage(configuration);
 
                 var safetyMargin = estimatedUsage * 0.1; // 10% safety margin
                 if (drive.AvailableFreeSpace < estimatedUsage + safetyMargin)

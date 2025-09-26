@@ -263,6 +263,7 @@ public partial class MainViewModel : ObservableObject
             {
                 settings.LastSelectedTab = selectedTab;
             });
+
             _ = _userSettingsService.SaveAsync();
             _logger?.LogDebug($"Updated last selected tab to: {selectedTab}");
         }

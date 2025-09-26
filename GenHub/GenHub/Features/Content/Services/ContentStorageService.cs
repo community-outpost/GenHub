@@ -80,7 +80,7 @@ public class ContentStorageService : IContentStorageService
         }
 
         // Validate manifest for security issues
-        var securityValidation = ValidateManifestSecurity(manifest);
+        var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
         if (!securityValidation.Success)
         {
             return OperationResult<ContentManifest>.CreateFailure(
@@ -233,10 +233,11 @@ public class ContentStorageService : IContentStorageService
         }
     }
 
-    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest)
+    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
         if (manifest.Files != null)
         {
+            var normalizedBase = Path.GetFullPath(baseDirectory);
             foreach (var file in manifest.Files)
             {
                 if (string.IsNullOrEmpty(file.RelativePath))
@@ -244,12 +245,18 @@ public class ContentStorageService : IContentStorageService
                     return OperationResult<bool>.CreateFailure("File entries must have a relative path");
                 }
 
-                // Check for path traversal attacks
-                if (file.RelativePath.Contains("..") ||
-                    file.RelativePath.Contains("/../") ||
-                    file.RelativePath.Contains("\\..\\"))
+                // path traversal check using normalization
+                try
                 {
-                    return OperationResult<bool>.CreateFailure($"File {file.RelativePath} contains illegal path traversal");
+                    var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
+                    if (!fullPath.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
                 }
             }
         }
@@ -288,6 +295,14 @@ public class ContentStorageService : IContentStorageService
 
         try
         {
+            // Validate manifest for security issues
+            var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+            if (!securityValidation.Success)
+            {
+                _logger.LogError("Manifest security validation failed for {ManifestId}: {Error}", manifest.Id, securityValidation.FirstError ?? "Unknown error");
+                return OperationResult<ContentManifest>.CreateFailure($"Manifest security validation failed: {securityValidation.FirstError ?? "Unknown error"}");
+            }
+
             // Create manifest directory if needed
             var manifestDir = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDir))

@@ -4,7 +4,7 @@ using GenHub.Core.Models.GameVersions;
 namespace GenHub.Core.Interfaces.GameProfiles;
 
 /// <summary>
-/// Defines the basic contract for a game profile.
+/// Defines the contract for a game profile.
 /// </summary>
 public interface IGameProfile
 {

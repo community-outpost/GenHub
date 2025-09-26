@@ -82,13 +82,13 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 
 - **IManifestProvider**: Abstraction for manifest retrieval from GameVersion and GameInstallation objects
 - **ManifestProvider**: Implementation that generates manifests for detected content
-  - For GameVersion: tries pool by ManifestId (if gameVersion.Id is a valid manifest id), then embedded resources GenHub.Manifests.{id}.json, then optional fallback generation (GenerateFallbackManifests=false by default)
-  - For GameInstallation: uses deterministic ID via ManifestIdGenerator (install type + game type + version), same "pool → embedded → optional fallback" flow
-  - Provider now requires IManifestIdService and IContentManifestBuilder (injected); options (ManifestProviderOptions) control fallback generation
+  - GameVersion: tries pool by ManifestId (if gameVersion.Id is a valid manifest id), then embedded resources GenHub.Manifests.{id}.json, then optional fallback generation (GenerateFallbackManifests=false by default)
+  - GameInstallation: uses deterministic ID via ManifestIdGenerator (install type + game type + version), same "pool → embedded → optional fallback" flow
+  - Provider requires IManifestIdService and IContentManifestBuilder (injected); options (ManifestProviderOptions) control fallback generation
 - **IContentManifestPool**: Manages the lifecycle of all acquired (installed) content manifests, acting as the source of truth for what content is available on the user's system
 - **IContentManifestPool**: Interface for content manifest management with full CRUD operations
 - **IContentStorageService**: Handles the physical storage and retrieval of content files and their associated manifests, providing a content-addressable-like storage system
-  - For ContentType.GameInstallation: storage is "manifest metadata only" (no file copy)
+  - ContentType.GameInstallation: storage is "manifest metadata only" (no file copy)
   - All other content: copied into ContentStorageRoot/Data, hashed and re-written to the manifest
 
 ### 1.4 GameProfile: The User Configuration Layer

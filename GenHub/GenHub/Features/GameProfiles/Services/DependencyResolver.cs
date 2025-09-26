@@ -46,7 +46,8 @@ public class DependencyResolver(
                     var manifest = manifestResult.Data;
                     if (manifest.Dependencies != null)
                     {
-                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
+                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        foreach (var dep in relevantDeps)
                         {
                             // TODO: AutoInstall dependencies are resolved here but not automatically installed.
                             // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
@@ -107,7 +108,8 @@ public class DependencyResolver(
 
                     if (manifest.Dependencies != null)
                     {
-                        foreach (var dep in manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall))
+                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        foreach (var dep in relevantDeps)
                         {
                             if (!resolvedIds.Contains(dep.Id))
                             {

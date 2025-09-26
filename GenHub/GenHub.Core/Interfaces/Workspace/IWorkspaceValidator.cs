@@ -23,11 +23,10 @@ public interface IWorkspaceValidator
     /// Validates system prerequisites for a workspace strategy.
     /// </summary>
     /// <param name="strategy">The workspace strategy to validate.</param>
-    /// <param name="sourcePath">The source installation path.</param>
-    /// <param name="destinationPath">The destination workspace path.</param>
+    /// <param name="configuration">The full workspace configuration, including manifests for accurate estimation.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The validation result.</returns>
-    Task<ValidationResult> ValidatePrerequisitesAsync(IWorkspaceStrategy? strategy, string sourcePath, string destinationPath, CancellationToken cancellationToken = default);
+    Task<ValidationResult> ValidatePrerequisitesAsync(IWorkspaceStrategy? strategy, WorkspaceConfiguration configuration, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates an existing workspace for integrity and completeness.

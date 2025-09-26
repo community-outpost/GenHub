@@ -85,6 +85,7 @@ public class DependencyResolutionResult : ResultBase
         ArgumentNullException.ThrowIfNull(errors, nameof(errors));
         if (!errors.Any())
             throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
+
         return new DependencyResolutionResult(false, Array.Empty<string>(), Array.Empty<ContentManifest>(), Array.Empty<string>(), errors, elapsed);
     }
 }

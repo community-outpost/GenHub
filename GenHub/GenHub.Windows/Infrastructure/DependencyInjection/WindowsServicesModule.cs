@@ -26,10 +26,9 @@ public static class WindowsServicesModule
         services.AddHttpClient<WindowsUpdateInstaller>((serviceProvider, client) =>
         {
             var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-            var userAgent = configProvider.GetDownloadUserAgent();
-            var timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
+            client.Timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
 
-            client.Timeout = timeout;
+            var userAgent = configProvider.GetDownloadUserAgent();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
         });
 

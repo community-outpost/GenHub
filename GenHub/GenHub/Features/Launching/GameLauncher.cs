@@ -61,7 +61,12 @@ public class GameLauncher(
                         {
                             FileName = config.ExecutablePath,
                             WorkingDirectory = config.WorkingDirectory,
-                            Arguments = config.Arguments != null ? string.Join(" ", config.Arguments.Select(kvp => $"{kvp.Key} {kvp.Value}")) : string.Empty,
+                            Arguments = config.Arguments != null
+                                ? string.Join(" ", config.Arguments.Select(kvp =>
+                                    string.IsNullOrEmpty(kvp.Value)
+                                        ? kvp.Key
+                                        : $"{kvp.Key} {(kvp.Value.Contains(' ') ? $"\"{kvp.Value}\"" : kvp.Value)}"))
+                                : string.Empty,
                             UseShellExecute = false,
                         },
                     };
