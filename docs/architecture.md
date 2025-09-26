@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-GenHub represents a sophisticated, multi-layered architecture designed to solve the fundamental problem of C&C Generals/Zero Hour ecosystem fragmentation. The system operates through **six core architectural pillars**: **GameInstallation** (physical detection), **GameVersion** (executable identification), **ContentManifest** (declarative packaging), **GameProfile** (user configuration), **Workspace** (isolated execution environment), and **GameLaunching** (runtime orchestration). These pillars interact through a carefully orchestrated **three-tier content pipeline** that transforms raw game installations into customizable, isolated gaming experiences through a **ContentOrchestrator** → **ContentProvider** → **Pipeline Components** architecture, culminating in a comprehensive game profile management and launching system.
+GenHub represents a sophisticated, multi-layered architecture designed to solve the fundamental problem of C&C Generals/Zero Hour ecosystem fragmentation. The system operates through **six core architectural pillars**: **GameInstallation** (physical detection), **GameClient** (executable identification), **ContentManifest** (declarative packaging), **GameProfile** (user configuration), **Workspace** (isolated execution environment), and **GameLaunching** (runtime orchestration). These pillars interact through a carefully orchestrated **three-tier content pipeline** that transforms raw game installations into customizable, isolated gaming experiences through a **ContentOrchestrator** → **ContentProvider** → **Pipeline Components** architecture, culminating in a comprehensive game profile management and launching system.
 
 ---
 
@@ -30,7 +30,7 @@ Detection begins with IGameInstallationDetectionOrchestrator.DetectAllInstallati
 **Caching Strategy**:
 GameInstallationService caches detection results with a lightweight in-memory cache guarded by a SemaphoreSlim, using IGameInstallationDetectionOrchestrator as the source of truth to avoid repeated detection runs per app lifetime.
 
-### 1.2 GameVersion: The Executable Identity Layer
+### 1.2 GameClient: The Executable Identity Layer
 
 **Primary Responsibility**: Identification and categorization of specific game executables, patches, and modifications within detected installations.
 
@@ -38,15 +38,15 @@ GameInstallationService caches detection results with a lightweight in-memory ca
 
 - **IGameVersionDetectionOrchestrator**: Coordinates version detection across all known installations
 - **IGameVersionDetector**: Analyzes installations to identify distinct executable variants
-- **GameVersion**: Data model with Id, Name, Version, ExecutablePath, GameType, InstallationType, LaunchArguments, and EnvironmentVariables properties
+- **GameClient**: Data model with Id, Name, Version, ExecutablePath, GameType, InstallationType, LaunchArguments, and EnvironmentVariables properties
 - **GameType**: Enumeration distinguishing Generals versus ZeroHour variants
 - **IGameVersionValidator**: Verifies executable functionality and compatibility
 
 **Version Identification Logic**:
-The system recognizes that a single GameInstallation may contain multiple executable variants. These could represent different patch levels, community modifications, or standalone executables. GameVersionDetectionOrchestrator systematically scans each detected installation, analyzing executable signatures, file versions, and directory structures to create distinct GameVersion entries.
+The system recognizes that a single GameInstallation may contain multiple executable variants. These could represent different patch levels, community modifications, or standalone executables. GameVersionDetectionOrchestrator systematically scans each detected installation, analyzing executable signatures, file versions, and directory structures to create distinct GameClient entries.
 
-**GameVersion Model**:
-The GameVersion model has been enhanced to support launch configuration with LaunchArguments and EnvironmentVariables properties, enabling per-version customization of startup parameters and environment settings for compatibility with different game clients.
+**GameClient Model**:
+The GameClient model has been enhanced to support launch configuration with LaunchArguments and EnvironmentVariables properties, enabling per-version customization of startup parameters and environment settings for compatibility with different game clients.
 
 ### 1.3 ContentManifest: The Declarative Blueprint Layer
 
@@ -80,9 +80,9 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 
 **Manifest Lifecycle Management**:
 
-- **IManifestProvider**: Abstraction for manifest retrieval from GameVersion and GameInstallation objects
+- **IManifestProvider**: Abstraction for manifest retrieval from GameClient and GameInstallation objects
 - **ManifestProvider**: Implementation that generates manifests for detected content
-  - GameVersion: tries pool by ManifestId (if gameVersion.Id is a valid manifest id), then embedded resources GenHub.Manifests.{id}.json, then optional fallback generation (GenerateFallbackManifests=false by default)
+  - GameClient: tries pool by ManifestId (if gameVersion.Id is a valid manifest id), then embedded resources GenHub.Manifests.{id}.json, then optional fallback generation (GenerateFallbackManifests=false by default)
   - GameInstallation: uses deterministic ID via ManifestIdGenerator (install type + game type + version), same "pool → embedded → optional fallback" flow
   - Provider requires IManifestIdService and IContentManifestBuilder (injected); options (ManifestProviderOptions) control fallback generation
 - **IContentManifestPool**: Manages the lifecycle of all acquired (installed) content manifests, acting as the source of truth for what content is available on the user's system
@@ -97,7 +97,7 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 
 **Core Components**:
 
-- **GameProfile**: Central configuration object with Id, Name, GameVersion, EnabledContentIds, WorkspaceStrategy, LaunchOptions, LaunchArguments, EnvironmentVariables, PreferredStrategy
+- **GameProfile**: Central configuration object with Id, Name, GameClient, EnabledContentIds, WorkspaceStrategy, LaunchOptions, LaunchArguments, EnvironmentVariables, PreferredStrategy
 - **CreateProfileRequest**: Data transfer object for profile creation with validation
 - **UpdateProfileRequest**: Data transfer object for profile updates with partial modification support
 - **ProfileInfoItem**: UI-specific data transfer object for profile display
@@ -112,7 +112,7 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 - **GameProfileRepository**: File-based storage implementation with JSON serialization
 
 **Profile Integration Model**:
-GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameVersion and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation, while LaunchArguments and EnvironmentVariables enable per-profile launch customization.
+GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation, while LaunchArguments and EnvironmentVariables enable per-profile launch customization.
 
 **ProfileEditorFacade Integration**:
 ProfileEditorFacade auto-enables matching GameInstallation content (and GameClient if available) after creation by scanning the manifest pool for the profile's GameType; then resolves dependencies and prepares a workspace, persisting ActiveWorkspaceId.
@@ -128,7 +128,7 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 
 - **IWorkspaceManager**: High-level coordinator with PrepareWorkspaceAsync, GetAllWorkspacesAsync, CleanupWorkspaceAsync methods
 - **WorkspaceManager**: Implementation orchestrating strategy selection, execution, and CAS reference tracking
-- **WorkspaceConfiguration**: Input specification with Id, Manifests, Strategy, WorkspaceRootPath, BaseInstallationPath, GameVersion
+- **WorkspaceConfiguration**: Input specification with Id, Manifests, Strategy, WorkspaceRootPath, BaseInstallationPath, GameClient
 - **WorkspaceInfo**: Result descriptor with Id, WorkspacePath, GameVersionId, Strategy, FileCount, TotalSizeBytes, ExecutablePath, WorkingDirectory, Success, ValidationIssues
 
 **Strategy Pattern Implementation**:
@@ -615,7 +615,7 @@ if (!launchResult.Success)
 The profile management system includes comprehensive validation:
 
 - **Profile Uniqueness**: Ensures profile names and IDs are unique
-- **GameVersion Compatibility**: Validates that referenced GameVersion exists and is compatible
+- **GameClient Compatibility**: Validates that referenced GameClient exists and is compatible
 - **Content Validation**: Verifies that EnabledContentIds reference valid, available content
 - **Workspace Strategy Validation**: Ensures selected workspace strategy is supported and compatible
 - **Launch Configuration Validation**: Validates launch arguments and environment variables
@@ -755,7 +755,7 @@ GameProfile objects seamlessly integrate with the workspace system:
 
 **Workspace Configuration Models**:
 
-- **WorkspaceConfiguration**: Input specification with GameVersion integration and comprehensive manifest support
+- **WorkspaceConfiguration**: Input specification with GameClient integration and comprehensive manifest support
 - **WorkspaceInfo**: Result description with success tracking, validation issues, and comprehensive metadata
 - **FilePermissions**: Cross-platform file permission specification
 
@@ -999,7 +999,7 @@ User creates "Tournament Setup" profile with complex content dependencies.
 1. **Profile Creation Request**: User submits `CreateProfileRequest` through UI
 2. **Validation Pipeline**: `GameProfileManager.CreateProfileAsync` validates:
    - Profile name uniqueness
-   - GameVersion compatibility and existence
+   - GameClient compatibility and existence
    - Content dependency resolution through `IContentManifestPool`
    - Workspace strategy compatibility
 3. **Content Dependency Resolution**: System validates that all required content is available:

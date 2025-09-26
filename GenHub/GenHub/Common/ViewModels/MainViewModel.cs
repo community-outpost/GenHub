@@ -187,14 +187,14 @@ public partial class MainViewModel : ObservableObject
                 try
                 {
                     // Use the first available version or create a default one
-                    var gameVersionId = installation.AvailableVersions.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
+                    var gameClientId = installation.AvailableVersions.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
 
                     // Create a profile request from the installation
                     var createRequest = new CreateProfileRequest
                     {
                         Name = $"{installation.InstallationType} Profile",
                         GameInstallationId = installation.Id,
-                        GameVersionId = gameVersionId,
+                        GameClientId = gameClientId,
                         Description = $"Auto-created profile for {installation.InstallationType} installation at {installation.InstallationPath}",
                         PreferredStrategy = WorkspaceStrategy.HybridCopySymlink,
                     };

@@ -1,40 +1,40 @@
+using GenHub.Core.Interfaces.GameClients;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using GenHub.Features.GameClients;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameVersions;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.GameVersions;
-using GenHub.Core.Models.Results;
-using GenHub.Features.GameVersions;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
-namespace GenHub.Tests.Core.Features.GameVersions;
+namespace GenHub.Tests.Core.Features.GameClients;
 
 /// <summary>
-/// Unit tests for <see cref="GameVersionDetectionOrchestrator"/>.
+/// Unit tests for <see cref="GameClientDetectionOrchestrator"/>.
 /// </summary>
-public class GameVersionDetectionOrchestratorTests
+public class GameClientDetectionOrchestratorTests
 {
     /// <summary>
     /// Verifies that a failed installation detection returns a failed result.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectAllVersionsAsync_InstallationDetectionFails_ReturnsFailed()
+    public async Task DetectAllClientsAsync_InstallationDetectionFails_ReturnsFailed()
     {
         var mockInst = new Mock<IGameInstallationDetectionOrchestrator>();
         mockInst.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("install error"));
 
-        var mockVer = new Mock<IGameVersionDetector>();
-        var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
-        var svc = new GameVersionDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
+        var mockVer = new Mock<IGameClientDetector>();
+        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
+        var svc = new GameClientDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
 
-        var result = await svc.DetectAllVersionsAsync();
+        var result = await svc.DetectAllClientsAsync();
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("install error"));
@@ -45,7 +45,7 @@ public class GameVersionDetectionOrchestratorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectAllVersionsAsync_VersionDetectionSucceeds_ReturnsVersions()
+    public async Task DetectAllClientsAsync_ClientDetectionSucceeds_ReturnsClients()
     {
         var installations = new List<GameInstallation>
         {
@@ -56,9 +56,9 @@ public class GameVersionDetectionOrchestratorTests
                 .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(
                     installations, TimeSpan.Zero));
 
-        var versions = new List<GameVersion>
+        var clients = new List<GameClient>
         {
-            new GameVersion
+            new GameClient
             {
                 Id = "V1",
                 Name = "Generals (Steam)",
@@ -68,18 +68,18 @@ public class GameVersionDetectionOrchestratorTests
                 BaseInstallationId = "I1",
             },
         };
-        var mockVer = new Mock<IGameVersionDetector>();
-        mockVer.Setup(x => x.DetectVersionsFromInstallationsAsync(
+        var mockVer = new Mock<IGameClientDetector>();
+        mockVer.Setup(x => x.DetectClientsFromInstallationsAsync(
                     installations, It.IsAny<CancellationToken>()))
-               .ReturnsAsync(DetectionResult<GameVersion>.CreateSuccess(
-                    versions, TimeSpan.Zero));
+               .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess(
+                    clients, TimeSpan.Zero));
 
-        var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
-        var svc = new GameVersionDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
-        var result = await svc.DetectAllVersionsAsync();
+        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
+        var svc = new GameClientDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
+        var result = await svc.DetectAllClientsAsync();
 
         Assert.True(result.Success);
-        Assert.Equal(versions, result.Items);
+        Assert.Equal(clients, result.Items);
     }
 
     /// <summary>
@@ -87,12 +87,12 @@ public class GameVersionDetectionOrchestratorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectAllVersionsAsync_WithInstallations_ReturnsSuccess()
+    public async Task DetectAllClientsAsync_WithInstallations_ReturnsSuccess()
     {
         // Arrange
         var mockInstallationOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockVersionDetector = new Mock<IGameVersionDetector>();
-        var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
+        var mockClientDetector = new Mock<IGameClientDetector>();
+        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
 
         var installations = new List<GameInstallation>
         {
@@ -103,12 +103,12 @@ public class GameVersionDetectionOrchestratorTests
         mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
             .ReturnsAsync(installationResult);
 
-        var versions = new List<GameVersion>
+        var clients = new List<GameClient>
         {
-            new GameVersion
+            new GameClient
             {
                 Id = "V1",
-                Name = "Test Version",
+                Name = "Test Client",
                 GameType = GameType.Generals,
                 ExecutablePath = "C:\\Games\\Test\\generals.exe",
                 WorkingDirectory = "C:\\Games\\Test",
@@ -116,17 +116,17 @@ public class GameVersionDetectionOrchestratorTests
             },
         };
 
-        var versionResult = DetectionResult<GameVersion>.CreateSuccess(versions, System.TimeSpan.FromSeconds(1));
-        mockVersionDetector.Setup(x => x.DetectVersionsFromInstallationsAsync(installations, default))
-            .ReturnsAsync(versionResult);
+        var clientResult = DetectionResult<GameClient>.CreateSuccess(clients, System.TimeSpan.FromSeconds(1));
+        mockClientDetector.Setup(x => x.DetectClientsFromInstallationsAsync(installations, default))
+            .ReturnsAsync(clientResult);
 
-        var orchestrator = new GameVersionDetectionOrchestrator(
+        var orchestrator = new GameClientDetectionOrchestrator(
             mockInstallationOrchestrator.Object,
-            mockVersionDetector.Object,
+            mockClientDetector.Object,
             logger);
 
         // Act
-        var result = await orchestrator.DetectAllVersionsAsync();
+        var result = await orchestrator.DetectAllClientsAsync();
 
         // Assert
         Assert.True(result.Success);
@@ -138,24 +138,24 @@ public class GameVersionDetectionOrchestratorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetDetectedVersionsAsync_NoInstallations_ReturnsEmptyList()
+    public async Task GetDetectedClientsAsync_NoInstallations_ReturnsEmptyList()
     {
         // Arrange
         var mockInstallationOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockVersionDetector = new Mock<IGameVersionDetector>();
-        var logger = NullLogger<GameVersionDetectionOrchestrator>.Instance;
+        var mockClientDetector = new Mock<IGameClientDetector>();
+        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
 
         var installationResult = DetectionResult<GameInstallation>.CreateFailure("No installations found");
         mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
             .ReturnsAsync(installationResult);
 
-        var orchestrator = new GameVersionDetectionOrchestrator(
+        var orchestrator = new GameClientDetectionOrchestrator(
             mockInstallationOrchestrator.Object,
-            mockVersionDetector.Object,
+            mockClientDetector.Object,
             logger);
 
         // Act
-        var result = await orchestrator.GetDetectedVersionsAsync();
+        var result = await orchestrator.GetDetectedClientsAsync();
 
         // Assert
         Assert.Empty(result);

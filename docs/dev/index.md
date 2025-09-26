@@ -42,7 +42,7 @@ result types used throughout the system.
 
 Examples include:
 
-- `GameInstallation`, `GameVersion`, `ContentManifest`
+- `GameInstallation`, `GameClient`, `ContentManifest`
 - `GameProfile`, `Workspace`, `LaunchConfiguration`
 
 ---

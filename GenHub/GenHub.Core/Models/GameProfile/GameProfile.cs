@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -26,14 +26,14 @@ public class GameProfile : IGameProfile
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the game version this profile is based on.
+    /// Gets or sets the game client this profile is based on.
     /// </summary>
-    public GameVersion GameVersion { get; set; } = new();
+    public GameClient GameClient { get; set; } = new();
 
     /// <summary>
     /// Gets the version string of the game.
     /// </summary>
-    public string Version => GameVersion.Id;
+    public string Version => GameClient.Id;
 
     /// <summary>
     /// Gets or sets the path to the executable for this profile.

@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
@@ -146,7 +146,7 @@ public class WorkspaceValidatorTests : IDisposable
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
             Manifests = new List<ContentManifest>(), // Empty for this test
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.FullCopy,
         };
 
@@ -184,7 +184,7 @@ public class WorkspaceValidatorTests : IDisposable
             BaseInstallationPath = sourcePath,
             WorkspaceRootPath = Path.GetDirectoryName(destPath) ?? destPath,
             Manifests = new List<ContentManifest>(), // Empty for this test
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.HardLink,
         };
 
@@ -231,7 +231,7 @@ public class WorkspaceValidatorTests : IDisposable
             Strategy = WorkspaceStrategy.FullCopy,
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
         };
 
         // Mock EstimateDiskUsage to return a huge value by using the manifest
@@ -284,7 +284,7 @@ public class WorkspaceValidatorTests : IDisposable
             },
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = _workspaceDir,
-            GameVersion = new GameVersion { Id = "test-version" },
+            GameClient = new GameClient { Id = "test-version" },
             Strategy = WorkspaceStrategy.FullCopy,
         };
     }

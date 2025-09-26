@@ -262,7 +262,7 @@ public class ProfileLauncherFacade(
             {
                 Id = profileId,
                 Manifests = manifests,
-                GameVersion = profile.GameVersion,
+                GameClient = profile.GameClient,
                 Strategy = profile.WorkspaceStrategy,
                 ForceRecreate = false,
                 ValidateAfterPreparation = true,

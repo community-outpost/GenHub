@@ -219,7 +219,7 @@ public abstract class WorkspaceStrategyBase<T>(
         {
             Id = configuration.Id,
             WorkspacePath = workspacePath,
-            GameVersionId = configuration.GameVersion.Id,
+            GameClientId = configuration.GameClient.Id,
             Strategy = configuration.Strategy,
             CreatedAt = DateTime.UtcNow,
             LastAccessedAt = DateTime.UtcNow,
@@ -243,18 +243,18 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
 
-        // Set executable path from GameVersion configuration
-        if (!string.IsNullOrEmpty(configuration.GameVersion.ExecutablePath))
+        // Set executable path from GameClient configuration
+        if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
         {
-            // If the GameVersion ExecutablePath is already absolute, use it directly
-            if (Path.IsPathRooted(configuration.GameVersion.ExecutablePath))
+            // If the GameClient ExecutablePath is already absolute, use it directly
+            if (Path.IsPathRooted(configuration.GameClient.ExecutablePath))
             {
-                workspaceInfo.ExecutablePath = configuration.GameVersion.ExecutablePath;
+                workspaceInfo.ExecutablePath = configuration.GameClient.ExecutablePath;
             }
             else
             {
                 // If it's relative, combine with workspace path
-                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameVersion.ExecutablePath);
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameClient.ExecutablePath);
             }
 
             workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;

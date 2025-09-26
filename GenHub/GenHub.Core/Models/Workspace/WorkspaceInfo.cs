@@ -16,7 +16,7 @@ public class WorkspaceInfo
     public string WorkspacePath { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the game version ID.</summary>
-    public string GameVersionId { get; set; } = string.Empty;
+    public string GameClientId { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the workspace strategy used.</summary>
     public WorkspaceStrategy Strategy { get; set; }

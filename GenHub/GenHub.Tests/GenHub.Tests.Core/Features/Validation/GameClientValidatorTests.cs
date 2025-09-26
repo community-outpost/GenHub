@@ -1,7 +1,7 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
@@ -14,22 +14,22 @@ using Xunit;
 namespace GenHub.Tests.Features.Validation;
 
 /// <summary>
-/// Unit tests for <see cref="GameVersionValidator"/>.
+/// Unit tests for <see cref="GameClientValidator"/>.
 /// </summary>
-public class GameVersionValidatorTests
+public class GameClientValidatorTests
 {
-    private readonly Mock<ILogger<GameVersionValidator>> _loggerMock;
+    private readonly Mock<ILogger<GameClientValidator>> _loggerMock;
     private readonly Mock<IManifestProvider> _manifestProviderMock;
     private readonly Mock<IContentValidator> _contentValidatorMock;
     private readonly Mock<IFileHashProvider> _hashProviderMock;
-    private readonly GameVersionValidator _validator;
+    private readonly GameClientValidator _validator;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GameVersionValidatorTests"/> class.
+    /// Initializes a new instance of the <see cref="GameClientValidatorTests"/> class.
     /// </summary>
-    public GameVersionValidatorTests()
+    public GameClientValidatorTests()
     {
-        _loggerMock = new Mock<ILogger<GameVersionValidator>>();
+        _loggerMock = new Mock<ILogger<GameClientValidator>>();
         _manifestProviderMock = new Mock<IManifestProvider>();
         _contentValidatorMock = new Mock<IContentValidator>();
         _hashProviderMock = new Mock<IFileHashProvider>();
@@ -46,7 +46,7 @@ public class GameVersionValidatorTests
         _contentValidatorMock.Setup(c => c.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
-        _validator = new GameVersionValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
+        _validator = new GameClientValidator(_loggerMock.Object, _manifestProviderMock.Object, _contentValidatorMock.Object, _hashProviderMock.Object);
     }
 
     /// <summary>
@@ -72,8 +72,8 @@ public class GameVersionValidatorTests
                 "d3d8.dll",
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
         var result = await _validator.ValidateAsync(version, null, default);
@@ -109,8 +109,8 @@ public class GameVersionValidatorTests
                 new ManifestFile { RelativePath = "expected.txt", Size = 8, Hash = string.Empty },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
         var result = await _validator.ValidateAsync(version, null, default);
@@ -130,11 +130,11 @@ public class GameVersionValidatorTests
     [Fact]
     public async Task ValidateAsync_ManifestNotFound_AddsIssue()
     {
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), It.IsAny<CancellationToken>())).ReturnsAsync((ContentManifest?)null);
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>())).ReturnsAsync((ContentManifest?)null);
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
-            var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+            var version = new GameClient { WorkingDirectory = tempDir.FullName };
             var result = await _validator.ValidateAsync(version, null, default);
             Assert.False(result.IsValid);
             Assert.Single(result.Issues);
@@ -154,7 +154,7 @@ public class GameVersionValidatorTests
     public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
     {
         var manifest = new ContentManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
 
         // Setup ContentValidator to return missing file issue
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
@@ -166,7 +166,7 @@ public class GameVersionValidatorTests
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
-            var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+            var version = new GameClient { WorkingDirectory = tempDir.FullName };
             var result = await _validator.ValidateAsync(version, null, default);
             Assert.False(result.IsValid);
             Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
@@ -187,7 +187,7 @@ public class GameVersionValidatorTests
         var tempDir = Directory.CreateTempSubdirectory();
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
         await Assert.ThrowsAsync<OperationCanceledException>(() => _validator.ValidateAsync(version, cancellationToken: cts.Token));
         tempDir.Delete(true);
     }
@@ -219,8 +219,8 @@ public class GameVersionValidatorTests
                 "ddraw.dll",
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
         var result = await _validator.ValidateAsync(version, null, default);
@@ -254,8 +254,8 @@ public class GameVersionValidatorTests
                 new ManifestFile { RelativePath = "test.txt", Size = 12, Hash = string.Empty },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         var progressReports = new List<ValidationProgress>();
         var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
@@ -290,7 +290,7 @@ public class GameVersionValidatorTests
                 new ManifestFile { RelativePath = "corrupted.txt", Size = 17, Hash = "expected-hash" },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
 
         // Setup ContentValidator to return corruption issue
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
@@ -299,7 +299,7 @@ public class GameVersionValidatorTests
                 new ValidationIssue { IssueType = ValidationIssueType.CorruptedFile, Path = "corrupted.txt", Message = "Hash mismatch" },
             }));
 
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
         var result = await _validator.ValidateAsync(version, null, default);
@@ -327,7 +327,7 @@ public class GameVersionValidatorTests
                 new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
             },
         };
-        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
+        _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
 
         // Setup ContentValidator to return missing file issue
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
@@ -336,7 +336,7 @@ public class GameVersionValidatorTests
                 new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
             }));
 
-        var version = new GameVersion { WorkingDirectory = tempDir.FullName };
+        var version = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
         var result = await _validator.ValidateAsync(version, null, default);

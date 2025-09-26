@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.Manifest;
 

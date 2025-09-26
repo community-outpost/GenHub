@@ -1,5 +1,5 @@
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 
@@ -51,10 +51,10 @@ public interface IGameProfileManager
     Task<ProfileOperationResult<GameProfile>> GetProfileAsync(string profileId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets available content manifests for the specified game version.
+    /// Gets available content manifests for the specified game client.
     /// </summary>
-    /// <param name="gameVersion">The game version to get content for.</param>
+    /// <param name="gameClient">The game client to get content for.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing available content manifests.</returns>
-    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameVersion gameVersion, CancellationToken cancellationToken = default);
+    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameClient gameClient, CancellationToken cancellationToken = default);
 }

@@ -6,9 +6,9 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -552,7 +552,7 @@ public class GameLauncherTests
             Id = Guid.NewGuid().ToString(),
             Name = "Test Profile",
             GameInstallationId = "install-1",
-            GameVersion = new GameVersion { Id = "version-1", ExecutablePath = @"C:\Games\game.exe" },
+            GameClient = new GameClient { Id = "version-1", ExecutablePath = @"C:\Games\game.exe" },
             EnabledContentIds = new List<string> { "1.0.test.publisher.mod" },
         };
     }

@@ -14,8 +14,8 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the game installation ID.</summary>
     required public string GameInstallationId { get; set; }
 
-    /// <summary>Gets or sets the game version ID.</summary>
-    required public string GameVersionId { get; set; }
+    /// <summary>Gets or sets the game client ID.</summary>
+    required public string GameClientId { get; set; }
 
     /// <summary>Gets or sets the preferred workspace strategy.</summary>
     public WorkspaceStrategy PreferredStrategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;

@@ -1,12 +1,12 @@
 using System;
 using GenHub.Core.Models.Enums;
 
-namespace GenHub.Core.Models.GameVersions;
+namespace GenHub.Core.Models.GameClients;
 
 /// <summary>
 /// Represents a specific version of a game, mod, or patch.
 /// </summary>
-public class GameVersion
+public class GameClient
 {
     /// <summary>Gets or sets the display name for this game version.</summary>
     public string Name { get; set; } = string.Empty;
@@ -76,7 +76,7 @@ public class GameVersion
     /// <inheritdoc/>
     public override bool Equals(object? obj)
     {
-        if (obj is GameVersion other)
+        if (obj is GameClient other)
         {
             return string.Equals(Id, other.Id, StringComparison.OrdinalIgnoreCase);
         }

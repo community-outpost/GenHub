@@ -44,12 +44,12 @@ graph TD
         H["IGameVersion<br/>DetectionOrchestrator"]
         I["IGameVersionDetector"]
         J["Scans Installation<br/>for Executables<br/>(game.dat, generals.exe)"]
-        K["Unvalidated<br/>GameVersion Objects"]
+        K["Unvalidated<br/>GameClient Objects"]
     end
 
     subgraph VersionValidation ["✔️ Phase 4: Version Validation"]
         L["IGameVersion<br/>Validator"]
-        M["Validated<br/>GameVersion Objects"]
+        M["Validated<br/>GameClient Objects"]
     end
     
     subgraph FinalOutput ["🏁 Final Output"]
@@ -90,5 +90,5 @@ graph TD
 |---|---|---|---|---|
 | **1. Installation Detection** | `IGameInstallationDetectionOrchestrator` | Coordinates platform-specific detectors to find game folders. | User request | `GameInstallation` objects |
 | **2. Installation Validation** | `IGameInstallationValidator` | Ensures detected folders are valid, complete game installations. | `GameInstallation` | Validated `GameInstallation` |
-| **3. Version Detection** | `IGameVersionDetectionOrchestrator` | Scans validated installations to find all executable versions. | Validated `GameInstallation` | `GameVersion` objects |
-| **4. Version Validation** | `IGameVersionValidator` | Verifies that each executable is functional and identifiable. | `GameVersion` | Validated `GameVersion` |
+| **3. Version Detection** | `IGameVersionDetectionOrchestrator` | Scans validated installations to find all executable versions. | Validated `GameInstallation` | `GameClient` objects |
+| **4. Version Validation** | `IGameVersionValidator` | Verifies that each executable is functional and identifiable. | `GameClient` | Validated `GameClient` |

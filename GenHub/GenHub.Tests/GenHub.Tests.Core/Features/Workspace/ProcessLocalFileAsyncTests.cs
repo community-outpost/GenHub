@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -291,7 +291,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
             Strategy = strategy,
             WorkspaceRootPath = _tempWorkspaceDir,
             BaseInstallationPath = _tempSourceDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests = new List<ContentManifest>
             {
                 new ContentManifest

@@ -1,17 +1,17 @@
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
+using GenHub.Infrastructure.Exceptions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.GameVersions;
-using GenHub.Core.Models.Manifest;
-using GenHub.Infrastructure.Exceptions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub.Features.Manifest;
 
@@ -50,22 +50,22 @@ public class ManifestProvider : IManifestProvider
     }
 
     /// <summary>
-    /// Gets or generates a manifest for the specified <see cref="GameVersion"/>.
+    /// Gets or generates a manifest for the specified <see cref="GameClient"/>.
     /// </summary>
-    /// <param name="gameVersion">The game version to locate a manifest for.</param>
+    /// <param name="gameClient">The game client to locate a manifest for.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The manifest if found or generated; otherwise <c>null</c>.</returns>
-    public async Task<ContentManifest?> GetManifestAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)
+    public async Task<ContentManifest?> GetManifestAsync(GameClient gameClient, CancellationToken cancellationToken = default)
     {
-        // 1. Try CAS first (only if gameVersion.Id is a valid manifest id)
+        // 1. Try CAS first (only if gameClient.Id is a valid manifest id)
         try
         {
-            var tryId = ManifestId.Create(gameVersion.Id);
+            var tryId = ManifestId.Create(gameClient.Id);
             var casResult = await _manifestPool.GetManifestAsync(tryId, cancellationToken);
             if (casResult.Success && casResult.Data != null)
             {
                 // Validate cached manifest security and ensure the manifest id matches the requested id
-                ValidateCachedManifest(casResult.Data, gameVersion.Id);
+                ValidateCachedManifest(casResult.Data, gameClient.Id);
                 return casResult.Data;
             }
         }
@@ -75,7 +75,7 @@ public class ManifestProvider : IManifestProvider
         }
 
         // 2. Try embedded resources
-        var manifestName = $"GenHub.Manifests.{gameVersion.Id}.json";
+        var manifestName = $"GenHub.Manifests.{gameClient.Id}.json";
         var assembly = Assembly.GetExecutingAssembly();
         using var stream = assembly.GetManifestResourceStream(manifestName);
         if (stream != null)
@@ -89,19 +89,19 @@ public class ManifestProvider : IManifestProvider
                     ValidateManifestSecurity(manifest);
 
                     // Ensure manifest ID matches the requested id
-                    if (!string.Equals(manifest.Id.Value, gameVersion.Id, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(manifest.Id.Value, gameClient.Id, StringComparison.OrdinalIgnoreCase))
                     {
-                        throw new ManifestValidationException(gameVersion.Id, $"Manifest ID mismatch: expected '{gameVersion.Id}' but manifest contains '{manifest.Id.Value}'");
+                        throw new ManifestValidationException(gameClient.Id, $"Manifest ID mismatch: expected '{gameClient.Id}' but manifest contains '{manifest.Id.Value}'");
                     }
 
                     // Determine a sensible source directory for embedded manifests when possible.
-                    // For embedded gameVersion manifests we prefer the working directory or executable's directory.
+                    // For embedded gameClient manifests we prefer the working directory or executable's directory.
                     string? embeddedSourceDir = null;
                     try
                     {
-                        embeddedSourceDir = !string.IsNullOrEmpty(gameVersion.WorkingDirectory)
-                            ? gameVersion.WorkingDirectory
-                            : (!string.IsNullOrEmpty(gameVersion.ExecutablePath) ? Path.GetDirectoryName(gameVersion.ExecutablePath) : null);
+                        embeddedSourceDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)
+                            ? gameClient.WorkingDirectory
+                            : (!string.IsNullOrEmpty(gameClient.ExecutablePath) ? Path.GetDirectoryName(gameClient.ExecutablePath) : null);
                     }
                     catch
                     {
@@ -122,24 +122,24 @@ public class ManifestProvider : IManifestProvider
             catch (JsonException ex)
             {
                 _logger.LogError(ex, "Failed to parse embedded manifest {ManifestName}", manifestName);
-                throw new ManifestValidationException(gameVersion.Id, $"JSON parsing failed: {ex.Message}", ex);
+                throw new ManifestValidationException(gameClient.Id, $"JSON parsing failed: {ex.Message}", ex);
             }
         }
 
         // 3. Generate fallback manifest (optional)
         if (_options.GenerateFallbackManifests)
         {
-            _logger.LogInformation("Generating fallback manifest for GameVersion {Id}", gameVersion.Id);
+            _logger.LogInformation("Generating fallback manifest for GameClient {Id}", gameClient.Id);
 
-            var gameVersionInt = int.TryParse(gameVersion.Version, out var parsedVersion) ? parsedVersion : 0;
+            var gameClientInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = _manifestBuilder
-                .WithBasicInfo("EA Games", gameVersion.Name ?? "Unknown", gameVersionInt)
-                .WithContentType(ContentType.GameClient, gameVersion.GameType)
+                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameClientInt)
+                .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
-                .WithMetadata($"Generated manifest for {gameVersion.Name}")
+                .WithMetadata($"Generated manifest for {gameClient.Name}")
                 .AddFile(new ManifestFile
                 {
-                    RelativePath = Path.GetFileName(gameVersion.ExecutablePath),
+                    RelativePath = Path.GetFileName(gameClient.ExecutablePath),
                     SourceType = ContentSourceType.GameInstallation,
                     IsExecutable = true,
                     IsRequired = true,
@@ -157,9 +157,9 @@ public class ManifestProvider : IManifestProvider
             string? gameDir = null;
             try
             {
-                gameDir = !string.IsNullOrEmpty(gameVersion.WorkingDirectory)
-                    ? gameVersion.WorkingDirectory
-                    : (!string.IsNullOrEmpty(gameVersion.ExecutablePath) ? Path.GetDirectoryName(gameVersion.ExecutablePath) : null);
+                gameDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)
+                    ? gameClient.WorkingDirectory
+                    : (!string.IsNullOrEmpty(gameClient.ExecutablePath) ? Path.GetDirectoryName(gameClient.ExecutablePath) : null);
             }
             catch
             {

@@ -20,13 +20,13 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Test Profile",
                 GameInstallationId = "install-1",
-                GameVersionId = "version-1",
+                GameClientId = "version-1",
             };
 
             // Assert
             Assert.Equal("Test Profile", request.Name);
             Assert.Equal("install-1", request.GameInstallationId);
-            Assert.Equal("version-1", request.GameVersionId);
+            Assert.Equal("version-1", request.GameClientId);
             Assert.Equal(WorkspaceStrategy.HybridCopySymlink, request.PreferredStrategy);
         }
 
@@ -41,7 +41,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = string.Empty,
                 GameInstallationId = "install-1",
-                GameVersionId = "version-1",
+                GameClientId = "version-1",
             };
 
             // Act & Assert
@@ -59,7 +59,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Test Profile",
                 GameInstallationId = string.Empty,
-                GameVersionId = "version-1",
+                GameClientId = "version-1",
             };
 
             // Act & Assert
@@ -67,21 +67,26 @@ namespace GenHub.Tests.Core.Models.GameProfile
         }
 
         /// <summary>
-        /// Tests that CreateProfileRequest validates GameVersionId.
+        /// Tests that CreateProfileRequest validates GameClientId.
         /// </summary>
         [Fact]
-        public void CreateProfileRequest_WithNullGameVersionId_ShouldThrowOrFail()
+        public void CreateProfileRequest_WithNullGameClientId_ShouldThrowOrFail()
         {
             // Arrange
             var request = new CreateProfileRequest
             {
                 Name = "Test Profile",
                 GameInstallationId = "install-1",
-                GameVersionId = string.Empty,
+                GameClientId = string.Empty,
             };
 
             // Act & Assert
-            Assert.True(string.IsNullOrWhiteSpace(request.GameVersionId));
+            Assert.True(string.IsNullOrWhiteSpace(request.GameClientId));
+
+            // If you have a validation method, call and assert failure here.
+            // Example:
+            // var result = ValidateRequest(request);
+            // Assert.False(result.Success);
         }
 
         /// <summary>
@@ -95,7 +100,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Initial Name",
                 GameInstallationId = "install-1",
-                GameVersionId = "version-1",
+                GameClientId = "version-1",
             };
 
             // Act

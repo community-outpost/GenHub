@@ -146,7 +146,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="manifestVersion">The manifest version.</param>
     /// <param name="executablePath">The path to the main executable.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameVersionManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string gameDirectory,
         string gameId,
         string gameName,

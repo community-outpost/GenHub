@@ -358,7 +358,7 @@ public class GameLauncher(
             {
                 Id = profile.Id,
                 Manifests = manifests,
-                GameVersion = profile.GameVersion,
+                GameClient = profile.GameClient,
                 Strategy = profile.WorkspaceStrategy,
                 WorkspaceRootPath = configurationProvider.GetWorkspacePath(),
             };
@@ -400,7 +400,7 @@ public class GameLauncher(
 
             var launchConfig = new GameLaunchConfiguration
             {
-                ExecutablePath = workspaceInfo.ExecutablePath ?? profile.GameVersion.ExecutablePath,
+                ExecutablePath = workspaceInfo.ExecutablePath ?? profile.GameClient.ExecutablePath,
                 WorkingDirectory = workspaceInfo.WorkspacePath,
                 Arguments = profile.LaunchOptions,
                 EnvironmentVariables = profile.EnvironmentVariables,

@@ -1,16 +1,16 @@
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.GameVersions;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -51,10 +51,10 @@ public class GameProfileManager(
             }
 
             var gameInstallation = installationResult.Data!;
-            var gameVersion = gameInstallation.AvailableVersions.FirstOrDefault(v => v.Id == request.GameVersionId);
-            if (gameVersion == null)
+            var gameClient = gameInstallation.AvailableVersions.FirstOrDefault(v => v.Id == request.GameClientId);
+            if (gameClient == null)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"Game version not found in installation: {request.GameVersionId}");
+                return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
             }
 
             var profile = new GameProfile
@@ -62,7 +62,7 @@ public class GameProfileManager(
                 Name = request.Name ?? string.Empty,
                 Description = request.Description ?? string.Empty,
                 GameInstallationId = gameInstallation.Id,
-                GameVersion = gameVersion,
+                GameClient = gameClient,
                 WorkspaceStrategy = request.PreferredStrategy,
             };
 
@@ -205,13 +205,13 @@ public class GameProfileManager(
     }
 
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameVersion gameVersion, CancellationToken cancellationToken = default)
+    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> GetAvailableContentAsync(GameClient gameClient, CancellationToken cancellationToken = default)
     {
         try
         {
-            if (gameVersion == null)
+            if (gameClient == null)
             {
-                return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("Game version cannot be null");
+                return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("Game client cannot be null");
             }
 
             var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
@@ -221,14 +221,14 @@ public class GameProfileManager(
             }
 
             var availableContent = manifestsResult.Data!
-                .Where(m => m.TargetGame == gameVersion.GameType)
+                .Where(m => m.TargetGame == gameClient.GameType)
                 .ToList();
 
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(availableContent);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameVersion?.GameType);
+            _logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
         }
     }

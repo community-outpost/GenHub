@@ -1,5 +1,5 @@
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -19,9 +19,9 @@ public interface IGameProfile
     string Name { get; }
 
     /// <summary>
-    /// Gets the game version associated with this profile.
+    /// Gets the game client associated with this profile.
     /// </summary>
-    GameVersion GameVersion { get; }
+    GameClient GameClient { get; }
 
     /// <summary>
     /// Gets the version string of the game.

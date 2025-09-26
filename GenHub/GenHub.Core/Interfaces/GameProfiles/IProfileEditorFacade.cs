@@ -38,10 +38,10 @@ public interface IProfileEditorFacade
     /// <summary>
     /// Discovers and suggests content for a given game version.
     /// </summary>
-    /// <param name="gameVersionId">The game version identifier.</param>
+    /// <param name="gameClientId">The game version identifier.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing suggested content manifests.</returns>
-    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameVersionId, CancellationToken cancellationToken = default);
+    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameClientId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates a profile configuration before saving.

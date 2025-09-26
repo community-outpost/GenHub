@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -48,7 +48,7 @@ public class StrategyTests : IDisposable
             Id = "test",
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()
@@ -78,7 +78,7 @@ public class StrategyTests : IDisposable
             Id = "test",
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()
@@ -108,7 +108,7 @@ public class StrategyTests : IDisposable
             Id = "test",
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()
@@ -138,7 +138,7 @@ public class StrategyTests : IDisposable
             Id = "test",
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()
@@ -178,7 +178,7 @@ public class StrategyTests : IDisposable
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()
@@ -353,7 +353,7 @@ public class StrategyTests : IDisposable
             Strategy = strategyType,
             WorkspaceRootPath = _tempDir,
             BaseInstallationPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test" },
+            GameClient = new GameClient { Id = "test" },
             Manifests =
             [
                 new()

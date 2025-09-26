@@ -57,7 +57,7 @@ public class ProfileEditorFacade(
             var profile = createResult.Data!;
 
             // Discover available content for this profile
-            var contentResult = await _profileManager.GetAvailableContentAsync(profile.GameVersion, cancellationToken);
+            var contentResult = await _profileManager.GetAvailableContentAsync(profile.GameClient, cancellationToken);
             if (contentResult.Success && contentResult.Data != null)
             {
                 // Auto-enable some basic content (game installation content)
@@ -96,7 +96,7 @@ public class ProfileEditorFacade(
             {
                 Id = profile.Id,
                 Manifests = new List<ContentManifest>(),
-                GameVersion = profile.GameVersion,
+                GameClient = profile.GameClient,
                 Strategy = profile.WorkspaceStrategy,
                 ForceRecreate = false,
                 ValidateAfterPreparation = true,
@@ -173,7 +173,7 @@ public class ProfileEditorFacade(
                 {
                     Id = profileId,
                     Manifests = new List<ContentManifest>(),
-                    GameVersion = profile.GameVersion,
+                    GameClient = profile.GameClient,
                     Strategy = profile.WorkspaceStrategy,
                     ForceRecreate = true, // Force recreate since content changed
                     ValidateAfterPreparation = true,
@@ -268,11 +268,11 @@ public class ProfileEditorFacade(
     }
 
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameVersionId, CancellationToken cancellationToken = default)
+    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameClientId, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Discovering content for game version: {GameVersionId}", gameVersionId);
+            _logger.LogInformation("Discovering content for game version: {GameClientId}", gameClientId);
 
             // Get all manifests from the pool
             var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
@@ -281,17 +281,17 @@ public class ProfileEditorFacade(
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
             }
 
-            // TODO: Implement proper mapping of gameVersionId to GameType.
-            // This requires retrieving the GameVersion by ID from a service and extracting its GameType.
+            // TODO: Implement proper mapping of GameClientId to GameType.
+            // This requires retrieving the GameClient by ID from a service and extracting its GameType.
             // For now, return all manifests as a temporary measure until the service is implemented.
             var relevantContent = manifestsResult.Data?.ToList() ?? new List<ContentManifest>();
 
-            _logger.LogInformation("Discovered {Count} content items for game version {GameVersionId}", relevantContent.Count, gameVersionId);
+            _logger.LogInformation("Discovered {Count} content items for game version {GameClientId}", relevantContent.Count, gameClientId);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(relevantContent);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover content for game version {GameVersionId}", gameVersionId);
+            _logger.LogError(ex, "Failed to discover content for game version {GameClientId}", gameClientId);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure($"Failed to discover content: {ex.Message}");
         }
     }

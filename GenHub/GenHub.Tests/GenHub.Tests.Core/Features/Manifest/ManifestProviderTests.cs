@@ -1,16 +1,16 @@
-using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Manifest;
@@ -58,14 +58,14 @@ public class ManifestProviderTests
     }
 
     /// <summary>
-    /// Tests that GetManifestAsync returns manifest from cache when available for GameVersion.
+    /// Tests that GetManifestAsync returns manifest from cache when available for GameClient.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithGameVersion_ReturnsFromCache_WhenAvailable()
+    public async Task GetManifestAsync_WithGameClient_ReturnsFromCache_WhenAvailable()
     {
         // Arrange
-        var gameVersion = new GameVersion
+        var gameClient = new GameClient
         {
             Id = "1.0.test.publisher.version",
             Name = "Test Version",
@@ -80,7 +80,7 @@ public class ManifestProviderTests
                   .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
-        var result = await _manifestProvider.GetManifestAsync(gameVersion);
+        var result = await _manifestProvider.GetManifestAsync(gameClient);
 
         // Assert
         Assert.NotNull(result);
@@ -163,12 +163,12 @@ public class ManifestProviderTests
     public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResources()
     {
         // Arrange
-        var gameVersion = new GameVersion { Id = "1.0.test.publisher.nonexistent" };
+        var gameClient = new GameClient { Id = "1.0.test.publisher.nonexistent" };
         _poolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), default))
                   .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
 
         // Act
-        var result = await _manifestProvider.GetManifestAsync(gameVersion);
+        var result = await _manifestProvider.GetManifestAsync(gameClient);
 
         // Assert
         Assert.Null(result);
@@ -182,7 +182,7 @@ public class ManifestProviderTests
     public async Task GetManifestAsync_ThrowsValidationException_WhenManifestIdMismatch()
     {
         // Arrange
-        var gameVersion = new GameVersion
+        var gameClient = new GameClient
         {
             Id = "1.0.expected.publisher.content",
             Name = "Test Version",
@@ -199,7 +199,7 @@ public class ManifestProviderTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ManifestValidationException>(
-            () => _manifestProvider.GetManifestAsync(gameVersion));
+            () => _manifestProvider.GetManifestAsync(gameClient));
     }
 
     /// <summary>
