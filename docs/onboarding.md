@@ -296,7 +296,7 @@ For a comprehensive understanding of the system architecture, see our [Architect
 
 2. **Five Architectural Pillars**
    - **GameInstallation**: Physical game detection
-   - **GameVersion**: Executable identification
+   - **GameClient**: Executable identification
    - **GameManifest**: Declarative content packaging
    - **GameProfile**: User configuration
    - **Workspace**: Isolated execution environment

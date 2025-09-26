@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameVersions;
+using GenHub.Features.GameClients;
 using GenHub.Features.GameInstallations;
-using GenHub.Features.GameVersions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -28,12 +28,12 @@ public static class GameDetectionModule
             return new GameInstallationDetectionOrchestrator(detectors, logger);
         });
 
-        services.AddTransient<IGameVersionDetectionOrchestrator>(provider =>
+        services.AddTransient<IGameClientDetectionOrchestrator>(provider =>
         {
             var installationOrchestrator = provider.GetRequiredService<IGameInstallationDetectionOrchestrator>();
-            var detector = provider.GetRequiredService<IGameVersionDetector>();
-            var logger = provider.GetRequiredService<ILogger<GameVersionDetectionOrchestrator>>();
-            return new GameVersionDetectionOrchestrator(installationOrchestrator, detector, logger);
+            var detector = provider.GetRequiredService<IGameClientDetector>();
+            var logger = provider.GetRequiredService<ILogger<GameClientDetectionOrchestrator>>();
+            return new GameClientDetectionOrchestrator(installationOrchestrator, detector, logger);
         });
 
         return services;

@@ -1,4 +1,4 @@
-﻿using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Interfaces.GameInstallations;
 

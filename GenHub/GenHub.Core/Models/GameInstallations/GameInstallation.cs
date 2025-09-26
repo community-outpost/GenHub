@@ -1,7 +1,7 @@
 using System;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Core.Models.GameInstallations;
@@ -41,11 +41,11 @@ public class GameInstallation : IGameInstallation
     /// </summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
-    /// <summary>Gets or sets the installation type (for backward compatibility).</summary>
+    /// <summary>Gets or sets the installation type.</summary>
     public GameInstallationType InstallationType { get; set; }
 
     /// <summary>Gets or sets the available versions for this installation.</summary>
-    public List<GameVersion> AvailableVersions { get; set; } = [];
+    public List<GameClient> AvailableVersions { get; set; } = new List<GameClient>();
 
     /// <summary>Gets or sets the base installation directory path.</summary>
     public string InstallationPath { get; set; } = string.Empty;

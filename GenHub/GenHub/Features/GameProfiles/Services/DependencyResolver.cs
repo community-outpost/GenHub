@@ -1,0 +1,143 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
+
+namespace GenHub.Features.GameProfiles.Services;
+
+/// <summary>
+/// Service for resolving content dependencies.
+/// </summary>
+public class DependencyResolver(
+    IContentManifestPool manifestPool,
+    ILogger<DependencyResolver> logger) : IDependencyResolver
+{
+    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+    private readonly ILogger<DependencyResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    /// <inheritdoc/>
+    public async Task<HashSet<string>> ResolveDependenciesAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken = default)
+    {
+        var resolvedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var toProcess = new Queue<string>(contentIds);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var missingContentIds = new List<string>();
+
+        while (toProcess.Count > 0)
+        {
+            var contentId = toProcess.Dequeue();
+            if (!visited.Add(contentId))
+                continue;
+
+            resolvedIds.Add(contentId);
+
+            try
+            {
+                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    var manifest = manifestResult.Data;
+                    if (manifest.Dependencies != null)
+                    {
+                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        foreach (var dep in relevantDeps)
+                        {
+                            // TODO: AutoInstall dependencies are resolved here but not automatically installed.
+                            // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
+                            if (!resolvedIds.Contains(dep.Id))
+                            {
+                                toProcess.Enqueue(dep.Id);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Manifest not found - log and collect missing IDs
+                    missingContentIds.Add(contentId);
+                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                // Invalid ID - log and collect as missing
+                missingContentIds.Add(contentId);
+                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
+            }
+        }
+
+        if (missingContentIds.Any())
+        {
+            throw new InvalidOperationException($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
+        }
+
+        return resolvedIds;
+    }
+
+    /// <inheritdoc/>
+    public async Task<DependencyResolutionResult> ResolveDependenciesWithManifestsAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken = default)
+    {
+        var resolvedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var resolvedManifests = new List<ContentManifest>();
+        var missingContentIds = new List<string>();
+        var toProcess = new Queue<string>(contentIds);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        while (toProcess.Count > 0)
+        {
+            var contentId = toProcess.Dequeue();
+            if (!visited.Add(contentId))
+                continue;
+
+            resolvedIds.Add(contentId);
+
+            try
+            {
+                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+                if (manifestResult.Success && manifestResult.Data != null)
+                {
+                    var manifest = manifestResult.Data;
+                    resolvedManifests.Add(manifest);
+
+                    if (manifest.Dependencies != null)
+                    {
+                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+                        foreach (var dep in relevantDeps)
+                        {
+                            if (!resolvedIds.Contains(dep.Id))
+                            {
+                                toProcess.Enqueue(dep.Id);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Manifest not found
+                    missingContentIds.Add(contentId);
+                    _logger.LogWarning("Manifest not found for content ID: {ContentId}", contentId);
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                // Invalid ID
+                missingContentIds.Add(contentId);
+                _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
+            }
+        }
+
+        if (missingContentIds.Any())
+        {
+            return DependencyResolutionResult.CreateFailure($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
+        }
+
+        return DependencyResolutionResult.CreateSuccess(resolvedIds.ToList(), resolvedManifests, missingContentIds);
+    }
+}

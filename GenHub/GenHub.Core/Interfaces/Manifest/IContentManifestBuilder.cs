@@ -71,7 +71,7 @@ public interface IContentManifestBuilder
     /// <param name="conflictsWith">List of conflicting dependency IDs.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddDependency(
-        string id,
+        ManifestId id,
         string name,
         ContentType dependencyType,
         DependencyInstallBehavior installBehavior,
@@ -79,7 +79,7 @@ public interface IContentManifestBuilder
         string maxVersion = "",
         List<string>? compatibleVersions = null,
         bool isExclusive = false,
-        List<string>? conflictsWith = null);
+        List<ManifestId>? conflictsWith = null);
 
     /// <summary>
     /// Scans a directory and adds files with the specified source type.
@@ -198,7 +198,7 @@ public interface IContentManifestBuilder
     /// <param name="maxVersion">The maximum compatible version.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddContentReference(
-        string contentId,
+        ManifestId contentId,
         string publisherId,
         ContentType contentType,
         string minVersion = "",

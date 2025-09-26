@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -215,7 +215,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
         var config = CreateTestConfiguration(strategyType);
 
         // Add a file that doesn't exist in the source
-        config.Manifest.Files.Add(new ManifestFile
+        config.Manifests[0].Files.Add(new ManifestFile
         {
             RelativePath = "nonexistent.file",
             Size = 1000,
@@ -291,16 +291,19 @@ public class ProcessLocalFileAsyncTests : IDisposable
             Strategy = strategy,
             WorkspaceRootPath = _tempWorkspaceDir,
             BaseInstallationPath = _tempSourceDir,
-            GameVersion = new GameVersion { Id = "test" },
-            Manifest = new ContentManifest
+            GameClient = new GameClient { Id = "test" },
+            Manifests = new List<ContentManifest>
             {
-                Files = new List<ManifestFile>
+                new ContentManifest
                 {
-                    new()
+                    Files = new List<ManifestFile>
                     {
-                        RelativePath = "test.exe",
-                        Size = 1000,
-                        SourceType = ContentSourceType.LocalFile,
+                        new()
+                        {
+                            RelativePath = "test.exe",
+                            Size = 1000,
+                            SourceType = ContentSourceType.LocalFile,
+                        },
                     },
                 },
             },

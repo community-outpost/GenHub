@@ -1,4 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Storage;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +21,8 @@ public static class WorkspaceModule
     {
         // Core workspace services
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
+
+        // Register workspace validator
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
         services.AddScoped<IFileOperationsService, FileOperationsService>();
 

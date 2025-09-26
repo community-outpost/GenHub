@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Microsoft.Extensions.Options;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -15,21 +16,24 @@ public static class LoggingModule
     /// Adds logging configuration to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configProvider">The configuration provider for determining log levels.</param>
     /// <returns>The updated service collection.</returns>
-    public static IServiceCollection AddLoggingModule(
-        this IServiceCollection services,
-        IConfigurationProviderService configProvider)
+    public static IServiceCollection AddLoggingModule(this IServiceCollection services)
     {
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.AddConsole();
             builder.AddDebug();
-
-            var minLevel = configProvider.GetEnableDetailedLogging() ? LogLevel.Debug : LogLevel.Information;
-            builder.SetMinimumLevel(minLevel);
         });
+
+        services.AddSingleton<IConfigureOptions<LoggerFilterOptions>>(serviceProvider =>
+            new ConfigureNamedOptions<LoggerFilterOptions>(null, options =>
+            {
+                var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+                var minLevel = configProvider.GetEnableDetailedLogging() ? LogLevel.Debug : LogLevel.Information;
+                options.MinLevel = minLevel;
+            }));
+
         return services;
     }
 

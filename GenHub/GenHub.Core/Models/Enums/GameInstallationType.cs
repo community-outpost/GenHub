@@ -1,4 +1,4 @@
-﻿namespace GenHub.Core.Models.Enums;
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Type of Game Installation.

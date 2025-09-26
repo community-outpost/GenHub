@@ -31,12 +31,13 @@ public class ContentStorageService : IContentStorageService
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="configurationProviderService">The configuration provider service.</param>
-    public ContentStorageService(ILogger<ContentStorageService> logger, IConfigurationProviderService configurationProviderService)
+    public ContentStorageService(
+        ILogger<ContentStorageService> logger,
+        IConfigurationProviderService configurationProviderService)
     {
-        _logger = logger;
-
-        // Use configuration provider for content storage path
-        _storageRoot = configurationProviderService.GetContentStoragePath();
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        var configService = configurationProviderService ?? throw new ArgumentNullException(nameof(configurationProviderService));
+        _storageRoot = configService.GetContentStoragePath();
 
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
         var requiredDirs = new[]
@@ -59,12 +60,12 @@ public class ContentStorageService : IContentStorageService
     public string GetContentStorageRoot() => _storageRoot;
 
     /// <inheritdoc/>
-    public string GetManifestStoragePath(string manifestId) =>
+    public string GetManifestStoragePath(ManifestId manifestId) =>
         Path.Combine(_storageRoot, FileTypes.ManifestsDirectory, $"{manifestId}{FileTypes.ManifestFileExtension}");
 
     /// <inheritdoc/>
-    public string GetContentDirectoryPath(string manifestId) =>
-        Path.Combine(_storageRoot, DirectoryNames.Data, manifestId);
+    public string GetContentDirectoryPath(ManifestId manifestId) =>
+        Path.Combine(_storageRoot, DirectoryNames.Data, manifestId.Value);
 
     /// <inheritdoc/>
     public async Task<OperationResult<ContentManifest>> StoreContentAsync(
@@ -76,6 +77,21 @@ public class ContentStorageService : IContentStorageService
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Source directory does not exist: {sourceDirectory}");
+        }
+
+        // Validate manifest for security issues
+        var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+        if (!securityValidation.Success)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Manifest security validation failed: {securityValidation.FirstError}");
+        }
+
+        // For GameInstallation content, skip physical file copying and just store metadata
+        if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+        {
+            _logger.LogInformation("Storing GameInstallation manifest {ManifestId} metadata only (skipping file copy)", manifest.Id);
+            return await StoreManifestOnlyAsync(manifest, cancellationToken);
         }
 
         var contentDir = GetContentDirectoryPath(manifest.Id);
@@ -119,7 +135,7 @@ public class ContentStorageService : IContentStorageService
 
     /// <inheritdoc/>
     public async Task<OperationResult<string>> RetrieveContentAsync(
-        string manifestId,
+        ManifestId manifestId,
         string targetDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -147,7 +163,7 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> IsContentStoredAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> IsContentStoredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);
@@ -164,7 +180,7 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> RemoveContentAsync(string manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
     {
         var contentDir = GetContentDirectoryPath(manifestId);
         var manifestPath = GetManifestStoragePath(manifestId);
@@ -217,6 +233,37 @@ public class ContentStorageService : IContentStorageService
         }
     }
 
+    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
+    {
+        if (manifest.Files != null)
+        {
+            var normalizedBase = Path.GetFullPath(baseDirectory);
+            foreach (var file in manifest.Files)
+            {
+                if (string.IsNullOrEmpty(file.RelativePath))
+                {
+                    return OperationResult<bool>.CreateFailure("File entries must have a relative path");
+                }
+
+                // path traversal check using normalization
+                try
+                {
+                    var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
+                    if (!fullPath.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
+                }
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)
     {
         using var sha256 = SHA256.Create();
@@ -238,6 +285,52 @@ public class ContentStorageService : IContentStorageService
         }
 
         await Task.CompletedTask;
+    }
+
+    private async Task<OperationResult<ContentManifest>> StoreManifestOnlyAsync(
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
+    {
+        var manifestPath = GetManifestStoragePath(manifest.Id);
+
+        try
+        {
+            // Validate manifest for security issues
+            var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+            if (!securityValidation.Success)
+            {
+                _logger.LogError("Manifest security validation failed for {ManifestId}: {Error}", manifest.Id, securityValidation.FirstError ?? "Unknown error");
+                return OperationResult<ContentManifest>.CreateFailure($"Manifest security validation failed: {securityValidation.FirstError ?? "Unknown error"}");
+            }
+
+            // Create manifest directory if needed
+            var manifestDir = Path.GetDirectoryName(manifestPath);
+            if (!string.IsNullOrEmpty(manifestDir))
+                Directory.CreateDirectory(manifestDir);
+
+            // Store manifest metadata only
+            var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
+            await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
+
+            _logger.LogInformation("Successfully stored manifest metadata for {ManifestId}", manifest.Id);
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store manifest metadata for {ManifestId}", manifest.Id);
+
+            // Cleanup on failure
+            try
+            {
+                FileOperationsService.DeleteFileIfExists(manifestPath);
+            }
+            catch (Exception cleanupEx)
+            {
+                _logger.LogWarning(cleanupEx, "Failed to cleanup manifest file after storage failure for {ManifestId}", manifest.Id);
+            }
+
+            return OperationResult<ContentManifest>.CreateFailure($"Manifest storage failed: {ex.Message}");
+        }
     }
 
     private async Task<ContentManifest> StoreContentFilesAsync(

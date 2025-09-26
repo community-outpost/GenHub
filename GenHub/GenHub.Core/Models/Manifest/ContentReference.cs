@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Manifest;
@@ -10,7 +11,7 @@ public class ContentReference
     /// <summary>
     /// Gets or sets the referenced content ID.
     /// </summary>
-    public string ContentId { get; set; } = string.Empty;
+    public ManifestId ContentId { get; set; } = ManifestId.Create(ManifestConstants.DefaultContentDependencyId);  // Non-nullable; assigned in constructor
 
     /// <summary>
     /// Gets or sets the publisher ID (if cross-publisher).

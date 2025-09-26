@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
@@ -98,7 +98,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
         {
             Id = "test-workspace",
             WorkspaceRootPath = _tempDir,
-            GameVersion = new GameVersion { Id = "test-version" },
+            GameClient = new GameClient { Id = "test-version" },
             Strategy = WorkspaceStrategy.FullCopy,
         };
 
@@ -108,7 +108,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
         // Assert
         Assert.Equal("test-workspace", result.Id);
         Assert.Equal(Path.Combine(_tempDir, "test-workspace"), result.WorkspacePath);
-        Assert.Equal("test-version", result.GameVersionId);
+        Assert.Equal("test-version", result.GameClientId);
         Assert.Equal(WorkspaceStrategy.FullCopy, result.Strategy);
         Assert.True(result.IsValid);
         Assert.True((DateTime.UtcNow - result.CreatedAt).TotalSeconds < 5);
@@ -128,14 +128,18 @@ public class WorkspaceStrategyBaseTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifest = new ContentManifest
+            Manifests = new List<ContentManifest>
             {
-                Files =
-                [
-                    new() { RelativePath = "generals.exe", Size = 1000 },
-                    new() { RelativePath = "config.ini", Size = 500 },
-                ],
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "generals.exe", Size = 1000 },
+                        new() { RelativePath = "config.ini", Size = 500 },
+                    ],
+                },
             },
+            GameClient = new GameClient { ExecutablePath = "generals.exe" },
         };
 
         // Act

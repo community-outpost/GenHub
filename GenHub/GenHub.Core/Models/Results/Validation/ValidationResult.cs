@@ -8,7 +8,7 @@ using GenHub.Core.Models.Validation;
 public class ValidationResult(string validatedTargetId, List<ValidationIssue>? issues, TimeSpan elapsed = default)
     : ResultBase(DetermineSuccess(issues), ExtractErrorMessages(issues), elapsed)
 {
-    /// <summary>Gets the unique ID of the target that was validated (e.g., a GameVersion ID or a GameInstallation ID).</summary>
+    /// <summary>Gets the unique ID of the target that was validated (e.g., a GameClient ID or a GameInstallation ID).</summary>
     public string ValidatedTargetId { get; } = validatedTargetId;
 
     /// <summary>Gets the list of all issues found during validation.</summary>

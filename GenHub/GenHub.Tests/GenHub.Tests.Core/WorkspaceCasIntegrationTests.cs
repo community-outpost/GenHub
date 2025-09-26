@@ -3,7 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameVersions;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
@@ -175,11 +175,11 @@ public class WorkspaceCasIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifest = manifest,
+            Manifests = new List<ContentManifest> { manifest },
             Strategy = WorkspaceStrategy.SymlinkOnly,
             WorkspaceRootPath = _testWorkspacePath,
             BaseInstallationPath = _testWorkspacePath,
-            GameVersion = new GameVersion
+            GameClient = new GameClient
             {
                 Id = "test-version",
                 Name = "Test Version",
@@ -187,7 +187,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
         };
 
         var workspaceInfo = await _workspaceManager.PrepareWorkspaceAsync(config);
-        var expectedPath = Path.Combine(workspaceInfo.WorkspacePath, "data", "mymod.big");
+        var expectedPath = Path.Combine(workspaceInfo.Data!.WorkspacePath, "data", "mymod.big");
 
         Assert.True(File.Exists(expectedPath), $"Expected file {expectedPath} does not exist");
     }

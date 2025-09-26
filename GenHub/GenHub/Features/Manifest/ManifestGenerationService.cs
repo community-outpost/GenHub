@@ -129,7 +129,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
                 "support@ea.com")
             .WithMetadata($"Game installation of {gameType} (manifest version {manifestVersion}) from {installationType}")
             .AddRequiredDirectories(DirectoryNames.Data, "Maps")
-            .WithInstallationInstructions(WorkspaceStrategy.FullSymlink);
+            .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
 
         // Add all game files
         await builder.AddFilesFromDirectoryAsync(gameInstallationPath, ContentSourceType.GameInstallation);
@@ -146,7 +146,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
     /// <param name="manifestVersion">The manifest version.</param>
     /// <param name="executablePath">The path to the main executable.</param>
     /// <returns>The manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameVersionManifestAsync(
+    public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string gameDirectory,
         string gameId,
         string gameName,
@@ -195,7 +195,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{manifestVersion}",
+            Id = ManifestId.Create($"{publisherId}.{referralName}.{manifestVersion}"),
             Name = referralName,
             Version = manifestVersion.ToString(),
             ContentType = ContentType.PublisherReferral,
@@ -241,7 +241,7 @@ public class ManifestGenerationService(ILogger<ManifestGenerationService> logger
 
         var referral = new ContentManifest
         {
-            Id = $"{publisherId}.{referralName}.{manifestVersion}",
+            Id = ManifestId.Create($"{publisherId}.{referralName}.{manifestVersion}"),
             Name = referralName,
             Version = manifestVersion.ToString(),
             ContentType = ContentType.ContentReferral,

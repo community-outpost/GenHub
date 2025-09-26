@@ -47,7 +47,7 @@ public interface IManifestGenerationService
     /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <param name="executablePath">Path to the main executable.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameVersionManifestAsync(string gameDirectory, string publisherId, string gameName, int manifestVersion = 0, string executablePath = "");
+    Task<IContentManifestBuilder> CreateGameClientManifestAsync(string gameDirectory, string publisherId, string gameName, int manifestVersion = 0, string executablePath = "");
 
     /// <summary>
     /// Saves a manifest to a file.

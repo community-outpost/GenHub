@@ -30,7 +30,7 @@ public class ManifestCacheTests
     public void GetManifest_ReturnsNull_WhenManifestNotFound()
     {
         // Act
-        var result = _cache.GetManifest("non-existent");
+        var result = _cache.GetManifest("1.0.test.publisher");
 
         // Assert
         Assert.Null(result);

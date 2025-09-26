@@ -23,7 +23,7 @@ public static class AppConstants
     public const Theme DefaultTheme = Theme.Dark;
 
     /// <summary>
-    /// The default theme name as a string (for backward compatibility).
+    /// The default theme name as a string.
     /// </summary>
     public const string DefaultThemeName = "Dark";
 }

@@ -303,6 +303,14 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
                 if (string.IsNullOrEmpty(file.RelativePath))
                     errors.Add("File entries must have a relative path");
 
+                // Check for path traversal attacks
+                if (file.RelativePath.Contains("..") ||
+                    file.RelativePath.Contains("/../") ||
+                    file.RelativePath.Contains("\\..\\"))
+                {
+                    errors.Add($"File {file.RelativePath} contains illegal path traversal");
+                }
+
                 if (file.SourceType == ContentSourceType.Unknown)
                     errors.Add($"File {file.RelativePath} has unknown source type");
 
@@ -321,7 +329,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
 
         return errors.Any()
-            ? OperationResult<bool>.CreateFailure(string.Join("; ", errors))
+            ? OperationResult<bool>.CreateFailure(string.Join(", ", errors))
             : OperationResult<bool>.CreateSuccess(true);
     }
 }

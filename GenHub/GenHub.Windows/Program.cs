@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -59,8 +59,7 @@ public class Program
             try
             {
                 // Register shared services and Windows-specific services
-                services.ConfigureApplicationServices((s, configProvider) =>
-                    s.AddWindowsServices(configProvider));
+                services.ConfigureApplicationServices(s => s.AddWindowsServices());
             }
             catch (Exception configEx)
             {

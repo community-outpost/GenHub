@@ -219,7 +219,7 @@ public abstract class WorkspaceStrategyBase<T>(
         {
             Id = configuration.Id,
             WorkspacePath = workspacePath,
-            GameVersionId = configuration.GameVersion.Id,
+            GameClientId = configuration.GameClient.Id,
             Strategy = configuration.Strategy,
             CreatedAt = DateTime.UtcNow,
             LastAccessedAt = DateTime.UtcNow,
@@ -243,14 +243,20 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
 
-        // Find the main executable
-        var gameExecutable = configuration.Manifest.Files
-            .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-                                !f.RelativePath.Contains("uninstall", StringComparison.OrdinalIgnoreCase));
-
-        if (gameExecutable != null)
+        // Set executable path from GameClient configuration
+        if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
         {
-            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, gameExecutable.RelativePath);
+            // If the GameClient ExecutablePath is already absolute, use it directly
+            if (Path.IsPathRooted(configuration.GameClient.ExecutablePath))
+            {
+                workspaceInfo.ExecutablePath = configuration.GameClient.ExecutablePath;
+            }
+            else
+            {
+                // If it's relative, combine with workspace path
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameClient.ExecutablePath);
+            }
+
             workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
         }
         else
@@ -304,7 +310,7 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         long totalSize = 0L;
 
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
         {
             var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
             var actualSize = GetFileSizeSafe(sourcePath);

@@ -1,7 +1,10 @@
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -32,10 +35,86 @@ public class SharedViewModelModuleTests
         services.AddSingleton<IUserSettingsService>(CreateMockUserSettingsService());
         services.AddSingleton<IAppConfiguration>(CreateMockAppConfiguration());
 
+        // Mock IGitHubClient to avoid complex module dependencies
+        var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
+        services.AddSingleton<Octokit.IGitHubClient>(gitHubClientMock.Object);
+
+        // Mock IFileHashProvider to avoid dependency issues
+        var fileHashProviderMock = new Mock<IFileHashProvider>();
+        services.AddSingleton<IFileHashProvider>(fileHashProviderMock.Object);
+
+        // Mock content pipeline dependencies
+        var githubDiscovererMock = new Mock<IContentDiscoverer>();
+        githubDiscovererMock.SetupGet(d => d.SourceName).Returns("GitHub");
+        githubDiscovererMock.SetupGet(d => d.Description).Returns("GitHub discoverer");
+        githubDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        githubDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(githubDiscovererMock.Object);
+        var cncDiscovererMock = new Mock<IContentDiscoverer>();
+        cncDiscovererMock.SetupGet(d => d.SourceName).Returns("CNC Labs");
+        cncDiscovererMock.SetupGet(d => d.Description).Returns("CNC Labs discoverer");
+        cncDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        cncDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(cncDiscovererMock.Object);
+        var moddbDiscovererMock = new Mock<IContentDiscoverer>();
+        moddbDiscovererMock.SetupGet(d => d.SourceName).Returns("ModDB");
+        moddbDiscovererMock.SetupGet(d => d.Description).Returns("ModDB discoverer");
+        moddbDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        moddbDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(moddbDiscovererMock.Object);
+        var fileSystemDiscovererMock = new Mock<IContentDiscoverer>();
+        fileSystemDiscovererMock.SetupGet(d => d.SourceName).Returns("FileSystem");
+        fileSystemDiscovererMock.SetupGet(d => d.Description).Returns("FileSystem discoverer");
+        fileSystemDiscovererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        fileSystemDiscovererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDiscoverer>(fileSystemDiscovererMock.Object);
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.SetupGet(r => r.ResolverId).Returns("GitHub");
+        services.AddSingleton<IContentResolver>(resolverMock.Object);
+        var cncResolverMock = new Mock<IContentResolver>();
+        cncResolverMock.SetupGet(r => r.ResolverId).Returns("CNCLabsMap");
+        services.AddSingleton<IContentResolver>(cncResolverMock.Object);
+        var moddbResolverMock = new Mock<IContentResolver>();
+        moddbResolverMock.SetupGet(r => r.ResolverId).Returns("ModDB");
+        services.AddSingleton<IContentResolver>(moddbResolverMock.Object);
+        var localResolverMock = new Mock<IContentResolver>();
+        localResolverMock.SetupGet(r => r.ResolverId).Returns("Local");
+        services.AddSingleton<IContentResolver>(localResolverMock.Object);
+        var delivererMock = new Mock<IContentDeliverer>();
+        delivererMock.SetupGet(d => d.SourceName).Returns("HTTP");
+        delivererMock.SetupGet(d => d.Description).Returns("HTTP deliverer");
+        delivererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        delivererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDeliverer>(delivererMock.Object);
+        var fileSystemDelivererMock = new Mock<IContentDeliverer>();
+        fileSystemDelivererMock.SetupGet(d => d.SourceName).Returns("FileSystem");
+        fileSystemDelivererMock.SetupGet(d => d.Description).Returns("FileSystem deliverer");
+        fileSystemDelivererMock.SetupGet(d => d.IsEnabled).Returns(true);
+        fileSystemDelivererMock.SetupGet(d => d.Capabilities).Returns(default(ContentSourceCapabilities));
+        services.AddSingleton<IContentDeliverer>(fileSystemDelivererMock.Object);
+        var validatorMock = new Mock<IContentValidator>();
+        services.AddSingleton<IContentValidator>(validatorMock.Object);
+
         // Register required modules in correct order
-        services.AddLoggingModule(configProvider);
+        services.AddLoggingModule();
+        services.AddValidationServices();
         services.AddGameDetectionService();
+        services.AddGameInstallation();
+        services.AddContentPipelineServices();
+        services.AddManifestServices();
+        services.AddWorkspaceServices();
+        services.AddCasServices();
+        services.AddDownloadServices();
+        services.AddAppUpdateModule();
+        services.AddGameProfileServices();
+        services.AddLaunchingServices();
         services.AddSharedViewModelModule();
+
+        // Register IManifestIdService
+        services.AddSingleton<IManifestIdService>(new ManifestIdService());
+
+        // Re-register the mock config provider to ensure it's the last one
+        services.AddSingleton<IConfigurationProviderService>(configProvider);
 
         // Build the service provider
         var serviceProvider = services.BuildServiceProvider();
@@ -56,6 +135,13 @@ public class SharedViewModelModuleTests
         mock.Setup(x => x.GetWindowHeight()).Returns(800.0);
         mock.Setup(x => x.GetIsWindowMaximized()).Returns(false);
         mock.Setup(x => x.GetLastSelectedTab()).Returns(NavigationTab.Home);
+        mock.Setup(x => x.GetContentStoragePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubTest", "Content"));
+        mock.Setup(x => x.GetWorkspacePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubTest", "Workspace"));
+        mock.Setup(x => x.GetContentDirectories()).Returns(new List<string> { Path.GetTempPath() });
+        mock.Setup(x => x.GetGitHubDiscoveryRepositories()).Returns(new List<string> { "test/repo" });
+        mock.Setup(x => x.GetCasConfiguration()).Returns(new GenHub.Core.Models.Storage.CasConfiguration());
+        mock.Setup(x => x.GetDownloadUserAgent()).Returns("TestAgent/1.0");
+        mock.Setup(x => x.GetDownloadTimeoutSeconds()).Returns(120);
         return mock.Object;
     }
 
