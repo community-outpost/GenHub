@@ -40,7 +40,7 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 
 ## Development Environment
 
-- **.NET Version**: GenHub targets **.NET 9**. Ensure you have the latest SDK installed.
+- **.NET Version**: GenHub targets **.NET 8**. Ensure you have the latest SDK installed.
 - **IDE**: Visual Studio 2022 is recommended. The Community Edition is free and sufficient.
 - **Dependencies**: Restore NuGet packages before building.
 
@@ -95,6 +95,7 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 - Larger changes may require multiple rounds of review.
 - Be patient; maintainers may have other commitments.
 - If you disagree with feedback, discuss it respectfully and provide your reasoning.
+- When you approve a PR, please leave it open for at least 24 hours (or until another maintainer has had a chance to review) before merging. This gives others an opportunity to provide input and helps catch issues earlier.
 
 ---
 

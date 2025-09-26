@@ -24,18 +24,24 @@ public static class AppServices
         // Register configuration services and get the provider
         var configProvider = services.AddConfigurationModule();
 
-        // Register services that need configuration
+        // Register core services in dependency order
         services.AddLoggingModule(configProvider);
-        services.AddDownloadServices(configProvider);
-
-        // Register remaining services
-        services.AddGameDetectionService();
-        services.AddSharedViewModelModule();
-        services.AddAppUpdateModule();
         services.AddValidationServices();
+        services.AddGameDetectionService();
+        services.AddGameInstallation();
         services.AddManifestServices();
         services.AddWorkspaceServices();
         services.AddContentPipelineServices();
+        services.AddCasServices();
+        services.AddDownloadServices(configProvider);
+
+        // Register GameProfile services (depends on above services)
+        // services.AddGameProfileServices(configProvider); // TODO: Uncomment when GameProfile services are available
+        // services.AddLaunchingServices(); // TODO: Uncomment when Launching services are available
+
+        // Register UI services last (depends on all business services)
+        services.AddAppUpdateModule();
+        services.AddSharedViewModelModule();
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services, configProvider);

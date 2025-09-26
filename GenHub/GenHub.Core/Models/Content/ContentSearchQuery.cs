@@ -63,4 +63,19 @@ public class ContentSearchQuery
     /// Gets or sets a value indicating whether to include already installed content in the results.
     /// </summary>
     public bool IncludeInstalled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets number of players filter by.
+    /// </summary>
+    public int? NumberOfPlayers { get; set; }
+
+    /// <summary>
+    /// Gets or sets page number.
+    /// </summary>
+    public int? Page { get; set; }
+
+    /// <summary>
+    /// Gets or sets sort value.
+    /// </summary>
+    public string Sort { get; set; } = string.Empty;
 }

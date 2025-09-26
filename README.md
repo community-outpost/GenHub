@@ -13,6 +13,11 @@ Launcher for C&C: Generals and Zero Hour with patch management and mod support
 
 For detailed documentation and guides, visit our [Wiki](https://generalshub.netlify.app/wiki/).
 
+## Contributing
+
+We welcome all forms of contribution — whether it’s coding, reviewing pull requests, reporting issues, giving feedback, or helping with testing.  
+Please read our [CONTRIBUTING](CONTRIBUTING.md) guide for details on how to get involved.
+
 ## Contact
 
 Join our Discord server for support, suggestions, and community discussions: [Community Outpost Discord](https://discord.gg/ZGtT3Qwd3Y)
