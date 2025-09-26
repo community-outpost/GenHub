@@ -19,19 +19,16 @@ public static class WindowsServicesModule
     /// Registers Windows-specific services with the dependency injection container.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configProvider">The shared configuration provider instance.</param>
     /// <returns>The updated service collection.</returns>
-    public static IServiceCollection AddWindowsServices(
-        this IServiceCollection services,
-        IConfigurationProviderService configProvider)
+    public static IServiceCollection AddWindowsServices(this IServiceCollection services)
     {
         // Configure HttpClient for Windows update installer using config provider
-        var userAgent = configProvider.GetDownloadUserAgent();
-        var timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
-
-        services.AddHttpClient<WindowsUpdateInstaller>(client =>
+        services.AddHttpClient<WindowsUpdateInstaller>((serviceProvider, client) =>
         {
-            client.Timeout = timeout;
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            client.Timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
+
+            var userAgent = configProvider.GetDownloadUserAgent();
             client.DefaultRequestHeaders.Add("User-Agent", userAgent);
         });
 

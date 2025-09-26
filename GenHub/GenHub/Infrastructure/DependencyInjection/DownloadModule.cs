@@ -15,11 +15,8 @@ public static class DownloadModule
     /// Registers download services for dependency injection.
     /// </summary>
     /// <param name="services">The service collection to configure.</param>
-    /// <param name="configProvider">The configuration provider for HTTP client setup.</param>
     /// <returns>The updated service collection.</returns>
-    public static IServiceCollection AddDownloadServices(
-        this IServiceCollection services,
-        IConfigurationProviderService configProvider)
+    public static IServiceCollection AddDownloadServices(this IServiceCollection services)
     {
         // Register DownloadService and its interface
         services.AddScoped<IDownloadService, DownloadService>();

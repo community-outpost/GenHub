@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -19,7 +20,8 @@ public static class ManifestModule
     {
         // Core manifest services
         services.AddSingleton<IManifestCache, ManifestCache>();
-        services.AddSingleton<IManifestProvider, ManifestProvider>();
+        services.AddScoped<IManifestProvider, ManifestProvider>();
+        services.AddSingleton<IManifestIdService>(new ManifestIdService());
 
         // Discovery and generation services
         services.AddScoped<ManifestDiscoveryService>();

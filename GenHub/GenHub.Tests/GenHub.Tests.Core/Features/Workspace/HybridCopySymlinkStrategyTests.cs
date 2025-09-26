@@ -55,20 +55,23 @@ public class HybridCopySymlinkStrategyTests : IDisposable
     public void EstimateDiskUsage_MixedFiles_ReturnsCorrectEstimate()
     {
         // Arrange
-        var manifest = new ContentManifest
-        {
-            Files =
-            [
-                new ManifestFile { RelativePath = "game.exe", Size = 1000000 }, // Essential
-                new ManifestFile { RelativePath = "config.ini", Size = 1000 }, // Essential (small)
-                new ManifestFile { RelativePath = "textures/large.tga", Size = 5000000 }, // Non-essential
-                new ManifestFile { RelativePath = "sounds/music.wav", Size = 10000000 }, // Non-essential
-            ],
-        };
-
         var config = new WorkspaceConfiguration
         {
-            Manifest = manifest,
+            Id = "test-workspace",
+            Manifests = new List<ContentManifest>
+            {
+                new()
+                {
+                    Files = new List<ManifestFile>
+                    {
+                        new() { RelativePath = "game.exe", Size = 1000000, IsExecutable = true }, // Will be copied
+                        new() { RelativePath = "config.ini", Size = 1000 }, // Will be copied (small + .ini)
+                        new() { RelativePath = "textures/large.tga", Size = 5000000 }, // Will be symlinked
+                        new() { RelativePath = "sounds/music.wav", Size = 10000000 }, // Will be symlinked
+                    },
+                },
+            },
+            BaseInstallationPath = _tempDir,
             Strategy = WorkspaceStrategy.HybridCopySymlink,
         };
 
@@ -76,9 +79,10 @@ public class HybridCopySymlinkStrategyTests : IDisposable
         var estimate = _strategy.EstimateDiskUsage(config);
 
         // Assert
-        // Should copy exe and ini (1001000 bytes) + symlink overhead for media files (2 * LinkOverheadBytes)
+        // Should copy exe and ini (1001000 bytes) + symlink overhead for media files (2 * 1024)
         const long LinkOverheadBytes = 1024L;
-        Assert.Equal(1001000 + (2 * LinkOverheadBytes), estimate);
+        var expectedUsage = 1001000 + (2 * LinkOverheadBytes); // 1003048
+        Assert.Equal(expectedUsage, estimate);
     }
 
     /// <summary>

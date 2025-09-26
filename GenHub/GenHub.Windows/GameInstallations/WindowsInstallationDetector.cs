@@ -85,7 +85,7 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
         sw.Stop();
         var result = errors.Any()
-            ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))
+            ? DetectionResult<GameInstallation>.CreateFailure(string.Join(", ", errors))
             : DetectionResult<GameInstallation>.CreateSuccess(installs, sw.Elapsed);
 
         return Task.FromResult(result);

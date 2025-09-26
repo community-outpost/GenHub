@@ -243,14 +243,20 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
 
-        // Find the main executable
-        var gameExecutable = configuration.Manifest.Files
-            .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-                                !f.RelativePath.Contains("uninstall", StringComparison.OrdinalIgnoreCase));
-
-        if (gameExecutable != null)
+        // Set executable path from GameVersion configuration
+        if (!string.IsNullOrEmpty(configuration.GameVersion.ExecutablePath))
         {
-            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, gameExecutable.RelativePath);
+            // If the GameVersion ExecutablePath is already absolute, use it directly
+            if (Path.IsPathRooted(configuration.GameVersion.ExecutablePath))
+            {
+                workspaceInfo.ExecutablePath = configuration.GameVersion.ExecutablePath;
+            }
+            else
+            {
+                // If it's relative, combine with workspace path
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameVersion.ExecutablePath);
+            }
+
             workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
         }
         else
@@ -304,7 +310,7 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         long totalSize = 0L;
 
-        foreach (var file in configuration.Manifest.Files)
+        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
         {
             var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
             var actualSize = GetFileSizeSafe(sourcePath);

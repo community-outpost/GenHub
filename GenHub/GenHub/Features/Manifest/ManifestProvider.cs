@@ -9,7 +9,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameVersions;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
 using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,6 +29,7 @@ public class ManifestProvider : IManifestProvider
     private readonly ILogger<ManifestProvider> _logger;
     private readonly IContentManifestPool _manifestPool;
     private readonly IManifestIdService _manifestIdService;
+    private readonly IContentManifestBuilder _manifestBuilder;
     private readonly ManifestProviderOptions _options;
 
     /// <summary>
@@ -38,25 +38,15 @@ public class ManifestProvider : IManifestProvider
     /// <param name="logger">Logger instance used for diagnostic messages.</param>
     /// <param name="manifestPool">Pool used to store and retrieve manifests.</param>
     /// <param name="manifestIdService">The manifest ID service.</param>
+    /// <param name="manifestBuilder">The content manifest builder.</param>
     /// <param name="options">Optional provider behaviour options.</param>
-    public ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, ManifestProviderOptions? options = null)
+    public ManifestProvider(ILogger<ManifestProvider> logger, IContentManifestPool manifestPool, IManifestIdService? manifestIdService = null, IContentManifestBuilder? manifestBuilder = null, ManifestProviderOptions? options = null)
     {
         _logger = logger ?? NullLogger<ManifestProvider>.Instance;
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
         _manifestIdService = manifestIdService ?? throw new ArgumentNullException(nameof(manifestIdService));
+        _manifestBuilder = manifestBuilder ?? throw new ArgumentNullException(nameof(manifestBuilder));
         _options = options ?? new ManifestProviderOptions();
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ManifestProvider"/> class by adapting an <see cref="IManifestCache"/> to an <see cref="IContentManifestPool"/>.
-    /// </summary>
-    /// <param name="logger">Logger instance used for diagnostic messages.</param>
-    /// <param name="cache">Legacy manifest cache instance to adapt.</param>
-    /// <param name="manifestIdService">The manifest ID service.</param>
-    /// <param name="options">Optional provider behaviour options.</param>
-    public ManifestProvider(ILogger<ManifestProvider> logger, IManifestCache cache, IManifestIdService? manifestIdService = null, ManifestProviderOptions? options = null)
-        : this(logger, new ManifestCacheAdapter(cache), manifestIdService, options)
-    {
     }
 
     /// <summary>
@@ -124,7 +114,7 @@ public class ManifestProvider : IManifestProvider
                         return manifest;
                     }
 
-                    _logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, addResult?.AllErrors ?? "unknown");
+                    _logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, string.Join(", ", addResult?.Errors ?? Array.Empty<string>()));
 
                     return manifest;
                 }
@@ -141,9 +131,8 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for GameVersion {Id}", gameVersion.Id);
 
-            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
             var gameVersionInt = int.TryParse(gameVersion.Version, out var parsedVersion) ? parsedVersion : 0;
-            var generated = builder
+            var generated = _manifestBuilder
                 .WithBasicInfo("EA Games", gameVersion.Name ?? "Unknown", gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameVersion.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
@@ -179,7 +168,7 @@ public class ManifestProvider : IManifestProvider
 
             var addRes = await _manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
             if (addRes?.Success != true)
-                _logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, addRes?.AllErrors ?? "unknown");
+                _logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
 
             return generated;
         }
@@ -227,7 +216,7 @@ public class ManifestProvider : IManifestProvider
                     // For embedded installation manifests, provide the installation path as source when available.
                     var addRes = await _manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
                     if (addRes?.Success != true)
-                        _logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, addRes?.AllErrors ?? "unknown");
+                        _logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
                     return manifest;
                 }
             }
@@ -243,21 +232,18 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
 
-            var builder = new ContentManifestBuilder(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentManifestBuilder>.Instance, null!, _manifestIdService);
-            var generated = builder
-                .WithBasicInfo(installation.InstallationType, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals, userVersion)
+            var generated = _manifestBuilder
+            .WithBasicInfo(installation.InstallationType, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals, userVersion)
             .WithContentType(ContentType.GameInstallation, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals)
             .WithPublisher(installation.InstallationType.ToString(), string.Empty)
             .WithMetadata($"Generated manifest for installation at {installation.InstallationPath}")
             .AddRequiredDirectories("Data", "Maps")
-            .WithInstallationInstructions(WorkspaceStrategy.FullSymlink)
-            .Build();
-
-            // Validate ID before adding to pool
-            ManifestIdValidator.EnsureValid(generated.Id);
+            .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly)
+            .Build();            // Validate ID before adding to pool
+            ManifestIdValidator.EnsureValid(generated.Id.Value);
             var addRes2 = await _manifestPool.AddManifestAsync(generated, installation.InstallationPath ?? string.Empty, cancellationToken);
             if (addRes2?.Success != true)
-                _logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, addRes2?.AllErrors ?? "unknown");
+                _logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? Array.Empty<string>()));
             return generated;
         }
 
@@ -288,64 +274,6 @@ public class ManifestProvider : IManifestProvider
         if (!string.Equals(manifest.Id.Value, expectedId, StringComparison.OrdinalIgnoreCase))
         {
             throw new ManifestValidationException(expectedId, $"Manifest ID mismatch: expected '{expectedId}' but manifest contains '{manifest.Id.Value}'");
-        }
-    }
-
-    // Adapter to bridge the legacy IManifestCache interface to the newer IContentManifestPool.
-    private sealed class ManifestCacheAdapter : IContentManifestPool
-    {
-        private readonly IManifestCache _cache;
-
-        public ManifestCacheAdapter(IManifestCache cache)
-        {
-            _cache = cache ?? throw new ArgumentNullException(nameof(cache));
-        }
-
-        public Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default)
-        {
-            _cache.AddOrUpdateManifest(manifest);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-
-        public Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default)
-        {
-            // Legacy cache does not persist source directories, so we just add the manifest
-            _cache.AddOrUpdateManifest(manifest);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-
-        public Task<OperationResult<ContentManifest?>> GetManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
-        {
-            var m = _cache.GetManifest(manifestId.Value);
-            return Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(m));
-        }
-
-        public Task<OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>> GetAllManifestsAsync(CancellationToken cancellationToken = default)
-        {
-            var all = _cache.GetAllManifests();
-            return Task.FromResult(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess(all));
-        }
-
-        public Task<OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>> SearchManifestsAsync(Core.Models.Content.ContentSearchQuery query, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess(Array.Empty<ContentManifest>()));
-        }
-
-        public Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
-        {
-            // No-op for legacy cache - just return success
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
-        }
-
-        public Task<OperationResult<bool>> IsManifestAcquiredAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
-        {
-            var m = _cache.GetManifest(manifestId.Value);
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(m != null));
-        }
-
-        public Task<OperationResult<string?>> GetContentDirectoryAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(OperationResult<string?>.CreateSuccess(null));
         }
     }
 }

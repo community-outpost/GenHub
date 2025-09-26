@@ -74,4 +74,9 @@ public static class ManifestConstants
     /// Maximum concurrent manifest operations.
     /// </summary>
     public const int MaxConcurrentManifestOperations = 10;
+
+    /// <summary>
+    /// Default ID string for content dependencies (fallback for model instantiation).
+    /// </summary>
+    public const string DefaultContentDependencyId = "1.0.test.dependency.content";
 }

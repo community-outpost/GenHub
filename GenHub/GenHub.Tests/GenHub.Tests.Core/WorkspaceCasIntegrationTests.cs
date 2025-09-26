@@ -175,7 +175,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifest = manifest,
+            Manifests = new List<ContentManifest> { manifest },
             Strategy = WorkspaceStrategy.SymlinkOnly,
             WorkspaceRootPath = _testWorkspacePath,
             BaseInstallationPath = _testWorkspacePath,
@@ -187,7 +187,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
         };
 
         var workspaceInfo = await _workspaceManager.PrepareWorkspaceAsync(config);
-        var expectedPath = Path.Combine(workspaceInfo.WorkspacePath, "data", "mymod.big");
+        var expectedPath = Path.Combine(workspaceInfo.Data!.WorkspacePath, "data", "mymod.big");
 
         Assert.True(File.Exists(expectedPath), $"Expected file {expectedPath} does not exist");
     }

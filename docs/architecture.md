@@ -27,6 +27,9 @@ The system employs specialized detectors for each platform and distribution meth
 **Data Flow Pattern**:
 Detection begins with IGameInstallationDetectionOrchestrator.DetectAllInstallationsAsync, which coordinates multiple IGameInstallationDetector implementations. Each detector returns DetectionResult containing discovered GameInstallation objects. The orchestrator aggregates these results, validates them through IGameInstallationValidator, and maintains a centralized registry of available installations through IGameInstallationService.
 
+**Caching Strategy**:
+GameInstallationService caches detection results with a lightweight in-memory cache guarded by a SemaphoreSlim, using IGameInstallationDetectionOrchestrator as the source of truth to avoid repeated detection runs per app lifetime.
+
 ### 1.2 GameVersion: The Executable Identity Layer
 
 **Primary Responsibility**: Identification and categorization of specific game executables, patches, and modifications within detected installations.
@@ -73,15 +76,20 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 - **IContentManifestBuilder**: Fluent builder interface for programmatic manifest construction
 - **ContentManifestBuilder**: Implementation providing WithBasicInfo, WithContentType, WithPublisher, AddDependency, AddFileAsync methods
 - **IManifestGenerationService**: High-level service for automated manifest creation from directories, installations, and content packages
-- **ManifestGenerationService**: Concrete implementation with CreateBaseContentManifestAsync, CreateContentManifestAsync, CreateStandaloneContentManifestAsync
+- **ManifestGenerationService**: Concrete implementation with CreateContentManifestAsync, CreateGameInstallationManifestAsync, CreateGameVersionManifestAsync, CreateContentBundleAsync, CreatePublisherReferralAsync, CreateContentReferralAsync
 
 **Manifest Lifecycle Management**:
 
 - **IManifestProvider**: Abstraction for manifest retrieval from GameVersion and GameInstallation objects
 - **ManifestProvider**: Implementation that generates manifests for detected content
+  - GameVersion: tries pool by ManifestId (if gameVersion.Id is a valid manifest id), then embedded resources GenHub.Manifests.{id}.json, then optional fallback generation (GenerateFallbackManifests=false by default)
+  - GameInstallation: uses deterministic ID via ManifestIdGenerator (install type + game type + version), same "pool → embedded → optional fallback" flow
+  - Provider requires IManifestIdService and IContentManifestBuilder (injected); options (ManifestProviderOptions) control fallback generation
 - **IContentManifestPool**: Manages the lifecycle of all acquired (installed) content manifests, acting as the source of truth for what content is available on the user's system
 - **IContentManifestPool**: Interface for content manifest management with full CRUD operations
 - **IContentStorageService**: Handles the physical storage and retrieval of content files and their associated manifests, providing a content-addressable-like storage system
+  - ContentType.GameInstallation: storage is "manifest metadata only" (no file copy)
+  - All other content: copied into ContentStorageRoot/Data, hashed and re-written to the manifest
 
 ### 1.4 GameProfile: The User Configuration Layer
 
@@ -106,8 +114,11 @@ The GameVersion model has been enhanced to support launch configuration with Lau
 **Profile Integration Model**:
 GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameVersion and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation, while LaunchArguments and EnvironmentVariables enable per-profile launch customization.
 
+**ProfileEditorFacade Integration**:
+ProfileEditorFacade auto-enables matching GameInstallation content (and GameClient if available) after creation by scanning the manifest pool for the profile's GameType; then resolves dependencies and prepares a workspace, persisting ActiveWorkspaceId.
+
 **Content Integration Model**:
-Profiles maintain loose coupling with content through string-based EnabledContentIds identifiers rather than direct object references. This design enables content to be added, removed, or updated without invalidating existing profiles. The system resolves these identifiers during workspace preparation through the IContentManifestPool, allowing for flexible content management.
+Profiles maintain loose coupling with content through string-based EnabledContentIds identifiers rather than direct object references. This design enables content to be added, removed, or updated without invalidating existing profiles. The system resolves these identifiers during workspace preparation through the IContentManifestPool, allowing for flexible content management. GetAvailableContentAsync currently filters by TargetGame only; the pool content must already exist (seeded by ManifestInitializationService or acquired by providers).
 
 ### 1.5 Workspace: The Isolated Execution Environment
 
@@ -129,6 +140,12 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 - **HybridCopySymlinkStrategy**: Balanced approach with intelligent file classification - copying essential files (executables, configurations) while linking large media assets
 - **HardLinkStrategy**: Platform-specific optimization using filesystem hard links
 
+**Strategy Capabilities**:
+
+- Supported source types in workspace assembly: ContentAddressable (CAS), GameInstallation, LocalFile
+- RemoteDownload, ExtractedPackage, PatchFile are handled at acquisition/delivery time; manifests should be materialized to LocalFile or ContentAddressable before workspace prep
+- Essential file classification: add CNC specifics (.big, .str, .csf, .w3d) and default "copy files under 1MB"
+
 **File Operations Infrastructure**:
 
 - **IFileOperationsService**: Comprehensive low-level operations contract with CopyFileAsync, CreateSymlinkAsync, CreateHardLinkAsync, VerifyFileHashAsync, DownloadFileAsync, ApplyPatchAsync, CopyFromCasAsync
@@ -138,8 +155,9 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 Workspace strategies now fully integrate with the Content Addressable Storage system through  CAS operations:
 
 - **CAS File Linking**: Strategies can link files directly from CAS storage using hash-based references
-- **CAS Reference Tracking**: WorkspaceManager coordinates with CasReferenceTracker to track which CAS objects are referenced by each workspace
-- **Automatic Cleanup**: CAS references are automatically managed during workspace creation and cleanup
+- **CAS Reference Tracking**: WorkspaceManager coordinates with CasReferenceTracker to track which CAS objects are referenced by each workspace after preparation
+- **Metadata Persistence**: WorkspaceManager writes all workspace metadata into a single workspaces.json located at ContentStoragePath (not WorkspaceRootPath)
+- **Automatic Cleanup**: CAS references are automatically managed during workspace creation and cleanup; CAS unreference/GC is handled by CAS services (CasMaintenanceService), not directly in WorkspaceManager directly on cleanup
 
 **Workspace Validation Framework**:
 
@@ -154,6 +172,10 @@ Workspace strategies now fully integrate with the Content Addressable Storage sy
 
 - **IGameLauncher**: Primary launch coordinator with LaunchProfileAsync, TerminateGameAsync, GetActiveGamesAsync, GetGameProcessInfoAsync methods
 - **GameLauncher**: Implementation handling the complete launch pipeline from profile resolution to process creation and monitoring
+  - Adds profile-level concurrency locks (SemaphoreSlim per profile) to prevent duplicate launches
+  - Runs a CAS preflight (verifies all CAS hashes referenced by manifests exist) before workspace prep
+  - Ensures a base installation manifest is present (via IManifestProvider) even if not explicitly enabled
+  - Exposes LaunchGameAsync for direct (non-profile) launches
 - **GameLaunchConfiguration**: Input specification with ExecutablePath, WorkingDirectory, Arguments, EnvironmentVariables
 - **GameProcessInfo**: Runtime descriptor with ProcessId, ProcessName, ExecutablePath, StartTime, IsRunning properties
 - **LaunchProgress**: Progress reporting with Phase, PercentComplete, CurrentOperation properties
@@ -163,12 +185,18 @@ Workspace strategies now fully integrate with the Content Addressable Storage sy
 
 - **IGameProcessManager**: Process lifecycle management with StartProcessAsync, TerminateProcessAsync, GetProcessInfoAsync, GetActiveProcessesAsync methods
 - **GameProcessManager**: Implementation providing process creation, monitoring, cleanup, and cross-platform process management
+  - Returns OperationResult&lt;T&gt; (not ProcessOperationResult&lt;T&gt;)
+  - Handles Windows .bat/.cmd via cmd /c
+  - Robust argument quoting and environment injection
 - **ProcessOperationResult**: Specialized result type for process operations with success/failure status and detailed error information
 
 **Launch Registry System**:
 
 - **ILaunchRegistry**: Launch session tracking with RegisterLaunchAsync, UnregisterLaunchAsync, GetLaunchInfoAsync, GetAllActiveLaunchesAsync methods
 - **LaunchRegistry**: Implementation maintaining active launch sessions, enabling termination, monitoring, and cleanup operations
+  - Keeps launch records in-memory
+  - GetAllActiveLaunchesAsync marks stale processes TerminatedAt but does not remove them (historical record)
+  - Consumers should filter on TerminatedAt if they only want running sessions
 - **GameLaunchInfo**: Launch session descriptor with LaunchId, ProfileId, WorkspaceId, ProcessInfo, LaunchedAt properties
 
 **Launch Result Architecture**:
@@ -201,9 +229,12 @@ GenHub implements a **three-tier content pipeline architecture** that provides c
 
 This architecture enables multiple providers to coexist, each orchestrating their own internal pipeline while being coordinated by the system-wide orchestrator.
 
+**Workspace Strategy Integration Note**:
+Workspace strategies only accept ContentAddressable, GameInstallation, LocalFile at assembly time; deliverers must resolve RemoteDownload, ExtractedPackage, PatchFile source types before storage/workspace preparation.
+
 **Result Pattern Integration in Pipeline Operations**:
 
-- **ContentOperationResult&lt;T&gt;**: Used for all content provider operations with typed data
+- **OperationResult&lt;T&gt;**: Used for all content provider operations with typed data
 - **DetectionResult**: Specialized for content discovery and validation operations
 - **ValidationResult**: Used for manifest and content validation with detailed issue tracking
 - **DownloadResult**: Specialized for content download operations with progress tracking
@@ -216,7 +247,7 @@ var searchResult = await _contentProvider.SearchAsync(query);
 if (!searchResult.Success)
 {
     _logger.LogError("Content search failed: {Error}", searchResult.FirstError);
-    return ContentOperationResult<List<ContentSearchResult>>.CreateFailure(
+    return OperationResult<List<ContentSearchResult>>.CreateFailure(
         searchResult.Errors.ToList());
 }
 ```
@@ -405,7 +436,8 @@ This architecture allows providers to select the most appropriate component base
 **Result Pattern Integration in Caching Operations**:
 
 **Cache Operation Results**:
-- **ContentOperationResult&lt;T&gt;**: Used for cache retrieval and storage operations
+
+- **OperationResult&lt;T&gt;**: Used for cache retrieval and storage operations
 - **ValidationResult**: Used for cache validation and integrity checking
 - **ProfileOperationResult&lt;T&gt;**: Used for cached profile operations
 
@@ -426,7 +458,7 @@ if (!invalidateResult.Success)
 ```csharp
 // Example: Cached content search with error handling
 var cacheKey = $"search::{query.SearchTerm}::{query.ContentType}";
-var cachedResult = await _cache.GetAsync<ContentOperationResult<List<ContentSearchResult>>>(cacheKey);
+var cachedResult = await _cache.GetAsync<OperationResult<List<ContentSearchResult>>>(cacheKey);
 
 if (cachedResult != null)
 {
@@ -445,7 +477,8 @@ if (cachedResult != null)
 ```
 
 **Cache Performance Monitoring**:
-- **ContentOperationResult&lt;T&gt;**: Tracks cache hit/miss ratios with performance metrics
+
+- **OperationResult&lt;T&gt;**: Tracks cache hit/miss ratios with performance metrics
 - **DownloadResult**: Monitors cached download operations
 - **ValidationResult**: Validates cached content integrity
 
@@ -471,6 +504,7 @@ if (cachedResult != null)
 - **IContentManifestPool**: Manifest pool with full CRUD operations and validation
 - **IDynamicContentCache**: General-purpose cache with expiration and pattern-based invalidation for transient data like search results
 - **MemoryDynamicContentCache**: In-memory implementation using `IMemoryCache`
+- **IManifestCache**: Simple in-memory cache for manifests and known CAS hashes used by manifest flows
 
 **Caching Integration Example**:
 
@@ -478,7 +512,7 @@ if (cachedResult != null)
 // Orchestrator-level caching
 var cacheKey = $"search::{query.SearchTerm}::{query.ContentType}";
 var cachedResults = await _cache.GetAsync<List<ContentSearchResult>>(cacheKey);
-if (cachedResults != null) return ContentOperationResult<T>.CreateSuccess(cachedResults);
+if (cachedResults != null) return OperationResult<T>.CreateSuccess(cachedResults);
 
 // Execute provider search and cache results
 var result = await ExecuteProviderSearchAsync(query);
@@ -498,13 +532,15 @@ return result;
 **Result Pattern Integration in Profile Management**:
 
 **Profile Operation Results**:
+
 - **ProfileOperationResult&lt;T&gt;**: Used for all profile CRUD operations with validation
 - **ValidationResult**: Used for profile validation with detailed issue tracking
-- **ContentOperationResult&lt;T&gt;**: Used for content-related profile operations
+- **OperationResult&lt;T&gt;**: Used for content-related profile operations
 
 **Launch Operation Results**:
+
 - **LaunchOperationResult&lt;T&gt;**: Used for launch operations with session tracking
-- **ProcessOperationResult&lt;T&gt;**: Used for process management during launches
+- **OperationResult&lt;T&gt;**: Used for process management during launches
 - **LaunchResult**: Used for simple launch status reporting
 
 **Profile Management Error Handling**:
@@ -552,6 +588,7 @@ if (!launchResult.Success)
 ```
 
 **Progress Reporting in Profile Operations**:
+
 - **LaunchProgress**: Tracks launch pipeline progress with phase information
 - **WorkspacePreparationProgress**: Reports workspace creation progress
 - **ContentAcquisitionProgress**: Tracks content resolution progress
@@ -583,6 +620,9 @@ The profile management system includes comprehensive validation:
 - **Workspace Strategy Validation**: Ensures selected workspace strategy is supported and compatible
 - **Launch Configuration Validation**: Validates launch arguments and environment variables
 
+**UI Workflow Integration**:
+MainViewModel exposes ScanAndCreateProfilesAsync: scans installations, creates a default profile per installation (via IProfileEditorFacade), auto-enables base content (GameInstallation, optionally GameClient), resolves dependencies, prepares a workspace, and persists ActiveWorkspaceId.
+
 ### 4.2 Launch Orchestration Infrastructure
 
 **Primary Responsibility**: Transform prepared workspaces into running game processes with comprehensive monitoring and management.
@@ -604,6 +644,11 @@ The launch process follows a comprehensive, monitored pipeline:
 3. **PreparingWorkspace** (40-70%): Create isolated workspace using configured strategy
 4. **Starting** (70-90%): Configure and start game process
 5. **Running** (90-100%): Register launch session and begin monitoring
+
+**Launch Preflight and Base Installation Handling**:
+
+- **CAS Preflight**: Validates all CAS hashes referenced by manifests exist before workspace preparation (fail early)
+- **Base Installation Guarantee**: If a base installation manifest is available via IManifestProvider and not explicitly enabled, the launcher injects it into the workspace configuration
 
 **Process Management**:
 
@@ -654,7 +699,8 @@ GameProfile objects seamlessly integrate with the workspace system:
 **Operational Control Types**:
 
 - **WorkspaceStrategy**: Defines file assembly approaches including FullCopy, SymlinkOnly, HybridCopySymlink, HardLink
-- **ContentSourceType**: Specifies file operations including `BaseGame`, `Content`, `Patch`, `OptionalAddon`, `Download`, `Generated`
+- **ContentSourceType**: Specifies file operations including ContentAddressable, GameInstallation, LocalFile, RemoteDownload, ExtractedPackage, PatchFile
+  - Workspace strategies currently handle ContentAddressable, GameInstallation, LocalFile; the others require pre-resolution
 - **DependencyInstallBehavior**: Controls dependency installation with Required, Optional, Recommended, Conflicting values
 - **ContentSortOrder**: Enables search result organization by Relevance, Name, DateCreated, DateUpdated, DownloadCount, Rating, Size
 - **ContentSourceCapabilities**: Defines provider capabilities including DirectSearch, RequiresDiscovery, SupportsManifestGeneration, SupportsPackageAcquisition, LocalFileDelivery
@@ -737,7 +783,7 @@ GameProfile objects seamlessly integrate with the workspace system:
 **Core Service Modules**:
 
 - **AppServices**: Application-wide service registration and configuration
-- **ContentDeliveryModule**: **Primary module** for three-tier pipeline registration
+- **ContentPipelineModule**: **Primary module** for three-tier pipeline registration
 - **GameDetectionModule**: Installation and version detection service registration
 - **GameProfileModule**: **New module** for profile management and launching services
 - **WorkspaceModule**: workspace management and strategy registration with CAS integration
@@ -776,44 +822,46 @@ public static class GameProfileModule
 }
 ```
 
-**ContentDeliveryModule Registration**:
-The `ContentDeliveryModule` now follows a three-tier registration pattern with caching and storage integration:
+**ContentPipelineModule Registration**:
+The `ContentPipelineModule` now follows a three-tier registration pattern with caching and storage integration:
 
 ```csharp
-public static class ContentDeliveryModule
+public static class ContentPipelineModule
 {
-    public static IServiceCollection AddContentDelivery(this IServiceCollection services)
+    public static IServiceCollection AddContentPipelineServices(this IServiceCollection services)
     {
-        // Tier 3: Pipeline Components
-        // Discoverers
+        var hashProvider = new Sha256HashProvider();
+        services.AddSingleton<IFileHashProvider>(hashProvider);
+        services.AddSingleton<IStreamHashProvider>(hashProvider);
+
+        services.AddMemoryCache();
+
+        services.AddSingleton<IContentStorageService, ContentStorageService>();
+        services.AddScoped<IContentManifestPool, ContentManifestPool>();
+
+        services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
+        services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();
+
+        services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
+
+        services.AddTransient<IContentProvider, GitHubContentProvider>();
+        services.AddTransient<IContentProvider, CNCLabsContentProvider>();
+        services.AddTransient<IContentProvider, ModDBContentProvider>();
+        services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
+
+        services.AddTransient<IContentDiscoverer, GitHubDiscoverer>();
         services.AddTransient<IContentDiscoverer, GitHubReleasesDiscoverer>();
         services.AddTransient<IContentDiscoverer, CNCLabsMapDiscoverer>();
         services.AddTransient<IContentDiscoverer, FileSystemDiscoverer>();
-        
-        // Resolvers  
+
         services.AddTransient<IContentResolver, GitHubResolver>();
         services.AddTransient<IContentResolver, CNCLabsMapResolver>();
         services.AddTransient<IContentResolver, LocalManifestResolver>();
-        
-        // Deliverers
+
         services.AddTransient<IContentDeliverer, HttpContentDeliverer>();
         services.AddTransient<IContentDeliverer, FileSystemDeliverer>();
 
-        // Tier 2: Pipeline Providers
-        // Content Providers  
-        services.AddTransient<IContentProvider, GitHubContentProvider>();
-        services.AddTransient<IContentProvider, ModDBContentProvider>();
-        services.AddTransient<IContentProvider, CNCLabsContentProvider>();
-        services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
-
-        // Tier 1: Content Orchestrator & Core Services
-        services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
-        services.AddSingleton<IContentStorageService, ContentStorageService>();
-        services.AddSingleton<IContentManifestPool, ContentManifestPool>();
-        services.AddSingleton<IContentManifestPool, ContentManifestPool>();
-        services.AddSingleton<IContentValidator, ContentValidator>();
-        services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();
-        services.AddMemoryCache(); // For MemoryDynamicContentCache
+        return services;
     }
 }
 ```
@@ -860,8 +908,12 @@ public static class WorkspaceModule
 - **Business Logic Services** (GameProfileManager, GameLauncher, WorkspaceManager): Scoped for request isolation
 - **ContentProviders**: Transient for flexible pipeline composition
 - **Pipeline Components**: Transient for stateless operation handling
-
-This registration pattern enables maximum flexibility while maintaining clear architectural boundaries and dependency relationships across all six architectural pillars.
+- **IContentManifestPool**: Scoped (not Singleton)
+- **IGameLauncher**: Scoped (factory)
+- **ILaunchRegistry**: Singleton
+- **IManifestProvider**: Scoped
+- **IGameProcessManager**: Singleton
+- **Hosted services**: CasMaintenanceService and ManifestInitializationService
 
 ---
 
@@ -887,10 +939,10 @@ All platform-specific implementations conform to common interfaces (IGameInstall
 The IFileOperationsService interface abstracts platform-specific file operations including symbolic link creation, hard link management, file permission handling, and CAS integration. The FileOperationsService implementation includes platform-specific logic for Windows CreateHardLinkW API calls versus Unix-style operations.
 
 **Process Management Abstraction**:
-The IGameProcessManager interface provides cross-platform process lifecycle management, abstracting Windows-specific process creation APIs and Unix-style process management while providing consistent process monitoring and termination capabilities.
+The IGameProcessManager interface provides cross-platform process lifecycle management, abstracting Windows-specific process creation APIs and Unix-style process management while providing consistent process monitoring and termination capabilities. Handles Windows .bat/.cmd via cmd /c, robust argument quoting, and environment injection.
 
 **Path and Directory Handling**:
-The system uses Path.Combine and similar .NET abstractions for cross-platform path construction while handling platform-specific nuances like case sensitivity, path separators, symbolic link support, and file permission models.
+The system uses Path.Combine and similar .NET abstractions for cross-platform path construction while handling platform-specific nuances like case sensitivity, path separators, symbolic link support, and file permission models. Symlink strategies require elevation on Windows; hard links require same-volume constraint (the strategies surface these via RequiresAdminRights and RequiresSameVolume, and WorkspaceValidator checks both).
 
 ---
 
@@ -922,6 +974,13 @@ User selects "My Modded Zero Hour" profile from the game profile launcher interf
 5. **Process Creation**: `IGameProcessManager.StartProcessAsync` launches the game
 6. **Session Registration**: `ILaunchRegistry.RegisterLaunchAsync` tracks the active session
 7. **Runtime Monitoring** (Running Phase): Provides termination and monitoring capabilities
+
+**Launch Enhancements**:
+
+- **Profile-level concurrency locks**: Prevents duplicate launch of the same profile
+- **CAS preflight**: Validates all CAS hashes referenced by manifests exist before workspace preparation (fail early)
+- **Base installation guarantee**: If a base installation manifest is available via IManifestProvider and not explicitly enabled, the launcher injects it into the workspace configuration
+- **Direct launch path**: LaunchGameAsync(GameLaunchConfiguration) for non-profile launching
 
 **Multi-Provider Content Integration**:
 The launched profile seamlessly integrates content from multiple sources:
@@ -957,6 +1016,9 @@ The profile system seamlessly integrates with content management:
 - **Profile Integration**: Installed content automatically becomes available for profile configuration
 - **Dependency Management**: System automatically resolves and validates content dependencies
 - **Conflict Resolution**: System prevents enabling conflicting content within profiles
+
+**Scan and Auto-Create Profiles Example**:
+User clicks "Scan and Create Profiles" → detects installations → creates profiles → auto-enables base content (GameInstallation, optionally GameClient) → resolves dependencies → prepares workspace (HybridCopySymlink by default) → persists ActiveWorkspaceId.
 
 ### 8.3 Advanced Workspace and CAS Integration
 

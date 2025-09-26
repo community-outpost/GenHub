@@ -128,14 +128,18 @@ public class WorkspaceStrategyBaseTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifest = new ContentManifest
+            Manifests = new List<ContentManifest>
             {
-                Files =
-                [
-                    new() { RelativePath = "generals.exe", Size = 1000 },
-                    new() { RelativePath = "config.ini", Size = 500 },
-                ],
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "generals.exe", Size = 1000 },
+                        new() { RelativePath = "config.ini", Size = 500 },
+                    ],
+                },
             },
+            GameVersion = new GameVersion { ExecutablePath = "generals.exe" },
         };
 
         // Act

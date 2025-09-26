@@ -24,10 +24,9 @@ public static class CasModule
         services.AddSingleton<CasReferenceTracker>();
 
         // Configuration
-        var configProvider = services.BuildServiceProvider().GetRequiredService<IConfigurationProviderService>();
-        var userCasConfig = configProvider.GetCasConfiguration();
-        services.Configure<CasConfiguration>(config =>
+        services.AddOptions<CasConfiguration>().Configure<IConfigurationProviderService>((config, configProvider) =>
         {
+            var userCasConfig = configProvider.GetCasConfiguration();
             config.EnableAutomaticGc = userCasConfig.EnableAutomaticGc;
             config.CasRootPath = userCasConfig.CasRootPath;
             config.HashAlgorithm = userCasConfig.HashAlgorithm;

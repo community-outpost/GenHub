@@ -72,14 +72,16 @@ public partial class GameProfileLauncherViewModel(
     /// Performs asynchronous initialization for the Downloads tab.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public virtual Task InitializeAsync()
+    public virtual async Task InitializeAsync()
     {
         try
         {
             StatusMessage = "Loading profiles...";
             Profiles.Clear();
 
-            // TODO: Load actual profiles when IGameProfileManager is available
+            // TODO: Wire up UI to load profiles from IGameProfileManager in a future UI-focused PR.
+            // This involves integrating the profile service into the view model initialization.
+            await Task.Delay(1); // Make method properly async
             StatusMessage = "Profiles loaded";
             _logger?.LogInformation("Game profile launcher initialized");
         }
@@ -88,8 +90,6 @@ public partial class GameProfileLauncherViewModel(
             _logger?.LogError(ex, "Error initializing profiles");
             StatusMessage = "Error loading profiles";
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -140,6 +140,6 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void LaunchProfile(GameProfileItemViewModel profile)
     {
-        // Dummy implementation for PR3 integration
+        // TODO:  Wire up actual launch logic in a future UI-focused PR.
     }
 }

@@ -1,6 +1,7 @@
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Downloads.ViewModels;
@@ -26,6 +27,8 @@ public class MainViewModelTests
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var configProvider = CreateConfigProviderMock();
+        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
 
         // Act
         var vm = new MainViewModel(
@@ -34,7 +37,9 @@ public class MainViewModelTests
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
-            userSettingsMock.Object);
+            userSettingsMock.Object,
+            mockProfileEditorFacade.Object,
+            mockLogger.Object);
 
         // Assert
         Assert.NotNull(vm);
@@ -54,6 +59,8 @@ public class MainViewModelTests
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var configProvider = CreateConfigProviderMock();
+        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
 
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
@@ -61,33 +68,39 @@ public class MainViewModelTests
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
-            userSettingsMock.Object);
+            userSettingsMock.Object,
+            mockProfileEditorFacade.Object,
+            mockLogger.Object);
 
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
     }
 
     /// <summary>
-    /// Verifies ScanForGamesAsync can be called.
+    /// Verifies ScanAndCreateProfilesAsync can be called.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanForGamesAsync_CanBeCalled()
+    public async Task ScanAndCreateProfilesAsync_CanBeCalled()
     {
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var configProvider = CreateConfigProviderMock();
+        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
-            userSettingsMock.Object);
+            userSettingsMock.Object,
+            mockProfileEditorFacade.Object,
+            mockLogger.Object);
 
         // Act & Assert
-        await viewModel.ScanForGamesAsync();
+        await viewModel.ScanAndCreateProfilesAsync();
         Assert.True(true); // Test passes if no exception is thrown
     }
 
@@ -102,13 +115,17 @@ public class MainViewModelTests
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var configProvider = CreateConfigProviderMock();
+        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
-            userSettingsMock.Object);
+            userSettingsMock.Object,
+            mockProfileEditorFacade.Object,
+            mockLogger.Object);
 
         // Act & Assert
         await vm.InitializeAsync();
@@ -129,13 +146,17 @@ public class MainViewModelTests
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var configProvider = CreateConfigProviderMock();
+        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
-            userSettingsMock.Object);
+            userSettingsMock.Object,
+            mockProfileEditorFacade.Object,
+            mockLogger.Object);
 
         vm.SelectTabCommand.Execute(tab);
 

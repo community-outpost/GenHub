@@ -17,6 +17,26 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     private readonly ILogger<AppConfiguration>? _logger = logger;
 
     /// <summary>
+    /// Gets the root application data path for GenHub.
+    /// </summary>
+    /// <returns>The root application data path as a string.</returns>
+    public string GetAppDataPath()
+    {
+        try
+        {
+            var configured = _configuration?.GetValue<string>("GenHub:AppDataPath");
+            return !string.IsNullOrEmpty(configured)
+                ? configured
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+        }
+    }
+
+    /// <summary>
     /// Gets the default workspace path for GenHub.
     /// </summary>
     /// <returns>The default workspace path as a string.</returns>

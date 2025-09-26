@@ -3,7 +3,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -11,6 +14,7 @@ using GenHub.Features.Settings.ViewModels;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace GenHub.Common.ViewModels;
@@ -24,6 +28,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IUserSettingsService _userSettingsService;
+    private readonly IProfileEditorFacade _profileEditorFacade;
 
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
@@ -37,6 +42,7 @@ public partial class MainViewModel : ObservableObject
     /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
     /// <param name="configurationProvider">Configuration provider service.</param>
     /// <param name="userSettingsService">User settings service for persistence operations.</param>
+    /// <param name="profileEditorFacade">Profile editor facade for automatic profile creation.</param>
     /// <param name="logger">Logger instance.</param>
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
@@ -45,6 +51,7 @@ public partial class MainViewModel : ObservableObject
         IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
         IConfigurationProviderService configurationProvider,
         IUserSettingsService userSettingsService,
+        IProfileEditorFacade profileEditorFacade,
         ILogger<MainViewModel>? logger = null)
     {
         GameProfilesViewModel = gameProfilesViewModel;
@@ -53,6 +60,7 @@ public partial class MainViewModel : ObservableObject
         _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
         _configurationProvider = configurationProvider;
         _userSettingsService = userSettingsService;
+        _profileEditorFacade = profileEditorFacade ?? throw new ArgumentNullException(nameof(profileEditorFacade));
         _logger = logger;
 
         // Load initial settings using unified configuration
@@ -142,41 +150,92 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Scans for game installations.
+    /// Scans for game installations and automatically creates profiles.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ScanForGamesAsync()
+    public async Task ScanAndCreateProfilesAsync()
     {
-        _logger?.LogInformation("Starting game installation scan");
+        _logger?.LogInformation("Starting automatic profile creation from game installations");
 
         try
         {
-            GameInstallations.Clear();
+            // First scan for installations
+            var scanResult = await _gameInstallationDetectionOrchestrator.DetectAllInstallationsAsync();
 
-            var result = await _gameInstallationDetectionOrchestrator.DetectAllInstallationsAsync();
-
-            if (result.Success)
+            if (!scanResult.Success)
             {
-                foreach (var installation in result.Items)
+                _logger?.LogWarning("Game installation scan failed: {Errors}", string.Join(", ", scanResult.Errors));
+                return;
+            }
+
+            if (scanResult.Items.Count == 0)
+            {
+                _logger?.LogInformation("No game installations found");
+                return;
+            }
+
+            _logger?.LogInformation("Found {Count} game installations, creating profiles", scanResult.Items.Count);
+
+            int createdCount = 0;
+            int failedCount = 0;
+
+            foreach (var installation in scanResult.Items)
+            {
+                if (installation == null) continue;
+
+                try
                 {
-                    var installationString = installation?.ToString();
-                    if (!string.IsNullOrEmpty(installationString))
+                    // Use the first available version or create a default one
+                    var gameVersionId = installation.AvailableVersions.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
+
+                    // Create a profile request from the installation
+                    var createRequest = new CreateProfileRequest
                     {
-                        GameInstallations.Add(installationString);
+                        Name = $"{installation.InstallationType} Profile",
+                        GameInstallationId = installation.Id,
+                        GameVersionId = gameVersionId,
+                        Description = $"Auto-created profile for {installation.InstallationType} installation at {installation.InstallationPath}",
+                        PreferredStrategy = WorkspaceStrategy.HybridCopySymlink,
+                    };
+
+                    var profileResult = await _profileEditorFacade.CreateProfileWithWorkspaceAsync(createRequest);
+
+                    if (profileResult.Success)
+                    {
+                        createdCount++;
+                        _logger?.LogInformation(
+                            "Created profile '{ProfileName}' for installation {InstallationId}",
+                            profileResult.Data?.Name,
+                            installation.Id);
+                    }
+                    else
+                    {
+                        failedCount++;
+                        _logger?.LogWarning(
+                            "Failed to create profile for installation {InstallationId}: {Errors}",
+                            installation.Id,
+                            string.Join(", ", profileResult.Errors));
                     }
                 }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    _logger?.LogError(ex, "Error creating profile for installation {InstallationId}", installation.Id);
+                }
+            }
 
-                _logger?.LogInformation("Found {Count} game installations", result.Items.Count);
-            }
-            else
-            {
-                _logger?.LogWarning("Game installation scan failed: {Errors}", string.Join("; ", result.Errors));
-            }
+            _logger?.LogInformation(
+                "Profile creation complete: {Created} created, {Failed} failed",
+                createdCount,
+                failedCount);
+
+            // Refresh the game profiles view model to show new profiles
+            await GameProfilesViewModel.InitializeAsync();
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error occurred during game installation scan");
+            _logger?.LogError(ex, "Error occurred during automatic profile creation");
         }
     }
 
@@ -204,6 +263,8 @@ public partial class MainViewModel : ObservableObject
             {
                 settings.LastSelectedTab = selectedTab;
             });
+
+            _ = _userSettingsService.SaveAsync();
             _logger?.LogDebug($"Updated last selected tab to: {selectedTab}");
         }
         catch (Exception ex)

@@ -52,7 +52,13 @@ public class WorkspaceValidatorTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
+
+        // Allow warnings but not errors
         Assert.DoesNotContain(result.Issues, i => i.Severity == ValidationSeverity.Error);
+
+        // If there are warnings about empty manifests, that's acceptable for this test
+        var manifestWarnings = result.Issues.Where(i => i.Message.Contains("Manifest must contain at least one file"));
+        Assert.True(manifestWarnings.All(w => w.Severity == ValidationSeverity.Warning));
     }
 
     /// <summary>
@@ -68,7 +74,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = string.Empty,
             BaseInstallationPath = string.Empty,
             WorkspaceRootPath = string.Empty,
-            Manifest = new ContentManifest { Files = new List<ManifestFile>() },
+            Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, },
         };
 
         // Act
@@ -105,7 +111,7 @@ public class WorkspaceValidatorTests : IDisposable
     {
         // Arrange
         var config = CreateValidConfiguration();
-        config.Manifest = new ContentManifest { Files = new List<ManifestFile>() };
+        config.Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, };
 
         // Act
         var result = await _validator.ValidateConfigurationAsync(config);
@@ -133,8 +139,19 @@ public class WorkspaceValidatorTests : IDisposable
             propAdmin.SetValue(mockStrategy.Object, true);
         }
 
+        // Create config from paths
+        var config = new WorkspaceConfiguration
+        {
+            Id = Path.GetFileName(_workspaceDir),
+            BaseInstallationPath = _sourceDir,
+            WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
+            Manifests = new List<ContentManifest>(), // Empty for this test
+            GameVersion = new GameVersion { Id = "test" },
+            Strategy = WorkspaceStrategy.FullCopy,
+        };
+
         // Act
-        var result = await _validator.ValidatePrerequisitesAsync(mockStrategy.Object, _sourceDir, _workspaceDir);
+        var result = await _validator.ValidatePrerequisitesAsync(mockStrategy.Object, config, default);
 
         // Assert
         Assert.NotNull(result);
@@ -160,8 +177,19 @@ public class WorkspaceValidatorTests : IDisposable
         var sourcePath = _sourceDir;
         var destPath = Path.Combine(Path.GetTempPath(), "different", Guid.NewGuid().ToString());
 
+        // Create config from paths
+        var config = new WorkspaceConfiguration
+        {
+            Id = Path.GetFileName(destPath),
+            BaseInstallationPath = sourcePath,
+            WorkspaceRootPath = Path.GetDirectoryName(destPath) ?? destPath,
+            Manifests = new List<ContentManifest>(), // Empty for this test
+            GameVersion = new GameVersion { Id = "test" },
+            Strategy = WorkspaceStrategy.HardLink,
+        };
+
         // Act
-        var result = await _validator.ValidatePrerequisitesAsync(hardLinkStrategy, sourcePath, destPath);
+        var result = await _validator.ValidatePrerequisitesAsync(hardLinkStrategy, config, default);
 
         // Assert
         Assert.NotNull(result);
@@ -198,8 +226,12 @@ public class WorkspaceValidatorTests : IDisposable
 
         var config = new WorkspaceConfiguration
         {
-            Manifest = largeFileManifest,
+            Id = "test-workspace",
+            Manifests = new List<ContentManifest> { largeFileManifest },
             Strategy = WorkspaceStrategy.FullCopy,
+            BaseInstallationPath = _sourceDir,
+            WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
+            GameVersion = new GameVersion { Id = "test" },
         };
 
         // Mock EstimateDiskUsage to return a huge value by using the manifest
@@ -211,7 +243,7 @@ public class WorkspaceValidatorTests : IDisposable
                                   .Returns(long.MaxValue / 2);
 
         // Act
-        var result = await _validator.ValidatePrerequisitesAsync(mockStrategyWithLargeUsage.Object, _sourceDir, _workspaceDir);
+        var result = await _validator.ValidatePrerequisitesAsync(mockStrategyWithLargeUsage.Object, config, default);
 
         // Assert
         Assert.NotNull(result);
@@ -239,18 +271,21 @@ public class WorkspaceValidatorTests : IDisposable
         return new WorkspaceConfiguration
         {
             Id = "test-workspace",
+            Manifests = new List<ContentManifest>
+            {
+                new()
+                {
+                    Files = new List<ManifestFile>
+                    {
+                        new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
+                        new() { RelativePath = "config.ini", Size = 500 },
+                    },
+                },
+            },
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = _workspaceDir,
             GameVersion = new GameVersion { Id = "test-version" },
             Strategy = WorkspaceStrategy.FullCopy,
-            Manifest = new ContentManifest
-            {
-                Files = new List<ManifestFile>
-                {
-                    new() { RelativePath = "test.exe", Size = 1000 },
-                    new() { RelativePath = "config.ini", Size = 500 },
-                },
-            },
         };
     }
 }

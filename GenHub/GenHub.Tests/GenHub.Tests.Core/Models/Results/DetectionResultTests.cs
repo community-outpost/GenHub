@@ -34,7 +34,7 @@ public class DetectionResultTests
         var error = "fail";
         var result = DetectionResult<string>.CreateFailure(error);
         Assert.False(result.Success);
-        Assert.Contains(error, result.Errors);
         Assert.Empty(result.Items);
+        Assert.Contains(error, result.Errors);
     }
 }
