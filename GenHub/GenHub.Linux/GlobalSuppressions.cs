@@ -39,6 +39,11 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "Using directives are sorted alphabetically, which coincides with Visual Studio's Sort & Remove")]
 
 [assembly: SuppressMessage(
+    "StyleCop.CSharp.OrderingRules",
+    "SA1201:ElementsMustAppearInTheCorrectOrder",
+    Justification = "Known StyleCop bug with .NET 8+ record declarations; does not affect code order.")]
+
+[assembly: SuppressMessage(
     "StyleCop.CSharp.NamingRules",
     "SA1300:Element should begin with upper-case letter",
     Justification = "Microsoft guidelines allow underscores in certain cases, such as test methods.")]

@@ -72,3 +72,8 @@ using System.Diagnostics.CodeAnalysis;
     "StyleCop.CSharp.SpacingRules",
     "SA1009:Closing parenthesis should be spaced correctly",
     Justification = "Conflicts with null-forgiving operator usage.")]
+
+[assembly: SuppressMessage(
+    "StyleCop.CSharp.OrderingRules",
+    "SA1201:ElementsMustAppearInTheCorrectOrder",
+    Justification = "Known StyleCop bug with .NET 8+ record declarations; does not affect code order.")]

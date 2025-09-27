@@ -35,6 +35,11 @@ using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.OrderingRules",
+    "SA1201:ElementsMustAppearInTheCorrectOrder",
+    Justification = "Known StyleCop bug with .NET 8+ record declarations; does not affect code order.")]
+
+[assembly: SuppressMessage(
+    "StyleCop.CSharp.OrderingRules",
     "SA1208:System using directives should be placed before other using directives",
     Justification = "Using directives are sorted alphabetically, which coincides with Visual Studio's Sort & Remove")]
 
