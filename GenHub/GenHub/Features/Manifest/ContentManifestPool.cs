@@ -304,9 +304,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
                     errors.Add("File entries must have a relative path");
 
                 // Check for path traversal attacks
-                if (file.RelativePath.Contains("..") ||
-                    file.RelativePath.Contains("/../") ||
-                    file.RelativePath.Contains("\\..\\"))
+                if (file.RelativePath.Contains(".."))
                 {
                     errors.Add($"File {file.RelativePath} contains illegal path traversal");
                 }

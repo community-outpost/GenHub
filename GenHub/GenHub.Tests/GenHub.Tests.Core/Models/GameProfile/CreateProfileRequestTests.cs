@@ -46,11 +46,6 @@ namespace GenHub.Tests.Core.Models.GameProfile
 
             // Act & Assert
             Assert.True(string.IsNullOrWhiteSpace(request.Name));
-
-            // If you have a validation method, call and assert failure here.
-            // Example:
-            // var result = ValidateRequest(request);
-            // Assert.False(result.Success);
         }
 
         /// <summary>
@@ -69,11 +64,6 @@ namespace GenHub.Tests.Core.Models.GameProfile
 
             // Act & Assert
             Assert.True(string.IsNullOrWhiteSpace(request.GameInstallationId));
-
-            // If you have a validation method, call and assert failure here.
-            // Example:
-            // var result = ValidateRequest(request);
-            // Assert.False(result.Success);
         }
 
         /// <summary>
@@ -92,11 +82,6 @@ namespace GenHub.Tests.Core.Models.GameProfile
 
             // Act & Assert
             Assert.True(string.IsNullOrWhiteSpace(request.GameVersionId));
-
-            // If you have a validation method, call and assert failure here.
-            // Example:
-            // var result = ValidateRequest(request);
-            // Assert.False(result.Success);
         }
 
         /// <summary>

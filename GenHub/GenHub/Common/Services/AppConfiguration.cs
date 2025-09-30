@@ -24,7 +24,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     {
         try
         {
-            var configured = _configuration?.GetValue<string>("GenHub:AppDataPath");
+            var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
             return !string.IsNullOrEmpty(configured)
                 ? configured
                 : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");

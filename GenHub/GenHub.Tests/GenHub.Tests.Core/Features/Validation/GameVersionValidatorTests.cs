@@ -64,13 +64,13 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "d3d8.dll", Size = 13, Hash = string.Empty },
-                },
+            {
+                new ManifestFile { RelativePath = "d3d8.dll", Size = 13, Hash = string.Empty },
+            },
             KnownAddons = new()
-                {
-                    "d3d8.dll",
-                },
+            {
+                "d3d8.dll",
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };
@@ -105,9 +105,9 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "expected.txt", Size = 8, Hash = string.Empty },
-                },
+            {
+                new ManifestFile { RelativePath = "expected.txt", Size = 8, Hash = string.Empty },
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };
@@ -160,7 +160,7 @@ public class GameVersionValidatorTests
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
             {
-                    new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+                new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
             }));
 
         var tempDir = Directory.CreateTempSubdirectory();
@@ -209,15 +209,15 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "d3d8.dll", Size = 14, Hash = string.Empty },
-                    new ManifestFile { RelativePath = "ddraw.dll", Size = 14, Hash = string.Empty },
-                },
+            {
+                new ManifestFile { RelativePath = "d3d8.dll", Size = 14, Hash = string.Empty },
+                new ManifestFile { RelativePath = "ddraw.dll", Size = 14, Hash = string.Empty },
+            },
             KnownAddons = new()
-                {
-                    "d3d8.dll",
-                    "ddraw.dll",
-                },
+            {
+                "d3d8.dll",
+                "ddraw.dll",
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };
@@ -250,9 +250,9 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "test.txt", Size = 12, Hash = string.Empty },
-                },
+            {
+                new ManifestFile { RelativePath = "test.txt", Size = 12, Hash = string.Empty },
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };
@@ -286,9 +286,9 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "corrupted.txt", Size = 17, Hash = "expected-hash" },
-                },
+            {
+                new ManifestFile { RelativePath = "corrupted.txt", Size = 17, Hash = "expected-hash" },
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
 
@@ -296,7 +296,7 @@ public class GameVersionValidatorTests
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
             {
-                    new ValidationIssue { IssueType = ValidationIssueType.CorruptedFile, Path = "corrupted.txt", Message = "Hash mismatch" },
+                new ValidationIssue { IssueType = ValidationIssueType.CorruptedFile, Path = "corrupted.txt", Message = "Hash mismatch" },
             }));
 
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };
@@ -323,9 +323,9 @@ public class GameVersionValidatorTests
         var manifest = new ContentManifest
         {
             Files = new()
-                {
-                    new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
-                },
+            {
+                new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty },
+            },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameVersion>(), default)).ReturnsAsync(manifest);
 
@@ -333,7 +333,7 @@ public class GameVersionValidatorTests
         _contentValidatorMock.Setup(c => c.ValidateContentIntegrityAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>
             {
-                    new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
+                new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
             }));
 
         var version = new GameVersion { WorkingDirectory = tempDir.FullName };

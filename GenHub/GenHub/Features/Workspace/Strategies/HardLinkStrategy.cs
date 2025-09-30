@@ -43,19 +43,22 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
+        var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
+
         // Check if source and destination are on the same volume
         var sourceRoot = Path.GetPathRoot(configuration.BaseInstallationPath);
         var destRoot = Path.GetPathRoot(configuration.WorkspaceRootPath);
 
         if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
         {
-            // Same volume: hard links use minimal space (just directory entries)
-            return configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).Count() * LinkOverheadBytes;
+            // Same volume: hard links use minimal space
+            // Even empty workspaces need some directory overhead
+            return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
         }
         else
         {
             // Different volumes: will fall back to copying
-            return configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).Sum(f => f.Size);
+            return allFiles.Sum(f => f.Size);
         }
     }
 

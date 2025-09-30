@@ -144,11 +144,7 @@ public class GameProcessManager(
             Process? process = null;
 
             // Try to get from managed processes first
-            if (_managedProcesses.TryRemove(processId, out process))
-            {
-                // process is set
-            }
-            else
+            if (!_managedProcesses.TryRemove(processId, out process))
             {
                 // Try to get from system processes
                 try

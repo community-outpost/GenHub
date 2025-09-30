@@ -72,8 +72,8 @@ public class GameLauncher(
                     };
                     if (!process.Start())
                         return LaunchResult.CreateFailure("Failed to start process", null);
-                    var launchTime = DateTime.UtcNow - startTime;
-                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchTime);
+                    var launchDuration = DateTime.UtcNow - startTime;
+                    return LaunchResult.CreateSuccess(process.Id, process.StartTime, launchDuration);
                 }, cancellationToken);
         }
         catch (System.Exception ex)
@@ -210,7 +210,7 @@ public class GameLauncher(
 
             // Proceed with launch
             var launchId = Guid.NewGuid().ToString();
-            return await LaunchProfileInternalAsync(profile, progress, cancellationToken, launchId);
+            return await LaunchProfileAsync(profile, progress, cancellationToken, launchId);
         }
         finally
         {
@@ -312,7 +312,7 @@ public class GameLauncher(
         }
     }
 
-    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileInternalAsync(GameProfile profile, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken, string launchId)
+    private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken, string launchId)
     {
         try
         {
