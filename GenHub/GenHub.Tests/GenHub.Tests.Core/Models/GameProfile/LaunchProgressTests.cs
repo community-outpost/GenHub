@@ -108,7 +108,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
         }
 
         /// <summary>
-        /// Tests that LaunchProgress can handle boundary values.
+        /// Tests that LaunchProgress rejects invalid percent values.
         /// </summary>
         /// <param name="percent">The percent value to test.</param>
         [Theory]
@@ -116,14 +116,15 @@ namespace GenHub.Tests.Core.Models.GameProfile
         [InlineData(101)]
         [InlineData(int.MinValue)]
         [InlineData(int.MaxValue)]
-        public void LaunchProgress_BoundaryPercentValues_ShouldAccept(int percent)
+        public void LaunchProgress_InvalidPercentValues_ShouldThrowArgumentOutOfRangeException(int percent)
         {
             // Arrange
             var progress = new LaunchProgress();
 
-            // Act & Assert (no exceptions should be thrown)
-            progress.PercentComplete = percent;
-            Assert.Equal(percent, progress.PercentComplete);
+            // Act & Assert
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(() => progress.PercentComplete = percent);
+            Assert.Equal("value", exception.ParamName);
+            Assert.Contains("Percentage must be between 0 and 100", exception.Message);
         }
 
         /// <summary>
