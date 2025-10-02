@@ -50,6 +50,11 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     /// </summary>
     public bool IsSteamInstalled { get; private set; }
 
+    /// <summary>
+    /// Shows how is Steam installed.
+    /// </summary>
+    public LinuxPackageInstallationType PackageInstallationType { get; private set; }
+
     /// <inheritdoc/>
     public void Fetch()
     {
