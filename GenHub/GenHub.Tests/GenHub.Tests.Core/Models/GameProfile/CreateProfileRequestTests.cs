@@ -20,13 +20,13 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Test Profile",
                 GameInstallationId = "install-1",
-                GameClientId = "version-1",
+                GameClientId = "client-1",
             };
 
             // Assert
             Assert.Equal("Test Profile", request.Name);
             Assert.Equal("install-1", request.GameInstallationId);
-            Assert.Equal("version-1", request.GameClientId);
+            Assert.Equal("client-1", request.GameClientId);
             Assert.Equal(WorkspaceStrategy.HybridCopySymlink, request.PreferredStrategy);
         }
 
@@ -41,7 +41,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = string.Empty,
                 GameInstallationId = "install-1",
-                GameClientId = "version-1",
+                GameClientId = "client-1",
             };
 
             // Act & Assert
@@ -59,7 +59,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Test Profile",
                 GameInstallationId = string.Empty,
-                GameClientId = "version-1",
+                GameClientId = "client-1",
             };
 
             // Act & Assert
@@ -82,11 +82,6 @@ namespace GenHub.Tests.Core.Models.GameProfile
 
             // Act & Assert
             Assert.True(string.IsNullOrWhiteSpace(request.GameClientId));
-
-            // If you have a validation method, call and assert failure here.
-            // Example:
-            // var result = ValidateRequest(request);
-            // Assert.False(result.Success);
         }
 
         /// <summary>
@@ -100,7 +95,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             {
                 Name = "Initial Name",
                 GameInstallationId = "install-1",
-                GameClientId = "version-1",
+                GameClientId = "client-1",
             };
 
             // Act

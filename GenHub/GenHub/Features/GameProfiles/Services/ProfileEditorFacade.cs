@@ -268,11 +268,11 @@ public class ProfileEditorFacade(
     }
 
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameClientId, CancellationToken cancellationToken = default)
+    public async Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForClientAsync(string gameClientId, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Discovering content for game version: {GameClientId}", gameClientId);
+            _logger.LogInformation("Discovering content for game client: {GameClientId}", gameClientId);
 
             // Get all manifests from the pool
             var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
@@ -291,7 +291,7 @@ public class ProfileEditorFacade(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover content for game version {GameClientId}", gameClientId);
+            _logger.LogError(ex, "Failed to discover content for game client {GameClientId}", gameClientId);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure($"Failed to discover content: {ex.Message}");
         }
     }

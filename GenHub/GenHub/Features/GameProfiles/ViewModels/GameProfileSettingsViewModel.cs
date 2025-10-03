@@ -90,14 +90,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     public ICommand SelectThemeColorCommand { get; } = new RelayCommand(() => { });
 
     /// <summary>
-    /// Gets the available versions.
+    /// Gets the available clients.
     /// </summary>
-    public ObservableCollection<ProfileInfoItem> AvailableVersions { get; } = new();
+    public ObservableCollection<ProfileInfoItem> AvailableClients { get; } = new();
 
     /// <summary>
-    /// Gets or sets the selected version.
+    /// Gets or sets the selected client.
     /// </summary>
-    public ProfileInfoItem? SelectedVersion { get; set; }
+    public ProfileInfoItem? SelectedClient { get; set; }
 
     /// <summary>
     /// Gets or sets the formatted size.
@@ -195,14 +195,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     public ProfileInfoItem? SelectedProfileInfo { get; set; }
 
     /// <summary>
-    /// Gets the command to scan for versions.
+    /// Gets the command to scan for clients.
     /// </summary>
-    public ICommand ScanForVersionsCommand { get; } = new RelayCommand(() => { /* TODO: Implement version scanning */ });
+    public ICommand ScanForClientsCommand { get; } = new RelayCommand(() => { /* TODO: Implement client scanning */ });
 
     /// <summary>
-    /// Gets the command to select a version.
+    /// Gets the command to select a client.
     /// </summary>
-    public ICommand SelectVersionCommand { get; } = new RelayCommand(() => { /* TODO: Implement version selection */ });
+    public ICommand SelectClientCommand { get; } = new RelayCommand(() => { /* TODO: Implement client selection */ });
 
     /// <summary>
     /// Gets the available executables.

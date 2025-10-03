@@ -36,12 +36,12 @@ public interface IProfileEditorFacade
     Task<ProfileOperationResult<GameProfile>> GetProfileWithWorkspaceAsync(string profileId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Discovers and suggests content for a given game version.
+    /// Discovers and suggests content for a given game client.
     /// </summary>
-    /// <param name="gameClientId">The game version identifier.</param>
+    /// <param name="gameClientId">The game client identifier.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing suggested content manifests.</returns>
-    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForVersionAsync(string gameClientId, CancellationToken cancellationToken = default);
+    Task<ProfileOperationResult<IReadOnlyList<ContentManifest>>> DiscoverContentForClientAsync(string gameClientId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Validates a profile configuration before saving.

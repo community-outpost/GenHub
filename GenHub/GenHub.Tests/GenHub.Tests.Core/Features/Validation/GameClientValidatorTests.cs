@@ -73,10 +73,10 @@ public class GameClientValidatorTests
             },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
-        var result = await _validator.ValidateAsync(version, null, default);
+        var result = await _validator.ValidateAsync(client, null, default);
 
         // Assert
         Assert.True(result.IsValid); // Warnings don't make it invalid
@@ -110,10 +110,10 @@ public class GameClientValidatorTests
             },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
-        var result = await _validator.ValidateAsync(version, null, default);
+        var result = await _validator.ValidateAsync(client, null, default);
 
         // Assert
         Assert.True(result.IsValid); // UnexpectedFile does not make result invalid
@@ -134,8 +134,8 @@ public class GameClientValidatorTests
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
-            var version = new GameClient { WorkingDirectory = tempDir.FullName };
-            var result = await _validator.ValidateAsync(version, null, default);
+            var client = new GameClient { WorkingDirectory = tempDir.FullName };
+            var result = await _validator.ValidateAsync(client, null, default);
             Assert.False(result.IsValid);
             Assert.Single(result.Issues);
             Assert.Equal(ValidationIssueType.MissingFile, result.Issues[0].IssueType);
@@ -166,8 +166,8 @@ public class GameClientValidatorTests
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
-            var version = new GameClient { WorkingDirectory = tempDir.FullName };
-            var result = await _validator.ValidateAsync(version, null, default);
+            var client = new GameClient { WorkingDirectory = tempDir.FullName };
+            var result = await _validator.ValidateAsync(client, null, default);
             Assert.False(result.IsValid);
             Assert.Contains(result.Issues, i => i.IssueType == ValidationIssueType.MissingFile);
         }
@@ -187,8 +187,8 @@ public class GameClientValidatorTests
         var tempDir = Directory.CreateTempSubdirectory();
         var cts = new CancellationTokenSource();
         cts.Cancel();
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _validator.ValidateAsync(version, cancellationToken: cts.Token));
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _validator.ValidateAsync(client, cancellationToken: cts.Token));
         tempDir.Delete(true);
     }
 
@@ -220,10 +220,10 @@ public class GameClientValidatorTests
             },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
-        var result = await _validator.ValidateAsync(version, null, default);
+        var result = await _validator.ValidateAsync(client, null, default);
 
         // Assert
         Assert.True(result.IsValid);
@@ -255,13 +255,13 @@ public class GameClientValidatorTests
             },
         };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         var progressReports = new List<ValidationProgress>();
         var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
 
         // Act
-        var result = await _validator.ValidateAsync(version, progress, default);
+        var result = await _validator.ValidateAsync(client, progress, default);
 
         // Assert
         Assert.True(result.IsValid);
@@ -299,10 +299,10 @@ public class GameClientValidatorTests
                 new ValidationIssue { IssueType = ValidationIssueType.CorruptedFile, Path = "corrupted.txt", Message = "Hash mismatch" },
             }));
 
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
-        var result = await _validator.ValidateAsync(version, null, default);
+        var result = await _validator.ValidateAsync(client, null, default);
 
         // Assert
         Assert.False(result.IsValid);
@@ -336,10 +336,10 @@ public class GameClientValidatorTests
                 new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = "missing.txt", Message = "File not found" },
             }));
 
-        var version = new GameClient { WorkingDirectory = tempDir.FullName };
+        var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
         // Act
-        var result = await _validator.ValidateAsync(version, null, default);
+        var result = await _validator.ValidateAsync(client, null, default);
 
         // Assert
         Assert.False(result.IsValid);

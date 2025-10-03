@@ -392,12 +392,12 @@
                     <StackPanel Margin="0,10,0,0">
                         <!-- Version Selection -->
                         <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Game Version" />
+                            <TextBlock Classes="form-label" Text="Game Client" />
                             <Grid ColumnDefinitions="*,Auto">
                                 <ComboBox Grid.Column="0" 
                                           Name="VersionComboBox"
-                                          ItemsSource="{Binding AvailableVersions}" 
-                                          SelectedItem="{Binding SelectedVersion}" 
+                                          ItemsSource="{Binding AvailableClients}" 
+                                          SelectedItem="{Binding SelectedClient}" 
                                           HorizontalAlignment="Stretch">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate>
@@ -411,45 +411,45 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <Button Grid.Column="1" Content="Scan for Games" Margin="5,0,0,0" 
-                                        Command="{Binding ScanForVersionsCommand}" />
+                                        Command="{Binding ScanForClientsCommand}" />
                             </Grid>
                         </StackPanel>
 
-                        <!-- Version Details Card -->
-                        <Border Classes="info-card" IsVisible="{Binding SelectedVersion, Converter={StaticResource NotNullConverter}, FallbackValue=False}">
+                        <!-- Client Details Card -->
+                        <Border Classes="info-card" IsVisible="{Binding SelectedClient, Converter={StaticResource NotNullConverter}, FallbackValue=False}">
                             <StackPanel>
-                                <TextBlock Text="Version Information" FontWeight="Bold" FontSize="15" Margin="0,0,0,10" />
+                                <TextBlock Text="Client Information" FontWeight="Bold" FontSize="15" Margin="0,0,0,10" />
                                 
-                                <!-- Basic Version Info -->
+                                <!-- Basic Client Info -->
                                 <StackPanel Classes="info-item">
                                     <TextBlock Classes="info-label" Text="Game Type:" />
-                                    <TextBlock Text="{Binding SelectedVersion.GameType, FallbackValue=Unknown}" />
+                                    <TextBlock Text="{Binding SelectedClient.GameType, FallbackValue=Unknown}" />
                                 </StackPanel>
                                 
                                 <StackPanel Classes="info-item">
                                     <TextBlock Classes="info-label" Text="Source:" />
-                                    <TextBlock Text="{Binding SelectedVersion.SourceTypeName, FallbackValue=Unknown}" />
+                                    <TextBlock Text="{Binding SelectedClient.SourceTypeName, FallbackValue=Unknown}" />
                                 </StackPanel>
                                 
                                 <StackPanel Classes="info-item">
                                     <TextBlock Classes="info-label" Text="Install Path:" />
-                                    <TextBlock Text="{Binding SelectedVersion.InstallPath}" TextWrapping="Wrap"
+                                    <TextBlock Text="{Binding SelectedClient.InstallPath}" TextWrapping="Wrap"
                                                MaxWidth="350" />
                                 </StackPanel>
                                 
                                 <StackPanel Classes="info-item">
                                     <TextBlock Classes="info-label" Text="Size:" />
-                                    <TextBlock Text="{Binding SelectedVersion.FormattedSize, FallbackValue=Unknown}" />
+                                    <TextBlock Text="{Binding SelectedClient.FormattedSize, FallbackValue=Unknown}" />
                                 </StackPanel>
                                 
-                                <StackPanel Classes="info-item" IsVisible="{Binding SelectedVersion.BuildDate, Converter={StaticResource NotNullConverter}}">
+                                <StackPanel Classes="info-item" IsVisible="{Binding SelectedClient.BuildDate, Converter={StaticResource NotNullConverter}}">
                                     <TextBlock Classes="info-label" Text="Build Date:" />
-                                    <TextBlock Text="{Binding SelectedVersion.BuildDate, StringFormat={}{0:yyyy-MM-dd}, FallbackValue=Unknown}" />
+                                    <TextBlock Text="{Binding SelectedClient.BuildDate, StringFormat={}{0:yyyy-MM-dd}, FallbackValue=Unknown}" />
                                 </StackPanel>
                                 
-                                <!-- Use This Version Button -->
-                                <Button Content="Use This Version" 
-                                        Command="{Binding SelectVersionCommand}"
+                                <!-- Use This Client Button -->
+                                <Button Content="Use This Client" 
+                                        Command="{Binding SelectClientCommand}"
                                         HorizontalAlignment="Left"
                                         Margin="0,15,0,0" />
                             </StackPanel>
@@ -505,8 +505,8 @@
                             <!-- Installation type badge for valid game data -->
                             <Border Background="#2D4963" CornerRadius="3" Padding="5,2" Margin="0,5,0,0"
                                     HorizontalAlignment="Left"
-                                    IsVisible="{Binding SelectedVersion.SourceType, Converter={StaticResource NotNullConverter}}">
-                                <TextBlock Text="{Binding SelectedVersion.SourceTypeName}" FontSize="11" Foreground="White" />
+                                    IsVisible="{Binding SelectedClient.SourceType, Converter={StaticResource NotNullConverter}}">
+                                <TextBlock Text="{Binding SelectedClient.SourceTypeName}" FontSize="11" Foreground="White" />
                             </Border>
                         </StackPanel>
                         

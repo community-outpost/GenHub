@@ -131,9 +131,9 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for GameClient {Id}", gameClient.Id);
 
-            var gameClientInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
+            var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = _manifestBuilder
-                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameClientInt)
+                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameClient.Name}")
@@ -188,7 +188,7 @@ public class ManifestProvider : IManifestProvider
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
         var tempInstallForId = new GameInstallation(string.Empty, installation.InstallationType);
         tempInstallForId.HasZeroHour = installation.HasZeroHour;
-        var versionForId = installation.AvailableVersions?.Count > 0 ? installation.AvailableVersions[0].Version : "1.0";
+        var versionForId = installation.AvailableClients?.Count > 0 ? installation.AvailableClients[0].Version : "1.0";
         var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
         var userVersion = int.TryParse(versionForId, out var parsedVersion) ? parsedVersion : 0;
         var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, userVersion);

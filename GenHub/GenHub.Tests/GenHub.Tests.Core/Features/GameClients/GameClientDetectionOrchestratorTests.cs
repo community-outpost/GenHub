@@ -41,7 +41,7 @@ public class GameClientDetectionOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies that version detection returns the expected versions when successful.
+    /// Verifies that client detection returns the expected clients when successful.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -83,7 +83,7 @@ public class GameClientDetectionOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies DetectAllVersionsAsync returns success when installations are found.
+    /// Verifies DetectAllClientsAsync returns success when installations are found.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -134,7 +134,7 @@ public class GameClientDetectionOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies GetDetectedVersionsAsync returns empty list when no installations found.
+    /// Verifies GetDetectedClientsAsync returns empty list when no installations found.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
