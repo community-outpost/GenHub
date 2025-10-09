@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
+using System.Text;
+using System.Text.RegularExpressions;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -65,5 +68,31 @@ public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGa
     public void Fetch()
     {
         throw new NotImplementedException();
+    }
+
+    private string? TryLutris(string installationPath)
+    {
+        var process = new Process();
+        process.StartInfo = new ProcessStartInfo()
+        {
+            WindowStyle = ProcessWindowStyle.Hidden,
+            FileName = installationPath,
+            Arguments = "-v",
+            RedirectStandardOutput = true,
+            RedirectStandardError = false,
+        };
+        if (!process.Start()) return null;
+        process.WaitForExit();
+        var output = process.StandardOutput.ReadToEnd();
+        foreach (var item in output.Split(Environment.NewLine))
+        {
+            if (string.IsNullOrWhiteSpace(item))
+                continue;
+            var match = LutrisVersionRegex.Match(item);
+            if (match is { Success: true, Groups.Count: > 1 })
+                return match.Groups[1].Value;
+        }
+
+        return null;
     }
 }
