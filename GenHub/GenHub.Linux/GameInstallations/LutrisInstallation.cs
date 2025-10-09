@@ -14,14 +14,14 @@ namespace GenHub.Linux.GameInstallations;
 /// <summary>
 /// Lutris installation detector and manager for Linux.
 /// </summary>
-public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGameInstallation
+public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="SteamInstallation"/> class.
+    /// Initializes a new instance of the <see cref="LutrisInstallation"/> class.
     /// </summary>
     /// <param name="fetch">Value indicating whether <see cref="Fetch"/> should be called while instantiation.</param>
     /// <param name="logger">Optional logger instance.</param>
-    public LutrisInstallation(bool fetch, ILogger<SteamInstallation>? logger = null) : this(logger)
+    public LutrisInstallation(bool fetch, ILogger<LutrisInstallation>? logger = null) : this(logger)
     {
         if (fetch)
         {
@@ -62,7 +62,7 @@ public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGa
     /// </summary>
     public string LutrisVersion { get; private set; } = string.Empty;
 
-    private Regex LutrisVersionRegex = new Regex(@"l^lutris-([\\d\\.]*)$")
+    private Regex LutrisVersionRegex = new Regex(@"l^lutris-([\\d\\.]*)$");
 
     /// <inheritdoc/>
     public void Fetch()
@@ -71,13 +71,13 @@ public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGa
 
         try
         {
-            var lutrisExecutable = new Dictionary<string, LinuxPackageInstallationType>
+            var lutrisExecutables = new Dictionary<string, LinuxPackageInstallationType>
             {
                 { "lutris", LinuxPackageInstallationType.Binary },
                 { "flatpak run net.lutris.Lutris", LinuxPackageInstallationType.Flatpack },
                 // TODO add snap
             };
-            foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in lutrisExeutables)
+            foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in lutrisExecutables)
             {
                 var version = TryLutris(entry.Key);
                 if (version == null)

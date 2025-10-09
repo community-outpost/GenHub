@@ -61,7 +61,7 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
 
             // Check Lutris installations
             logger.LogDebug("Checking Lutris installations on Linux");
-            var lutrisInstallation = new LutrisInstallation(fetch: true, logger: logger as ILogger<SteamInstallation>);
+            var lutrisInstallation = new LutrisInstallation(fetch: true, logger: logger as ILogger<LutrisInstallation>);
             if (lutrisInstallation.IsLutrisInstalled && (steam.HasGenerals || lutrisInstallation.HasZeroHour))
             {
                 installs.Add(lutrisInstallation.ToDomain(logger));
