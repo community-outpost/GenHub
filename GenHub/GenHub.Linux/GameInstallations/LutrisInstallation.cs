@@ -33,21 +33,33 @@ public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGa
     public string InstallationPath { get; }
 
     /// <inheritdoc/>
-    public bool HasGenerals { get; }
+    public bool HasGenerals { get; private set; }
 
     /// <inheritdoc/>
-    public string GeneralsPath { get; }
+    public string GeneralsPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
-    public bool HasZeroHour { get; }
+    public bool HasZeroHour { get; private set; }
 
     /// <inheritdoc/>
-    public string ZeroHourPath { get; }
+    public string ZeroHourPath { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Shows how is Steam installed.
+    /// Gets a value indicating whether Lutris is installed successfully.
+    /// </summary>
+    public bool IsLutrisInstalled { get; private set; }
+
+    /// <summary>
+    /// Shows how is Lutris installed.
     /// </summary>
     public LinuxPackageInstallationType PackageInstallationType { get; private set; }
+
+    /// <summary>
+    /// Gets the value of Lutris Version.
+    /// </summary>
+    public string LutrisVersion { get; private set; } = string.Empty;
+
+    private Regex LutrisVersionRegex = new Regex(@"l^lutris-([\\d\\.]*)$")
 
     /// <inheritdoc/>
     public void Fetch()
