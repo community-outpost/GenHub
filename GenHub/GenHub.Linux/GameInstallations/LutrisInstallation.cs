@@ -67,7 +67,30 @@ public class LutrisInstallation(ILogger<SteamInstallation>? logger = null) : IGa
     /// <inheritdoc/>
     public void Fetch()
     {
-        throw new NotImplementedException();
+        logger?.LogInformation("Starting Lutris installation detection on Linux");
+
+        try
+        {
+            var lutrisExecutable = new Dictionary<string, LinuxPackageInstallationType>
+            {
+                { "lutris", LinuxPackageInstallationType.Binary },
+                { "flatpak run net.lutris.Lutris", LinuxPackageInstallationType.Flatpack },
+                // TODO add snap
+            };
+            foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in lutrisExeutables)
+            {
+                var version = TryLutris(entry.Key);
+                if (version == null)
+                    continue;
+
+                LutrisVersion = version;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error occurred during Lutris installation detection on Linux");
+            IsLutrisInstalled = false;
+        }
     }
 
     private string? TryLutris(string installationPath)
