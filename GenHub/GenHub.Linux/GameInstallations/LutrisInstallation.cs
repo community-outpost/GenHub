@@ -81,13 +81,30 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
 
                 // TODO add snap
             };
-            foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in lutrisExecutables)
+            foreach (var entry in lutrisExecutables)
             {
-                var version = TryLutris(entry.Key);
-                if (version == null)
-                    continue;
+                if (!TryLutris(entry.Key, out var version) ||
+                    !TryLutrisHasZH(entry.Key, out var directory)) continue;
+                var homeDir = Path.Combine(directory,
+                    "drive_c/Program Files/EA Games/Command and Conquer Generals Zero Hour/");
+                if (Directory.Exists(homeDir))
+                {
+                    InstallationPath = homeDir;
+                    LutrisVersion = version;
+                    if (Directory.Exists(Path.Combine(homeDir, "Command and Conquer Generals Zero Hour")))
+                    {
+                        HasZeroHour = true;
+                        ZeroHourPath = Path.Combine(homeDir, "Command and Conquer Generals Zero Hour");
+                    }
 
-                LutrisVersion = version;
+                    if (Directory.Exists(Path.Combine(homeDir, "Command and Conquer Generals")))
+                    {
+                        HasGenerals = true;
+                        GeneralsPath = Path.Combine(homeDir, "Command and Conquer Generals");
+                    }
+
+                    break;
+                }
             }
         }
         catch (Exception ex)
