@@ -35,7 +35,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     public GameInstallationType InstallationType => GameInstallationType.Lutris;
 
     /// <inheritdoc/>
-    public string InstallationPath { get; private set; }
+    public string InstallationPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
     public bool HasGenerals { get; private set; }
