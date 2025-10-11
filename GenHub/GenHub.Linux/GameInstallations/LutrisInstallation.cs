@@ -62,7 +62,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     /// </summary>
     public string LutrisVersion { get; private set; } = string.Empty;
 
-    private Regex LutrisVersionRegex = new Regex(@"l^lutris-([\\d\\.]*)$");
+    private Regex LutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
+    private Regex LutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
 
     /// <inheritdoc/>
     public void Fetch()
