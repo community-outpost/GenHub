@@ -125,6 +125,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             Arguments = "-v",
             RedirectStandardOutput = true,
             RedirectStandardError = false,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
         if (!process.Start()) return false;
         process.WaitForExit();
@@ -153,6 +154,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             ArgumentList = { "-l", "-j" },
             RedirectStandardOutput = true,
             RedirectStandardError = false,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
         if (!process.Start()) return false;
         process.WaitForExit();
