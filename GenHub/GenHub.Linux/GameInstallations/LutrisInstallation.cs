@@ -78,6 +78,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             {
                 { "lutris", LinuxPackageInstallationType.Binary },
                 { "flatpak run net.lutris.Lutris", LinuxPackageInstallationType.Flatpack },
+
                 // TODO add snap
             };
             foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in lutrisExecutables)
@@ -96,8 +97,9 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         }
     }
 
-    private string? TryLutris(string installationPath)
+    private bool TryLutris(string installationPath, out string lutrisVersion)
     {
+        lutrisVersion = string.Empty;
         var process = new Process();
         process.StartInfo = new ProcessStartInfo()
         {
@@ -107,7 +109,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             RedirectStandardOutput = true,
             RedirectStandardError = false,
         };
-        if (!process.Start()) return null;
+        if (!process.Start()) return false;
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
         foreach (var item in output.Split(Environment.NewLine))
@@ -116,9 +118,41 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
                 continue;
             var match = LutrisVersionRegex.Match(item);
             if (match is { Success: true, Groups.Count: > 1 })
-                return match.Groups[1].Value;
+                lutrisVersion = match.Groups[1].Value;
+            return true;
         }
 
-        return null;
+        return false;
+    }
+
+    private bool TryLutrisHasZH(string installationPath, out string directory)
+    {
+        directory = String.Empty;
+        var process = new Process();
+        process.StartInfo = new ProcessStartInfo()
+        {
+            WindowStyle = ProcessWindowStyle.Hidden,
+            FileName = installationPath,
+            ArgumentList = { "-l", "-j" },
+            RedirectStandardOutput = true,
+            RedirectStandardError = false,
+        };
+        if (!process.Start()) return false;
+        process.WaitForExit();
+        var output = process.StandardOutput.ReadToEnd();
+        var jsonOutput = LutrisGamesRegex.Match(output).Value;
+        var jsonOutputParsed = JsonSerializer.Deserialize<List<Game>>(jsonOutput);
+
+        if (jsonOutputParsed == null) return false;
+
+        foreach (var item in jsonOutputParsed.Where(item =>
+                     item.slug == "ea-app" && !string.IsNullOrEmpty(item.directory)))
+        {
+            directory = item.directory;
+            return true;
+        }
+
+        // TODO add steam windows version
+        return false;
     }
 }
