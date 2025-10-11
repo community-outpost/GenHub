@@ -84,10 +84,13 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             };
             foreach (var entry in lutrisExecutables)
             {
+                // check for lutris
                 if (!TryLutris(entry.Key, out var version) ||
                     !TryLutrisHasZH(entry.Key, out var directory)) continue;
                 var homeDir = Path.Combine(directory,
                     "drive_c/Program Files/EA Games/Command and Conquer Generals Zero Hour/");
+
+                // Check if ea app and generals/zh installed
                 if (Directory.Exists(homeDir))
                 {
                     InstallationPath = homeDir;
@@ -135,6 +138,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         {
             if (string.IsNullOrWhiteSpace(item))
                 continue;
+
+            // check for lutris, if installed version is printed
             var match = lutrisVersionRegex.Match(item);
             if (match is { Success: true, Groups.Count: > 1 })
                 lutrisVersion = match.Groups[1].Value;
@@ -161,6 +166,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
         var jsonOutput = lutrisGamesRegex.Match(output).Value;
+
+        // check for games on lutris, it's a json array
         var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
 
         if (jsonOutputParsed == null) return false;
