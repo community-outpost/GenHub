@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
@@ -30,7 +32,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     }
 
     /// <inheritdoc/>
-    public GameInstallationType InstallationType { get; }
+    public GameInstallationType InstallationType => GameInstallationType.Lutris;
 
     /// <inheritdoc/>
     public string InstallationPath { get; private set; }

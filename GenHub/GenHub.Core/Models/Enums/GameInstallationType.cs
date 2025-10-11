@@ -39,4 +39,9 @@ public enum GameInstallationType
     /// Manual/retail installation.
     /// </summary>
     Retail = 6,
+
+    /// <summary>
+    /// Lutris installation on Linux.
+    /// </summary>
+    Lutris = 7,
 }
