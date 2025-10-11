@@ -64,8 +64,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     /// </summary>
     public string LutrisVersion { get; private set; } = string.Empty;
 
-    private Regex LutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
-    private Regex LutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
+    private readonly Regex lutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
+    private readonly Regex lutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
 
     /// <inheritdoc/>
     public void Fetch()
@@ -134,7 +134,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         {
             if (string.IsNullOrWhiteSpace(item))
                 continue;
-            var match = LutrisVersionRegex.Match(item);
+            var match = lutrisVersionRegex.Match(item);
             if (match is { Success: true, Groups.Count: > 1 })
                 lutrisVersion = match.Groups[1].Value;
             return true;
@@ -159,7 +159,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         if (!process.Start()) return false;
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
-        var jsonOutput = LutrisGamesRegex.Match(output).Value;
+        var jsonOutput = lutrisGamesRegex.Match(output).Value;
         var jsonOutputParsed = JsonSerializer.Deserialize<List<Game>>(jsonOutput);
 
         if (jsonOutputParsed == null) return false;
