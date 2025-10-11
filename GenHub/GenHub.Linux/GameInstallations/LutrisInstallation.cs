@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Linux.Model;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.GameInstallations;
@@ -160,7 +161,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
         var jsonOutput = lutrisGamesRegex.Match(output).Value;
-        var jsonOutputParsed = JsonSerializer.Deserialize<List<Game>>(jsonOutput);
+        var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
 
         if (jsonOutputParsed == null) return false;
 
