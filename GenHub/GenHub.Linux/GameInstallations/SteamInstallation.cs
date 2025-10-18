@@ -161,9 +161,9 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
             string? configFile = null;
             foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in steamConfigPaths)
             {
-                if (File.Exists(Path.Combine(homeDirectory,entry.Key)))
+                if (File.Exists(Path.Combine(homeDirectory, entry.Key)))
                 {
-                    configFile = Path.Combine(homeDirectory,entry.Key);
+                    configFile = Path.Combine(homeDirectory, entry.Key);
                     PackageInstallationType = entry.Value;
                     break;
                 }
