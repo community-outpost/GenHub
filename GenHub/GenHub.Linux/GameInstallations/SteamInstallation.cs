@@ -184,7 +184,6 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 return libraryPaths;
             }
 
-
             logger?.LogDebug("Reading Steam library configuration from: {ConfigFile}", configFile);
 
             var lines = File.ReadAllLines(configFile);
