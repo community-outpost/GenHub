@@ -131,7 +131,9 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             RedirectStandardError = false,
             WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
-        if (!process.Start()) return false;
+
+        if (!process.Start())
+            return false;
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
         foreach (var item in output.Split(Environment.NewLine))
@@ -143,6 +145,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             var match = lutrisVersionRegex.Match(item);
             if (match is { Success: true, Groups.Count: > 1 })
                 lutrisVersion = match.Groups[1].Value;
+
             return true;
         }
 
@@ -162,7 +165,9 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             RedirectStandardError = false,
             WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
-        if (!process.Start()) return false;
+
+        if (!process.Start())
+            return false;
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
         var jsonOutput = lutrisGamesRegex.Match(output).Value;
@@ -170,7 +175,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         // check for games on lutris, it's a json array
         var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);
 
-        if (jsonOutputParsed == null) return false;
+        if (jsonOutputParsed == null)
+            return false;
 
         foreach (var item in jsonOutputParsed.Where(item =>
                      item.slug == "ea-app" && !string.IsNullOrEmpty(item.directory)))
