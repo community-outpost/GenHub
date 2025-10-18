@@ -5,18 +5,6 @@ namespace GenHub.Linux.Model;
 /// </summary>
 public class LutrisGame
 {
-    /*
-     lutris output example
-       "id": 1,
-       "slug": "ea-app",
-       "name": "EA App",
-       "runner": "wine",
-       "platform": "Windows",
-       "year": 2022,
-       "directory": "/home/kian/Games/ea-app",
-       "playtime": "0:00:02.004862",
-       "lastplayed": "2025-10-02 21:16:00"
-     */
     public int id { get; set; } = 0;
 
     public string slug { get; set; } = string.Empty;
