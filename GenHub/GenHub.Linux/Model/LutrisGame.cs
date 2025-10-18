@@ -1,5 +1,8 @@
 namespace GenHub.Linux.Model;
 
+/// <summary>
+/// data structure for parsing Lutris output.
+/// </summary>
 public class LutrisGame
 {
     /*
