@@ -14,19 +14,19 @@ public class LutrisGame
        "playtime": "0:00:02.004862",
        "lastplayed": "2025-10-02 21:16:00"
      */
-    public int id { get; set; }
+    public int id { get; set; } = 0;
 
-    public string slug { get; set; }
+    public string slug { get; set; } = string.Empty;
 
-    public string runner { get; set; }
+    public string runner { get; set; } = string.Empty;
 
-    public string platform { get; set; }
+    public string platform { get; set; } = string.Empty;
 
-    public string year { get; set; }
+    public string year { get; set; } = string.Empty;
 
-    public string directory { get; set; }
+    public string directory { get; set; } = string.Empty;
 
-    public string playtime { get; set; }
+    public string playtime { get; set; } = string.Empty;
 
-    public string lastplayed { get; set; }
+    public string lastplayed { get; set; } = string.Empty;
 }
