@@ -136,8 +136,14 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
             var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var steamConfigPaths = new Dictionary<string, LinuxPackageInstallationType>
             {
-                { ".steam/steam/steamapps/libraryfolders.vdf", LinuxPackageInstallationType.Binary },
-                { ".local/share/Steam/steamapps/libraryfolders.vdf", LinuxPackageInstallationType.Binary },
+                {
+                    ".steam/steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Binary
+                },
+                {
+                    ".local/share/Steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Binary
+                },
                 {
                     ".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/libraryfolders.vdf",
                     LinuxPackageInstallationType.Flatpack
@@ -146,7 +152,10 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                     "snap/steam/common/.local/share/Steam/steamapps/libraryfolders.vdf",
                     LinuxPackageInstallationType.Snap
                 },
-                { "/usr/share/steam/steamapps/libraryfolders.vdf", LinuxPackageInstallationType.Unknown },
+                {
+                    "/usr/share/steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Unknown
+                },
             };
 
             string? configFile = null;
