@@ -134,24 +134,6 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
         try
         {
             var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            // var steamConfigPath = Path.Combine(homeDirectory, ".steam", "steam", "steamapps", "libraryfolders.vdf");
-            //
-            // // Alternative Steam paths
-            // var alternativePaths = new[]
-            // {
-            //     Path.Combine(homeDirectory, ".local", "share", "Steam", "steamapps",
-            //         "libraryfolders.vdf"), // direct install
-            //     Path.Combine(homeDirectory, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam",
-            //         "steamapps", "libraryfolders.vdf"), // flatpack install
-            //     Path.Combine(homeDirectory, "snap", "steam", "common", ".local", "share", "Steam", "steamapps",
-            //         "libraryfolders.vdf"), // snap install
-            //     "/usr/share/steam/steamapps/libraryfolders.vdf",
-            // };
-
-            // string? configFile = File.Exists(steamConfigPath)
-            //     ? steamConfigPath
-            //     : alternativePaths.FirstOrDefault(File.Exists);
-
             var steamConfigPaths = new Dictionary<string, LinuxPackageInstallationType>
             {
                 { ".steam/steam/steamapps/libraryfolders.vdf", LinuxPackageInstallationType.Binary },
