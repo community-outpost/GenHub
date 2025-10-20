@@ -1,0 +1,256 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GameProfiles.Views.GameSettingsView"
+             x:DataType="vm:GameSettingsViewModel">
+
+    <UserControl.Resources>
+        <converters:IntToBoolConverter x:Key="IntToBoolConverter" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="20" Margin="20">
+            <!-- Header Section -->
+            <StackPanel Spacing="10">
+                <TextBlock Text="Game Settings (Options.ini)" 
+                           FontSize="20" 
+                           FontWeight="Bold" />
+                
+                <TextBlock Text="💡 Configure video and audio settings for Generals and Zero Hour. These settings are saved to this profile and will be applied when launching the game."
+                           TextWrapping="Wrap"
+                           Opacity="0.7"
+                           FontSize="13" />
+
+                <!-- Game Type Selector -->
+                <Border Background="#20FFFFFF"
+                        Padding="12"
+                        CornerRadius="6"
+                        Margin="0,8,0,0">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" 
+                                       Text="Load Settings Template:" 
+                                       VerticalAlignment="Center" 
+                                       FontWeight="Medium"
+                                       Margin="0,0,12,0" />
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                <RadioButton Content="Generals" 
+                                             GroupName="GameType"
+                                             IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
+                                <RadioButton Content="Zero Hour"
+                                             GroupName="GameType"
+                                             IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Status Message -->
+                <Border Background="#20FFFFFF"
+                        Padding="10"
+                        CornerRadius="4"
+                        IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap"
+                               FontSize="12" />
+                </Border>
+            </StackPanel>
+
+            <!-- Video Settings Section -->
+            <Border BorderBrush="{DynamicResource SystemAccentColor}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="15">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Video Settings"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+
+                    <!-- Resolution -->
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="Resolution" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding ResolutionPresets}"
+                                  SelectedItem="{Binding SelectedResolutionPreset}"
+                                  PlaceholderText="Select Resolution"
+                                  Height="32"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- Windowed Mode -->
+                    <CheckBox Content="Run in Windowed Mode (instead of fullscreen)"
+                              IsChecked="{Binding Windowed}" />
+
+                    <!-- Texture Quality -->
+                    <Grid ColumnDefinitions="Auto,*">
+                        <TextBlock Grid.Column="0" Text="Texture Quality" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                            <RadioButton Content="Low" 
+                                         GroupName="TextureQuality"
+                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
+                            <RadioButton Content="Medium"
+                                         GroupName="TextureQuality"
+                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
+                            <RadioButton Content="High"
+                                         GroupName="TextureQuality"
+                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=2}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Graphics Options in 2-column grid -->
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                        <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,5" />
+                        <CheckBox Grid.Column="1" Grid.Row="0" Content="Particle Effects" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,5" />
+                        <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Animations" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,0" />
+                        <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Animations" IsChecked="{Binding BuildingAnimations}" />
+                    </Grid>
+
+                    <!-- Gamma -->
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="Gamma" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Slider Grid.Column="1" 
+                                Value="{Binding Gamma}"
+                                Minimum="50"
+                                Maximum="150"
+                                TickFrequency="10"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" 
+                                   Text="{Binding Gamma}" 
+                                   MinWidth="35"
+                                   VerticalAlignment="Center"
+                                   FontWeight="SemiBold"
+                                   Margin="12,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Audio Settings Section -->
+            <Border BorderBrush="{DynamicResource SystemAccentColor}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="15">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="🔊 Audio Settings"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+
+                    <CheckBox Content="Audio Enabled"
+                              IsChecked="{Binding AudioEnabled}"
+                              FontWeight="Medium" />
+
+                    <!-- Volume Sliders in compact grid layout -->
+                    <Grid ColumnDefinitions="120,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" 
+                          IsEnabled="{Binding AudioEnabled}">
+                        
+                        <!-- Sound Volume -->
+                        <TextBlock Grid.Column="0" Grid.Row="0" Text="Sound Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
+                        <Slider Grid.Column="1" Grid.Row="0"
+                                Value="{Binding SoundVolume}"
+                                Minimum="0"
+                                Maximum="100"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,10" />
+                        <TextBlock Grid.Column="2" Grid.Row="0" 
+                                   Text="{Binding SoundVolume}" 
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,0,10" />
+
+                        <!-- 3D Sound Volume -->
+                        <TextBlock Grid.Column="0" Grid.Row="1" Text="3D Sound Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
+                        <Slider Grid.Column="1" Grid.Row="1"
+                                Value="{Binding ThreeDSoundVolume}"
+                                Minimum="0"
+                                Maximum="100"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,10" />
+                        <TextBlock Grid.Column="2" Grid.Row="1" 
+                                   Text="{Binding ThreeDSoundVolume}" 
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Speech Volume -->
+                        <TextBlock Grid.Column="0" Grid.Row="2" Text="Speech Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
+                        <Slider Grid.Column="1" Grid.Row="2"
+                                Value="{Binding SpeechVolume}"
+                                Minimum="0"
+                                Maximum="100"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,10" />
+                        <TextBlock Grid.Column="2" Grid.Row="2" 
+                                   Text="{Binding SpeechVolume}" 
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Music Volume -->
+                        <TextBlock Grid.Column="0" Grid.Row="3" Text="Music Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
+                        <Slider Grid.Column="1" Grid.Row="3"
+                                Value="{Binding MusicVolume}"
+                                Minimum="0"
+                                Maximum="100"
+                                TickFrequency="5"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,10" />
+                        <TextBlock Grid.Column="2" Grid.Row="3" 
+                                   Text="{Binding MusicVolume}" 
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,0,10" />
+
+                        <!-- Number of Sounds -->
+                        <TextBlock Grid.Column="0" Grid.Row="4" Text="Number of Sounds" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Slider Grid.Column="1" Grid.Row="4"
+                                Value="{Binding NumSounds}"
+                                Minimum="2"
+                                Maximum="32"
+                                TickFrequency="2"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="2" Grid.Row="4" 
+                                   Text="{Binding NumSounds}" 
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Info note about profile settings -->
+            <Border Background="#20FFFFFF"
+                    Padding="12"
+                    CornerRadius="6">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="ℹ️ These settings are saved to this profile"
+                               FontWeight="SemiBold"
+                               FontSize="13" />
+                    <TextBlock Text="When you launch this profile, these settings will be used. Click the main Save button at the top to save your changes."
+                               FontSize="11"
+                               Opacity="0.8"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
