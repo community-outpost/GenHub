@@ -58,7 +58,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _enableDetailedLogging = false;
 
     [ObservableProperty]
-    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceStrategy.HybridCopySymlink;
+    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceStrategy.SymlinkOnly;
 
     [ObservableProperty]
     private bool _isSaving = false;

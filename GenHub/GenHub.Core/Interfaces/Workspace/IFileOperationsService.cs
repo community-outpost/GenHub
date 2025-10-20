@@ -28,11 +28,13 @@ public interface IFileOperationsService
     /// </summary>
     /// <param name="linkPath">The path of the symbolic link.</param>
     /// <param name="targetPath">The target path the link points to.</param>
+    /// <param name="allowFallback">Whether to fall back to copying if symlink creation fails.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous symlink creation operation.</returns>
     Task CreateSymlinkAsync(
         string linkPath,
         string targetPath,
+        bool allowFallback = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>

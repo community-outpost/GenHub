@@ -316,10 +316,167 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateSymlinkAsync with allowFallback=false throws on failure.
+    /// This test only runs on platforms where symlink creation is expected to fail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateSymlinkAsync_WithAllowFallbackFalse_ThrowsOnFailure()
+    {
+        // Skip if we're on Windows with admin privileges (symlinks should work)
+        if (OperatingSystem.IsWindows() && IsRunningAsAdministrator())
+        {
+            return; // Skip - symlinks should work
+        }
+
+        // Skip if we're on Unix-like systems where symlinks typically work
+        if (!OperatingSystem.IsWindows() && HasSymlinkSupport())
+        {
+            return; // Skip - symlinks should work
+        }
+
+        var src = Path.Combine(_tempDir, "source.txt");
+        var link = Path.Combine(_tempDir, "link.txt");
+        await File.WriteAllTextAsync(src, "test content");
+
+        // On systems without symlink support or permissions, this should throw
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        {
+            await _service.CreateSymlinkAsync(link, src, allowFallback: false);
+        });
+    }
+
+    /// <summary>
+    /// Tests that CreateSymlinkAsync with allowFallback=true creates copy on failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateSymlinkAsync_WithAllowFallbackTrue_SucceedsAlways()
+    {
+        var src = Path.Combine(_tempDir, "source.txt");
+        var link = Path.Combine(_tempDir, "link.txt");
+        await File.WriteAllTextAsync(src, "test content");
+
+        // With allowFallback=true (default), this should always succeed
+        // Either by creating symlink or falling back to copy
+        await _service.CreateSymlinkAsync(link, src, allowFallback: true);
+
+        // Verify the file exists and has correct content
+        Assert.True(File.Exists(link));
+        Assert.Equal("test content", await File.ReadAllTextAsync(link));
+    }
+
+    /// <summary>
+    /// Tests that CreateSymlinkAsync with default parameter allows fallback.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateSymlinkAsync_WithDefaultParameter_AllowsFallback()
+    {
+        var src = Path.Combine(_tempDir, "source.txt");
+        var link = Path.Combine(_tempDir, "link_default.txt");
+        await File.WriteAllTextAsync(src, "test content");
+
+        // Default parameter should allow fallback
+        await _service.CreateSymlinkAsync(link, src);
+
+        Assert.True(File.Exists(link));
+        Assert.Equal("test content", await File.ReadAllTextAsync(link));
+    }
+
+    /// <summary>
     /// Performs cleanup by disposing of temporary resources.
     /// </summary>
     public void Dispose()
     {
         FileOperationsService.DeleteDirectoryIfExists(_tempDir);
+    }
+
+    /// <summary>
+    /// Checks if the current process is running with administrator privileges on Windows.
+    /// </summary>
+    /// <returns>True if running as administrator; otherwise, false.</returns>
+    private static bool IsRunningAsAdministrator()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var principal = new System.Security.Principal.WindowsPrincipal(identity);
+            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Checks if the current platform supports symbolic links.
+    /// </summary>
+    /// <returns>True if symlinks are supported; otherwise, false.</returns>
+    private static bool HasSymlinkSupport()
+    {
+        try
+        {
+            // Try to create a test symlink
+            var testDir = Path.Combine(Path.GetTempPath(), "GenHubSymlinkTest", Guid.NewGuid().ToString());
+            Directory.CreateDirectory(testDir);
+
+            try
+            {
+                var sourceFile = Path.Combine(testDir, "source.txt");
+                var linkFile = Path.Combine(testDir, "link.txt");
+
+                File.WriteAllText(sourceFile, "test");
+
+                // Try creating a symlink
+                var exitCode = RunCommand("ln", $"-s \"{sourceFile}\" \"{linkFile}\"");
+                return exitCode == 0 && File.Exists(linkFile);
+            }
+            finally
+            {
+                Directory.Delete(testDir, true);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Runs a shell command and returns the exit code.
+    /// </summary>
+    /// <param name="command">The command to run.</param>
+    /// <param name="arguments">The command arguments.</param>
+    /// <returns>The exit code of the command.</returns>
+    private static int RunCommand(string command, string arguments)
+    {
+        try
+        {
+            var process = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = command,
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                },
+            };
+
+            process.Start();
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+        catch
+        {
+            return -1;
+        }
     }
 }

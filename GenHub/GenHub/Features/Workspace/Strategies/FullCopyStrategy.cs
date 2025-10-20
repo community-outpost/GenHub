@@ -103,35 +103,37 @@ public sealed class FullCopyStrategy(
             Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            // Process each file
-            foreach (var file in allFiles)
+            // Process each manifest and its files to maintain manifest context for source path resolution
+            foreach (var manifest in configuration.Manifests)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var destinationPath = Path.Combine(workspacePath, file.RelativePath);
-
-                try
+                foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
                 {
-                    // Handle different source types
-                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
-                    {
-                        // Use CAS content
-                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                    }
-                    else
-                    {
-                        // Use regular file from base installation
-                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
+
+                    try
+                    {
+                        // Handle different source types
+                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                         {
-                            continue;
+                            // Use CAS content
+                            await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
                         }
+                        else
+                        {
+                            // Resolve source path supporting multi-source installations
+                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                            if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                            {
+                                continue;
+                            }
+
+                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
 
                         // Verify file integrity if hash is provided
-                        if (!string.IsNullOrEmpty(file.Hash))
+                            if (!string.IsNullOrEmpty(file.Hash))
                         {
                             var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
                             if (!hashValid)
@@ -141,20 +143,21 @@ public sealed class FullCopyStrategy(
                         }
                     }
 
-                    totalBytesProcessed += file.Size;
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to copy file {RelativePath} to {DestinationPath}",
-                        file.RelativePath,
-                        destinationPath);
-                    throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
-                }
+                        totalBytesProcessed += file.Size;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(
+                            ex,
+                            "Failed to copy file {RelativePath} to {DestinationPath}",
+                            file.RelativePath,
+                            destinationPath);
+                        throw new InvalidOperationException($"Failed to copy file {file.RelativePath}: {ex.Message}", ex);
+                    }
 
-                processedFiles++;
-                ReportProgress(progress, processedFiles, totalFiles, "Copying", file.RelativePath);
+                    processedFiles++;
+                    ReportProgress(progress, processedFiles, totalFiles, "Copying", file.RelativePath);
+                }
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
@@ -203,9 +206,9 @@ public sealed class FullCopyStrategy(
     }
 
     /// <inheritdoc/>
-    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+        var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
         if (!ValidateSourceFile(sourcePath, file.RelativePath))
         {
@@ -231,6 +234,13 @@ public sealed class FullCopyStrategy(
     protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // For game installation files, treat them the same as local files
-        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+        // We need to find the manifest that contains this file
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
+        if (manifest == null)
+        {
+            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
+        }
+
+        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

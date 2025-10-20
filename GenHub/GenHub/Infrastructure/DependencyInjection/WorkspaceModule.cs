@@ -22,9 +22,11 @@ public static class WorkspaceModule
         // Core workspace services
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
 
-        // Register workspace validator
+        // Register workspace validator and reconciler
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
+        services.AddScoped<WorkspaceReconciler>();
         services.AddScoped<IFileOperationsService, FileOperationsService>();
+        services.AddScoped<FileOperationsService>();
 
         // Strategy implementations
         services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();

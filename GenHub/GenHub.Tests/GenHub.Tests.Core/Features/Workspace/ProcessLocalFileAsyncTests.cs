@@ -95,6 +95,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
             x => x.CreateSymlinkAsync(
                 It.Is<string>(s => s.Contains("test.exe")),
                 It.Is<string>(s => s.Contains("test.exe")),
+                It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()),
             Times.Never); // File doesn't exist, so symlink not called
     }
@@ -159,6 +160,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
             x => x.CreateSymlinkAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()),
             Times.Never); // File doesn't exist
     }
@@ -248,6 +250,133 @@ public class ProcessLocalFileAsyncTests : IDisposable
                 null!,
                 null,
                 CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Tests that strategies use SourcePath directly for GameInstallation files instead of combining with BaseInstallationPath.
+    /// This verifies the fix for the issue where game installation files were not being copied correctly.
+    /// </summary>
+    /// <param name="strategyType">The strategy type to test.</param>
+    /// <returns>A task that represents the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    public async Task AllStrategies_ProcessGameInstallationFileAsync_UsesSourcePathDirectly(WorkspaceStrategy strategyType)
+    {
+        // Arrange
+        var strategy = CreateStrategy(strategyType);
+
+        // Create a real game installation file to simulate Steam/EA App game file
+        var gameInstallationDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "GameInstall");
+        Directory.CreateDirectory(gameInstallationDir);
+        var gameInstallationPath = Path.Combine(gameInstallationDir, "generals.exe");
+        await File.WriteAllTextAsync(gameInstallationPath, "fake game executable content");
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = Guid.NewGuid().ToString(),
+            Strategy = strategyType,
+            WorkspaceRootPath = _tempWorkspaceDir,
+            BaseInstallationPath = _tempSourceDir, // This should NOT be used for GameInstallation files
+            GameClient = new GameClient { Id = "test" },
+            Manifests = new List<ContentManifest>
+            {
+                new ContentManifest
+                {
+                    Files = new List<ManifestFile>
+                    {
+                        new()
+                        {
+                            RelativePath = "generals.exe",
+                            SourcePath = gameInstallationPath, // Full path to game installation file
+                            Size = 1000,
+                            SourceType = ContentSourceType.GameInstallation,
+                        },
+                    },
+                },
+            },
+        };
+
+        try
+        {
+            // Act
+            await strategy.PrepareAsync(config, null, CancellationToken.None);
+
+            // Assert - Verify that the operation was attempted with the correct source path
+            // The exact call depends on the strategy type, but all should use gameInstallationPath directly
+            switch (strategyType)
+            {
+                case WorkspaceStrategy.FullCopy:
+                    _mockFileOperations.Verify(
+                        x => x.CopyFileAsync(
+                            gameInstallationPath, // Should use SourcePath directly
+                            It.Is<string>(target => target.EndsWith("generals.exe")),
+                            It.IsAny<CancellationToken>()),
+                        Times.Once);
+                    break;
+
+                case WorkspaceStrategy.SymlinkOnly:
+                    _mockFileOperations.Verify(
+                        x => x.CreateSymlinkAsync(
+                            It.Is<string>(target => target.EndsWith("generals.exe")),
+                            gameInstallationPath, // Should use SourcePath directly
+                            It.IsAny<bool>(),
+                            It.IsAny<CancellationToken>()),
+                        Times.Once);
+                    break;
+
+                case WorkspaceStrategy.HybridCopySymlink:
+                    // For essential files like .exe, should copy
+                    _mockFileOperations.Verify(
+                        x => x.CopyFileAsync(
+                            gameInstallationPath, // Should use SourcePath directly
+                            It.Is<string>(target => target.EndsWith("generals.exe")),
+                            It.IsAny<CancellationToken>()),
+                        Times.Once);
+                    break;
+
+                case WorkspaceStrategy.HardLink:
+                    // Should attempt hard link first (may fall back to copy)
+                    _mockFileOperations.Verify(
+                        x => x.CreateHardLinkAsync(
+                            It.Is<string>(target => target.EndsWith("generals.exe")),
+                            gameInstallationPath, // Should use SourcePath directly
+                            It.IsAny<CancellationToken>()),
+                        Times.Once);
+                    break;
+            }
+
+            // Verify that the WRONG path (combined path) was NOT used
+            var wrongPath = Path.Combine(_tempSourceDir, "generals.exe");
+
+            // None of the strategies should attempt operations with the wrong combined path
+            _mockFileOperations.Verify(
+                x => x.CopyFileAsync(wrongPath, It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _mockFileOperations.Verify(
+                x => x.CreateSymlinkAsync(It.IsAny<string>(), wrongPath, It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _mockFileOperations.Verify(
+                x => x.CreateHardLinkAsync(It.IsAny<string>(), wrongPath, It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            // Clean up the temporary game installation directory
+            try
+            {
+                if (Directory.Exists(gameInstallationDir))
+                {
+                    Directory.Delete(gameInstallationDir, true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
     }
 
     /// <summary>

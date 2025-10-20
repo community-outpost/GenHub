@@ -107,80 +107,82 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                 nonEssentialCount);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            // Process each file
-            foreach (var file in allFiles)
+            // Process each manifest and its files to maintain manifest context for source path resolution
+            foreach (var manifest in configuration.Manifests)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var destinationPath = Path.Combine(workspacePath, file.RelativePath);
-                var isEssential = IsEssentialFile(file.RelativePath, file.Size);
-
-                try
+                foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
                 {
-                    if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
-                    {
-                        if (isEssential)
-                        {
-                            await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, cancellationToken);
-                            copiedFiles++;
-                            totalBytesProcessed += file.Size;
-                        }
-                        else
-                        {
-                            await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, cancellationToken);
-                            symlinkedFiles++;
-                            totalBytesProcessed += LinkOverheadBytes;
-                        }
-                    }
-                    else
-                    {
-                        // Use regular file from base installation
-                        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
-                        {
-                            continue;
-                        }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
+                    var isEssential = IsEssentialFile(file.RelativePath, file.Size);
 
-                        if (isEssential)
+                    try
+                    {
+                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                         {
-                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                            copiedFiles++;
-                            totalBytesProcessed += file.Size;
-                            if (!string.IsNullOrEmpty(file.Hash))
+                            if (isEssential)
                             {
-                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                                if (!hashValid)
-                                {
-                                    throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
-                                }
+                                await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, cancellationToken);
+                                copiedFiles++;
+                                totalBytesProcessed += file.Size;
+                            }
+                            else
+                            {
+                                await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, cancellationToken);
+                                symlinkedFiles++;
+                                totalBytesProcessed += LinkOverheadBytes;
                             }
                         }
                         else
                         {
-                            await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, cancellationToken);
-                            symlinkedFiles++;
-                            totalBytesProcessed += LinkOverheadBytes;
+                            // Resolve source path supporting multi-source installations
+                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
+                            if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                            {
+                                continue;
+                            }
+
+                            if (isEssential)
+                            {
+                                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                                copiedFiles++;
+                                totalBytesProcessed += file.Size;
+                                if (!string.IsNullOrEmpty(file.Hash))
+                                {
+                                    var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                                    if (!hashValid)
+                                    {
+                                        throw new InvalidOperationException($"Hash verification failed for essential file: {file.RelativePath}");
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+                                symlinkedFiles++;
+                                totalBytesProcessed += LinkOverheadBytes;
+                            }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    var operation = isEssential ? "copy" : "create symlink for";
-                    Logger.LogError(
-                        ex,
-                        "Failed to {Operation} file {RelativePath} to {DestinationPath}",
-                        operation,
-                        file.RelativePath,
-                        destinationPath);
-                    throw new InvalidOperationException($"Failed to {operation} file {file.RelativePath}: {ex.Message}", ex);
-                }
+                    catch (Exception ex)
+                    {
+                        var operation = isEssential ? "copy" : "create symlink for";
+                        Logger.LogError(
+                            ex,
+                            "Failed to {Operation} file {RelativePath} to {DestinationPath}",
+                            operation,
+                            file.RelativePath,
+                            destinationPath);
+                        throw new InvalidOperationException($"Failed to {operation} file {file.RelativePath}: {ex.Message}", ex);
+                    }
 
-                processedFiles++;
-                var currentOperation = isEssential ? "Copying essential file" : "Creating symlink";
-                ReportProgress(progress, processedFiles, totalFiles, currentOperation, file.RelativePath);
+                    processedFiles++;
+                    var currentOperation = isEssential ? "Copying essential file" : "Creating symlink";
+                    ReportProgress(progress, processedFiles, totalFiles, currentOperation, file.RelativePath);
+                }
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);
-
             workspaceInfo.IsPrepared = true;
             Logger.LogInformation(
                 "Hybrid copy-symlink workspace prepared successfully at {WorkspacePath} with {CopiedCount} copied files and {SymlinkedCount} symlinks ({TotalSize} bytes)",
@@ -221,9 +223,9 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     }
 
     /// <inheritdoc/>
-    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+        var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
         if (!ValidateSourceFile(sourcePath, file.RelativePath))
         {
@@ -252,7 +254,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         else
         {
             // Create symlinks for non-essential files
-            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
+            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
         }
     }
 
@@ -260,6 +262,13 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // For game installation files, treat them the same as local files
-        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+        // We need to find the manifest that contains this file
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
+        if (manifest == null)
+        {
+            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
+        }
+
+        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

@@ -20,8 +20,10 @@ namespace GenHub.Tests.Core.Features.Workspace
         private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
         private readonly Mock<ILogger<WorkspaceManager>> _mockLogger;
         private readonly Mock<IWorkspaceValidator> _mockWorkspaceValidator;
+        private readonly Mock<ILogger<WorkspaceReconciler>> _mockReconcilerLogger;
         private readonly IWorkspaceStrategy[] _strategies;
         private readonly CasReferenceTracker _casReferenceTracker;
+        private readonly WorkspaceReconciler _workspaceReconciler;
         private readonly WorkspaceManager _manager;
 
         /// <summary>
@@ -34,6 +36,7 @@ namespace GenHub.Tests.Core.Features.Workspace
 
             _mockLogger = new Mock<ILogger<WorkspaceManager>>();
             _mockWorkspaceValidator = new Mock<IWorkspaceValidator>();
+            _mockReconcilerLogger = new Mock<ILogger<WorkspaceReconciler>>();
             _strategies = System.Array.Empty<IWorkspaceStrategy>();
 
             // Create CasReferenceTracker with required dependencies
@@ -42,7 +45,10 @@ namespace GenHub.Tests.Core.Features.Workspace
             var mockCasLogger = new Mock<ILogger<CasReferenceTracker>>();
             _casReferenceTracker = new CasReferenceTracker(mockCasConfig.Object, mockCasLogger.Object);
 
-            _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker, _mockWorkspaceValidator.Object);
+            // Create WorkspaceReconciler
+            _workspaceReconciler = new WorkspaceReconciler(_mockReconcilerLogger.Object);
+
+            _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker, _mockWorkspaceValidator.Object, _workspaceReconciler);
         }
 
         /// <summary>

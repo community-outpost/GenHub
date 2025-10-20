@@ -162,6 +162,7 @@ public class WorkspaceIntegrationTests : IDisposable
         mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(_tempWorkspaceRoot);
 
         var mockLogger = new Mock<ILogger<WorkspaceManager>>().Object;
+        var mockReconcilerLogger = new Mock<ILogger<WorkspaceReconciler>>().Object;
 
         // Use a real CasReferenceTracker with dummy dependencies
         var dummyLogger = new Mock<ILogger<CasReferenceTracker>>().Object;
@@ -172,8 +173,15 @@ public class WorkspaceIntegrationTests : IDisposable
         var mockWorkspaceValidator = new Mock<IWorkspaceValidator>();
         mockWorkspaceValidator.Setup(x => x.ValidateWorkspaceAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ValidationResult>.CreateSuccess(new ValidationResult("test", new List<ValidationIssue>())));
+        mockWorkspaceValidator.Setup(x => x.ValidatePrerequisitesAsync(It.IsAny<IWorkspaceStrategy>(), It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+        mockWorkspaceValidator.Setup(x => x.ValidateConfigurationAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
-        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker, mockWorkspaceValidator.Object);
+        // Create WorkspaceReconciler
+        var workspaceReconciler = new WorkspaceReconciler(mockReconcilerLogger);
+
+        var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker, mockWorkspaceValidator.Object, workspaceReconciler);
 
         var config = CreateTestConfiguration(WorkspaceStrategy.FullCopy);
 
@@ -251,7 +259,7 @@ public class WorkspaceIntegrationTests : IDisposable
         var testFiles = new[]
         {
             "generals.exe",
-            "game.dat",
+            "game.exe",
             "data/textures/texture1.tga",
             "data/audio/sound1.wav",
             "mods/mod1/mod.ini",
@@ -299,7 +307,7 @@ public class WorkspaceIntegrationTests : IDisposable
         var testFiles = new[]
         {
             "generals.exe",
-            "game.dat",
+            "game.exe",
             "data/textures/texture1.tga",
             "data/audio/sound1.wav",
             "mods/mod1/mod.ini",

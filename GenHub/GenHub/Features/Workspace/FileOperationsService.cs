@@ -63,12 +63,23 @@ public class FileOperationsService(
     /// </summary>
     /// <param name="directoryPath">The path of the directory to delete.</param>
     /// <returns>True if the directory was deleted; otherwise, false.</returns>
+    /// <exception cref="IOException">Thrown when files are locked by another process.</exception>
     public static bool DeleteDirectoryIfExists(string directoryPath)
     {
         if (Directory.Exists(directoryPath))
         {
-            Directory.Delete(directoryPath, recursive: true);
-            return true;
+            try
+            {
+                Directory.Delete(directoryPath, recursive: true);
+                return true;
+            }
+            catch (IOException ex) when (ex.Message.Contains("being used by another process"))
+            {
+                throw new IOException(
+                    $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
+                    "Please ensure all applications using files in this directory are closed before deleting.",
+                    ex);
+            }
         }
 
         return false;
@@ -89,6 +100,18 @@ public class FileOperationsService(
         try
         {
             EnsureDirectoryExists(destinationPath);
+
+            // If destination exists and is a symlink/reparse point, delete it first
+            // This prevents issues when switching from Symlink strategy to FullCopy strategy
+            if (File.Exists(destinationPath))
+            {
+                var destInfo = new FileInfo(destinationPath);
+                if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    _logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
+                    destInfo.Delete();
+                }
+            }
 
             await using var source = new FileStream(
                 sourcePath,
@@ -149,11 +172,13 @@ public class FileOperationsService(
     /// </summary>
     /// <param name="linkPath">The path of the symbolic link.</param>
     /// <param name="targetPath">The target path the link points to.</param>
+    /// <param name="allowFallback">Whether to fall back to copying if symlink creation fails.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous symlink creation operation.</returns>
-    public async Task CreateSymlinkAsync(
+    public virtual async Task CreateSymlinkAsync(
         string linkPath,
         string targetPath,
+        bool allowFallback = true,
         CancellationToken cancellationToken = default)
     {
         try
@@ -189,12 +214,24 @@ public class FileOperationsService(
                     }
                     catch (UnauthorizedAccessException uaex) when (OperatingSystem.IsWindows())
                     {
-                        // Fall back to copy if symlink creation requires elevation or Developer Mode
-                        _logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
-
-                        if (File.Exists(absoluteTargetPath))
+                        if (allowFallback)
                         {
-                            File.Copy(absoluteTargetPath, linkPath, overwrite: true);
+                            // Fall back to copy if symlink creation requires elevation or Developer Mode
+                            _logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                    catch (IOException ioex) when (OperatingSystem.IsWindows())
+                    {
+                        if (allowFallback)
+                        {
+                            // Fall back to copy if symlink creation fails due to privilege or filesystem issues
+                            _logger.LogWarning(ioex, "Symlink creation failed on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
                         }
                         else
                         {
@@ -203,12 +240,19 @@ public class FileOperationsService(
                     }
                     catch (PlatformNotSupportedException pnsex)
                     {
-                        // Fall back if platform lacks symlink support
-                        _logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
-
-                        if (File.Exists(absoluteTargetPath))
+                        if (allowFallback)
                         {
-                            File.Copy(absoluteTargetPath, linkPath, overwrite: true);
+                            // Fall back if platform lacks symlink support
+                            _logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
+
+                            if (File.Exists(absoluteTargetPath))
+                            {
+                                File.Copy(absoluteTargetPath, linkPath, overwrite: true);
+                            }
+                            else
+                            {
+                                throw;
+                            }
                         }
                         else
                         {
@@ -502,7 +546,7 @@ public class FileOperationsService(
             }
             else
             {
-                await CreateSymlinkAsync(destinationPath, pathResult.Data, cancellationToken).ConfigureAwait(false);
+                await CreateSymlinkAsync(destinationPath, pathResult.Data, useHardLink ? false : true, cancellationToken).ConfigureAwait(false);
             }
 
             _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
@@ -540,6 +584,23 @@ public class FileOperationsService(
         {
             _logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Helper method to fallback to file copy if source file exists.
+    /// </summary>
+    /// <param name="sourcePath">The source file path.</param>
+    /// <param name="destinationPath">The destination file path.</param>
+    private static void FallbackToCopyIfPossible(string sourcePath, string destinationPath)
+    {
+        if (File.Exists(sourcePath))
+        {
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+        }
+        else
+        {
+            throw new FileNotFoundException($"Source file not found for fallback copy: {sourcePath}");
         }
     }
 }

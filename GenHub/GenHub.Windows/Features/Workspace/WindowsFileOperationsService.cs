@@ -15,9 +15,9 @@ namespace GenHub.Windows.Features.Workspace;
 /// </summary>
 /// <param name="baseService">The base file operations service.</param>
 /// <param name="logger">The logger instance.</param>
-public class WindowsFileOperationsService(IFileOperationsService baseService, ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
+public class WindowsFileOperationsService(FileOperationsService baseService, ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
 {
-    private readonly IFileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
+    private readonly FileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
     private readonly ILogger<WindowsFileOperationsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -25,8 +25,8 @@ public class WindowsFileOperationsService(IFileOperationsService baseService, IL
         => _baseService.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
 
     /// <inheritdoc/>
-    public Task CreateSymlinkAsync(string linkPath, string targetPath, CancellationToken cancellationToken = default)
-        => _baseService.CreateSymlinkAsync(linkPath, targetPath, cancellationToken);
+    public Task CreateSymlinkAsync(string linkPath, string targetPath, bool allowFallback = true, CancellationToken cancellationToken = default)
+        => _baseService.CreateSymlinkAsync(linkPath, targetPath, allowFallback, cancellationToken);
 
     /// <inheritdoc/>
     public Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)

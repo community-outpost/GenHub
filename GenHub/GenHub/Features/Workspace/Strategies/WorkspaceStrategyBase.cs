@@ -242,26 +242,78 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         workspaceInfo.FileCount = fileCount;
         workspaceInfo.TotalSizeBytes = totalSize;
+        workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
 
-        // Set executable path from GameClient configuration
-        if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+        var gameClientManifest = configuration.Manifests
+            .FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+
+        if (gameClientManifest != null)
         {
-            // If the GameClient ExecutablePath is already absolute, use it directly
-            if (Path.IsPathRooted(configuration.GameClient.ExecutablePath))
+            var executableFile = gameClientManifest.Files?
+                .FirstOrDefault(f => f.IsExecutable);
+
+            if (executableFile != null)
             {
-                workspaceInfo.ExecutablePath = configuration.GameClient.ExecutablePath;
+                // Use the full relative path from the manifest
+                workspaceInfo.ExecutablePath = Path.Combine(
+                    workspaceInfo.WorkspacePath,
+                    executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+                _logger.LogInformation(
+                    "Executable resolved from GameClient manifest: {ExecutablePath} (marked as IsExecutable)",
+                    workspaceInfo.ExecutablePath);
             }
             else
             {
-                // If it's relative, combine with workspace path
-                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, configuration.GameClient.ExecutablePath);
-            }
+                // Fallback: Try finding any .exe file
+                executableFile = gameClientManifest.Files?
+                    .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
 
-            workspaceInfo.WorkingDirectory = Path.GetDirectoryName(workspaceInfo.ExecutablePath) ?? workspaceInfo.WorkspacePath;
+                if (executableFile != null)
+                {
+                    workspaceInfo.ExecutablePath = Path.Combine(
+                        workspaceInfo.WorkspacePath,
+                        executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+                    _logger.LogWarning(
+                        "Executable resolved from GameClient manifest by .exe extension (IsExecutable not set): {ExecutablePath}",
+                        workspaceInfo.ExecutablePath);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "GameClient manifest '{ManifestId}' does not contain an executable file",
+                        gameClientManifest.Id);
+                }
+            }
+        }
+        else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+        {
+            // Fallback: Search for executable by filename in any manifest
+            // This supports legacy scenarios and simple workspaces
+            var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
+
+            var executableExistsInManifest = configuration.Manifests
+                .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
+                .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
+
+            if (executableExistsInManifest)
+            {
+                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
+                _logger.LogDebug(
+                    "Executable path resolved by filename search: {ExecutablePath}",
+                    workspaceInfo.ExecutablePath);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "No executable found in manifests for filename: {ExecutableFileName}",
+                    executableFileName);
+            }
         }
         else
         {
-            workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
+            _logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }
     }
 
@@ -280,6 +332,50 @@ public abstract class WorkspaceStrategyBase<T>(
 
         _logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
         return false;
+    }
+
+    /// <summary>
+    /// Resolves the source path for a manifest file based on configuration and manifest details.
+    /// </summary>
+    /// <param name="file">The manifest file.</param>
+    /// <param name="manifest">The manifest containing the file.</param>
+    /// <param name="configuration">The workspace configuration.</param>
+    /// <returns>The resolved absolute source path.</returns>
+    protected string ResolveSourcePath(ManifestFile file, ContentManifest manifest, WorkspaceConfiguration configuration)
+    {
+        // Use file's SourcePath if already an absolute path
+        if (!string.IsNullOrEmpty(file.SourcePath) && Path.IsPathRooted(file.SourcePath))
+        {
+            return file.SourcePath;
+        }
+
+        // Look up manifest-specific source path from configuration (if manifest has an ID)
+        // Note: manifest.Id could be default (empty struct) in tests, so check the value
+        var manifestIdValue = manifest.Id.Value;
+        if (!string.IsNullOrEmpty(manifestIdValue) &&
+            configuration.ManifestSourcePaths != null &&
+            configuration.ManifestSourcePaths.TryGetValue(manifestIdValue, out var manifestSourcePath))
+        {
+            // If file has a relative SourcePath, combine it with manifest's source directory
+            var relativePath = !string.IsNullOrEmpty(file.SourcePath) ? file.SourcePath : file.RelativePath;
+            return Path.Combine(manifestSourcePath, relativePath);
+        }
+
+        // Fallback to BaseInstallationPath for GameInstallation manifests
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            var relativePath = !string.IsNullOrEmpty(file.SourcePath) ? file.SourcePath : file.RelativePath;
+            return Path.Combine(configuration.BaseInstallationPath, relativePath);
+        }
+
+        // If file has SourcePath, treat as relative to BaseInstallationPath
+        if (!string.IsNullOrEmpty(file.SourcePath))
+        {
+            return Path.Combine(configuration.BaseInstallationPath, file.SourcePath);
+        }
+
+        // Final fallback - use RelativePath with BaseInstallationPath
+        return Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
     }
 
     /// <summary>
@@ -339,11 +435,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// Processes a manifest file according to its source type. Dispatcher for all strategies.
     /// </summary>
     /// <param name="file">The manifest file to process.</param>
+    /// <param name="manifest">The manifest containing the file.</param>
     /// <param name="workspacePath">The root path of the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual async Task ProcessManifestFileAsync(ManifestFile file, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected virtual async Task ProcessManifestFileAsync(ManifestFile file, ContentManifest manifest, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         var targetPath = Path.Combine(workspacePath, file.RelativePath);
         switch (file.SourceType)
@@ -355,7 +452,7 @@ public abstract class WorkspaceStrategyBase<T>(
                 await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
-                await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+                await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
                 break;
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
@@ -425,11 +522,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// Stub for processing local files. Should be implemented in concrete strategies as needed.
     /// </summary>
     /// <param name="file">The manifest file representing the local file content.</param>
+    /// <param name="manifest">The manifest containing the file.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected virtual Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Default: throw if not implemented
         throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");

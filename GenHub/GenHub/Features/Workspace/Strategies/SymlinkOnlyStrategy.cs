@@ -87,26 +87,29 @@ public sealed class SymlinkOnlyStrategy(
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
             // Process each file using the base class method that has proper fallback logic
-            foreach (var file in allFiles)
+            foreach (var manifest in configuration.Manifests)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
+                foreach (var file in manifest.Files)
                 {
-                    // Use the base class method that handles CAS files with proper fallback
-                    await ProcessManifestFileAsync(file, workspacePath, configuration, cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex,
-                        "Failed to process file {RelativePath}",
-                        file.RelativePath);
-                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
-                }
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                processedFiles++;
-                ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
+                    try
+                    {
+                        // Use the base class method that handles CAS files with proper fallback
+                        await ProcessManifestFileAsync(file, manifest, workspacePath, configuration, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(
+                            ex,
+                            "Failed to process file {RelativePath}",
+                            file.RelativePath);
+                        throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
+                    }
+
+                    processedFiles++;
+                    ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
+                }
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, 0, configuration);
@@ -153,9 +156,9 @@ public sealed class SymlinkOnlyStrategy(
     }
 
     /// <inheritdoc/>
-    protected override async Task ProcessLocalFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
+    protected override async Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
+        var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
         if (!ValidateSourceFile(sourcePath, file.RelativePath))
         {
@@ -168,7 +171,7 @@ public sealed class SymlinkOnlyStrategy(
 
         try
         {
-            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, cancellationToken);
+            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
             Logger.LogDebug("Successfully created symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
         }
         catch (Exception ex)
@@ -182,6 +185,13 @@ public sealed class SymlinkOnlyStrategy(
     protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // For game installation files, treat them the same as local files
-        await ProcessLocalFileAsync(file, targetPath, configuration, cancellationToken);
+        // We need to find the manifest that contains this file
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
+        if (manifest == null)
+        {
+            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
+        }
+
+        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

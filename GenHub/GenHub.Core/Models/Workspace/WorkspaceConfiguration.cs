@@ -28,6 +28,14 @@ public class WorkspaceConfiguration
     /// <summary>Gets or sets the base installation path.</summary>
     public string BaseInstallationPath { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Gets or sets the source paths for each manifest.
+    /// Key: ManifestId, Value: Source directory path.
+    /// Enables multi-source installations where files come from different locations.
+    /// Falls back to BaseInstallationPath for GameInstallation manifests if not specified.
+    /// </summary>
+    public Dictionary<string, string> ManifestSourcePaths { get; set; } = new();
+
     /// <summary>Gets or sets the workspace strategy.</summary>
     public WorkspaceStrategy Strategy { get; set; } = WorkspaceStrategy.HybridCopySymlink;
 
@@ -36,4 +44,10 @@ public class WorkspaceConfiguration
 
     /// <summary>Gets or sets a value indicating whether to validate after preparation.</summary>
     public bool ValidateAfterPreparation { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the workspace reconciliation deltas for intelligent incremental updates.
+    /// Used internally by WorkspaceManager to pass delta information to strategies.
+    /// </summary>
+    public List<WorkspaceDelta>? ReconciliationDeltas { get; set; }
 }
