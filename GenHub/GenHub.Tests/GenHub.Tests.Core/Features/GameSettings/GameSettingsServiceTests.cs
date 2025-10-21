@@ -68,15 +68,15 @@ public class GameSettingsServiceTests
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
-        var tempDir = Path.GetDirectoryName(tempFile)!;
+        var tempDir = Path.GetDirectoryName(tempFile) !;
         var optionsPath = Path.Combine(tempDir, "Options.ini");
         File.Move(tempFile, optionsPath);
 
         try
         {
-            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
             {
-                CallBase = true
+                CallBase = true,
             };
             mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(optionsPath);
 
@@ -99,9 +99,9 @@ public class GameSettingsServiceTests
     public void OptionsFileExists_Should_ReturnFalse_WhenFileDoesNotExist()
     {
         // Arrange
-        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
         {
-            CallBase = true
+            CallBase = true,
         };
         mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns("nonexistent.ini");
 
@@ -115,6 +115,7 @@ public class GameSettingsServiceTests
     /// <summary>
     /// Should parse valid INI file correctly.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task LoadOptionsAsync_Should_ParseValidIniFile()
     {
@@ -143,9 +144,9 @@ Gamma=120
 
         try
         {
-            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
             {
-                CallBase = true
+                CallBase = true,
             };
             mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
 
@@ -181,15 +182,16 @@ Gamma=120
     }
 
     /// <summary>
-    /// Should return failure when file does not exist.
+    /// Should return success with defaults when file does not exist.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_ReturnFailure_WhenFileDoesNotExist()
+    public async Task LoadOptionsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExist()
     {
         // Arrange
-        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
         {
-            CallBase = true
+            CallBase = true,
         };
         mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns("nonexistent.ini");
 
@@ -197,13 +199,15 @@ Gamma=120
         var result = await mockService.Object.LoadOptionsAsync(GameType.Generals);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.Contains("does not exist", result.FirstError);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(70, result.Data.Audio.SFXVolume); // Default value
     }
 
     /// <summary>
     /// Should handle malformed INI file gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task LoadOptionsAsync_Should_HandleMalformedIniFile()
     {
@@ -220,9 +224,9 @@ MissingBracket
 
         try
         {
-            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
             {
-                CallBase = true
+                CallBase = true,
             };
             mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
 
@@ -242,12 +246,13 @@ MissingBracket
     /// <summary>
     /// Should save options to file correctly.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task SaveOptionsAsync_Should_SaveOptionsToFile()
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
-        var options = new OptionsIni
+        var options = new IniOptions
         {
             Audio = new AudioSettings
             {
@@ -272,9 +277,9 @@ MissingBracket
             },
         };
 
-        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
         {
-            CallBase = true
+            CallBase = true,
         };
         mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
 
@@ -301,36 +306,35 @@ MissingBracket
     /// <summary>
     /// Should handle boolean values correctly in serialization.
     /// </summary>
+    /// <param name="value">The boolean value to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Theory]
-    [InlineData(true, "yes")]
-    [InlineData(false, "no")]
-    public void BoolToString_Should_SerializeCorrectly(bool value, string expected)
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BoolToString_Should_SerializeCorrectly(bool value)
     {
         // This is testing the private BoolToString method indirectly through SaveOptionsAsync
-        var options = new OptionsIni
+        var options = new IniOptions
         {
             Audio = new AudioSettings { AudioEnabled = value },
-            Video = new VideoSettings { Windowed = value }
+            Video = new VideoSettings { Windowed = value },
         };
 
         var tempFile = Path.GetTempFileName();
 
-        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
         {
-            CallBase = true
+            CallBase = true,
         };
         mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
 
         try
         {
             // Act - Save and then reload to verify round-trip
-            var saveTask = mockService.Object.SaveOptionsAsync(GameType.Generals, options);
-            saveTask.Wait();
+            await mockService.Object.SaveOptionsAsync(GameType.Generals, options);
+            var loadResult = await mockService.Object.LoadOptionsAsync(GameType.Generals);
 
-            var loadTask = mockService.Object.LoadOptionsAsync(GameType.Generals);
-            loadTask.Wait();
-
-            var loadedOptions = loadTask.Result.Data!;
+            var loadedOptions = loadResult.Data!;
 
             // Assert
             Assert.Equal(value, loadedOptions.Audio.AudioEnabled);
@@ -345,6 +349,7 @@ MissingBracket
     /// <summary>
     /// Should preserve unknown sections when saving.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task SaveOptionsAsync_Should_PreserveUnknownSections()
     {
@@ -363,9 +368,9 @@ Resolution=1024 768
         var tempFile = Path.GetTempFileName();
         await File.WriteAllTextAsync(tempFile, originalContent);
 
-        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object)
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
         {
-            CallBase = true
+            CallBase = true,
         };
         mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
 

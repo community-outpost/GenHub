@@ -8,6 +8,7 @@ using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -42,8 +43,8 @@ public class GameSettingsViewModelTests
         Assert.Equal(70, _viewModel.MusicVolume);
         Assert.True(_viewModel.AudioEnabled);
         Assert.Equal(16, _viewModel.NumSounds);
-        Assert.Equal(1024, _viewModel.ResolutionWidth);
-        Assert.Equal(768, _viewModel.ResolutionHeight);
+        Assert.Equal(800, _viewModel.ResolutionWidth);
+        Assert.Equal(600, _viewModel.ResolutionHeight);
         Assert.False(_viewModel.Windowed);
         Assert.Equal(2, _viewModel.TextureQuality);
         Assert.True(_viewModel.Shadows);
@@ -68,7 +69,7 @@ public class GameSettingsViewModelTests
             GameClient = new GameClient { GameType = GameType.Generals },
         };
 
-        var options = new OptionsIni
+        var options = new IniOptions
         {
             Audio = new AudioSettings
             {
@@ -88,11 +89,11 @@ public class GameSettingsViewModelTests
                 UseShadowVolumes = false,
                 ExtraAnimations = false,
                 Gamma = 110,
-            }
+            },
         };
 
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
-            .ReturnsAsync(OperationResult<OptionsIni>.CreateSuccess(options));
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
 
         // Act
         await _viewModel.InitializeForProfileAsync("test-profile", profile);
@@ -245,7 +246,7 @@ public class GameSettingsViewModelTests
         };
 
         // Act
-        var hasSettings = GameSettingsViewModel.HasProfileSettings(profile);
+        var hasSettings = GameSettingsViewModel.HasCustomProfileSettings(profile);
 
         // Assert
         Assert.Equal(expected, hasSettings);
@@ -313,14 +314,14 @@ public class GameSettingsViewModelTests
     public async Task OnSelectedGameTypeChanged_Should_LoadSettings_WhenNotInitializing()
     {
         // Arrange
-        var options = new OptionsIni
+        var options = new IniOptions
         {
             Audio = new AudioSettings { SFXVolume = 60 },
             Video = new VideoSettings { ResolutionWidth = 800, ResolutionHeight = 600 },
         };
 
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
-            .ReturnsAsync(OperationResult<OptionsIni>.CreateSuccess(options));
+            .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(options));
 
         // Act
         _viewModel.SelectedGameType = GameType.ZeroHour;
@@ -368,7 +369,7 @@ public class GameSettingsViewModelTests
     {
         // Arrange
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
-            .ReturnsAsync(OperationResult<OptionsIni>.CreateFailure("File not found"));
+            .ReturnsAsync(OperationResult<IniOptions>.CreateFailure("File not found"));
         _gameSettingsServiceMock.Setup(x => x.GetOptionsFilePath(GameType.Generals))
             .Returns("C:\\Test\\Options.ini");
         _gameSettingsServiceMock.Setup(x => x.OptionsFileExists(GameType.Generals))
@@ -389,7 +390,7 @@ public class GameSettingsViewModelTests
     public async Task SaveSettings_Should_HandleFailureGracefully()
     {
         // Arrange
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<OptionsIni>()))
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Permission denied"));
 
         // Act
@@ -406,7 +407,7 @@ public class GameSettingsViewModelTests
     public void ApplyOptionsToViewModel_Should_UpdateSelectedPreset_WhenResolutionMatches()
     {
         // Arrange
-        var options = new OptionsIni
+        var options = new IniOptions
         {
             Video = new VideoSettings { ResolutionWidth = 1920, ResolutionHeight = 1080 },
         };

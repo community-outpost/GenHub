@@ -6,10 +6,10 @@ namespace GenHub.Core.Models.GameSettings;
 public class VideoSettings
 {
     /// <summary>Gets or sets the screen resolution width.</summary>
-    public int ResolutionWidth { get; set; } = 1024;
+    public int ResolutionWidth { get; set; } = 800;
 
     /// <summary>Gets or sets the screen resolution height.</summary>
-    public int ResolutionHeight { get; set; } = 768;
+    public int ResolutionHeight { get; set; } = 600;
 
     /// <summary>Gets or sets a value indicating whether the game runs in windowed mode.</summary>
     public bool Windowed { get; set; } = false;

@@ -14,7 +14,7 @@ public interface IGameSettingsService
     /// </summary>
     /// <param name="gameType">The game type (Generals or ZeroHour).</param>
     /// <returns>An operation result containing the loaded options or errors.</returns>
-    Task<OperationResult<OptionsIni>> LoadOptionsAsync(GameType gameType);
+    Task<OperationResult<IniOptions>> LoadOptionsAsync(GameType gameType);
 
     /// <summary>
     /// Saves the Options.ini file for the specified game type.
@@ -22,7 +22,7 @@ public interface IGameSettingsService
     /// <param name="gameType">The game type (Generals or ZeroHour).</param>
     /// <param name="options">The options to save.</param>
     /// <returns>An operation result indicating success or failure.</returns>
-    Task<OperationResult<bool>> SaveOptionsAsync(GameType gameType, OptionsIni options);
+    Task<OperationResult<bool>> SaveOptionsAsync(GameType gameType, IniOptions options);
 
     /// <summary>
     /// Gets the path to the Options.ini file for the specified game type.

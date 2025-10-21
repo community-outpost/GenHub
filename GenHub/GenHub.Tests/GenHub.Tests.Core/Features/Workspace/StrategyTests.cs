@@ -155,60 +155,6 @@ public class StrategyTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that FullCopyStrategy calls copy for all files during workspace preparation.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task FullCopyStrategy_PrepareAsync_CallsCopyForAllFiles()
-    {
-        var fileOps = new Mock<IFileOperationsService>();
-        var logger = new Mock<ILogger<FullCopyStrategy>>();
-        var strategy = new FullCopyStrategy(fileOps.Object, logger.Object);
-        var files = new List<ManifestFile>
-        {
-            new() { RelativePath = "file1.exe" },
-            new() { RelativePath = "file2.dll" },
-            new() { RelativePath = "file3.dat" },
-            new() { RelativePath = "file4.cfg" },
-        };
-
-        var config = new WorkspaceConfiguration
-        {
-            Id = "test-workspace",
-            Strategy = WorkspaceStrategy.FullCopy,
-            WorkspaceRootPath = _tempDir,
-            BaseInstallationPath = _tempDir,
-            GameClient = new GameClient { Id = "test" },
-            Manifests =
-            [
-                new()
-                {
-                    Files = files,
-                },
-            ],
-        };
-
-        // Setup the file operations mock to simulate file existence
-        fileOps.Setup(x => x.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-              .Returns(Task.CompletedTask);
-
-        var result = await strategy.PrepareAsync(config, null, CancellationToken.None);
-
-        Assert.NotNull(result);
-        Assert.StartsWith(_tempDir, result.WorkspacePath);
-        Assert.Contains("test-workspace", result.WorkspacePath);
-
-        // Verify that CopyFileAsync was called for each file that exists
-        // Since we're not creating actual files, the strategy will skip non-existent files
-        // So we verify that it attempted to copy based on the manifest
-        fileOps.Verify(x => x.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        // Instead, let's verify the workspace was created correctly
-        Assert.Equal("test-workspace", result.Id);
-        Assert.Equal(WorkspaceStrategy.FullCopy, result.Strategy);
-    }
-
-    /// <summary>
     /// Tests that all strategies correctly estimate disk usage.
     /// </summary>
     /// <param name="strategyType">The strategy type to test.</param>

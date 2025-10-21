@@ -20,12 +20,12 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameSettingsViewModel : ViewModelBase
 {
-    private const int MaxTextureQuality = 2;
+    private const int MaxTextureQuality = 2; // Will be 3 when SH version supports 'very high' texture quality (see TheSuperHackers/GeneralsGameCode#1629)
     private const int TextureReductionOffset = 2;
 
     // Resolution validation constants
     private const int MinResolutionWidth = 640;
-    private const int MaxResolutionWidth = 7680;
+    private const int MaxResolutionWidth = 7680; // Supports up to 8K resolution; can be adjusted for larger displays in the future
     private const int MinResolutionHeight = 480;
     private const int MaxResolutionHeight = 4320;
 
@@ -42,7 +42,7 @@ public partial class GameSettingsViewModel : ViewModelBase
     /// </summary>
     /// <param name="profile">The game profile.</param>
     /// <returns>True if the profile has custom settings, false otherwise.</returns>
-    public static bool HasProfileSettings(Core.Models.GameProfile.GameProfile profile)
+    public static bool HasCustomProfileSettings(Core.Models.GameProfile.GameProfile profile)
     {
         return profile.VideoResolutionWidth.HasValue ||
                profile.VideoResolutionHeight.HasValue ||
@@ -111,10 +111,10 @@ public partial class GameSettingsViewModel : ViewModelBase
 
     // Video Settings
     [ObservableProperty]
-    private int _resolutionWidth = 1024;
+    private int _resolutionWidth = 800;
 
     [ObservableProperty]
-    private int _resolutionHeight = 768;
+    private int _resolutionHeight = 600;
 
     [ObservableProperty]
     private bool _windowed;
@@ -175,7 +175,7 @@ public partial class GameSettingsViewModel : ViewModelBase
             }
 
             // If profile has settings, load them
-            if (profile != null && HasProfileSettings(profile))
+            if (profile != null && HasCustomProfileSettings(profile))
             {
                 LoadSettingsFromProfile(profile);
             }
@@ -238,7 +238,7 @@ public partial class GameSettingsViewModel : ViewModelBase
         StatusMessage = $"Resolution set to {width}x{height}";
     }
 
-    private OptionsIni? _currentOptions;
+    private IniOptions? _currentOptions;
     private string? _currentProfileId;
     private int _initializationDepth;
     private bool _isInitializing;
@@ -255,15 +255,17 @@ public partial class GameSettingsViewModel : ViewModelBase
             return;
         }
 
+        GameType gameType = SelectedGameType;
         try
         {
             IsLoading = true;
-            StatusMessage = $"Loading {SelectedGameType} settings...";
 
-            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(SelectedGameType);
-            OptionsFileExists = _gameSettingsService.OptionsFileExists(SelectedGameType);
+            StatusMessage = $"Loading {gameType} settings...";
 
-            var result = await _gameSettingsService.LoadOptionsAsync(SelectedGameType);
+            OptionsFilePath = _gameSettingsService.GetOptionsFilePath(gameType);
+            OptionsFileExists = _gameSettingsService.OptionsFileExists(gameType);
+
+            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
 
             if (result.Success && result.Data != null)
             {
@@ -271,20 +273,20 @@ public partial class GameSettingsViewModel : ViewModelBase
                 ApplyOptionsToViewModel(_currentOptions);
 
                 StatusMessage = OptionsFileExists
-                    ? $"Loaded {SelectedGameType} settings from {Path.GetFileName(OptionsFilePath)}"
-                    : $"Using default {SelectedGameType} settings (file not found)";
+                    ? $"Loaded {gameType} settings from {Path.GetFileName(OptionsFilePath)}"
+                    : $"Using default {gameType} settings (file not found)";
 
-                _logger.LogInformation("Loaded settings for {GameType}", SelectedGameType);
+                _logger.LogInformation("Loaded settings for {GameType}", gameType);
             }
             else
             {
                 StatusMessage = $"Failed to load settings: {string.Join(", ", result.Errors)}";
-                _logger.LogWarning("Failed to load settings for {GameType}: {Errors}", SelectedGameType, string.Join(", ", result.Errors));
+                _logger.LogWarning("Failed to load settings for {GameType}: {Errors}", gameType, string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading settings for {GameType}", SelectedGameType);
+            _logger.LogError(ex, "Error loading settings for {GameType}", gameType);
             StatusMessage = $"Error loading settings: {ex.Message}";
         }
         finally
@@ -303,24 +305,41 @@ public partial class GameSettingsViewModel : ViewModelBase
 
         _logger.LogInformation("Loading settings from profile {ProfileId}", _currentProfileId);
 
-        // Video settings
-        ResolutionWidth = profile.VideoResolutionWidth ?? 1024;
-        ResolutionHeight = profile.VideoResolutionHeight ?? 768;
-        Windowed = profile.VideoWindowed ?? false;
-        TextureQuality = profile.VideoTextureQuality ?? 2;
-        Shadows = profile.VideoShadows ?? true;
-        ParticleEffects = profile.VideoParticleEffects ?? true;
-        ExtraAnimations = profile.VideoExtraAnimations ?? true;
-        BuildingAnimations = profile.VideoBuildingAnimations ?? true;
-        Gamma = profile.VideoGamma ?? 100;
+        // Define default values for settings
+        const int defaultResolutionWidth = 800;
+        const int defaultResolutionHeight = 600;
+        const bool defaultWindowed = false;
+        const int defaultTextureQuality = 2;
+        const bool defaultShadows = true;
+        const bool defaultParticleEffects = true;
+        const bool defaultExtraAnimations = true;
+        const bool defaultBuildingAnimations = true;
+        const int defaultGamma = 100;
+        const int defaultSoundVolume = 70;
+        const int defaultThreeDSoundVolume = 70;
+        const int defaultSpeechVolume = 70;
+        const int defaultMusicVolume = 70;
+        const bool defaultAudioEnabled = true;
+        const int defaultNumSounds = 16;
 
-        // Audio settings
-        SoundVolume = profile.AudioSoundVolume ?? 70;
-        ThreeDSoundVolume = profile.AudioThreeDSoundVolume ?? 70;
-        SpeechVolume = profile.AudioSpeechVolume ?? 70;
-        MusicVolume = profile.AudioMusicVolume ?? 70;
-        AudioEnabled = profile.AudioEnabled ?? true;
-        NumSounds = profile.AudioNumSounds ?? 16;
+        // Video settings - use default values
+        ResolutionWidth = profile.VideoResolutionWidth ?? defaultResolutionWidth;
+        ResolutionHeight = profile.VideoResolutionHeight ?? defaultResolutionHeight;
+        Windowed = profile.VideoWindowed ?? defaultWindowed;
+        TextureQuality = profile.VideoTextureQuality ?? defaultTextureQuality;
+        Shadows = profile.VideoShadows ?? defaultShadows;
+        ParticleEffects = profile.VideoParticleEffects ?? defaultParticleEffects;
+        ExtraAnimations = profile.VideoExtraAnimations ?? defaultExtraAnimations;
+        BuildingAnimations = profile.VideoBuildingAnimations ?? defaultBuildingAnimations;
+        Gamma = profile.VideoGamma ?? defaultGamma;
+
+        // Audio settings - use default values
+        SoundVolume = profile.AudioSoundVolume ?? defaultSoundVolume;
+        ThreeDSoundVolume = profile.AudioThreeDSoundVolume ?? defaultThreeDSoundVolume;
+        SpeechVolume = profile.AudioSpeechVolume ?? defaultSpeechVolume;
+        MusicVolume = profile.AudioMusicVolume ?? defaultMusicVolume;
+        AudioEnabled = profile.AudioEnabled ?? defaultAudioEnabled;
+        NumSounds = profile.AudioNumSounds ?? defaultNumSounds;
 
         // Update selected preset if it matches
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
@@ -462,7 +481,7 @@ public partial class GameSettingsViewModel : ViewModelBase
         }
     }
 
-    private void ApplyOptionsToViewModel(OptionsIni options)
+    private void ApplyOptionsToViewModel(IniOptions options)
     {
         // Audio settings - map from Options.ini names to ViewModel friendly names
         SoundVolume = options.Audio.SFXVolume;
@@ -494,9 +513,9 @@ public partial class GameSettingsViewModel : ViewModelBase
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
     }
 
-    private OptionsIni CreateOptionsFromViewModel()
+    private IniOptions CreateOptionsFromViewModel()
     {
-        var options = _currentOptions ?? new OptionsIni();
+        var options = _currentOptions ?? new IniOptions();
 
         // Audio settings - map from ViewModel friendly names to Options.ini names
         options.Audio.SFXVolume = SoundVolume;

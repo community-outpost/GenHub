@@ -7,7 +7,7 @@ namespace GenHub.Core.Models.GameSettings;
 /// File locations: Documents\Command and Conquer Generals Data\Options.ini
 /// or Documents\Command and Conquer Generals Zero Hour Data\Options.ini.
 /// </summary>
-public class OptionsIni
+public class IniOptions
 {
     /// <summary>
     /// Gets or sets the audio settings section.
