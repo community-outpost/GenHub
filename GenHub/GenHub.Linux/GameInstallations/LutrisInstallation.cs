@@ -185,7 +185,6 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
             return true;
         }
 
-        // TODO add steam windows version
         return false;
     }
 }
