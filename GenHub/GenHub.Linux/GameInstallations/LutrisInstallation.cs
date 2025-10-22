@@ -56,7 +56,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     public bool IsLutrisInstalled { get; private set; }
 
     /// <summary>
-    /// Shows how is Lutris installed.
+    /// Gets Lutris installation Type.
     /// </summary>
     public LinuxPackageInstallationType PackageInstallationType { get; private set; }
 
