@@ -16,6 +16,11 @@ public class LutrisGame
     public string slug { get; set; } = string.Empty;
 
     /// <summary>
+    /// name of the game.
+    /// </summary>
+    public string name { get; set; } = string.Empty;
+
+    /// <summary>
     /// The runner used to launch the game (e.g., "wine", "steam", "dosbox").
     /// </summary>
     public string runner { get; set; } = string.Empty;
@@ -25,13 +30,14 @@ public class LutrisGame
     /// </summary>
     public string platform { get; set; } = string.Empty;
 
-    /// <summary>
-    /// An associated year value; the specific meaning or accuracy may be inconsistent.
+   /// <summary>
+    /// The official release year of the game, as sourced from Lutris metadata.
     /// </summary>
-    public string year { get; set; } = string.Empty;
+    public int year { get; set; } = 0;
 
     /// <summary>
-    /// The local installation directory path of the launcher (e.g., EA App).
+    /// The local installation directory path of the game.
+    /// in case of zero hour it will be EA App launcher.
     /// </summary>
     public string directory { get; set; } = string.Empty;
 
