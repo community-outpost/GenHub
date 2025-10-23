@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using System;
@@ -10,14 +11,13 @@ namespace GenHub.Features.GameSettings;
 /// </summary>
 public class WindowsGamePathProvider : IGamePathProvider
 {
-    private const string GeneralsFolderName = "Command and Conquer Generals Data";
-    private const string ZeroHourFolderName = "Command and Conquer Generals Zero Hour Data";
-
     /// <inheritdoc/>
     public string GetOptionsDirectory(GameType gameType)
     {
         var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var folderName = gameType == GameType.ZeroHour ? ZeroHourFolderName : GeneralsFolderName;
+        var folderName = gameType == GameType.ZeroHour
+            ? GameSettingsConstants.FolderNames.ZeroHour
+            : GameSettingsConstants.FolderNames.Generals;
         return Path.Combine(documentsPath, folderName);
     }
 }

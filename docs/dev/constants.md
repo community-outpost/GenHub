@@ -482,6 +482,69 @@ When adding new constants:
 
 ---
 
+## GameSettingsConstants Class
+
+Constants for game settings management, including texture quality, resolution, volume levels, and folder names.
+
+### TextureQuality Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MaxQuality` | `2` | Maximum texture quality level |
+| `MinQuality` | `0` | Minimum texture quality level |
+| `DefaultQuality` | `1` | Default texture quality level |
+
+### Resolution Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MinWidth` | `640` | Minimum resolution width |
+| `MinHeight` | `480` | Minimum resolution height |
+| `MaxWidth` | `7680` | Maximum resolution width |
+| `MaxHeight` | `4320` | Maximum resolution height |
+
+### Volume Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MinVolume` | `0.0f` | Minimum volume level |
+| `MaxVolume` | `1.0f` | Maximum volume level |
+| `DefaultVolume` | `0.5f` | Default volume level |
+
+### Audio Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `MinAudioLevel` | `0` | Minimum audio level |
+| `MaxAudioLevel` | `100` | Maximum audio level |
+| `DefaultAudioLevel` | `50` | Default audio level |
+
+### FolderNames Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GameData` | `"GameData"` | Folder name for game data |
+| `MyGames` | `"My Games"` | Folder name for user's games |
+| `SavedGames` | `"Saved Games"` | Folder name for saved games |
+
+### ResolutionPresets Constants
+
+Predefined resolution options available in the game settings.
+
+- `"640x480"`  
+- `"800x600"`  
+- `"1024x768"`  
+- `"1024x768"`  
+- `"1280x720"`  
+- `"1280x1024"`  
+- `"1366x768"`  
+- `"1600x900"`  
+- `"1920x1080"`  
+- `"2560x1440"`  
+- `"3840x2160"`  
+
+---
+
 ## Related Documentation
 
 - [Manifest ID System](manifest-id-system.md)  

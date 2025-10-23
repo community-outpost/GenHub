@@ -1,11 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -20,22 +20,22 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameSettingsViewModel : ViewModelBase
 {
-    private const int MaxTextureQuality = 2; // Will be 3 when SH version supports 'very high' texture quality (see TheSuperHackers/GeneralsGameCode#1629)
-    private const int TextureReductionOffset = 2;
+    private const int MaxTextureQuality = GameSettingsConstants.TextureQuality.MaxQuality; // Will be 3 when SH version supports 'very high' texture quality (see TheSuperHackers/GeneralsGameCode#1629)
+    private const int TextureReductionOffset = GameSettingsConstants.TextureQuality.ReductionOffset;
 
     // Resolution validation constants
-    private const int MinResolutionWidth = 640;
-    private const int MaxResolutionWidth = 7680; // Supports up to 8K resolution; can be adjusted for larger displays in the future
-    private const int MinResolutionHeight = 480;
-    private const int MaxResolutionHeight = 4320;
+    private const int MinResolutionWidth = GameSettingsConstants.Resolution.MinWidth;
+    private const int MaxResolutionWidth = GameSettingsConstants.Resolution.MaxWidth; // Supports up to 8K resolution; can be adjusted for larger displays in the future
+    private const int MinResolutionHeight = GameSettingsConstants.Resolution.MinHeight;
+    private const int MaxResolutionHeight = GameSettingsConstants.Resolution.MaxHeight;
 
     // Volume validation constants
-    private const int MinVolume = 0;
-    private const int MaxVolume = 100;
+    private const int MinVolume = GameSettingsConstants.Volume.Min;
+    private const int MaxVolume = GameSettingsConstants.Volume.Max;
 
     // NumSounds validation constants
-    private const int MinNumSounds = 1;
-    private const int MaxNumSounds = 64;
+    private const int MinNumSounds = GameSettingsConstants.Audio.MinNumSounds;
+    private const int MaxNumSounds = GameSettingsConstants.Audio.MaxNumSounds;
 
     /// <summary>
     /// Checks if a profile has any custom settings defined.
@@ -305,41 +305,22 @@ public partial class GameSettingsViewModel : ViewModelBase
 
         _logger.LogInformation("Loading settings from profile {ProfileId}", _currentProfileId);
 
-        // Define default values for settings
-        const int defaultResolutionWidth = 800;
-        const int defaultResolutionHeight = 600;
-        const bool defaultWindowed = false;
-        const int defaultTextureQuality = 2;
-        const bool defaultShadows = true;
-        const bool defaultParticleEffects = true;
-        const bool defaultExtraAnimations = true;
-        const bool defaultBuildingAnimations = true;
-        const int defaultGamma = 100;
-        const int defaultSoundVolume = 70;
-        const int defaultThreeDSoundVolume = 70;
-        const int defaultSpeechVolume = 70;
-        const int defaultMusicVolume = 70;
-        const bool defaultAudioEnabled = true;
-        const int defaultNumSounds = 16;
+        if (profile.VideoResolutionWidth.HasValue) ResolutionWidth = profile.VideoResolutionWidth.Value;
+        if (profile.VideoResolutionHeight.HasValue) ResolutionHeight = profile.VideoResolutionHeight.Value;
+        if (profile.VideoWindowed.HasValue) Windowed = profile.VideoWindowed.Value;
+        if (profile.VideoTextureQuality.HasValue) TextureQuality = profile.VideoTextureQuality.Value;
+        if (profile.VideoShadows.HasValue) Shadows = profile.VideoShadows.Value;
+        if (profile.VideoParticleEffects.HasValue) ParticleEffects = profile.VideoParticleEffects.Value;
+        if (profile.VideoExtraAnimations.HasValue) ExtraAnimations = profile.VideoExtraAnimations.Value;
+        if (profile.VideoBuildingAnimations.HasValue) BuildingAnimations = profile.VideoBuildingAnimations.Value;
+        if (profile.VideoGamma.HasValue) Gamma = profile.VideoGamma.Value;
 
-        // Video settings - use default values
-        ResolutionWidth = profile.VideoResolutionWidth ?? defaultResolutionWidth;
-        ResolutionHeight = profile.VideoResolutionHeight ?? defaultResolutionHeight;
-        Windowed = profile.VideoWindowed ?? defaultWindowed;
-        TextureQuality = profile.VideoTextureQuality ?? defaultTextureQuality;
-        Shadows = profile.VideoShadows ?? defaultShadows;
-        ParticleEffects = profile.VideoParticleEffects ?? defaultParticleEffects;
-        ExtraAnimations = profile.VideoExtraAnimations ?? defaultExtraAnimations;
-        BuildingAnimations = profile.VideoBuildingAnimations ?? defaultBuildingAnimations;
-        Gamma = profile.VideoGamma ?? defaultGamma;
-
-        // Audio settings - use default values
-        SoundVolume = profile.AudioSoundVolume ?? defaultSoundVolume;
-        ThreeDSoundVolume = profile.AudioThreeDSoundVolume ?? defaultThreeDSoundVolume;
-        SpeechVolume = profile.AudioSpeechVolume ?? defaultSpeechVolume;
-        MusicVolume = profile.AudioMusicVolume ?? defaultMusicVolume;
-        AudioEnabled = profile.AudioEnabled ?? defaultAudioEnabled;
-        NumSounds = profile.AudioNumSounds ?? defaultNumSounds;
+        if (profile.AudioSoundVolume.HasValue) SoundVolume = profile.AudioSoundVolume.Value;
+        if (profile.AudioThreeDSoundVolume.HasValue) ThreeDSoundVolume = profile.AudioThreeDSoundVolume.Value;
+        if (profile.AudioSpeechVolume.HasValue) SpeechVolume = profile.AudioSpeechVolume.Value;
+        if (profile.AudioMusicVolume.HasValue) MusicVolume = profile.AudioMusicVolume.Value;
+        if (profile.AudioEnabled.HasValue) AudioEnabled = profile.AudioEnabled.Value;
+        if (profile.AudioNumSounds.HasValue) NumSounds = profile.AudioNumSounds.Value;
 
         // Update selected preset if it matches
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
