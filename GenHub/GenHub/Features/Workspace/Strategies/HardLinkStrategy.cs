@@ -316,6 +316,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         {
             throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         }
+
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

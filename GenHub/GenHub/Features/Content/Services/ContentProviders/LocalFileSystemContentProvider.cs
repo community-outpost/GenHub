@@ -44,11 +44,11 @@ public class LocalFileSystemContentProvider : BaseContentProvider
         IConfigurationProviderService configurationProvider)
         : base(contentValidator, logger)
     {
-        _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName.Contains("FileSystem"))
+        _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No FileSystem discoverer found");
-        _localResolver = resolvers.FirstOrDefault(r => r.ResolverId.Contains("Local"))
+        _localResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.LocalResolverId, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No Local resolver found");
-        _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName.Contains("FileSystem"))
+        _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDeliverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No FileSystem deliverer found");
         _configurationProvider = configurationProvider;
     }

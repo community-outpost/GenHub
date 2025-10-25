@@ -39,15 +39,15 @@ public class ModDBContentProvider : BaseContentProvider
         : base(contentValidator, logger)
     {
         _moddbDiscoverer = discoverers?.FirstOrDefault(d =>
-            string.Equals(d.SourceName, "ModDB", StringComparison.OrdinalIgnoreCase))
+            string.Equals(d.SourceName, ContentSourceNames.ModDBDiscoverer, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("ModDB discoverer not found");
 
         _moddbResolver = resolvers?.FirstOrDefault(r =>
-            string.Equals(r.ResolverId, "ModDB", StringComparison.OrdinalIgnoreCase))
+            string.Equals(r.ResolverId, ContentSourceNames.ModDBResolverId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("ModDB resolver not found");
 
         _httpDeliverer = deliverers?.FirstOrDefault(d =>
-            string.Equals(d.SourceName, "HTTP", StringComparison.OrdinalIgnoreCase))
+            string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("HTTP deliverer not found");
     }
 

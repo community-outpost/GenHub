@@ -50,7 +50,9 @@ public static class ContentPipelineModule
         // Register concrete content providers only
         services.AddTransient<IContentProvider, GitHubContentProvider>();
         services.AddTransient<IContentProvider, CNCLabsContentProvider>();
-        services.AddTransient<IContentProvider, ModDBContentProvider>();
+
+        // TODO: Implement ModDB discoverer and resolver
+        // services.AddTransient<IContentProvider, ModDBContentProvider>();
         services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
 
         // Register content discoverers

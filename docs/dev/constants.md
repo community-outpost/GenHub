@@ -65,24 +65,29 @@ Default values and limits for Content-Addressable Storage (CAS).
 Configuration key constants for `appsettings.json` and environment variables.
 
 ### Workspace Configuration
+
 - `WorkspaceDefaultPath`: `"GenHub:Workspace:DefaultPath"`
 - `WorkspaceDefaultStrategy`: `"GenHub:Workspace:DefaultStrategy"`
 
 ### Cache Configuration
+
 - `CacheDefaultPath`: `"GenHub:Cache:DefaultPath"`
 
 ### UI Configuration
+
 - `UiDefaultTheme`: `"GenHub:UI:DefaultTheme"`
 - `UiDefaultWindowWidth`: `"GenHub:UI:DefaultWindowWidth"`
 - `UiDefaultWindowHeight`: `"GenHub:UI:DefaultWindowHeight"`
 
 ### Downloads Configuration
+
 - `DownloadsDefaultTimeoutSeconds`: `"GenHub:Downloads:DefaultTimeoutSeconds"`
 - `DownloadsDefaultUserAgent`: `"GenHub:Downloads:DefaultUserAgent"`
 - `DownloadsDefaultMaxConcurrent`: `"GenHub:Downloads:DefaultMaxConcurrent"`
 - `DownloadsDefaultBufferSize`: `"GenHub:Downloads:DefaultBufferSize"`
 
 ### Downloads Policy Configuration
+
 - `DownloadsPolicyMinConcurrent`: `"GenHub:Downloads:Policy:MinConcurrent"`
 - `DownloadsPolicyMaxConcurrent`: `"GenHub:Downloads:Policy:MaxConcurrent"`
 - `DownloadsPolicyMinTimeoutSeconds`: `"GenHub:Downloads:Policy:MinTimeoutSeconds"`
@@ -91,6 +96,7 @@ Configuration key constants for `appsettings.json` and environment variables.
 - `DownloadsPolicyMaxBufferSizeBytes`: `"GenHub:Downloads:Policy:MaxBufferSizeBytes"`
 
 ### App Data Configuration
+
 - `AppDataPath`: `"GenHub:AppDataPath"`
 
 ---
@@ -370,6 +376,7 @@ var downloadConfig = new DownloadConfiguration
     MaxRetryAttempts = DownloadDefaults.MaxRetryAttempts
 };
 ```
+
 ### CAS Operations
 
 ```csharp
@@ -442,9 +449,39 @@ var notificationDelay = TimeIntervals.NotificationHideDelay;
 
 ---
 
-## Maintenance
+## ContentSourceNames Class
 
-When adding new constants:
+Constants for content pipeline component identifiers used in dependency injection lookups.
+
+### Discoverers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CNCLabsDiscoverer` | `"CNC Labs Maps"` | Source name for CNC Labs map discoverer |
+| `GitHubDiscoverer` | `"GitHub"` | Source name for GitHub content discoverer |
+| `GitHubReleasesDiscoverer` | `"GitHub Releases"` | Source name for GitHub releases discoverer |
+| `FileSystemDiscoverer` | `"Local File System"` | Source name for local file system discoverer |
+| `ModDBDiscoverer` | `"ModDB"` | Source name for ModDB content discoverer |
+
+### Resolvers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CNCLabsResolverId` | `"CNCLabsMap"` | Resolver ID for CNC Labs map resolver |
+| `GitHubResolverId` | `"GitHubRelease"` | Resolver ID for GitHub release resolver |
+| `LocalResolverId` | `"LocalManifest"` | Resolver ID for local manifest resolver |
+| `ModDBResolverId` | `"ModDB"` | Resolver ID for ModDB resolver |
+
+### Deliverers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `HttpDeliverer` | `"HTTP Content Deliverer"` | Source name for HTTP content deliverer |
+| `FileSystemDeliverer` | `"Local File System Deliverer"` | Source name for local file system deliverer |
+
+---
+
+## MaintenanceWhen adding new constants
 
 1. Choose the appropriate constants file based on functionality  
 2. Follow naming conventions (PascalCase for constants)  

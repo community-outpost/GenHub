@@ -45,11 +45,11 @@ public class GitHubContentProvider : BaseContentProvider
         : base(contentValidator, logger)
     {
         _gitHubApiClient = gitHubApiClient;
-        _gitHubDiscoverer = discoverers.FirstOrDefault(d => d.SourceName.Contains("GitHub"))
+        _gitHubDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No GitHub discoverer found. Ensure a discoverer with 'GitHub' in its SourceName is registered.");
-        _gitHubResolver = resolvers.FirstOrDefault(r => r.ResolverId.Contains("GitHub"))
+        _gitHubResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.GitHubResolverId, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No GitHub resolver found. Ensure a resolver with 'GitHub' in its ResolverId is registered.");
-        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName.Contains("HTTP"))
+        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No HTTP deliverer found. Ensure a deliverer with 'HTTP' in its SourceName is registered.");
     }
 

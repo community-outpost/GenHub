@@ -38,11 +38,11 @@ public class CNCLabsContentProvider : BaseContentProvider
         IContentValidator contentValidator)
         : base(contentValidator, logger)
     {
-        _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals("CNC Labs Maps", StringComparison.OrdinalIgnoreCase) == true)
+        _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));
-        _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals("CNCLabsMap", StringComparison.OrdinalIgnoreCase) == true)
+        _cncLabsResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.CNCLabsResolverId, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new ArgumentException("CNC Labs resolver not found", nameof(resolvers));
-        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals("HTTP", StringComparison.OrdinalIgnoreCase) == true)
+        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
     }
 
