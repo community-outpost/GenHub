@@ -35,7 +35,7 @@ public class GitHubContentProviderTests
         _loggerMock = new Mock<ILogger<GitHubContentProvider>>();
 
         // Setup mocks to be correctly identified by the provider
-        _discovererMock.Setup(d => d.SourceName).Returns("GitHub Releases");
+        _discovererMock.Setup(d => d.SourceName).Returns("GitHub");
         _resolverMock.Setup(r => r.ResolverId).Returns("GitHubRelease");
         _delivererMock.Setup(d => d.SourceName).Returns("HTTP Content Deliverer");
 
