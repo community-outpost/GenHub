@@ -83,5 +83,19 @@ public static class ManifestConstants
     /// <summary>
     /// Default ID string for content dependencies (fallback for model instantiation).
     /// </summary>
-    public const string DefaultContentDependencyId = "1.0.test.dependency.content";
+    public const string DefaultContentDependencyId = "1.0.genhub.content.defaultdependency";
+
+    /// <summary>
+    /// Version string for Generals game installation manifests.
+    /// This represents the executable version 1.08.
+    /// Note: When used in manifest IDs, dots are removed to create "108" for schema compliance.
+    /// </summary>
+    public const string GeneralsManifestVersion = "1.08";
+
+    /// <summary>
+    /// Version string for Zero Hour game installation manifests.
+    /// This represents the executable version 1.04.
+    /// Note: When used in manifest IDs, dots are removed to create "104" for schema compliance.
+    /// </summary>
+    public const string ZeroHourManifestVersion = "1.04";
 }

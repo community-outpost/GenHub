@@ -56,10 +56,10 @@ public class ContentManifestBuilderTests
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
-        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((string p, string c, int v) =>
+        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
+            .Returns((string p, GenHub.Core.Models.Enums.ContentType ct, string c, int v) =>
             {
-                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, c, v);
+                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, ct, c, v);
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
@@ -78,7 +78,7 @@ public class ContentManifestBuilderTests
             .Build();
 
         // Assert
-        Assert.Equal("1.1.test.publisher.test.name", result.Id);
+        Assert.Equal("1.1.test.publisher.mod.test.name", result.Id);
         Assert.Equal("Test Name", result.Name);
         Assert.Equal("1", result.Version);
     }
@@ -204,7 +204,7 @@ public class ContentManifestBuilderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.1.minimal.publisher.minimal.manifest", result.Id);
+        Assert.Equal("1.1.minimal.publisher.mod.minimal.manifest", result.Id);
         Assert.Equal("Minimal Manifest", result.Name);
         Assert.Equal("1", result.Version);
         Assert.NotNull(result.Dependencies);

@@ -23,7 +23,7 @@ public class GameClient
     /// <summary>
     /// Gets or sets the base installation ID for this game client (for test compatibility).
     /// </summary>
-    public string? BaseInstallationId { get; set; } = string.Empty;
+    public string? InstallationId { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the creation timestamp for this game client (for test compatibility).

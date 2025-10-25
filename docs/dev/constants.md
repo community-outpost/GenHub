@@ -105,11 +105,11 @@ Configuration key constants for `appsettings.json` and environment variables.
 
 Constants for unit conversions used throughout the application.
 
-- `BytesPerKilobyte`: 1024  
-- `BytesPerMegabyte`: 1048576  
-- `BytesPerGigabyte`: 1073741824  
+- `BytesPerKilobyte`: 1024
+- `BytesPerMegabyte`: 1048576
+- `BytesPerGigabyte`: 1073741824
 
-#### Color Conversion Constants
+### Color Conversion Constants
 
 - `LuminanceRedCoefficient`: Coefficient for red channel in luminance calculation (0.299)
 - `LuminanceGreenCoefficient`: Coefficient for green channel in luminance calculation (0.587)
@@ -175,10 +175,13 @@ Constants related to manifest ID generation, validation, and file operations.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `DefaultManifestSchemaVersion` | `1` | Default manifest schema version |
+| `DefaultManifestFormatVersion` | `1` | Default manifest format version (integer) |
+| `DefaultManifestVersion` | `"1.0"` | Default manifest version as string |
 | `PublisherContentIdPrefix` | `"publisher"` | Prefix for publisher content IDs |
-| `BaseGameIdPrefix` | `"basegame"` | Prefix for base game IDs |
+| `BaseGameIdPrefix` | `"gameinstallation"` | Prefix for game installation IDs |
 | `SimpleIdPrefix` | `"simple"` | Prefix for simple test IDs |
+| `GeneralsManifestVersion` | `"1.08"` | Version string for Generals game installation manifests (dots removed in IDs: "108") |
+| `ZeroHourManifestVersion` | `"1.04"` | Version string for Zero Hour game installation manifests (dots removed in IDs: "104") |
 
 ### Manifest Validation
 
@@ -189,19 +192,384 @@ Constants related to manifest ID generation, validation, and file operations.
 | `MaxManifestSegments` | `5` | Maximum number of segments in manifest ID |
 | `MinManifestSegments` | `1` | Minimum number of segments in manifest ID |
 
+### Manifest Timeouts and Operations
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ManifestIdGenerationTimeoutMs` | `5000` | Timeout for manifest ID generation operations (milliseconds) |
+| `ManifestValidationTimeoutMs` | `1000` | Timeout for manifest validation operations (milliseconds) |
+| `MaxConcurrentManifestOperations` | `10` | Maximum concurrent manifest operations |
+
 ### Manifest ID Regex Patterns
 
 | Constant | Description |
 |----------|-------------|
 | `PublisherIdRegexPattern` | Regex for publisher content IDs |
-| `GameInstallationIdRegexPattern` | Regex for base game IDs |
+| `GameInstallationIdRegexPattern` | Regex for game installation IDs |
 | `SimpleIdRegexPattern` | Regex for simple IDs |
 
 **Publisher Content ID Pattern:**
 
 ```regex
-^(?:[a-zA-Z0-9\-]+\.)+[a-zA-Z0-9\-]+$
+^\d+(?:\.\d+)*\.[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*$
 ```
+
+**Game Installation ID Pattern:**
+
+```regex
+^\d+(?:\.\d+)*\.(unknown|steam|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)$
+```
+
+**Simple ID Pattern:**
+
+```regex
+^[a-zA-Z0-9\-\.]+$
+```
+
+### Dependency Defaults
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GeneralsManifestVersion` | `"1.08"` | Version string for Generals game installation manifests. When used in manifest IDs, dots are removed (becomes "108"). |
+| `ZeroHourManifestVersion` | `"1.04"` | Version string for Zero Hour game installation manifests. When used in manifest IDs, dots are removed (becomes "104"). |
+| `DefaultContentDependencyId` | `"1.0.genhub.mod.defaultdependency"` | Default ID string for content dependencies (fallback for model instantiation) |
+
+---
+
+## GameClientHashRegistry Class
+
+Extensible SHA-256 hash constants and registry for known game executables used for client detection across official and 3rd party distributions. Supports dynamic updates, external hash databases, and plugin extensibility.
+
+### Core Hash Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe) |
+| `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
+| `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
+
+### Extensibility Configuration Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ExternalHashDatabaseFileName` | `"game-executable-hashes.json"` | Default filename for external hash database JSON file |
+| `MaxExternalHashSources` | `50` | Maximum number of external hash sources that can be registered |
+| `ExternalSourceCacheTimeoutMinutes` | `30` | Cache timeout for external hash sources in minutes |
+
+### Collections and Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
+
+### Basic Usage Example
+
+```csharp
+using GenHub.Core.Constants;
+
+// Basic hash detection (backward compatible)
+if (computedHash == GameClientHashRegistry.Generals108Hash)
+{
+    // Detected Generals 1.08
+}
+else if (computedHash == GameClientHashRegistry.ZeroHour104Hash)
+{
+    // Detected Zero Hour 1.04
+}
+
+var info = GameClientHashRegistry.GetGameExecutableInfo(computedHash);
+if (info.HasValue)
+{
+    Console.WriteLine($"Detected: {info.Value.GameType} {info.Value.Version} ({info.Value.Publisher})");
+}
+```
+
+### Extensibility Usage
+
+```csharp
+using GenHub.Core.Constants;
+
+// Add runtime hash for 3rd party client
+GameClientHashRegistry.AddKnownHash(
+    "abc123...", 
+    GameType.Generals, 
+    "1.09", 
+    "CommunityPatch", 
+    "Community-enhanced Generals executable",
+    false);
+
+// Add custom executable name
+GameClientHashRegistry.AddPossibleExecutableName("my-modded-generals.exe");
+```
+
+---
+
+## PublisherTypeConstants Class
+
+Well-known publisher type identifiers for content sources. Uses lowercase string identifiers for consistency with ManifestId system.
+
+### Important Note
+
+`PublisherTypeConstants` is **NOT an enum** - publishers are string-based for extensibility. Any string value is valid; these constants are just common values for convenience. This follows the same pattern as ManifestId (string-based with validation).
+
+### Official Platform Publishers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform |
+| `Steam` | `"steam"` | Steam platform |
+| `Retail` | `"retail"` | Retail/physical installation |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation |
+| `Wine` | `"wine"` | Wine/Proton compatibility layer |
+| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
+
+### Community Platforms
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GeneralsOnline` | `"generalsonline"` | Generals Online community platform |
+| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform |
+| `ModDb` | `"moddb"` | ModDB hosting platform |
+| `CncLabs` | `"cnclabs"` | C&C Labs community site |
+
+### Web/Download Sources
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GitHub` | `"github"` | GitHub repository |
+| `WebDownload` | `"web"` | Generic web download |
+
+### Local/System Sources
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `LocalImport` | `"local"` | Local file import by user |
+| `FileSystem` | `"filesystem"` | Imported from file system |
+
+### Generated Content
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `AutoGenerated` | `"autogenerated"` | Auto-generated by ContentOrchestrator |
+| `GenHubInternal` | `"genhub"` | GenHub internal system content |
+| `CsvGenerated` | `"csvgenerated"` | Content generated from CSV authoritative source |
+
+### Special/Unknown
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
+| `Custom` | `"custom"` | Custom user-defined publisher |
+
+#### Publisher Type Mapping Methods
+
+**`FromInstallationType(GameInstallationType)`**: Maps GameInstallationType enum to publisher type string by delegating to the centralized extension method:
+
+```csharp
+public static string FromInstallationType(GameInstallationType installationType)
+{
+    return installationType.ToPublisherTypeString();
+}
+```
+
+**Note**: This method now uses the centralized `ToPublisherTypeString()` extension method from `InstallationExtensions.cs` to eliminate code duplication and ensure consistent mapping behavior across the codebase.
+
+---
+
+## PublisherInfoConstants Class
+
+Constants for publisher information including display names, websites, and support URLs.
+These constants provide standardized publisher metadata for content attribution and user interface display.
+
+### Steam Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"Steam"` | Display name for Steam publisher |
+| `Website` | `"https://store.steampowered.com"` | Website URL for Steam |
+| `SupportUrl` | `"https://help.steampowered.com"` | Support URL for Steam |
+
+### EA App Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"EA App"` | Display name for EA App publisher |
+| `Website` | `"https://www.ea.com"` | Website URL for EA App |
+| `SupportUrl` | `"https://help.ea.com"` | Support URL for EA App |
+
+### The First Decade Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"The First Decade"` | Display name for The First Decade publisher |
+| `Website` | `"https://westwood.com"` | Website URL for The First Decade |
+| `SupportUrl` | `""` | Support URL for The First Decade (empty) |
+
+### Wine/Proton Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"Wine/Proton"` | Display name for Wine/Proton publisher |
+| `Website` | `""` | Website URL for Wine/Proton (empty) |
+| `SupportUrl` | `""` | Support URL for Wine/Proton (empty) |
+
+### CD-ROM Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"CD-ROM"` | Display name for CD-ROM publisher |
+| `Website` | `""` | Website URL for CD-ROM (empty) |
+| `SupportUrl` | `""` | Support URL for CD-ROM (empty) |
+
+### Retail Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"Retail Installation"` | Display name for retail publisher |
+| `Website` | `""` | Website URL for retail (empty) |
+| `SupportUrl` | `""` | Support URL for retail (empty) |
+
+### Generals Online Publisher Information
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Name` | `"Generals Online"` | Display name for Generals Online publisher |
+| `Website` | `"https://www.playgenerals.online/"` | Website URL for Generals Online |
+| `SupportUrl` | `"https://www.playgenerals.online/support"` | Support URL for Generals Online |
+
+### Helper Methods
+
+**`GetPublisherInfo(GameInstallationType)`**: Returns a tuple containing (Name, Website, SupportUrl) for the specified installation type.
+
+```csharp
+// Example usage
+var (name, website, supportUrl) = PublisherInfoConstants.GetPublisherInfo(GameInstallationType.Steam);
+// Result: ("Steam", "https://store.steampowered.com", "https://help.steampowered.com")
+```
+
+---
+
+## GameClientConstants Class
+
+Constants related to game client detection and management.
+
+### Game Executables
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GeneralsExecutable` | `"generals.exe"` | Generals executable filename |
+| `ZeroHourExecutable` | `"game.exe"` | Zero Hour executable filename |
+
+### SuperHackers Client Detection
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `SuperHackersGeneralsExecutable` | `"generalsV.exe"` | SuperHackers Generals executable filename |
+| `SuperHackersZeroHourExecutable` | `"generalsZH.exe"` | SuperHackers Zero Hour executable filename |
+
+### GeneralsOnline Client Detection
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GeneralsOnline30HzExecutable` | `"generalsonlinezh_30.exe"` | GeneralsOnline 30Hz client executable name |
+| `GeneralsOnline60HzExecutable` | `"generalsonlinezh_60.exe"` | GeneralsOnline 60Hz client executable name |
+| `GeneralsOnline30HzDisplayName` | `"GeneralsOnline 30Hz"` | Display name for GeneralsOnline 30Hz variant |
+| `GeneralsOnline60HzDisplayName` | `"GeneralsOnline 60Hz"` | Display name for GeneralsOnline 60Hz variant |
+| `GeneralsOnlineDefaultDisplayName` | `"GeneralsOnline 30Hz"` | Default display name for GeneralsOnline variants |
+
+### Dependency Names
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ZeroHourInstallationDependencyName` | `"Zero Hour Installation (Required)"` | Name for Zero Hour installation dependency requirement |
+
+### Version Strings
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `AutoDetectedVersion` | `"Automatically added"` | Version string used for automatically detected clients |
+| `UnknownVersion` | `"Unknown"` | Version string used for unknown/unrecognized clients |
+
+### Required DLLs
+
+- `RequiredDlls`: Array of DLLs required for standard game installations
+  - `"steam_api.dll"` - Steam integration
+  - `"binkw32.dll"` - Bink video codec
+  - `"mss32.dll"` - Miles Sound System
+  - `"eauninstall.dll"` - EA App integration
+
+### GeneralsOnline DLLs
+
+- `GeneralsOnlineDlls`: Array of DLLs specific to GeneralsOnline installations
+  - Core runtime DLLs: `"abseil_dll.dll"`, `"GameNetworkingSockets.dll"`, `"libcrypto-3.dll"`, `"libcurl.dll"`, `"libprotobuf.dll"`, `"libssl-3.dll"`, `"sentry.dll"`, `"zlib1.dll"`
+  - Legacy game DLLs: `"steam_api.dll"`, `"binkw32.dll"`, `"mss32.dll"`, `"wsock32.dll"`
+
+### Configuration Files
+
+- `ConfigFiles`: Array of configuration files used by game installations
+  - `"options.ini"` - Legacy game options
+  - `"skirmish.ini"` - Skirmish settings
+  - `"network.ini"` - Network configuration
+
+### Executable Names List
+
+- `GeneralsOnlineExecutableNames`: Read-only list of executable names for GeneralsOnline clients that should be detected
+  - `GeneralsOnline30HzExecutable`
+  - `GeneralsOnline60HzExecutable`
+  - `GeneralsOnlineDefaultExecutable`
+
+---
+
+## InstallationSourceConstants Class
+
+Installation source type identifiers for game installations. These constants represent WHERE the game was installed from (Steam, EA App, Retail, etc.).
+
+### Important: Not for Content Publishers
+
+**CRITICAL**: `InstallationSourceConstants` is **ONLY** for game installation detection. Publishers are discovered dynamically via `IContentProvider` implementations, not hardcoded as constants.
+
+**Content Provider Discovery**:
+
+- Content providers register themselves with `ContentOrchestrator` via dependency injection
+- Each provider implements `IContentProvider` with a unique `SourceName` property
+- Providers can be: Official platforms (EA/Steam), Community sources (GitHub, ModDB, HTTP), Custom sources (any implementation)
+- To add a new publisher: Create an `IContentProvider` implementation and register it in DI (see `ContentPipelineModule.cs`)
+
+**Examples of IContentProvider Implementations**:
+
+- `GitHubContentProvider` (SourceName: "GitHub")
+- `ModDBContentProvider` (SourceName: "ModDB")
+- `LocalFileSystemContentProvider` (SourceName: "Local Files")
+- `CNCLabsContentProvider` (SourceName: "C&C Labs")
+
+See [Content Pipeline Architecture](../architecture.md#content-pipeline) for details on dynamic provider registration.
+
+### Installation Source Constants
+
+These constants are used for `GameInstallationType` mapping only:
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform installation |
+| `Steam` | `"steam"` | Steam platform installation |
+| `Retail` | `"retail"` | Retail/physical installation |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation installation |
+| `Wine` | `"wine"` | Wine/Proton compatibility layer installation |
+| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
+| `Unknown` | `"unknown"` | Unknown or unspecified installation source |
+
+#### Installation Source Mapping Methods
+
+**`FromInstallationType(GameInstallationType)`**: Maps GameInstallationType enum to installation source string by delegating to the centralized extension method:
+
+```csharp
+public static string FromInstallationType(GameInstallationType installationType)
+{
+    return installationType.ToInstallationSourceString();
+}
+```
+
+**Note**: This method now uses the centralized `ToInstallationSourceString()` extension method from `InstallationExtensions.cs` to eliminate code duplication and ensure consistent mapping behavior across the codebase.
 
 ---
 
@@ -261,7 +629,7 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
-#### Status Colors
+### Status Colors
 
 - `StatusSuccessColor`: Color used to indicate success or positive status (`"#4CAF50"`)
 - `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
@@ -284,7 +652,213 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
-## Usage Examples
+## GameClientHashRegistry Class
+
+Extensible SHA-256 hash constants and registry for known game executables used for client detection across official and 3rd party distributions. Supports dynamic updates, external hash databases, and plugin extensibility.
+
+### Core Hash Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe) |
+| `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
+| `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
+
+### Extensibility Configuration Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `ExternalHashDatabaseFileName` | `"game-executable-hashes.json"` | Default filename for external hash database JSON file |
+| `MaxExternalHashSources` | `50` | Maximum number of external hash sources that can be registered |
+| `ExternalSourceCacheTimeoutMinutes` | `30` | Cache timeout for external hash sources in minutes |
+
+### Collections and Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
+
+### Basic Usage Example
+
+```csharp
+using GenHub.Core.Constants;
+
+// Basic hash detection (backward compatible)
+if (computedHash == GameClientHashRegistry.Generals108Hash)
+{
+    // Detected Generals 1.08
+}
+else if (computedHash == GameClientHashRegistry.ZeroHour104Hash)
+{
+    // Detected Zero Hour 1.04
+}
+
+var info = GameClientHashRegistry.GetGameExecutableInfo(computedHash);
+if (info.HasValue)
+{
+    Console.WriteLine($"Detected: {info.Value.GameType} {info.Value.Version} ({info.Value.Publisher})");
+}
+```
+
+### Extensibility Usage
+
+```csharp
+using GenHub.Core.Constants;
+
+// Add runtime hash for 3rd party client
+GameClientHashRegistry.AddKnownHash(
+    "abc123...", 
+    GameType.Generals, 
+    "1.09", 
+    "CommunityPatch", 
+    "Community-enhanced Generals executable",
+    false);
+
+// Add custom executable name
+GameClientHashRegistry.AddPossibleExecutableName("my-modded-generals.exe");
+```
+
+---
+
+## PublisherTypeConstants Class
+
+Well-known publisher type identifiers for content sources. Uses lowercase string identifiers for consistency with the ManifestId system.
+
+### Publisher Type Overview
+
+Publisher types are **string-based** (not an enum) for extensibility. Any string value is valid; these constants are just common identifiers for convenience.
+
+### Official Platform Publishers
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Steam` | `"steam"` | Steam platform |
+| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform |
+| `Retail` | `"retail"` | Retail/physical installation |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation |
+| `Wine` | `"wine"` | Wine/Proton compatibility layer |
+| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
+
+### Community Platforms
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GeneralsOnline` | `"generalsonline"` | Generals Online community launcher (auto-updates clients) |
+| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform |
+| `ModDb` | `"moddb"` | ModDB hosting platform |
+| `CncLabs` | `"cnclabs"` | C&C Labs community site |
+
+### Web/Download Sources
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GitHub` | `"github"` | GitHub repository |
+| `WebDownload` | `"web"` | Generic web download |
+
+### Local/System Sources
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `LocalImport` | `"local"` | Local file import by user |
+| `FileSystem` | `"filesystem"` | Imported from file system |
+
+### Generated Content
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `AutoGenerated` | `"autogenerated"` | Auto-generated by ContentOrchestrator |
+| `GenHubInternal` | `"genhub"` | GenHub internal system content |
+| `CsvGenerated` | `"csvgenerated"` | Content generated from CSV authoritative source |
+
+### Special/Unknown
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
+| `Custom` | `"custom"` | Custom user-defined publisher |
+
+### Helper Methods
+
+#### `FromInstallationType(GameInstallationType)`
+
+Maps GameInstallationType enum to publisher type string:
+
+```csharp
+public static string FromInstallationType(GameInstallationType installationType)
+{
+    return installationType switch
+    {
+        GameInstallationType.Steam => Steam,
+        GameInstallationType.EaApp => EaApp,
+        GameInstallationType.TheFirstDecade => TheFirstDecade,
+        GameInstallationType.Wine => Wine,
+        GameInstallationType.CDISO => CdIso,
+        GameInstallationType.Retail => Retail,
+        GameInstallationType.Unknown => Unknown,
+        _ => Unknown
+    };
+}
+```
+
+### Publisher Type Usage Examples
+
+```csharp
+using GenHub.Core.Constants;
+
+// Using platform-specific publisher types
+var steamPublisher = PublisherTypeConstants.Steam; // "steam"
+var eaAppPublisher = PublisherTypeConstants.EaApp; // "eaapp"
+
+// Using community publisher types
+var generalsOnlinePublisher = PublisherTypeConstants.GeneralsOnline; // "generalsonline"
+
+// Mapping installation type to publisher
+var installationType = GameInstallationType.Steam;
+var publisherType = PublisherTypeConstants.FromInstallationType(installationType);
+// Result: "steam"
+
+// In manifest generation (GeneralsOnline example)
+var manifest = new ContentManifest
+{
+    Publisher = new PublisherInfo
+    {
+        Name = PublisherTypeConstants.GeneralsOnline,
+        Website = "https://www.playgenerals.online/",
+    }
+};
+
+// Using publisher types for content filtering
+if (manifest.Publisher?.Name == PublisherTypeConstants.GeneralsOnline)
+{
+    // Handle GeneralsOnline-specific content
+}
+
+// Custom publisher type (not a predefined constant)
+var customPublisher = "my-custom-publisher";
+// Custom publishers work just like predefined constants
+```
+
+### GeneralsOnline Publisher Type
+
+The `GeneralsOnline` publisher type is used for the GeneralsOnline community launcher, which provides auto-updated clients for Command & Conquer Generals and Zero Hour.
+
+**Usage in Game Client Detection**:
+
+- When GeneralsOnline executables are detected (generalsonline_30hz.exe, generalsonline_60hz.exe, generalsonline.exe)
+- Manifests are generated with PublisherType = "generalsonline"
+- UI displays these clients with appropriate publisher attribution
+- Users can select GeneralsOnline variants in game profiles
+
+**Manifest ID Examples**:
+
+- `1.0.generalsonline.gameclient.generalsonline_30hz` (GeneralsOnline 30Hz client)
+- `1.0.generalsonline.gameclient.generalsonline_60hz` (GeneralsOnline 60Hz client)
+
+See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details.
+
+---
+
+## Configuration and Usage Examples
 
 ### Application Configuration
 
@@ -335,8 +909,26 @@ else if (fileName.EndsWith(FileTypes.JsonFileExtension))
 ```csharp
 using GenHub.Core.Constants;
 
-// Generate publisher content ID
-var publisherId = $"{ManifestConstants.PublisherContentIdPrefix}.{contentName}.{ManifestConstants.DefaultManifestSchemaVersion}";
+// All manifest IDs now use 5-segment format: schemaVersion.userVersion.publisher.contentType.contentName
+
+// Generate installation ID with version normalization (5 segments)
+var installId = $"{ManifestConstants.DefaultManifestFormatVersion}.{ManifestConstants.GeneralsManifestVersion.Replace(".", "")}.steam.gameinstallation.generals";
+// Result: "1.108.steam.gameinstallation.generals" (dots removed from "1.08" → "108")
+
+// Generate client ID (5 segments)
+var clientId = $"{ManifestConstants.DefaultManifestFormatVersion}.{ManifestConstants.ZeroHourManifestVersion.Replace(".", "")}.steam.gameclient.zerohour";
+// Result: "1.104.steam.gameclient.zerohour" (dots removed from "1.04" → "104")
+
+// Generate mod ID (5 segments)
+var modId = $"{ManifestConstants.DefaultManifestFormatVersion}.1.{ManifestConstants.GenHubPublisher}.mod.rising-sun-mod";
+// "1.1.genhub.mod.rising-sun-mod"
+
+// Use manifest versions in manifest generation
+var generalsVersion = ManifestConstants.GeneralsManifestVersion; // "1.08"
+var zeroHourVersion = ManifestConstants.ZeroHourManifestVersion; // "1.04"
+
+// Example: await manifestService.CreateGameInstallationManifestAsync(path, GameType.Generals, type, generalsVersion);
+// The service will automatically normalize "1.08" → "108" and generate a 5-segment ID
 
 // Validate manifest ID length
 if (manifestId.Length < ManifestConstants.MinManifestIdLength ||
@@ -344,6 +936,14 @@ if (manifestId.Length < ManifestConstants.MinManifestIdLength ||
 {
     throw new ArgumentException("Manifest ID length is invalid");
 }
+
+// Use PublisherTypeConstants for publisher types
+var publisherType = PublisherTypeConstants.Steam;
+var unknownType = PublisherTypeConstants.Unknown;
+
+// Map installation type to publisher type
+var publisher = PublisherTypeConstants.FromInstallationType(GameInstallationType.Steam);
+// Result: "steam"
 ```
 
 ### HTTP Operations with ApiConstants
@@ -503,6 +1103,8 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **IoConstants**: Input/output operation constants  
 - **ManifestConstants**: Manifest ID and validation constants  
 - **ProcessConstants**: System process and exit code constants  
+- **PublisherInfoConstants**: Publisher display names, websites, and support URLs  
+- **PublisherTypeConstants**: Publisher type identifiers for content sources  
 - **StorageConstants**: Storage and CAS operation constants  
 - **TimeIntervals**: Time spans and intervals  
 - **UiConstants**: User interface sizing and behavior  
