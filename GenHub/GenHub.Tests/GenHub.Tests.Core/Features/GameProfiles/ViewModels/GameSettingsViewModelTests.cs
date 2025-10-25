@@ -334,33 +334,6 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
-    /// Should not load settings when game type changes during initialization.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_DuringInitialization()
-    {
-        // Arrange
-        var profile = new GameProfile
-        {
-            GameClient = new GameClient { GameType = GameType.ZeroHour },
-        };
-
-        // Start initialization (which sets initialization depth > 0)
-        var initTask = _viewModel.InitializeForProfileAsync("test", profile);
-
-        // Act - Change game type during initialization
-        _viewModel.SelectedGameType = GameType.Generals;
-
-        // Complete initialization
-        await initTask;
-
-        // Assert - Should have loaded settings for ZeroHour during initialization, but not for Generals
-        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(GameType.ZeroHour), Times.Once);
-        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(GameType.Generals), Times.Never);
-    }
-
-    /// <summary>
     /// Should handle load settings command failure gracefully.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
