@@ -23,7 +23,7 @@ public class GameClientTests
         Assert.Equal(string.Empty, client.ExecutablePath);
         Assert.Equal(string.Empty, client.WorkingDirectory);
         Assert.Equal(GameType.Generals, client.GameType);
-        Assert.Equal(string.Empty, client.BaseInstallationId);
+        Assert.Equal(string.Empty, client.InstallationId);
     }
 
     /// <summary>

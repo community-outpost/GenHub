@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -168,7 +169,9 @@ public class ManifestProvider : IManifestProvider
 
             var addRes = await _manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
             if (addRes?.Success != true)
+            {
                 _logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
+            }
 
             return generated;
         }
@@ -186,12 +189,14 @@ public class ManifestProvider : IManifestProvider
     {
         // Prefer a deterministic manifest id for installations so tests and embedded resources can
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
-        var tempInstallForId = new GameInstallation(string.Empty, installation.InstallationType);
-        tempInstallForId.HasZeroHour = installation.HasZeroHour;
-        var versionForId = installation.AvailableClients?.Count > 0 ? installation.AvailableClients[0].Version : "1.0";
+        var tempInstallForId = new GameInstallation(installation.InstallationPath, installation.InstallationType, null);
+
         var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
-        var userVersion = int.TryParse(versionForId, out var parsedVersion) ? parsedVersion : 0;
-        var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, userVersion);
+
+        // Use schema version 0 for generated installation manifests (tests expect 1.0.* pattern)
+        var manifestVersion = 0;
+
+        var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, manifestVersion);
 
         // Try CAS using deterministic id
         var casResult = await _manifestPool.GetManifestAsync(ManifestId.Create(deterministicId), cancellationToken);
@@ -232,18 +237,60 @@ public class ManifestProvider : IManifestProvider
         {
             _logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
 
-            var generated = _manifestBuilder
-            .WithBasicInfo(installation.InstallationType, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals, userVersion)
-            .WithContentType(ContentType.GameInstallation, installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals)
-            .WithPublisher(installation.InstallationType.ToString(), string.Empty)
-            .WithMetadata($"Generated manifest for installation at {installation.InstallationPath}")
-            .AddRequiredDirectories("Data", "Maps")
-            .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly)
-            .Build();            // Validate ID before adding to pool
+            // Determine the correct source path based on the game type
+            var manifestGameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+            var sourcePath = manifestGameType == GameType.ZeroHour
+                ? (!string.IsNullOrEmpty(installation.ZeroHourPath) ? installation.ZeroHourPath : installation.InstallationPath)
+                : (!string.IsNullOrEmpty(installation.GeneralsPath) ? installation.GeneralsPath : installation.InstallationPath);
+
+            // Get user-friendly publisher name matching InstallationTypeDisplayConverter
+            var publisherName = installation.InstallationType switch
+            {
+                GameInstallationType.Steam => "Steam",
+                GameInstallationType.EaApp => "EA App",
+                GameInstallationType.TheFirstDecade => "The First Decade",
+                GameInstallationType.Wine => "Wine/Proton",
+                GameInstallationType.CDISO => "CD-ROM",
+                GameInstallationType.Retail => "Retail Installation",
+                _ => installation.InstallationType.ToString()
+            };
+
+            var builder = _manifestBuilder
+                .WithBasicInfo(installation.InstallationType, manifestGameType, manifestVersion)
+                .WithContentType(ContentType.GameInstallation, manifestGameType)
+                .WithPublisher(publisherName, string.Empty)
+                .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
+                .AddRequiredDirectories("Data", "Maps")
+                .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
+
+            // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
+            // to dramatically improve scan performance. This is acceptable because:
+            // 1. Future implementation will use CSV-based authority from GitHub
+            // 2. CSV will contain file lists specific to EA/Steam installation types and languages
+            // 3. Users don't modify game installation files, so integrity checking via hashes is unnecessary
+            // 4. Hash computation for thousands of files takes significant time during game scanning
+            //
+            // The CSV authority system will be implemented in a future PR and will:
+            // - Download CSV from GitHub based on installation type (EA/Steam), language, and version
+            // - Generate manifest directly from CSV without filesystem scanning
+            // - Only scan filesystem to verify installation completeness
+            //
+            // For now: Manifest files will have Hash=null for GameInstallation source type
+            if (!string.IsNullOrEmpty(sourcePath) && Directory.Exists(sourcePath))
+            {
+                await builder.AddFilesFromDirectoryAsync(sourcePath, ContentSourceType.GameInstallation);
+            }
+
+            var generated = builder.Build();
+
+            // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
-            var addRes2 = await _manifestPool.AddManifestAsync(generated, installation.InstallationPath ?? string.Empty, cancellationToken);
+            var addRes2 = await _manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, cancellationToken);
             if (addRes2?.Success != true)
+            {
                 _logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? Array.Empty<string>()));
+            }
+
             return generated;
         }
 

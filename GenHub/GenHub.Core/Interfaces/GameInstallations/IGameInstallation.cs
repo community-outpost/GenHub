@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Interfaces.GameInstallations;
 
@@ -7,6 +8,11 @@ namespace GenHub.Core.Interfaces.GameInstallations;
 /// </summary>
 public interface IGameInstallation
 {
+    /// <summary>
+    /// Gets the unique identifier for this installation.
+    /// </summary>
+    string Id { get; }
+
     /// <summary>
     /// Gets the type of game installation.
     /// </summary>
@@ -36,6 +42,24 @@ public interface IGameInstallation
     /// Gets the path to Zero Hour installation within this source.
     /// </summary>
     string ZeroHourPath { get; }
+
+    /// <summary>
+    /// Gets the available game clients for this installation.
+    /// </summary>
+    List<GameClient> AvailableGameClients { get; }
+
+    /// <summary>
+    /// Sets the paths for Generals and Zero Hour.
+    /// </summary>
+    /// <param name="generalsPath">The path to Generals, or null if not present.</param>
+    /// <param name="zeroHourPath">The path to Zero Hour, or null if not present.</param>
+    void SetPaths(string? generalsPath, string? zeroHourPath);
+
+    /// <summary>
+    /// Populates the available game clients for this installation.
+    /// </summary>
+    /// <param name="clients">The clients to add.</param>
+    void PopulateGameClients(IEnumerable<GameClient> clients);
 
     /// <summary>
     /// Fetch the game installations.

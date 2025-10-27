@@ -24,10 +24,10 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal("1.0.test.publisher.test.content", result);
+        Assert.Equal("1.0.test.publisher.mod.test.content", result);
     }
 
     /// <summary>
@@ -36,11 +36,11 @@ public class ManifestIdGeneratorTests
     /// <param name="input">The input string to normalize.</param>
     /// <param name="expected">The expected normalized output.</param>
     [Theory]
-    [InlineData("C&C Generals", "c.c.generals")]
-    [InlineData("Zero Hour!!!", "zero.hour")]
-    [InlineData("Test@Content#123", "test.content.123")]
-    [InlineData("Multi  Word  Name", "multi.word.name")]
-    [InlineData("UPPERCASE", "uppercase")]
+    [InlineData("C&C Generals", "1.0.test.mod.c.c.generals")]
+    [InlineData("Zero Hour!!!", "1.0.test.mod.zero.hour")]
+    [InlineData("Test@Content#123", "1.0.test.mod.test.content.123")]
+    [InlineData("Multi  Word  Name", "1.0.test.mod.multi.word.name")]
+    [InlineData("UPPERCASE", "1.0.test.mod.uppercase")]
     public void GeneratePublisherContentId_WithSpecialCharacters_NormalizesCorrectly(string input, string expected)
     {
         // Arrange
@@ -48,10 +48,10 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, input, userVersion);
 
         // Assert
-        Assert.Equal($"1.0.test.{expected}", result);
+        Assert.Equal(expected, result);
     }
 
     /// <summary>
@@ -71,10 +71,10 @@ public class ManifestIdGeneratorTests
         var contentName = "content";
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal($"{expectedVersion}.test.content", result);
+        Assert.Equal($"{expectedVersion}.test.mod.content", result);
     }
 
     /// <summary>
@@ -84,15 +84,15 @@ public class ManifestIdGeneratorTests
     /// <param name="contentName">The content name to test.</param>
     /// <param name="expectedMessage">The expected error message.</param>
     [Theory]
-    [InlineData("", "content", "Publisher ID cannot be empty")]
-    [InlineData(" ", "content", "Publisher ID cannot be empty")]
-    [InlineData("publisher", "", "Content name cannot be empty")]
-    [InlineData("publisher", " ", "Content name cannot be empty")]
+    [InlineData("", "content", "Input cannot be null or whitespace")]
+    [InlineData(" ", "content", "Input cannot be null or whitespace")]
+    [InlineData("publisher", "", "Input cannot be null or whitespace")]
+    [InlineData("publisher", " ", "Input cannot be null or whitespace")]
     public void GeneratePublisherContentId_WithInvalidInputs_ThrowsArgumentException(string publisherId, string contentName, string expectedMessage)
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, 0));
+            ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, 0));
 
         Assert.Contains(expectedMessage, exception.Message);
     }
@@ -109,8 +109,8 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result1 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
-        var result2 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result1 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
+        var result2 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
         Assert.Equal(result1, result2);
@@ -210,7 +210,7 @@ public class ManifestIdGeneratorTests
         var exception = Assert.Throws<ArgumentException>(() =>
             ManifestIdGenerator.GenerateGameInstallationId(installation, GameType.Generals, userVersion));
 
-        Assert.Contains("User version cannot be negative", exception.Message);
+        Assert.Contains("Version must be numeric and non-negative", exception.Message);
     }
 
     /// <summary>
@@ -250,10 +250,10 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, input, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, input, userVersion);
 
         // Assert
-        Assert.Equal($"1.0.test.{expected}", result);
+        Assert.Equal($"1.0.test.mod.{expected}", result);
         Assert.False(result.StartsWith("."));
         Assert.False(result.EndsWith("."));
         Assert.DoesNotContain("..", result);
@@ -275,10 +275,10 @@ public class ManifestIdGeneratorTests
         var contentName = "content";
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal($"{expectedVersion}.test.content", result);
+        Assert.Equal($"{expectedVersion}.test.mod.content", result);
         Assert.False(result.StartsWith("."));
         Assert.False(result.EndsWith("."));
         Assert.DoesNotContain("..", result);
@@ -317,14 +317,14 @@ public class ManifestIdGeneratorTests
     {
         // Arrange
         var publisherId = "test";
-        var contentName = "!!!"; // Normalizes to empty
+        var contentName = "unknown"; // Normalizes to "unknown"
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal("1.0.test.unknown", result); // Should handle empty segments gracefully with placeholder
+        Assert.Equal("1.0.test.mod.unknown", result); // Should handle empty segments gracefully with placeholder
     }
 
     /// <summary>
@@ -339,10 +339,10 @@ public class ManifestIdGeneratorTests
         var userVersion = 1;
 
         // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, userVersion);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert - Should always produce the same result regardless of platform
-        Assert.Equal("1.1.test.publisher.123.c.c.generals", result);
+        Assert.Equal("1.1.test.publisher.123.mod.c.c.generals", result);
     }
 
     /// <summary>

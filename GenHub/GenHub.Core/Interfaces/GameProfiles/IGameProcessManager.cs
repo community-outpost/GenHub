@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 
@@ -8,6 +9,11 @@ namespace GenHub.Core.Interfaces.GameProfiles;
 /// </summary>
 public interface IGameProcessManager
 {
+    /// <summary>
+    /// Occurs when a managed game process exits.
+    /// </summary>
+    event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
+
     /// <summary>
     /// Starts a new game process with the specified configuration.
     /// </summary>

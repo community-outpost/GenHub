@@ -16,7 +16,7 @@ public interface IContentManifestBuilder
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion);
+    IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, object? manifestVersion);
 
     /// <summary>
     /// Sets basic content information for publisher content (used by external publishers).
@@ -27,6 +27,15 @@ public interface IContentManifestBuilder
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, int manifestVersion);
 
     /// <summary>
     /// Sets the content type and target game.
@@ -43,8 +52,9 @@ public interface IContentManifestBuilder
     /// <param name="website">Publisher website.</param>
     /// <param name="supportUrl">Support URL.</param>
     /// <param name="contactEmail">Contact email.</param>
+    /// <param name="publisherType">Publisher type identifier for dependency validation.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "");
+    IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "", string publisherType = "");
 
     /// <summary>
     /// Sets content metadata.

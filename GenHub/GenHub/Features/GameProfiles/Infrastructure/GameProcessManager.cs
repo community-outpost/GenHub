@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -25,6 +26,12 @@ public class GameProcessManager(
     private readonly IConfigurationProviderService _configProvider = configProvider;
     private readonly ILogger<GameProcessManager> _logger = logger;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+
+    /// <summary>
+    /// Occurs when a managed game process has exited.
+    /// Subscribers can use this event to react to process termination and perform cleanup.
+    /// </summary>
+    public event EventHandler<GameProcessExitedEventArgs>? ProcessExited;
 
     /// <inheritdoc/>
     public Task<OperationResult<GameProcessInfo>> StartProcessAsync(GameLaunchConfiguration configuration, CancellationToken cancellationToken = default)
@@ -111,7 +118,7 @@ public class GameProcessManager(
             try
             {
                 process.EnableRaisingEvents = true;
-                process.Exited += (_, __) => _managedProcesses.TryRemove(process.Id, out Process? _);
+                process.Exited += OnProcessExited;
             }
             catch (Exception ex)
             {
@@ -322,5 +329,24 @@ public class GameProcessManager(
             // Process has exited
             return string.Empty;
         }
+    }
+
+    private void OnProcessExited(object? sender, EventArgs e)
+    {
+        if (sender is not Process process)
+            return;
+
+        // Remove from managed processes
+        _managedProcesses.TryRemove(process.Id, out _);
+
+        // Raise the event
+        var args = new GameProcessExitedEventArgs
+        {
+            ProcessId = process.Id,
+            ExitCode = process.ExitCode,
+            ExitTime = DateTime.UtcNow,
+        };
+
+        ProcessExited?.Invoke(this, args);
     }
 }

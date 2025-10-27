@@ -396,7 +396,7 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <ComboBox Grid.Column="0" 
                                           Name="VersionComboBox"
-                                          ItemsSource="{Binding AvailableClients}" 
+                                          ItemsSource="{Binding AvailableGameClients}" 
                                           SelectedItem="{Binding SelectedClient}" 
                                           HorizontalAlignment="Stretch">
                                     <ComboBox.ItemTemplate>

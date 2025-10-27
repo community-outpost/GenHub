@@ -92,7 +92,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     /// <summary>
     /// Gets the available clients.
     /// </summary>
-    public ObservableCollection<ProfileInfoItem> AvailableClients { get; } = new();
+    public ObservableCollection<ProfileInfoItem> AvailableGameClients { get; } = new();
 
     /// <summary>
     /// Gets or sets the selected client.

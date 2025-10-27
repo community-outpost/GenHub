@@ -36,14 +36,14 @@ GameInstallationService caches detection results with a lightweight in-memory ca
 
 **Key Components**:
 
-- **IGameVersionDetectionOrchestrator**: Coordinates version detection across all known installations
+- **IGameClientDetectionOrchestrator**: Coordinates game client detection across all known installations
 - **IGameVersionDetector**: Analyzes installations to identify distinct executable variants
 - **GameClient**: Data model with Id, Name, Version, ExecutablePath, GameType, InstallationType, LaunchArguments, and EnvironmentVariables properties
 - **GameType**: Enumeration distinguishing Generals versus ZeroHour variants
-- **IGameVersionValidator**: Verifies executable functionality and compatibility
+- **IGameClientValidator**: Verifies executable functionality and compatibility
 
 **Version Identification Logic**:
-The system recognizes that a single GameInstallation may contain multiple executable variants. These could represent different patch levels, community modifications, or standalone executables. GameVersionDetectionOrchestrator systematically scans each detected installation, analyzing executable signatures, file versions, and directory structures to create distinct GameClient entries.
+The system recognizes that a single GameInstallation may contain multiple executable variants. These could represent different patch levels, community modifications, or standalone executables. GameClientDetectionOrchestrator systematically scans each detected installation, analyzing executable signatures, file versions, and directory structures to create distinct GameClient entries.
 
 **GameClient Model**:
 The GameClient model has been enhanced to support launch configuration with LaunchArguments and EnvironmentVariables properties, enabling per-version customization of startup parameters and environment settings for compatibility with different game clients.

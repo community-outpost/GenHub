@@ -24,6 +24,8 @@ public sealed class GameClientDetectionOrchestrator(
     ILogger<GameClientDetectionOrchestrator> logger)
     : IGameClientDetectionOrchestrator
 {
+    private readonly IGameClientDetector _clientDetector = clientDetector;
+
     /// <inheritdoc/>
     public async Task<DetectionResult<GameClient>> DetectAllClientsAsync(
         CancellationToken cancellationToken = default)
@@ -45,7 +47,7 @@ public sealed class GameClientDetectionOrchestrator(
             var allClients = new List<GameClient>();
             var errors = new List<string>();
 
-            var clientResult = await clientDetector.DetectClientsFromInstallationsAsync(result.Items, cancellationToken);
+            var clientResult = await _clientDetector.DetectGameClientsFromInstallationsAsync(result.Items, cancellationToken);
             if (clientResult.Success)
             {
                 allClients.AddRange(clientResult.Items);
@@ -73,6 +75,53 @@ public sealed class GameClientDetectionOrchestrator(
         {
             stopwatch.Stop();
             logger.LogError(ex, "Game client detection failed with exception after {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
+            throw;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<DetectionResult<GameClient>> DetectGameClientsFromInstallationsAsync(
+        IEnumerable<IGameInstallation> installations,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Detecting game clients from {InstallationCount} pre-detected installations", installations.Count());
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            var allGameClients = new List<GameClient>();
+            var errors = new List<string>();
+
+            // Cast to concrete type as required by detector
+            var concreteInstallations = installations.Cast<Core.Models.GameInstallations.GameInstallation>();
+            var clientResult = await _clientDetector.DetectGameClientsFromInstallationsAsync(concreteInstallations, cancellationToken);
+            if (clientResult.Success)
+            {
+                allGameClients.AddRange(clientResult.Items);
+                logger.LogInformation("Successfully detected {ClientCount} game clients from installations", clientResult.Items.Count);
+            }
+            else
+            {
+                errors.AddRange(clientResult.Errors);
+                logger.LogWarning("Client detection from installations failed: {Errors}", string.Join(", ", clientResult.Errors));
+            }
+
+            stopwatch.Stop();
+            var finalResult = errors.Any()
+                ? DetectionResult<GameClient>.CreateFailure(string.Join(", ", errors))
+                : DetectionResult<GameClient>.CreateSuccess(allGameClients, stopwatch.Elapsed);
+
+            logger.LogInformation(
+                "Client detection from installations completed in {ElapsedMs}ms with {ClientCount} clients found",
+                stopwatch.ElapsedMilliseconds,
+                allGameClients.Count);
+
+            return finalResult;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            logger.LogError(ex, "Client detection from installations failed with exception after {ElapsedMs}ms", stopwatch.ElapsedMilliseconds);
             throw;
         }
     }

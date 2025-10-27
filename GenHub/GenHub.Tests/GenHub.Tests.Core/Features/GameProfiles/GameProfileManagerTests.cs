@@ -52,7 +52,7 @@ public class GameProfileManagerTests
             Id = Guid.NewGuid().ToString(),
             Name = request.Name,
             GameInstallationId = installation.Id,
-            GameClient = installation.AvailableClients.First(),
+            GameClient = installation.AvailableGameClients.First(),
         };
 
         _installationServiceMock.Setup(x => x.GetInstallationAsync(installation.Id, default))
@@ -397,7 +397,7 @@ public class GameProfileManagerTests
         return new GameInstallation("C:\\Games\\TestGame", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object)
         {
             Id = Guid.NewGuid().ToString(),
-            AvailableClients = new List<GameClient> { new GameClient { Id = clientId, Version = "1.0" }, },
+            AvailableGameClients = new List<GameClient> { new GameClient { Id = clientId, Version = "1.0" }, },
         };
     }
 }

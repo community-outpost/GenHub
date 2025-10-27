@@ -16,7 +16,7 @@ public interface IManifestGenerationService
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
     /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, int manifestVersion = 0);
+    Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(string gameInstallationPath, GameType gameType, GameInstallationType installationType, object? manifestVersion = null);
 
     /// <summary>
     /// Creates a manifest builder for any content type (mod, patch, addon, etc).
@@ -39,15 +39,38 @@ public interface IManifestGenerationService
         params ContentDependency[] dependencies);
 
     /// <summary>
-    /// Creates a manifest builder for a standalone game version.
+    /// Creates a manifest builder for a game client.
     /// </summary>
-    /// <param name="gameDirectory">Path to the standalone game directory.</param>
-    /// <param name="publisherId">The publisher identifier used to generate the manifest id.</param>
-    /// <param name="gameName">Game version display name.</param>
-    /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <param name="executablePath">Path to the main executable.</param>
+    /// <param name="installationPath">Path to the game client installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="clientName">The name of the game client.</param>
+    /// <param name="clientVersion">The version of the game client.</param>
+    /// <param name="executablePath">The full path to the game executable.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    Task<IContentManifestBuilder> CreateGameClientManifestAsync(string gameDirectory, string publisherId, string gameName, int manifestVersion = 0, string executablePath = "");
+    Task<IContentManifestBuilder> CreateGameClientManifestAsync(
+        string installationPath,
+        GameType gameType,
+        string clientName,
+        string clientVersion,
+        string executablePath);
+
+    /// <summary>
+    /// Creates a manifest builder for a GeneralsOnline game client with special handling.
+    /// GeneralsOnline clients are auto-updated, so hash validation is bypassed until a dedicated
+    /// publisher system is implemented for downloading and updating via content manifest endpoints.
+    /// </summary>
+    /// <param name="installationPath">Path to the game client installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="clientName">The name of the GeneralsOnline client.</param>
+    /// <param name="clientVersion">The version of the client (typically "Auto-Updated").</param>
+    /// <param name="executablePath">The full path to the GeneralsOnline executable.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    Task<IContentManifestBuilder> CreateGeneralsOnlineClientManifestAsync(
+        string installationPath,
+        GameType gameType,
+        string clientName,
+        string clientVersion,
+        string executablePath);
 
     /// <summary>
     /// Saves a manifest to a file.
