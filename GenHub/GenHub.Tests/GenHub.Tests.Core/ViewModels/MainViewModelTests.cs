@@ -2,11 +2,13 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -34,6 +36,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            CreateToolsVm(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -65,6 +68,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            CreateToolsVm(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -92,6 +96,7 @@ public class MainViewModelTests
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            CreateToolsVm(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -120,6 +125,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            CreateToolsVm(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -151,6 +157,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            CreateToolsVm(),
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -189,6 +196,17 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockUserSettings.Object, mockLogger.Object);
         return (settingsVm, mockUserSettings);
+    }
+
+    /// <summary>
+    /// Creates a default ToolsViewModel with mocked services for reuse.
+    /// </summary>
+    private static ToolsViewModel CreateToolsVm()
+    {
+        var mockToolRegistry = new Mock<IToolRegistry>();
+        mockToolRegistry.Setup(x => x.GetAllTools()).Returns(new System.Collections.Generic.List<ITool>());
+        mockToolRegistry.Setup(x => x.GetEnabledTools()).Returns(new System.Collections.Generic.List<ITool>());
+        return new ToolsViewModel(mockToolRegistry.Object);
     }
 
     private static IConfigurationProviderService CreateConfigProviderMock()

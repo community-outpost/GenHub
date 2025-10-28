@@ -21,6 +21,11 @@ public enum NavigationTab
     Downloads,
 
     /// <summary>
+    /// Tools and utilities.
+    /// </summary>
+    Tools,
+
+    /// <summary>
     /// Application settings and configuration.
     /// </summary>
     Settings,

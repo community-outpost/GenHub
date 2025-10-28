@@ -1,0 +1,130 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="GenHub.Features.Tools.Views.ToolsView"
+             x:DataType="vm:ToolsViewModel">
+
+    <Design.DataContext>
+        <vm:ToolsViewModel />
+    </Design.DataContext>
+
+    <UserControl.Styles>
+        <!-- Tool list item style -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A2A2A" />
+        </Style>
+
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#3A3A3A" />
+        </Style>
+
+        <!-- Tool card style -->
+        <Style Selector="Border.tool-card">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left sidebar - Tool list -->
+        <Border Grid.Column="0" Background="#1E1E1E" BorderBrush="#333333" BorderThickness="0,0,1,0" Padding="16">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                    <TextBlock Text="Tools" FontSize="24" FontWeight="Bold" Foreground="White" />
+                    <TextBlock Text="Select a tool to use" FontSize="12" Foreground="#A0A0A0" Margin="0,4,0,0" />
+                </StackPanel>
+
+                <!-- Refresh button -->
+                <Button Grid.Row="1" 
+                        Command="{Binding RefreshCurrentToolCommand}"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,0,0,12"
+                        Padding="8"
+                        Background="#2A2A2A"
+                        BorderBrush="#4A9EFF"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="🔄" FontSize="14" Margin="0,0,6,0" />
+                        <TextBlock Text="Refresh" FontSize="13" Foreground="White" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Tool list -->
+                <ListBox Grid.Row="2"
+                         ItemsSource="{Binding AvailableTools}"
+                         SelectedItem="{Binding SelectedTool}"
+                         Background="Transparent"
+                         BorderThickness="0">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="tool-card">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Metadata.Name}" 
+                                               FontSize="14" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="White" />
+                                    <TextBlock Text="{Binding Metadata.Description}" 
+                                               FontSize="11" 
+                                               Foreground="#B0B0B0" 
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Metadata.Category}" 
+                                               FontSize="10" 
+                                               Foreground="#808080" 
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+
+        <!-- Right content area - Selected tool view -->
+        <Grid Grid.Column="1" Background="#1A1A1A" Margin="20">
+            <!-- Tool content -->
+            <ContentControl Content="{Binding SelectedToolViewModel}"
+                            IsVisible="{Binding SelectedToolViewModel, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+            <!-- Empty state -->
+            <Border IsVisible="{Binding SelectedToolViewModel, Converter={x:Static ObjectConverters.IsNull}}"
+                    Background="#2A2A2A" 
+                    CornerRadius="8" 
+                    Padding="40"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel Spacing="12" HorizontalAlignment="Center">
+                    <TextBlock Text="🔧" FontSize="48" HorizontalAlignment="Center" />
+                    <TextBlock Text="No Tool Selected" 
+                               FontSize="18" 
+                               FontWeight="SemiBold" 
+                               Foreground="White" 
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="Select a tool from the list to get started" 
+                               FontSize="14" 
+                               Foreground="#B0B0B0" 
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
