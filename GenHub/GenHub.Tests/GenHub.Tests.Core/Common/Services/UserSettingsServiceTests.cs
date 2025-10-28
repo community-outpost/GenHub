@@ -58,7 +58,7 @@ public class UserSettingsServiceTests : IDisposable
         Assert.Equal(0, settings.MaxConcurrentDownloads);
         Assert.False(settings.AllowBackgroundDownloads);
         Assert.False(settings.AutoCheckForUpdatesOnStartup);
-        Assert.Equal(WorkspaceStrategy.FullCopy, settings.DefaultWorkspaceStrategy); // C# enum default is FullCopy (0)
+        Assert.Equal(WorkspaceStrategy.SymlinkOnly, settings.DefaultWorkspaceStrategy); // C# enum default is SymlinkOnly (0)
     }
 
     /// <summary>

@@ -32,8 +32,8 @@ public static class SharedViewModelModule
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register factory for GameProfileItemViewModel (has required constructor parameters)
-        services.AddTransient<Func<IGameProfile, string, string, GameProfileItemViewModel>>(sp =>
-            (profile, icon, cover) => new GameProfileItemViewModel(profile, icon, cover));
+        services.AddTransient<Func<string, IGameProfile, string, string, GameProfileItemViewModel>>(sp =>
+            (profileId, profile, icon, cover) => new GameProfileItemViewModel(profileId, profile, icon, cover));
 
         return services;
     }

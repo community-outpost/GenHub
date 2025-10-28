@@ -2,13 +2,17 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
 /// Provides extension methods for registering manifest generation services.
 /// </summary>
+/// <remarks>
+/// This module registers all services required for content manifest generation,
+/// caching, and management following the dependency injection patterns.
+/// </remarks>
 public static class ManifestModule
 {
     /// <summary>
@@ -20,12 +24,30 @@ public static class ManifestModule
     {
         // Core manifest services
         services.AddSingleton<IManifestCache, ManifestCache>();
-        services.AddScoped<IManifestProvider, ManifestProvider>();
-        services.AddSingleton<IManifestIdService>(new ManifestIdService());
+
+        // Manifest provider with proper factory pattern
+        services.AddScoped<IManifestProvider>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<ManifestProvider>>();
+            var manifestPool = provider.GetRequiredService<IContentManifestPool>();
+            var manifestIdService = provider.GetService<IManifestIdService>();
+            var manifestBuilder = provider.GetService<IContentManifestBuilder>();
+            var options = new ManifestProviderOptions
+            {
+                GenerateFallbackManifests = false,
+            };
+
+            // Use correct constructor signature for ManifestProvider
+            return new ManifestProvider(logger, manifestPool, manifestIdService, manifestBuilder, options);
+        });
+
+        services.AddSingleton<IManifestIdService, ManifestIdService>();
 
         // Discovery and generation services
         services.AddScoped<ManifestDiscoveryService>();
-        services.AddSingleton<IManifestGenerationService, ManifestGenerationService>();
+
+        services.AddScoped<IManifestGenerationService, ManifestGenerationService>();
+
         services.AddTransient<IContentManifestBuilder, ContentManifestBuilder>();
 
         // Startup service
