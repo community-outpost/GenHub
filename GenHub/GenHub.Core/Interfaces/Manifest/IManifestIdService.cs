@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -17,11 +16,13 @@ public interface IManifestIdService
     /// Generates a manifest ID for publisher-provided content.
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="contentType">The type of content being identified.</param>
     /// <param name="contentName">The content name.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
     OperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
+        ContentType contentType,
         string contentName,
         int userVersion = 0);
 
@@ -30,12 +31,12 @@ public interface IManifestIdService
     /// </summary>
     /// <param name="installation">The game installation used to derive the installation segment.</param>
     /// <param name="gameType">The specific game type for the manifest ID.</param>
-    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="userVersion">User-specified version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
     /// <returns>A result containing the generated manifest ID or an error.</returns>
     OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        int userVersion = 0);
+        object? userVersion);
 
     /// <summary>
     /// Validates a manifest ID string and returns a strongly-typed ManifestId if valid.

@@ -75,9 +75,9 @@ public class GitHubResolverTests
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>()))
             .Returns(manifestBuilder.Object);
-        manifestBuilder.Setup(m => m.WithPublisher(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+        manifestBuilder.Setup(m => m.WithPublisher(It.IsAny<string>(), string.Empty, string.Empty, string.Empty, string.Empty))
             .Returns(manifestBuilder.Object);
-        manifestBuilder.Setup(m => m.WithMetadata(It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<string>()))
+        manifestBuilder.Setup(m => m.WithMetadata(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>()))
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithInstallationInstructions(It.IsAny<WorkspaceStrategy>()))
             .Returns(manifestBuilder.Object);
@@ -86,7 +86,7 @@ public class GitHubResolverTests
                 It.IsAny<string>(),
                 It.IsAny<ContentSourceType>(),
                 It.IsAny<bool>(),
-                It.IsAny<FilePermissions>()))
+                It.IsAny<FilePermissions?>()))
             .ReturnsAsync(manifestBuilder.Object);
 
         // Build returns a real manifest
@@ -112,7 +112,12 @@ public class GitHubResolverTests
         var result = await _resolver.ResolveAsync(discoveredItem);
 
         // Assert
-        Assert.True(result.Success);
+        if (!result.Success)
+        {
+            var invocationMethods = _manifestBuilderMock.Invocations.Select(i => i.Method.Name).ToList();
+            Assert.Fail($"Resolver failure: {result.FirstError}. Builder invocations: {string.Join(",", invocationMethods)}");
+        }
+
         ContentManifest manifest = result.Data!;
         Assert.NotNull(manifest);
         Assert.Equal("1.0.github.test.publisher.mod", manifest.Id);
