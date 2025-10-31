@@ -33,18 +33,18 @@ public class ManifestGenerationService(
     private int _lastReportedCount = 0;
 
     /// <summary>
-    /// Creates a manifest builder for a game installation.
+    /// Creates a manifest builder for a game installation with string version normalization.
     /// </summary>
     /// <param name="gameInstallationPath">Path to the game installation.</param>
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="installationType">The installation type (Steam, EaApp).</param>
-    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <param name="manifestVersion">The manifest version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
         string gameInstallationPath,
         GameType gameType,
         GameInstallationType installationType,
-        object? manifestVersion = null)
+        string? manifestVersion = null)
     {
         try
         {
@@ -92,6 +92,23 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Creates a manifest builder for a game installation with integer version.
+    /// </summary>
+    /// <param name="gameInstallationPath">Path to the game installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="installationType">The installation type (Steam, EaApp).</param>
+    /// <param name="manifestVersion">The manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public async Task<IContentManifestBuilder> CreateGameInstallationManifestAsync(
+        string gameInstallationPath,
+        GameType gameType,
+        GameInstallationType installationType,
+        int manifestVersion = 0)
+    {
+        return await CreateGameInstallationManifestAsync(gameInstallationPath, gameType, installationType, manifestVersion.ToString());
+    }
+
+    /// <summary>
     /// Creates a content manifest for a content package.
     /// </summary>
     /// <param name="contentDirectory">Path to the content directory.</param>
@@ -122,7 +139,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisherId, contentName, manifestVersion)
+                .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
                 .WithContentType(contentType, targetGame);
 
             // Add dependencies
@@ -174,7 +191,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisherId, gameName, manifestVersion)
+                .WithBasicInfo(publisherId, gameName, manifestVersion.ToString())
                 .WithContentType(ContentType.GameClient, GameType.Generals); // TODO: Determine game type dynamically
 
             await Task.CompletedTask; // Make method async for consistency
@@ -257,7 +274,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisherId, referralName, manifestVersion)
+                .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
                 .WithContentType(ContentType.PublisherReferral, GameType.Generals) // Default to Generals
                 .WithMetadata(description);
 
@@ -302,7 +319,7 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisherId, referralName, manifestVersion)
+                .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
                 .WithContentType(ContentType.ContentReferral, GameType.Generals) // Default to Generals
                 .WithMetadata(description);
 
@@ -394,7 +411,7 @@ public class ManifestGenerationService(
             var publisher = new PublisherInfo { Name = publisherName };
             var contentName = gameType.ToString().ToLowerInvariant() + "-client";
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisher, contentName, 1)
+                .WithBasicInfo(publisher, contentName, 1.ToString())
                 .WithContentType(ContentType.GameClient, gameType);
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath);
@@ -456,7 +473,7 @@ public class ManifestGenerationService(
             var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
             var contentName = $"{gameType.ToString().ToLowerInvariant()}-{executableFileName}";
             var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisher, contentName, 1)
+                .WithBasicInfo(publisher, contentName, 1.ToString())
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
                     "GeneralsOnline community client with auto-updates and enhanced compatibility",

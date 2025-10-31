@@ -49,7 +49,7 @@ public static class ManifestIdGenerator
     /// <param name="userVersion">User-specified version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
     /// <param name="suffix">Optional suffix for content type (e.g., '-installation', '-client'). Defaults to '-installation'.</param>
     /// <returns>A normalized manifest identifier in the form 'manifestVersion.userVersion.installationType.gameType[suffix]'.</returns>
-    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, object? userVersion, string suffix = "")
+    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, string? userVersion, string suffix = "")
     {
         if (installation == null)
             throw new ArgumentNullException(nameof(installation));
@@ -65,17 +65,34 @@ public static class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Generates a manifest ID for a game installation with integer version.
+    /// Format: manifestVersion.userVersion.installationType.gameType[-suffix].
+    /// </summary>
+    /// <param name="installation">The game installation used to derive the installation segment.</param>
+    /// <param name="gameType">The specific game type (Generals or ZeroHour) for the manifest ID.</param>
+    /// <param name="userVersion">User-specified version (e.g., 0, 1, 2). Defaults to 0.</param>
+    /// <param name="suffix">Optional suffix for content type (e.g., '-installation', '-client'). Defaults to '-installation'.</param>
+    /// <returns>A normalized manifest identifier in the form 'manifestVersion.userVersion.installationType.gameType[suffix]'.</returns>
+    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, int userVersion = 0, string suffix = "")
+    {
+        if (userVersion < 0)
+            throw new ArgumentException("User version cannot be negative", nameof(userVersion));
+
+        return GenerateGameInstallationId(installation, gameType, userVersion.ToString(), suffix);
+    }
+
+    /// <summary>
     /// Normalizes a version value to a string without dots.
     /// Examples: "1.08" → "108", "1.04" → "104", 5 → "5", "2.0" → "20", null → "0".
     /// </summary>
-    /// <param name="version">Version as string, integer, or null (defaults to "0").</param>
+    /// <param name="version">Version as string or null (defaults to "0").</param>
     /// <returns>Normalized version string without dots.</returns>
-    private static string NormalizeVersionString(object? version)
+    private static string NormalizeVersionString(string? version)
     {
-        if (version == null)
+        if (string.IsNullOrEmpty(version))
             return "0";
 
-        string versionStr = version.ToString() ?? "0";
+        string versionStr = version;
 
         // Handle dotted versions like "1.08" or "2.0"
         if (versionStr.Contains('.'))

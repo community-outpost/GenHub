@@ -51,6 +51,10 @@ public class ContentManifestBuilderTests
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
             .Returns((string id) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>()))
+            .Returns((GameInstallation gi, GameType gt, string? v) =>
+                OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
+
         _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>()))
             .Returns((GameInstallation gi, GameType gt, int v) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
@@ -74,7 +78,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .Build();
 
         // Assert
@@ -91,7 +95,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithContentType(ContentType.Mod, GameType.Generals)
             .Build();
 
@@ -108,7 +112,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithPublisher("Test Publisher", "https://test.com", "https://support.test.com", "support@test.com")
             .Build();
 
@@ -128,7 +132,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .AddDependency(
                 id: ManifestId.Create("1.0.dep.publisher.content"),
                 name: "Dependency Name",
@@ -163,7 +167,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .AddRequiredDirectories(DirectoryNames.Data, "Maps", "Models")
             .Build();
 
@@ -182,7 +186,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy)
             .Build();
 
@@ -199,7 +203,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Minimal Publisher", "Minimal Manifest", 1)
+            .WithBasicInfo("Minimal Publisher", "Minimal Manifest", "1")
             .Build();
 
         // Assert

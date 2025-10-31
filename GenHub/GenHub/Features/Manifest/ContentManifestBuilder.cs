@@ -37,7 +37,7 @@ public class ContentManifestBuilder(
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, object? manifestVersion)
+    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, string? manifestVersion)
     {
         // Build a temporary GameInstallation to generate the ID
         var tempInstallation = new GameInstallation(string.Empty, installType);
@@ -59,7 +59,7 @@ public class ContentManifestBuilder(
         }
 
         _manifest.Name = gameType.ToString().ToLowerInvariant();
-        _manifest.Version = manifestVersion?.ToString() ?? "0";
+        _manifest.Version = manifestVersion ?? "0";
 
         _logger.LogDebug(
             "Set basic info for game installation: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, InstallType={InstallType}, GameType={GameType}",
@@ -76,6 +76,19 @@ public class ContentManifestBuilder(
     }
 
     /// <summary>
+    /// Sets the basic information for the manifest for game installations (used internally by GenHub).
+    /// This overload is specifically for generating manifests for EA/Steam game installations.
+    /// </summary>
+    /// <param name="installType">The game installation type (EA, Steam, etc.).</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion)
+    {
+        return WithBasicInfo(installType, gameType, manifestVersion.ToString());
+    }
+
+    /// <summary>
     /// Sets the basic information for the manifest for publisher content (used by external publishers).
     /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
     /// </summary>
@@ -83,15 +96,15 @@ public class ContentManifestBuilder(
     /// <param name="contentName">Content display name.</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion)
+    public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, string? manifestVersion)
     {
         // Store basic info for ID generation when ContentType is set
         _publisherId = publisherId;
         _contentName = contentName;
-        _manifestVersion = manifestVersion;
+        _manifestVersion = int.TryParse(manifestVersion, out var v) ? v : 0;
 
         _manifest.Name = contentName;
-        _manifest.Version = manifestVersion.ToString();
+        _manifest.Version = manifestVersion ?? "0";
         _manifest.ContentType = ContentType.Mod;
 
         _logger.LogDebug(
@@ -104,6 +117,19 @@ public class ContentManifestBuilder(
     }
 
     /// <summary>
+    /// Sets the basic information for the manifest for publisher content (used by external publishers).
+    /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion)
+    {
+        return WithBasicInfo(publisherId, contentName, manifestVersion.ToString());
+    }
+
+    /// <summary>
     /// Sets the basic information for the manifest with publisher info.
     /// </summary>
     /// <param name="publisher">Publisher information.</param>
@@ -112,7 +138,19 @@ public class ContentManifestBuilder(
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, int manifestVersion)
     {
-        // Use publisher name as publisher ID
+        return WithBasicInfo(publisher.Name, contentName, manifestVersion.ToString())
+            .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Sets the basic information for the manifest with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, string? manifestVersion)
+    {
         return WithBasicInfo(publisher.Name, contentName, manifestVersion)
             .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
     }

@@ -28,7 +28,7 @@ public static class ManifestIdValidator
 
     // Allow simple test-friendly ids like 'test-id' or 'simple.id' (alphanumeric with dashes, max 4 segments)
     private static readonly Regex SimpleIdRegex =
-        new(@"^[a-zA-Z0-9\-]+(\.[a-zA-Z0-9\-]+){0,3}$", RegexOptions.Compiled);
+        new(@"^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+){0,3}$", RegexOptions.Compiled);
 
     /// <summary>
     /// Throws an <see cref="ArgumentException"/> if the manifest ID is invalid.
@@ -78,7 +78,7 @@ public static class ManifestIdValidator
         // If the first token is a known installation type, this should be treated as an installation id.
         var installTypes = InstallationSourceConstants.AllInstallationTypes;
 
-        if (installTypes.Contains(remainderTokens[0]))
+        if (installTypes.Contains(remainderTokens[0], StringComparer.OrdinalIgnoreCase))
         {
             // Installation IDs must match the exact installation pattern and have exactly two tokens after version
             if (InstallationContentRegex.IsMatch(manifestId) && remainderTokens.Length == 2)

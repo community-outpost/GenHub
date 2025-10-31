@@ -74,7 +74,7 @@ public class ManifestIdServiceTests
         var gameType = GameType.Generals;
 
         // Act
-        var result = _service.GenerateGameInstallationId(installation, gameType, null);
+        var result = _service.GenerateGameInstallationId(installation, gameType, (string?)null);
 
         // Assert
         Assert.True(result.Success);

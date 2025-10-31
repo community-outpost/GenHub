@@ -39,7 +39,7 @@ public class ManifestIdService : IManifestIdService
     public OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        object? userVersion)
+        string? userVersion = null)
     {
         if (installation == null)
             return OperationResult<ManifestId>.CreateFailure("Installation cannot be null");
@@ -54,6 +54,15 @@ public class ManifestIdService : IManifestIdService
         {
             return OperationResult<ManifestId>.CreateFailure($"Failed to generate game installation ID: {ex.Message}");
         }
+    }
+
+    /// <inheritdoc/>
+    public OperationResult<ManifestId> GenerateGameInstallationId(
+        GameInstallation installation,
+        GameType gameType,
+        int userVersion = 0)
+    {
+        return GenerateGameInstallationId(installation, gameType, userVersion.ToString());
     }
 
     /// <inheritdoc/>

@@ -210,7 +210,7 @@ public class ManifestIdGeneratorTests
         var exception = Assert.Throws<ArgumentException>(() =>
             ManifestIdGenerator.GenerateGameInstallationId(installation, GameType.Generals, userVersion));
 
-        Assert.Contains("Version must be numeric and non-negative", exception.Message);
+        Assert.Contains("User version cannot be negative", exception.Message);
     }
 
     /// <summary>
