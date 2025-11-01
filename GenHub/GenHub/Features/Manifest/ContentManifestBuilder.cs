@@ -24,6 +24,11 @@ public class ContentManifestBuilder(
     private readonly IFileHashProvider _hashProvider = hashProvider;
     private readonly IManifestIdService _manifestIdService = manifestIdService;
 
+    // Temporary storage for ID generation
+    private string? _publisherId;
+    private string? _contentName;
+    private int? _manifestVersion;
+
     /// <summary>
     /// Sets the basic information for the manifest for game installations (used internally by GenHub).
     /// This overload is specifically for generating manifests for EA/Steam game installations.
@@ -32,11 +37,11 @@ public class ContentManifestBuilder(
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion)
+    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, string? manifestVersion)
     {
         // Build a temporary GameInstallation to generate the ID
         var tempInstallation = new GameInstallation(string.Empty, installType);
-        tempInstallation.HasZeroHour = gameType == GameType.ZeroHour;
+        tempInstallation.SetPaths(null, gameType == GameType.ZeroHour ? "dummy" : null);
 
         // Use ManifestIdService for consistent ID generation with ResultBase pattern
         var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
@@ -54,7 +59,7 @@ public class ContentManifestBuilder(
         }
 
         _manifest.Name = gameType.ToString().ToLowerInvariant();
-        _manifest.Version = manifestVersion.ToString();
+        _manifest.Version = manifestVersion ?? "0";
 
         _logger.LogDebug(
             "Set basic info for game installation: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, InstallType={InstallType}, GameType={GameType}",
@@ -71,6 +76,47 @@ public class ContentManifestBuilder(
     }
 
     /// <summary>
+    /// Sets the basic information for the manifest for game installations (used internally by GenHub).
+    /// This overload is specifically for generating manifests for EA/Steam game installations.
+    /// </summary>
+    /// <param name="installType">The game installation type (EA, Steam, etc.).</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion)
+    {
+        return WithBasicInfo(installType, gameType, manifestVersion.ToString());
+    }
+
+    /// <summary>
+    /// Sets the basic information for the manifest for publisher content (used by external publishers).
+    /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, string? manifestVersion)
+    {
+        // Store basic info for ID generation when ContentType is set
+        _publisherId = publisherId;
+        _contentName = contentName;
+        _manifestVersion = int.TryParse(manifestVersion, out var v) ? v : 0;
+
+        _manifest.Name = contentName;
+        _manifest.Version = manifestVersion ?? "0";
+        _manifest.ContentType = ContentType.Mod;
+
+        _logger.LogDebug(
+            "Set basic info for publisher content: Name={Name}, ManifestVersion={ManifestVersion}, Publisher={Publisher}",
+            _manifest.Name,
+            _manifest.Version,
+            publisherId);
+
+        return this;
+    }
+
+    /// <summary>
     /// Sets the basic information for the manifest for publisher content (used by external publishers).
     /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
     /// </summary>
@@ -80,35 +126,33 @@ public class ContentManifestBuilder(
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion)
     {
-        // Always generate the canonical ID from publisher name, content name, and version.
-        var idResult = _manifestIdService.GeneratePublisherContentId(publisherId, contentName, manifestVersion);
-        if (idResult.Success)
-        {
-            _manifest.Id = idResult.Data;
-        }
-        else
-        {
-            _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+        return WithBasicInfo(publisherId, contentName, manifestVersion.ToString());
+    }
 
-            // Fallback to direct generation if service fails
-            _manifest.Id = ManifestId.Create(
-                ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentName, manifestVersion));
-        }
+    /// <summary>
+    /// Sets the basic information for the manifest with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, int manifestVersion)
+    {
+        return WithBasicInfo(publisher.Name, contentName, manifestVersion.ToString())
+            .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
+    }
 
-        _manifest.Name = contentName;
-        _manifest.Version = manifestVersion.ToString();
-
-        _logger.LogDebug(
-            "Set basic info for publisher content: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, Publisher={Publisher}",
-            _manifest.Id,
-            _manifest.Name,
-            _manifest.Version,
-            publisherId);
-
-        // Ensure the generated ID conforms to the project's validation rules.
-        ManifestIdValidator.EnsureValid(_manifest.Id);
-
-        return this;
+    /// <summary>
+    /// Sets the basic information for the manifest with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance.</returns>
+    public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, string? manifestVersion)
+    {
+        return WithBasicInfo(publisher.Name, contentName, manifestVersion)
+            .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
     }
 
     /// <summary>
@@ -121,6 +165,30 @@ public class ContentManifestBuilder(
     {
         _manifest.ContentType = contentType;
         _manifest.TargetGame = targetGame;
+
+        // Generate ID now that we have all required information
+        if (_publisherId != null && _contentName != null && _manifestVersion.HasValue)
+        {
+            var idResult = _manifestIdService.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value);
+            if (idResult.Success)
+            {
+                _manifest.Id = idResult.Data;
+            }
+            else
+            {
+                _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+
+                // Fallback to direct generation if service fails
+                _manifest.Id = ManifestId.Create(
+                    ManifestIdGenerator.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value));
+            }
+
+            // Ensure the generated ID conforms to the project's validation rules.
+            ManifestIdValidator.EnsureValid(_manifest.Id);
+
+            _logger.LogDebug("Generated ID for publisher content: {Id}", _manifest.Id);
+        }
+
         _logger.LogDebug("Set content type: {ContentType}, Target game: {TargetGame}", contentType, targetGame);
         return this;
     }
@@ -132,12 +200,14 @@ public class ContentManifestBuilder(
     /// <param name="website">Publisher website.</param>
     /// <param name="supportUrl">Support URL.</param>
     /// <param name="contactEmail">Contact email.</param>
+    /// <param name="publisherType">Publisher type identifier for dependency validation.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithPublisher(
         string name,
         string website = "",
         string supportUrl = "",
-        string contactEmail = "")
+        string contactEmail = "",
+        string publisherType = "")
     {
         _manifest.Publisher = new PublisherInfo
         {
@@ -145,8 +215,9 @@ public class ContentManifestBuilder(
             Website = website,
             SupportUrl = supportUrl,
             ContactEmail = contactEmail,
+            PublisherType = publisherType,
         };
-        _logger.LogDebug("Set publisher: {PublisherName}", name);
+        _logger.LogDebug("Set publisher: {PublisherName} (Type: {PublisherType})", name, publisherType);
         return this;
     }
 
@@ -273,6 +344,15 @@ public class ContentManifestBuilder(
             return this;
         }
 
+        // TODO: Skip hash computation for GameInstallation manifests
+        // Currently, scanning game installations is very slow because we hash every file in the game directory.
+        // This is unnecessary for GameInstallation manifests because:
+        // 1. We will use a CSV-based authority system from GitHub in the future
+        // 2. The CSV will be specific to each game installation type (EA/Steam) and language
+        // 3. The CSV will be used to validate the installation and generate manifests
+        var shouldComputeHash = sourceType != ContentSourceType.GameInstallation;
+
+        _logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
         var searchPattern = fileFilter == "*" ? "*.*" : fileFilter;
         var files = Directory.EnumerateFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories);
 
@@ -280,14 +360,22 @@ public class ContentManifestBuilder(
         {
             var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
             var fileInfo = new FileInfo(filePath);
-            var hash = await _hashProvider.ComputeFileHashAsync(filePath);
+
+            // Skip hash computation for GameInstallation files to improve performance
+            // Hash will be null for these files, which is acceptable since we'll use CSV authority in the future
+            string? hash = null;
+            if (shouldComputeHash)
+            {
+                hash = await _hashProvider.ComputeFileHashAsync(filePath);
+            }
 
             var manifestFile = new ManifestFile
             {
                 RelativePath = relativePath,
                 Size = fileInfo.Length,
-                Hash = hash,
+                Hash = hash!, // Will be null for GameInstallation files
                 SourceType = sourceType,
+                SourcePath = sourceDirectory, // Set the source directory path for workspace preparation
                 IsExecutable = isExecutable || IsExecutableFile(filePath),
                 Permissions = new FilePermissions
                 {
@@ -299,7 +387,7 @@ public class ContentManifestBuilder(
             _manifest.Files.Add(manifestFile);
         }
 
-        _logger.LogInformation("Added {FileCount} files from directory: {Directory}", _manifest.Files.Count, sourceDirectory);
+        _logger.LogInformation("Added {FileCount} files from directory: {Directory} (Hashed: {Hashed})", _manifest.Files.Count, sourceDirectory, shouldComputeHash);
         return this;
     }
 
@@ -577,6 +665,29 @@ public class ContentManifestBuilder(
     /// <returns>The built manifest.</returns>
     public ContentManifest Build()
     {
+        // Ensure ID is generated if not already done
+        if (string.IsNullOrEmpty(_manifest.Id.Value) && _publisherId != null && _contentName != null && _manifestVersion.HasValue)
+        {
+            var idResult = _manifestIdService.GeneratePublisherContentId(_publisherId, _manifest.ContentType, _contentName, _manifestVersion.Value);
+            if (idResult.Success)
+            {
+                _manifest.Id = idResult.Data;
+            }
+            else
+            {
+                _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+
+                // Fallback to direct generation if service fails
+                _manifest.Id = ManifestId.Create(
+                    ManifestIdGenerator.GeneratePublisherContentId(_publisherId, _manifest.ContentType, _contentName, _manifestVersion.Value));
+            }
+
+            // Ensure the generated ID conforms to the project's validation rules.
+            ManifestIdValidator.EnsureValid(_manifest.Id);
+
+            _logger.LogDebug("Generated ID during build: {Id}", _manifest.Id);
+        }
+
         _logger.LogInformation(
             "Built manifest for '{ContentName}' with {FileCount} files and {DependencyCount} dependencies",
             _manifest.Name,
@@ -619,15 +730,23 @@ public class ContentManifestBuilder(
             Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644", },
         };
 
+        var shouldComputeHash = false;
         if (!string.IsNullOrEmpty(sourcePath) && File.Exists(sourcePath))
         {
             var fileInfo = new FileInfo(sourcePath);
             manifestFile.Size = fileInfo.Length;
-            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
+
+            // Always compute hash for executable files (critical for GameClient integrity validation)
+            // For non-executable GameInstallation files, skip hash (CSV-based authority from GitHub planned)
+            shouldComputeHash = isExecutable || sourceType != ContentSourceType.GameInstallation;
+            if (shouldComputeHash)
+            {
+                manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
+            }
         }
 
         _manifest.Files.Add(manifestFile);
-        _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType})", relativePath, sourceType);
+        _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hashed: {Hashed})", relativePath, sourceType, shouldComputeHash);
         return this;
     }
 }

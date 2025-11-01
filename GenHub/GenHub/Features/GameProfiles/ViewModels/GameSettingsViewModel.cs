@@ -182,7 +182,9 @@ public partial class GameSettingsViewModel : ViewModelBase
             else
             {
                 // For new profiles or profiles without settings, load from Options.ini as defaults
+                _isLoadingFromOptions = true;
                 await LoadSettingsCommand.ExecuteAsync(null);
+                _isLoadingFromOptions = false;
                 StatusMessage = "Loaded default settings from Options.ini. Save the profile to persist these settings.";
             }
         }
@@ -242,6 +244,7 @@ public partial class GameSettingsViewModel : ViewModelBase
     private string? _currentProfileId;
     private int _initializationDepth;
     private bool _isInitializing;
+    private bool _isLoadingFromOptions;
 
     /// <summary>
     /// Loads the options.ini settings for the selected game type.
@@ -438,9 +441,7 @@ public partial class GameSettingsViewModel : ViewModelBase
 
     partial void OnSelectedGameTypeChanged(GameType value)
     {
-        // Only load from Options.ini if not initializing
-        // This prevents overwriting profile settings when the radio button is set during initialization
-        if (!_isInitializing && _initializationDepth == 0)
+        if (_initializationDepth == 0 && !_isLoadingFromOptions)
         {
             _logger.LogInformation("GameType changed to {GameType} - loading from Options.ini", value);
             _ = Task.Run(async () =>
@@ -455,6 +456,10 @@ public partial class GameSettingsViewModel : ViewModelBase
                     StatusMessage = $"Error loading settings: {ex.Message}";
                 }
             });
+        }
+        else if (_isLoadingFromOptions)
+        {
+            _logger.LogInformation("GameType changed to {GameType} while loading from Options.ini - skipping auto-load", value);
         }
         else
         {

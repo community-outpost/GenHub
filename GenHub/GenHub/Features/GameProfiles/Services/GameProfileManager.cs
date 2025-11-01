@@ -51,7 +51,7 @@ public class GameProfileManager(
             }
 
             var gameInstallation = installationResult.Data!;
-            var gameClient = gameInstallation.AvailableClients.FirstOrDefault(v => v.Id == request.GameClientId);
+            var gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
             if (gameClient == null)
             {
                 return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");

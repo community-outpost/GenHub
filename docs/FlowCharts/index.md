@@ -9,6 +9,7 @@ This section contains detailed flowcharts that illustrate how GenHub's various s
 
 ## Available Flowcharts
 
+- **[Publisher Discovery Flow](./Publisher-Discovery-Flow.md)** - Dynamic publisher registration and content flow architecture
 - **[Content Discovery Flow](./Discovery-Flow.md)** - How GenHub discovers content from multiple sources
 - **[Content Resolution Flow](./Resolution-Flow.md)** - Converting discovered content into installable manifests
 - **[Content Acquisition Flow](./Acquisition-Flow.md)** - Downloading and preparing content packages

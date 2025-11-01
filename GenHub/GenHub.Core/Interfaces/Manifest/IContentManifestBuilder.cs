@@ -16,6 +16,16 @@ public interface IContentManifestBuilder
     /// <param name="gameType">The game type (Generals, ZeroHour).</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, string? manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information for game installations (used internally by GenHub).
+    /// This overload is specifically for generating manifests for EA/Steam game installations.
+    /// </summary>
+    /// <param name="installType">The game installation type (EA, Steam, etc.).</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, int manifestVersion);
 
     /// <summary>
@@ -26,7 +36,35 @@ public interface IContentManifestBuilder
     /// <param name="contentName">Content display name.</param>
     /// <param name="manifestVersion">Manifest version.</param>
     /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, string? manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information for publisher content (used by external publishers).
+    /// This overload is for developers, modders, mappers, and other publishers creating content manifests.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithBasicInfo(string publisherId, string contentName, int manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, string? manifestVersion);
+
+    /// <summary>
+    /// Sets basic content information with publisher info.
+    /// </summary>
+    /// <param name="publisher">Publisher information.</param>
+    /// <param name="contentName">Content display name.</param>
+    /// <param name="manifestVersion">Manifest version.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, int manifestVersion);
 
     /// <summary>
     /// Sets the content type and target game.
@@ -43,8 +81,9 @@ public interface IContentManifestBuilder
     /// <param name="website">Publisher website.</param>
     /// <param name="supportUrl">Support URL.</param>
     /// <param name="contactEmail">Contact email.</param>
+    /// <param name="publisherType">Publisher type identifier for dependency validation.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "");
+    IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "", string publisherType = "");
 
     /// <summary>
     /// Sets content metadata.

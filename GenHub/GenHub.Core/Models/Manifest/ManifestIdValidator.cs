@@ -1,6 +1,7 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using GenHub.Core.Models.Enums;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -10,17 +11,24 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public static class ManifestIdValidator
 {
-    // Regex for publisher content IDs: schemaVersion.manifestVersion.publisher.content (4+ segments)
-    private static readonly Regex PublisherIdRegex =
-        new(@"^\d+(?:\.\d+)*\.[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    // Regex for installation/game client content: version.installType.gameType[-suffix]
+    // Note: version may contain dots (e.g., "1.0"), so regex keeps that as a single group.
+    private static readonly Regex InstallationContentRegex = BuildInstallationContentRegex();
 
-    // Allow simple test-friendly ids like 'test-id' or 'simple.id' (alphanumeric with dashes, max 3 segments)
+    private static Regex BuildInstallationContentRegex()
+    {
+        var installTypes = string.Join("|", InstallationSourceConstants.AllInstallationTypes.OrderBy(x => x));
+        return new Regex($@"^\d+(?:\.\d+)*\.({installTypes})\.(generals|zerohour)(?:-[a-z0-9-]+)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    }
+
+    // Regex for publisher content: version.publisher.contentType.contentName[-suffix]
+    // Relaxed to accept a broader set of contentType/contentName values used in tests and generator.
+    private static readonly Regex PublisherContentRegex =
+        new(@"^\d+(?:\.\d+)*\.[a-z0-9]+(?:\.[a-z0-9]+)*\.[a-z0-9-]+(?:\.[a-z0-9-]+)*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    // Allow simple test-friendly ids like 'test-id' or 'simple.id' (alphanumeric with dashes, max 4 segments)
     private static readonly Regex SimpleIdRegex =
-        new(@"^[a-zA-Z0-9\-]+(\.[a-zA-Z0-9\-]+){0,2}$", RegexOptions.Compiled);
-
-    // Regex for game installation IDs: schema.user.installationType.gameType
-    private static readonly Regex GameInstallationIdRegex =
-        new(@"^\d+(?:\.\d+)*\.(unknown|steam|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        new(@"^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+){0,3}$", RegexOptions.Compiled);
 
     /// <summary>
     /// Throws an <see cref="ArgumentException"/> if the manifest ID is invalid.
@@ -48,35 +56,62 @@ public static class ManifestIdValidator
             return false;
         }
 
-        var segments = manifestId.Split('.');
-        if (segments.Length < 4)
+        // Ensure there is at least a single '.' separating version and the rest
+        var versionMatch = Regex.Match(manifestId, @"^(\d+(?:\.\d+)*)\.(.+)$");
+        if (!versionMatch.Success)
         {
-            reason = $"Manifest ID '{manifestId}' is invalid. Must have at least 4 segments.";
+            reason = $"Manifest ID '{manifestId}' is invalid. Missing version segment or incorrectly formatted.";
             return false;
         }
 
-        // Assuming InstallationType and GameType enums exist in GenHub.Core.Models.Enums
-        var validInstallationTypes = Enum.GetValues<GameInstallationType>().Select(e => e.ToString().ToLowerInvariant()).ToHashSet();
-        var validGameTypes = Enum.GetValues<GameType>().Select(e => e.ToString().ToLowerInvariant()).ToHashSet();
+        // The remainder after the version should be dot-separated tokens.
+        var remainder = versionMatch.Groups[2].Value;
+        var remainderTokens = remainder.Split('.');
 
-        // Check if it matches game installation format: schemaVersion.manifestVersion.installation.game
-        if (GameInstallationIdRegex.IsMatch(manifestId))
+        // Must have at least two tokens after the version (publisher + type OR install type + game)
+        if (remainderTokens.Length < 2)
+        {
+            reason = $"Manifest ID '{manifestId}' is invalid. Missing required segments after version.";
+            return false;
+        }
+
+        // If the first token is a known installation type, this should be treated as an installation id.
+        var installTypes = InstallationSourceConstants.AllInstallationTypes;
+
+        if (installTypes.Contains(remainderTokens[0], StringComparer.OrdinalIgnoreCase))
+        {
+            // Installation IDs must match the exact installation pattern and have exactly two tokens after version
+            if (InstallationContentRegex.IsMatch(manifestId) && remainderTokens.Length == 2)
+            {
+                reason = string.Empty;
+                return true;
+            }
+
+            reason = $"Manifest ID '{manifestId}' is invalid. Installation ID format is incorrect.";
+            return false;
+        }
+
+        // Prevent ambiguous ids where the last token looks like a game type but the first token isn't an installation type
+        var lastToken = remainderTokens.Last();
+        if (lastToken.StartsWith("generals", StringComparison.OrdinalIgnoreCase) || lastToken.StartsWith("zerohour", StringComparison.OrdinalIgnoreCase))
+        {
+            reason = $"Manifest ID '{manifestId}' is invalid. Game type identifiers are only valid for installation IDs.";
+            return false;
+        }
+
+        // Check publisher content: version.publisher.contentType[.contentName...]
+        if (PublisherContentRegex.IsMatch(manifestId))
         {
             reason = string.Empty;
             return true;
         }
 
-        // Check if it's a valid publisher ID: schemaVersion.manifestVersion.publisher.content
-        // But reject if segments 2 or 3 are valid installation/game types (to avoid conflicts)
-        if (segments.Length >= 4 &&
-            !validInstallationTypes.Contains(segments[2].ToLowerInvariant()) &&
-            !validGameTypes.Contains(segments[2].ToLowerInvariant()) &&
-            !validInstallationTypes.Contains(segments[3].ToLowerInvariant()) &&
-            !validGameTypes.Contains(segments[3].ToLowerInvariant()) &&
-            PublisherIdRegex.IsMatch(manifestId))
+        // If the ID starts with a digit, it should match a versioned id format (installation or publisher).
+        // Reject numeric-prefixed IDs that didn't match the dedicated regexes above.
+        if (char.IsDigit(manifestId[0]))
         {
-            reason = string.Empty;
-            return true;
+            reason = $"Manifest ID '{manifestId}' is invalid. Must be 4 segments in format version.installType.gameType[-suffix] for installations/clients or version.publisher.contentType.contentName[-suffix] for publisher content (mods/maps).";
+            return false;
         }
 
         // Check if it's a simple ID (fallback for tests)
@@ -87,7 +122,7 @@ public static class ManifestIdValidator
         }
 
         // For any other cases, reject them
-        reason = $"Manifest ID '{manifestId}' is invalid. Must follow either schemaVersion.manifestVersion.publisher.content or schemaVersion.manifestVersion.installation.game format.";
+        reason = $"Manifest ID '{manifestId}' is invalid. Must be 4 segments in format version.installType.gameType[-suffix] for installations/clients or version.publisher.contentType.contentName[-suffix] for publisher content (mods/maps).";
         return false;
     }
 }

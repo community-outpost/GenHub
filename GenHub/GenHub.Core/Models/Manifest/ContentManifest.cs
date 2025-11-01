@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -16,7 +13,7 @@ public class ContentManifest
     public string ManifestVersion { get; set; } = ManifestConstants.DefaultManifestVersion;
 
     /// <summary>Gets or sets the unique identifier for this content package.</summary>
-    public ManifestId Id { get; set; } = ManifestId.Create("1.0.test.content");
+    public ManifestId Id { get; set; }
 
     /// <summary>Gets or sets the human-readable name for the content.</summary>
     public string Name { get; set; } = string.Empty;

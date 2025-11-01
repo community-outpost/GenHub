@@ -51,15 +51,19 @@ public class ContentManifestBuilderTests
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
             .Returns((string id) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>()))
+            .Returns((GameInstallation gi, GameType gt, string? v) =>
+                OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
+
         _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>()))
             .Returns((GameInstallation gi, GameType gt, int v) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
-        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((string p, string c, int v) =>
+        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
+            .Returns((string p, GenHub.Core.Models.Enums.ContentType ct, string c, int v) =>
             {
-                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, c, v);
+                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, ct, c, v);
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
@@ -74,11 +78,11 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .Build();
 
         // Assert
-        Assert.Equal("1.1.test.publisher.test.name", result.Id);
+        Assert.Equal("1.1.test.publisher.mod.test.name", result.Id);
         Assert.Equal("Test Name", result.Name);
         Assert.Equal("1", result.Version);
     }
@@ -91,7 +95,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithContentType(ContentType.Mod, GameType.Generals)
             .Build();
 
@@ -108,7 +112,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithPublisher("Test Publisher", "https://test.com", "https://support.test.com", "support@test.com")
             .Build();
 
@@ -128,7 +132,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .AddDependency(
                 id: ManifestId.Create("1.0.dep.publisher.content"),
                 name: "Dependency Name",
@@ -163,7 +167,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .AddRequiredDirectories(DirectoryNames.Data, "Maps", "Models")
             .Build();
 
@@ -182,7 +186,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy)
             .Build();
 
@@ -199,12 +203,12 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Minimal Publisher", "Minimal Manifest", 1)
+            .WithBasicInfo("Minimal Publisher", "Minimal Manifest", "1")
             .Build();
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.1.minimal.publisher.minimal.manifest", result.Id);
+        Assert.Equal("1.1.minimal.publisher.mod.minimal.manifest", result.Id);
         Assert.Equal("Minimal Manifest", result.Name);
         Assert.Equal("1", result.Version);
         Assert.NotNull(result.Dependencies);
