@@ -59,7 +59,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_LoadFromOptionsIni_WhenNoProfileSettings()
+    public async Task InitializeForProfileAsync_Should_LoadFromIniOptions_WhenNoProfileSettings()
     {
         // Arrange
         var profile = new GameProfile
@@ -331,6 +331,32 @@ public class GameSettingsViewModelTests
 
         // Assert
         _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(GameType.ZeroHour), Times.Once);
+    }
+
+    /// <summary>
+    /// Should not load settings when game type is set before initialization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_WhenSetBeforeInitialization()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            VideoResolutionWidth = 1920, // Add settings so initialization loads from profile, not Options.ini
+        };
+
+        _viewModel.SelectedGameType = GameType.Generals; // Set before initialization
+
+        // Act - Start initialization
+        var initTask = _viewModel.InitializeForProfileAsync("test", profile);
+
+        // Complete initialization
+        await initTask;
+
+        // Assert - Should have loaded from profile during initialization, not from Options.ini
+        _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(It.IsAny<GameType>()), Times.Never);
     }
 
     /// <summary>
