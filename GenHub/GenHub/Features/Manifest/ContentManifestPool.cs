@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -21,7 +22,12 @@ namespace GenHub.Features.Manifest;
 /// </summary>
 public class ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger) : IContentManifestPool
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter(), new ManifestIdJsonConverter() },
+    };
+
     private readonly IContentStorageService _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
     private readonly ILogger<ContentManifestPool> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 

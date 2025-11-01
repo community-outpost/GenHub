@@ -1,9 +1,6 @@
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.GameClients;
 
@@ -18,7 +15,7 @@ public interface IGameClientDetector
     /// <param name="installations">The set of game installations.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, with a <see cref="DetectionResult{GameClient}"/> containing detected clients.</returns>
-    Task<DetectionResult<GameClient>> DetectClientsFromInstallationsAsync(
+    Task<DetectionResult<GameClient>> DetectGameClientsFromInstallationsAsync(
        IEnumerable<GameInstallation> installations,
        CancellationToken cancellationToken = default);
 
@@ -28,7 +25,7 @@ public interface IGameClientDetector
     /// <param name="path">The directory path to scan.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, with a <see cref="DetectionResult{GameClient}"/> containing detected clients.</returns>
-    Task<DetectionResult<GameClient>> ScanDirectoryForClientsAsync(
+    Task<DetectionResult<GameClient>> ScanDirectoryForGameClientsAsync(
        string path,
        CancellationToken cancellationToken = default);
 
@@ -38,7 +35,7 @@ public interface IGameClientDetector
     /// <param name="client">The game client to validate.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, with a boolean indicating validity.</returns>
-    Task<bool> ValidateClientAsync(
+    Task<bool> ValidateGameClientAsync(
        GameClient client,
        CancellationToken cancellationToken = default);
 }

@@ -62,80 +62,88 @@ public class UpdateProfileRequest
     /// </summary>
     public string? ThemeColor { get; set; }
 
-    // Game Settings Properties
+    /// <summary>
+    /// Gets or sets the game installation ID.
+    /// </summary>
+    public string? GameInstallationId { get; set; }
 
     /// <summary>
-    /// Gets or sets the video resolution width.
+    /// Gets or sets the command line arguments to pass to the game executable.
+    /// </summary>
+    public string? CommandLineArguments { get; set; }
+
+    /// <summary>
+    /// Gets or sets the video resolution width for this profile.
     /// </summary>
     public int? VideoResolutionWidth { get; set; }
 
     /// <summary>
-    /// Gets or sets the video resolution height.
+    /// Gets or sets the video resolution height for this profile.
     /// </summary>
     public int? VideoResolutionHeight { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the game runs in windowed mode.
+    /// Gets or sets whether this profile runs in windowed mode.
     /// </summary>
     public bool? VideoWindowed { get; set; }
 
     /// <summary>
-    /// Gets or sets the texture quality (0-2, where 0=low, 2=high).
+    /// Gets or sets the texture quality for this profile.
     /// </summary>
     public int? VideoTextureQuality { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether shadows are enabled.
+    /// Gets or sets whether shadows are enabled for this profile.
     /// </summary>
     public bool? VideoShadows { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether particle effects are enabled.
+    /// Gets or sets whether particle effects are enabled for this profile.
     /// </summary>
     public bool? VideoParticleEffects { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether extra animations are enabled.
+    /// Gets or sets whether extra animations are enabled for this profile.
     /// </summary>
     public bool? VideoExtraAnimations { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether building animations are enabled.
+    /// Gets or sets whether building animations are enabled for this profile.
     /// </summary>
     public bool? VideoBuildingAnimations { get; set; }
 
     /// <summary>
-    /// Gets or sets the gamma correction value (50-150).
+    /// Gets or sets the gamma correction value for this profile.
     /// </summary>
     public int? VideoGamma { get; set; }
 
     /// <summary>
-    /// Gets or sets the sound effects volume (0-100).
+    /// Gets or sets the sound volume for this profile.
     /// </summary>
     public int? AudioSoundVolume { get; set; }
 
     /// <summary>
-    /// Gets or sets the 3D sound effects volume (0-100).
+    /// Gets or sets the 3D sound volume for this profile.
     /// </summary>
     public int? AudioThreeDSoundVolume { get; set; }
 
     /// <summary>
-    /// Gets or sets the speech volume (0-100).
+    /// Gets or sets the speech volume for this profile.
     /// </summary>
     public int? AudioSpeechVolume { get; set; }
 
     /// <summary>
-    /// Gets or sets the music volume (0-100).
+    /// Gets or sets the music volume for this profile.
     /// </summary>
     public int? AudioMusicVolume { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether audio is enabled.
+    /// Gets or sets whether audio is enabled for this profile.
     /// </summary>
     public bool? AudioEnabled { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of sounds (2-32).
+    /// Gets or sets the number of sounds for this profile.
     /// </summary>
     public int? AudioNumSounds { get; set; }
 }

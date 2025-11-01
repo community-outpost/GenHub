@@ -134,7 +134,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task GetManifestAsync_WhenNotExists_ShouldReturnNull()
     {
         // Arrange
-        var manifestId = "1.0.test.nonexistent.mod";
+        var manifestId = "1.0.genhub.mod.nonexistent";
         var manifestPath = Path.Combine(_tempDirectory, "non-existent.json");
 
         _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifestId))
@@ -158,9 +158,9 @@ public class ContentManifestPoolTests : IDisposable
         // Arrange
         var manifests = new List<ContentManifest>
             {
-                CreateTestManifest("1.0.test.manifest1.mod"),
-                CreateTestManifest("1.0.test.manifest2.mod"),
-                CreateTestManifest("1.0.test.manifest3.mod"),
+                CreateTestManifest("1.0.genhub.mod.manifest1"),
+                CreateTestManifest("1.0.genhub.mod.manifest2"),
+                CreateTestManifest("1.0.genhub.mod.manifest3"),
             };
 
         var manifestsDir = Path.Combine(_tempDirectory, "Manifests");
@@ -181,9 +181,9 @@ public class ContentManifestPoolTests : IDisposable
         // Assert
         Assert.True(result.Success);
         Assert.Equal(3, result.Data!.Count());
-        Assert.Contains(result.Data!, m => m.Id == "1.0.test.manifest1.mod");
-        Assert.Contains(result.Data!, m => m.Id == "1.0.test.manifest2.mod");
-        Assert.Contains(result.Data!, m => m.Id == "1.0.test.manifest3.mod");
+        Assert.Contains(result.Data!, m => m.Id == "1.0.genhub.mod.manifest1");
+        Assert.Contains(result.Data!, m => m.Id == "1.0.genhub.mod.manifest2");
+        Assert.Contains(result.Data!, m => m.Id == "1.0.genhub.mod.manifest3");
     }
 
     /// <summary>
@@ -215,9 +215,9 @@ public class ContentManifestPoolTests : IDisposable
         // Arrange
         var manifests = new List<ContentManifest>
             {
-                CreateTestManifest("1.0.test.mod1.mod", "Test Mod 1", ContentType.Mod, GameType.Generals),
-                CreateTestManifest("1.0.test.map1.map", "Test Map 1", ContentType.MapPack, GameType.Generals),
-                CreateTestManifest("1.0.test.mod2.mod", "Another Mod", ContentType.Mod, GameType.ZeroHour),
+                CreateTestManifest("1.0.genhub.mod.mod1", "Test Mod 1", ContentType.Mod, GameType.Generals),
+                CreateTestManifest("1.0.genhub.mod.map1", "Test Map 1", ContentType.MapPack, GameType.Generals),
+                CreateTestManifest("1.0.genhub.mod.mod2", "Another Mod", ContentType.Mod, GameType.ZeroHour),
             };
 
         SetupManifestsInStorage(manifests);
@@ -245,7 +245,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task RemoveManifestAsync_ShouldSucceed()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
@@ -266,7 +266,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task RemoveManifestAsync_WhenStorageFails_ShouldFail()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Storage error"));
 
@@ -286,7 +286,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task IsManifestAcquiredAsync_ShouldReturnCorrectStatus()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifestId, default))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
@@ -306,7 +306,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task GetContentDirectoryAsync_WhenExists_ShouldReturnPath()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         var contentDir = Path.Combine(_tempDirectory, "content");
         Directory.CreateDirectory(contentDir);
 
@@ -329,7 +329,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task GetContentDirectoryAsync_WhenNotExists_ShouldReturnNull()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         var contentDir = Path.Combine(_tempDirectory, "non-existent");
 
         _storageServiceMock.Setup(x => x.GetContentDirectoryPath(manifestId))
@@ -351,7 +351,7 @@ public class ContentManifestPoolTests : IDisposable
     public async Task GetManifestAsync_WhenExceptionThrown_ShouldReturnFailure()
     {
         // Arrange
-        var manifestId = "1.0.test.publisher.mod";
+        var manifestId = "1.0.genhub.mod.publisher";
         _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifestId))
             .Throws(new InvalidOperationException("Test exception"));
 
@@ -390,7 +390,7 @@ public class ContentManifestPoolTests : IDisposable
     /// <param name="targetGame">The target game.</param>
     /// <returns>A <see cref="ContentManifest"/> instance.</returns>
     private ContentManifest CreateTestManifest(
-        string id = "1.0.test.publisher.mod",
+        string id = "1.0.genhub.mod.mod",
         string name = "Test Manifest",
         ContentType contentType = ContentType.Mod,
         GameType targetGame = GameType.Generals)
