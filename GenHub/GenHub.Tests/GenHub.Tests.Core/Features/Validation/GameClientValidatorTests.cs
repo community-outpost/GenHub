@@ -18,6 +18,19 @@ namespace GenHub.Tests.Features.Validation;
 /// </summary>
 public class GameClientValidatorTests
 {
+    /// <summary>
+    /// Synchronous progress implementation for testing to avoid SynchronizationContext issues.
+    /// </summary>
+    /// <typeparam name="T">The type of progress value.</typeparam>
+    private class SynchronousProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _action;
+
+        public SynchronousProgress(Action<T> action) => _action = action ?? throw new ArgumentNullException(nameof(action));
+
+        public void Report(T value) => _action(value);
+    }
+
     private readonly Mock<ILogger<GameClientValidator>> _loggerMock;
     private readonly Mock<IManifestProvider> _manifestProviderMock;
     private readonly Mock<IContentValidator> _contentValidatorMock;
@@ -257,16 +270,24 @@ public class GameClientValidatorTests
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
         var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
+        object lockObj = new();
         var progressReports = new List<ValidationProgress>();
-        var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
+        var progress = new SynchronousProgress<ValidationProgress>(p => progressReports.Add(p));
 
         // Act
         var result = await _validator.ValidateAsync(client, progress, default);
 
         // Assert
         Assert.True(result.IsValid);
-        Assert.NotEmpty(progressReports);
-        Assert.Contains(progressReports, p => p.PercentComplete == 100);
+        lock (lockObj)
+        {
+            Assert.NotEmpty(progressReports);
+        }
+
+        lock (lockObj)
+        {
+            Assert.Contains(progressReports, p => p.PercentComplete == 100);
+        }
 
         tempDir.Delete(true);
     }

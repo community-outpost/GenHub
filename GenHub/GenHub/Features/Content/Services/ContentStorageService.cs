@@ -10,6 +10,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
@@ -73,10 +74,10 @@ public class ContentStorageService : IContentStorageService
         string sourceDirectory,
         CancellationToken cancellationToken = default)
     {
-        if (!Directory.Exists(sourceDirectory))
+        if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Source directory does not exist: {sourceDirectory}");
+            _logger.LogWarning("Source directory is null, empty, or does not exist: {SourceDirectory}. Storing metadata only.", sourceDirectory);
+            return await StoreManifestOnlyAsync(manifest, cancellationToken);
         }
 
         // Validate manifest for security issues
@@ -87,10 +88,20 @@ public class ContentStorageService : IContentStorageService
                 $"Manifest security validation failed: {securityValidation.FirstError}");
         }
 
-        // For GameInstallation content, skip physical file copying and just store metadata
-        if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+        // Check if source directory is on a potentially invalid or removable drive
+        bool isInvalidDrive = IsInvalidOrRemovableDrive(sourceDirectory);
+        if (isInvalidDrive)
         {
-            _logger.LogInformation("Storing GameInstallation manifest {ManifestId} metadata only (skipping file copy)", manifest.Id);
+            _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, storing metadata only", sourceDirectory);
+            return await StoreManifestOnlyAsync(manifest, cancellationToken);
+        }
+
+        // For GameInstallation and GameClient content, skip physical file copying and just store metadata
+        // These represent references to existing installations, not content to be copied
+        if (manifest.ContentType == ContentType.GameInstallation ||
+            manifest.ContentType == ContentType.GameClient)
+        {
+            _logger.LogInformation("Storing {ContentType} manifest {ManifestId} metadata only (skipping file copy)", manifest.ContentType, manifest.Id);
             return await StoreManifestOnlyAsync(manifest, cancellationToken);
         }
 
@@ -333,72 +344,162 @@ public class ContentStorageService : IContentStorageService
         }
     }
 
+    /// <summary>
+    /// Checks if a directory path is on an invalid or removable drive.
+    /// </summary>
+    /// <param name="path">The path to check.</param>
+    /// <returns>True if the drive is invalid or removable, false otherwise.</returns>
+    private bool IsInvalidOrRemovableDrive(string path)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(path))
+                return true;
+
+            var rootPath = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(rootPath))
+                return true;
+
+            // Check if it's a UNC path or relative path
+            if (rootPath.StartsWith(@"\\") || !Path.IsPathRooted(path))
+                return false; // UNC paths are generally valid, let them through
+
+            var driveInfo = new DriveInfo(rootPath);
+
+            // Check drive type - avoid removable drives like floppy (A:), CD-ROM, etc.
+            if (driveInfo.DriveType == DriveType.Removable ||
+                driveInfo.DriveType == DriveType.CDRom ||
+                driveInfo.DriveType == DriveType.Unknown)
+            {
+                _logger.LogWarning("Drive {Drive} is of type {DriveType}, considering invalid", rootPath, driveInfo.DriveType);
+                return true;
+            }
+
+            // Check if drive is ready (this will catch cases where drive exists but is not accessible)
+            if (!driveInfo.IsReady)
+            {
+                _logger.LogWarning("Drive {Drive} is not ready, considering invalid", rootPath);
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to validate drive for path {Path}, considering invalid", path);
+            return true; // If we can't validate it, treat it as invalid for safety
+        }
+    }
+
+    /// <summary>
+    /// Stores content files from source directory to CAS, updating manifest with hashes and paths.
+    /// </summary>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="sourceDirectory">Source directory containing content files.</param>
+    /// <param name="contentDirectory">Target CAS content directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated manifest with storage information.</returns>
     private async Task<ContentManifest> StoreContentFilesAsync(
         ContentManifest manifest,
         string sourceDirectory,
         string contentDirectory,
         CancellationToken cancellationToken)
     {
-        var updatedFiles = new List<ManifestFile>();
-
-        foreach (var manifestFile in manifest.Files)
+        // Validate source directory first
+        if (!Directory.Exists(sourceDirectory))
         {
-            var sourcePath = Path.Combine(sourceDirectory, manifestFile.RelativePath);
-            var targetPath = Path.Combine(contentDirectory, manifestFile.RelativePath);
+            _logger.LogWarning("Source directory does not exist, skipping content storage: {SourceDirectory}", sourceDirectory);
 
-            if (!File.Exists(sourcePath))
-            {
-                if (manifestFile.IsRequired)
-                {
-                    throw new FileNotFoundException($"Required file not found: {manifestFile.RelativePath}");
-                }
-
-                _logger.LogWarning("Optional file not found, skipping: {FilePath}", manifestFile.RelativePath);
-                continue;
-            }
-
-            var targetDir = Path.GetDirectoryName(targetPath)!;
-            Directory.CreateDirectory(targetDir);
-
-            File.Copy(sourcePath, targetPath, overwrite: true);
-
-            var fileInfo = new FileInfo(targetPath);
-            var updatedFile = new ManifestFile
-            {
-                RelativePath = manifestFile.RelativePath,
-                Size = fileInfo.Length,
-                Hash = await CalculateFileHashAsync(targetPath, cancellationToken),
-                SourceType = manifestFile.SourceType,
-                Permissions = manifestFile.Permissions,
-                IsExecutable = manifestFile.IsExecutable,
-                DownloadUrl = manifestFile.DownloadUrl,
-                IsRequired = manifestFile.IsRequired,
-                SourcePath = manifestFile.SourcePath,
-                PatchSourceFile = manifestFile.PatchSourceFile,
-                PackageInfo = manifestFile.PackageInfo,
-            };
-
-            updatedFiles.Add(updatedFile);
+            // Return manifest with empty files list
+            manifest.Files.Clear();
+            return manifest;
         }
 
-        var updatedManifest = new ContentManifest
-        {
-            ManifestVersion = manifest.ManifestVersion,
-            Id = manifest.Id,
-            Name = manifest.Name,
-            Version = manifest.Version,
-            ContentType = manifest.ContentType,
-            TargetGame = manifest.TargetGame,
-            Publisher = manifest.Publisher,
-            Metadata = manifest.Metadata,
-            Dependencies = manifest.Dependencies,
-            ContentReferences = manifest.ContentReferences,
-            KnownAddons = manifest.KnownAddons,
-            Files = updatedFiles,
-            RequiredDirectories = manifest.RequiredDirectories,
-            InstallationInstructions = manifest.InstallationInstructions,
-        };
+        var updatedFiles = new List<ManifestFile>();
 
-        return updatedManifest;
+        // Additional safety check for invalid drives
+        if (IsInvalidOrRemovableDrive(sourceDirectory))
+        {
+            _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, skipping file enumeration", sourceDirectory);
+            manifest.Files.Clear();
+            return manifest;
+        }
+
+        // Safe enumeration of files from source directory with comprehensive error handling
+        try
+        {
+            // Double-check directory accessibility before enumeration
+            if (!Directory.Exists(sourceDirectory))
+            {
+                _logger.LogWarning("Source directory no longer exists during file enumeration: {SourceDirectory}", sourceDirectory);
+                manifest.Files = updatedFiles;
+                return manifest;
+            }
+
+            IEnumerable<string> allFiles;
+            try
+            {
+                allFiles = Directory.EnumerateFiles(sourceDirectory, "*.*", SearchOption.AllDirectories);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                _logger.LogWarning("Source directory not found during enumeration: {SourceDirectory}", sourceDirectory);
+                manifest.Files = updatedFiles;
+                return manifest;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                _logger.LogWarning("Access denied to source directory: {SourceDirectory}", sourceDirectory);
+                manifest.Files = updatedFiles;
+                return manifest;
+            }
+            catch (IOException ioEx)
+            {
+                _logger.LogWarning(ioEx, "IO error accessing source directory: {SourceDirectory}", sourceDirectory);
+                manifest.Files = updatedFiles;
+                return manifest;
+            }
+
+            foreach (var sourcePath in allFiles)
+            {
+                try
+                {
+                    var relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
+                    var targetPath = Path.Combine(contentDirectory, relativePath);
+
+                    var targetDir = Path.GetDirectoryName(targetPath)!;
+                    Directory.CreateDirectory(targetDir);
+
+                    File.Copy(sourcePath, targetPath, overwrite: true);
+
+                    var fileInfo = new FileInfo(targetPath);
+                    var updatedFile = new ManifestFile
+                    {
+                        RelativePath = relativePath,
+                        Size = fileInfo.Length,
+                        Hash = await CalculateFileHashAsync(targetPath, cancellationToken),
+                        SourceType = ContentSourceType.LocalFile,
+                        IsRequired = true, // Assume all discovered files are required
+                    };
+
+                    updatedFiles.Add(updatedFile);
+                }
+                catch (Exception fileEx)
+                {
+                    _logger.LogWarning(fileEx, "Failed to copy file {SourcePath} to CAS", sourcePath);
+
+                    // Skip individual file, continue with others
+                }
+            }
+        }
+        catch (Exception dirEx)
+        {
+            _logger.LogError(dirEx, "Failed to enumerate files in source directory {SourceDirectory}", sourceDirectory);
+
+            // Return empty files list on any enumeration failure
+        }
+
+        manifest.Files = updatedFiles;
+        return manifest;
     }
 }

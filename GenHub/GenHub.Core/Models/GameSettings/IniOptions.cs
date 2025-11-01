@@ -23,4 +23,9 @@ public class IniOptions
     /// Gets or sets additional key-value pairs not covered by structured settings.
     /// </summary>
     public Dictionary<string, Dictionary<string, string>> AdditionalSections { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the file path this options.ini was loaded from or will be saved to.
+    /// </summary>
+    public string? FilePath { get; set; }
 }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.GameInstallations;
@@ -31,6 +32,10 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     public GameInstallationType InstallationType => GameInstallationType.Steam;
 
     /// <inheritdoc/>
+    /// <remarks>Set after InstallationPath is determined during Fetch().</remarks>
+    public string Id { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
     public string InstallationPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
@@ -45,10 +50,35 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     /// <inheritdoc/>
     public string ZeroHourPath { get; private set; } = string.Empty;
 
+    /// <inheritdoc/>
+    public List<GameClient> AvailableGameClients { get; } = new();
+
     /// <summary>
     /// Gets a value indicating whether Steam is installed successfully.
     /// </summary>
     public bool IsSteamInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public void SetPaths(string? generalsPath, string? zeroHourPath)
+    {
+        if (!string.IsNullOrEmpty(generalsPath))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsPath;
+        }
+
+        if (!string.IsNullOrEmpty(zeroHourPath))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zeroHourPath;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void PopulateGameClients(IEnumerable<GameClient> clients)
+    {
+        AvailableGameClients.AddRange(clients);
+    }
 
     /// <inheritdoc/>
     public void Fetch()
@@ -79,7 +109,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 if (!HasGenerals)
                 {
                     var generalsPath = Path.Combine(libraryPath, "Command and Conquer Generals");
-                    if (Directory.Exists(generalsPath))
+                    if (Directory.Exists(generalsPath) && File.Exists(Path.Combine(generalsPath, "generals.exe")))
                     {
                         HasGenerals = true;
                         GeneralsPath = generalsPath;
@@ -92,7 +122,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 if (!HasZeroHour)
                 {
                     var zeroHourPath = Path.Combine(libraryPath, "Command & Conquer Generals - Zero Hour");
-                    if (Directory.Exists(zeroHourPath))
+                    if (Directory.Exists(zeroHourPath) && File.Exists(Path.Combine(zeroHourPath, "generals.exe")))
                     {
                         HasZeroHour = true;
                         ZeroHourPath = zeroHourPath;

@@ -171,7 +171,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
 
         var manifest = new ContentManifest
         {
-            Id = "1.0.genhub.manifest",
+            Id = "1.0.genhub.mod.testmod",
             Files = new List<ManifestFile>
             {
                 new ManifestFile
