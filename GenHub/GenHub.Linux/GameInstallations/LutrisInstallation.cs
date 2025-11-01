@@ -93,6 +93,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
                 {
                     InstallationPath = homeDir;
                     LutrisVersion = version;
+                    PackageInstallationType = entry.Value;
                     if (Directory.Exists(Path.Combine(homeDir, "Command and Conquer Generals Zero Hour")))
                     {
                         HasZeroHour = true;
