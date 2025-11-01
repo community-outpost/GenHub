@@ -56,10 +56,10 @@ public class ContentManifestBuilderTests
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
-        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((string p, string c, int v) =>
+        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
+            .Returns((string p, GenHub.Core.Models.Enums.ContentType ct, string c, int v) =>
             {
-                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, c, v);
+                var generated = ManifestIdGenerator.GeneratePublisherContentId(p, ct, c, v);
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
@@ -74,12 +74,12 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .Build();
 
         // Assert
-        Assert.Equal("1.1.test.publisher.test.name", result.Id);
-        Assert.Equal("Test Name", result.Name);
+        Assert.Equal("1.1.testpublisher.mod.testname", result.Id);
+        Assert.Equal("testname", result.Name);
         Assert.Equal("1", result.Version);
     }
 
@@ -91,7 +91,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .WithContentType(ContentType.Mod, GameType.Generals)
             .Build();
 
@@ -108,7 +108,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .WithPublisher("Test Publisher", "https://test.com", "https://support.test.com", "support@test.com")
             .Build();
 
@@ -128,9 +128,9 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .AddDependency(
-                id: ManifestId.Create("1.0.dep.publisher.content"),
+                id: ManifestId.Create("1.0.genhub.mod.dependency"),
                 name: "Dependency Name",
                 dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.AutoInstall,
@@ -138,20 +138,20 @@ public class ContentManifestBuilderTests
                 maxVersion: "2.0",
                 compatibleVersions: new List<string> { "1.1", "1.2" },
                 isExclusive: true,
-                conflictsWith: new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") })
+                conflictsWith: new List<ManifestId> { ManifestId.Create("1.0.genhub.mod.conflict") })
             .Build();
 
         // Assert
         Assert.Single(result.Dependencies);
         var dependency = result.Dependencies[0];
-        Assert.Equal(ManifestId.Create("1.0.dep.publisher.content"), dependency.Id);
+        Assert.Equal(ManifestId.Create("1.0.genhub.mod.dependency"), dependency.Id);
         Assert.Equal("Dependency Name", dependency.Name);
         Assert.Equal(ContentType.GameInstallation, dependency.DependencyType);
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
         Assert.True(dependency.IsExclusive);
-        Assert.Equal(new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") }, dependency.ConflictsWith);
+        Assert.Equal(new List<ManifestId> { ManifestId.Create("1.0.genhub.mod.conflict") }, dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
     }
 
@@ -163,7 +163,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .AddRequiredDirectories(DirectoryNames.Data, "Maps", "Models")
             .Build();
 
@@ -182,7 +182,7 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", 1)
+            .WithBasicInfo("testpublisher", "testname", 1)
             .WithInstallationInstructions(WorkspaceStrategy.FullCopy)
             .Build();
 
@@ -199,13 +199,13 @@ public class ContentManifestBuilderTests
     {
         // Act
         var result = _builder
-            .WithBasicInfo("Minimal Publisher", "Minimal Manifest", 1)
+            .WithBasicInfo("minimalpublisher", "minimalmanifest", 1)
             .Build();
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.1.minimal.publisher.minimal.manifest", result.Id);
-        Assert.Equal("Minimal Manifest", result.Name);
+        Assert.Equal("1.1.minimalpublisher.mod.minimalmanifest", result.Id);
+        Assert.Equal("minimalmanifest", result.Name);
         Assert.Equal("1", result.Version);
         Assert.NotNull(result.Dependencies);
         Assert.NotNull(result.Files);

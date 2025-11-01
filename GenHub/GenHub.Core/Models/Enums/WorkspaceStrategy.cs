@@ -6,14 +6,14 @@ namespace GenHub.Core.Models.Enums;
 public enum WorkspaceStrategy
 {
     /// <summary>
+    /// Symlink only strategy - creates symbolic links to all files. Minimal disk usage, requires admin rights. DEFAULT.
+    /// </summary>
+    SymlinkOnly,
+
+    /// <summary>
     /// Full copy strategy - copies all files to workspace. Maximum compatibility and isolation, highest disk usage.
     /// </summary>
     FullCopy,
-
-    /// <summary>
-    /// Symlink only strategy - creates symbolic links to all files. Minimal disk usage, requires admin rights.
-    /// </summary>
-    SymlinkOnly,
 
     /// <summary>
     /// Hybrid copy/symlink strategy - copies essential files, symlinks others. Balanced disk usage and compatibility.
@@ -24,14 +24,4 @@ public enum WorkspaceStrategy
     /// Hard link strategy - creates hard links where possible, copies otherwise. Space-efficient, requires same volume.
     /// </summary>
     HardLink,
-
-    /// <summary>
-    /// A strategy that creates symbolic links for all files, intended for game installation manifests.
-    /// </summary>
-    FullSymlink,
-
-    /// <summary>
-    /// Content addressable strategy.
-    /// </summary>
-    ContentAddressable,
 }

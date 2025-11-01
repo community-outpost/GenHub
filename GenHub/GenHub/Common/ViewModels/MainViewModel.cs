@@ -187,7 +187,7 @@ public partial class MainViewModel : ObservableObject
                 try
                 {
                     // Use the first available game client ID or generate a new one
-                    var gameClientId = installation.AvailableClients.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
+                    var gameClientId = installation.AvailableGameClients.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
 
                     // Create a profile request from the installation
                     var createRequest = new CreateProfileRequest
