@@ -179,13 +179,14 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         if (jsonOutputParsed == null)
             return false;
 
-        foreach (var item in jsonOutputParsed.Where(item =>
-                     item.slug == "ea-app" && !string.IsNullOrEmpty(item.directory)))
-        {
-            directory = item.directory;
-            return true;
-        }
+        var gameListFiltered =
+            jsonOutputParsed
+                .FirstOrDefault(item => item.slug == "ea-app" && !string.IsNullOrWhiteSpace(item.directory));
 
-        return false;
+        if (gameListFiltered == null)
+            return false;
+
+        directory = gameListFiltered.directory;
+        return true;
     }
 }
