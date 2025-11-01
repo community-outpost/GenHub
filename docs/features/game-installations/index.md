@@ -58,7 +58,14 @@ Platform‑specific modules that actually scan for game installations.
     - `~/.local/share/Steam/steamapps/libraryfolders.vdf`
     - `~/.steam/steam/steamapps/libraryfolders.vdf`
     - `/usr/share/steam/steamapps/libraryfolders.vdf`
+    - `~/.var/app/com.valvesoftware.Steam/.local/share/Steam`
+    - `~/snap/steam/common/.local/share/Steam`
   - For each library, checks under `steamapps/common/`
+  - Can detect different packaging types (binary, flatpak, snap)
+
+- **Lutris (EA App)**
+  - Uses Lutris cli
+  - Can detect different packaging types (binary, flatpak, snap soon)
 
 - **Wine/Proton Prefix Detection**
   - Searches known Wine prefix locations:

@@ -59,6 +59,22 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
                 logger.LogDebug("No valid Steam installation found");
             }
 
+            // Check Lutris installations
+            logger.LogDebug("Checking Lutris installations on Linux");
+            var lutrisInstallation = new LutrisInstallation(fetch: true, logger: logger as ILogger<LutrisInstallation>);
+            if (lutrisInstallation.IsLutrisInstalled && (lutrisInstallation.HasGenerals || lutrisInstallation.HasZeroHour))
+            {
+                installs.Add(lutrisInstallation.ToDomain(logger));
+                logger.LogInformation(
+                    "Detected Lutris installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
+                    lutrisInstallation.HasGenerals ? 1 : 0,
+                    lutrisInstallation.HasZeroHour ? 1 : 0);
+            }
+            else
+            {
+                logger.LogDebug("No valid Lutris installation found");
+            }
+
             // Check Wine/Proton installations
             logger.LogDebug("Checking Wine/Proton installations");
             var wine = new WineInstallation(fetch: true, logger: logger as ILogger<WineInstallation>);

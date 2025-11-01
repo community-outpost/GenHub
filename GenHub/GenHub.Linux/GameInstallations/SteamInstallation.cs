@@ -50,6 +50,11 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     /// </summary>
     public bool IsSteamInstalled { get; private set; }
 
+    /// <summary>
+    /// Shows how is Steam installed.
+    /// </summary>
+    public LinuxPackageInstallationType PackageInstallationType { get; private set; }
+
     /// <inheritdoc/>
     public void Fetch()
     {
@@ -129,17 +134,40 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
         try
         {
             var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var steamConfigPath = Path.Combine(homeDirectory, ".steam", "steam", "steamapps", "libraryfolders.vdf");
-
-            // Alternative Steam paths
-            var alternativePaths = new[]
+            var steamConfigPaths = new Dictionary<string, LinuxPackageInstallationType>
             {
-                Path.Combine(homeDirectory, ".local", "share", "Steam", "steamapps", "libraryfolders.vdf"),
-                "/usr/share/steam/steamapps/libraryfolders.vdf",
+                {
+                    ".steam/steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Binary
+                },
+                {
+                    ".local/share/Steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Binary
+                },
+                {
+                    ".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Flatpack
+                },
+                {
+                    "snap/steam/common/.local/share/Steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Snap
+                },
+                {
+                    "/usr/share/steam/steamapps/libraryfolders.vdf",
+                    LinuxPackageInstallationType.Unknown
+                },
             };
 
-            string? configFile = File.Exists(steamConfigPath) ? steamConfigPath :
-                alternativePaths.FirstOrDefault(File.Exists);
+            string? configFile = null;
+            foreach (KeyValuePair<string, LinuxPackageInstallationType> entry in steamConfigPaths)
+            {
+                if (File.Exists(Path.Combine(homeDirectory, entry.Key)))
+                {
+                    configFile = Path.Combine(homeDirectory, entry.Key);
+                    PackageInstallationType = entry.Value;
+                    break;
+                }
+            }
 
             if (configFile == null)
             {
