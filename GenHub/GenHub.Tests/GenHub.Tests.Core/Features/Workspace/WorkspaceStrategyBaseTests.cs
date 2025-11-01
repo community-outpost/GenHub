@@ -36,7 +36,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
     /// <param name="fileSize">The file size in bytes.</param>
     /// <param name="expectedEssential">Whether the file should be considered essential.</param>
     [Theory]
-    [InlineData("game.exe", 1000000, true)]
+    [InlineData("generals.exe", 1000000, true)]
     [InlineData("config.ini", 500, true)]
     [InlineData("mods/mod1.ini", 1000, true)]
     [InlineData("data/textures/large.tga", 10000000, true)] // Fixed: Large TGA files in data directory are considered essential

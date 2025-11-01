@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.GameInstallations;
@@ -31,6 +32,10 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameI
     public GameInstallationType InstallationType => GameInstallationType.Wine;
 
     /// <inheritdoc/>
+    /// <remarks>Set after InstallationPath is determined during Fetch().</remarks>
+    public string Id { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
     public string InstallationPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
@@ -45,10 +50,35 @@ public class WineInstallation(ILogger<WineInstallation>? logger = null) : IGameI
     /// <inheritdoc/>
     public string ZeroHourPath { get; private set; } = string.Empty;
 
+    /// <inheritdoc/>
+    public List<GameClient> AvailableGameClients { get; } = new();
+
     /// <summary>
     /// Gets a value indicating whether Wine is installed successfully.
     /// </summary>
     public bool IsWineInstalled { get; private set; }
+
+    /// <inheritdoc/>
+    public void SetPaths(string? generalsPath, string? zeroHourPath)
+    {
+        if (!string.IsNullOrEmpty(generalsPath))
+        {
+            HasGenerals = true;
+            GeneralsPath = generalsPath;
+        }
+
+        if (!string.IsNullOrEmpty(zeroHourPath))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = zeroHourPath;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void PopulateGameClients(IEnumerable<GameClient> clients)
+    {
+        AvailableGameClients.AddRange(clients);
+    }
 
     /// <inheritdoc/>
     public void Fetch()
