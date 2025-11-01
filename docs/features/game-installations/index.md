@@ -61,11 +61,11 @@ Platform‑specific modules that actually scan for game installations.
     - `~/.var/app/com.valvesoftware.Steam/.local/share/Steam`
     - `~/snap/steam/common/.local/share/Steam`
   - For each library, checks under `steamapps/common/`
-  - can detect different packaging types (binary, flatpak, snap)
+  - Can detect different packaging types (binary, flatpak, snap)
 
 - **Lutris (EA App)**
-  - uses lutris cli
-  - can detect different packaging types (binary, flatpak, snap soon)
+  - Uses Lutris cli
+  - Can detect different packaging types (binary, flatpak, snap soon)
 
 - **Wine/Proton Prefix Detection**
   - Searches known Wine prefix locations:
