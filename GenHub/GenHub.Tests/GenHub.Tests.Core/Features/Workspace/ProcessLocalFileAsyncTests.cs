@@ -113,7 +113,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
 
         var file = new ManifestFile
         {
-            RelativePath = "game.exe", // Essential file
+            RelativePath = "generals.exe", // Essential file
             Size = 500, // Small size - essential
             SourceType = ContentSourceType.LocalFile,
         };
