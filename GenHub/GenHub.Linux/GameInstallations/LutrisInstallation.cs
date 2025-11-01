@@ -90,7 +90,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
                     directory,
                     "drive_c/Program Files/EA Games/Command and Conquer Generals Zero Hour/");
 
-                // Check if ea app and generals/zh installed
+                // Check if EA app and Generals/ZH are installed
                 if (Directory.Exists(homeDir))
                 {
                     InstallationPath = homeDir;
