@@ -17,12 +17,16 @@ namespace GenHub.Linux.GameInstallations;
 /// </summary>
 public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
 {
+    private readonly Regex lutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
+    private readonly Regex lutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
+
     /// <summary>
     /// Initializes a new instance of the <see cref="LutrisInstallation"/> class.
     /// </summary>
     /// <param name="fetch">Value indicating whether <see cref="Fetch"/> should be called while instantiation.</param>
     /// <param name="logger">Optional logger instance.</param>
-    public LutrisInstallation(bool fetch, ILogger<LutrisInstallation>? logger = null) : this(logger)
+    public LutrisInstallation(bool fetch, ILogger<LutrisInstallation>? logger = null)
+        : this(logger)
     {
         if (fetch)
         {
@@ -63,9 +67,6 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     /// </summary>
     public string LutrisVersion { get; private set; } = string.Empty;
 
-    private readonly Regex lutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
-    private readonly Regex lutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
-
     /// <inheritdoc/>
     public void Fetch()
     {
@@ -85,7 +86,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
                 // check for lutris
                 if (!TryLutris(entry.Key, out var version) ||
                     !TryLutrisHasZH(entry.Key, out var directory)) continue;
-                var homeDir = Path.Combine(directory,
+                var homeDir = Path.Combine(
+                    directory,
                     "drive_c/Program Files/EA Games/Command and Conquer Generals Zero Hour/");
 
                 // Check if ea app and generals/zh installed
@@ -153,7 +155,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
 
     private bool TryLutrisHasZH(string installationPath, out string directory)
     {
-        directory = String.Empty;
+        directory = string.Empty;
         var process = new Process();
         process.StartInfo = new ProcessStartInfo()
         {
