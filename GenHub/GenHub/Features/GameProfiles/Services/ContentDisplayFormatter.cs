@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -35,6 +36,17 @@ public sealed class ContentDisplayFormatter : IContentDisplayFormatter
 
     private const string CommunityPatchIdentifier = "CommunityPatch";
     private const string VersionPrefix = "v";
+
+    private readonly IGameClientHashRegistry _gameClientHashRegistry;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentDisplayFormatter"/> class.
+    /// </summary>
+    /// <param name="gameClientHashRegistry">The game client hash registry.</param>
+    public ContentDisplayFormatter(IGameClientHashRegistry gameClientHashRegistry)
+    {
+        _gameClientHashRegistry = gameClientHashRegistry ?? throw new ArgumentNullException(nameof(gameClientHashRegistry));
+    }
 
     /// <inheritdoc/>
     public ContentDisplayItem CreateDisplayItem(ContentManifest manifest, bool isEnabled = false)

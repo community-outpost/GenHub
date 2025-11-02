@@ -87,7 +87,7 @@ public class GameProcessManager(
             {
                 WorkingDirectory = workingDirectory,
                 FileName = configuration.ExecutablePath,
-                UseShellExecute = true,  // TRUE - same as double-clicking in Explorer (FAST for GUI apps)
+                UseShellExecute = false,
                 CreateNoWindow = false,
             };
 
@@ -181,7 +181,31 @@ public class GameProcessManager(
             if (process == null)
             {
                 _logger.LogError("[Process] Process.Start returned null for executable: {ExecutablePath}", configuration.ExecutablePath);
-                return OperationResult<GameProcessInfo>.CreateFailure("Failed to start process - Process.Start returned null");
+
+                // Provide helpful diagnostic information
+                var diagnostics = new List<string>();
+                diagnostics.Add("Process.Start returned null. Possible causes:");
+
+                // Check if it's a .NET executable
+                var exeName = Path.GetFileName(configuration.ExecutablePath).ToLowerInvariant();
+                if (exeName.Contains("generalsonline") || exeName.EndsWith(".dll"))
+                {
+                    diagnostics.Add("- Missing .NET 9.0 Desktop Runtime (x86). The runtime installer is included in the GeneralsOnline package.");
+                    diagnostics.Add("- Missing Visual C++ Redistributable (x86). The installer is included in the GeneralsOnline package.");
+                    diagnostics.Add("- Please install these dependencies from the workspace directory before launching.");
+                }
+                else
+                {
+                    diagnostics.Add("- Missing required dependencies or runtime");
+                    diagnostics.Add("- Antivirus or security software blocking execution");
+                    diagnostics.Add("- Insufficient permissions");
+                }
+
+                var errorMessage = string.Join(Environment.NewLine, diagnostics);
+                _logger.LogWarning("[Process] {Diagnostics}", errorMessage);
+
+                return OperationResult<GameProcessInfo>.CreateFailure(
+                    $"Failed to start process - Process.Start returned null.{Environment.NewLine}{errorMessage}");
             }
 
             _logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);

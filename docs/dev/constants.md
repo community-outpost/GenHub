@@ -1117,7 +1117,67 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ---
 
-## GameSettingsConstants Class
+## GeneralsOnlineConstants Class
+
+Constants specific to Generals Online content provider and multiplayer service.
+
+### API Endpoints
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CdnBaseUrl` | `"https://cdn.playgenerals.online"` | Base URL for Generals Online CDN |
+| `ManifestApiUrl` | `"https://cdn.playgenerals.online/manifest.json"` | API endpoint for manifest data |
+| `LatestVersionUrl` | `"https://cdn.playgenerals.online/latest.txt"` | Endpoint for latest version information |
+| `ReleasesUrl` | `"https://cdn.playgenerals.online/releases"` | Base URL for release downloads |
+
+### Web URLs
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `WebsiteUrl` | `"https://www.playgenerals.online/"` | Official Generals Online website |
+| `DownloadPageUrl` | `"https://www.playgenerals.online/#download"` | Download page URL |
+| `SupportUrl` | `"https://discord.playgenerals.online/"` | Support/discord URL |
+
+### Content Metadata
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherName` | `"Generals Online Team"` | Publisher name for manifests |
+| `ContentName` | `"Generals Online"` | Content name for manifests |
+| `Description` | `"Community-driven multiplayer service for C&C Generals Zero Hour. Features 60Hz tick rate, automatic updates, encrypted traffic, and improved stability."` | Content description |
+| `ShortDescription` | `"Community-driven multiplayer service for C&C Generals Zero Hour"` | Short content description |
+| `IconUrl` | `"https://www.playgenerals.online/logo.png"` | Content icon URL |
+| `ChangelogUrl` | `"https://www.playgenerals.online/changelog"` | Changelog URL |
+
+### Content Tags
+
+- `Tags`: Array of content tags
+  - `"multiplayer"`
+  - `"online"`
+  - `"community"`
+  - `"enhancement"`
+
+### Version Parsing
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `VersionDateFormat` | `"ddMMyy"` | Format for parsing version dates (DDMMYY) |
+| `QfeSeparator` | `"_QFE"` | Separator between date and QFE number in versions |
+
+### File Extensions
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PortableExtension` | `".zip"` | File extension for portable downloads |
+| `InstallerExtension` | `".exe"` | File extension for installer downloads |
+
+### Update Intervals
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `UpdateCheckIntervalHours` | `24` | Hours between update checks |
+
+---
 
 Constants for game settings management, including texture quality, resolution, volume levels, and folder names.
 

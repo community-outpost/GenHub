@@ -8,6 +8,7 @@ using GenHub.Features.Content.Services.ContentDeliverers;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.ContentResolvers;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,20 +56,35 @@ public static class ContentPipelineModule
         // services.AddTransient<IContentProvider, ModDBContentProvider>();
         services.AddTransient<IContentProvider, LocalFileSystemContentProvider>();
 
+        // Register Generals Online provider
+        services.AddTransient<IContentProvider, GeneralsOnlineProvider>();
+
         // Register content discoverers
         services.AddTransient<IContentDiscoverer, GitHubDiscoverer>();
         services.AddTransient<IContentDiscoverer, GitHubReleasesDiscoverer>();
         services.AddTransient<IContentDiscoverer, CNCLabsMapDiscoverer>();
         services.AddTransient<IContentDiscoverer, FileSystemDiscoverer>();
 
+        // Register Generals Online discoverer
+        services.AddTransient<IContentDiscoverer, GeneralsOnlineDiscoverer>();
+
         // Register content resolvers
         services.AddTransient<IContentResolver, GitHubResolver>();
         services.AddTransient<IContentResolver, CNCLabsMapResolver>();
         services.AddTransient<IContentResolver, LocalManifestResolver>();
 
+        // Register Generals Online resolver
+        services.AddTransient<IContentResolver, GeneralsOnlineResolver>();
+
         // Register content deliverers
         services.AddTransient<IContentDeliverer, HttpContentDeliverer>();
         services.AddTransient<IContentDeliverer, FileSystemDeliverer>();
+        services.AddTransient<IContentDeliverer, GeneralsOnlineDeliverer>();
+
+        // Register Generals Online background services
+        services.AddSingleton<GeneralsOnlineUpdateService>();
+        services.AddHostedService(sp => sp.GetRequiredService<GeneralsOnlineUpdateService>());
+        services.AddSingleton<IContentUpdateService>(sp => sp.GetRequiredService<GeneralsOnlineUpdateService>());
 
         return services;
     }

@@ -155,7 +155,7 @@ public class ProfileLauncherFacade(
                     effectiveStrategy);
             }
 
-            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly || effectiveStrategy == WorkspaceStrategy.HardLink))
+            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
                 _logger.LogWarning(
                     "Profile {ProfileId} launch blocked - Admin required for {Strategy} but user is not admin",
@@ -862,8 +862,8 @@ public class ProfileLauncherFacade(
                         }
                     }
 
-                    // Validate RequiredPublisherTypes
-                    if (dependency.RequiredPublisherTypes != null && dependency.RequiredPublisherTypes.Any())
+                    // Validate RequiredPublisherTypes (using StrictPublisher and PublisherType)
+                    if (dependency.StrictPublisher && !string.IsNullOrEmpty(dependency.PublisherType))
                     {
                         // Get the publisher type from the matched dependency manifest
                         var dependencyManifest = potentialMatches.FirstOrDefault();
@@ -871,21 +871,22 @@ public class ProfileLauncherFacade(
                         {
                             var publisherType = dependencyManifest.Publisher?.PublisherType ?? PublisherTypeConstants.Unknown;
 
-                            if (!dependency.RequiredPublisherTypes.Contains(publisherType))
+                            if (!string.Equals(dependency.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase))
                             {
-                                var requiredPublishersStr = string.Join(", ", dependency.RequiredPublisherTypes);
-                                errors.Add($"Content '{manifest.Name}' dependency '{dependency.Name}' requires publisher type {requiredPublishersStr}, but found '{publisherType}'");
+                                errors.Add($"Content '{manifest.Name}' dependency '{dependency.Name}' requires publisher type '{dependency.PublisherType}', but found '{publisherType}'");
                                 _logger.LogWarning(
-                                    "Publisher type mismatch: {ManifestName} dependency {DependencyName} requires {RequiredPublishers}, but found {ActualPublisher}",
+                                    "Publisher type mismatch: {ManifestName} dependency {DependencyName} requires {RequiredPublisher}, but found {ActualPublisher}",
                                     manifest.Name,
                                     dependency.Name,
-                                    requiredPublishersStr,
+                                    dependency.PublisherType,
                                     publisherType);
                             }
                         }
                     }
 
-                    // Validate IncompatiblePublisherTypes
+                    // Validate IncompatiblePublisherTypes (not implemented in current ContentDependency model)
+                    // TODO: Implement incompatible publisher types validation when the model supports it
+                    /*
                     if (dependency.IncompatiblePublisherTypes != null && dependency.IncompatiblePublisherTypes.Any())
                     {
                         // Get the publisher type from the matched dependency manifest
@@ -906,6 +907,7 @@ public class ProfileLauncherFacade(
                             }
                         }
                     }
+                    */
                 }
 
                 // Check for conflicts

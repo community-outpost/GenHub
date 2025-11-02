@@ -159,6 +159,9 @@ public class ProfileContentLoader(
                 return result;
             }
 
+            // Track which manifest IDs are already included from installations
+            var includedManifestIds = new HashSet<string>();
+
             foreach (var installation in installationsResult.Data)
             {
                 if (!installation.AvailableGameClients.Any())
@@ -190,6 +193,7 @@ public class ProfileContentLoader(
                         IsEnabled = false,
                     };
                     result.Add(item);
+                    includedManifestIds.Add(gameClient.Id);
 
                     _logger.LogDebug(
                         "Added GameClient option: {DisplayName} (Publisher={Publisher}, ExecutablePath={ExecutablePath})",
@@ -199,8 +203,50 @@ public class ProfileContentLoader(
                 }
             }
 
+            // Now load additional GameClient manifests from ContentManifestPool that are not associated with installations
+            // This includes CAS-stored content like standalone GameClient packages
+            var manifestsResult = await _contentManifestPool.GetAllManifestsAsync();
+            if (manifestsResult.Success && manifestsResult.Data != null)
+            {
+                var gameClientManifests = manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient);
+
+                foreach (var manifest in gameClientManifests)
+                {
+                    // Skip if already included from installations
+                    if (includedManifestIds.Contains(manifest.Id.Value))
+                        continue;
+
+                    var publisher = _displayFormatter.GetPublisherFromManifest(manifest);
+                    var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                    var displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+
+                    var item = new ContentDisplayItem
+                    {
+                        ManifestId = manifest.Id.Value,
+                        DisplayName = displayName,
+                        ContentType = ContentType.GameClient,
+                        GameType = manifest.TargetGame,
+                        InstallationType = _displayFormatter.GetInstallationTypeFromManifest(manifest),
+                        Publisher = publisher,
+                        Version = normalizedVersion,
+                        IsEnabled = false,
+
+                        // For CAS-stored content, SourceId and GameClientId are not applicable
+                        SourceId = string.Empty,
+                        GameClientId = string.Empty,
+                    };
+                    result.Add(item);
+
+                    _logger.LogDebug(
+                        "Added CAS-stored GameClient option: {DisplayName} (Publisher={Publisher}, ManifestId={ManifestId})",
+                        item.DisplayName,
+                        publisher,
+                        manifest.Id.Value);
+                }
+            }
+
             _logger.LogInformation(
-                "Loaded {Count} game client options from {InstallationCount} detected installations",
+                "Loaded {Count} game client options from {InstallationCount} detected installations and manifest pool",
                 result.Count,
                 installationsResult.Data.Count());
         }
@@ -541,11 +587,39 @@ public class ProfileContentLoader(
                         }
                         else
                         {
-                            // Fallback: GameClient not found in ANY installation - log warning and skip
-                            _logger.LogWarning(
-                                "GameClient manifest {ManifestId} not found in any installation - skipping",
+                            // Fallback: GameClient not found in ANY installation - check if it's a CAS-stored manifest
+                            _logger.LogDebug(
+                                "GameClient manifest {ManifestId} not found in any installation, checking if it's CAS-stored",
                                 manifest.Id.Value);
-                            continue;
+
+                            var publisherFromManifest = _displayFormatter.GetPublisherFromManifest(manifest);
+                            var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                            displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+                            gameType = manifest.TargetGame;
+                            installationType = _displayFormatter.GetInstallationTypeFromManifest(manifest);
+                            publisher = publisherFromManifest;
+
+                            var gameClientItem = new ContentDisplayItem
+                            {
+                                ManifestId = manifest.Id.Value,
+                                DisplayName = displayName,
+                                ContentType = manifest.ContentType,
+                                GameType = gameType,
+                                InstallationType = installationType,
+                                Publisher = publisher,
+                                Version = normalizedVersion,
+                                IsEnabled = true,
+
+                                // For CAS-stored content, SourceId and GameClientId are not applicable
+                                SourceId = string.Empty,
+                                GameClientId = string.Empty,
+                            };
+                            result.Add(gameClientItem);
+                            _logger.LogDebug(
+                                "Successfully loaded CAS-stored GameClient {DisplayName} (ManifestId: {ManifestId})",
+                                displayName,
+                                manifest.Id.Value);
+                            continue; // Skip the generic item creation below
                         }
                     }
 

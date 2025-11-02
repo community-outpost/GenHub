@@ -159,6 +159,24 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 - **IFileOperationsService**: Comprehensive low-level operations contract with CopyFileAsync, CreateSymlinkAsync, CreateHardLinkAsync, VerifyFileHashAsync, DownloadFileAsync, ApplyPatchAsync, CopyFromCasAsync
 - **FileOperationsService**: Platform-aware implementation with full CAS integration, cross-platform file operations, symbolic link creation, and hash verification
 
+**Workspace Lifecycle Management**:
+
+**Creation:**
+
+- Deferred until first profile launch (not during profile creation)
+- Workspace ID stored in profile.ActiveWorkspaceId after preparation
+
+**Persistence:**
+
+- Workspaces persist across launches for quick re-launch
+- No cleanup on profile stop (only on deletion or strategy changes)
+
+**Cleanup:**
+
+- Manual: User-initiated cleanup via profile deletion
+- Automatic: Content changes requiring workspace refresh
+- CAS unreference: Tracked via CasReferenceTracker
+
 **CAS Integration**:
 Workspace strategies now fully integrate with the Content Addressable Storage system through  CAS operations:
 
@@ -223,6 +241,18 @@ The reconciler uses multiple heuristics to determine if a file needs updating:
 - **Hash Verification**: For regular files under 100MB, computes SHA-256 hash and compares with manifest
 - **Size Verification**: Fast check comparing file size against manifest expectation
 - **Existence Check**: Verifies file exists at expected path
+
+**Multi-Priority Source Path Resolution**:
+
+WorkspaceStrategyBase.ResolveSourcePath uses priority-based resolution:
+
+1. **Absolute SourcePath**: File's SourcePath if already absolute
+2. **Manifest Source Map**: configuration.ManifestSourcePaths[manifestId]
+3. **GameInstallation Base**: configuration.BaseInstallationPath for GameInstallation content
+4. **Relative SourcePath**: Combine BaseInstallationPath + file.SourcePath
+5. **Fallback**: Combine BaseInstallationPath + file.RelativePath
+
+This enables multi-source installations where content comes from different directories.
 
 ### 1.6 GameLaunching: The Runtime Orchestration Layer
 
@@ -485,7 +515,32 @@ Some content providers need multiple discoverers, resolvers, or deliverers to ha
 
 This architecture allows providers to select the most appropriate component based on query context or content type, providing maximum flexibility while maintaining clean separation of concerns.
 
----
+### 2.6 ProfileContentLoader: Content Resolution for Game Profiles
+
+**Primary Responsibility**: Bridge game profile content requirements with the content pipeline, providing seamless content resolution and validation for profile launches.
+
+**Core ProfileContentLoader Architecture**:
+
+- **IProfileContentLoader**: Interface for resolving and validating profile content requirements
+- **ProfileContentLoader**: Implementation that orchestrates content resolution for game profiles
+- **ContentResolutionRequest**: Input specification with ProfileId, EnabledContentIds, and resolution options
+- **ContentResolutionResult**: Comprehensive result with resolved manifests, validation issues, and dependency information
+
+**Content Resolution Flow**:
+
+1. **Profile Content Analysis**: Extract EnabledContentIds from game profile
+2. **Manifest Resolution**: Resolve each content ID through IContentManifestPool
+3. **Dependency Validation**: Check content compatibility and dependency requirements
+4. **Conflict Detection**: Identify conflicting content that cannot be enabled together
+5. **Resolution Optimization**: Optimize content loading order and workspace preparation
+
+**Profile-Content Integration Features**:
+
+- **Automatic Content Validation**: Ensures all enabled content is available and compatible
+- **Dependency Resolution**: Automatically resolves content dependencies during profile launch
+- **Content Conflict Prevention**: Prevents enabling mutually exclusive content
+- **Workspace Optimization**: Optimizes content loading for efficient workspace preparation
+- **Launch Readiness Verification**: Confirms all content is ready before initiating launch pipeline
 
 ## 3. Content Caching Strategy
 
@@ -583,7 +638,15 @@ if(result.Success)
 return result;
 ```
 
----
+**ManifestProvider Fallbacks**:
+
+The content pipeline includes robust fallback mechanisms for manifest resolution when primary providers are unavailable:
+
+- **Provider Chain Resolution**: IManifestProvider implementations are tried in priority order until one succeeds
+- **Fallback to Local Manifests**: If remote manifest providers fail, system falls back to locally cached manifests
+- **Generated Manifest Creation**: For content without explicit manifests, system can generate basic manifests from file analysis
+- **Cross-Provider Manifest Sharing**: Manifests from one provider can be used as fallbacks for content from other providers
+- **Offline Mode Support**: System maintains functionality with cached manifests when network providers are unavailable
 
 ## 4. Game Profile Management and Runtime Orchestration
 
@@ -744,7 +807,30 @@ GameProfile objects seamlessly integrate with the workspace system:
 - **Launch Customization**: Profile's LaunchArguments and EnvironmentVariables customize process creation
 - **Isolation**: Each profile launch uses an isolated workspace preventing conflicts
 
----
+### 4.4 Additional Services and Interfaces
+
+**Profile Content Integration Services**:
+
+- **IProfileContentLoader**: Orchestrates content resolution for game profiles, ensuring all enabled content is available and compatible
+- **IProfileEditorFacade**: Provides high-level profile editing operations for UI integration, including ScanAndCreateProfilesAsync
+
+**Manifest and Content Services**:
+
+- **IManifestProvider**: Provides base installation manifests with fallback chain resolution
+- **IContentManifestPool**: Long-term cache and database for acquired content manifests with full CRUD operations
+- **IContentStorageService**: Manages content storage operations and CAS integration
+
+**Launch and Process Services**:
+
+- **ILaunchRegistry**: Tracks active launch sessions with persistence and recovery capabilities
+- **IGameProcessManager**: Cross-platform process lifecycle management with monitoring and cleanup
+- **IProcessMonitor**: Real-time process monitoring and health checking
+
+**Validation and Compatibility Services**:
+
+- **IWorkspaceValidator**: Ensures workspace integrity and validates file operations
+- **IGameInstallationValidator**: Validates game installation compatibility and requirements
+- **IContentValidator**: Validates content integrity and security before installation
 
 ## 5. Data Models and Type System
 

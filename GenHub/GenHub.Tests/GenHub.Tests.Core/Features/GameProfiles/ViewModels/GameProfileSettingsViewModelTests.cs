@@ -17,7 +17,7 @@ public class GameProfileSettingsViewModelTests
     public void CanConstruct()
     {
         var mockGameSettingsService = new Mock<IGameSettingsService>();
-        var vm = new GameProfileSettingsViewModel(null, null, mockGameSettingsService.Object, null, null, null, null, null);
+        var vm = new GameProfileSettingsViewModel(null, null, null, mockGameSettingsService.Object, null, null, null, null, null);
         Assert.NotNull(vm);
         Assert.Equal(string.Empty, vm.Name);
         Assert.Equal(string.Empty, vm.Description);
@@ -31,7 +31,7 @@ public class GameProfileSettingsViewModelTests
     public async Task CanInitializeForNewProfile()
     {
         var mockGameSettingsService = new Mock<IGameSettingsService>();
-        var vm = new GameProfileSettingsViewModel(null, null, mockGameSettingsService.Object, null, null, null, null, null);
+        var vm = new GameProfileSettingsViewModel(null, null, null, mockGameSettingsService.Object, null, null, null, null, null);
 
         await vm.InitializeForNewProfileAsync();
 

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -26,18 +27,22 @@ public class ContentStorageService : IContentStorageService
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _storageRoot;
     private readonly ILogger<ContentStorageService> _logger;
+    private readonly ICasService _casService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="configurationProviderService">The configuration provider service.</param>
+    /// <param name="casService">The content-addressable storage service.</param>
     public ContentStorageService(
         ILogger<ContentStorageService> logger,
-        IConfigurationProviderService configurationProviderService)
+        IConfigurationProviderService configurationProviderService,
+        ICasService casService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         var configService = configurationProviderService ?? throw new ArgumentNullException(nameof(configurationProviderService));
+        _casService = casService ?? throw new ArgumentNullException(nameof(casService));
         _storageRoot = configService.GetContentStoragePath();
 
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
@@ -96,10 +101,13 @@ public class ContentStorageService : IContentStorageService
             return await StoreManifestOnlyAsync(manifest, cancellationToken);
         }
 
-        // For GameInstallation and GameClient content, skip physical file copying and just store metadata
-        // These represent references to existing installations, not content to be copied
-        if (manifest.ContentType == ContentType.GameInstallation ||
-            manifest.ContentType == ContentType.GameClient)
+        // Check if manifest requires CAS storage (files marked as SourceType.ContentAddressable)
+        bool requiresCasStorage = manifest.Files.Any(f => f.SourceType == ContentSourceType.ContentAddressable);
+
+        // For GameInstallation and GameClient content that reference existing installations (not CAS),
+        // skip physical file copying and just store metadata
+        if ((manifest.ContentType == ContentType.GameInstallation || manifest.ContentType == ContentType.GameClient)
+            && !requiresCasStorage)
         {
             _logger.LogInformation("Storing {ContentType} manifest {ManifestId} metadata only (skipping file copy)", manifest.ContentType, manifest.Id);
             return await StoreManifestOnlyAsync(manifest, cancellationToken);
@@ -117,6 +125,13 @@ public class ContentStorageService : IContentStorageService
 
             // Store content files with integrity verification
             var updatedManifest = await StoreContentFilesAsync(manifest, sourceDirectory, contentDir, cancellationToken);
+
+            // Ensure Manifests directory exists before writing manifest file
+            var manifestDirectory = Path.GetDirectoryName(manifestPath);
+            if (!string.IsNullOrEmpty(manifestDirectory))
+            {
+                Directory.CreateDirectory(manifestDirectory);
+            }
 
             // Store manifest metadata
             var manifestJson = JsonSerializer.Serialize(updatedManifest, JsonOptions);
@@ -465,28 +480,67 @@ public class ContentStorageService : IContentStorageService
                 try
                 {
                     var relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
-                    var targetPath = Path.Combine(contentDirectory, relativePath);
 
-                    var targetDir = Path.GetDirectoryName(targetPath)!;
-                    Directory.CreateDirectory(targetDir);
+                    // Find the original manifest file to preserve its properties
+                    var originalFile = manifest.Files?.FirstOrDefault(f =>
+                        f.RelativePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase));
 
-                    File.Copy(sourcePath, targetPath, overwrite: true);
+                    // Skip files that are not in the manifest
+                    if (originalFile == null)
+                    {
+                        _logger.LogDebug("Skipping file {RelativePath} - not in manifest", relativePath);
+                        continue;
+                    }
 
-                    var fileInfo = new FileInfo(targetPath);
+                    var sourceFileInfo = new FileInfo(sourcePath);
+                    string hash;
+                    long size = sourceFileInfo.Length;
+
+                    // Check if this file should be stored in CAS
+                    if (originalFile.SourceType == ContentSourceType.ContentAddressable)
+                    {
+                        // Store file in Content-Addressable Storage
+                        _logger.LogDebug("Storing file {RelativePath} to CAS", relativePath);
+
+                        var casResult = await _casService.StoreContentAsync(sourcePath, originalFile.Hash, cancellationToken);
+                        if (!casResult.Success)
+                        {
+                            _logger.LogWarning("Failed to store file {RelativePath} to CAS: {Error}", relativePath, casResult.FirstError);
+                            continue; // Skip this file
+                        }
+
+                        hash = casResult.Data!;
+                        _logger.LogDebug("File {RelativePath} stored to CAS with hash {Hash}", relativePath, hash[..8]);
+                    }
+                    else
+                    {
+                        // Store file in manifest-specific directory
+                        var targetPath = Path.Combine(contentDirectory, relativePath);
+                        var targetDir = Path.GetDirectoryName(targetPath)!;
+                        Directory.CreateDirectory(targetDir);
+
+                        File.Copy(sourcePath, targetPath, overwrite: true);
+
+                        hash = await CalculateFileHashAsync(targetPath, cancellationToken);
+                        _logger.LogDebug("File {RelativePath} copied to manifest directory", relativePath);
+                    }
+
                     var updatedFile = new ManifestFile
                     {
                         RelativePath = relativePath,
-                        Size = fileInfo.Length,
-                        Hash = await CalculateFileHashAsync(targetPath, cancellationToken),
-                        SourceType = ContentSourceType.LocalFile,
-                        IsRequired = true, // Assume all discovered files are required
+                        Size = size,
+                        Hash = hash,
+                        SourceType = originalFile?.SourceType ?? ContentSourceType.LocalFile,
+                        IsRequired = originalFile?.IsRequired ?? true,
+                        IsExecutable = originalFile?.IsExecutable ?? false,
+                        Permissions = originalFile?.Permissions ?? new FilePermissions(),
                     };
 
                     updatedFiles.Add(updatedFile);
                 }
                 catch (Exception fileEx)
                 {
-                    _logger.LogWarning(fileEx, "Failed to copy file {SourcePath} to CAS", sourcePath);
+                    _logger.LogWarning(fileEx, "Failed to process file {SourcePath}", sourcePath);
 
                     // Skip individual file, continue with others
                 }

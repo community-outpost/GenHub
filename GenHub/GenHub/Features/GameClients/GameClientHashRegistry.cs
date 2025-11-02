@@ -162,6 +162,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
     /// </summary>
     private void InitializeCoreHashes()
     {
+        // Official EA/Steam releases
         _knownHashes.TryAdd(Generals108Hash, new GameClientInfo(GameType.Generals, "1.08", "EA/Steam", "Official Generals 1.08 executable", true));
         _knownHashes.TryAdd(ZeroHour104Hash, new GameClientInfo(GameType.ZeroHour, "1.04", "EA/Steam", "Official Zero Hour 1.04 executable", true));
         _knownHashes.TryAdd(ZeroHour105Hash, new GameClientInfo(GameType.ZeroHour, "1.05", "EA/Steam", "Official Zero Hour 1.05 executable", true));
