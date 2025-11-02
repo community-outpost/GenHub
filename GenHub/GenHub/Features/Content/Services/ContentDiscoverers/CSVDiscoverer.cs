@@ -33,7 +33,7 @@ public class CSVDiscoverer(
     IConfigurationProviderService configurationProvider,
     HttpClient httpClient) : IContentDiscoverer
 {
-    private readonly ILogger<CSVDiscoverer> _logger = logger;
+    
     private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -98,7 +98,7 @@ public class CSVDiscoverer(
 
             try
             {
-                _logger.LogDebug("Attempting to load CSV registry from index.json: {Url}", indexUrl);
+                logger.LogDebug("Attempting to load CSV registry from index.json: {Url}", indexUrl);
                 var indexJson = await _httpClient.GetStringAsync(indexUrl, cancellationToken);
                 registryIndex = JsonSerializer.Deserialize<CsvRegistryIndex>(indexJson, new JsonSerializerOptions
                 {
@@ -107,13 +107,13 @@ public class CSVDiscoverer(
 
                 if (registryIndex?.Registries == null || !registryIndex.Registries.Any())
                 {
-                    _logger.LogWarning("Index.json loaded but contains no valid registries");
+                    logger.LogWarning("Index.json loaded but contains no valid registries");
                     registryIndex = null;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to load index.json from {Url}, falling back to configuration", indexUrl);
+                logger.LogWarning(ex, "Failed to load index.json from {Url}, falling back to configuration", indexUrl);
             }
 
             var results = new List<ContentSearchResult>();
@@ -142,12 +142,12 @@ public class CSVDiscoverer(
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("CSV discovery was cancelled");
+            logger.LogWarning("CSV discovery was cancelled");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "CSV discovery failed");
+            logger.LogError(ex, "CSV discovery failed");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
@@ -194,7 +194,7 @@ public class CSVDiscoverer(
             }
             else
             {
-                _logger.LogWarning("No active registry found for {GameType} {Version} in index.json", gameType, version);
+                logger.LogWarning("No active registry found for {GameType} {Version} in index.json", gameType, version);
                 return null;
             }
         }
