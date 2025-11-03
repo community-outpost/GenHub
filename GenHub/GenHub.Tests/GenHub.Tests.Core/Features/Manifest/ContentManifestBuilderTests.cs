@@ -8,7 +8,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Features.Manifest;
@@ -51,17 +50,17 @@ public class ContentManifestBuilderTests
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
             .Returns((string id) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
-        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>()))
-            .Returns((GameInstallation gi, GameType gt, string? v) =>
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>(), It.IsAny<ContentType>()))
+            .Returns((GameInstallation gi, GameType gt, string? v, ContentType ct) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
-        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>()))
-            .Returns((GameInstallation gi, GameType gt, int v) =>
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>(), It.IsAny<ContentType>()))
+            .Returns((GameInstallation gi, GameType gt, int v, ContentType ct) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
-        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<GenHub.Core.Models.Enums.ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
-            .Returns((string p, GenHub.Core.Models.Enums.ContentType ct, string c, int v) =>
+        _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
+            .Returns((string p, ContentType ct, string c, int v) =>
             {
                 var generated = ManifestIdGenerator.GeneratePublisherContentId(p, ct, c, v);
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));

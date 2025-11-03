@@ -37,13 +37,13 @@ URI scheme constants for handling different types of URIs and paths.
 
 Application-wide constants for GenHub.
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ApplicationName` | `"GenHub"` | Application name |
-| `Version` | `"1.0"` | Current version of GenHub |
-| `DefaultTheme` | `Theme.Dark` | Default UI theme |
-| `DefaultThemeName` | `"Dark"` | Default theme name as string |
-| `DefaultUserAgent` | `"GenHub/1.0"` | Default user agent string |
+| Constant           | Value          | Description                  |
+| ------------------ | -------------- | ---------------------------- |
+| `ApplicationName`  | `"GenHub"`     | Application name             |
+| `Version`          | `"1.0"`        | Current version of GenHub    |
+| `DefaultTheme`     | `Theme.Dark`   | Default UI theme             |
+| `DefaultThemeName` | `"Dark"`       | Default theme name as string |
+| `DefaultUserAgent` | `"GenHub/1.0"` | Default user agent string    |
 
 ---
 
@@ -51,12 +51,12 @@ Application-wide constants for GenHub.
 
 Default values and limits for Content-Addressable Storage (CAS).
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MaxCacheSizeBytes` | `53687091200` (50GB) | Default maximum cache size |
-| `DefaultMaxCacheSizeGB` | `50` | Default maximum cache size in gigabytes |
-| `MaxConcurrentOperations` | `4` | Default maximum concurrent CAS operations |
-| `GcGracePeriodDays` | `7` | Default garbage collection grace period in days |
+| Constant                  | Value                | Description                                     |
+| ------------------------- | -------------------- | ----------------------------------------------- |
+| `MaxCacheSizeBytes`       | `53687091200` (50GB) | Default maximum cache size                      |
+| `DefaultMaxCacheSizeGB`   | `50`                 | Default maximum cache size in gigabytes         |
+| `MaxConcurrentOperations` | `4`                  | Default maximum concurrent CAS operations       |
+| `GcGracePeriodDays`       | `7`                  | Default garbage collection grace period in days |
 
 ---
 
@@ -120,14 +120,14 @@ Constants for unit conversions used throughout the application.
 
 Directory names used for organizing content storage.
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Data` | `"Data"` | Directory for content data |
-| `Cache` | `"Cache"` | Directory for cache files |
-| `CasPool` | `"cas-pool"` | Directory for CAS pool |
-| `Temp` | `"Temp"` | Directory for temporary files |
-| `Logs` | `"Logs"` | Directory for log files |
-| `Backups` | `"Backups"` | Directory for backup files |
+| Constant  | Value        | Description                   |
+| --------- | ------------ | ----------------------------- |
+| `Data`    | `"Data"`     | Directory for content data    |
+| `Cache`   | `"Cache"`    | Directory for cache files     |
+| `CasPool` | `"cas-pool"` | Directory for CAS pool        |
+| `Temp`    | `"Temp"`     | Directory for temporary files |
+| `Logs`    | `"Logs"`     | Directory for log files       |
+| `Backups` | `"Backups"`  | Directory for backup files    |
 
 ---
 
@@ -151,19 +151,19 @@ File and directory name constants to prevent typos and ensure consistency.
 
 ### Manifest Files
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ManifestsDirectory` | `"Manifests"` | Directory for manifest files |
-| `ManifestFilePattern` | `"*.manifest.json"` | File pattern for manifest files |
-| `ManifestFileExtension` | `".manifest.json"` | File extension for manifest files |
+| Constant                | Value               | Description                       |
+| ----------------------- | ------------------- | --------------------------------- |
+| `ManifestsDirectory`    | `"Manifests"`       | Directory for manifest files      |
+| `ManifestFilePattern`   | `"*.manifest.json"` | File pattern for manifest files   |
+| `ManifestFileExtension` | `".manifest.json"`  | File extension for manifest files |
 
 ### JSON Files
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `JsonFileExtension` | `".json"` | File extension for JSON files |
-| `JsonFilePattern` | `"*.json"` | File pattern for JSON files |
-| `SettingsFileName` | `"settings.json"` | Default settings file name |
+| Constant            | Value             | Description                   |
+| ------------------- | ----------------- | ----------------------------- |
+| `JsonFileExtension` | `".json"`         | File extension for JSON files |
+| `JsonFilePattern`   | `"*.json"`        | File pattern for JSON files   |
+| `SettingsFileName`  | `"settings.json"` | Default settings file name    |
 
 ---
 
@@ -173,40 +173,40 @@ Constants related to manifest ID generation, validation, and file operations.
 
 ### Manifest ID Generation
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `DefaultManifestFormatVersion` | `1` | Default manifest format version (integer) |
-| `DefaultManifestVersion` | `"1.0"` | Default manifest version as string |
-| `PublisherContentIdPrefix` | `"publisher"` | Prefix for publisher content IDs |
-| `BaseGameIdPrefix` | `"gameinstallation"` | Prefix for game installation IDs |
-| `SimpleIdPrefix` | `"simple"` | Prefix for simple test IDs |
-| `GeneralsManifestVersion` | `"1.08"` | Version string for Generals game installation manifests (dots removed in IDs: "108") |
-| `ZeroHourManifestVersion` | `"1.04"` | Version string for Zero Hour game installation manifests (dots removed in IDs: "104") |
+| Constant                       | Value                | Description                                                                           |
+| ------------------------------ | -------------------- | ------------------------------------------------------------------------------------- |
+| `DefaultManifestFormatVersion` | `1`                  | Default manifest format version (integer)                                             |
+| `DefaultManifestVersion`       | `"1.0"`              | Default manifest version as string                                                    |
+| `PublisherContentIdPrefix`     | `"publisher"`        | Prefix for publisher content IDs                                                      |
+| `BaseGameIdPrefix`             | `"gameinstallation"` | Prefix for game installation IDs                                                      |
+| `SimpleIdPrefix`               | `"simple"`           | Prefix for simple test IDs                                                            |
+| `GeneralsManifestVersion`      | `"1.08"`             | Version string for Generals game installation manifests (dots removed in IDs: "108")  |
+| `ZeroHourManifestVersion`      | `"1.04"`             | Version string for Zero Hour game installation manifests (dots removed in IDs: "104") |
 
 ### Manifest Validation
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MaxManifestIdLength` | `256` | Maximum length for manifest IDs |
-| `MinManifestIdLength` | `3` | Minimum length for manifest IDs |
-| `MaxManifestSegments` | `5` | Maximum number of segments in manifest ID |
-| `MinManifestSegments` | `1` | Minimum number of segments in manifest ID |
+| Constant              | Value | Description                               |
+| --------------------- | ----- | ----------------------------------------- |
+| `MaxManifestIdLength` | `256` | Maximum length for manifest IDs           |
+| `MinManifestIdLength` | `3`   | Minimum length for manifest IDs           |
+| `MaxManifestSegments` | `5`   | Maximum number of segments in manifest ID |
+| `MinManifestSegments` | `1`   | Minimum number of segments in manifest ID |
 
 ### Manifest Timeouts and Operations
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ManifestIdGenerationTimeoutMs` | `5000` | Timeout for manifest ID generation operations (milliseconds) |
-| `ManifestValidationTimeoutMs` | `1000` | Timeout for manifest validation operations (milliseconds) |
-| `MaxConcurrentManifestOperations` | `10` | Maximum concurrent manifest operations |
+| Constant                          | Value  | Description                                                  |
+| --------------------------------- | ------ | ------------------------------------------------------------ |
+| `ManifestIdGenerationTimeoutMs`   | `5000` | Timeout for manifest ID generation operations (milliseconds) |
+| `ManifestValidationTimeoutMs`     | `1000` | Timeout for manifest validation operations (milliseconds)    |
+| `MaxConcurrentManifestOperations` | `10`   | Maximum concurrent manifest operations                       |
 
 ### Manifest ID Regex Patterns
 
-| Constant | Description |
-|----------|-------------|
-| `PublisherIdRegexPattern` | Regex for publisher content IDs |
+| Constant                         | Description                     |
+| -------------------------------- | ------------------------------- |
+| `PublisherIdRegexPattern`        | Regex for publisher content IDs |
 | `GameInstallationIdRegexPattern` | Regex for game installation IDs |
-| `SimpleIdRegexPattern` | Regex for simple IDs |
+| `SimpleIdRegexPattern`           | Regex for simple IDs            |
 
 **Publisher Content ID Pattern:**
 
@@ -228,11 +228,11 @@ Constants related to manifest ID generation, validation, and file operations.
 
 ### Dependency Defaults
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GeneralsManifestVersion` | `"1.08"` | Version string for Generals game installation manifests. When used in manifest IDs, dots are removed (becomes "108"). |
-| `ZeroHourManifestVersion` | `"1.04"` | Version string for Zero Hour game installation manifests. When used in manifest IDs, dots are removed (becomes "104"). |
-| `DefaultContentDependencyId` | `"1.0.genhub.mod.defaultdependency"` | Default ID string for content dependencies (fallback for model instantiation) |
+| Constant                     | Value                                | Description                                                                                                            |
+| ---------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `GeneralsManifestVersion`    | `"1.08"`                             | Version string for Generals game installation manifests. When used in manifest IDs, dots are removed (becomes "108").  |
+| `ZeroHourManifestVersion`    | `"1.04"`                             | Version string for Zero Hour game installation manifests. When used in manifest IDs, dots are removed (becomes "104"). |
+| `DefaultContentDependencyId` | `"1.0.genhub.mod.defaultdependency"` | Default ID string for content dependencies (fallback for model instantiation)                                          |
 
 ---
 
@@ -242,24 +242,24 @@ Extensible SHA-256 hash constants and registry for known game executables used f
 
 ### Core Hash Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe) |
+| Constant          | Value                                                                | Description                                               |
+| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe)  |
 | `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
 | `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
 
 ### Extensibility Configuration Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ExternalHashDatabaseFileName` | `"game-executable-hashes.json"` | Default filename for external hash database JSON file |
-| `MaxExternalHashSources` | `50` | Maximum number of external hash sources that can be registered |
-| `ExternalSourceCacheTimeoutMinutes` | `30` | Cache timeout for external hash sources in minutes |
+| Constant                            | Value                           | Description                                                    |
+| ----------------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `ExternalHashDatabaseFileName`      | `"game-executable-hashes.json"` | Default filename for external hash database JSON file          |
+| `MaxExternalHashSources`            | `50`                            | Maximum number of external hash sources that can be registered |
+| `ExternalSourceCacheTimeoutMinutes` | `30`                            | Cache timeout for external hash sources in minutes             |
 
 ### Collections and Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property                  | Type           | Description                                                                       |
+| ------------------------- | -------------- | --------------------------------------------------------------------------------- |
 | `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
 
 ### Basic Usage Example
@@ -314,52 +314,52 @@ Well-known publisher type identifiers for content sources. Uses lowercase string
 
 ### Official Platform Publishers
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform |
-| `Steam` | `"steam"` | Steam platform |
-| `Retail` | `"retail"` | Retail/physical installation |
-| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation |
-| `Wine` | `"wine"` | Wine/Proton compatibility layer |
-| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
+| Constant         | Value              | Description                       |
+| ---------------- | ------------------ | --------------------------------- |
+| `EaApp`          | `"eaapp"`          | EA App (formerly Origin) platform |
+| `Steam`          | `"steam"`          | Steam platform                    |
+| `Retail`         | `"retail"`         | Retail/physical installation      |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation      |
+| `Wine`           | `"wine"`           | Wine/Proton compatibility layer   |
+| `CdIso`          | `"cdiso"`          | CD-ROM/ISO installation           |
 
 ### Community Platforms
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GeneralsOnline` | `"generalsonline"` | Generals Online community platform |
-| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform |
-| `ModDb` | `"moddb"` | ModDB hosting platform |
-| `CncLabs` | `"cnclabs"` | C&C Labs community site |
+| Constant           | Value                | Description                        |
+| ------------------ | -------------------- | ---------------------------------- |
+| `GeneralsOnline`   | `"generalsonline"`   | Generals Online community platform |
+| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform         |
+| `ModDb`            | `"moddb"`            | ModDB hosting platform             |
+| `CncLabs`          | `"cnclabs"`          | C&C Labs community site            |
 
 ### Web/Download Sources
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GitHub` | `"github"` | GitHub repository |
-| `WebDownload` | `"web"` | Generic web download |
+| Constant      | Value      | Description          |
+| ------------- | ---------- | -------------------- |
+| `GitHub`      | `"github"` | GitHub repository    |
+| `WebDownload` | `"web"`    | Generic web download |
 
 ### Local/System Sources
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `LocalImport` | `"local"` | Local file import by user |
-| `FileSystem` | `"filesystem"` | Imported from file system |
+| Constant      | Value          | Description               |
+| ------------- | -------------- | ------------------------- |
+| `LocalImport` | `"local"`      | Local file import by user |
+| `FileSystem`  | `"filesystem"` | Imported from file system |
 
 ### Generated Content
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `AutoGenerated` | `"autogenerated"` | Auto-generated by ContentOrchestrator |
-| `GenHubInternal` | `"genhub"` | GenHub internal system content |
-| `CsvGenerated` | `"csvgenerated"` | Content generated from CSV authoritative source |
+| Constant         | Value             | Description                                     |
+| ---------------- | ----------------- | ----------------------------------------------- |
+| `AutoGenerated`  | `"autogenerated"` | Auto-generated by ContentOrchestrator           |
+| `GenHubInternal` | `"genhub"`        | GenHub internal system content                  |
+| `CsvGenerated`   | `"csvgenerated"`  | Content generated from CSV authoritative source |
 
 ### Special/Unknown
 
-| Constant | Value | Description |
-|----------|-------|-------------|
+| Constant  | Value       | Description                           |
+| --------- | ----------- | ------------------------------------- |
 | `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
-| `Custom` | `"custom"` | Custom user-defined publisher |
+| `Custom`  | `"custom"`  | Custom user-defined publisher         |
 
 #### Publisher Type Mapping Methods
 
@@ -383,59 +383,59 @@ These constants provide standardized publisher metadata for content attribution 
 
 ### Steam Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"Steam"` | Display name for Steam publisher |
-| `Website` | `"https://store.steampowered.com"` | Website URL for Steam |
-| `SupportUrl` | `"https://help.steampowered.com"` | Support URL for Steam |
+| Constant     | Value                              | Description                      |
+| ------------ | ---------------------------------- | -------------------------------- |
+| `Name`       | `"Steam"`                          | Display name for Steam publisher |
+| `Website`    | `"https://store.steampowered.com"` | Website URL for Steam            |
+| `SupportUrl` | `"https://help.steampowered.com"`  | Support URL for Steam            |
 
 ### EA App Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"EA App"` | Display name for EA App publisher |
-| `Website` | `"https://www.ea.com"` | Website URL for EA App |
-| `SupportUrl` | `"https://help.ea.com"` | Support URL for EA App |
+| Constant     | Value                   | Description                       |
+| ------------ | ----------------------- | --------------------------------- |
+| `Name`       | `"EA App"`              | Display name for EA App publisher |
+| `Website`    | `"https://www.ea.com"`  | Website URL for EA App            |
+| `SupportUrl` | `"https://help.ea.com"` | Support URL for EA App            |
 
 ### The First Decade Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"The First Decade"` | Display name for The First Decade publisher |
-| `Website` | `"https://westwood.com"` | Website URL for The First Decade |
-| `SupportUrl` | `""` | Support URL for The First Decade (empty) |
+| Constant     | Value                    | Description                                 |
+| ------------ | ------------------------ | ------------------------------------------- |
+| `Name`       | `"The First Decade"`     | Display name for The First Decade publisher |
+| `Website`    | `"https://westwood.com"` | Website URL for The First Decade            |
+| `SupportUrl` | `""`                     | Support URL for The First Decade (empty)    |
 
 ### Wine/Proton Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"Wine/Proton"` | Display name for Wine/Proton publisher |
-| `Website` | `""` | Website URL for Wine/Proton (empty) |
-| `SupportUrl` | `""` | Support URL for Wine/Proton (empty) |
+| Constant     | Value           | Description                            |
+| ------------ | --------------- | -------------------------------------- |
+| `Name`       | `"Wine/Proton"` | Display name for Wine/Proton publisher |
+| `Website`    | `""`            | Website URL for Wine/Proton (empty)    |
+| `SupportUrl` | `""`            | Support URL for Wine/Proton (empty)    |
 
 ### CD-ROM Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"CD-ROM"` | Display name for CD-ROM publisher |
-| `Website` | `""` | Website URL for CD-ROM (empty) |
-| `SupportUrl` | `""` | Support URL for CD-ROM (empty) |
+| Constant     | Value      | Description                       |
+| ------------ | ---------- | --------------------------------- |
+| `Name`       | `"CD-ROM"` | Display name for CD-ROM publisher |
+| `Website`    | `""`       | Website URL for CD-ROM (empty)    |
+| `SupportUrl` | `""`       | Support URL for CD-ROM (empty)    |
 
 ### Retail Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"Retail Installation"` | Display name for retail publisher |
-| `Website` | `""` | Website URL for retail (empty) |
-| `SupportUrl` | `""` | Support URL for retail (empty) |
+| Constant     | Value                   | Description                       |
+| ------------ | ----------------------- | --------------------------------- |
+| `Name`       | `"Retail Installation"` | Display name for retail publisher |
+| `Website`    | `""`                    | Website URL for retail (empty)    |
+| `SupportUrl` | `""`                    | Support URL for retail (empty)    |
 
 ### Generals Online Publisher Information
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Name` | `"Generals Online"` | Display name for Generals Online publisher |
-| `Website` | `"https://www.playgenerals.online/"` | Website URL for Generals Online |
-| `SupportUrl` | `"https://www.playgenerals.online/support"` | Support URL for Generals Online |
+| Constant     | Value                                       | Description                                |
+| ------------ | ------------------------------------------- | ------------------------------------------ |
+| `Name`       | `"Generals Online"`                         | Display name for Generals Online publisher |
+| `Website`    | `"https://www.playgenerals.online/"`        | Website URL for Generals Online            |
+| `SupportUrl` | `"https://www.playgenerals.online/support"` | Support URL for Generals Online            |
 
 ### Helper Methods
 
@@ -455,40 +455,40 @@ Constants related to game client detection and management.
 
 ### Game Executables
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GeneralsExecutable` | `"generals.exe"` | Generals executable filename |
-| `ZeroHourExecutable` | `"game.exe"` | Zero Hour executable filename |
+| Constant             | Value            | Description                   |
+| -------------------- | ---------------- | ----------------------------- |
+| `GeneralsExecutable` | `"generals.exe"` | Generals executable filename  |
+| `ZeroHourExecutable` | `"game.exe"`     | Zero Hour executable filename |
 
 ### SuperHackers Client Detection
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `SuperHackersGeneralsExecutable` | `"generalsV.exe"` | SuperHackers Generals executable filename |
+| Constant                         | Value              | Description                                |
+| -------------------------------- | ------------------ | ------------------------------------------ |
+| `SuperHackersGeneralsExecutable` | `"generalsV.exe"`  | SuperHackers Generals executable filename  |
 | `SuperHackersZeroHourExecutable` | `"generalsZH.exe"` | SuperHackers Zero Hour executable filename |
 
 ### GeneralsOnline Client Detection
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GeneralsOnline30HzExecutable` | `"generalsonlinezh_30.exe"` | GeneralsOnline 30Hz client executable name |
-| `GeneralsOnline60HzExecutable` | `"generalsonlinezh_60.exe"` | GeneralsOnline 60Hz client executable name |
-| `GeneralsOnline30HzDisplayName` | `"GeneralsOnline 30Hz"` | Display name for GeneralsOnline 30Hz variant |
-| `GeneralsOnline60HzDisplayName` | `"GeneralsOnline 60Hz"` | Display name for GeneralsOnline 60Hz variant |
-| `GeneralsOnlineDefaultDisplayName` | `"GeneralsOnline 30Hz"` | Default display name for GeneralsOnline variants |
+| Constant                           | Value                       | Description                                      |
+| ---------------------------------- | --------------------------- | ------------------------------------------------ |
+| `GeneralsOnline30HzExecutable`     | `"generalsonlinezh_30.exe"` | GeneralsOnline 30Hz client executable name       |
+| `GeneralsOnline60HzExecutable`     | `"generalsonlinezh_60.exe"` | GeneralsOnline 60Hz client executable name       |
+| `GeneralsOnline30HzDisplayName`    | `"GeneralsOnline 30Hz"`     | Display name for GeneralsOnline 30Hz variant     |
+| `GeneralsOnline60HzDisplayName`    | `"GeneralsOnline 60Hz"`     | Display name for GeneralsOnline 60Hz variant     |
+| `GeneralsOnlineDefaultDisplayName` | `"GeneralsOnline 30Hz"`     | Default display name for GeneralsOnline variants |
 
 ### Dependency Names
 
-| Constant | Value | Description |
-|----------|-------|-------------|
+| Constant                             | Value                                 | Description                                            |
+| ------------------------------------ | ------------------------------------- | ------------------------------------------------------ |
 | `ZeroHourInstallationDependencyName` | `"Zero Hour Installation (Required)"` | Name for Zero Hour installation dependency requirement |
 
 ### Version Strings
 
-| Constant | Value | Description |
-|----------|-------|-------------|
+| Constant              | Value                   | Description                                            |
+| --------------------- | ----------------------- | ------------------------------------------------------ |
 | `AutoDetectedVersion` | `"Automatically added"` | Version string used for automatically detected clients |
-| `UnknownVersion` | `"Unknown"` | Version string used for unknown/unrecognized clients |
+| `UnknownVersion`      | `"Unknown"`             | Version string used for unknown/unrecognized clients   |
 
 ### Required DLLs
 
@@ -545,15 +545,15 @@ See [Content Pipeline Architecture](../architecture.md#content-pipeline) for det
 
 These constants are used for `GameInstallationType` mapping only:
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform installation |
-| `Steam` | `"steam"` | Steam platform installation |
-| `Retail` | `"retail"` | Retail/physical installation |
-| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation installation |
-| `Wine` | `"wine"` | Wine/Proton compatibility layer installation |
-| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
-| `Unknown` | `"unknown"` | Unknown or unspecified installation source |
+| Constant         | Value              | Description                                    |
+| ---------------- | ------------------ | ---------------------------------------------- |
+| `EaApp`          | `"eaapp"`          | EA App (formerly Origin) platform installation |
+| `Steam`          | `"steam"`          | Steam platform installation                    |
+| `Retail`         | `"retail"`         | Retail/physical installation                   |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation installation      |
+| `Wine`           | `"wine"`           | Wine/Proton compatibility layer installation   |
+| `CdIso`          | `"cdiso"`          | CD-ROM/ISO installation                        |
+| `Unknown`        | `"unknown"`        | Unknown or unspecified installation source     |
 
 #### Installation Source Mapping Methods
 
@@ -599,18 +599,18 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ### CAS Retry Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MaxRetries` | `10` | Maximum retry attempts for CAS operations |
-| `RetryDelayMs` | `100` | Delay between retry attempts (ms) |
+| Constant          | Value  | Description                                |
+| ----------------- | ------ | ------------------------------------------ |
+| `MaxRetries`      | `10`   | Maximum retry attempts for CAS operations  |
+| `RetryDelayMs`    | `100`  | Delay between retry attempts (ms)          |
 | `MaxRetryDelayMs` | `5000` | Maximum delay for exponential backoff (ms) |
 
 ### CAS Directory Structure
 
-| Constant | Value | Description |
-|----------|-------|-------------|
+| Constant           | Value       | Description               |
+| ------------------ | ----------- | ------------------------- |
 | `ObjectsDirectory` | `"objects"` | Directory for CAS objects |
-| `LocksDirectory` | `"locks"` | Directory for CAS locks |
+| `LocksDirectory`   | `"locks"`   | Directory for CAS locks   |
 
 ### CAS Maintenance
 
@@ -655,24 +655,24 @@ Extensible SHA-256 hash constants and registry for known game executables used f
 
 ### Core Hash Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe) |
+| Constant          | Value                                                                | Description                                               |
+| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe)  |
 | `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
 | `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
 
 ### Extensibility Configuration Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `ExternalHashDatabaseFileName` | `"game-executable-hashes.json"` | Default filename for external hash database JSON file |
-| `MaxExternalHashSources` | `50` | Maximum number of external hash sources that can be registered |
-| `ExternalSourceCacheTimeoutMinutes` | `30` | Cache timeout for external hash sources in minutes |
+| Constant                            | Value                           | Description                                                    |
+| ----------------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `ExternalHashDatabaseFileName`      | `"game-executable-hashes.json"` | Default filename for external hash database JSON file          |
+| `MaxExternalHashSources`            | `50`                            | Maximum number of external hash sources that can be registered |
+| `ExternalSourceCacheTimeoutMinutes` | `30`                            | Cache timeout for external hash sources in minutes             |
 
 ### Collections and Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
+| Property                  | Type           | Description                                                                       |
+| ------------------------- | -------------- | --------------------------------------------------------------------------------- |
 | `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
 
 ### Basic Usage Example
@@ -727,52 +727,52 @@ Publisher types are **string-based** (not an enum) for extensibility. Any string
 
 ### Official Platform Publishers
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `Steam` | `"steam"` | Steam platform |
-| `EaApp` | `"eaapp"` | EA App (formerly Origin) platform |
-| `Retail` | `"retail"` | Retail/physical installation |
-| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation |
-| `Wine` | `"wine"` | Wine/Proton compatibility layer |
-| `CdIso` | `"cdiso"` | CD-ROM/ISO installation |
+| Constant         | Value              | Description                       |
+| ---------------- | ------------------ | --------------------------------- |
+| `Steam`          | `"steam"`          | Steam platform                    |
+| `EaApp`          | `"eaapp"`          | EA App (formerly Origin) platform |
+| `Retail`         | `"retail"`         | Retail/physical installation      |
+| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation      |
+| `Wine`           | `"wine"`           | Wine/Proton compatibility layer   |
+| `CdIso`          | `"cdiso"`          | CD-ROM/ISO installation           |
 
 ### Community Platforms
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GeneralsOnline` | `"generalsonline"` | Generals Online community launcher (auto-updates clients) |
-| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform |
-| `ModDb` | `"moddb"` | ModDB hosting platform |
-| `CncLabs` | `"cnclabs"` | C&C Labs community site |
+| Constant           | Value                | Description                                               |
+| ------------------ | -------------------- | --------------------------------------------------------- |
+| `GeneralsOnline`   | `"generalsonline"`   | Generals Online community launcher (auto-updates clients) |
+| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform                                |
+| `ModDb`            | `"moddb"`            | ModDB hosting platform                                    |
+| `CncLabs`          | `"cnclabs"`          | C&C Labs community site                                   |
 
 ### Web/Download Sources
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GitHub` | `"github"` | GitHub repository |
-| `WebDownload` | `"web"` | Generic web download |
+| Constant      | Value      | Description          |
+| ------------- | ---------- | -------------------- |
+| `GitHub`      | `"github"` | GitHub repository    |
+| `WebDownload` | `"web"`    | Generic web download |
 
 ### Local/System Sources
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `LocalImport` | `"local"` | Local file import by user |
-| `FileSystem` | `"filesystem"` | Imported from file system |
+| Constant      | Value          | Description               |
+| ------------- | -------------- | ------------------------- |
+| `LocalImport` | `"local"`      | Local file import by user |
+| `FileSystem`  | `"filesystem"` | Imported from file system |
 
 ### Generated Content
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `AutoGenerated` | `"autogenerated"` | Auto-generated by ContentOrchestrator |
-| `GenHubInternal` | `"genhub"` | GenHub internal system content |
-| `CsvGenerated` | `"csvgenerated"` | Content generated from CSV authoritative source |
+| Constant         | Value             | Description                                     |
+| ---------------- | ----------------- | ----------------------------------------------- |
+| `AutoGenerated`  | `"autogenerated"` | Auto-generated by ContentOrchestrator           |
+| `GenHubInternal` | `"genhub"`        | GenHub internal system content                  |
+| `CsvGenerated`   | `"csvgenerated"`  | Content generated from CSV authoritative source |
 
 ### Special/Unknown
 
-| Constant | Value | Description |
-|----------|-------|-------------|
+| Constant  | Value       | Description                           |
+| --------- | ----------- | ------------------------------------- |
 | `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
-| `Custom` | `"custom"` | Custom user-defined publisher |
+| `Custom`  | `"custom"`  | Custom user-defined publisher         |
 
 ### Helper Methods
 
@@ -1052,28 +1052,28 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ### Discoverers
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `CNCLabsDiscoverer` | `"CNC Labs Maps"` | Source name for CNC Labs map discoverer |
-| `GitHubDiscoverer` | `"GitHub"` | Source name for GitHub content discoverer |
-| `GitHubReleasesDiscoverer` | `"GitHub Releases"` | Source name for GitHub releases discoverer |
-| `FileSystemDiscoverer` | `"Local File System"` | Source name for local file system discoverer |
-| `ModDBDiscoverer` | `"ModDB"` | Source name for ModDB content discoverer |
+| Constant                   | Value                 | Description                                  |
+| -------------------------- | --------------------- | -------------------------------------------- |
+| `CNCLabsDiscoverer`        | `"CNC Labs Maps"`     | Source name for CNC Labs map discoverer      |
+| `GitHubDiscoverer`         | `"GitHub"`            | Source name for GitHub content discoverer    |
+| `GitHubReleasesDiscoverer` | `"GitHub Releases"`   | Source name for GitHub releases discoverer   |
+| `FileSystemDiscoverer`     | `"Local File System"` | Source name for local file system discoverer |
+| `ModDBDiscoverer`          | `"ModDB"`             | Source name for ModDB content discoverer     |
 
 ### Resolvers
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `CNCLabsResolverId` | `"CNCLabsMap"` | Resolver ID for CNC Labs map resolver |
-| `GitHubResolverId` | `"GitHubRelease"` | Resolver ID for GitHub release resolver |
-| `LocalResolverId` | `"LocalManifest"` | Resolver ID for local manifest resolver |
-| `ModDBResolverId` | `"ModDB"` | Resolver ID for ModDB resolver |
+| Constant            | Value             | Description                             |
+| ------------------- | ----------------- | --------------------------------------- |
+| `CNCLabsResolverId` | `"CNCLabsMap"`    | Resolver ID for CNC Labs map resolver   |
+| `GitHubResolverId`  | `"GitHubRelease"` | Resolver ID for GitHub release resolver |
+| `LocalResolverId`   | `"LocalManifest"` | Resolver ID for local manifest resolver |
+| `ModDBResolverId`   | `"ModDB"`         | Resolver ID for ModDB resolver          |
 
 ### Deliverers
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `HttpDeliverer` | `"HTTP Content Deliverer"` | Source name for HTTP content deliverer |
+| Constant              | Value                           | Description                                 |
+| --------------------- | ------------------------------- | ------------------------------------------- |
+| `HttpDeliverer`       | `"HTTP Content Deliverer"`      | Source name for HTTP content deliverer      |
 | `FileSystemDeliverer` | `"Local File System Deliverer"` | Source name for local file system deliverer |
 
 ---
@@ -1124,44 +1124,44 @@ Constants for game settings management, including texture quality, resolution, v
 
 ### TextureQuality Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MaxQuality` | `2` | Maximum texture quality level |
-| `MinQuality` | `0` | Minimum texture quality level |
-| `DefaultQuality` | `1` | Default texture quality level |
+| Constant         | Value | Description                   |
+| ---------------- | ----- | ----------------------------- |
+| `MaxQuality`     | `2`   | Maximum texture quality level |
+| `MinQuality`     | `0`   | Minimum texture quality level |
+| `DefaultQuality` | `1`   | Default texture quality level |
 
 ### Resolution Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MinWidth` | `640` | Minimum resolution width |
-| `MinHeight` | `480` | Minimum resolution height |
-| `MaxWidth` | `7680` | Maximum resolution width |
+| Constant    | Value  | Description               |
+| ----------- | ------ | ------------------------- |
+| `MinWidth`  | `640`  | Minimum resolution width  |
+| `MinHeight` | `480`  | Minimum resolution height |
+| `MaxWidth`  | `7680` | Maximum resolution width  |
 | `MaxHeight` | `4320` | Maximum resolution height |
 
 ### Volume Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MinVolume` | `0.0f` | Minimum volume level |
-| `MaxVolume` | `1.0f` | Maximum volume level |
+| Constant        | Value  | Description          |
+| --------------- | ------ | -------------------- |
+| `MinVolume`     | `0.0f` | Minimum volume level |
+| `MaxVolume`     | `1.0f` | Maximum volume level |
 | `DefaultVolume` | `0.5f` | Default volume level |
 
 ### Audio Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `MinAudioLevel` | `0` | Minimum audio level |
-| `MaxAudioLevel` | `100` | Maximum audio level |
-| `DefaultAudioLevel` | `50` | Default audio level |
+| Constant            | Value | Description         |
+| ------------------- | ----- | ------------------- |
+| `MinAudioLevel`     | `0`   | Minimum audio level |
+| `MaxAudioLevel`     | `100` | Maximum audio level |
+| `DefaultAudioLevel` | `50`  | Default audio level |
 
 ### FolderNames Constants
 
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `GameData` | `"GameData"` | Folder name for game data |
-| `MyGames` | `"My Games"` | Folder name for user's games |
-| `SavedGames` | `"Saved Games"` | Folder name for saved games |
+| Constant     | Value           | Description                  |
+| ------------ | --------------- | ---------------------------- |
+| `GameData`   | `"GameData"`    | Folder name for game data    |
+| `MyGames`    | `"My Games"`    | Folder name for user's games |
+| `SavedGames` | `"Saved Games"` | Folder name for saved games  |
 
 ### ResolutionPresets Constants
 

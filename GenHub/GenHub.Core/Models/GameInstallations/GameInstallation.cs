@@ -157,7 +157,7 @@ public class GameInstallation : IGameInstallation
             var generalsPath = Path.Combine(InstallationPath, "Command and Conquer Generals");
             if (Directory.Exists(generalsPath))
             {
-                var generalsExe = Path.Combine(generalsPath, "generals.exe");
+                var generalsExe = Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable);
                 if (File.Exists(generalsExe))
                 {
                     HasGenerals = true;
@@ -166,7 +166,7 @@ public class GameInstallation : IGameInstallation
                 }
                 else
                 {
-                    _logger?.LogWarning("Generals directory found at {GeneralsPath} but generals.exe missing", generalsPath);
+                    _logger?.LogWarning("Generals directory found at {GeneralsPath} but {ExecutableName} missing", generalsPath, GameClientConstants.GeneralsExecutable);
                 }
             }
 
@@ -183,7 +183,7 @@ public class GameInstallation : IGameInstallation
                 }
                 else
                 {
-                    _logger?.LogWarning("Zero Hour directory found at {ZeroHourPath} but game.exe missing", zeroHourPath);
+                    _logger?.LogWarning("Zero Hour directory found at {ZeroHourPath} but {ExecutableName} missing", zeroHourPath, GameClientConstants.ZeroHourExecutable);
                 }
             }
 

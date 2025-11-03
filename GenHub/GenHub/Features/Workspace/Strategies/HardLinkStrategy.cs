@@ -54,8 +54,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Same volume: hard links use minimal space
             // Even empty workspaces need some directory overhead
             return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
-    }
-    else
+        }
+        else
         {
             // Different volumes: will fall back to copying
             return allFiles.Sum(f => f.Size);

@@ -41,8 +41,8 @@ public class GameClientHashRegistryTests
         Assert.NotNull(zh105);
         Assert.Equal(GameType.ZeroHour, zh105.Value.GameType);
         Assert.Equal("1.05", zh105.Value.Version);
-        Assert.Equal("Community", zh105.Value.Publisher);
-        Assert.False(zh105.Value.IsOfficial);
+        Assert.Equal("EA/Steam", zh105.Value.Publisher);
+        Assert.True(zh105.Value.IsOfficial);
     }
 
     /// <summary>

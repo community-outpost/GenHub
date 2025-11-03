@@ -40,11 +40,15 @@ public class ContentManifestBuilder(
     public IContentManifestBuilder WithBasicInfo(GameInstallationType installType, GameType gameType, string? manifestVersion)
     {
         // Build a temporary GameInstallation to generate the ID
+        // Note: We use "dummy" as a placeholder path for Zero Hour because ManifestIdGenerator
+        // only needs the installation type and game type, not the actual path.
+        // The "dummy" string is arbitrary and doesn't correspond to a real directory;
+        // it's only used to satisfy SetPaths() parameter requirements for consistent object initialization.
         var tempInstallation = new GameInstallation(string.Empty, installType);
         tempInstallation.SetPaths(null, gameType == GameType.ZeroHour ? "dummy" : null);
 
         // Use ManifestIdService for consistent ID generation with ResultBase pattern
-        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
+        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion, ContentType.GameInstallation);
         if (idResult.Success)
         {
             _manifest.Id = idResult.Data;
@@ -55,7 +59,7 @@ public class ContentManifestBuilder(
 
             // Fallback to direct generation if service fails
             _manifest.Id = ManifestId.Create(
-                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion));
+                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion, ContentType.GameInstallation));
         }
 
         _manifest.Name = gameType.ToString().ToLowerInvariant();
@@ -344,12 +348,11 @@ public class ContentManifestBuilder(
             return this;
         }
 
-        // TODO: Skip hash computation for GameInstallation manifests
-        // Currently, scanning game installations is very slow because we hash every file in the game directory.
-        // This is unnecessary for GameInstallation manifests because:
-        // 1. We will use a CSV-based authority system from GitHub in the future
-        // 2. The CSV will be specific to each game installation type (EA/Steam) and language
-        // 3. The CSV will be used to validate the installation and generate manifests
+        // TODO: Implement CSV-based authority system for GameInstallation manifests
+        // Currently, scanning game installations is slow because we hash every file.
+        // Future implementation will use a CSV file from GitHub as the source of truth,
+        // specific to each installation type (EA/Steam) and language.
+        // For now, we skip hashing for GameInstallation files to improve performance.
         var shouldComputeHash = sourceType != ContentSourceType.GameInstallation;
 
         _logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
@@ -373,7 +376,7 @@ public class ContentManifestBuilder(
             {
                 RelativePath = relativePath,
                 Size = fileInfo.Length,
-                Hash = hash!, // Will be null for GameInstallation files
+                Hash = hash ?? string.Empty, // Empty for GameInstallation files (CSV authority planned)
                 SourceType = sourceType,
                 SourcePath = sourceDirectory, // Set the source directory path for workspace preparation
                 IsExecutable = isExecutable || IsExecutableFile(filePath),

@@ -349,11 +349,8 @@ public class GameSettingsViewModelTests
 
         _viewModel.SelectedGameType = GameType.Generals; // Set before initialization
 
-        // Act - Start initialization
-        var initTask = _viewModel.InitializeForProfileAsync("test", profile);
-
-        // Complete initialization
-        await initTask;
+        // Act - Start initialization and complete
+        await _viewModel.InitializeForProfileAsync("test", profile);
 
         // Assert - Should have loaded from profile during initialization, not from Options.ini
         _gameSettingsServiceMock.Verify(x => x.LoadOptionsAsync(It.IsAny<GameType>()), Times.Never);

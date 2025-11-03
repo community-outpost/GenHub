@@ -13,7 +13,7 @@ public static class GameClientConstants
     public const string GeneralsExecutable = "generals.exe";
 
     /// <summary>Zero Hour executable filename.</summary>
-    public const string ZeroHourExecutable = "game.exe";
+    public const string ZeroHourExecutable = "generals.exe";
 
     // ===== SuperHackers Client Detection =====
 

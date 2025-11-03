@@ -38,7 +38,7 @@ public class GameClientDetector(
         IEnumerable<GameInstallation> installations,
         CancellationToken cancellationToken = default)
     {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         var gameClients = new List<GameClient>();
 
@@ -103,10 +103,10 @@ public class GameClientDetector(
             }
         }
 
-        sw.Stop();
-        _logger.LogInformation("Detected {Count} game clients from {InstallCount} installations in {ElapsedMs}ms", gameClients.Count, installations.Count(), sw.ElapsedMilliseconds);
+        stopwatch.Stop();
+        _logger.LogInformation("Detected {Count} game clients from {InstallCount} installations in {ElapsedMs}ms", gameClients.Count, installations.Count(), stopwatch.ElapsedMilliseconds);
 
-        return DetectionResult<GameClient>.CreateSuccess(gameClients, sw.Elapsed);
+        return DetectionResult<GameClient>.CreateSuccess(gameClients, stopwatch.Elapsed);
     }
 
     /// <inheritdoc/>
@@ -114,12 +114,11 @@ public class GameClientDetector(
         string path,
         CancellationToken cancellationToken = default)
     {
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         if (!Directory.Exists(path))
         {
-            sw.Stop();
-            await Task.Delay(1, cancellationToken);
+            stopwatch.Stop();
             return DetectionResult<GameClient>.CreateFailure("Directory does not exist");
         }
 
@@ -148,19 +147,18 @@ public class GameClientDetector(
             }
         }
 
-        sw.Stop();
-        _logger.LogInformation("Scanned directory {Path} and found {Count} game clients in {ElapsedMs}ms", path, gameClients.Count, sw.ElapsedMilliseconds);
-        return DetectionResult<GameClient>.CreateSuccess(gameClients, sw.Elapsed);
+        stopwatch.Stop();
+        _logger.LogInformation("Scanned directory {Path} and found {Count} game clients in {ElapsedMs}ms", path, gameClients.Count, stopwatch.ElapsedMilliseconds);
+        return DetectionResult<GameClient>.CreateSuccess(gameClients, stopwatch.Elapsed);
     }
 
     /// <inheritdoc/>
-    public async Task<bool> ValidateGameClientAsync(
+    public Task<bool> ValidateGameClientAsync(
         GameClient gameClient,
         CancellationToken cancellationToken = default)
     {
-        await Task.Delay(1, cancellationToken); // Ensure async
-
-        return !string.IsNullOrEmpty(gameClient.ExecutablePath) && File.Exists(gameClient.ExecutablePath);
+        var isValid = !string.IsNullOrEmpty(gameClient.ExecutablePath) && File.Exists(gameClient.ExecutablePath);
+        return Task.FromResult(isValid);
     }
 
     /// <summary>
@@ -184,12 +182,12 @@ public class GameClientDetector(
             var zeroHourVersion = _hashRegistry.GetVersionFromHash(hash, GameType.ZeroHour);
             GameType detectedGameType;
             string detectedVersion;
-            if (generalsVersion != "Unknown")
+            if (!string.Equals(generalsVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
             {
                 detectedGameType = GameType.Generals;
                 detectedVersion = generalsVersion;
             }
-            else if (zeroHourVersion != "Unknown")
+            else if (!string.Equals(zeroHourVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
             {
                 detectedGameType = GameType.ZeroHour;
                 detectedVersion = zeroHourVersion;
@@ -200,7 +198,7 @@ public class GameClientDetector(
                 detectedVersion = "Unknown";
             }
 
-            if (detectedGameType != GameType.Unknown && detectedVersion != "Unknown")
+            if (detectedGameType != GameType.Unknown && !string.Equals(detectedVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
             {
                 var gameTypeName = detectedGameType == GameType.Generals ? "Generals" : "Zero Hour";
                 _logger.LogDebug("Detected {GameType} {Version} from {ExecutablePath} with hash {Hash}", gameTypeName, detectedVersion, executablePath, hash);
@@ -271,7 +269,7 @@ public class GameClientDetector(
             // Use ManifestIdGenerator for deterministic client ID generation
             if (installation != null)
             {
-                var clientIdResult = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, manifestVersion, "-client");
+                var clientIdResult = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, manifestVersion, ContentType.GameClient);
                 manifest.Id = ManifestId.Create(clientIdResult);
             }
             else
@@ -333,7 +331,7 @@ public class GameClientDetector(
 
                 var version = _hashRegistry.GetVersionFromHash(hash, gameType);
 
-                if (version != "Unknown")
+                if (!string.Equals(version, "Unknown", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogDebug(
                         "Detected {GameType} version {Version} from {ExecutableName} with hash {Hash}",

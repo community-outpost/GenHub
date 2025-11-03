@@ -58,14 +58,16 @@ public static class ManifestIdGenerator
     // Generate publisher content ID
     public static string GeneratePublisherContentId(
         string publisherId,
+        ContentType contentType,
         string contentName,
         int userVersion = 0);
 
-    // Generate base game ID
-    public static string GenerateBaseGameId(
+    // Generate game installation ID (uses 5-segment publisher format)
+    // Note: Installation type (Steam, EA, etc.) is treated as the publisher
+    public static string GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        int userVersion = 0);
+        object? userVersion);
 }
 ```
 
@@ -74,20 +76,23 @@ public static class ManifestIdGenerator
 ```csharp
 public class ManifestIdService : IManifestIdService
 {
-    // Generate publisher content ID with ResultBase pattern
-    ContentOperationResult<ManifestId> GeneratePublisherContentId(
+    // Generate publisher content ID with OperationResult pattern
+    OperationResult<ManifestId> GeneratePublisherContentId(
         string publisherId,
+        ContentType contentType,
         string contentName,
         int userVersion = 0);
 
-    // Generate base game ID with ResultBase pattern
-    ContentOperationResult<ManifestId> GenerateBaseGameId(
+    // Generate game installation ID with OperationResult pattern (uses 5-segment format)
+    // Note: Installation type (Steam, EA, etc.) is treated as the publisher
+    OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        int userVersion = 0);
+        object? userVersion,
+        ContentType contentType);
 
     // Validate and create ManifestId
-    ContentOperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
+    OperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
 }
 ```
 
@@ -122,7 +127,7 @@ public readonly struct ManifestId : IEquatable<ManifestId>
 
 ```csharp
 // Using ManifestIdService (recommended)
-var idResult = _manifestIdService.GeneratePublisherContentId("EA", "Generals Mod", 0);
+var idResult = _manifestIdService.GeneratePublisherContentId("EA", ContentType.Mod, "Generals Mod", 0);
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // 1.0.ea.generals.mod
@@ -134,7 +139,7 @@ else
 }
 
 // Using ManifestIdGenerator directly
-string idString = ManifestIdGenerator.GeneratePublisherContentId("EA", "Generals Mod", 0);
+string idString = ManifestIdGenerator.GeneratePublisherContentId("EA", ContentType.Mod, "Generals Mod", 0);
 ManifestId id = ManifestId.Create(idString);
 ```
 
@@ -144,15 +149,73 @@ ManifestId id = ManifestId.Create(idString);
 var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Steam);
 var gameType = GameType.Generals;
 
-// Using service
-var idResult = _manifestIdService.GenerateBaseGameId(installation, gameType, 0);
+// Using service with integer version (default 0)
+var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, 0, ContentType.GameInstallation);
 if (idResult.Success)
 {
-    ManifestId id = idResult.Data; // 1.0.steam.generals
+    ManifestId id = idResult.Data; // 1.0.steam.gameinstallation.generals
+}
+
+// Using string version for Generals 1.08
+var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, "1.08", ContentType.GameInstallation);
+if (idResult.Success)
+{
+    ManifestId id = idResult.Data; // 1.108.steam.gameinstallation.generals
+}
+
+// Using string version for Zero Hour 1.04
+var zhInstallation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.Steam);
+var idResult = _manifestIdService.GenerateGameInstallationId(zhInstallation, GameType.ZeroHour, "1.04", ContentType.GameInstallation);
+if (idResult.Success)
+{
+    ManifestId id = idResult.Data; // 1.104.steam.gameinstallation.zerohour
 }
 
 // Using generator directly
-string idString = ManifestIdGenerator.GenerateBaseGameId(installation, gameType, 0);
+string idString = ManifestIdGenerator.GenerateGameInstallationId(
+    installation, 
+    gameType, 
+    ManifestConstants.GeneralsManifestVersion,
+    ContentType.GameInstallation); // "1.08" → generates "1.108.steam.gameinstallation.generals"
+```
+
+### Advanced Game Installation ID Examples
+
+```csharp
+using static GenHub.Core.Constants.ManifestConstants;
+
+var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Steam);
+var zhInstallation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.Steam);
+
+var generalsId = ManifestIdGenerator.GenerateGameInstallationId(
+    installation, 
+    GameType.Generals, 
+    GeneralsManifestVersion,
+    ContentType.GameInstallation); // "1.08" → "108"
+// Result: "1.108.steam.gameinstallation.generals"
+
+var zhId = ManifestIdGenerator.GenerateGameInstallationId(
+    zhInstallation, 
+    GameType.ZeroHour, 
+    ZeroHourManifestVersion,
+    ContentType.GameInstallation); // "1.04" → "104"
+// Result: "1.104.steam.gameinstallation.zerohour"
+
+// Using custom version strings
+var customId = ManifestIdGenerator.GenerateGameInstallationId(
+    installation, 
+    GameType.Generals, 
+    "2.0",
+    ContentType.GameInstallation); // "2.0" → "20"
+// Result: "1.20.steam.gameinstallation.generals"
+
+// Using integer versions (no normalization needed)
+var defaultId = ManifestIdGenerator.GenerateGameInstallationId(
+    installation, 
+    GameType.Generals, 
+    0,
+    ContentType.GameInstallation); // 0 → "0"
+// Result: "1.0.steam.gameinstallation.generals"
 ```
 
 ### Validating IDs
@@ -200,11 +263,13 @@ ContentManifest manifest = builder.Build();
 
 ### Base Game Validation
 
-- Must follow `schemaVersion.userVersion.installationType.gameType` format
-- Installation types: `steam`, `eaapp`, `origin`, `thefirstdecade`, `rgmechanics`, `cdiso`, `wine`, `retail`, `unknown`
-- Game types: `generals`, `zerohour`
+- Must follow `schemaVersion.userVersion.publisher.contentType.contentName` format
+- Publisher is the installation type (steam, eaapp, etc.)
+- ContentType: gameinstallation, gameclient
+- ContentName: generals, zerohour
 - Schema version is automatically extracted from constants
 - User version defaults to 0 if not specified
+- **Total Segments**: Exactly 5 segments required
 
 ### Simple ID Validation
 
@@ -218,7 +283,7 @@ The system uses the **ResultBase pattern** for robust error handling:
 
 ```csharp
 // Success case
-var result = _manifestIdService.GeneratePublisherContentId("EA", "Mod", 0);
+var result = _manifestIdService.GeneratePublisherContentId("EA", ContentType.Mod, "Mod", 0);
 if (result.Success)
 {
     ManifestId id = result.Data;

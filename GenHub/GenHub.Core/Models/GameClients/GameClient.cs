@@ -21,7 +21,8 @@ public class GameClient
     public string WorkingDirectory { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the base installation ID for this game client (for test compatibility).
+    /// Gets or sets the base installation ID that this game client is associated with.
+    /// This links the client to a specific game installation (e.g., Steam, EA App).
     /// </summary>
     public string? InstallationId { get; set; } = string.Empty;
 

@@ -10,8 +10,7 @@ using GenHub.Core.Models.GameClients;
 namespace GenHub.Features.GameClients;
 
 /// <summary>
-/// Injectable implementation of game client hash registry.
-/// Replaces the static GameClientHashes class for better testability and dependency injection.
+/// Manages a registry of known game client executable hashes, providing methods to query and add hash information for different game types.
 /// </summary>
 public class GameClientHashRegistry : IGameClientHashRegistry
 {
@@ -62,7 +61,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
     }
 
     /// <inheritdoc/>
-    public bool AddHash(string hash, GameClientInfo info)
+    public bool TryAddHash(string hash, GameClientInfo info)
     {
         if (string.IsNullOrEmpty(hash))
             return false;
@@ -140,6 +139,6 @@ public class GameClientHashRegistry : IGameClientHashRegistry
     {
         _knownHashes.TryAdd(Generals108Hash, new GameClientInfo(GameType.Generals, "1.08", "EA/Steam", "Official Generals 1.08 executable", true));
         _knownHashes.TryAdd(ZeroHour104Hash, new GameClientInfo(GameType.ZeroHour, "1.04", "EA/Steam", "Official Zero Hour 1.04 executable", true));
-        _knownHashes.TryAdd(ZeroHour105Hash, new GameClientInfo(GameType.ZeroHour, "1.05", "Community", "Community-patched Zero Hour 1.05 executable", false));
+        _knownHashes.TryAdd(ZeroHour105Hash, new GameClientInfo(GameType.ZeroHour, "1.05", "EA/Steam", "Official Zero Hour 1.05 executable", true));
     }
 }

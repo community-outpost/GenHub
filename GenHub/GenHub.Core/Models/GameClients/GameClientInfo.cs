@@ -13,7 +13,7 @@ public readonly struct GameClientInfo
     /// </summary>
     /// <param name="gameType">The type of game.</param>
     /// <param name="version">The version string.</param>
-    /// <param name="publisher">The publisher/distributor (e.g., "EA", "Steam", "3rdParty").</param>
+    /// <param name="publisher">The publisher/distributor (e.g., "EA", "Steam", "ThirdParty", "Community-Outpost").</param>
     /// <param name="description">Optional description of this executable variant.</param>
     /// <param name="isOfficial">Whether this is an official release or community modification.</param>
     public GameClientInfo(GameType gameType, string version, string publisher = "Unknown", string description = "", bool isOfficial = true)

@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.GameProfile;
+using System.Linq;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -142,6 +144,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private string? _launchCommand;
 
     /// <summary>
+    /// Gets or sets the content type.
+    /// </summary>
+    [ObservableProperty]
+    private string? _contentType;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileItemViewModel"/> class.
     /// </summary>
     /// <param name="profile">The game profile.</param>
@@ -154,5 +162,42 @@ public partial class GameProfileItemViewModel : ViewModelBase
         _coverPath = coverPath;
         _version = profile.Version;
         _executablePath = profile.ExecutablePath;
+
+        // Extract version and publisher info from enabled content manifest IDs (prioritize GameInstallation manifests)
+        if (profile is GameProfile gameProfile)
+        {
+            // First try to get info from enabled GameInstallation manifests (look for "gameinstallation" content type)
+            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("gameinstallation"));
+            if (!string.IsNullOrEmpty(installationManifestId))
+            {
+                try
+                {
+                    var segments = installationManifestId.Split('.');
+                    if (segments.Length >= 5)
+                    {
+                        // Parse game type from segment[4]
+                        var gameType = segments[4] switch
+                        {
+                            "generals" => "Generals",
+                            "zerohour" => "Zero Hour",
+                            _ => segments[4].ToUpperInvariant()
+                        };
+
+                        // Parse content type from segment[3]
+                        var contentTypeSegment = segments[3];
+                        ContentType = contentTypeSegment switch
+                        {
+                            "gameinstallation" => "Game Installation",
+                            "gameclient" => "Game Client",
+                            _ => contentTypeSegment
+                        };
+                    }
+                }
+                catch
+                {
+                    // Ignore parsing errors
+                }
+            }
+        }
     }
 }

@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Linux.Model;
 using Microsoft.Extensions.Logging;
 
@@ -35,6 +36,9 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     }
 
     /// <inheritdoc/>
+    public string Id => $"lutris-{InstallationPath.GetHashCode()}";
+
+    /// <inheritdoc/>
     public GameInstallationType InstallationType => GameInstallationType.Lutris;
 
     /// <inheritdoc/>
@@ -51,6 +55,9 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
 
     /// <inheritdoc/>
     public string ZeroHourPath { get; private set; } = string.Empty;
+
+    /// <inheritdoc/>
+    public List<GameClient> AvailableGameClients { get; private set; } = new();
 
     /// <summary>
     /// Gets a value indicating whether Lutris is installed successfully.
@@ -188,5 +195,27 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
 
         directory = gameListFiltered.Directory;
         return true;
+    }
+
+    /// <inheritdoc/>
+    public void SetPaths(string? generalsPath, string? zeroHourPath)
+    {
+        if (!string.IsNullOrEmpty(generalsPath))
+        {
+            GeneralsPath = generalsPath;
+            HasGenerals = true;
+        }
+
+        if (!string.IsNullOrEmpty(zeroHourPath))
+        {
+            ZeroHourPath = zeroHourPath;
+            HasZeroHour = true;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void PopulateGameClients(IEnumerable<GameClient> clients)
+    {
+        AvailableGameClients.AddRange(clients);
     }
 }

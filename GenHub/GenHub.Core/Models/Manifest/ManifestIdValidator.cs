@@ -11,17 +11,18 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public static class ManifestIdValidator
 {
-    // Regex for installation/game client content: version.installType.gameType[-suffix]
+    // Regex for installation/game client content: version.installType.contentType.gameType
     // Note: version may contain dots (e.g., "1.0"), so regex keeps that as a single group.
     private static readonly Regex InstallationContentRegex = BuildInstallationContentRegex();
 
     private static Regex BuildInstallationContentRegex()
     {
         var installTypes = string.Join("|", InstallationSourceConstants.AllInstallationTypes.OrderBy(x => x));
-        return new Regex($@"^\d+(?:\.\d+)*\.({installTypes})\.(generals|zerohour)(?:-[a-z0-9-]+)?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        var contentTypes = string.Join("|", new[] { "gameinstallation", "gameclient" });
+        return new Regex($@"^\d+(?:\.\d+)*\.({installTypes})\.({contentTypes})\.(generals|zerohour)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     }
 
-    // Regex for publisher content: version.publisher.contentType.contentName[-suffix]
+    // Regex for publisher content: version.publisher.contentType.contentName
     // Relaxed to accept a broader set of contentType/contentName values used in tests and generator.
     private static readonly Regex PublisherContentRegex =
         new(@"^\d+(?:\.\d+)*\.[a-z0-9]+(?:\.[a-z0-9]+)*\.[a-z0-9-]+(?:\.[a-z0-9-]+)*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -80,8 +81,8 @@ public static class ManifestIdValidator
 
         if (installTypes.Contains(remainderTokens[0], StringComparer.OrdinalIgnoreCase))
         {
-            // Installation IDs must match the exact installation pattern and have exactly two tokens after version
-            if (InstallationContentRegex.IsMatch(manifestId) && remainderTokens.Length == 2)
+            // Installation IDs must match the exact installation pattern and have exactly three tokens after version
+            if (InstallationContentRegex.IsMatch(manifestId) && remainderTokens.Length == 3)
             {
                 reason = string.Empty;
                 return true;
@@ -110,7 +111,7 @@ public static class ManifestIdValidator
         // Reject numeric-prefixed IDs that didn't match the dedicated regexes above.
         if (char.IsDigit(manifestId[0]))
         {
-            reason = $"Manifest ID '{manifestId}' is invalid. Must be 4 segments in format version.installType.gameType[-suffix] for installations/clients or version.publisher.contentType.contentName[-suffix] for publisher content (mods/maps).";
+            reason = $"Manifest ID '{manifestId}' is invalid. Must be 5 segments in format version.installType.contentType.gameType for installations/clients or version.publisher.contentType.contentName for publisher content.";
             return false;
         }
 
@@ -122,7 +123,7 @@ public static class ManifestIdValidator
         }
 
         // For any other cases, reject them
-        reason = $"Manifest ID '{manifestId}' is invalid. Must be 4 segments in format version.installType.gameType[-suffix] for installations/clients or version.publisher.contentType.contentName[-suffix] for publisher content (mods/maps).";
+        reason = $"Manifest ID '{manifestId}' is invalid. Must be 5 segments in format version.installType.contentType.gameType for installations/clients or version.publisher.contentType.contentName for publisher content (mods/maps).";
         return false;
     }
 }

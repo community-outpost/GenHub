@@ -15,8 +15,8 @@ public class ManifestIdTests
     /// <param name="validId">A valid manifest ID string.</param>
     [Theory]
     [InlineData("1.0.publisher.content")]
-    [InlineData("1.0.eaapp.generals")]
-    [InlineData("1.0.steam.generals")]
+    [InlineData("1.0.eaapp.gameinstallation.generals")]
+    [InlineData("1.0.steam.gameinstallation.generals")]
     [InlineData("1.0.testid.content")]
     [InlineData("1.0.simple.id.test")]
     [InlineData("1.0.complexpublisher.content.name")]
@@ -218,15 +218,15 @@ public class ManifestIdTests
     /// </summary>
     /// <param name="gameInstallationId">A valid game installation ID string.</param>
     [Theory]
-    [InlineData("1.0.steam.generals")]
-    [InlineData("1.0.eaapp.zerohour")]
-    [InlineData("1.0.origin.generals")]
-    [InlineData("1.0.thefirstdecade.zerohour")]
-    [InlineData("1.0.rgmechanics.generals")]
-    [InlineData("1.0.cdiso.zerohour")]
-    [InlineData("1.0.wine.generals")]
-    [InlineData("1.0.retail.zerohour")]
-    [InlineData("1.0.unknown.generals")]
+    [InlineData("1.0.steam.gameinstallation.generals")]
+    [InlineData("1.0.eaapp.gameinstallation.zerohour")]
+    [InlineData("1.0.origin.gameinstallation.generals")]
+    [InlineData("1.0.thefirstdecade.gameinstallation.zerohour")]
+    [InlineData("1.0.rgmechanics.gameinstallation.generals")]
+    [InlineData("1.0.cdiso.gameinstallation.zerohour")]
+    [InlineData("1.0.wine.gameinstallation.generals")]
+    [InlineData("1.0.retail.gameinstallation.zerohour")]
+    [InlineData("1.0.unknown.gameinstallation.generals")]
     public void Create_WithValidGameInstallationIds_CreatesManifestId(string gameInstallationId)
     {
         // Act
@@ -241,12 +241,12 @@ public class ManifestIdTests
     /// </summary>
     /// <param name="invalidGameInstallationId">An invalid game installation ID string.</param>
     [Theory]
-    [InlineData("1.0.steam.generals.extra")] // Too many segments
-    [InlineData("1.0.invalid.generals")] // Invalid installation type
-    [InlineData("1.0.steam.invalid")] // Invalid game type
-    [InlineData("1.0.steam")] // Too few segments
-    [InlineData("1.0.origin")] // Too few segments
-    [InlineData("1.0.eaapp")] // Too few segments
+    [InlineData("1.0.steam.gameinstallation.generals.extra")] // Too many segments
+    [InlineData("1.0.invalid.gameinstallation.generals")] // Invalid installation type
+    [InlineData("1.0.steam.gameinstallation.invalid")] // Invalid game type
+    [InlineData("1.0.steam.gameinstallation")] // Too few segments
+    [InlineData("1.0.origin.gameinstallation")] // Too few segments
+    [InlineData("1.0.eaapp.gameinstallation")] // Too few segments
     public void Create_WithInvalidGameInstallationIds_ThrowsArgumentException(string invalidGameInstallationId)
     {
         // Act & Assert

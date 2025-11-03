@@ -17,12 +17,12 @@ public interface IGameClientHashRegistry
     bool TryGetInfo(string hash, out GameClientInfo? info);
 
     /// <summary>
-    /// Adds a new hash to the registry.
+    /// Attempts to add a new hash to the registry.
     /// </summary>
     /// <param name="hash">The SHA-256 hash of the executable.</param>
     /// <param name="info">The game client information.</param>
     /// <returns>True if the hash was added, false if it already existed.</returns>
-    bool AddHash(string hash, GameClientInfo info);
+    bool TryAddHash(string hash, GameClientInfo info);
 
     /// <summary>
     /// Gets the version string for a hash and game type.

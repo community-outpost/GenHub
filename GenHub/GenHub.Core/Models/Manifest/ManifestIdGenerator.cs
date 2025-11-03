@@ -13,20 +13,21 @@ public static class ManifestIdGenerator
 {
     /// <summary>
     /// Generates a manifest ID for publisher-provided content.
-    /// Format: schemaVersion.manifestVersion.publisher.contentType.contentName[-suffix].
+    /// Format: schemaVersion.manifestVersion.publisher.contentType.contentName.
     /// </summary>
     /// <param name="publisherId">Publisher identifier used as the first segment (e.g., 'cnclabs', 'moddb-westwood').</param>
     /// <param name="contentType">The type of content being identified.</param>
     /// <param name="contentName">Human readable content name used as the second segment.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <param name="suffix">Optional suffix for content type (e.g., '-mod', '-mappack'). Defaults to empty.</param>
-    /// <returns>A normalized manifest identifier in the form 'schemaVersion.manifestVersion.publisher.contentType.content[suffix]'.</returns>
-    public static string GeneratePublisherContentId(string publisherId, ContentType contentType, string contentName, int userVersion = 0, string suffix = "")
+    /// <returns>A normalized manifest identifier in the form 'schemaVersion.manifestVersion.publisher.contentType.contentName'.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is empty or whitespace, or when <paramref name="userVersion"/> is negative.</exception>
+    public static string GeneratePublisherContentId(string publisherId, ContentType contentType, string contentName, int userVersion = 0)
     {
-        if (publisherId == null)
-            throw new ArgumentNullException(nameof(publisherId));
-        if (contentName == null)
-            throw new ArgumentNullException(nameof(contentName));
+        if (string.IsNullOrWhiteSpace(publisherId))
+            throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
+        if (string.IsNullOrWhiteSpace(contentName))
+            throw new ArgumentException("Content name cannot be empty", nameof(contentName));
         if (userVersion < 0)
             throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
@@ -35,50 +36,54 @@ public static class ManifestIdGenerator
         var safeName = Normalize(contentName);
         var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{userVersion}";
 
-        var contentPart = string.IsNullOrEmpty(suffix) ? safeName : $"{safeName}{suffix}";
+        var contentPart = safeName;
         return $"{fullVersion}.{safePublisher}.{contentTypeString}.{contentPart}";
     }
 
     /// <summary>
     /// Generates a manifest ID for a game installation.
-    /// Format: manifestVersion.userVersion.installationType.gameType[-suffix].
-    /// Note: If userVersion contains dots (e.g., "1.08"), they are removed for schema compliance (becomes "108").
+    /// Format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// </summary>
-    /// <param name="installation">The game installation used to derive the installation segment.</param>
+    /// <param name="installation">The game installation used to derive the publisher (installation type).</param>
     /// <param name="gameType">The specific game type (Generals or ZeroHour) for the manifest ID.</param>
     /// <param name="userVersion">User-specified version (e.g., "1.08", "1.04", or integer like 0, 1, 2). If null, defaults to 0.</param>
-    /// <param name="suffix">Optional suffix for content type (e.g., '-installation', '-client'). Defaults to '-installation'.</param>
-    /// <returns>A normalized manifest identifier in the form 'manifestVersion.userVersion.installationType.gameType[suffix]'.</returns>
-    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, string? userVersion, string suffix = "")
+    /// <param name="contentType">The content type (GameInstallation or GameClient).</param>
+    /// <returns>A normalized manifest identifier in the form 'schemaVersion.userVersion.publisher.contentType.contentName'.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="installation"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when version format is invalid.</exception>
+    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, object? userVersion, ContentType contentType)
     {
         if (installation == null)
             throw new ArgumentNullException(nameof(installation));
 
-        // Normalize user version - remove dots and convert to string
-        string normalizedUserVersion = NormalizeVersionString(userVersion);
+        var normalizedUserVersion = NormalizeVersionString(userVersion);
 
         var installType = installation.InstallationType.ToIdentifierString();
         var gameTypeString = gameType == GameType.ZeroHour ? "zerohour" : "generals";
         var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{normalizedUserVersion}";
 
-        return $"{fullVersion}.{installType}.{gameTypeString}{suffix}";
+        // Get content type string from enum
+        var contentTypeString = GetContentTypeString(contentType);
+
+        return $"{fullVersion}.{installType}.{contentTypeString}.{gameTypeString}";
     }
 
     /// <summary>
     /// Generates a manifest ID for a game installation with integer version.
-    /// Format: manifestVersion.userVersion.installationType.gameType[-suffix].
+    /// Format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// </summary>
-    /// <param name="installation">The game installation used to derive the installation segment.</param>
+    /// <param name="installation">The game installation used to derive the publisher (installation type).</param>
     /// <param name="gameType">The specific game type (Generals or ZeroHour) for the manifest ID.</param>
-    /// <param name="userVersion">User-specified version (e.g., 0, 1, 2). Defaults to 0.</param>
-    /// <param name="suffix">Optional suffix for content type (e.g., '-installation', '-client'). Defaults to '-installation'.</param>
-    /// <returns>A normalized manifest identifier in the form 'manifestVersion.userVersion.installationType.gameType[suffix]'.</returns>
-    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, int userVersion = 0, string suffix = "")
+    /// <param name="userVersion">User-specified version (e.g., 0, 1, 2).</param>
+    /// <param name="contentType">The content type (GameInstallation or GameClient).</param>
+    /// <returns>A normalized manifest identifier in the form 'schemaVersion.userVersion.publisher.contentType.contentName'.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="userVersion"/> is negative.</exception>
+    public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, int userVersion, ContentType contentType)
     {
         if (userVersion < 0)
             throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
-        return GenerateGameInstallationId(installation, gameType, userVersion.ToString(), suffix);
+        return GenerateGameInstallationId(installation, gameType, (object)userVersion, contentType);
     }
 
     /// <summary>
@@ -87,12 +92,11 @@ public static class ManifestIdGenerator
     /// </summary>
     /// <param name="version">Version as string or null (defaults to "0").</param>
     /// <returns>Normalized version string without dots.</returns>
-    private static string NormalizeVersionString(string? version)
+    private static string NormalizeVersionString(object? version)
     {
-        if (string.IsNullOrEmpty(version))
+        string? versionStr = version?.ToString();
+        if (string.IsNullOrEmpty(versionStr))
             return "0";
-
-        string versionStr = version;
 
         // Handle dotted versions like "1.08" or "2.0"
         if (versionStr.Contains('.'))
@@ -131,7 +135,7 @@ public static class ManifestIdGenerator
         // Replace multiple consecutive dots with single dots
         normalized = Regex.Replace(normalized, "\\.+", ".");
 
-        return string.IsNullOrEmpty(normalized) ? throw new ArgumentException("Input results in empty string after normalization", nameof(input)) : normalized;
+        return string.IsNullOrEmpty(normalized) ? "unknown" : normalized;
     }
 
     /// <summary>
@@ -143,18 +147,18 @@ public static class ManifestIdGenerator
     {
         return contentType switch
         {
-            ContentType.GameInstallation => "gameinstallation",
-            ContentType.GameClient => "gameclient",
-            ContentType.Mod => "mod",
-            ContentType.Patch => "patch",
-            ContentType.Addon => "addon",
-            ContentType.MapPack => "mappack",
-            ContentType.LanguagePack => "languagepack",
-            ContentType.ContentBundle => "contentbundle",
-            ContentType.PublisherReferral => "publisherreferral",
-            ContentType.ContentReferral => "contentreferral",
-            ContentType.Mission => "mission",
-            ContentType.Map => "map",
+            ContentType.GameInstallation => nameof(ContentType.GameInstallation).ToLowerInvariant(),
+            ContentType.GameClient => nameof(ContentType.GameClient).ToLowerInvariant(),
+            ContentType.Mod => nameof(ContentType.Mod).ToLowerInvariant(),
+            ContentType.Patch => nameof(ContentType.Patch).ToLowerInvariant(),
+            ContentType.Addon => nameof(ContentType.Addon).ToLowerInvariant(),
+            ContentType.MapPack => nameof(ContentType.MapPack).ToLowerInvariant(),
+            ContentType.LanguagePack => nameof(ContentType.LanguagePack).ToLowerInvariant(),
+            ContentType.ContentBundle => nameof(ContentType.ContentBundle).ToLowerInvariant(),
+            ContentType.PublisherReferral => nameof(ContentType.PublisherReferral).ToLowerInvariant(),
+            ContentType.ContentReferral => nameof(ContentType.ContentReferral).ToLowerInvariant(),
+            ContentType.Mission => nameof(ContentType.Mission).ToLowerInvariant(),
+            ContentType.Map => nameof(ContentType.Map).ToLowerInvariant(),
             ContentType.UnknownContentType => "unknown",
             _ => throw new ArgumentOutOfRangeException(nameof(contentType), contentType, "Unknown content type")
         };

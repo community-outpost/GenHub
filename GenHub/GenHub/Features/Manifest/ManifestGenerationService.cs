@@ -7,7 +7,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,11 +25,7 @@ public class ManifestGenerationService(
     IFileHashProvider hashProvider,
     IManifestIdService manifestIdService) : IManifestGenerationService
 {
-    private readonly ILogger<ManifestGenerationService> _logger = logger;
-    private readonly IFileHashProvider _hashProvider = hashProvider;
-    private readonly IManifestIdService _manifestIdService = manifestIdService;
     private int _fileCount = 0;
-    private int _lastReportedCount = 0;
 
     /// <summary>
     /// Creates a manifest builder for a game installation with string version normalization.
@@ -48,13 +43,13 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Creating GameInstallation manifest for {GameType} at {GameInstallationPath}",
                 gameType,
                 gameInstallationPath);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(installationType, gameType, manifestVersion)
                 .WithContentType(ContentType.GameInstallation, gameType);
 
@@ -72,7 +67,7 @@ public class ManifestGenerationService(
             // Add essential game files
             await AddGameFilesToManifest(builder, gameInstallationPath, gameType);
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Created GameInstallation manifest for {InstallationType} {GameType} (Publisher: {PublisherName})",
                 installationType,
                 gameType,
@@ -82,7 +77,7 @@ public class ManifestGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Error creating GameInstallation manifest for {GameType} at {GameInstallationPath}",
                 gameType,
@@ -119,7 +114,7 @@ public class ManifestGenerationService(
     /// <param name="targetGame">Target game type.</param>
     /// <param name="dependencies">Dependencies for this content.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateContentManifestAsync(
+    public Task<IContentManifestBuilder> CreateContentManifestAsync(
         string contentDirectory,
         string publisherId,
         string contentName,
@@ -130,7 +125,7 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Creating {ContentType} manifest for {ContentName} at {ContentDirectory} (Publisher: {PublisherId})",
                 contentType,
                 contentName,
@@ -138,7 +133,7 @@ public class ManifestGenerationService(
                 publisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
                 .WithContentType(contentType, targetGame);
 
@@ -152,58 +147,15 @@ public class ManifestGenerationService(
                     dependency.InstallBehavior);
             }
 
-            await Task.CompletedTask; // Make method async for consistency
-            return builder;
+            return Task.FromResult(builder);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Error creating content manifest for {ContentName} at {ContentDirectory}",
                 contentName,
                 contentDirectory);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Creates a manifest builder for a standalone game version.
-    /// </summary>
-    /// <param name="gameDirectory">Path to the standalone game directory.</param>
-    /// <param name="publisherId">The publisher identifier used to generate the manifest id.</param>
-    /// <param name="gameName">Game version display name.</param>
-    /// <param name="manifestVersion">Manifest version (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <param name="executablePath">Path to the main executable.</param>
-    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
-    public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
-        string gameDirectory,
-        string publisherId,
-        string gameName,
-        int manifestVersion = 0,
-        string executablePath = "")
-    {
-        try
-        {
-            _logger.LogDebug(
-                "Creating GameClient manifest for {GameName} at {GameDirectory}",
-                gameName,
-                gameDirectory);
-
-            var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
-                .WithBasicInfo(publisherId, gameName, manifestVersion.ToString())
-                .WithContentType(ContentType.GameClient, GameType.Generals); // TODO: Determine game type dynamically
-
-            await Task.CompletedTask; // Make method async for consistency
-            return builder;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Error creating game version manifest for {GameName} at {GameDirectory}",
-                gameName,
-                gameDirectory);
             throw;
         }
     }
@@ -226,7 +178,7 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug("Creating content bundle {BundleName} version {ManifestVersion}", bundleName, manifestVersion);
+            logger.LogDebug("Creating content bundle {BundleName} version {ManifestVersion}", bundleName, manifestVersion);
 
             var bundleId = ManifestId.Create($"{manifestVersion}.0.bundle.{bundleName.ToLowerInvariant().Replace(" ", string.Empty)}");
 
@@ -242,7 +194,7 @@ public class ManifestGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating content bundle {BundleName}", bundleName);
+            logger.LogError(ex, "Error creating content bundle {BundleName}", bundleName);
             throw;
         }
     }
@@ -267,22 +219,24 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Creating publisher referral {ReferralName} for {TargetPublisherId}",
                 referralName,
                 targetPublisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
-                .WithContentType(ContentType.PublisherReferral, GameType.Generals) // Default to Generals
+
+                // Note: Publisher referrals are typically game-agnostic, but we default to ZeroHour for compatibility
+                .WithContentType(ContentType.PublisherReferral, GameType.ZeroHour)
                 .WithMetadata(description);
 
             return await Task.FromResult(builder.Build());
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Error creating publisher referral {ReferralName}",
                 referralName);
@@ -312,22 +266,22 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Creating content referral {ReferralName} for {TargetContentId}",
                 referralName,
                 targetContentId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
-                .WithContentType(ContentType.ContentReferral, GameType.Generals) // Default to Generals
+                .WithContentType(ContentType.ContentReferral, GameType.ZeroHour) // Default to ZeroHour
                 .WithMetadata(description);
 
             return await Task.FromResult(builder.Build());
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Error creating content referral {ReferralName}",
                 referralName);
@@ -345,7 +299,7 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug("Saving manifest {ManifestId} to {OutputPath}", manifest.Id, outputPath);
+            logger.LogDebug("Saving manifest {ManifestId} to {OutputPath}", manifest.Id, outputPath);
 
             var directory = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(directory))
@@ -362,11 +316,11 @@ public class ManifestGenerationService(
             await using var stream = File.Create(outputPath);
             await JsonSerializer.SerializeAsync(stream, manifest, options);
 
-            _logger.LogInformation("Manifest {ManifestId} saved to {OutputPath}", manifest.Id, outputPath);
+            logger.LogInformation("Manifest {ManifestId} saved to {OutputPath}", manifest.Id, outputPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save manifest {ManifestId} to {OutputPath}", manifest.Id, outputPath);
+            logger.LogError(ex, "Failed to save manifest {ManifestId} to {OutputPath}", manifest.Id, outputPath);
             throw;
         }
     }
@@ -389,7 +343,7 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug("Creating GameClient manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+            logger.LogDebug("Creating GameClient manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
 
             // Validate executable exists
             if (string.IsNullOrWhiteSpace(executablePath))
@@ -410,19 +364,19 @@ public class ManifestGenerationService(
                                 "Retail Installation";
             var publisher = new PublisherInfo { Name = publisherName };
             var contentName = gameType.ToString().ToLowerInvariant() + "-client";
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(publisher, contentName, 1.ToString())
                 .WithContentType(ContentType.GameClient, gameType);
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath);
 
-            _logger.LogInformation("Created GameClient manifest for {ClientName} (Publisher: {PublisherName})", clientName, publisher.Name);
+            logger.LogInformation("Created GameClient manifest for {ClientName} (Publisher: {PublisherName})", clientName, publisher.Name);
 
             return builder;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating GameClient manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+            logger.LogError(ex, "Error creating GameClient manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
             throw;
         }
     }
@@ -445,7 +399,7 @@ public class ManifestGenerationService(
     {
         try
         {
-            _logger.LogDebug("Creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+            logger.LogDebug("Creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
 
             // Validate executable exists
             if (string.IsNullOrWhiteSpace(executablePath))
@@ -472,7 +426,7 @@ public class ManifestGenerationService(
             // Create unique manifest name based on executable to distinguish variants (30Hz, 60Hz, standard)
             var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
             var contentName = $"{gameType.ToString().ToLowerInvariant()}-{executableFileName}";
-            var builder = new ContentManifestBuilder(builderLogger, _hashProvider, _manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
                 .WithBasicInfo(publisher, contentName, 1.ToString())
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
@@ -488,13 +442,13 @@ public class ManifestGenerationService(
             // because they could be updated by the GeneralsOnline updater at any time.
             await AddGeneralsOnlineClientFilesToManifest(builder, installationPath, gameType, executablePath);
 
-            _logger.LogInformation("Created GeneralsOnline client manifest for {ClientName} (Publisher: Generals Online)", clientName);
+            logger.LogInformation("Created GeneralsOnline client manifest for {ClientName} (Publisher: Generals Online)", clientName);
 
             return builder;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+            logger.LogError(ex, "Error creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
             throw;
         }
     }
@@ -536,9 +490,8 @@ public class ManifestGenerationService(
         {
             // Reset file counter for this manifest generation
             _fileCount = 0;
-            _lastReportedCount = 0;
 
-            _logger.LogInformation("Starting manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
+            logger.LogInformation("Starting manifest generation for {GameType} at {InstallationPath}", gameType, installationPath);
 
             // Add essential executable files
             var executableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
@@ -573,34 +526,34 @@ public class ManifestGenerationService(
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to enumerate files with pattern {Pattern} at {InstallationPath}", pattern, installationPath);
+                    logger.LogWarning(ex, "Failed to enumerate files with pattern {Pattern} at {InstallationPath}", pattern, installationPath);
                 }
             }
 
             // Add all subdirectories except known non-game directories
-            await AddAllSubdirectoriesAsync(builder, installationPath);
+            await AddAllGameSubdirectoriesAsync(builder, installationPath);
 
-            _logger.LogInformation("Completed manifest generation for {GameType}: {TotalFiles} files added", gameType, _fileCount);
-            _logger.LogDebug("Added game files to manifest for {GameType} at {InstallationPath}", gameType, installationPath);
+            logger.LogInformation("Completed manifest generation for {GameType}: {TotalFiles} files added", gameType, _fileCount);
+            logger.LogDebug("Added game files to manifest for {GameType} at {InstallationPath}", gameType, installationPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding game files to manifest");
+            logger.LogError(ex, "Error adding game files to manifest");
         }
     }
 
     /// <summary>
-    /// Adds all subdirectories to the manifest, excluding known non-game directories.
+    /// Adds all game subdirectories to the manifest, excluding known non-game directories.
     /// </summary>
     /// <param name="builder">The manifest builder.</param>
     /// <param name="installationPath">The installation path.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddAllSubdirectoriesAsync(IContentManifestBuilder builder, string installationPath)
+    private async Task AddAllGameSubdirectoriesAsync(IContentManifestBuilder builder, string installationPath)
     {
         try
         {
             var allDirectories = Directory.GetDirectories(installationPath, "*", SearchOption.TopDirectoryOnly);
-            _logger.LogDebug("Found {DirectoryCount} subdirectories to process in {InstallationPath}", allDirectories.Length, installationPath);
+            logger.LogDebug("Found {DirectoryCount} subdirectories to process in {InstallationPath}", allDirectories.Length, installationPath);
 
             foreach (var dirPath in allDirectories)
             {
@@ -609,24 +562,24 @@ public class ManifestGenerationService(
                 // Skip directories that are definitely not needed for game execution
                 if (ShouldSkipDirectory(dirName))
                 {
-                    _logger.LogDebug("Skipping non-game directory: {DirectoryName}", dirName);
+                    logger.LogDebug("Skipping non-game directory: {DirectoryName}", dirName);
                     continue;
                 }
 
                 try
                 {
                     await AddDirectoryFilesRecursivelyAsync(builder, installationPath, dirPath);
-                    _logger.LogDebug("Successfully added files from directory: {DirectoryName}", dirName);
+                    logger.LogDebug("Successfully added files from directory: {DirectoryName}", dirName);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to add files from directory {Directory}", dirName);
+                    logger.LogWarning(ex, "Failed to add files from directory {Directory}", dirName);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to enumerate subdirectories in {InstallationPath}", installationPath);
+            logger.LogError(ex, "Failed to enumerate subdirectories in {InstallationPath}", installationPath);
         }
     }
 
@@ -650,10 +603,9 @@ public class ManifestGenerationService(
 
                 // Report progress every 50 files
                 _fileCount++;
-                if (_fileCount - _lastReportedCount >= 50)
+                if (_fileCount % 50 == 0)
                 {
-                    _logger.LogInformation("Scanning game files: {FileCount} files processed...", _fileCount);
-                    _lastReportedCount = _fileCount;
+                    logger.LogInformation("Scanning game files: {FileCount} files processed...", _fileCount);
                 }
             }
 
@@ -666,7 +618,7 @@ public class ManifestGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to recursively add files from {DirectoryPath}", directoryPath);
+            logger.LogWarning(ex, "Failed to recursively add files from {DirectoryPath}", directoryPath);
         }
     }
 
@@ -687,11 +639,11 @@ public class ManifestGenerationService(
             {
                 var executableFileName = Path.GetFileName(executablePath);
                 await builder.AddGameInstallationFileAsync(executableFileName, executablePath, isExecutable: true);
-                _logger.LogDebug("Added GeneralsOnline executable {ExecutableName} to GameClient manifest", executableFileName);
+                logger.LogDebug("Added GeneralsOnline executable {ExecutableName} to GameClient manifest", executableFileName);
             }
             else
             {
-                _logger.LogError("GeneralsOnline executable not found at {ExecutablePath} - GameClient manifest will be incomplete", executablePath);
+                logger.LogError("GeneralsOnline executable not found at {ExecutablePath} - GameClient manifest will be incomplete", executablePath);
                 throw new FileNotFoundException($"GeneralsOnline executable not found at: {executablePath}", executablePath);
             }
 
@@ -708,7 +660,7 @@ public class ManifestGenerationService(
                     if (File.Exists(dllPath))
                     {
                         await builder.AddGameInstallationFileAsync(dllName, dllPath);
-                        _logger.LogDebug("Added GeneralsOnline DLL {DllName} to GameClient manifest", dllName);
+                        logger.LogDebug("Added GeneralsOnline DLL {DllName} to GameClient manifest", dllName);
                     }
                 }
             }
@@ -722,7 +674,7 @@ public class ManifestGenerationService(
                 if (File.Exists(configPath))
                 {
                     await builder.AddGameInstallationFileAsync(configFile, configPath);
-                    _logger.LogDebug("Added GeneralsOnline config file {ConfigFile} to GameClient manifest", configFile);
+                    logger.LogDebug("Added GeneralsOnline config file {ConfigFile} to GameClient manifest", configFile);
                 }
             }
 
@@ -735,7 +687,7 @@ public class ManifestGenerationService(
                 if (File.Exists(splashPath))
                 {
                     await builder.AddGameInstallationFileAsync("GeneralsOnlineGameData/GOSplash.bmp", splashPath);
-                    _logger.LogDebug("Added GeneralsOnline splash screen to manifest");
+                    logger.LogDebug("Added GeneralsOnline splash screen to manifest");
                 }
 
                 // Add MapCacheGO.ini (map cache configuration)
@@ -743,7 +695,7 @@ public class ManifestGenerationService(
                 if (File.Exists(mapCachePath))
                 {
                     await builder.AddGameInstallationFileAsync("GeneralsOnlineGameData/MapCacheGO.ini", mapCachePath);
-                    _logger.LogDebug("Added GeneralsOnline map cache configuration to manifest");
+                    logger.LogDebug("Added GeneralsOnline map cache configuration to manifest");
                 }
             }
 
@@ -770,16 +722,16 @@ public class ManifestGenerationService(
 
                     if (mapCount > 0)
                     {
-                        _logger.LogDebug("Added {MapCount} GeneralsOnline map files to manifest", mapCount);
+                        logger.LogDebug("Added {MapCount} GeneralsOnline map files to manifest", mapCount);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to add GeneralsOnline maps from {MapsDir}", mapsDir);
+                    logger.LogWarning(ex, "Failed to add GeneralsOnline maps from {MapsDir}", mapsDir);
                 }
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Added GeneralsOnline client files to manifest for {GameType}: executable + {DllCount} DLLs + {ConfigCount} configs + {MapCount} maps",
                 gameType,
                 generalsOnlineDlls.Count(dll => File.Exists(Path.Combine(executableDirectory ?? string.Empty, dll))),
@@ -788,7 +740,7 @@ public class ManifestGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding GeneralsOnline client files to manifest");
+            logger.LogError(ex, "Error adding GeneralsOnline client files to manifest");
             throw;
         }
     }
@@ -810,11 +762,11 @@ public class ManifestGenerationService(
             {
                 var executableFileName = Path.GetFileName(executablePath);
                 await builder.AddGameInstallationFileAsync(executableFileName, executablePath, isExecutable: true);
-                _logger.LogDebug("Added executable {ExecutableName} to GameClient manifest", executableFileName);
+                logger.LogDebug("Added executable {ExecutableName} to GameClient manifest", executableFileName);
             }
             else
             {
-                _logger.LogError("Executable not found at {ExecutablePath} - GameClient manifest will be incomplete", executablePath);
+                logger.LogError("Executable not found at {ExecutablePath} - GameClient manifest will be incomplete", executablePath);
                 throw new FileNotFoundException($"Game executable not found at: {executablePath}", executablePath);
             }
 
@@ -830,7 +782,7 @@ public class ManifestGenerationService(
                     if (File.Exists(dllPath))
                     {
                         await builder.AddGameInstallationFileAsync(dllName, dllPath);
-                        _logger.LogDebug("Added required DLL {DllName} to GameClient manifest", dllName);
+                        logger.LogDebug("Added required DLL {DllName} to GameClient manifest", dllName);
                     }
                 }
             }
@@ -844,11 +796,11 @@ public class ManifestGenerationService(
                 if (File.Exists(configPath))
                 {
                     await builder.AddGameInstallationFileAsync(configFile, configPath);
-                    _logger.LogDebug("Added config file {ConfigFile} to GameClient manifest", configFile);
+                    logger.LogDebug("Added config file {ConfigFile} to GameClient manifest", configFile);
                 }
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Added GameClient files to manifest for {GameType}: executable + {DllCount} DLLs + {ConfigCount} configs",
                 gameType,
                 requiredDlls.Count(dll => File.Exists(Path.Combine(executableDirectory ?? string.Empty, dll))),
@@ -856,7 +808,7 @@ public class ManifestGenerationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding client files to manifest");
+            logger.LogError(ex, "Error adding client files to manifest");
             throw;
         }
     }

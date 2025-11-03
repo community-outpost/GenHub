@@ -106,11 +106,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "1.0.eaapp.generals",
+            Id = "1.0.eaapp.gameinstallation.generals",
             Name = "Test Manifest",
         };
 
-        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.generals"), default))
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.gameinstallation.generals"), default))
                   .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
@@ -118,8 +118,8 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.0.eaapp.generals", result.Id);
-        _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.generals"), default), Times.Once);
+        Assert.Equal("1.0.eaapp.gameinstallation.generals", result.Id);
+        _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.0.eaapp.gameinstallation.generals"), default), Times.Once);
     }
 
     /// <summary>
@@ -140,11 +140,11 @@ public class ManifestProviderTests
         };
         var expectedManifest = new ContentManifest
         {
-            Id = "1.0.steam.zerohour",
+            Id = "1.0.steam.gameinstallation.zerohour",
             Name = "Test Manifest",
         };
 
-        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.steam.zerohour"), default))
+        _poolMock.Setup(x => x.GetManifestAsync(ManifestId.Create("1.0.steam.gameinstallation.zerohour"), default))
                   .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(expectedManifest));
 
         // Act
@@ -152,7 +152,7 @@ public class ManifestProviderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.0.steam.zerohour", result.Id);
+        Assert.Equal("1.0.steam.gameinstallation.zerohour", result.Id);
     }
 
     /// <summary>

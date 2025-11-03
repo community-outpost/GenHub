@@ -196,7 +196,7 @@ public class ManifestProvider : IManifestProvider
         // Use schema version 0 for generated installation manifests (tests expect 1.0.* pattern)
         var manifestVersion = 0;
 
-        var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, manifestVersion);
+        var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, manifestVersion, ContentType.GameInstallation);
 
         // Try CAS using deterministic id
         var casResult = await _manifestPool.GetManifestAsync(ManifestId.Create(deterministicId), cancellationToken);

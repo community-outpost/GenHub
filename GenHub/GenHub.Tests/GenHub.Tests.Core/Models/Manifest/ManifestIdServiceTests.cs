@@ -74,11 +74,11 @@ public class ManifestIdServiceTests
         var gameType = GameType.Generals;
 
         // Act
-        var result = _service.GenerateGameInstallationId(installation, gameType, (string?)null);
+        var result = _service.GenerateGameInstallationId(installation, gameType, (string?)null, GenHub.Core.Models.Enums.ContentType.GameInstallation);
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal("1.0.steam.generals", result.Data.Value);
+        Assert.Equal("1.0.steam.gameinstallation.generals", result.Data.Value);
         Assert.Null(result.FirstError);
     }
 
@@ -89,7 +89,7 @@ public class ManifestIdServiceTests
     public void GenerateGameInstallationId_WithNullInstallation_ReturnsFailure()
     {
         // Act
-        var result = _service.GenerateGameInstallationId(null!, GameType.Generals, 0);
+        var result = _service.GenerateGameInstallationId(null!, GameType.Generals, 0, GenHub.Core.Models.Enums.ContentType.GameInstallation);
 
         // Assert
         Assert.False(result.Success);
@@ -168,7 +168,7 @@ public class ManifestIdServiceTests
 
         // Test GenerateGameInstallationId
         var installation = new GameInstallation("C:\\Games", GameInstallationType.Steam);
-        var result2 = _service.GenerateGameInstallationId(installation, GameType.Generals, 0);
+        var result2 = _service.GenerateGameInstallationId(installation, GameType.Generals, 0, GenHub.Core.Models.Enums.ContentType.GameInstallation);
         Assert.IsAssignableFrom<ResultBase>(result2);
 
         // Test ValidateAndCreateManifestId
