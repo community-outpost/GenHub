@@ -30,13 +30,8 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </remarks>
 public class CSVDiscoverer(
     ILogger<CSVDiscoverer> logger,
-    IConfigurationProviderService configurationProvider,
     HttpClient httpClient) : IContentDiscoverer
 {
-    
-    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
-    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-
     /// <summary>
     /// Gets the resolver identifier for CSV content.
     /// </summary>
@@ -99,7 +94,7 @@ public class CSVDiscoverer(
             try
             {
                 logger.LogDebug("Attempting to load CSV registry from index.json: {Url}", indexUrl);
-                var indexJson = await _httpClient.GetStringAsync(indexUrl, cancellationToken);
+                var indexJson = await httpClient.GetStringAsync(indexUrl, cancellationToken);
                 registryIndex = JsonSerializer.Deserialize<CsvRegistryIndex>(indexJson, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
