@@ -41,6 +41,9 @@ public class GameProfileRepository(
                 profile.Id = Guid.NewGuid().ToString();
             }
 
+            // Ensure the profiles directory exists
+            EnsureDirectoryExists();
+
             var filePath = GetProfileFilePath(profile.Id);
             var json = JsonSerializer.Serialize(profile, _jsonOptions);
             await File.WriteAllTextAsync(filePath, json, cancellationToken);
@@ -92,6 +95,13 @@ public class GameProfileRepository(
     {
         try
         {
+            // If the profiles directory doesn't exist, return an empty list
+            if (!Directory.Exists(_profilesDirectory))
+            {
+                _logger.LogDebug("Profiles directory {Directory} does not exist. Returning empty profile list.", _profilesDirectory);
+                return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(new List<GameProfile>().AsReadOnly());
+            }
+
             var profileFiles = Directory.GetFiles(_profilesDirectory, "*.json");
             var profiles = new List<GameProfile>();
 
@@ -164,5 +174,17 @@ public class GameProfileRepository(
             throw new ArgumentException("Profile ID contains invalid characters", nameof(profileId));
 
         return Path.Combine(_profilesDirectory, $"{profileId}.json");
+    }
+
+    /// <summary>
+    /// Ensures the profiles directory exists.
+    /// </summary>
+    private void EnsureDirectoryExists()
+    {
+        if (!Directory.Exists(_profilesDirectory))
+        {
+            Directory.CreateDirectory(_profilesDirectory);
+            _logger.LogDebug("Created profiles directory: {Directory}", _profilesDirectory);
+        }
     }
 }

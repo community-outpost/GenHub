@@ -7,6 +7,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -363,9 +364,9 @@ public class ManifestGenerationService(
                                 clientName.ToLowerInvariant().Contains("ea") ? "EA App" :
                                 "Retail Installation";
             var publisher = new PublisherInfo { Name = publisherName };
-            var contentName = gameType.ToString().ToLowerInvariant() + "-client";
+            var contentName = gameType.ToString().ToLowerInvariant();
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
-                .WithBasicInfo(publisher, contentName, 1.ToString())
+                .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType);
 
             await AddClientFilesToManifest(builder, installationPath, gameType, executablePath);
@@ -425,9 +426,9 @@ public class ManifestGenerationService(
 
             // Create unique manifest name based on executable to distinguish variants (30Hz, 60Hz, standard)
             var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
-            var contentName = $"{gameType.ToString().ToLowerInvariant()}-{executableFileName}";
+            var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableFileName.Replace("-", string.Empty).Replace(".", string.Empty)}";
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
-                .WithBasicInfo(publisher, contentName, 1.ToString())
+                .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
                     "GeneralsOnline community client with auto-updates and enhanced compatibility",

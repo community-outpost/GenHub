@@ -65,8 +65,8 @@ public class GitHubContentProviderTests
     {
         // Arrange
         var query = new ContentSearchQuery { SearchTerm = "Test" };
-        var discoveredItem = new ContentSearchResult { Id = "1.0.gh.test.publisher.mod", RequiresResolution = true, ResolverId = "GitHubRelease" };
-        var resolvedManifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Name = "Resolved Test Mod" };
+        var discoveredItem = new ContentSearchResult { Id = "1.0.genhub.mod.ghtestmod", RequiresResolution = true, ResolverId = "GitHubRelease" };
+        var resolvedManifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Name = "Resolved Test Mod" };
 
         _discovererMock.Setup(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
@@ -75,7 +75,7 @@ public class GitHubContentProviderTests
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
 
         _validatorMock.Setup(v => v.ValidateManifestAsync(resolvedManifest, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.0.gh.test.publisher.mod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", new List<ValidationIssue>())); // Valid result
 
         // Act
         var result = await _provider.SearchAsync(query);
@@ -102,8 +102,8 @@ public class GitHubContentProviderTests
     public async Task PrepareContentAsync_CallsDelivererAndValidator_Successfully()
     {
         // Arrange
-        var manifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Files = new List<ManifestFile>() };
-        var deliveredManifest = new ContentManifest { Id = "1.0.gh.test.publisher.mod", Files = [new ManifestFile { RelativePath = "file.txt" }] };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = new List<ManifestFile>() };
+        var deliveredManifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = [new ManifestFile { RelativePath = "file.txt" }] };
         var targetDirectory = Path.GetTempPath();
 
         _delivererMock.Setup(d => d.CanDeliver(It.IsAny<ContentManifest>())).Returns(true);
@@ -111,7 +111,7 @@ public class GitHubContentProviderTests
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.0.gh.test.publisher.mod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", new List<ValidationIssue>())); // Valid result
 
         // Act
         var result = await _provider.PrepareContentAsync(manifest, targetDirectory);

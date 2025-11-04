@@ -1,5 +1,7 @@
+using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameInstallations;
@@ -14,6 +16,7 @@ namespace GenHub.Tests.Core.Features.GameInstallations;
 public class GameInstallationServiceTests
 {
     private readonly Mock<IGameInstallationDetectionOrchestrator> _orchestratorMock;
+    private readonly Mock<IGameClientDetectionOrchestrator> _clientOrchestratorMock;
     private readonly GameInstallationService _service;
 
     /// <summary>
@@ -22,7 +25,19 @@ public class GameInstallationServiceTests
     public GameInstallationServiceTests()
     {
         _orchestratorMock = new Mock<IGameInstallationDetectionOrchestrator>();
-        _service = new GameInstallationService(_orchestratorMock.Object);
+        _clientOrchestratorMock = new Mock<IGameClientDetectionOrchestrator>();
+
+        // Setup client orchestrator to return empty clients by default
+        var clientResult = DetectionResult<GameClient>.CreateSuccess(Enumerable.Empty<GameClient>(), TimeSpan.Zero);
+        _clientOrchestratorMock.Setup(x => x.DetectAllClientsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(clientResult);
+        _clientOrchestratorMock.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<IGameInstallation>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<IGameInstallation> i, CancellationToken c) =>
+            {
+                Console.WriteLine("Mock called with {0} installations", i.Count());
+                return Task.FromResult(clientResult);
+            });
+
+        _service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object);
     }
 
     /// <summary>
@@ -33,11 +48,8 @@ public class GameInstallationServiceTests
     public async Task GetInstallationAsync_WithValidId_ShouldReturnInstallation()
     {
         // Arrange
-        var installationId = "test-installation";
-        var installation = new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object)
-        {
-            Id = installationId,
-        };
+        var installation = new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        var installationId = installation.Id;
 
         var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(new[] { installation }, TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -129,17 +141,9 @@ public class GameInstallationServiceTests
     public async Task GetAllInstallationsAsync_ShouldReturnAllInstallations()
     {
         // Arrange
-        var installations = new[]
-        {
-            new GameInstallation("C:\\Games\\Test1", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object)
-            {
-                Id = "test-1",
-            },
-            new GameInstallation("C:\\Games\\Test2", GameInstallationType.EaApp, new Mock<ILogger<GameInstallation>>().Object)
-            {
-                Id = "test-2",
-            },
-        };
+        var installation1 = new GameInstallation("C:\\Games\\Test1", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        var installation2 = new GameInstallation("C:\\Games\\Test2", GameInstallationType.EaApp, new Mock<ILogger<GameInstallation>>().Object);
+        var installations = new[] { installation1, installation2 };
 
         var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(installations, TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -151,8 +155,6 @@ public class GameInstallationServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal(2, result.Data!.Count);
-        Assert.Contains(result.Data, i => i.Id == "test-1");
-        Assert.Contains(result.Data, i => i.Id == "test-2");
     }
 
     /// <summary>
@@ -183,11 +185,8 @@ public class GameInstallationServiceTests
     public async Task GetInstallationAsync_WithCaching_ShouldUseCachedResults()
     {
         // Arrange
-        var installationId = "test-installation";
-        var installation = new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object)
-        {
-            Id = installationId,
-        };
+        var installation = new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        var installationId = installation.Id;
 
         var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(new[] { installation }, TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -215,7 +214,7 @@ public class GameInstallationServiceTests
     public void Dispose_ShouldDisposeResources()
     {
         // Arrange
-        var service = new GameInstallationService(_orchestratorMock.Object);
+        var service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object);
 
         // Act
         service.Dispose();

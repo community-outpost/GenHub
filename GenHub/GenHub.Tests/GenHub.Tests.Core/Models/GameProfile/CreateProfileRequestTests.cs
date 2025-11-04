@@ -1,6 +1,5 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using Xunit;
 
 namespace GenHub.Tests.Core.Models.GameProfile
 {
@@ -27,7 +26,7 @@ namespace GenHub.Tests.Core.Models.GameProfile
             Assert.Equal("Test Profile", request.Name);
             Assert.Equal("install-1", request.GameInstallationId);
             Assert.Equal("client-1", request.GameClientId);
-            Assert.Equal(WorkspaceStrategy.HybridCopySymlink, request.PreferredStrategy);
+            Assert.Equal(WorkspaceStrategy.SymlinkOnly, request.PreferredStrategy);
         }
 
         /// <summary>

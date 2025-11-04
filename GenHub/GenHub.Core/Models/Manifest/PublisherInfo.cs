@@ -30,7 +30,7 @@ public class PublisherInfo
     /// For game installations, use <see cref="InstallationSourceConstants.FromInstallationType"/>
     /// to map GameInstallationType to a source string.
     /// </remarks>
-    public string PublisherType { get; set; } = "Unknown";
+    public string PublisherType { get; set; } = PublisherTypeConstants.Unknown;
 
     /// <summary>
     /// Gets or sets the publisher website.
