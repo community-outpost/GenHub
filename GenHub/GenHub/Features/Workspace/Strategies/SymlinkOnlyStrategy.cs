@@ -83,34 +83,67 @@ public sealed class SymlinkOnlyStrategy(
             var totalFiles = allFiles.Count();
             var processedFiles = 0;
 
-            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
+            Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            // Process each file using the base class method that has proper fallback logic
-            foreach (var manifest in configuration.Manifests)
+            int degreeOfParallelism;
+            try
             {
-                foreach (var file in manifest.Files)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+                var driveInfo = new DriveInfo(Path.GetPathRoot(workspacePath) ?? "C:\\");
+                degreeOfParallelism = driveInfo.DriveType == DriveType.Fixed
+                    ? Math.Min(Environment.ProcessorCount, 4) // HDD - limited parallelism
+                    : Environment.ProcessorCount * 2;         // SSD - higher parallelism safe
+                Logger.LogDebug(
+                    "[Workspace] Using {DegreeOfParallelism} degree of parallelism for {DriveType} drive",
+                    degreeOfParallelism,
+                    driveInfo.DriveType);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "[Workspace] Failed to detect drive type, using default parallelism");
+                degreeOfParallelism = Environment.ProcessorCount * 2;
+            }
 
+            // Deduplicate files by RelativePath - multiple manifests may contain the same file
+            // (e.g., GameClient and GameInstallation both contain the executable)
+            // Group by path and take the first occurrence to avoid parallel creation conflicts
+            var manifestFiles = configuration.Manifests
+                .SelectMany(m => m.Files.Select(f => new { Manifest = m, File = f }))
+                .GroupBy(item => item.File.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+
+            await Parallel.ForEachAsync(
+                manifestFiles,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = degreeOfParallelism,
+                    CancellationToken = cancellationToken,
+                },
+                async (item, ct) =>
+                {
                     try
                     {
                         // Use the base class method that handles CAS files with proper fallback
-                        await ProcessManifestFileAsync(file, manifest, workspacePath, configuration, cancellationToken);
+                        await ProcessManifestFileAsync(item.File, item.Manifest, workspacePath, configuration, ct);
+
+                        var current = Interlocked.Increment(ref processedFiles);
+
+                        // Report every 50 files or at completion
+                        if (current % 50 == 0 || current == totalFiles)
+                        {
+                            ReportProgress(progress, current, totalFiles, "Creating symlinks", item.File.RelativePath);
+                        }
                     }
                     catch (Exception ex)
                     {
                         Logger.LogError(
                             ex,
                             "Failed to process file {RelativePath}",
-                            file.RelativePath);
-                        throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
+                            item.File.RelativePath);
+                        throw new InvalidOperationException($"Failed to process file {item.File.RelativePath}: {ex.Message}", ex);
                     }
-
-                    processedFiles++;
-                    ReportProgress(progress, processedFiles, totalFiles, "Creating symlink", file.RelativePath);
-                }
-            }
+                });
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, 0, configuration);
 

@@ -4,14 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
-             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.GameProfiles.Views.GameSettingsView"
              x:DataType="vm:GameSettingsViewModel">
-
-    <UserControl.Resources>
-        <converters:IntToBoolConverter x:Key="IntToBoolConverter" />
-    </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="20" Margin="20">
@@ -21,7 +16,7 @@
                            FontSize="20" 
                            FontWeight="Bold" />
                 
-                <TextBlock Text="💡 Configure video and audio settings for Generals and Zero Hour. These settings are saved to this profile and will be applied when launching the game."
+                <TextBlock Text="Configure video and audio settings for Generals and Zero Hour. These settings are saved to this profile and will be applied when launching the game."
                            TextWrapping="Wrap"
                            Opacity="0.7"
                            FontSize="13" />
@@ -48,6 +43,12 @@
                                              IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
                             </StackPanel>
                         </Grid>
+                        
+                        <TextBlock Text="💡 Use these buttons to load settings from your existing Options.ini file as a starting point. Your changes will be saved to this profile."
+                                   TextWrapping="Wrap"
+                                   Opacity="0.8"
+                                   FontSize="11"
+                                   Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
 

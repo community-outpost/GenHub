@@ -72,8 +72,14 @@ public class ContentDependency
     public bool IsOptional { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets the fallback dependency ID if this dependency cannot be satisfied.
-    /// Enables graceful degradation when preferred dependencies are unavailable.
+    /// Gets or sets the list of required publisher types for this dependency.
+    /// If specified, the dependency can only be satisfied by content from one of these publisher types.
     /// </summary>
-    public ManifestId? FallbackDependency { get; set; }
+    public List<string> RequiredPublisherTypes { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the list of incompatible publisher types for this dependency.
+    /// Content from these publisher types cannot satisfy this dependency.
+    /// </summary>
+    public List<string> IncompatiblePublisherTypes { get; set; } = [];
 }

@@ -270,6 +270,7 @@ public class GameClientValidatorTests
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
         var client = new GameClient { WorkingDirectory = tempDir.FullName };
 
+        object lockObj = new();
         var progressReports = new List<ValidationProgress>();
         var progress = new SynchronousProgress<ValidationProgress>(p => progressReports.Add(p));
 
@@ -278,8 +279,15 @@ public class GameClientValidatorTests
 
         // Assert
         Assert.True(result.IsValid);
-        Assert.NotEmpty(progressReports);
-        Assert.Contains(progressReports, p => p.PercentComplete == 100);
+        lock (lockObj)
+        {
+            Assert.NotEmpty(progressReports);
+        }
+
+        lock (lockObj)
+        {
+            Assert.Contains(progressReports, p => p.PercentComplete == 100);
+        }
 
         tempDir.Delete(true);
     }
