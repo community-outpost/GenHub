@@ -97,12 +97,20 @@ The GameClient model has been enhanced to support launch configuration with Laun
 
 **Core Components**:
 
-- **GameProfile**: Central configuration object with Id, Name, GameClient, EnabledContentIds, WorkspaceStrategy, LaunchOptions, LaunchArguments, EnvironmentVariables, PreferredStrategy
-- **CreateProfileRequest**: Data transfer object for profile creation with validation
-- **UpdateProfileRequest**: Data transfer object for profile updates with partial modification support
+- **GameProfile**: Central configuration object with comprehensive profile state including:
+  - Core properties: Id, Name, Description, GameClient, ExecutablePath, GameInstallationId
+  - Content management: EnabledContentIds (List of manifest ID strings for content references)
+  - Workspace configuration: WorkspaceStrategy, CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId
+  - Launch configuration: CommandLineArguments (string), LaunchOptions (Dictionary), EnvironmentVariables (Dictionary)
+  - UI state: ThemeColor, IconPath, BuildInfo
+  - Game settings: Video properties (ResolutionWidth/Height, Windowed, TextureQuality, Shadows, ParticleEffects, ExtraAnimations, BuildingAnimations, Gamma)
+  - Audio settings: Audio volumes (SoundVolume, ThreeDSoundVolume, SpeechVolume, MusicVolume), AudioEnabled, NumSounds
+  - Timestamps: CreatedAt, LastPlayedAt
+- **CreateProfileRequest**: Data transfer object for profile creation with GameInstallationId, GameClientId, PreferredStrategy, EnabledContentIds, CommandLineArguments, and UI properties
+- **UpdateProfileRequest**: Data transfer object for profile updates with partial modification support (all fields optional, CommandLineArguments as string parameter)
 - **ProfileInfoItem**: UI-specific data transfer object for profile display
 - **WorkspaceStrategy**: Enumeration defining file assembly approaches including FullCopy, SymlinkOnly, HybridCopySymlink, HardLink
-- **IGameProfile**: Contract for profile-like objects ensuring Version and ExecutablePath accessibility
+- **IGameProfile**: Contract for profile-like objects ensuring Version, ExecutablePath, EnabledContentIds, PreferredStrategy accessibility
 
 **Profile Management Architecture**:
 
@@ -112,7 +120,7 @@ The GameClient model has been enhanced to support launch configuration with Laun
 - **GameProfileRepository**: File-based storage implementation with JSON serialization
 
 **Profile Integration Model**:
-GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation, while LaunchArguments and EnvironmentVariables enable per-profile launch customization.
+GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation. Launch customization is provided through CommandLineArguments (simple command string) for game-specific parameters and LaunchOptions/EnvironmentVariables (Dictionary collections) for advanced configuration. Game video and audio settings are stored directly on the profile (VideoResolutionWidth, AudioSoundVolume, etc.), enabling per-profile Options.ini customization without requiring separate file parsing.
 
 **ProfileEditorFacade Integration**:
 ProfileEditorFacade auto-enables matching GameInstallation content (and GameClient if available) after creation by scanning the manifest pool for the profile's GameType; then resolves dependencies and prepares a workspace, persisting ActiveWorkspaceId.
@@ -163,6 +171,58 @@ Workspace strategies now fully integrate with the Content Addressable Storage sy
 
 - **IWorkspaceValidator**: Validation contract with ValidateConfigurationAsync, ValidatePrerequisitesAsync, and ValidateWorkspaceAsync methods
 - **WorkspaceValidator**: Implementation ensuring workspace prerequisites, permissions, disk space availability, and post-creation integrity validation
+
+**Workspace Reconciliation System**:
+
+GenHub implements a sophisticated workspace reconciliation system that enables intelligent incremental updates, dramatically improving performance when content changes.
+
+**Core Reconciliation Architecture**:
+
+- **WorkspaceReconciler**: Analyzes workspace state and determines delta operations needed to reconcile with target configuration
+- **WorkspaceDelta**: Represents a single file operation (Add, Update, Remove, Skip) with reason tracking
+- **WorkspaceDeltaOperation**: Enumeration defining operation types for reconciliation
+- **ReconciliationDeltas**: Property on WorkspaceConfiguration passing delta information to strategies
+
+**Reconciliation Workflow**:
+
+1. **Workspace Discovery**: When PrepareWorkspaceAsync is called with ForceRecreate=false, WorkspaceManager checks if workspace already exists
+2. **Delta Analysis**: WorkspaceReconciler.AnalyzeWorkspaceDeltaAsync compares existing workspace against target manifests:
+   - Builds dictionary of all files that SHOULD exist from manifests
+   - Scans existing workspace to determine what files currently exist
+   - Detects files to Add (missing from workspace)
+   - Detects files to Update (hash mismatch, broken symlinks, size mismatch)
+   - Detects files to Remove (in workspace but not in manifests)
+   - Marks files to Skip (already current)
+3. **Reuse Optimization**: If all files are marked Skip (no changes), workspace is reused immediately without strategy execution
+4. **Incremental Preparation**: If changes detected, deltas are passed to strategy for incremental update
+
+**Delta Detection Logic**:
+
+```csharp
+// WorkspaceReconciler analyzes differences between existing and target state
+var deltas = await workspaceReconciler.AnalyzeWorkspaceDeltaAsync(existingWorkspace, targetConfiguration);
+
+// Log reconciliation needs
+_logger.LogInformation(
+    "Workspace needs reconciliation: +{Add} files, ~{Update} files, -{Remove} files, ={Skip} unchanged",
+    addCount, updateCount, removeCount, skipCount);
+
+// Fast path: No changes needed
+if (addCount == 0 && updateCount == 0 && removeCount == 0)
+{
+    _logger.LogInformation("Reusing existing workspace - all {FileCount} files are current", skipCount);
+    return OperationResult<WorkspaceInfo>.CreateSuccess(existingWorkspace);
+}
+```
+
+**File Update Detection**:
+
+The reconciler uses multiple heuristics to determine if a file needs updating:
+
+- **Symlink Validation**: For symlinked files, verifies target exists and is accessible
+- **Hash Verification**: For regular files under 100MB, computes SHA-256 hash and compares with manifest
+- **Size Verification**: Fast check comparing file size against manifest expectation
+- **Existence Check**: Verifies file exists at expected path
 
 ### 1.6 GameLaunching: The Runtime Orchestration Layer
 
@@ -742,21 +802,30 @@ GameProfile objects seamlessly integrate with the workspace system:
 
 **Game Profile Models**:
 
-- **GameProfile**: profile model with comprehensive launch configuration, content management, and workspace strategy selection
-- **CreateProfileRequest**: Profile creation DTO with validation and required field specification
-- **UpdateProfileRequest**: Profile update DTO with partial modification support
+- **GameProfile**: Comprehensive profile model containing:
+  - Identity: Id, Name, Description
+  - Base game: GameClient (the game version this profile uses), GameInstallationId, ExecutablePath
+  - Content: EnabledContentIds (list of manifest IDs for enabled content)
+  - Workspace: WorkspaceStrategy (HybridCopySymlink default), CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId
+  - Launch: CommandLineArguments (string), LaunchOptions (Dictionary), EnvironmentVariables (Dictionary)
+  - Video settings: ResolutionWidth, ResolutionHeight, Windowed, TextureQuality, Shadows, ParticleEffects, ExtraAnimations, BuildingAnimations, Gamma
+  - Audio settings: SoundVolume, ThreeDSoundVolume, SpeechVolume, MusicVolume, AudioEnabled, NumSounds
+  - UI: ThemeColor, IconPath, BuildInfo
+  - Timestamps: CreatedAt, LastPlayedAt
+- **CreateProfileRequest**: Profile creation DTO with GameInstallationId, GameClientId, PreferredStrategy, EnabledContentIds, CommandLineArguments, ThemeColor, IconPath
+- **UpdateProfileRequest**: Profile update DTO with partial modification support (Name, Description, EnabledContentIds, PreferredStrategy, LaunchArguments, EnvironmentVariables, CustomExecutablePath)
 - **ProfileInfoItem**: UI-optimized profile display model
 
 **Launch Configuration Models**:
 
 - **GameLaunchConfiguration**: Comprehensive launch specification with executable, arguments, environment, and working directory
-- **GameLaunchInfo**: Launch session descriptor with process information, workspace details, and timing
-- **GameProcessInfo**: Process runtime information with lifecycle tracking
+- **GameLaunchInfo**: Launch session descriptor with LaunchId, ProfileId, WorkspaceId, ProcessInfo, LaunchedAt, TerminatedAt
+- **GameProcessInfo**: Process runtime information with ProcessId, ProcessName, ExecutablePath, StartTime, IsRunning
 
 **Workspace Configuration Models**:
 
-- **WorkspaceConfiguration**: Input specification with GameClient integration and comprehensive manifest support
-- **WorkspaceInfo**: Result description with success tracking, validation issues, and comprehensive metadata
+- **WorkspaceConfiguration**: Input specification with Id, Manifests, Strategy, WorkspaceRootPath, BaseInstallationPath, GameClient, ReconciliationDeltas
+- **WorkspaceInfo**: Result description with Id, WorkspacePath, GameVersionId, Strategy, FileCount, TotalSizeBytes, ExecutablePath, WorkingDirectory, Success, ValidationIssues
 - **FilePermissions**: Cross-platform file permission specification
 
 **Content Metadata Models**:

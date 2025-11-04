@@ -126,7 +126,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.WorkspaceDefaultStrategy];
         return !string.IsNullOrEmpty(configured) && Enum.TryParse(configured, out WorkspaceStrategy strategy)
             ? strategy
-            : WorkspaceStrategy.HybridCopySymlink;
+            : WorkspaceStrategy.SymlinkOnly;
     }
 
     /// <summary>

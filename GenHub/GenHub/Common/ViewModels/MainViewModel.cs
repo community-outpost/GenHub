@@ -186,8 +186,22 @@ public partial class MainViewModel : ObservableObject
 
                 try
                 {
-                    // Use the first available game client ID or generate a new one
-                    var gameClientId = installation.AvailableGameClients.FirstOrDefault()?.Id ?? Guid.NewGuid().ToString();
+                    // Skip installations that don't have available game clients
+                    if (!installation.AvailableGameClients.Any())
+                    {
+                        _logger?.LogWarning("Skipping installation {InstallationId} - no available GameClients found", installation.Id);
+                        continue;
+                    }
+
+                    // Use the first available game client for profile creation
+                    var gameClient = installation.AvailableGameClients.First();
+                    if (!gameClient.IsValid)
+                    {
+                        _logger?.LogWarning("Skipping installation {InstallationId} - GameClient {ClientId} is not valid", installation.Id, gameClient.Id);
+                        continue;
+                    }
+
+                    var gameClientId = gameClient.Id;
 
                     // Create a profile request from the installation
                     var createRequest = new CreateProfileRequest

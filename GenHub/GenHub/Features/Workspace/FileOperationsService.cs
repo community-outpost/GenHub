@@ -49,13 +49,47 @@ public class FileOperationsService(
     /// <returns>True if the file exists; otherwise, false.</returns>
     public static bool DeleteFileIfExists(string filePath)
     {
-        if (File.Exists(filePath))
+        try
         {
-            File.Delete(filePath);
-            return true;
-        }
+            // Check for file symlink FIRST (LinkTarget check works even for broken symlinks)
+            // File.Exists() returns false for broken symlinks on Windows, but they still exist
+            // and will prevent creating a new symlink at the same path
+            var fileInfo = new FileInfo(filePath);
+            if (fileInfo.LinkTarget != null)
+            {
+                // This is a file symlink (even if broken)
+                File.Delete(filePath);
+                return true;
+            }
 
-        return false;
+            // Check for directory symlink
+            var dirInfo = new DirectoryInfo(filePath);
+            if (dirInfo.LinkTarget != null)
+            {
+                // This is a directory symlink (even if broken)
+                Directory.Delete(filePath);
+                return true;
+            }
+
+            // Finally check for regular file (not a symlink)
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                return true;
+            }
+
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            // File doesn't exist, that's fine
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // Directory doesn't exist, that's fine
+            return false;
+        }
     }
 
     /// <summary>
@@ -75,6 +109,7 @@ public class FileOperationsService(
             }
             catch (IOException ex) when (ex.Message.Contains("being used by another process"))
             {
+                // Re-throw with a more helpful message
                 throw new IOException(
                     $"Cannot delete directory '{directoryPath}' because files are being used by another process. " +
                     "Please ensure all applications using files in this directory are closed before deleting.",
@@ -97,74 +132,98 @@ public class FileOperationsService(
             string destinationPath,
             CancellationToken cancellationToken = default)
     {
-        try
+        const int MaxRetries = 3;
+        const int InitialDelayMs = 50;
+
+        for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
-            EnsureDirectoryExists(destinationPath);
-
-            // If destination exists and is a symlink/reparse point, delete it first
-            // This prevents issues when switching from Symlink strategy to FullCopy strategy
-            if (File.Exists(destinationPath))
-            {
-                var destInfo = new FileInfo(destinationPath);
-                if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                {
-                    _logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
-                    destInfo.Delete();
-                }
-            }
-
-            await using var source = new FileStream(
-                sourcePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                BufferSize,
-                useAsync: true);
-            await using var destination = new FileStream(
-                destinationPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                BufferSize,
-                useAsync: true);
-            await source.CopyToAsync(destination, cancellationToken);
-
-            // Safely try to copy timestamps/attributes but do not fail copy if this part fails
             try
             {
-                var sourceInfo = new FileInfo(sourcePath);
-                var destInfo = new FileInfo(destinationPath);
+                EnsureDirectoryExists(destinationPath);
 
-                // Timestamps
-                destInfo.CreationTime = sourceInfo.CreationTime;
-                destInfo.LastWriteTime = sourceInfo.LastWriteTime;
+                // If destination exists and is a symlink/reparse point, delete it first
+                // This prevents issues when switching from Symlink strategy to FullCopy strategy
+                if (File.Exists(destinationPath))
+                {
+                    var destInfo = new FileInfo(destinationPath);
+                    if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        _logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
+                        destInfo.Delete();
+                    }
+                }
 
-                // Attributes - avoid reparse/read-only/system flags
-                var sanitizedAttributes = sourceInfo.Attributes
-                    & ~FileAttributes.ReparsePoint
-                    & ~FileAttributes.ReadOnly
-                    & ~FileAttributes.System;
-                destInfo.Attributes = sanitizedAttributes;
+                await using var source = new FileStream(
+                    sourcePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    BufferSize,
+                    useAsync: true);
+                await using var destination = new FileStream(
+                    destinationPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.Read,  // Allow other processes to read while writing
+                    BufferSize,
+                    useAsync: true);
+                await source.CopyToAsync(destination, cancellationToken);
+
+                // Safely try to copy timestamps/attributes but do not fail copy if this part fails
+                try
+                {
+                    var sourceInfo = new FileInfo(sourcePath);
+                    var destInfo = new FileInfo(destinationPath);
+
+                    // Timestamps
+                    destInfo.CreationTime = sourceInfo.CreationTime;
+                    destInfo.LastWriteTime = sourceInfo.LastWriteTime;
+
+                    // Attributes - avoid reparse/read-only/system flags
+                    var sanitizedAttributes = sourceInfo.Attributes
+                        & ~FileAttributes.ReparsePoint
+                        & ~FileAttributes.ReadOnly
+                        & ~FileAttributes.System;
+                    destInfo.Attributes = sanitizedAttributes;
+                }
+                catch (Exception attrEx)
+                {
+                    _logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
+                }
+
+                _logger.LogDebug(
+                    "Copied file from {Source} to {Destination}",
+                    sourcePath,
+                    destinationPath);
+
+                return; // Success - exit retry loop
             }
-            catch (Exception attrEx)
+            catch (IOException ioEx) when (attempt < MaxRetries && IsFileLockException(ioEx))
             {
-                _logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
+                var delay = InitialDelayMs * (int)Math.Pow(2, attempt);
+                _logger.LogDebug(
+                    "File copy attempt {Attempt}/{MaxRetries} failed due to file lock, retrying in {Delay}ms: {Message}",
+                    attempt + 1,
+                    MaxRetries + 1,
+                    delay,
+                    ioEx.Message);
+                await Task.Delay(delay, cancellationToken);
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to copy file from {Source} to {Destination}",
+                    sourcePath,
+                    destinationPath);
+                throw;
+            }
+        }
 
-            _logger.LogDebug(
-                "Copied file from {Source} to {Destination}",
-                sourcePath,
-                destinationPath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "Failed to copy file from {Source} to {Destination}",
-                sourcePath,
-                destinationPath);
-            throw;
-        }
+        // If we get here, all retries failed
+        throw new InvalidOperationException(
+            $"Failed to copy file {Path.GetFileName(sourcePath)} after {MaxRetries + 1} attempts: " +
+            $"The process cannot access the file '{destinationPath}' because it is being used by another process.");
     }
 
     /// <summary>
@@ -198,13 +257,16 @@ public class FileOperationsService(
                 {
                     try
                     {
+                        var linkDirectory = Path.GetDirectoryName(linkPath) ?? string.Empty;
+                        var relativeTargetPath = Path.GetRelativePath(linkDirectory, absoluteTargetPath);
+
                         if (File.Exists(absoluteTargetPath))
                         {
-                            File.CreateSymbolicLink(linkPath, absoluteTargetPath);
+                            File.CreateSymbolicLink(linkPath, relativeTargetPath);
                         }
                         else if (Directory.Exists(absoluteTargetPath))
                         {
-                            Directory.CreateSymbolicLink(linkPath, absoluteTargetPath);
+                            Directory.CreateSymbolicLink(linkPath, relativeTargetPath);
                         }
                         else
                         {
@@ -585,6 +647,20 @@ public class FileOperationsService(
             _logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Determines if an IOException is due to file locking.
+    /// </summary>
+    /// <param name="ex">The IOException to check.</param>
+    /// <returns>True if the exception is due to file locking.</returns>
+    private static bool IsFileLockException(IOException ex)
+    {
+        const int ERROR_SHARING_VIOLATION = 32;
+        const int ERROR_LOCK_VIOLATION = 33;
+
+        int hResult = ex.HResult & 0xFFFF;
+        return hResult == ERROR_SHARING_VIOLATION || hResult == ERROR_LOCK_VIOLATION;
     }
 
     /// <summary>

@@ -1,23 +1,19 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:GenHub"
-             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-             x:Class="GenHub.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
-
-     <Application.DataTemplates>
-         <local:ViewLocator />
-     </Application.DataTemplates>
-
+             xmlns:local="clr-namespace:GenHub.Infrastructure.Converters"
+             x:Class="GenHub.App">
     <Application.Styles>
         <FluentTheme />
-        <material:MaterialIconStyles />
     </Application.Styles>
-
-     <Application.Resources>
-         <SolidColorBrush x:Key="PrimaryForeground">#CFCFCF</SolidColorBrush>
-         <SolidColorBrush x:Key="PrimaryBackground">#111122</SolidColorBrush>
-         <SolidColorBrush x:Key="PrimaryBorder">#232345</SolidColorBrush>
-     </Application.Resources>
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://GenHub/Assets/Styles/ThemeResources.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+        <local:StringToImageConverter x:Key="StringToImageConverter" />
+        <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <local:IntToBoolConverter x:Key="IntToBoolConverter" />
+    </Application.Resources>
 </Application>

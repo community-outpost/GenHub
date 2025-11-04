@@ -89,7 +89,13 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
 
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>()).ToList();
+
+            // Deduplicate files by RelativePath - multiple manifests may contain the same file
+            var allFiles = configuration.Manifests
+                .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
+                .GroupBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;

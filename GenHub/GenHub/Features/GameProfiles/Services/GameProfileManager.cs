@@ -44,6 +44,11 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Profile name cannot be empty");
             }
 
+            if (string.IsNullOrWhiteSpace(request.GameInstallationId))
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required");
+            }
+
             var installationResult = await _installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
             if (installationResult.Failed)
             {
@@ -64,6 +69,10 @@ public class GameProfileManager(
                 GameInstallationId = gameInstallation.Id,
                 GameClient = gameClient,
                 WorkspaceStrategy = request.PreferredStrategy,
+                EnabledContentIds = request.EnabledContentIds ?? new List<string>(),
+                ThemeColor = request.ThemeColor,
+                IconPath = request.IconPath,
+                CommandLineArguments = request.CommandLineArguments ?? string.Empty,
             };
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
@@ -122,6 +131,46 @@ public class GameProfileManager(
             profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
             profile.IconPath = request.IconPath ?? profile.IconPath;
             profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
+            profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
+            profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
+
+            // Only update ActiveWorkspaceId if explicitly provided (not null or empty)
+            if (!string.IsNullOrEmpty(request.ActiveWorkspaceId))
+            {
+                profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
+            }
+
+            // Update game settings
+            if (request.VideoResolutionWidth.HasValue)
+                profile.VideoResolutionWidth = request.VideoResolutionWidth;
+            if (request.VideoResolutionHeight.HasValue)
+                profile.VideoResolutionHeight = request.VideoResolutionHeight;
+            if (request.VideoWindowed.HasValue)
+                profile.VideoWindowed = request.VideoWindowed;
+            if (request.VideoTextureQuality.HasValue)
+                profile.VideoTextureQuality = request.VideoTextureQuality;
+            if (request.VideoShadows.HasValue)
+                profile.VideoShadows = request.VideoShadows;
+            if (request.VideoParticleEffects.HasValue)
+                profile.VideoParticleEffects = request.VideoParticleEffects;
+            if (request.VideoExtraAnimations.HasValue)
+                profile.VideoExtraAnimations = request.VideoExtraAnimations;
+            if (request.VideoBuildingAnimations.HasValue)
+                profile.VideoBuildingAnimations = request.VideoBuildingAnimations;
+            if (request.VideoGamma.HasValue)
+                profile.VideoGamma = request.VideoGamma;
+            if (request.AudioSoundVolume.HasValue)
+                profile.AudioSoundVolume = request.AudioSoundVolume;
+            if (request.AudioThreeDSoundVolume.HasValue)
+                profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume;
+            if (request.AudioSpeechVolume.HasValue)
+                profile.AudioSpeechVolume = request.AudioSpeechVolume;
+            if (request.AudioMusicVolume.HasValue)
+                profile.AudioMusicVolume = request.AudioMusicVolume;
+            if (request.AudioEnabled.HasValue)
+                profile.AudioEnabled = request.AudioEnabled;
+            if (request.AudioNumSounds.HasValue)
+                profile.AudioNumSounds = request.AudioNumSounds;
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
             if (saveResult.Success)
@@ -143,31 +192,31 @@ public class GameProfileManager(
     }
 
     /// <inheritdoc/>
-    public async Task<ProfileOperationResult<GameProfile>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(profileId))
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
+                return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
             var deleteResult = await _profileRepository.DeleteProfileAsync(profileId, cancellationToken);
             if (deleteResult.Success)
             {
                 _logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
+                return OperationResult<bool>.CreateSuccess(true);
             }
             else
             {
                 _logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
+                return OperationResult<bool>.CreateFailure(deleteResult.Errors);
             }
-
-            return deleteResult;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
-            return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
+            return OperationResult<bool>.CreateFailure("An unexpected error occurred.");
         }
     }
 

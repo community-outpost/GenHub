@@ -45,7 +45,7 @@ public class ProfileEditorFacade(
     {
         try
         {
-            _logger.LogInformation("Creating profile with workspace for game installation: {InstallationId}", request.GameInstallationId);
+            _logger.LogInformation("Creating profile for game installation: {InstallationId}", request.GameInstallationId);
 
             // First create the profile
             var createResult = await _profileManager.CreateProfileAsync(request, cancellationToken);
@@ -56,97 +56,15 @@ public class ProfileEditorFacade(
 
             var profile = createResult.Data!;
 
-            // Discover available content for this profile
-            var contentResult = await _profileManager.GetAvailableContentAsync(profile.GameClient, cancellationToken);
-            if (contentResult.Success && contentResult.Data != null)
-            {
-                // Auto-enable some basic content (game installation content)
-                var gameInstallationContent = contentResult.Data
-                    .Where(c => c.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                    .ToList();
-
-                if (gameInstallationContent.Any())
-                {
-                    profile.EnabledContentIds = gameInstallationContent.Select(c => c.Id.ToString()).ToList();
-
-                    // Also auto-enable a GameClient content if available
-                    var gameClientContent = contentResult.Data
-                        .FirstOrDefault(c => c.ContentType == Core.Models.Enums.ContentType.GameClient);
-                    if (gameClientContent != null && !profile.EnabledContentIds.Contains(gameClientContent.Id.ToString()))
-                    {
-                        profile.EnabledContentIds.Add(gameClientContent.Id.ToString());
-                    }
-
-                    // Update the profile with enabled content
-                    var updateRequest = new UpdateProfileRequest
-                    {
-                        EnabledContentIds = profile.EnabledContentIds,
-                    };
-
-                    var updateResult = await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
-                    if (updateResult.Success)
-                    {
-                        profile = updateResult.Data!;
-                    }
-                }
-            }
-
-            // Prepare workspace for the profile
-            var workspaceConfig = new WorkspaceConfiguration
-            {
-                Id = profile.Id,
-                Manifests = new List<ContentManifest>(),
-                GameClient = profile.GameClient,
-                Strategy = profile.WorkspaceStrategy,
-                ForceRecreate = false,
-                ValidateAfterPreparation = true,
-            };
-
-            // resolve installation path and workspace root
-            var install = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (install.Failed || install.Data == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    $"Failed to resolve installation '{profile.GameInstallationId}': {install.FirstError}");
-            }
-
-            workspaceConfig.BaseInstallationPath = install.Data.InstallationPath;
-            workspaceConfig.WorkspaceRootPath = _config.GetWorkspacePath();
-
-            // Build manifests from enabled content IDs
-            if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
-            {
-                var resolutionResult = await _dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds, cancellationToken);
-                if (!resolutionResult.Success)
-                {
-                    return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
-                }
-
-                workspaceConfig.Manifests = resolutionResult.ResolvedManifests.ToList();
-                profile.EnabledContentIds = resolutionResult.ResolvedContentIds.ToList();
-            }
-
-            var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
-            if (workspaceResult.Success && workspaceResult.Data != null)
-            {
-                profile.ActiveWorkspaceId = workspaceResult.Data.Id;
-
-                // persist ActiveWorkspaceId
-                var updateRequest = new UpdateProfileRequest
-                {
-                    ActiveWorkspaceId = profile.ActiveWorkspaceId,
-                };
-                await _profileManager.UpdateProfileAsync(profile.Id, updateRequest, cancellationToken);
-                _logger.LogInformation("Created workspace {WorkspaceId} for profile {ProfileId}", workspaceResult.Data.Id, profile.Id);
-            }
-
-            _logger.LogInformation("Successfully created profile {ProfileId} with workspace", profile.Id);
+            // NOTE: Workspace preparation is deferred until profile launch
+            // This prevents copying entire game installations during profile creation
+            _logger.LogInformation("Successfully created profile {ProfileId}", profile.Id);
             return ProfileOperationResult<GameProfile>.CreateSuccess(profile);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create profile with workspace");
-            return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to create profile with workspace: {ex.Message}");
+            _logger.LogError(ex, "Failed to create profile");
+            return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to create profile: {ex.Message}");
         }
     }
 
@@ -201,6 +119,47 @@ public class ProfileEditorFacade(
 
                     workspaceConfig.Manifests = resolutionResult.ResolvedManifests.ToList();
                     profile.EnabledContentIds = resolutionResult.ResolvedContentIds.ToList();
+
+                    // Resolve source paths for all manifests
+                    var manifestSourcePaths = new Dictionary<string, string>();
+                    foreach (var manifest in workspaceConfig.Manifests)
+                    {
+                        // Skip GameInstallation manifests - they use BaseInstallationPath
+                        if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
+                        {
+                            continue;
+                        }
+
+                        // For GameClient, use WorkingDirectory if available
+                        if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient &&
+                            !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
+                        {
+                            manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
+                            _logger.LogDebug("[ProfileEditor] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
+                            continue;
+                        }
+
+                        // For all other content types, query the manifest pool for the content directory
+                        var contentDirResult = await _manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
+                        if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
+                        {
+                            manifestSourcePaths[manifest.Id.Value] = contentDirResult.Data;
+                            _logger.LogDebug(
+                                "[ProfileEditor] Source path for content {ManifestId} ({ContentType}): {SourcePath}",
+                                manifest.Id.Value,
+                                manifest.ContentType,
+                                contentDirResult.Data);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                                manifest.Id.Value,
+                                manifest.ContentType);
+                        }
+                    }
+
+                    workspaceConfig.ManifestSourcePaths = manifestSourcePaths;
                 }
 
                 var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);

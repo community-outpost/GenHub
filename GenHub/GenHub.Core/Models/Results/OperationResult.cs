@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Models.Results;
 
 /// <summary>Represents the result of an operation, including success/failure, data, and errors.</summary>
@@ -18,7 +20,12 @@ public class OperationResult<T> : ResultBase
     }
 
     /// <summary>Gets the data returned by the operation.</summary>
+    [NotNullIfNotNull("Success")]
     public T? Data { get; }
+
+    /// <summary>Gets a value indicating whether the operation was successful.</summary>
+    [MemberNotNullWhen(true, nameof(Data))]
+    public new bool Success => base.Success;
 
     /// <summary>Creates a successful operation result.</summary>
     /// <param name="data">The data returned by the operation.</param>
