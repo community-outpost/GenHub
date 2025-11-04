@@ -19,7 +19,8 @@ public class GameProfileItemViewModelTests
         var mockProfile = new Mock<IGameProfile>();
         mockProfile.SetupGet(p => p.Version).Returns("1.0");
         mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-        var vm = new GameProfileItemViewModel(mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
         Assert.NotNull(vm);
+        Assert.Equal("test-profile-id", vm.ProfileId);
     }
 }

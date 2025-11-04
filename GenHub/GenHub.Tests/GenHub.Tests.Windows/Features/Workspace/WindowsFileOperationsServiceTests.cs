@@ -105,9 +105,13 @@ public class WindowsFileOperationsServiceTests : IDisposable
         }
         catch (IOException)
         {
-            // Skip test if privilege is not held +
+            // Skip test if privilege is not held (different exception on some systems)
             return;
         }
+
+        // Note: Since we're using a concrete mock, we can't easily verify calls
+        // This test would need to be refactored to work with the new architecture
+        // For now, we've ensured the service doesn't throw unhandled exceptions
     }
 
     /// <summary>

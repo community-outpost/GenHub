@@ -43,18 +43,15 @@ public class GameInstallationTests
     }
 
     /// <summary>
-    /// Verifies IsValid returns false when Generals path is missing.
+    /// Verifies IsValid returns false when Generals path is missing/non-existent.
     /// </summary>
     [Fact]
     public void GameInstallation_IsValid_ReturnsFalse_WhenGeneralsPathMissing()
     {
-        var missingPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-
-        var installation = new GameInstallation(missingPath, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance)
-        {
-            HasGenerals = true,
-            GeneralsPath = Path.Combine(missingPath, "Command and Conquer Generals"),
-        };
+        var missingPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")); // Non-existent path
+        var installation = new GameInstallation(string.Empty, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+        installation.SetPaths(missingPath, null);
+        installation.HasGenerals = true; // Force HasGenerals to true to test path existence
 
         Assert.False(installation.IsValid);
     }
@@ -72,11 +69,8 @@ public class GameInstallationTests
             var generalsPath = Path.Combine(tempDir, "Command and Conquer Generals");
             Directory.CreateDirectory(generalsPath);
 
-            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance)
-            {
-                HasGenerals = true,
-                GeneralsPath = generalsPath,
-            };
+            var installation = new GameInstallation(tempDir, GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(generalsPath, null);
             Assert.True(installation.IsValid);
         }
         finally

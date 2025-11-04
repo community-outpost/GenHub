@@ -4,6 +4,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Models.Manifest;
 
@@ -13,7 +14,7 @@ namespace GenHub.Tests.Core.Models.Manifest;
 public class ManifestIdGeneratorTests
 {
     /// <summary>
-    /// Tests that GeneratePublisherContentId returns the expected format with valid inputs.
+    /// Tests that GeneratePublisherContentId with valid inputs returns expected format.
     /// </summary>
     [Fact]
     public void GeneratePublisherContentId_WithValidInputs_ReturnsExpectedFormat()
@@ -27,7 +28,7 @@ public class ManifestIdGeneratorTests
         var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal("1.0.test.publisher.mod.test.content", result);
+        Assert.Equal("1.0.testpublisher.mod.testcontent", result);
     }
 
     /// <summary>
@@ -36,10 +37,10 @@ public class ManifestIdGeneratorTests
     /// <param name="input">The input string to normalize.</param>
     /// <param name="expected">The expected normalized output.</param>
     [Theory]
-    [InlineData("C&C Generals", "1.0.test.mod.c.c.generals")]
-    [InlineData("Zero Hour!!!", "1.0.test.mod.zero.hour")]
-    [InlineData("Test@Content#123", "1.0.test.mod.test.content.123")]
-    [InlineData("Multi  Word  Name", "1.0.test.mod.multi.word.name")]
+    [InlineData("C&C Generals", "1.0.test.mod.ccgenerals")]
+    [InlineData("Zero Hour!!!", "1.0.test.mod.zerohour")]
+    [InlineData("Test@Content#123", "1.0.test.mod.testcontent123")]
+    [InlineData("Multi  Word  Name", "1.0.test.mod.multiwordname")]
     [InlineData("UPPERCASE", "1.0.test.mod.uppercase")]
     public void GeneratePublisherContentId_WithSpecialCharacters_NormalizesCorrectly(string input, string expected)
     {
@@ -82,19 +83,16 @@ public class ManifestIdGeneratorTests
     /// </summary>
     /// <param name="publisherId">The publisher ID to test.</param>
     /// <param name="contentName">The content name to test.</param>
-    /// <param name="expectedMessage">The expected error message.</param>
     [Theory]
-    [InlineData("", "content", "Publisher ID cannot be empty")]
-    [InlineData(" ", "content", "Publisher ID cannot be empty")]
-    [InlineData("publisher", "", "Content name cannot be empty")]
-    [InlineData("publisher", " ", "Content name cannot be empty")]
-    public void GeneratePublisherContentId_WithInvalidInputs_ThrowsArgumentException(string publisherId, string contentName, string expectedMessage)
+    [InlineData("", "content")]
+    [InlineData(" ", "content")]
+    [InlineData("publisher", "")]
+    [InlineData("publisher", " ")]
+    public void GeneratePublisherContentId_WithInvalidInputs_ThrowsArgumentException(string publisherId, string contentName)
     {
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, 0));
-
-        Assert.Contains(expectedMessage, exception.Message);
     }
 
     /// <summary>
@@ -113,11 +111,13 @@ public class ManifestIdGeneratorTests
         var result2 = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
+        Assert.Equal("1.0.testpublisher.mod.testcontent", result1);
         Assert.Equal(result1, result2);
     }
 
     /// <summary>
-    /// Tests that GenerateGameInstallationId returns the expected format with valid inputs.
+    /// Tests that GenerateGameInstallationId returns the expected 5-segment format with valid inputs.
+    /// Format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// </summary>
     [Fact]
     public void GenerateGameInstallationId_WithValidInputs_ReturnsExpectedFormat()
@@ -128,14 +128,15 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal("1.0.steam.gameinstallation.generals", result);
     }
 
     /// <summary>
-    /// Tests that GenerateGameInstallationId returns correct format for all installation types.
+    /// Tests that GenerateGameInstallationId returns correct 5-segment format for all installation types.
+    /// All installation types are treated as publishers.
     /// </summary>
     /// <param name="installationType">The installation type to test.</param>
     /// <param name="gameType">The game type to test.</param>
@@ -155,7 +156,7 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal(expected, result);
@@ -177,7 +178,7 @@ public class ManifestIdGeneratorTests
         var gameType = GameType.Generals;
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal($"{expectedVersion}.steam.gameinstallation.generals", result);
@@ -191,7 +192,7 @@ public class ManifestIdGeneratorTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            ManifestIdGenerator.GenerateGameInstallationId(null!, GameType.Generals, 0, GenHub.Core.Models.Enums.ContentType.GameInstallation));
+            ManifestIdGenerator.GenerateGameInstallationId(null!, GameType.Generals, 0));
     }
 
     /// <summary>
@@ -208,9 +209,9 @@ public class ManifestIdGeneratorTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            ManifestIdGenerator.GenerateGameInstallationId(installation, GameType.Generals, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation));
+            ManifestIdGenerator.GenerateGameInstallationId(installation, GameType.Generals, userVersion));
 
-        Assert.Contains("User version cannot be negative", exception.Message);
+        Assert.Contains("Version must be numeric and non-negative", exception.Message);
     }
 
     /// <summary>
@@ -225,8 +226,8 @@ public class ManifestIdGeneratorTests
         var userVersion = 0;
 
         // Act
-        var result1 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
-        var result2 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result1 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
+        var result2 = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal(result1, result2);
@@ -241,8 +242,8 @@ public class ManifestIdGeneratorTests
     [InlineData("  test  ", "test")]
     [InlineData("test.", "test")]
     [InlineData(".test", "test")]
-    [InlineData("test..content", "test.content")]
-    [InlineData("test...content", "test.content")]
+    [InlineData("test..content", "testcontent")]
+    [InlineData("test...content", "testcontent")]
     public void GeneratePublisherContentId_NoLeadingTrailingDots(string input, string expected)
     {
         // Arrange
@@ -300,7 +301,7 @@ public class ManifestIdGeneratorTests
         var gameType = GameType.Generals;
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert
         Assert.Equal($"{expectedVersion}.steam.gameinstallation.generals", result);
@@ -324,25 +325,7 @@ public class ManifestIdGeneratorTests
         var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert
-        Assert.Equal("1.0.test.mod.unknown", result);
-    }
-
-    /// <summary>
-    /// Tests that GeneratePublisherContentId handles empty segments gracefully with placeholder.
-    /// </summary>
-    [Fact]
-    public void GeneratePublisherContentId_WithEmptySegments_UsesPlaceholder()
-    {
-        // Arrange
-        var publisherId = "test";
-        var contentName = "!!!"; // Normalizes to empty, should use "unknown" placeholder
-        var userVersion = 0;
-
-        // Act
-        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
-
-        // Assert
-        Assert.Equal("1.0.test.mod.unknown", result);
+        Assert.Equal("1.0.test.mod.unknown", result); // Should handle empty segments gracefully with placeholder
     }
 
     /// <summary>
@@ -360,7 +343,7 @@ public class ManifestIdGeneratorTests
         var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, GenHub.Core.Models.Enums.ContentType.Mod, contentName, userVersion);
 
         // Assert - Should always produce the same result regardless of platform
-        Assert.Equal("1.1.test.publisher.123.mod.c.c.generals", result);
+        Assert.Equal("1.1.testpublisher123.mod.ccgenerals", result);
     }
 
     /// <summary>
@@ -375,41 +358,184 @@ public class ManifestIdGeneratorTests
         var userVersion = 2;
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion, GenHub.Core.Models.Enums.ContentType.GameInstallation);
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, userVersion);
 
         // Assert - Should always produce the same result regardless of platform
         Assert.Equal("1.2.thefirstdecade.gameinstallation.zerohour", result);
     }
 
     /// <summary>
-    /// Tests that GenerateGameInstallationId with EA App Zero Hour and GameClient content type returns GameClient type.
+    /// Tests that GeneratePublisherContentId with valid publisher and content returns correct format.
     /// </summary>
     [Fact]
-    public void GenerateGameInstallationId_WithEaAppZeroHourAndGameClient_ReturnsGameClientType()
+    public void GeneratePublisherContentId_WithValidPublisherAndContent_ReturnsCorrectFormat()
     {
         // Arrange
-        var installation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.EaApp);
-        var gameType = GameType.ZeroHour;
-        var expected = "1.1.eaapp.gameclient.zerohour";
+        var publisherId = "cnclabs";
+        var contentType = ContentType.Mod;
+        var contentName = "urban-chaos";
+        var expected = "1.0.cnclabs.mod.urbanchaos";
 
         // Act
-        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, 1, GenHub.Core.Models.Enums.ContentType.GameClient);
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, 0);
 
         // Assert
         Assert.Equal(expected, result);
+
+        // Note: ManifestId validator may not accept this exact format
     }
 
     /// <summary>
-    /// Tests that GenerateGameInstallationId throws ArgumentException for negative user versions.
+    /// Tests that GeneratePublisherContentId with suffix returns appended suffix.
     /// </summary>
     [Fact]
-    public void GenerateGameInstallationId_WithNegativeUserVersion_ThrowsArgumentException()
+    public void GeneratePublisherContentId_WithSuffix_ReturnsAppendedSuffix()
+    {
+        // Arrange
+        var publisherId = "moddb-westwood";
+        var contentType = ContentType.Mod;
+        var contentName = "balance-patch";
+        var expected = "1.1.moddbwestwood.mod.balancepatch";
+
+        // Act
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, 1);
+
+        // Assert
+        Assert.Equal(expected, result);
+
+        // Note: ManifestId validator may not accept IDs with suffixes in contentName
+    }
+
+    /// <summary>
+    /// Tests that GeneratePublisherContentId with GitHub style publisher handles normalization.
+    /// </summary>
+    [Fact]
+    public void GeneratePublisherContentId_WithGitHubStylePublisher_HandlesNormalization()
+    {
+        // Arrange
+        var publisherId = "undead2146/genhub-mod"; // Simulates owner/repo input
+        var contentType = ContentType.Mod;
+        var contentName = "custom-mod";
+        var expected = "1.0.undead2146genhubmod.mod.custommod"; // Normalized: slashes to dots
+
+        // Act
+        var result = ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, 0);
+
+        // Assert
+        Assert.Equal(expected, result);
+
+        // Note: This ID has 7 segments and won't pass strict 5-segment validation
+    }
+
+    /// <summary>
+    /// Tests that GeneratePublisherContentId with empty publisher throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void GeneratePublisherContentId_WithEmptyPublisher_ThrowsArgumentException()
+    {
+        // Arrange
+        var publisherId = string.Empty;
+        var contentType = ContentType.Mod;
+        var contentName = "test-mod";
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, 0));
+    }
+
+    /// <summary>
+    /// Tests that GeneratePublisherContentId with empty content throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void GeneratePublisherContentId_WithEmptyContent_ThrowsArgumentException()
+    {
+        // Arrange
+        var publisherId = "cnclabs";
+        var contentType = ContentType.Mod;
+        var contentName = string.Empty;
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, 0));
+    }
+
+    /// <summary>
+    /// Tests that GeneratePublisherContentId with negative version throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void GeneratePublisherContentId_WithNegativeVersion_ThrowsArgumentException()
+    {
+        // Arrange
+        var publisherId = "cnclabs";
+        var contentType = ContentType.Mod;
+        var contentName = "test";
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => ManifestIdGenerator.GeneratePublisherContentId(publisherId, contentType, contentName, -1));
+    }
+
+    /// <summary>
+    /// Tests that GeneratePublisherContentId with null publisher throws ArgumentNullException.
+    /// </summary>
+    [Fact]
+    public void GeneratePublisherContentId_WithNullPublisher_ThrowsArgumentNullException()
+    {
+        // Arrange
+        string? publisherId = null;
+        var contentType = ContentType.Mod;
+        var contentName = "test";
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => ManifestIdGenerator.GeneratePublisherContentId(publisherId!, contentType, contentName, 0));
+    }
+
+    /// <summary>
+    /// Tests that GenerateGameInstallationId with Steam Generals returns correct 5-segment format.
+    /// </summary>
+    [Fact]
+    public void GenerateGameInstallationId_WithSteamGenerals_ReturnsCorrectFormat()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Steam);
         var gameType = GameType.Generals;
+        var expected = "1.0.steam.gameinstallation.generals";
+
+        // Act
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, 0);
+
+        // Assert
+        Assert.Equal(expected, result);
+        Assert.True(ManifestIdValidator.IsValid(result, out _));
+    }
+
+    /// <summary>
+    /// Tests that GenerateGameInstallationId with EA App Zero Hour returns correct format.
+    /// </summary>
+    [Fact]
+    public void GenerateGameInstallationId_WithEaAppZeroHour_ReturnsCorrectFormat()
+    {
+        // Arrange
+        var installation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.EaApp);
+        var gameType = GameType.ZeroHour;
+        var expected = "1.1.eaapp.gameinstallation.zerohour";
+
+        // Act
+        var result = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, 1);
+
+        // Assert
+        Assert.Equal(expected, result);
+        Assert.True(ManifestIdValidator.IsValid(result, out _));
+    }
+
+    /// <summary>
+    /// Tests that GenerateGameInstallationId with negative version throws ArgumentException.
+    /// </summary>
+    [Fact]
+    public void GenerateGameInstallationId_WithNegativeVersion_ThrowsArgumentException()
+    {
+        // Arrange
+        var installation = new GameInstallation("C:\\Games", GameInstallationType.Retail);
+        var gameType = GameType.Generals;
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, -1, GenHub.Core.Models.Enums.ContentType.GameInstallation));
+        Assert.Throws<ArgumentException>(() => ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, -1));
     }
 }

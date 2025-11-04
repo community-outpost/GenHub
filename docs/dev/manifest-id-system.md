@@ -30,23 +30,43 @@ Seamless integration into `ContentManifestBuilder`, `ManifestGenerationService`,
 
 ## ID Formats
 
-### Publisher Content IDs
+### Unified 5-Segment Format
 
-**Format**: `schemaVersion.userVersion.publisher.content`  
-**Example**: `1.0.ea.generals.mod`  
-**Use Case**: Content created by publishers (mods, patches, addons)
+**All content in GenHub uses a consistent 5-segment format:**
 
-### Base Game IDs
+**Format**: `schemaVersion.userVersion.publisher.contentType.contentName`
 
-**Format**: `schemaVersion.userVersion.installationType.gameType`  
-**Example**: `1.0.steam.generals`, `1.0.origin.zerohour`  
-**Use Case**: Base game installations detected on the system
+This unified approach treats platform distributors (Steam, EA, etc.) as publishers, just like community content creators.
 
-### Simple IDs
+### Game Installations and Clients
 
-**Format**: Alphanumeric with dashes and dots  
-**Example**: `test-id`, `simple.id`  
-**Use Case**: Test scenarios and simple identifiers
+**Examples**:
+
+- Steam ZeroHour v1.04 Installation: `1.104.steam.gameinstallation.zerohour`
+- EA App Generals v1.08 Client: `1.108.eaapp.gameclient.generals`
+- Retail Generals v1.08: `1.108.retail.gameinstallation.generals`
+- Custom Version 0: `1.0.steam.gameinstallation.generals`
+
+**Publisher Attribution**: Platform name (Steam, EA, Retail, etc.) is treated as the publisher.
+
+**Version Format**: The `userVersion` segment accepts either integers (0, 1, 2) or version strings ("1.08", "1.04"). Version strings automatically have dots removed for schema compliance:
+
+- "1.08" → "108" (Generals executable version)
+- "1.04" → "104" (Zero Hour executable version)
+- 0 → "0" (default/first version)
+
+This normalization ensures the manifest ID schema remains valid (dots separate segments) while supporting human-readable version strings.
+
+### Community Content
+
+**Examples**:
+
+- GenHub Mod: `1.0.genhub.mod.custom-mod`
+- GeneralsOnline Client: `1.0.generalsonline.gameclient.generalsonline_30hz`
+- CNC Labs Map: `1.0.cnclabs.map.desert-storm`
+
+**Publisher Attribution**: Community publisher name (e.g., "genhub", "generalsonline", "cnclabs")
+
 
 ## API Reference
 
@@ -55,15 +75,18 @@ Seamless integration into `ContentManifestBuilder`, `ManifestGenerationService`,
 ```csharp
 public static class ManifestIdGenerator
 {
-    // Generate publisher content ID
+    // Generate publisher content ID with content type (used for all content)
     public static string GeneratePublisherContentId(
         string publisherId,
         ContentType contentType,
         string contentName,
-        int userVersion = 0);
+        int userVersion = 0,
+        string suffix = "");
 
     // Generate game installation ID (uses 5-segment publisher format)
     // Note: Installation type (Steam, EA, etc.) is treated as the publisher
+    // Note: userVersion accepts both integers (0, 1, 2) and version strings ("1.08", "1.04")
+    // Version strings have dots automatically removed for schema compliance: "1.08" → "108"
     public static string GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
@@ -81,15 +104,17 @@ public class ManifestIdService : IManifestIdService
         string publisherId,
         ContentType contentType,
         string contentName,
-        int userVersion = 0);
+        int userVersion = 0,
+        string suffix = "");
 
     // Generate game installation ID with OperationResult pattern (uses 5-segment format)
     // Note: Installation type (Steam, EA, etc.) is treated as the publisher
+    // Note: userVersion accepts both integers (0, 1, 2) and version strings ("1.08", "1.04")
+    // Version strings have dots automatically removed for schema compliance: "1.08" → "108"
     OperationResult<ManifestId> GenerateGameInstallationId(
         GameInstallation installation,
         GameType gameType,
-        object? userVersion,
-        ContentType contentType);
+        object? userVersion);
 
     // Validate and create ManifestId
     OperationResult<ManifestId> ValidateAndCreateManifestId(string manifestIdString);
@@ -123,41 +148,22 @@ public readonly struct ManifestId : IEquatable<ManifestId>
 
 ## Usage Examples
 
-### Generating Publisher Content IDs
+### Game Installation IDs (5-Segment Format)
 
 ```csharp
-// Using ManifestIdService (recommended)
-var idResult = _manifestIdService.GeneratePublisherContentId("EA", ContentType.Mod, "Generals Mod", 0);
-if (idResult.Success)
-{
-    ManifestId id = idResult.Data; // 1.0.ea.generals.mod
-    Console.WriteLine(id); // Implicit conversion to string
-}
-else
-{
-    Console.WriteLine($"Failed: {idResult.ErrorMessage}");
-}
-
-// Using ManifestIdGenerator directly
-string idString = ManifestIdGenerator.GeneratePublisherContentId("EA", ContentType.Mod, "Generals Mod", 0);
-ManifestId id = ManifestId.Create(idString);
-```
-
-### Generating Base Game IDs
-
-```csharp
+// Generate ID for detected game installation with integer version
 var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Steam);
 var gameType = GameType.Generals;
 
 // Using service with integer version (default 0)
-var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, 0, ContentType.GameInstallation);
+var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, 0);
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // 1.0.steam.gameinstallation.generals
 }
 
 // Using string version for Generals 1.08
-var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, "1.08", ContentType.GameInstallation);
+var idResult = _manifestIdService.GenerateGameInstallationId(installation, gameType, "1.08");
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // 1.108.steam.gameinstallation.generals
@@ -165,133 +171,150 @@ if (idResult.Success)
 
 // Using string version for Zero Hour 1.04
 var zhInstallation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.Steam);
-var idResult = _manifestIdService.GenerateGameInstallationId(zhInstallation, GameType.ZeroHour, "1.04", ContentType.GameInstallation);
+var idResult = _manifestIdService.GenerateGameInstallationId(zhInstallation, GameType.ZeroHour, "1.04");
 if (idResult.Success)
 {
     ManifestId id = idResult.Data; // 1.104.steam.gameinstallation.zerohour
 }
 
-// Using generator directly
+// Using generator directly with version constant
 string idString = ManifestIdGenerator.GenerateGameInstallationId(
     installation, 
     gameType, 
-    ManifestConstants.GeneralsManifestVersion,
-    ContentType.GameInstallation); // "1.08" → generates "1.108.steam.gameinstallation.generals"
+    ManifestConstants.GeneralsManifestVersion); // "1.08" → generates "1.108.steam.gameinstallation.generals"
 ```
 
-### Advanced Game Installation ID Examples
+### Publisher Content IDs
 
 ```csharp
-using static GenHub.Core.Constants.ManifestConstants;
+// Generate ID for content with publisher and content type
+var idResult = _manifestIdService.GeneratePublisherContentId("genhub", ContentType.Mod, "custom-mod", 0);
+if (idResult.Success)
+{
+    ManifestId id = idResult.Data; // 1.0.genhub.mod.custom-mod
+}
 
-var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Steam);
-var zhInstallation = new GameInstallation("C:\\Games\\ZeroHour", GameInstallationType.Steam);
+// Generate ID for GeneralsOnline client
+var clientResult = _manifestIdService.GeneratePublisherContentId("generalsonline", ContentType.GameClient, "generalsonline_30hz", 0);
+if (clientResult.Success)
+{
+    ManifestId id = clientResult.Data; // 1.0.generalsonline.gameclient.generalsonline_30hz
+}
+```
+
+### Validation
+
+```csharp
+// Validate existing ID (5-segment format required)
+var validation = _manifestIdService.ValidateAndCreateManifestId("1.0.steam.gameinstallation.generals");
+if (validation.Success)
+{
+    ManifestId id = validation.Data;
+}
+```
+
+## Version Normalization
+
+The manifest ID system automatically normalizes version values to ensure schema compliance. The manifest ID format uses dots (`.`) to separate segments, so version strings containing dots are normalized by removing them.
+
+### How It Works
+
+The `NormalizeVersionString()` method processes version values as follows:
+
+1. **Accepts flexible input**: Both integers and version strings
+2. **Removes dots**: Strips all dot characters from version strings
+3. **Validates numeric format**: Ensures the result is a valid number
+4. **Returns normalized string**: Used in the manifest ID's `userVersion` segment
+
+### Examples
+
+| Input Version | Normalized Output | Resulting Manifest ID |
+|--------------|-------------------|----------------------|
+| `0` | `"0"` | `1.0.steam.gameinstallation.generals` |
+| `1` | `"1"` | `1.1.steam.gameinstallation.generals` |
+| `"1.08"` | `"108"` | `1.108.steam.gameinstallation.generals` |
+| `"1.04"` | `"104"` | `1.104.steam.gameinstallation.zerohour` |
+| `"2.0"` | `"20"` | `1.20.steam.gameinstallation.generals` |
+
+### Why Version Normalization?
+
+**Schema Compliance**: The manifest ID format uses dots (`.`) to separate segments. Each segment must not contain additional dots. If the `userVersion` segment contained dots (e.g., "1.08"), it would break the 5-segment schema:
+
+- ❌ Invalid: `1.1.08.steam.gameinstallation.generals` (6 segments instead of 5)
+- ✅ Valid: `1.108.steam.gameinstallation.generals` (5 segments as expected)
+
+**Human-Readable Versions**: Developers can use familiar version strings like "1.08" or "1.04" that match the actual game executable versions, while the system automatically handles the normalization for schema compliance.
+
+**Backward Compatibility**: Existing code using integer versions (0, 1, 2) continues to work without changes, as integers are converted to strings without modification.
+
+### Usage
+
+```csharp
+// Using manifest version constants (automatically normalized)
+using static GenHub.Core.Constants.ManifestConstants;
 
 var generalsId = ManifestIdGenerator.GenerateGameInstallationId(
     installation, 
     GameType.Generals, 
-    GeneralsManifestVersion,
-    ContentType.GameInstallation); // "1.08" → "108"
+    GeneralsManifestVersion); // "1.08" → "108"
 // Result: "1.108.steam.gameinstallation.generals"
 
 var zhId = ManifestIdGenerator.GenerateGameInstallationId(
     zhInstallation, 
     GameType.ZeroHour, 
-    ZeroHourManifestVersion,
-    ContentType.GameInstallation); // "1.04" → "104"
+    ZeroHourManifestVersion); // "1.04" → "104"
 // Result: "1.104.steam.gameinstallation.zerohour"
 
 // Using custom version strings
 var customId = ManifestIdGenerator.GenerateGameInstallationId(
     installation, 
     GameType.Generals, 
-    "2.0",
-    ContentType.GameInstallation); // "2.0" → "20"
+    "2.0"); // "2.0" → "20"
 // Result: "1.20.steam.gameinstallation.generals"
 
 // Using integer versions (no normalization needed)
 var defaultId = ManifestIdGenerator.GenerateGameInstallationId(
     installation, 
     GameType.Generals, 
-    0,
-    ContentType.GameInstallation); // 0 → "0"
+    0); // 0 → "0"
 // Result: "1.0.steam.gameinstallation.generals"
 ```
 
-### Validating IDs
+### Version Normalization Validation
+
+The normalization method validates that the result is numeric after dot removal:
 
 ```csharp
-// Using service
-var validation = _manifestIdService.ValidateAndCreateManifestId("1.0.steam.generals");
-if (validation.Success)
-{
-    ManifestId id = validation.Data;
-}
+// Valid inputs
+NormalizeVersionString("1.08");  // ✅ Returns "108"
+NormalizeVersionString("1.04");  // ✅ Returns "104"
+NormalizeVersionString(5);       // ✅ Returns "5"
+NormalizeVersionString("2.0");   // ✅ Returns "20"
 
-// Using struct directly
-try
-{
-    ManifestId id = ManifestId.Create("1.0.steam.generals");
-}
-catch (ArgumentException ex)
-{
-    Console.WriteLine($"Invalid ID: {ex.Message}");
-}
-```
-
-### Creating Manifests with Builder
-
-```csharp
-var builder = new ContentManifestBuilder(_logger, _hashProvider, _manifestIdService)
-    .WithBasicInfo("EA", "Generals Mod", 0)
-    .WithContentType(ContentType.Mod, GameType.Generals)
-    .WithPublisher("EA Games", "https://ea.com", "support@ea.com");
-
-ContentManifest manifest = builder.Build();
-// manifest.Id will be properly generated and validated
+// Invalid inputs (throws ArgumentException)
+NormalizeVersionString("1.0a");  // ❌ Contains letters
+NormalizeVersionString("v1.08"); // ❌ Contains letters
+NormalizeVersionString("1..08"); // ❌ Results in "108" but has invalid format
 ```
 
 ## Validation Rules
 
-### Publisher Content Validation
+### All Content (5-Segment Format)
 
-- Must contain at least 4 segments separated by dots
-- Format: `schemaVersion.userVersion.publisher.content`
-- Each segment can contain alphanumeric characters and dashes
-- No dots within segments (dots are separators only)
-- Case-insensitive for comparison but preserves original casing
-
-### Base Game Validation
-
-- Must follow `schemaVersion.userVersion.publisher.contentType.contentName` format
-- Publisher is the installation type (steam, eaapp, etc.)
-- ContentType: gameinstallation, gameclient
-- ContentName: generals, zerohour
-- Schema version is automatically extracted from constants
-- User version defaults to 0 if not specified
+- Format: `schemaVersion.userVersion.publisher.contentType.contentName`
+- **UserVersion**: Accepts integers (0, 1, 2) or version strings ("1.08", "1.04"). Version strings have dots removed during normalization ("1.08" → "108")
+- **Publisher**: Can be platform (steam, eaapp, retail) or community publisher (genhub, generalsonline, cnclabs, moddb)
+- **ContentType**: Must be valid content type (gameinstallation, gameclient, mod, patch, addon, mappack, languagepack, etc.)
+- **ContentName**: Alphanumeric with dashes (e.g., "generals", "custom-mod")
 - **Total Segments**: Exactly 5 segments required
-
-### Simple ID Validation
-
-- Alphanumeric characters with dashes and dots
-- Used for tests and simple scenarios
-- More permissive validation for flexibility
-
 ## Error Handling
 
-The system uses the **ResultBase pattern** for robust error handling:
+Uses **ResultBase pattern** for robust error handling:
 
 ```csharp
-// Success case
-var result = _manifestIdService.GeneratePublisherContentId("EA", ContentType.Mod, "Mod", 0);
-if (result.Success)
+var result = _manifestIdService.GeneratePublisherContentId("invalid", ContentType.Mod, "content", 0);
+if (!result.Success)
 {
-    ManifestId id = result.Data;
-    // Use the ID
-}
-else
-{
-    // Handle error
     _logger.LogError($"ID generation failed: {result.ErrorMessage}");
 }
 ```
@@ -300,53 +323,29 @@ else
 
 ### ContentManifestBuilder
 
-- Automatically generates and validates IDs when `WithBasicInfo` is called
-- Uses `ManifestIdService` for consistent ID generation
-- Provides fallback mechanisms if service fails
+- Automatically generates and validates IDs
+- Uses ManifestIdService for consistency
 
 ### ManifestGenerationService
 
-- Uses `ManifestIdService` for all manifest creation operations
-- Ensures deterministic ID generation across all manifest types
+- Uses ManifestIdService for all manifest creation
+- Ensures deterministic ID generation
 
 ### ManifestProvider
 
-- Validates manifest IDs during loading and processing
-- Uses `IManifestIdService` for ID operations
+- Validates manifest IDs during loading
+- Uses IManifestIdService for operations
 
 ## Testing
 
-The system includes comprehensive test coverage:
-
-- **ManifestIdGeneratorTests**: 51 tests covering all generation scenarios
-- **ManifestIdServiceTests**: 20+ tests for service layer validation
-- **ManifestIdTests**: Tests for struct functionality and validation
-- **Integration tests**: End-to-end testing with ContentManifestBuilder
+Comprehensive test coverage in ManifestIdGeneratorTests.cs and related test files.
 
 ### Running Tests
 
 ```bash
-# Run all manifest ID tests
 dotnet test --filter "ManifestId"
-
-# Run specific test classes
-dotnet test --filter "ManifestIdGeneratorTests"
-dotnet test --filter "ManifestIdServiceTests"
-dotnet test --filter "ManifestIdTests"
 ```
 
 ## Cross-Platform Determinism
 
-The system ensures identical ID generation across all platforms:
-
-- **Normalization**: Converts to lowercase, removes special characters
-- **Safe Characters**: Only alphanumeric, dots, and dashes allowed
-- **Consistent Ordering**: Deterministic segment processing
-- **Filesystem Safety**: Generated IDs are safe for use as filenames
-
-## Future Enhancements
-
-- **Custom ID Formats**: Support for extended validation rules
-- **Migration Tools**: Utilities for updating existing content to new ID format
-- **Performance Monitoring**: Metrics for ID generation performance
-- **Extended Validation**: Additional security and compliance checks
+Ensures identical ID generation across all platforms through normalization and consistent processing.

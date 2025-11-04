@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
@@ -49,6 +50,13 @@ public class DependencyResolver(
                         var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
                         foreach (var dep in relevantDeps)
                         {
+                            // Skip default/placeholder IDs - these are generic type-based constraints validated separately
+                            if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
+                            {
+                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                continue;
+                            }
+
                             // TODO: AutoInstall dependencies are resolved here but not automatically installed.
                             // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
                             if (!resolvedIds.Contains(dep.Id))
@@ -87,15 +95,28 @@ public class DependencyResolver(
         var resolvedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var resolvedManifests = new List<ContentManifest>();
         var missingContentIds = new List<string>();
+        var warnings = new List<string>();
         var toProcess = new Queue<string>(contentIds);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var processingStack = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Track currently processing path for circular detection
 
         while (toProcess.Count > 0)
         {
             var contentId = toProcess.Dequeue();
+
+            // Circular dependency detection
+            if (processingStack.Contains(contentId))
+            {
+                var circularWarning = $"Circular dependency detected: '{contentId}' is already in the resolution path";
+                warnings.Add(circularWarning);
+                _logger.LogWarning("Circular dependency detected: {ContentId} is already in the resolution path", contentId);
+                continue;
+            }
+
             if (!visited.Add(contentId))
                 continue;
 
+            processingStack.Add(contentId);
             resolvedIds.Add(contentId);
 
             try
@@ -111,6 +132,13 @@ public class DependencyResolver(
                         var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
                         foreach (var dep in relevantDeps)
                         {
+                            // Skip default/placeholder IDs - these are generic type-based constraints validated separately
+                            if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
+                            {
+                                _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                continue;
+                            }
+
                             if (!resolvedIds.Contains(dep.Id))
                             {
                                 toProcess.Enqueue(dep.Id);
@@ -131,11 +159,20 @@ public class DependencyResolver(
                 missingContentIds.Add(contentId);
                 _logger.LogWarning(ex, "Invalid manifest ID during dependency resolution: {ContentId}", contentId);
             }
+            finally
+            {
+                processingStack.Remove(contentId);
+            }
         }
 
         if (missingContentIds.Any())
         {
             return DependencyResolutionResult.CreateFailure($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
+        }
+
+        if (warnings.Any())
+        {
+            return DependencyResolutionResult.CreateSuccessWithWarnings(resolvedIds.ToList(), resolvedManifests, missingContentIds, warnings);
         }
 
         return DependencyResolutionResult.CreateSuccess(resolvedIds.ToList(), resolvedManifests, missingContentIds);
