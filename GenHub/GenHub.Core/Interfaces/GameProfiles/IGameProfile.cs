@@ -42,4 +42,9 @@ public interface IGameProfile
     /// Gets the preferred workspace strategy for this profile.
     /// </summary>
     WorkspaceStrategy PreferredStrategy { get; }
+
+    /// <summary>
+    /// Gets or sets the build information for the profile.
+    /// </summary>
+    string BuildInfo { get; set; }
 }

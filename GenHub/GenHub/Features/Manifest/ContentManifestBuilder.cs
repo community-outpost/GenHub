@@ -48,7 +48,7 @@ public class ContentManifestBuilder(
         tempInstallation.SetPaths(null, gameType == GameType.ZeroHour ? "dummy" : null);
 
         // Use ManifestIdService for consistent ID generation with ResultBase pattern
-        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion, ContentType.GameInstallation);
+        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
         if (idResult.Success)
         {
             _manifest.Id = idResult.Data;
@@ -59,7 +59,7 @@ public class ContentManifestBuilder(
 
             // Fallback to direct generation if service fails
             _manifest.Id = ManifestId.Create(
-                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion, ContentType.GameInstallation));
+                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion));
         }
 
         _manifest.Name = gameType.ToString().ToLowerInvariant();
@@ -142,7 +142,11 @@ public class ContentManifestBuilder(
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, int manifestVersion)
     {
-        return WithBasicInfo(publisher.Name, contentName, manifestVersion.ToString())
+        var publisherId = !string.IsNullOrEmpty(publisher.PublisherType)
+            ? publisher.PublisherType
+            : NormalizePublisherName(publisher.Name);
+
+        return WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
             .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
     }
 
@@ -155,7 +159,11 @@ public class ContentManifestBuilder(
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithBasicInfo(PublisherInfo publisher, string contentName, string? manifestVersion)
     {
-        return WithBasicInfo(publisher.Name, contentName, manifestVersion)
+        var publisherId = !string.IsNullOrEmpty(publisher.PublisherType)
+            ? publisher.PublisherType
+            : NormalizePublisherName(publisher.Name);
+
+        return WithBasicInfo(publisherId, contentName, manifestVersion)
             .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty);
     }
 
@@ -703,6 +711,19 @@ public class ContentManifestBuilder(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return (extension == ".exe" || extension == ".dll" || extension == ".so" || extension == string.Empty) && File.Exists(filePath);
+    }
+
+    private static string NormalizePublisherName(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return "unknown";
+
+        // Lowercase and remove any non-alphanumeric characters to produce a
+        // single-token publisher id (no dots). This avoids creating extra
+        // dot-separated segments when the ID is constructed.
+        var lower = input.ToLowerInvariant().Trim();
+        var cleaned = System.Text.RegularExpressions.Regex.Replace(lower, "[^a-z0-9]", string.Empty);
+        return string.IsNullOrEmpty(cleaned) ? "unknown" : cleaned;
     }
 
     /// <summary>

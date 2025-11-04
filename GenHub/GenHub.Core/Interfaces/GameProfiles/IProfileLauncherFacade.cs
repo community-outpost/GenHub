@@ -50,4 +50,12 @@ public interface IProfileLauncherFacade
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result containing workspace preparation status.</returns>
     Task<ProfileOperationResult<WorkspaceInfo>> PrepareWorkspaceAsync(string profileId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes a game profile.
+    /// </summary>
+    /// <param name="profileId">The profile ID to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result indicating success.</returns>
+    Task<ProfileOperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default);
 }

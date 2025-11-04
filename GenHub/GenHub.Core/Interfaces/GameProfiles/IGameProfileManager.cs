@@ -2,6 +2,9 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -33,7 +36,7 @@ public interface IGameProfileManager
     /// <param name="profileId">The unique identifier of the profile to delete.</param>
     /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>An operation result indicating success or failure.</returns>
-    Task<ProfileOperationResult<GameProfile>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all game profiles.

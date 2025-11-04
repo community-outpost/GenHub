@@ -92,7 +92,7 @@ public class GitHubResolverTests
         // Build returns a real manifest
         manifestBuilder.Setup(m => m.Build()).Returns(new ContentManifest
         {
-            Id = "1.0.github.test.publisher.mod",
+            Id = "1.0.genhub.mod.githubtestmod",
             Name = "Test Mod Release",
             Version = "v1.0",
             Publisher = new PublisherInfo { Name = "Test Author" },
@@ -120,7 +120,7 @@ public class GitHubResolverTests
 
         ContentManifest manifest = result.Data!;
         Assert.NotNull(manifest);
-        Assert.Equal("1.0.github.test.publisher.mod", manifest.Id);
+        Assert.Equal("1.0.genhub.mod.githubtestmod", manifest.Id);
         Assert.Equal("Test Mod Release", manifest.Name);
         Assert.Equal("v1.0", manifest.Version);
         Assert.Equal("Test Author", manifest.Publisher.Name);

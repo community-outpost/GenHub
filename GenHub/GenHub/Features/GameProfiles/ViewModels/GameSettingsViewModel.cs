@@ -152,7 +152,6 @@ public partial class GameSettingsViewModel : ViewModelBase
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeForProfileAsync(string? profileId, Core.Models.GameProfile.GameProfile? profile = null, CancellationToken cancellationToken = default)
     {
-        _isInitializing = true;
         _initializationDepth++;
         try
         {
@@ -191,7 +190,6 @@ public partial class GameSettingsViewModel : ViewModelBase
         finally
         {
             _initializationDepth--;
-            _isInitializing = false;
         }
     }
 
@@ -243,7 +241,6 @@ public partial class GameSettingsViewModel : ViewModelBase
     private IniOptions? _currentOptions;
     private string? _currentProfileId;
     private int _initializationDepth;
-    private bool _isInitializing;
     private bool _isLoadingFromOptions;
 
     /// <summary>
