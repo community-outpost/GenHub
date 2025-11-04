@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -110,21 +111,53 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstal
                 var gamePath = Path.Combine(generalsPath!, "Command and Conquer Generals");
                 if (Directory.Exists(gamePath))
                 {
-                    HasGenerals = true;
-                    GeneralsPath = gamePath;
-                    logger?.LogInformation("Found EA App Generals installation: {GeneralsPath}", GeneralsPath);
+                    // Check for any common Generals executable (generals.exe, generalsv.exe, etc.)
+                    string[] generalsExecutables =
+                    {
+                        GameClientConstants.GeneralsExecutable,
+                        GameClientConstants.SuperHackersGeneralsExecutable,
+                    };
+
+                    if (HasAnyExecutable(gamePath, generalsExecutables))
+                    {
+                        HasGenerals = true;
+                        GeneralsPath = gamePath;
+                        logger?.LogInformation("Found EA App Generals installation: {GeneralsPath}", GeneralsPath);
+                    }
                 }
             }
 
             // Check for Zero Hour
+            // EA registry returns parent folder, so Zero Hour could be:
+            // 1. A subdirectory: {generalsPath}\Command and Conquer Generals Zero Hour
+            // 2. The base path itself if the registry path already points to Zero Hour
             if (!HasZeroHour)
             {
-                var gamePath = Path.Combine(generalsPath!, "Command and Conquer Generals Zero Hour");
-                if (Directory.Exists(gamePath))
+                // Possible Zero Hour executables ( Generals.exe, generalszh.exe, etc.)
+                var zeroHourExecutables = new[]
+                {
+                    GameClientConstants.ZeroHourExecutable,
+                    GameClientConstants.GeneralsExecutable,
+                    GameClientConstants.SuperHackersZeroHourExecutable,
+                };
+
+                // First, check if the base path itself is Zero Hour (registry path might already be the ZH folder)
+                if (HasAnyExecutable(generalsPath!, zeroHourExecutables))
                 {
                     HasZeroHour = true;
-                    ZeroHourPath = gamePath;
-                    logger?.LogInformation("Found EA App Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
+                    ZeroHourPath = generalsPath!;
+                    logger?.LogInformation("Found EA App Zero Hour installation at base path: {ZeroHourPath}", ZeroHourPath);
+                }
+                else
+                {
+                    // Otherwise, check for Zero Hour as a subdirectory
+                    var gamePath = Path.Combine(generalsPath!, "Command and Conquer Generals Zero Hour");
+                    if (Directory.Exists(gamePath) && HasAnyExecutable(gamePath, zeroHourExecutables))
+                    {
+                        HasZeroHour = true;
+                        ZeroHourPath = gamePath;
+                        logger?.LogInformation("Found EA App Zero Hour installation: {ZeroHourPath}", ZeroHourPath);
+                    }
                 }
             }
 
@@ -137,6 +170,25 @@ public class EaAppInstallation(ILogger<EaAppInstallation>? logger) : IGameInstal
         {
             logger?.LogError(ex, "Error occurred during EA App installation detection");
         }
+    }
+
+    /// <summary>
+    /// Checks if any of the specified executables exist in the given directory.
+    /// </summary>
+    /// <param name="directory">The directory to check.</param>
+    /// <param name="executableNames">The list of executable names to look for.</param>
+    /// <returns>True if any of the executables exist.</returns>
+    private static bool HasAnyExecutable(string directory, string[] executableNames)
+    {
+        foreach (var exe in executableNames)
+        {
+            if (File.Exists(Path.Combine(directory, exe)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

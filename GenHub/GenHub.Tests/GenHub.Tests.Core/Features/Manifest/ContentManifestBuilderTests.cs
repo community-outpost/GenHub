@@ -50,12 +50,12 @@ public class ContentManifestBuilderTests
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
             .Returns((string id) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(id)));
 
-        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>(), It.IsAny<ContentType>()))
-            .Returns((GameInstallation gi, GameType gt, string? v, ContentType ct) =>
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<string?>()))
+            .Returns((GameInstallation gi, GameType gt, string? v) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
-        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>(), It.IsAny<ContentType>()))
-            .Returns((GameInstallation gi, GameType gt, int v, ContentType ct) =>
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<int>()))
+            .Returns((GameInstallation gi, GameType gt, int v) =>
                 OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("game-installation-id")));
 
         // Set up mock to return success for GeneratePublisherContentId
@@ -81,7 +81,7 @@ public class ContentManifestBuilderTests
             .Build();
 
         // Assert
-        Assert.Equal("1.1.test.publisher.mod.test.name", result.Id);
+        Assert.Equal("1.1.testpublisher.mod.testname", result.Id);
         Assert.Equal("Test Name", result.Name);
         Assert.Equal("1", result.Version);
     }
@@ -133,7 +133,7 @@ public class ContentManifestBuilderTests
         var result = _builder
             .WithBasicInfo("Test Publisher", "Test Name", "1")
             .AddDependency(
-                id: ManifestId.Create("1.0.dep.publisher.content"),
+                id: ManifestId.Create("1.0.genhub.mod.dependency"),
                 name: "Dependency Name",
                 dependencyType: ContentType.GameInstallation,
                 installBehavior: DependencyInstallBehavior.AutoInstall,
@@ -141,20 +141,20 @@ public class ContentManifestBuilderTests
                 maxVersion: "2.0",
                 compatibleVersions: new List<string> { "1.1", "1.2" },
                 isExclusive: true,
-                conflictsWith: new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") })
+                conflictsWith: new List<ManifestId> { ManifestId.Create("1.0.genhub.mod.conflict") })
             .Build();
 
         // Assert
         Assert.Single(result.Dependencies);
         var dependency = result.Dependencies[0];
-        Assert.Equal(ManifestId.Create("1.0.dep.publisher.content"), dependency.Id);
+        Assert.Equal(ManifestId.Create("1.0.genhub.mod.dependency"), dependency.Id);
         Assert.Equal("Dependency Name", dependency.Name);
         Assert.Equal(ContentType.GameInstallation, dependency.DependencyType);
         Assert.Equal("1.0", dependency.MinVersion);
         Assert.Equal("2.0", dependency.MaxVersion);
         Assert.Equal(new List<string> { "1.1", "1.2" }, dependency.CompatibleVersions);
         Assert.True(dependency.IsExclusive);
-        Assert.Equal(new List<ManifestId> { ManifestId.Create("1.0.conflict.publisher.content") }, dependency.ConflictsWith);
+        Assert.Equal(new List<ManifestId> { ManifestId.Create("1.0.genhub.mod.conflict") }, dependency.ConflictsWith);
         Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
     }
 
@@ -207,7 +207,7 @@ public class ContentManifestBuilderTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.1.minimal.publisher.mod.minimal.manifest", result.Id);
+        Assert.Equal("1.1.minimalpublisher.mod.minimalmanifest", result.Id);
         Assert.Equal("Minimal Manifest", result.Name);
         Assert.Equal("1", result.Version);
         Assert.NotNull(result.Dependencies);

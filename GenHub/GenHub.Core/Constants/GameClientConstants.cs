@@ -41,7 +41,7 @@ public static class GameClientConstants
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
 
     /// <summary>Default display name for GeneralsOnline variants.</summary>
-    public const string GeneralsOnlineDefaultDisplayName = "GeneralsOnline 30Hz";
+    public const string GeneralsOnlineDefaultDisplayName = "GeneralsOnline";
 
     // ===== Dependency Names =====
 
@@ -103,13 +103,13 @@ public static class GameClientConstants
     };
 
     /// <summary>
-    /// Executable names for GeneralsOnline clients that should be detected.
+    /// List of GeneralsOnline executable names to detect.
+    /// Only includes 30Hz and 60Hz variants as these are the primary clients.
     /// GeneralsOnline provides auto-updated clients for Command &amp; Conquer Generals and Zero Hour.
     /// </summary>
     public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames = new[]
     {
         GeneralsOnline30HzExecutable,
         GeneralsOnline60HzExecutable,
-        GeneralsOnlineDefaultExecutable,
     };
 }
