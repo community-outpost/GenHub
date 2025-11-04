@@ -1,6 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
-using Xunit;
+using GenHub.Features.GameClients;
 
 namespace GenHub.Tests.Core.Constants;
 
@@ -131,6 +131,45 @@ public class AppConstantsTests
         {
             // Default theme name should match the string representation of default theme
             Assert.Equal(AppConstants.DefaultThemeName, AppConstants.DefaultTheme.ToString());
+        });
+    }
+
+    /// <summary>
+    /// Tests that GameClientHashRegistry correctly identifies known versions.
+    /// </summary>
+    [Fact]
+    public void GameClientHashRegistry_GetVersionFromHash_ShouldIdentifyKnownVersions()
+    {
+        // Arrange
+        var registry = new GameClientHashRegistry();
+
+        // Act & Assert
+        Assert.Multiple(() =>
+        {
+            // Test Generals 1.08
+            Assert.Equal("1.08", registry.GetVersionFromHash(GameClientHashRegistry.Generals108HashPublic, GameType.Generals));
+
+            // Test Zero Hour 1.04
+            Assert.Equal("1.04", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour104HashPublic, GameType.ZeroHour));
+
+            // Test Zero Hour 1.05 - the new correct hash
+            Assert.Equal("1.05", registry.GetVersionFromHash(GameClientHashRegistry.ZeroHour105HashPublic, GameType.ZeroHour));
+
+            // Test unknown hash
+            Assert.Equal("Unknown", registry.GetVersionFromHash("unknownhash", GameType.Generals));
+
+            // Test all known hashes are recognized
+            Assert.True(registry.IsKnownHash(GameClientHashRegistry.Generals108HashPublic));
+            Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour104HashPublic));
+
+            Assert.True(registry.IsKnownHash(GameClientHashRegistry.ZeroHour105HashPublic));
+
+            // Additional hash checks can be added here
+            Assert.False(registry.IsKnownHash("unknownhash"));
+
+            // Test that executable names array is populated
+            Assert.NotEmpty(registry.PossibleExecutableNames);
+            Assert.Contains("generals.exe", registry.PossibleExecutableNames);
         });
     }
 }

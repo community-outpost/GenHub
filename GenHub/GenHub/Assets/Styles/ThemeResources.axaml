@@ -45,5 +45,7 @@
     <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />
     <SolidColorBrush x:Key="PrimaryButtonForeground" Color="White" />
     <SolidColorBrush x:Key="CardBackground" Color="#333333" />
-    <SolidColorBrush x:Key="AccentColor" Color="#0078D7" />
+    <SolidColorBrush x:Key="AccentColor" Color="#7B1FA2" />
+    
+    <Color x:Key="SystemAccentColor">#7B1FA2</Color>
 </ResourceDictionary>

@@ -225,7 +225,7 @@ public class GameProfileManagerTests
 
         // Assert
         Assert.True(result.Success);
-        Assert.NotNull(result.Data);
+        Assert.True(result.Data);
     }
 
     /// <summary>

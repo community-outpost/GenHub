@@ -66,8 +66,10 @@ Configuration key constants for `appsettings.json` and environment variables.
 
 ### Workspace Configuration
 
-- `WorkspaceDefaultPath`: `"GenHub:Workspace:DefaultPath"`
-- `WorkspaceDefaultStrategy`: `"GenHub:Workspace:DefaultStrategy"`
+- `WorkspaceDefaultPath`: `"GenHub:Workspace:DefaultPath"` - Default path for workspace creation
+- `WorkspaceDefaultStrategy`: `"GenHub:Workspace:DefaultStrategy"` - Default workspace strategy (SymlinkOnly)
+
+**Note**: The default workspace strategy is **SymlinkOnly** (enum value 0), which creates symbolic links to minimize disk usage. This requires administrator rights on Windows.
 
 ### Cache Configuration
 
@@ -190,7 +192,6 @@ Constants related to manifest ID generation, validation, and file operations.
 | `MaxManifestIdLength` | `256` | Maximum length for manifest IDs           |
 | `MinManifestIdLength` | `3`   | Minimum length for manifest IDs           |
 | `MaxManifestSegments` | `5`   | Maximum number of segments in manifest ID |
-| `MinManifestSegments` | `1`   | Minimum number of segments in manifest ID |
 
 ### Manifest Timeouts and Operations
 
@@ -204,27 +205,25 @@ Constants related to manifest ID generation, validation, and file operations.
 
 | Constant                         | Description                     |
 | -------------------------------- | ------------------------------- |
-| `PublisherIdRegexPattern`        | Regex for publisher content IDs |
-| `GameInstallationIdRegexPattern` | Regex for game installation IDs |
-| `SimpleIdRegexPattern`           | Regex for simple IDs            |
+| `PublisherContentRegexPattern`   | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
 
-**Publisher Content ID Pattern:**
 
-```regex
-^\d+(?:\.\d+)*\.[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+)*$
-```
-
-**Game Installation ID Pattern:**
+**Publisher Content Regex Pattern (5-segment format):**
 
 ```regex
-^\d+(?:\.\d+)*\.(unknown|steam|eaapp|origin|thefirstdecade|rgmechanics|cdiso|wine|retail)\.(generals|zerohour)$
+^\d+\.\d+\.[a-z0-9]+\.(gameinstallation|gameclient|mod|patch|addon|mappack|languagepack|contentbundle|publisherreferral|contentreferral|mission|map|unknown)\.[a-z0-9-]+$
 ```
 
-**Simple ID Pattern:**
+**Pattern Explanation:**
 
-```regex
-^[a-zA-Z0-9\-\.]+$
-```
+- **Publisher Content Pattern**: Validates the standard 5-segment format used for ALL content in GenHub
+  - Segment 1: Schema version (digits only)
+  - Segment 2: User version (digits only)
+  - Segment 3: Publisher (lowercase alphanumeric)
+  - Segment 4: Content type (enumerated values like gameinstallation, mod, etc.)
+  - Segment 5: Content name (lowercase alphanumeric with dashes)
+
+**Note**: The SimpleIdRegex pattern has been removed. All manifest IDs must now use the strict 5-segment format. The `MinManifestSegments` constant is now set to 5 (previously 1).
 
 ### Dependency Defaults
 
@@ -1118,7 +1117,67 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ---
 
-## GameSettingsConstants Class
+## GeneralsOnlineConstants Class
+
+Constants specific to Generals Online content provider and multiplayer service.
+
+### API Endpoints
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CdnBaseUrl` | `"https://cdn.playgenerals.online"` | Base URL for Generals Online CDN |
+| `ManifestApiUrl` | `"https://cdn.playgenerals.online/manifest.json"` | API endpoint for manifest data |
+| `LatestVersionUrl` | `"https://cdn.playgenerals.online/latest.txt"` | Endpoint for latest version information |
+| `ReleasesUrl` | `"https://cdn.playgenerals.online/releases"` | Base URL for release downloads |
+
+### Web URLs
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `WebsiteUrl` | `"https://www.playgenerals.online/"` | Official Generals Online website |
+| `DownloadPageUrl` | `"https://www.playgenerals.online/#download"` | Download page URL |
+| `SupportUrl` | `"https://discord.playgenerals.online/"` | Support/discord URL |
+
+### Content Metadata
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherName` | `"Generals Online Team"` | Publisher name for manifests |
+| `ContentName` | `"Generals Online"` | Content name for manifests |
+| `Description` | `"Community-driven multiplayer service for C&C Generals Zero Hour. Features 60Hz tick rate, automatic updates, encrypted traffic, and improved stability."` | Content description |
+| `ShortDescription` | `"Community-driven multiplayer service for C&C Generals Zero Hour"` | Short content description |
+| `IconUrl` | `"https://www.playgenerals.online/logo.png"` | Content icon URL |
+| `ChangelogUrl` | `"https://www.playgenerals.online/changelog"` | Changelog URL |
+
+### Content Tags
+
+- `Tags`: Array of content tags
+  - `"multiplayer"`
+  - `"online"`
+  - `"community"`
+  - `"enhancement"`
+
+### Version Parsing
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `VersionDateFormat` | `"ddMMyy"` | Format for parsing version dates (DDMMYY) |
+| `QfeSeparator` | `"_QFE"` | Separator between date and QFE number in versions |
+
+### File Extensions
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PortableExtension` | `".zip"` | File extension for portable downloads |
+| `InstallerExtension` | `".exe"` | File extension for installer downloads |
+
+### Update Intervals
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `UpdateCheckIntervalHours` | `24` | Hours between update checks |
+
+---
 
 Constants for game settings management, including texture quality, resolution, volume levels, and folder names.
 

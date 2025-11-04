@@ -97,12 +97,20 @@ The GameClient model has been enhanced to support launch configuration with Laun
 
 **Core Components**:
 
-- **GameProfile**: Central configuration object with Id, Name, GameClient, EnabledContentIds, WorkspaceStrategy, LaunchOptions, LaunchArguments, EnvironmentVariables, PreferredStrategy
-- **CreateProfileRequest**: Data transfer object for profile creation with validation
-- **UpdateProfileRequest**: Data transfer object for profile updates with partial modification support
+- **GameProfile**: Central configuration object with comprehensive profile state including:
+  - Core properties: Id, Name, Description, GameClient, ExecutablePath, GameInstallationId
+  - Content management: EnabledContentIds (List of manifest ID strings for content references)
+  - Workspace configuration: WorkspaceStrategy, CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId
+  - Launch configuration: CommandLineArguments (string), LaunchOptions (Dictionary), EnvironmentVariables (Dictionary)
+  - UI state: ThemeColor, IconPath, BuildInfo
+  - Game settings: Video properties (ResolutionWidth/Height, Windowed, TextureQuality, Shadows, ParticleEffects, ExtraAnimations, BuildingAnimations, Gamma)
+  - Audio settings: Audio volumes (SoundVolume, ThreeDSoundVolume, SpeechVolume, MusicVolume), AudioEnabled, NumSounds
+  - Timestamps: CreatedAt, LastPlayedAt
+- **CreateProfileRequest**: Data transfer object for profile creation with GameInstallationId, GameClientId, PreferredStrategy, EnabledContentIds, CommandLineArguments, and UI properties
+- **UpdateProfileRequest**: Data transfer object for profile updates with partial modification support (all fields optional, CommandLineArguments as string parameter)
 - **ProfileInfoItem**: UI-specific data transfer object for profile display
 - **WorkspaceStrategy**: Enumeration defining file assembly approaches including FullCopy, SymlinkOnly, HybridCopySymlink, HardLink
-- **IGameProfile**: Contract for profile-like objects ensuring Version and ExecutablePath accessibility
+- **IGameProfile**: Contract for profile-like objects ensuring Version, ExecutablePath, EnabledContentIds, PreferredStrategy accessibility
 
 **Profile Management Architecture**:
 
@@ -112,7 +120,7 @@ The GameClient model has been enhanced to support launch configuration with Laun
 - **GameProfileRepository**: File-based storage implementation with JSON serialization
 
 **Profile Integration Model**:
-GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation, while LaunchArguments and EnvironmentVariables enable per-profile launch customization.
+GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation. Launch customization is provided through CommandLineArguments (simple command string) for game-specific parameters and LaunchOptions/EnvironmentVariables (Dictionary collections) for advanced configuration. Game video and audio settings are stored directly on the profile (VideoResolutionWidth, AudioSoundVolume, etc.), enabling per-profile Options.ini customization without requiring separate file parsing.
 
 **ProfileEditorFacade Integration**:
 ProfileEditorFacade auto-enables matching GameInstallation content (and GameClient if available) after creation by scanning the manifest pool for the profile's GameType; then resolves dependencies and prepares a workspace, persisting ActiveWorkspaceId.
@@ -151,6 +159,24 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 - **IFileOperationsService**: Comprehensive low-level operations contract with CopyFileAsync, CreateSymlinkAsync, CreateHardLinkAsync, VerifyFileHashAsync, DownloadFileAsync, ApplyPatchAsync, CopyFromCasAsync
 - **FileOperationsService**: Platform-aware implementation with full CAS integration, cross-platform file operations, symbolic link creation, and hash verification
 
+**Workspace Lifecycle Management**:
+
+**Creation:**
+
+- Deferred until first profile launch (not during profile creation)
+- Workspace ID stored in profile.ActiveWorkspaceId after preparation
+
+**Persistence:**
+
+- Workspaces persist across launches for quick re-launch
+- No cleanup on profile stop (only on deletion or strategy changes)
+
+**Cleanup:**
+
+- Manual: User-initiated cleanup via profile deletion
+- Automatic: Content changes requiring workspace refresh
+- CAS unreference: Tracked via CasReferenceTracker
+
 **CAS Integration**:
 Workspace strategies now fully integrate with the Content Addressable Storage system through  CAS operations:
 
@@ -163,6 +189,70 @@ Workspace strategies now fully integrate with the Content Addressable Storage sy
 
 - **IWorkspaceValidator**: Validation contract with ValidateConfigurationAsync, ValidatePrerequisitesAsync, and ValidateWorkspaceAsync methods
 - **WorkspaceValidator**: Implementation ensuring workspace prerequisites, permissions, disk space availability, and post-creation integrity validation
+
+**Workspace Reconciliation System**:
+
+GenHub implements a sophisticated workspace reconciliation system that enables intelligent incremental updates, dramatically improving performance when content changes.
+
+**Core Reconciliation Architecture**:
+
+- **WorkspaceReconciler**: Analyzes workspace state and determines delta operations needed to reconcile with target configuration
+- **WorkspaceDelta**: Represents a single file operation (Add, Update, Remove, Skip) with reason tracking
+- **WorkspaceDeltaOperation**: Enumeration defining operation types for reconciliation
+- **ReconciliationDeltas**: Property on WorkspaceConfiguration passing delta information to strategies
+
+**Reconciliation Workflow**:
+
+1. **Workspace Discovery**: When PrepareWorkspaceAsync is called with ForceRecreate=false, WorkspaceManager checks if workspace already exists
+2. **Delta Analysis**: WorkspaceReconciler.AnalyzeWorkspaceDeltaAsync compares existing workspace against target manifests:
+   - Builds dictionary of all files that SHOULD exist from manifests
+   - Scans existing workspace to determine what files currently exist
+   - Detects files to Add (missing from workspace)
+   - Detects files to Update (hash mismatch, broken symlinks, size mismatch)
+   - Detects files to Remove (in workspace but not in manifests)
+   - Marks files to Skip (already current)
+3. **Reuse Optimization**: If all files are marked Skip (no changes), workspace is reused immediately without strategy execution
+4. **Incremental Preparation**: If changes detected, deltas are passed to strategy for incremental update
+
+**Delta Detection Logic**:
+
+```csharp
+// WorkspaceReconciler analyzes differences between existing and target state
+var deltas = await workspaceReconciler.AnalyzeWorkspaceDeltaAsync(existingWorkspace, targetConfiguration);
+
+// Log reconciliation needs
+_logger.LogInformation(
+    "Workspace needs reconciliation: +{Add} files, ~{Update} files, -{Remove} files, ={Skip} unchanged",
+    addCount, updateCount, removeCount, skipCount);
+
+// Fast path: No changes needed
+if (addCount == 0 && updateCount == 0 && removeCount == 0)
+{
+    _logger.LogInformation("Reusing existing workspace - all {FileCount} files are current", skipCount);
+    return OperationResult<WorkspaceInfo>.CreateSuccess(existingWorkspace);
+}
+```
+
+**File Update Detection**:
+
+The reconciler uses multiple heuristics to determine if a file needs updating:
+
+- **Symlink Validation**: For symlinked files, verifies target exists and is accessible
+- **Hash Verification**: For regular files under 100MB, computes SHA-256 hash and compares with manifest
+- **Size Verification**: Fast check comparing file size against manifest expectation
+- **Existence Check**: Verifies file exists at expected path
+
+**Multi-Priority Source Path Resolution**:
+
+WorkspaceStrategyBase.ResolveSourcePath uses priority-based resolution:
+
+1. **Absolute SourcePath**: File's SourcePath if already absolute
+2. **Manifest Source Map**: configuration.ManifestSourcePaths[manifestId]
+3. **GameInstallation Base**: configuration.BaseInstallationPath for GameInstallation content
+4. **Relative SourcePath**: Combine BaseInstallationPath + file.SourcePath
+5. **Fallback**: Combine BaseInstallationPath + file.RelativePath
+
+This enables multi-source installations where content comes from different directories.
 
 ### 1.6 GameLaunching: The Runtime Orchestration Layer
 
@@ -425,7 +515,32 @@ Some content providers need multiple discoverers, resolvers, or deliverers to ha
 
 This architecture allows providers to select the most appropriate component based on query context or content type, providing maximum flexibility while maintaining clean separation of concerns.
 
----
+### 2.6 ProfileContentLoader: Content Resolution for Game Profiles
+
+**Primary Responsibility**: Bridge game profile content requirements with the content pipeline, providing seamless content resolution and validation for profile launches.
+
+**Core ProfileContentLoader Architecture**:
+
+- **IProfileContentLoader**: Interface for resolving and validating profile content requirements
+- **ProfileContentLoader**: Implementation that orchestrates content resolution for game profiles
+- **ContentResolutionRequest**: Input specification with ProfileId, EnabledContentIds, and resolution options
+- **ContentResolutionResult**: Comprehensive result with resolved manifests, validation issues, and dependency information
+
+**Content Resolution Flow**:
+
+1. **Profile Content Analysis**: Extract EnabledContentIds from game profile
+2. **Manifest Resolution**: Resolve each content ID through IContentManifestPool
+3. **Dependency Validation**: Check content compatibility and dependency requirements
+4. **Conflict Detection**: Identify conflicting content that cannot be enabled together
+5. **Resolution Optimization**: Optimize content loading order and workspace preparation
+
+**Profile-Content Integration Features**:
+
+- **Automatic Content Validation**: Ensures all enabled content is available and compatible
+- **Dependency Resolution**: Automatically resolves content dependencies during profile launch
+- **Content Conflict Prevention**: Prevents enabling mutually exclusive content
+- **Workspace Optimization**: Optimizes content loading for efficient workspace preparation
+- **Launch Readiness Verification**: Confirms all content is ready before initiating launch pipeline
 
 ## 3. Content Caching Strategy
 
@@ -523,7 +638,15 @@ if(result.Success)
 return result;
 ```
 
----
+**ManifestProvider Fallbacks**:
+
+The content pipeline includes robust fallback mechanisms for manifest resolution when primary providers are unavailable:
+
+- **Provider Chain Resolution**: IManifestProvider implementations are tried in priority order until one succeeds
+- **Fallback to Local Manifests**: If remote manifest providers fail, system falls back to locally cached manifests
+- **Generated Manifest Creation**: For content without explicit manifests, system can generate basic manifests from file analysis
+- **Cross-Provider Manifest Sharing**: Manifests from one provider can be used as fallbacks for content from other providers
+- **Offline Mode Support**: System maintains functionality with cached manifests when network providers are unavailable
 
 ## 4. Game Profile Management and Runtime Orchestration
 
@@ -684,7 +807,30 @@ GameProfile objects seamlessly integrate with the workspace system:
 - **Launch Customization**: Profile's LaunchArguments and EnvironmentVariables customize process creation
 - **Isolation**: Each profile launch uses an isolated workspace preventing conflicts
 
----
+### 4.4 Additional Services and Interfaces
+
+**Profile Content Integration Services**:
+
+- **IProfileContentLoader**: Orchestrates content resolution for game profiles, ensuring all enabled content is available and compatible
+- **IProfileEditorFacade**: Provides high-level profile editing operations for UI integration, including ScanAndCreateProfilesAsync
+
+**Manifest and Content Services**:
+
+- **IManifestProvider**: Provides base installation manifests with fallback chain resolution
+- **IContentManifestPool**: Long-term cache and database for acquired content manifests with full CRUD operations
+- **IContentStorageService**: Manages content storage operations and CAS integration
+
+**Launch and Process Services**:
+
+- **ILaunchRegistry**: Tracks active launch sessions with persistence and recovery capabilities
+- **IGameProcessManager**: Cross-platform process lifecycle management with monitoring and cleanup
+- **IProcessMonitor**: Real-time process monitoring and health checking
+
+**Validation and Compatibility Services**:
+
+- **IWorkspaceValidator**: Ensures workspace integrity and validates file operations
+- **IGameInstallationValidator**: Validates game installation compatibility and requirements
+- **IContentValidator**: Validates content integrity and security before installation
 
 ## 5. Data Models and Type System
 
@@ -742,21 +888,30 @@ GameProfile objects seamlessly integrate with the workspace system:
 
 **Game Profile Models**:
 
-- **GameProfile**: profile model with comprehensive launch configuration, content management, and workspace strategy selection
-- **CreateProfileRequest**: Profile creation DTO with validation and required field specification
-- **UpdateProfileRequest**: Profile update DTO with partial modification support
+- **GameProfile**: Comprehensive profile model containing:
+  - Identity: Id, Name, Description
+  - Base game: GameClient (the game version this profile uses), GameInstallationId, ExecutablePath
+  - Content: EnabledContentIds (list of manifest IDs for enabled content)
+  - Workspace: WorkspaceStrategy (HybridCopySymlink default), CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId
+  - Launch: CommandLineArguments (string), LaunchOptions (Dictionary), EnvironmentVariables (Dictionary)
+  - Video settings: ResolutionWidth, ResolutionHeight, Windowed, TextureQuality, Shadows, ParticleEffects, ExtraAnimations, BuildingAnimations, Gamma
+  - Audio settings: SoundVolume, ThreeDSoundVolume, SpeechVolume, MusicVolume, AudioEnabled, NumSounds
+  - UI: ThemeColor, IconPath, BuildInfo
+  - Timestamps: CreatedAt, LastPlayedAt
+- **CreateProfileRequest**: Profile creation DTO with GameInstallationId, GameClientId, PreferredStrategy, EnabledContentIds, CommandLineArguments, ThemeColor, IconPath
+- **UpdateProfileRequest**: Profile update DTO with partial modification support (Name, Description, EnabledContentIds, PreferredStrategy, LaunchArguments, EnvironmentVariables, CustomExecutablePath)
 - **ProfileInfoItem**: UI-optimized profile display model
 
 **Launch Configuration Models**:
 
 - **GameLaunchConfiguration**: Comprehensive launch specification with executable, arguments, environment, and working directory
-- **GameLaunchInfo**: Launch session descriptor with process information, workspace details, and timing
-- **GameProcessInfo**: Process runtime information with lifecycle tracking
+- **GameLaunchInfo**: Launch session descriptor with LaunchId, ProfileId, WorkspaceId, ProcessInfo, LaunchedAt, TerminatedAt
+- **GameProcessInfo**: Process runtime information with ProcessId, ProcessName, ExecutablePath, StartTime, IsRunning
 
 **Workspace Configuration Models**:
 
-- **WorkspaceConfiguration**: Input specification with GameClient integration and comprehensive manifest support
-- **WorkspaceInfo**: Result description with success tracking, validation issues, and comprehensive metadata
+- **WorkspaceConfiguration**: Input specification with Id, Manifests, Strategy, WorkspaceRootPath, BaseInstallationPath, GameClient, ReconciliationDeltas
+- **WorkspaceInfo**: Result description with Id, WorkspacePath, GameVersionId, Strategy, FileCount, TotalSizeBytes, ExecutablePath, WorkingDirectory, Success, ValidationIssues
 - **FilePermissions**: Cross-platform file permission specification
 
 **Content Metadata Models**:

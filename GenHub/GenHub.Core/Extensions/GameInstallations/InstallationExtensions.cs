@@ -43,6 +43,7 @@ public static class InstallationExtensions
 
     /// <summary>
     /// Gets a human-readable display name for the installation type.
+    /// Returns user-friendly names matching InstallationTypeDisplayConverter for UI consistency.
     /// </summary>
     /// <param name="installationType">The installation type.</param>
     /// <returns>Display name.</returns>
@@ -52,10 +53,12 @@ public static class InstallationExtensions
         {
             GameInstallationType.Steam => "Steam",
             GameInstallationType.EaApp => "EA App",
-            GameInstallationType.Wine => "Wine/Proton",
+            GameInstallationType.TheFirstDecade => "The First Decade",
             GameInstallationType.CDISO => "CD/ISO",
+            GameInstallationType.Wine => "Wine/Proton",
             GameInstallationType.Retail => "Retail",
-            _ => "Unknown"
+            GameInstallationType.Unknown => "Unknown",
+            _ => installationType.ToString()
         };
     }
 

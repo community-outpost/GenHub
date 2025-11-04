@@ -1,6 +1,7 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -23,21 +24,13 @@ public static class GameLaunchingModule
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddLaunchingServices(this IServiceCollection services)
     {
+        // LaunchRegistry is singleton - it tracks all launches globally across the app lifetime
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
-        services.AddScoped<IGameLauncher>(sp =>
-        {
-            var logger = sp.GetRequiredService<ILogger<GameLauncher>>();
-            var profileManager = sp.GetRequiredService<IGameProfileManager>();
-            var workspaceManager = sp.GetRequiredService<IWorkspaceManager>();
-            var processManager = sp.GetRequiredService<IGameProcessManager>();
-            var manifestPool = sp.GetRequiredService<IContentManifestPool>();
-            var launchRegistry = sp.GetRequiredService<ILaunchRegistry>();
-            var gameInstallationService = sp.GetRequiredService<IGameInstallationService>();
-            var manifestProvider = sp.GetRequiredService<IManifestProvider>();
-            var casService = sp.GetRequiredService<ICasService>();
-            var config = sp.GetRequiredService<IConfigurationProviderService>();
-            return new GameLauncher(logger, profileManager, workspaceManager, processManager, manifestPool, launchRegistry, gameInstallationService, manifestProvider, casService, config);
-        });
+
+        // GameLauncher is scoped - one per request/operation to avoid captive dependencies
+        // This prevents issues where scoped dependencies (like IGameProfileManager) are captured by singletons
+        services.AddScoped<IGameLauncher, GameLauncher>();
+
         return services;
     }
 }

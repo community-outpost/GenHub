@@ -88,6 +88,30 @@
                            FontSize="16"
                            Foreground="#AAAAAA"
                            HorizontalAlignment="Center" />
+                
+                <!-- Installation Progress -->
+                <StackPanel IsVisible="{Binding IsInstallingGeneralsOnline}"
+                            Margin="0,20,0,0"
+                            HorizontalAlignment="Center"
+                            MinWidth="400">
+                    <TextBlock Text="{Binding InstallationStatus}"
+                               FontSize="14"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,10" />
+                    <ProgressBar Value="{Binding InstallationProgress}"
+                                 Minimum="0"
+                                 Maximum="100"
+                                 Height="6"
+                                 Foreground="#4CAF50"
+                                 Background="#333333"
+                                 BorderThickness="0" />
+                    <TextBlock Text="{Binding InstallationProgress, StringFormat={}{0:F0}%}"
+                               FontSize="12"
+                               Foreground="#AAAAAA"
+                               HorizontalAlignment="Center"
+                               Margin="0,5,0,0" />
+                </StackPanel>
             </StackPanel>
             
             <!-- Primary Actions Section -->
@@ -113,6 +137,26 @@
                                        HorizontalAlignment="Center"
                                        FontSize="14"
                                        FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Generals Online Button -->
+                    <Button Classes="github-button"
+                            Command="{Binding InstallGeneralsOnlineCommand}"
+                            HorizontalAlignment="Center">
+                        <StackPanel Spacing="8">
+                            <PathIcon Data="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M15,12L9,8V16L15,12Z"
+                                      Width="24" Height="24"
+                                      Foreground="#4CAF50"
+                                      HorizontalAlignment="Center" />
+                            <TextBlock Text="Generals Online"
+                                       HorizontalAlignment="Center"
+                                       FontSize="14"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding GeneralsOnlineVersion}"
+                                       HorizontalAlignment="Center"
+                                       FontSize="10"
+                                       Foreground="#4CAF50" />
                         </StackPanel>
                     </Button>
 

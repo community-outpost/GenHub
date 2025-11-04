@@ -48,17 +48,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Assets\Images\generals-logo.png" />
-      <AvaloniaResource Include="Assets\Images\generals-logo.png" />
-      <None Remove="Assets\Images\zero-hour-logo.png" />
-      <AvaloniaResource Include="Assets\Images\zero-hour-logo.png" />
-      <None Remove="Assets\Icons\genhub-logo.png" />
-      <AvaloniaResource Include="Assets\Icons\genhub-logo.png" />
-      <None Remove="Assets\Icons\genhub-icon.png" />
-      <AvaloniaResource Include="Assets\Icons\genhub-icon.png" />
-      <None Remove="Assets\Icons\generals-icon.png" />
-      <AvaloniaResource Include="Assets\Icons\generals-icon.png" />
-      <None Remove="Assets\Icons\zerohour-icon.png" />
-      <AvaloniaResource Include="Assets\Icons\zerohour-icon.png" />
+      <AvaloniaResource Include="Assets\**\*.*" />
     </ItemGroup>
 </Project>

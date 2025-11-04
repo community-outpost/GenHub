@@ -11,15 +11,18 @@ public class ManifestIdTests
 {
     /// <summary>
     /// Tests that ManifestId.Create accepts valid manifest ID strings.
+    /// All IDs must use 5-segment format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// </summary>
     /// <param name="validId">A valid manifest ID string.</param>
     [Theory]
-    [InlineData("1.0.publisher.content")]
+    [InlineData("1.0.genhub.mod.content")]
     [InlineData("1.0.eaapp.gameinstallation.generals")]
     [InlineData("1.0.steam.gameinstallation.generals")]
-    [InlineData("1.0.testid.content")]
-    [InlineData("1.0.simple.id.test")]
-    [InlineData("1.0.complexpublisher.content.name")]
+    [InlineData("1.0.thefirstdecade.gameinstallation.zerohour")]
+    [InlineData("1.0.cdiso.gameinstallation.zerohour")]
+    [InlineData("1.0.wine.gameinstallation.generals")]
+    [InlineData("1.0.retail.gameinstallation.zerohour")]
+    [InlineData("1.0.unknown.gameinstallation.generals")]
     public void Create_WithValidManifestIdStrings_CreatesManifestId(string validId)
     {
         // Act
@@ -53,7 +56,7 @@ public class ManifestIdTests
     public void ImplicitConversion_FromStringToManifestId_Works()
     {
         // Arrange
-        string idString = "1.0.testpublisher.content";
+        string idString = "1.0.genhub.mod.content";
 
         // Act
         ManifestId manifestId = idString;
@@ -69,13 +72,13 @@ public class ManifestIdTests
     public void ImplicitConversion_FromManifestIdToString_Works()
     {
         // Arrange
-        var manifestId = ManifestId.Create("1.0.testpublisher.content");
+        var manifestId = ManifestId.Create("1.0.genhub.mod.content");
 
         // Act
         string idString = manifestId;
 
         // Assert
-        Assert.Equal("1.0.testpublisher.content", idString);
+        Assert.Equal("1.0.genhub.mod.content", idString);
     }
 
     /// <summary>
@@ -85,8 +88,8 @@ public class ManifestIdTests
     public void EqualityOperator_WithEqualManifestIds_ReturnsTrue()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.testpublisher.content");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.genhub.mod.content");
 
         // Act & Assert
         Assert.True(id1 == id2);
@@ -100,8 +103,8 @@ public class ManifestIdTests
     public void EqualityOperator_WithDifferentManifestIds_ReturnsFalse()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.differentpublisher.content");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.genhub.mod.other");
 
         // Act & Assert
         Assert.False(id1 == id2);
@@ -115,8 +118,8 @@ public class ManifestIdTests
     public void Equality_IsCaseInsensitive()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.TESTPUBLISHER.CONTENT");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.GENHUB.MOD.CONTENT");
 
         // Act & Assert
         Assert.True(id1 == id2);
@@ -130,9 +133,9 @@ public class ManifestIdTests
     public void Equals_WithManifestId_Works()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.testpublisher.content");
-        var id3 = ManifestId.Create("1.0.differentpublisher.content");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.genhub.mod.content");
+        var id3 = ManifestId.Create("1.0.genhub.mod.other");
 
         // Act & Assert
         Assert.True(id1.Equals(id2));
@@ -146,8 +149,8 @@ public class ManifestIdTests
     public void Equals_WithObject_Works()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.testpublisher.content");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.genhub.mod.content");
         var differentObject = new object();
 
         // Act & Assert
@@ -163,8 +166,8 @@ public class ManifestIdTests
     public void GetHashCode_IsConsistent()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.testpublisher.content");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.genhub.mod.content");
 
         // Act & Assert
         Assert.Equal(id1.GetHashCode(), id2.GetHashCode());
@@ -177,8 +180,8 @@ public class ManifestIdTests
     public void GetHashCode_IsCaseInsensitive()
     {
         // Arrange
-        var id1 = ManifestId.Create("1.0.testpublisher.content");
-        var id2 = ManifestId.Create("1.0.TESTPUBLISHER.CONTENT");
+        var id1 = ManifestId.Create("1.0.genhub.mod.content");
+        var id2 = ManifestId.Create("1.0.GENHUB.MOD.CONTENT");
 
         // Act & Assert
         Assert.Equal(id1.GetHashCode(), id2.GetHashCode());
@@ -191,13 +194,13 @@ public class ManifestIdTests
     public void ToString_ReturnsValue()
     {
         // Arrange
-        var id = ManifestId.Create("1.0.testpublisher.content");
+        var id = ManifestId.Create("1.0.genhub.mod.content");
 
         // Act
         var result = id.ToString();
 
         // Assert
-        Assert.Equal("1.0.testpublisher.content", result);
+        Assert.Equal("1.0.genhub.mod.content", result);
     }
 
     /// <summary>
@@ -207,22 +210,21 @@ public class ManifestIdTests
     public void ManifestId_IsReadonlyStruct()
     {
         // Arrange
-        var id = ManifestId.Create("1.0.testpublisher.content");
+        var id = ManifestId.Create("1.0.genhub.mod.content");
 
         // Act & Assert - Should not be able to modify (readonly struct)
-        Assert.Equal("1.0.testpublisher.content", id.Value);
+        Assert.Equal("1.0.genhub.mod.content", id.Value);
     }
 
     /// <summary>
-    /// Tests ManifestId with various valid game installation ID formats.
+    /// Tests ManifestId with valid game installation ID formats.
+    /// All IDs must use 5-segment format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// </summary>
     /// <param name="gameInstallationId">A valid game installation ID string.</param>
     [Theory]
     [InlineData("1.0.steam.gameinstallation.generals")]
     [InlineData("1.0.eaapp.gameinstallation.zerohour")]
-    [InlineData("1.0.origin.gameinstallation.generals")]
     [InlineData("1.0.thefirstdecade.gameinstallation.zerohour")]
-    [InlineData("1.0.rgmechanics.gameinstallation.generals")]
     [InlineData("1.0.cdiso.gameinstallation.zerohour")]
     [InlineData("1.0.wine.gameinstallation.generals")]
     [InlineData("1.0.retail.gameinstallation.zerohour")]
@@ -238,15 +240,15 @@ public class ManifestIdTests
 
     /// <summary>
     /// Tests ManifestId with invalid game installation ID formats.
+    /// All IDs must have exactly 5 segments.
     /// </summary>
     /// <param name="invalidGameInstallationId">An invalid game installation ID string.</param>
     [Theory]
-    [InlineData("1.0.steam.gameinstallation.generals.extra")] // Too many segments
-    [InlineData("1.0.invalid.gameinstallation.generals")] // Invalid installation type
-    [InlineData("1.0.steam.gameinstallation.invalid")] // Invalid game type
-    [InlineData("1.0.steam.gameinstallation")] // Too few segments
-    [InlineData("1.0.origin.gameinstallation")] // Too few segments
-    [InlineData("1.0.eaapp.gameinstallation")] // Too few segments
+    [InlineData("@invalid")] // Invalid characters
+    [InlineData("test#id")] // Invalid characters
+    [InlineData("1.0.steam.generals")] // Only 4 segments
+    [InlineData("1.0")] // Only 2 segments
+    [InlineData("simple-id")] // Only 1 segment
     public void Create_WithInvalidGameInstallationIds_ThrowsArgumentException(string invalidGameInstallationId)
     {
         // Act & Assert
@@ -260,13 +262,13 @@ public class ManifestIdTests
     [Fact]
     public void Create_HandlesEdgeCases()
     {
-        // Test with minimum valid ID (4 segments)
-        var minimalId = ManifestId.Create("1.0.test.content");
-        Assert.Equal("1.0.test.content", minimalId.Value);
+        // Test with minimum valid ID (5 segments for all content)
+        var minimalId = ManifestId.Create("1.0.genhub.mod.content");
+        Assert.Equal("1.0.genhub.mod.content", minimalId.Value);
 
-        // Test with maximum reasonable segments
-        var complexId = ManifestId.Create("1.0.publisher.content.name.version");
-        Assert.Equal("1.0.publisher.content.name.version", complexId.Value);
+        // Test with installation ID
+        var installId = ManifestId.Create("1.0.steam.gameinstallation.generals");
+        Assert.Equal("1.0.steam.gameinstallation.generals", installId.Value);
     }
 
     /// <summary>
@@ -276,7 +278,7 @@ public class ManifestIdTests
     public void Value_PreservesExactString()
     {
         // Arrange
-        const string originalId = "1.0.testpublisher.content.version.beta";
+        const string originalId = "1.0.genhub.mod.content";
 
         // Act
         var manifestId = ManifestId.Create(originalId);

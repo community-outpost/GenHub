@@ -1,6 +1,7 @@
 using System;
-using Avalonia.Data.Converters;
 using System.Globalization;
+using Avalonia.Controls;
+using Avalonia.Data.Converters;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -9,10 +10,20 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class BoolToVisibilityConverter : IValueConverter
 {
+    /// <summary>
+    /// Gets the singleton instance of the converter.
+    /// </summary>
+    public static readonly BoolToVisibilityConverter Instance = new();
+
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value is bool b && b ? "Visible" : "Collapsed";
+        if (value is bool isVisible)
+        {
+            return isVisible ? "Visible" : "Collapsed";
+        }
+
+        return "Collapsed";
     }
 
     /// <inheritdoc />

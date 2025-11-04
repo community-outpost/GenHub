@@ -113,7 +113,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 if (!HasGenerals)
                 {
                     var generalsPath = Path.Combine(libraryPath, "Command and Conquer Generals");
-                    if (Directory.Exists(generalsPath))
+                    if (Directory.Exists(generalsPath) && File.Exists(Path.Combine(generalsPath, "generals.exe")))
                     {
                         HasGenerals = true;
                         GeneralsPath = generalsPath;
@@ -126,7 +126,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 if (!HasZeroHour)
                 {
                     var zeroHourPath = Path.Combine(libraryPath, "Command & Conquer Generals - Zero Hour");
-                    if (Directory.Exists(zeroHourPath))
+                    if (Directory.Exists(zeroHourPath) && File.Exists(Path.Combine(zeroHourPath, "generals.exe")))
                     {
                         HasZeroHour = true;
                         ZeroHourPath = zeroHourPath;

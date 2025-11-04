@@ -20,6 +20,15 @@ public static class GameDetectionModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddGameDetectionService(this IServiceCollection services)
     {
+        // Register game client hash registry
+        services.AddSingleton<IGameClientHashRegistry, GameClientHashRegistry>();
+
+        // Register game client detector
+        services.AddSingleton<IGameClientDetector, GameClientDetector>();
+
+        // Register game client hash registry
+        services.AddSingleton<IGameClientHashRegistry, GameClientHashRegistry>();
+
         // Register orchestrators with logging
         services.AddTransient<IGameInstallationDetectionOrchestrator>(provider =>
         {
