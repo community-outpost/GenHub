@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Profile Loading Status - from GameProfileLauncherViewModel -->
+  <data name="Status.LoadingProfiles" xml:space="preserve">
+    <value>Loading profiles...</value>
+    <comment>Status message shown when loading game profiles</comment>
+  </data>
+  <data name="Status.ProfilesLoaded" xml:space="preserve">
+    <value>Profiles loaded</value>
+    <comment>Status message shown when profiles are successfully loaded</comment>
+  </data>
+  <data name="Status.ErrorLoadingProfiles" xml:space="preserve">
+    <value>Error loading profiles</value>
+    <comment>Status message shown when profile loading fails</comment>
+  </data>
+  
+  <!-- Game Scanning - from GameProfileLauncherViewModel -->
+  <data name="Status.ScanningForGames" xml:space="preserve">
+    <value>Scanning for games...</value>
+    <comment>Status message shown when scanning for game installations</comment>
+  </data>
+  <data name="Status.ScanComplete" xml:space="preserve">
+    <value>Scan complete. Found {0} game installations</value>
+    <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
+  </data>
+  <data name="Status.ScanFailed" xml:space="preserve">
+    <value>Scan failed: {0}</value>
+    <comment>Status message shown when scan fails. {0} is the error message</comment>
+  </data>
+  <data name="Status.ErrorDuringScan" xml:space="preserve">
+    <value>Error during scan</value>
+    <comment>Status message shown when an unexpected error occurs during scan</comment>
+  </data>
+  
+  <!-- Service Availability - from GameProfileLauncherViewModel -->
+  <data name="Error.ServiceNotAvailable" xml:space="preserve">
+    <value>Game installation service not available</value>
+    <comment>Error message shown when required service is not available</comment>
+  </data>
+  <data name="Warning.LoggerNotAvailable" xml:space="preserve">
+    <value>Logger not available - scan may proceed without detailed logging</value>
+    <comment>Warning message shown when logger is not available</comment>
+  </data>
+  
+  <!-- Profile Creation - from MainViewModel -->
+  <data name="Profile.AutoCreated" xml:space="preserve">
+    <value>{0} Profile</value>
+    <comment>Auto-generated profile name. {0} is the installation type</comment>
+  </data>
+  <data name="Profile.AutoCreatedDescription" xml:space="preserve">
+    <value>Auto-created profile for {0} installation at {1}</value>
+    <comment>Auto-generated profile description. {0} is installation type, {1} is path</comment>
+  </data>
+  <data name="Status.CreatingProfiles" xml:space="preserve">
+    <value>Found {0} game installations, creating profiles</value>
+    <comment>Status message during profile creation. {0} is installation count</comment>
+  </data>
+  <data name="Status.ProfileCreated" xml:space="preserve">
+    <value>Created profile '{0}' for installation {1}</value>
+    <comment>Log message for successful profile creation. {0} is profile name, {1} is installation ID</comment>
+  </data>
+  <data name="Status.ProfileCreationFailed" xml:space="preserve">
+    <value>Failed to create profile for installation {0}: {1}</value>
+    <comment>Log message for failed profile creation. {0} is installation ID, {1} is error message</comment>
+  </data>
+  <data name="Status.ProfileCreationComplete" xml:space="preserve">
+    <value>Profile creation complete: {0} created, {1} failed</value>
+    <comment>Summary message after profile creation. {0} is success count, {1} is failure count</comment>
+  </data>
+  <data name="Status.NoInstallationsFound" xml:space="preserve">
+    <value>No game installations found</value>
+    <comment>Message shown when no game installations are detected</comment>
+  </data>
+  <data name="Warning.InstallationScanFailed" xml:space="preserve">
+    <value>Game installation scan failed: {0}</value>
+    <comment>Warning message when installation scan fails. {0} is error details</comment>
+  </data>
+</root>

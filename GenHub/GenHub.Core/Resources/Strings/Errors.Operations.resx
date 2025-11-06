@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- General Operation Errors -->
+  <data name="OperationFailed" xml:space="preserve">
+    <value>Operation failed</value>
+    <comment>Generic operation failure message</comment>
+  </data>
+  <data name="UnexpectedError" xml:space="preserve">
+    <value>An unexpected error occurred</value>
+    <comment>Generic unexpected error message</comment>
+  </data>
+  <data name="UnexpectedErrorWithDetails" xml:space="preserve">
+    <value>An unexpected error occurred: {0}</value>
+    <comment>Unexpected error with details. {0} is the error message</comment>
+  </data>
+  
+  <!-- Settings Errors - from SettingsViewModel -->
+  <data name="FailedToLoadSettings" xml:space="preserve">
+    <value>Failed to load settings</value>
+    <comment>Error message when settings fail to load</comment>
+  </data>
+  <data name="FailedToSaveSettings" xml:space="preserve">
+    <value>Failed to save settings</value>
+    <comment>Error message when settings fail to save</comment>
+  </data>
+  <data name="FailedToResetSettings" xml:space="preserve">
+    <value>Failed to reset settings to defaults</value>
+    <comment>Error message when settings reset fails</comment>
+  </data>
+  <data name="FailedToUpdateSelectedTab" xml:space="preserve">
+    <value>Failed to update selected tab setting</value>
+    <comment>Error message when updating selected tab fails</comment>
+  </data>
+  
+  <!-- File/Path Errors - from SettingsViewModel -->
+  <data name="ErrorBrowsingGamePath" xml:space="preserve">
+    <value>Error occurred while browsing for game path</value>
+    <comment>Error message when browsing for game path fails</comment>
+  </data>
+  <data name="ErrorBrowsingSettingsPath" xml:space="preserve">
+    <value>Error occurred while browsing for settings file path</value>
+    <comment>Error message when browsing for settings file path fails</comment>
+  </data>
+  <data name="ErrorBrowsingCasPath" xml:space="preserve">
+    <value>Error occurred while browsing for CAS root path</value>
+    <comment>Error message when browsing for CAS root path fails</comment>
+  </data>
+  <data name="FailedToGetMemoryUsage" xml:space="preserve">
+    <value>Failed to get memory usage</value>
+    <comment>Error message when retrieving memory usage fails</comment>
+  </data>
+  
+  <!-- Profile Errors - from MainViewModel and GameProfileLauncherViewModel -->
+  <data name="ErrorInitializingProfiles" xml:space="preserve">
+    <value>Error initializing profiles</value>
+    <comment>Error message when profile initialization fails</comment>
+  </data>
+  <data name="ErrorScanningForGames" xml:space="preserve">
+    <value>Error scanning for games</value>
+    <comment>Error message when game scanning fails</comment>
+  </data>
+  <data name="ErrorDuringProfileCreation" xml:space="preserve">
+    <value>Error occurred during automatic profile creation</value>
+    <comment>Error message when automatic profile creation fails</comment>
+  </data>
+  <data name="ErrorCreatingProfile" xml:space="preserve">
+    <value>Error creating profile for installation {0}</value>
+    <comment>Error message when creating a specific profile fails. {0} is installation ID</comment>
+  </data>
+  
+  <!-- MainViewModel Errors -->
+  <data name="FailedToLoadInitialSettings" xml:space="preserve">
+    <value>Failed to load initial settings</value>
+    <comment>Error message when loading initial settings fails</comment>
+  </data>
+  <data name="CouldNotFindMainWindow" xml:space="preserve">
+    <value>Could not find main window to show update dialog</value>
+    <comment>Error message when main window cannot be found</comment>
+  </data>
+  <data name="FailedToShowUpdateWindow" xml:space="preserve">
+    <value>Failed to show update notification window</value>
+    <comment>Error message when showing update window fails</comment>
+  </data>
+  
+  <!-- Update Errors - from UpdateNotificationViewModel -->
+  <data name="UpdateCheckFailed" xml:space="preserve">
+    <value>Update check failed</value>
+    <comment>Error message when update check fails</comment>
+  </data>
+  <data name="FailedToInstallUpdate" xml:space="preserve">
+    <value>Failed to install update</value>
+    <comment>Error message when update installation fails</comment>
+  </data>
+  <data name="FailedToOpenBrowser" xml:space="preserve">
+    <value>Failed to open browser for release notes.</value>
+    <comment>Error message when opening browser for release notes fails</comment>
+  </data>
+  
+  <!-- Content Browser Errors - from ContentBrowserViewModel -->
+  <data name="SearchFailed" xml:space="preserve">
+    <value>An unexpected error occurred: {0}</value>
+    <comment>Error message when content search fails. {0} is the error message</comment>
+  </data>
+  
+  <!-- Localization Errors - from LocalizationService -->
+  <data name="ErrorRetrievingResourceString" xml:space="preserve">
+    <value>Error retrieving resource string for key: {0}</value>
+    <comment>Error message when retrieving a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="FormatErrorForKey" xml:space="preserve">
+    <value>Format error for key '{0}' with {1} arguments</value>
+    <comment>Error message for format errors. {0} is key, {1} is argument count</comment>
+  </data>
+  <data name="ErrorFormattingResourceString" xml:space="preserve">
+    <value>Error formatting resource string for key: {0}</value>
+    <comment>Error message when formatting a resource string fails. {0} is the key</comment>
+  </data>
+  <data name="ErrorSettingCulture" xml:space="preserve">
+    <value>Error setting culture to: {0}</value>
+    <comment>Error message when setting culture fails. {0} is the culture name</comment>
+  </data>
+  <data name="MissingTranslation" xml:space="preserve">
+    <value>Missing translation for key '{0}' in culture '{1}'</value>
+    <comment>Error/warning for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  <data name="MissingTranslationException" xml:space="preserve">
+    <value>Missing translation for key '{0}' in culture '{1}'</value>
+    <comment>Exception message for missing translations. {0} is key, {1} is culture</comment>
+  </data>
+  
+  <!-- LanguageProvider Errors -->
+  <data name="ErrorDiscoveringLanguages" xml:space="preserve">
+    <value>Error discovering available languages</value>
+    <comment>Error message when discovering available languages fails</comment>
+  </data>
+  <data name="ErrorCreatingResourceManager" xml:space="preserve">
+    <value>Error creating ResourceManager for base name: {0}</value>
+    <comment>Error message when creating ResourceManager fails. {0} is the base name</comment>
+  </data>
+  <data name="ErrorValidatingCulture" xml:space="preserve">
+    <value>Error validating culture: {0}</value>
+    <comment>Error message when culture validation fails. {0} is the culture name</comment>
+  </data>
+  <data name="UnexpectedErrorValidatingCulture" xml:space="preserve">
+    <value>Unexpected error validating culture: {0}</value>
+    <comment>Unexpected error during culture validation. {0} is the culture name</comment>
+  </data>
+  <data name="ErrorDuringSatelliteAssemblyDiscovery" xml:space="preserve">
+    <value>Error during satellite assembly discovery</value>
+    <comment>Error message when satellite assembly discovery fails</comment>
+  </data>
+</root>

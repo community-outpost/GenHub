@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Common Button Labels -->
+  <data name="Button.Save" xml:space="preserve">
+    <value>Save</value>
+    <comment>Generic save button text</comment>
+  </data>
+  <data name="Button.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+    <comment>Generic cancel button text</comment>
+  </data>
+  <data name="Button.OK" xml:space="preserve">
+    <value>OK</value>
+    <comment>Generic OK button text</comment>
+  </data>
+  <data name="Button.Apply" xml:space="preserve">
+    <value>Apply</value>
+    <comment>Generic apply button text</comment>
+  </data>
+  <data name="Button.Close" xml:space="preserve">
+    <value>Close</value>
+    <comment>Generic close button text</comment>
+  </data>
+  <data name="Button.Back" xml:space="preserve">
+    <value>Back</value>
+    <comment>Generic back navigation button</comment>
+  </data>
+  <data name="Button.Next" xml:space="preserve">
+    <value>Next</value>
+    <comment>Generic next navigation button</comment>
+  </data>
+  <data name="Button.Browse" xml:space="preserve">
+    <value>Browse</value>
+    <comment>Generic browse button text</comment>
+  </data>
+  <data name="Button.Delete" xml:space="preserve">
+    <value>Delete</value>
+    <comment>Generic delete button text</comment>
+  </data>
+  <data name="Button.Edit" xml:space="preserve">
+    <value>Edit</value>
+    <comment>Generic edit button text</comment>
+  </data>
+  <data name="Button.Add" xml:space="preserve">
+    <value>Add</value>
+    <comment>Generic add button text</comment>
+  </data>
+  <data name="Button.Remove" xml:space="preserve">
+    <value>Remove</value>
+    <comment>Generic remove button text</comment>
+  </data>
+  <data name="Button.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+    <comment>Generic refresh button text</comment>
+  </data>
+  <data name="Button.Search" xml:space="preserve">
+    <value>Search</value>
+    <comment>Generic search button text</comment>
+  </data>
+  
+  <!-- Common Status Messages -->
+  <data name="Status.Loading" xml:space="preserve">
+    <value>Loading...</value>
+    <comment>Generic loading status message</comment>
+  </data>
+  <data name="Status.PleaseWait" xml:space="preserve">
+    <value>Please wait...</value>
+    <comment>Generic please wait message</comment>
+  </data>
+  <data name="Status.Success" xml:space="preserve">
+    <value>Success</value>
+    <comment>Generic success status</comment>
+  </data>
+  <data name="Status.Failed" xml:space="preserve">
+    <value>Failed</value>
+    <comment>Generic failed status</comment>
+  </data>
+  <data name="Status.Error" xml:space="preserve">
+    <value>Error</value>
+    <comment>Generic error status</comment>
+  </data>
+  <data name="Status.Warning" xml:space="preserve">
+    <value>Warning</value>
+    <comment>Generic warning status</comment>
+  </data>
+  <data name="Status.Info" xml:space="preserve">
+    <value>Info</value>
+    <comment>Generic info status</comment>
+  </data>
+  
+  <!-- Common Actions -->
+  <data name="Action.Copy" xml:space="preserve">
+    <value>Copy</value>
+    <comment>Copy action text</comment>
+  </data>
+  <data name="Action.Paste" xml:space="preserve">
+    <value>Paste</value>
+    <comment>Paste action text</comment>
+  </data>
+  <data name="Action.Cut" xml:space="preserve">
+    <value>Cut</value>
+    <comment>Cut action text</comment>
+  </data>
+  <data name="Action.Select" xml:space="preserve">
+    <value>Select</value>
+    <comment>Select action text</comment>
+  </data>
+  <data name="Action.Clear" xml:space="preserve">
+    <value>Clear</value>
+    <comment>Clear action text</comment>
+  </data>
+  <data name="Action.Reset" xml:space="preserve">
+    <value>Reset</value>
+    <comment>Reset action text</comment>
+  </data>
+  <data name="Action.Import" xml:space="preserve">
+    <value>Import</value>
+    <comment>Import action text</comment>
+  </data>
+  <data name="Action.Export" xml:space="preserve">
+    <value>Export</value>
+    <comment>Export action text</comment>
+  </data>
+</root>

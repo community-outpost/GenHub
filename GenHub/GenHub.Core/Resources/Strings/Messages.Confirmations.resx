@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Delete Confirmations -->
+  <data name="DeleteProfile" xml:space="preserve">
+    <value>Are you sure you want to delete this profile?</value>
+    <comment>Confirmation message for deleting a profile</comment>
+  </data>
+  <data name="DeleteProfileWithName" xml:space="preserve">
+    <value>Are you sure you want to delete the profile '{0}'?</value>
+    <comment>Confirmation message for deleting a specific profile. {0} is profile name</comment>
+  </data>
+  <data name="DeleteFile" xml:space="preserve">
+    <value>Are you sure you want to delete this file?</value>
+    <comment>Confirmation message for deleting a file</comment>
+  </data>
+  <data name="DeleteFiles" xml:space="preserve">
+    <value>Are you sure you want to delete {0} files?</value>
+    <comment>Confirmation message for deleting multiple files. {0} is file count</comment>
+  </data>
+  <data name="DeleteFolder" xml:space="preserve">
+    <value>Are you sure you want to delete this folder and all its contents?</value>
+    <comment>Confirmation message for deleting a folder</comment>
+  </data>
+  
+  <!-- Reset Confirmations -->
+  <data name="ResetSettings" xml:space="preserve">
+    <value>Are you sure you want to reset all settings to defaults?</value>
+    <comment>Confirmation message for resetting settings</comment>
+  </data>
+  <data name="ResetProfile" xml:space="preserve">
+    <value>Are you sure you want to reset this profile to default settings?</value>
+    <comment>Confirmation message for resetting a profile</comment>
+  </data>
+  <data name="ResetCache" xml:space="preserve">
+    <value>Are you sure you want to clear the cache? This cannot be undone.</value>
+    <comment>Confirmation message for clearing cache</comment>
+  </data>
+  
+  <!-- Overwrite Confirmations -->
+  <data name="OverwriteFile" xml:space="preserve">
+    <value>A file with this name already exists. Do you want to overwrite it?</value>
+    <comment>Confirmation message for overwriting a file</comment>
+  </data>
+  <data name="OverwriteProfile" xml:space="preserve">
+    <value>A profile with this name already exists. Do you want to overwrite it?</value>
+    <comment>Confirmation message for overwriting a profile</comment>
+  </data>
+  <data name="ReplaceExisting" xml:space="preserve">
+    <value>Replace existing {0}?</value>
+    <comment>Confirmation message for replacing existing item. {0} is item type</comment>
+  </data>
+  
+  <!-- Exit/Close Confirmations -->
+  <data name="ExitApplication" xml:space="preserve">
+    <value>Are you sure you want to exit the application?</value>
+    <comment>Confirmation message for exiting the application</comment>
+  </data>
+  <data name="CloseWithUnsavedChanges" xml:space="preserve">
+    <value>You have unsaved changes. Do you want to save before closing?</value>
+    <comment>Confirmation message when closing with unsaved changes</comment>
+  </data>
+  <data name="CancelOperation" xml:space="preserve">
+    <value>Are you sure you want to cancel this operation?</value>
+    <comment>Confirmation message for canceling an operation</comment>
+  </data>
+  <data name="StopDownload" xml:space="preserve">
+    <value>Are you sure you want to stop this download?</value>
+    <comment>Confirmation message for stopping a download</comment>
+  </data>
+  
+  <!-- Action Confirmations -->
+  <data name="ApplyChanges" xml:space="preserve">
+    <value>Do you want to apply these changes?</value>
+    <comment>Confirmation message for applying changes</comment>
+  </data>
+  <data name="DiscardChanges" xml:space="preserve">
+    <value>Are you sure you want to discard all changes?</value>
+    <comment>Confirmation message for discarding changes</comment>
+  </data>
+  <data name="ProceedWithAction" xml:space="preserve">
+    <value>Do you want to proceed with this action?</value>
+    <comment>Generic confirmation message for proceeding with an action</comment>
+  </data>
+  <data name="ContinueWithWarnings" xml:space="preserve">
+    <value>There are warnings. Do you want to continue anyway?</value>
+    <comment>Confirmation message for continuing despite warnings</comment>
+  </data>
+  
+  <!-- Update Confirmations -->
+  <data name="InstallUpdate" xml:space="preserve">
+    <value>An update is available. Do you want to install it now?</value>
+    <comment>Confirmation message for installing an update</comment>
+  </data>
+  <data name="RestartToApplyUpdate" xml:space="preserve">
+    <value>The application needs to restart to apply the update. Restart now?</value>
+    <comment>Confirmation message for restarting to apply update</comment>
+  </data>
+  
+  <!-- Import/Export Confirmations -->
+  <data name="ImportData" xml:space="preserve">
+    <value>Are you sure you want to import this data? Existing data may be overwritten.</value>
+    <comment>Confirmation message for importing data</comment>
+  </data>
+  <data name="ExportData" xml:space="preserve">
+    <value>Do you want to export this data?</value>
+    <comment>Confirmation message for exporting data</comment>
+  </data>
+</root>
