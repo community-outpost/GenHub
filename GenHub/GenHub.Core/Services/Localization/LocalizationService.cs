@@ -83,11 +83,33 @@ public class LocalizationService : ILocalizationService, IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
 
+        // Default to UiCommon for backward compatibility
+        return GetString(Resources.Strings.StringResources.UiCommon, key);
+    }
+
+    /// <inheritdoc/>
+    public string GetString(string key, params object[] args)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
+
+        // Default to UiCommon for backward compatibility
+        return GetString(Resources.Strings.StringResources.UiCommon, key, args);
+    }
+
+    /// <summary>
+    /// Gets a localized string from the specified resource set.
+    /// </summary>
+    /// <param name="resourceSet">The resource set base name (e.g., from StringResources constants).</param>
+    /// <param name="key">The resource key.</param>
+    /// <returns>The localized string, or a fallback if not found.</returns>
+    public string GetString(string resourceSet, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceSet, nameof(resourceSet));
+        ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
+
         try
         {
-            // For Phase 1, we don't have actual .resx files yet
-            // This is infrastructure only, so we return a placeholder
-            var resourceManager = _languageProvider.GetResourceManager("GenHub.Core.Resources.Strings");
+            var resourceManager = _languageProvider.GetResourceManager(resourceSet);
             
             lock (_lock)
             {
@@ -103,19 +125,26 @@ public class LocalizationService : ILocalizationService, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving resource string for key: {Key}", key);
+            _logger.LogError(ex, "Error retrieving resource string for key: {Key} from resource set: {ResourceSet}", key, resourceSet);
             return HandleMissingTranslation(key);
         }
     }
 
-    /// <inheritdoc/>
-    public string GetString(string key, params object[] args)
+    /// <summary>
+    /// Gets a formatted localized string from the specified resource set.
+    /// </summary>
+    /// <param name="resourceSet">The resource set base name (e.g., from StringResources constants).</param>
+    /// <param name="key">The resource key.</param>
+    /// <param name="args">Format arguments.</param>
+    /// <returns>The formatted localized string, or a fallback if not found.</returns>
+    public string GetString(string resourceSet, string key, params object[] args)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceSet, nameof(resourceSet));
         ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
 
         try
         {
-            var format = GetString(key);
+            var format = GetString(resourceSet, key);
             
             if (args == null || args.Length == 0)
             {
@@ -128,15 +157,16 @@ public class LocalizationService : ILocalizationService, IDisposable
         {
             _logger.LogError(
                 ex,
-                "Format error for key '{Key}' with {ArgCount} arguments",
+                "Format error for key '{Key}' from resource set '{ResourceSet}' with {ArgCount} arguments",
                 key,
+                resourceSet,
                 args?.Length ?? 0);
             
             return HandleMissingTranslation(key);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error formatting resource string for key: {Key}", key);
+            _logger.LogError(ex, "Error formatting resource string for key: {Key} from resource set: {ResourceSet}", key, resourceSet);
             return HandleMissingTranslation(key);
         }
     }
