@@ -283,7 +283,7 @@ public class LocalizationServiceTests : IDisposable
         var key = "TestKey";
 
         // Act
-        var result = _service.GetString(key, null!);
+        var result = _service.GetString(key, (object[])null!);
 
         // Assert
         Assert.NotNull(result);

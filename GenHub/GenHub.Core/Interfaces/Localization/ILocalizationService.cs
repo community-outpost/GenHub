@@ -39,6 +39,23 @@ public interface ILocalizationService
     string GetString(string key, params object[] args);
 
     /// <summary>
+    /// Gets a localized string from the specified resource set.
+    /// </summary>
+    /// <param name="resourceSet">The resource set base name (e.g., from StringResources constants).</param>
+    /// <param name="key">The resource key.</param>
+    /// <returns>The localized string, or a fallback if not found.</returns>
+    string GetString(string resourceSet, string key);
+
+    /// <summary>
+    /// Gets a formatted localized string from the specified resource set.
+    /// </summary>
+    /// <param name="resourceSet">The resource set base name (e.g., from StringResources constants).</param>
+    /// <param name="key">The resource key.</param>
+    /// <param name="args">Format arguments.</param>
+    /// <returns>The formatted localized string, or a fallback if not found.</returns>
+    string GetString(string resourceSet, string key, params object[] args);
+
+    /// <summary>
     /// Changes the active culture/language asynchronously.
     /// </summary>
     /// <param name="culture">The culture to activate.</param>
