@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Save Button Text - from SettingsViewModel -->
+  <data name="Button.SaveSettings" xml:space="preserve">
+    <value>Save Settings</value>
+    <comment>Button text for saving settings</comment>
+  </data>
+  <data name="Button.Saving" xml:space="preserve">
+    <value>Saving...</value>
+    <comment>Button text shown while saving is in progress</comment>
+  </data>
+  
+  <!-- Theme Settings -->
+  <data name="Theme.Label" xml:space="preserve">
+    <value>Theme</value>
+    <comment>Label for theme selection setting</comment>
+  </data>
+  <data name="Theme.Dark" xml:space="preserve">
+    <value>Dark</value>
+    <comment>Dark theme option</comment>
+  </data>
+  <data name="Theme.Light" xml:space="preserve">
+    <value>Light</value>
+    <comment>Light theme option</comment>
+  </data>
+  
+  <!-- Path Settings - from SettingsViewModel -->
+  <data name="Path.WorkspacePath" xml:space="preserve">
+    <value>Workspace Path</value>
+    <comment>Label for workspace path setting</comment>
+  </data>
+  <data name="Path.SettingsFilePath" xml:space="preserve">
+    <value>Settings File Path</value>
+    <comment>Label for settings file path setting</comment>
+  </data>
+  <data name="Path.CachePath" xml:space="preserve">
+    <value>Cache Path</value>
+    <comment>Label for cache path setting</comment>
+  </data>
+  <data name="Path.ContentStoragePath" xml:space="preserve">
+    <value>Content Storage Path</value>
+    <comment>Label for content storage path setting</comment>
+  </data>
+  <data name="Path.CasRootPath" xml:space="preserve">
+    <value>CAS Root Path</value>
+    <comment>Label for Content-Addressable Storage root path setting</comment>
+  </data>
+  
+  <!-- Dialog Titles - from SettingsViewModel -->
+  <data name="Dialog.SelectGameInstallDirectory" xml:space="preserve">
+    <value>Select Game Installation Directory</value>
+    <comment>Title for folder picker dialog when selecting game install directory</comment>
+  </data>
+  <data name="Dialog.SelectSettingsFileLocation" xml:space="preserve">
+    <value>Select Settings File Location</value>
+    <comment>Title for file picker dialog when selecting settings file location</comment>
+  </data>
+  <data name="Dialog.SelectCasRootDirectory" xml:space="preserve">
+    <value>Select Content-Addressable Storage Root Directory</value>
+    <comment>Title for folder picker dialog when selecting CAS root directory</comment>
+  </data>
+  
+  <!-- Download Settings -->
+  <data name="Download.MaxConcurrentDownloads" xml:space="preserve">
+    <value>Max Concurrent Downloads</value>
+    <comment>Label for maximum concurrent downloads setting</comment>
+  </data>
+  <data name="Download.BufferSize" xml:space="preserve">
+    <value>Download Buffer Size (KB)</value>
+    <comment>Label for download buffer size setting</comment>
+  </data>
+  <data name="Download.Timeout" xml:space="preserve">
+    <value>Download Timeout (Seconds)</value>
+    <comment>Label for download timeout setting</comment>
+  </data>
+  <data name="Download.UserAgent" xml:space="preserve">
+    <value>Download User Agent</value>
+    <comment>Label for download user agent setting</comment>
+  </data>
+  <data name="Download.AllowBackgroundDownloads" xml:space="preserve">
+    <value>Allow Background Downloads</value>
+    <comment>Label for allow background downloads checkbox</comment>
+  </data>
+  
+  <!-- General Settings -->
+  <data name="General.AutoCheckForUpdates" xml:space="preserve">
+    <value>Auto Check for Updates on Startup</value>
+    <comment>Label for auto check for updates checkbox</comment>
+  </data>
+  <data name="General.EnableDetailedLogging" xml:space="preserve">
+    <value>Enable Detailed Logging</value>
+    <comment>Label for enable detailed logging checkbox</comment>
+  </data>
+  <data name="General.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>Default Workspace Strategy</value>
+    <comment>Label for default workspace strategy setting</comment>
+  </data>
+  
+  <!-- CAS Settings -->
+  <data name="CAS.EnableAutomaticGC" xml:space="preserve">
+    <value>Enable Automatic Garbage Collection</value>
+    <comment>Label for enable automatic garbage collection checkbox</comment>
+  </data>
+  <data name="CAS.MaxCacheSize" xml:space="preserve">
+    <value>Max Cache Size (GB)</value>
+    <comment>Label for maximum cache size setting</comment>
+  </data>
+  <data name="CAS.MaxConcurrentOperations" xml:space="preserve">
+    <value>Max Concurrent Operations</value>
+    <comment>Label for maximum concurrent CAS operations</comment>
+  </data>
+  <data name="CAS.VerifyIntegrity" xml:space="preserve">
+    <value>Verify Integrity</value>
+    <comment>Label for verify integrity checkbox</comment>
+  </data>
+  <data name="CAS.GCGracePeriod" xml:space="preserve">
+    <value>Garbage Collection Grace Period (Days)</value>
+    <comment>Label for garbage collection grace period setting</comment>
+  </data>
+  <data name="CAS.AutoGCInterval" xml:space="preserve">
+    <value>Auto GC Interval (Days)</value>
+    <comment>Label for automatic garbage collection interval setting</comment>
+  </data>
+  
+  <!-- Content Settings -->
+  <data name="Content.Directories" xml:space="preserve">
+    <value>Content Directories</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Content.GitHubRepositories" xml:space="preserve">
+    <value>GitHub Discovery Repositories</value>
+    <comment>Label for GitHub discovery repositories setting</comment>
+  </data>
+  
+  <!-- System Information -->
+  <data name="System.CurrentMemoryUsage" xml:space="preserve">
+    <value>Current Memory Usage (MB)</value>
+    <comment>Label for current memory usage display</comment>
+  </data>
+</root>

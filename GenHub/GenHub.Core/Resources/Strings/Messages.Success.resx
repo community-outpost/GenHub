@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Settings Success Messages - from SettingsViewModel -->
+  <data name="SettingsSaved" xml:space="preserve">
+    <value>Settings saved successfully</value>
+    <comment>Success message when settings are saved</comment>
+  </data>
+  <data name="SettingsReset" xml:space="preserve">
+    <value>Settings reset to defaults</value>
+    <comment>Success message when settings are reset to defaults</comment>
+  </data>
+  <data name="SettingsLoaded" xml:space="preserve">
+    <value>Settings loaded successfully</value>
+    <comment>Success message when settings are loaded</comment>
+  </data>
+  
+  <!-- Profile Success Messages - from MainViewModel -->
+  <data name="ProfileCreated" xml:space="preserve">
+    <value>Profile created successfully</value>
+    <comment>Success message when a profile is created</comment>
+  </data>
+  <data name="ProfileUpdated" xml:space="preserve">
+    <value>Profile updated successfully</value>
+    <comment>Success message when a profile is updated</comment>
+  </data>
+  <data name="ProfileDeleted" xml:space="preserve">
+    <value>Profile deleted successfully</value>
+    <comment>Success message when a profile is deleted</comment>
+  </data>
+  <data name="ProfilesSaved" xml:space="preserve">
+    <value>Profiles saved successfully</value>
+    <comment>Success message when profiles are saved</comment>
+  </data>
+  
+  <!-- Initialization Success Messages -->
+  <data name="MainViewModelInitialized" xml:space="preserve">
+    <value>MainViewModel initialized</value>
+    <comment>Log message when MainViewModel is initialized</comment>
+  </data>
+  <data name="GameProfileLauncherInitialized" xml:space="preserve">
+    <value>Game profile launcher initialized</value>
+    <comment>Log message when game profile launcher is initialized</comment>
+  </data>
+  <data name="UpdateNotificationViewModelInitialized" xml:space="preserve">
+    <value>UpdateNotificationViewModel initialized</value>
+    <comment>Log message when UpdateNotificationViewModel is initialized</comment>
+  </data>
+  
+  <!-- Localization Success Messages -->
+  <data name="LocalizationServiceInitialized" xml:space="preserve">
+    <value>LocalizationService initialized with culture: {0}</value>
+    <comment>Log message when LocalizationService is initialized. {0} is culture name</comment>
+  </data>
+  <data name="CultureChanged" xml:space="preserve">
+    <value>Culture changed to: {0}</value>
+    <comment>Log message when culture is changed. {0} is the new culture name</comment>
+  </data>
+  <data name="AvailableCulturesRefreshed" xml:space="preserve">
+    <value>Available cultures refreshed. Found {0} cultures</value>
+    <comment>Log message when available cultures are refreshed. {0} is culture count</comment>
+  </data>
+  <data name="AddedDefaultCulture" xml:space="preserve">
+    <value>Added default culture: {0}</value>
+    <comment>Log message when default culture is added. {0} is culture name</comment>
+  </data>
+  <data name="DiscoveredLanguages" xml:space="preserve">
+    <value>Discovered {0} available languages: {1}</value>
+    <comment>Log message for discovered languages. {0} is count, {1} is comma-separated list</comment>
+  </data>
+  <data name="FoundSatelliteAssembly" xml:space="preserve">
+    <value>Found satellite assembly for culture: {0}</value>
+    <comment>Log message when satellite assembly is found. {0} is culture name</comment>
+  </data>
+  <data name="CreatedResourceManager" xml:space="preserve">
+    <value>Created ResourceManager for base name: {0}</value>
+    <comment>Log message when ResourceManager is created. {0} is base name</comment>
+  </data>
+  
+  <!-- Update Success Messages -->
+  <data name="UpdateCheckCompleted" xml:space="preserve">
+    <value>Update check completed. Update available: {0}</value>
+    <comment>Log message when update check completes. {0} is true/false</comment>
+  </data>
+  
+  <!-- Game Scanning Success Messages -->
+  <data name="GameScanCompleted" xml:space="preserve">
+    <value>Game scan completed successfully. Found {0} installations</value>
+    <comment>Success message when game scan completes. {0} is installation count</comment>
+  </data>
+  
+  <!-- General Success Messages -->
+  <data name="OperationCompleted" xml:space="preserve">
+    <value>Operation completed successfully</value>
+    <comment>Generic operation completion message</comment>
+  </data>
+  <data name="DataSaved" xml:space="preserve">
+    <value>Data saved successfully</value>
+    <comment>Generic data save success message</comment>
+  </data>
+  <data name="ImportSuccessful" xml:space="preserve">
+    <value>Import completed successfully</value>
+    <comment>Success message for import operations</comment>
+  </data>
+  <data name="ExportSuccessful" xml:space="preserve">
+    <value>Export completed successfully</value>
+    <comment>Success message for export operations</comment>
+  </data>
+</root>
