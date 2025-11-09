@@ -304,26 +304,29 @@
       <Border Grid.Column="1" Classes="tool-content-card">
         <Grid RowDefinitions="Auto,*" Margin="20">
           <!-- Tool Header -->
-          <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,20"
-                      IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <TextBlock Text="{Binding SelectedTool.Metadata.Name}" Classes="section-title" FontSize="20" />
-            <Grid ColumnDefinitions="Auto,*">
-              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15">
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                  <TextBlock Text="Version:" Foreground="#AAAAAA" />
-                  <TextBlock Text="{Binding SelectedTool.Metadata.Version}" Foreground="#E0E0E0" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="5">
-                  <TextBlock Text="Author:" Foreground="#AAAAAA" />
-                  <TextBlock Text="{Binding SelectedTool.Metadata.Author}" Foreground="#E0E0E0" />
-                </StackPanel>
+          <Grid Grid.Row="0" 
+                ColumnDefinitions="*,Auto" 
+                Margin="0,0,0,20"
+                IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Grid.Column="0" 
+                       Text="{Binding SelectedTool.Metadata.Name}" 
+                       Classes="section-title" 
+                       FontSize="20" 
+                       VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" 
+                        Orientation="Horizontal" 
+                        Spacing="15"
+                        VerticalAlignment="Center">
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="version" Foreground="#AAAAAA" FontSize="14" />
+                <TextBlock Text="{Binding SelectedTool.Metadata.Version}" Foreground="#E0E0E0" FontSize="14" />
               </StackPanel>
-            </Grid>
-            <TextBlock Text="{Binding SelectedTool.Metadata.Description}"
-                       Foreground="#AAAAAA"
-                       TextWrapping="Wrap"
-                       IsVisible="{Binding SelectedTool.Metadata.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="5">
+                <TextBlock Text="by" Foreground="#AAAAAA" FontSize="14" />
+                <TextBlock Text="{Binding SelectedTool.Metadata.Author}" Foreground="#E0E0E0" FontSize="14" />
+              </StackPanel>
+            </StackPanel>
+          </Grid>
 
           <!-- Tool Content Area -->
           <Panel Grid.Row="1">
