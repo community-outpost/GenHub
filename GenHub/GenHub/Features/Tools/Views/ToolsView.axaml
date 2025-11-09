@@ -165,11 +165,15 @@
 
   <Grid Margin="30" RowDefinitions="Auto,Auto,*">
     <!-- Header -->
-    <StackPanel Grid.Row="0" Spacing="5" Margin="0,0,0,20">
-      <TextBlock Text="Tools" Classes="header" />
-      <TextBlock Text="Manage and use tool plugins to extend GenHub functionality"
-                 Classes="subheader" />
-    </StackPanel>
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,20">
+      <TextBlock Grid.Column="0" Text="Tools" Classes="header" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" 
+                 Text="Manage and use tool plugins to extend GenHub functionality"
+                 Classes="subheader" 
+                 VerticalAlignment="Center"
+                 HorizontalAlignment="Right"
+                 Margin="20,0,0,0" />
+    </Grid>
 
     <!-- Status Banner -->
     <Border Grid.Row="1"
