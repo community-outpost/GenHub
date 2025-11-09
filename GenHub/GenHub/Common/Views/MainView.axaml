@@ -10,6 +10,8 @@
              xmlns:profileViews="clr-namespace:GenHub.Features.GameProfiles.Views"
              xmlns:downloadsVM="clr-namespace:GenHub.Features.Downloads.ViewModels"
              xmlns:downloadsViews="clr-namespace:GenHub.Features.Downloads.Views"
+             xmlns:toolsVM="clr-namespace:GenHub.Features.Tools.ViewModels"
+             xmlns:toolsViews="clr-namespace:GenHub.Features.Tools.Views"
              xmlns:settingsVM="clr-namespace:GenHub.Features.Settings.ViewModels"
              xmlns:settingsViews="clr-namespace:GenHub.Features.Settings.Views"
              xmlns:system="clr-namespace:System;assembly=System.Runtime"
@@ -140,6 +142,9 @@
         <DataTemplate DataType="downloadsVM:DownloadsViewModel">
             <downloadsViews:DownloadsView />
         </DataTemplate>
+        <DataTemplate DataType="toolsVM:ToolsViewModel">
+            <toolsViews:ToolsView />
+        </DataTemplate>
         <DataTemplate DataType="settingsVM:SettingsViewModel">
             <settingsViews:SettingsView />
         </DataTemplate>
@@ -169,11 +174,17 @@
                         Content="Downloads"
                         Name="Tab1Button" />
                     <Button Classes="modern-tab"
+                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Tools}}"
+                        Command="{Binding SelectTabCommand}"
+                        CommandParameter="{x:Static enums:NavigationTab.Tools}"
+                        Content="Tools"
+                        Name="Tab2Button" />
+                    <Button Classes="modern-tab"
                         Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
                         Command="{Binding SelectTabCommand}"
                         CommandParameter="{x:Static enums:NavigationTab.Settings}"
                         Content="Settings"
-                        Name="Tab2Button" />    
+                        Name="Tab3Button" />
                 </StackPanel>
                 <!-- branding and update button - Right side -->
                 <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto" VerticalAlignment="Center">

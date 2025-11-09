@@ -38,6 +38,9 @@ public static class AppServices
         services.AddGameProfileServices();
         services.AddLaunchingServices();
 
+        // Register Tools services
+        services.AddToolsServices();
+
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();

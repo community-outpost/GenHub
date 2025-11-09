@@ -108,6 +108,7 @@ public class SharedViewModelModuleTests
         services.AddAppUpdateModule();
         services.AddGameProfileServices();
         services.AddLaunchingServices();
+        services.AddToolsServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService
@@ -123,6 +124,7 @@ public class SharedViewModelModuleTests
         Assert.NotNull(serviceProvider.GetService<MainViewModel>());
         Assert.NotNull(serviceProvider.GetService<GameProfileLauncherViewModel>());
         Assert.NotNull(serviceProvider.GetService<DownloadsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
     }
 

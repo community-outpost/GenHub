@@ -18,6 +18,7 @@ public static class NavigationTabExtensions
     {
         NavigationTab.GameProfiles => "Game Profiles",
         NavigationTab.Downloads => "Downloads",
+        NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
         _ => tab.ToString(),
     };
