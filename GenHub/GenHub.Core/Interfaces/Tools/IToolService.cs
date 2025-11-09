@@ -5,7 +5,7 @@ namespace GenHub.Core.Interfaces.Tools;
 /// <summary>
 /// Service for managing tool plugins in GenHub.
 /// </summary>
-public interface IToolService
+public interface IToolManager
 {
     /// <summary>
     /// Loads all saved tool plugins.

@@ -8,18 +8,13 @@ namespace GenHub.Core.Services.Tools;
 /// <summary>
 /// Loader for tool plugins.
 /// </summary>
-public class ToolPluginLoader : IToolPluginLoader
+/// <remarks>
+/// Initializes a new instance of the <see cref="ToolPluginLoader"/> class.
+/// </remarks>
+/// <param name="logger">Logger instance.</param>
+public class ToolPluginLoader(ILogger<ToolPluginLoader> logger) : IToolPluginLoader
 {
-    private readonly ILogger<ToolPluginLoader> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ToolPluginLoader"/> class.
-    /// </summary>
-    /// <param name="logger">Logger instance.</param>
-    public ToolPluginLoader(ILogger<ToolPluginLoader> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<ToolPluginLoader> _logger = logger;
 
     /// <inheritdoc/>
     public IToolPlugin? LoadPluginFromAssembly(string assemblyPath)

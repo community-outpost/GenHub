@@ -18,7 +18,7 @@ public static class ToolsModule
     {
         services.AddSingleton<IToolPluginLoader, ToolPluginLoader>();
         services.AddSingleton<IToolRegistry, ToolRegistry>();
-        services.AddSingleton<IToolService, ToolService>();
+        services.AddSingleton<IToolManager, ToolService>();
 
         return services;
     }

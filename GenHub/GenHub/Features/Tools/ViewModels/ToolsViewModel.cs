@@ -15,11 +15,17 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <summary>
 /// ViewModel for managing tool plugins.
 /// </summary>
-public partial class ToolsViewModel : ObservableObject
+/// <remarks>
+/// Initializes a new instance of the <see cref="ToolsViewModel"/> class.
+/// </remarks>
+/// <param name="toolService">The tool service for managing plugins.</param>
+/// <param name="logger">The logger instance.</param>
+/// <param name="serviceProvider">The service provider for dependency injection.</param>
+public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider) : ObservableObject
 {
-    private readonly IToolService _toolService;
-    private readonly ILogger<ToolsViewModel> _logger;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IToolManager _toolService = toolService;
+    private readonly ILogger<ToolsViewModel> _logger = logger;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
 
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
@@ -44,19 +50,6 @@ public partial class ToolsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isStatusInfo = true;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ToolsViewModel"/> class.
-    /// </summary>
-    /// <param name="toolService">The tool service for managing plugins.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="serviceProvider">The service provider for dependency injection.</param>
-    public ToolsViewModel(IToolService toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider)
-    {
-        _toolService = toolService;
-        _logger = logger;
-        _serviceProvider = serviceProvider;
-    }
 
     /// <summary>
     /// Gets the collection of installed tools.

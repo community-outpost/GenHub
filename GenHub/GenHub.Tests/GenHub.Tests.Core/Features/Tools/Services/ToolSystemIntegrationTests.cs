@@ -20,7 +20,7 @@ public class ToolSystemIntegrationTests
     private readonly UserSettings _testSettings;
     private readonly IToolPluginLoader _pluginLoader;
     private readonly IToolRegistry _registry;
-    private readonly IToolService _toolService;
+    private readonly IToolManager _toolService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ToolSystemIntegrationTests"/> class.

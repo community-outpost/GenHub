@@ -8,7 +8,7 @@ namespace GenHub.Core.Services.Tools;
 /// <summary>
 /// Service for managing tool plugins.
 /// </summary>
-public class ToolService : IToolService
+public class ToolService : IToolManager
 {
     private readonly IToolPluginLoader _pluginLoader;
     private readonly IToolRegistry _toolRegistry;
@@ -103,9 +103,9 @@ public class ToolService : IToolService
         {
             var settings = _userSettingsService.Get();
             var toolPaths = settings.InstalledToolAssemblyPaths ?? new List<string>();
-            
+
             _logger.LogInformation("Loading saved tool plugins. Found {Count} paths in settings.", toolPaths.Count);
-            
+
             if (toolPaths.Count > 0)
             {
                 _logger.LogDebug("Tool paths: {Paths}", string.Join(", ", toolPaths));

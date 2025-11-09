@@ -201,7 +201,7 @@ public class MainViewModelTests
     /// </summary>
     private static ToolsViewModel CreateToolsVm()
     {
-        var mockToolService = new Mock<IToolService>();
+        var mockToolService = new Mock<IToolManager>();
         var mockLogger = new Mock<ILogger<ToolsViewModel>>();
         var mockServiceProvider = new Mock<IServiceProvider>();
         return new ToolsViewModel(mockToolService.Object, mockLogger.Object, mockServiceProvider.Object);

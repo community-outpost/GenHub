@@ -13,7 +13,7 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// </summary>
 public class ToolsViewModelTests
 {
-    private readonly Mock<IToolService> _mockToolService;
+    private readonly Mock<IToolManager> _mockToolService;
     private readonly Mock<ILogger<ToolsViewModel>> _mockLogger;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly ToolsViewModel _viewModel;
@@ -23,7 +23,7 @@ public class ToolsViewModelTests
     /// </summary>
     public ToolsViewModelTests()
     {
-        _mockToolService = new Mock<IToolService>();
+        _mockToolService = new Mock<IToolManager>();
         _mockLogger = new Mock<ILogger<ToolsViewModel>>();
         _mockServiceProvider = new Mock<IServiceProvider>();
 
