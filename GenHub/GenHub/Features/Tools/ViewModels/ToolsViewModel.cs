@@ -19,6 +19,7 @@ public partial class ToolsViewModel : ObservableObject
 {
     private readonly IToolService _toolService;
     private readonly ILogger<ToolsViewModel> _logger;
+    private readonly IServiceProvider _serviceProvider;
 
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
@@ -49,10 +50,12 @@ public partial class ToolsViewModel : ObservableObject
     /// </summary>
     /// <param name="toolService">The tool service for managing plugins.</param>
     /// <param name="logger">The logger instance.</param>
-    public ToolsViewModel(IToolService toolService, ILogger<ToolsViewModel> logger)
+    /// <param name="serviceProvider">The service provider for dependency injection.</param>
+    public ToolsViewModel(IToolService toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider)
     {
         _toolService = toolService;
         _logger = logger;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -261,7 +264,77 @@ public partial class ToolsViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshToolsAsync()
     {
-        await InitializeAsync();
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Refreshing tools...";
+            SetStatusType(info: true);
+
+            // Store the current selection
+            var previousSelectedId = SelectedTool?.Metadata.Id;
+
+            // Deactivate current tool before refresh
+            if (SelectedTool != null)
+            {
+                try
+                {
+                    SelectedTool.OnDeactivated();
+                    CurrentToolControl = null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deactivating tool during refresh: {ToolName}", SelectedTool.Metadata.Name);
+                }
+            }
+
+            // Load tools from saved settings
+            var result = await _toolService.LoadSavedToolsAsync();
+
+            if (result.Success && result.Data != null)
+            {
+                InstalledTools.Clear();
+                foreach (var tool in result.Data)
+                {
+                    InstalledTools.Add(tool);
+                }
+
+                HasTools = InstalledTools.Count > 0;
+
+                if (HasTools)
+                {
+                    // Try to restore previous selection, otherwise select first
+                    var toolToSelect = InstalledTools.FirstOrDefault(t => t.Metadata.Id == previousSelectedId)
+                                      ?? InstalledTools[0];
+                    SelectedTool = toolToSelect;
+
+                    StatusMessage = $"✓ Refreshed {InstalledTools.Count} tool(s) successfully.";
+                    SetStatusType(success: true);
+                }
+                else
+                {
+                    StatusMessage = "No tools installed. Click 'Add Tool' to install a tool plugin.";
+                    SetStatusType(info: true);
+                }
+
+                _logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
+            }
+            else
+            {
+                StatusMessage = $"⚠ Failed to refresh tools: {string.Join(", ", result.Errors)}";
+                SetStatusType(error: true);
+                _logger.LogWarning("Failed to refresh tools: {Errors}", string.Join(", ", result.Errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"⚠ An error occurred while refreshing tools: {ex.Message}";
+            SetStatusType(error: true);
+            _logger.LogError(ex, "Error refreshing tools");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     partial void OnSelectedToolChanged(IToolPlugin? oldValue, IToolPlugin? newValue)
@@ -285,7 +358,7 @@ public partial class ToolsViewModel : ObservableObject
         {
             try
             {
-                newValue.OnActivated();
+                newValue.OnActivated(_serviceProvider);
                 CurrentToolControl = newValue.CreateControl();
                 StatusMessage = $"Tool '{newValue.Metadata.Name}' loaded successfully.";
                 SetStatusType(success: true);

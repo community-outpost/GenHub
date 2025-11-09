@@ -22,9 +22,10 @@ public interface IToolPlugin
 
     /// <summary>
     /// Called when the tool is activated or shown in the UI.
-    /// Use this method to initialize or refresh the tool's state.
+    /// Use this method to initialize resources or update the tool's state.
     /// </summary>
-    void OnActivated();
+    /// <param name="serviceProvider">The service provider for accessing application services.</param>
+    void OnActivated(IServiceProvider serviceProvider);
 
     /// <summary>
     /// Called when the tool is deactivated or hidden from the UI.

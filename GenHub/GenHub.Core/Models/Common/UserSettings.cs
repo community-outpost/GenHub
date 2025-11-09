@@ -123,6 +123,7 @@ public class UserSettings : ICloneable
             ContentStoragePath = ContentStoragePath,
             ContentDirectories = ContentDirectories != null ? new List<string>(ContentDirectories) : null,
             GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? new List<string>(GitHubDiscoveryRepositories) : null,
+            InstalledToolAssemblyPaths = InstalledToolAssemblyPaths != null ? new List<string>(InstalledToolAssemblyPaths) : null,
             ExplicitlySetProperties = new HashSet<string>(ExplicitlySetProperties),
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
         };
