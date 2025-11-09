@@ -215,7 +215,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
 
             // Deactivate the tool before removal
             toolToRemove.OnDeactivated();
-            
+
             // Clear current control if removing the selected tool
             if (toolToRemove == SelectedTool)
             {
