@@ -1,8 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using GenHub.Common.ViewModels;
-using System;
 
 namespace GenHub.Common.Views;
 
@@ -17,19 +15,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-    }
-
-    /// <summary>
-    /// Handles the window opened event to initialize the view model.
-    /// </summary>
-    /// <param name="sender">The sender object.</param>
-    /// <param name="e">The event arguments.</param>
-    private async void OnWindowOpened(object? sender, EventArgs e)
-    {
-        if (DataContext is MainViewModel mainViewModel)
-        {
-            await mainViewModel.InitializeAsync();
-        }
     }
 
     /// <summary>

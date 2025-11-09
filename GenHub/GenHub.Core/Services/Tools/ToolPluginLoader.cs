@@ -12,7 +12,8 @@ namespace GenHub.Core.Services.Tools;
 /// Initializes a new instance of the <see cref="ToolPluginLoader"/> class.
 /// </remarks>
 /// <param name="logger">Logger instance.</param>
-public class ToolPluginLoader(ILogger<ToolPluginLoader> logger) : IToolPluginLoader
+public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
+: IToolPluginLoader
 {
     private readonly ILogger<ToolPluginLoader> _logger = logger;
 

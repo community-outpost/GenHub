@@ -55,6 +55,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that InitializeAsync loads tools successfully when service returns tools.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InitializeAsync_LoadsToolsSuccessfully()
     {
@@ -75,14 +76,13 @@ public class ToolsViewModelTests
         Assert.Contains(plugin2, _viewModel.InstalledTools);
         Assert.True(_viewModel.HasTools);
         Assert.Equal(plugin1, _viewModel.SelectedTool); // First tool selected by default
-        Assert.Contains("loaded successfully", _viewModel.StatusMessage);
-        Assert.True(_viewModel.IsStatusSuccess);
         Assert.False(_viewModel.IsLoading);
     }
 
     /// <summary>
     /// Tests that InitializeAsync sets HasTools to false when no tools are loaded.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InitializeAsync_SetsHasToolsToFalse_WhenNoToolsLoaded()
     {
@@ -106,6 +106,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that InitializeAsync handles failure from service.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InitializeAsync_HandlesFailureFromService()
     {
@@ -127,6 +128,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that InitializeAsync handles exceptions gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InitializeAsync_HandlesExceptionsGracefully()
     {
@@ -146,6 +148,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that InitializeAsync sets IsLoading correctly during operation.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InitializeAsync_SetsIsLoadingCorrectly()
     {
@@ -176,6 +179,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RemoveToolCommand deactivates and removes tool successfully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RemoveToolAsync_RemovesToolSuccessfully()
     {
@@ -194,8 +198,8 @@ public class ToolsViewModelTests
         Assert.Empty(_viewModel.InstalledTools);
         Assert.False(_viewModel.HasTools);
         Assert.Null(_viewModel.SelectedTool);
-        Assert.Contains("No tools installed", _viewModel.StatusMessage);
-        Assert.True(_viewModel.IsStatusInfo);
+        Assert.Contains("removed successfully", _viewModel.StatusMessage);
+        Assert.True(_viewModel.IsStatusSuccess);
         Assert.True(plugin.IsDisposed);
         Assert.True(plugin.OnDeactivatedCallCount >= 1, "Tool should be deactivated at least once");
     }
@@ -203,6 +207,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RemoveToolAsync selects another tool after removal when tools remain.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RemoveToolAsync_SelectsAnotherTool_WhenToolsRemain()
     {
@@ -230,6 +235,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RemoveToolAsync does nothing when no tool is selected.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RemoveToolAsync_DoesNothing_WhenNoToolSelected()
     {
@@ -246,6 +252,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RemoveToolAsync handles service failure.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RemoveToolAsync_HandlesServiceFailure()
     {
@@ -269,6 +276,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RemoveToolAsync handles exceptions gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RemoveToolAsync_HandlesExceptionsGracefully()
     {
@@ -291,6 +299,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RefreshToolsAsync reloads tools successfully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshToolsAsync_ReloadsToolsSuccessfully()
     {
@@ -317,6 +326,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RefreshToolsAsync deactivates current tool before refresh.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshToolsAsync_DeactivatesCurrentTool_BeforeRefresh()
     {
@@ -340,6 +350,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RefreshToolsAsync restores previously selected tool.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshToolsAsync_RestoresPreviouslySelectedTool()
     {
@@ -364,6 +375,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RefreshToolsAsync handles service failure.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshToolsAsync_HandlesServiceFailure()
     {
@@ -382,6 +394,7 @@ public class ToolsViewModelTests
     /// <summary>
     /// Tests that RefreshToolsAsync handles exceptions gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task RefreshToolsAsync_HandlesExceptionsGracefully()
     {

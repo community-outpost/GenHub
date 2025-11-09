@@ -51,6 +51,7 @@ public class ToolSystemIntegrationTests
     /// <summary>
     /// Tests the complete workflow of adding and removing a tool.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task CompleteWorkflow_AddAndRemoveTool_WorksCorrectly()
     {
@@ -113,6 +114,7 @@ public class ToolSystemIntegrationTests
     /// <summary>
     /// Tests loading saved tools from settings.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task LoadSavedTools_LoadsMultipleToolsFromSettings()
     {
@@ -157,6 +159,7 @@ public class ToolSystemIntegrationTests
     /// <summary>
     /// Tests that duplicate tool IDs are prevented.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task AddTool_PreventsDuplicateToolIds()
     {
@@ -198,6 +201,7 @@ public class ToolSystemIntegrationTests
     /// <summary>
     /// Tests that tools can be replaced by unregistering and re-registering.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
     public async Task ReplaceTool_ByRemovingAndAddingNewVersion()
     {
