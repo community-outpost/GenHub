@@ -54,6 +54,23 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     [ObservableProperty]
     private bool _isStatusVisible = false;
 
+    [ObservableProperty]
+    private bool _isSidebarCollapsed = false;
+
+    [ObservableProperty]
+    private double _sidebarWidth = 300;
+
+    [ObservableProperty]
+    private bool _isDetailsDialogOpen = false;
+
+    [ObservableProperty]
+    private IToolPlugin? _toolForDetails;
+
+    /// <summary>
+    /// Gets the tooltip text for the sidebar toggle button.
+    /// </summary>
+    public string SidebarToggleTooltip => IsSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar";
+
     private System.Threading.CancellationTokenSource? _statusHideCts;
 
     /// <summary>
@@ -181,16 +198,16 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     }
 
     /// <summary>
-    /// Removes the currently selected tool.
+    /// Removes the currently selected tool or a specified tool.
     /// </summary>
     [RelayCommand]
-    private async Task RemoveToolAsync()
+    private async Task RemoveToolAsync(IToolPlugin? tool = null)
     {
-        if (SelectedTool == null) return;
+        var toolToRemove = tool ?? SelectedTool;
+        if (toolToRemove == null) return;
 
         try
         {
-            var toolToRemove = SelectedTool;
             IsLoading = true;
             StatusMessage = $"Removing tool '{toolToRemove.Metadata.Name}'...";
             SetStatusType(info: true);
@@ -198,7 +215,12 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
 
             // Deactivate the tool before removal
             toolToRemove.OnDeactivated();
-            CurrentToolControl = null;
+            
+            // Clear current control if removing the selected tool
+            if (toolToRemove == SelectedTool)
+            {
+                CurrentToolControl = null;
+            }
 
             var result = await _toolService.RemoveToolAsync(toolToRemove.Metadata.Id);
 
@@ -210,8 +232,11 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                 // Dispose the tool
                 toolToRemove.Dispose();
 
-                // Select another tool if available
-                SelectedTool = InstalledTools.FirstOrDefault();
+                // Select another tool if we removed the selected one
+                if (toolToRemove == SelectedTool)
+                {
+                    SelectedTool = InstalledTools.FirstOrDefault();
+                }
 
                 ShowStatusMessage($"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", success: true);
 
@@ -354,6 +379,40 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         IsStatusInfo = info;
     }
 
+    /// <summary>
+    /// Toggles the sidebar collapsed state.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+        SidebarWidth = IsSidebarCollapsed ? 50 : 300;
+        OnPropertyChanged(nameof(SidebarToggleTooltip));
+    }
+
+    /// <summary>
+    /// Shows the details dialog for a specific tool.
+    /// </summary>
+    [RelayCommand]
+    private void ShowToolDetails(IToolPlugin? tool)
+    {
+        if (tool != null)
+        {
+            ToolForDetails = tool;
+            IsDetailsDialogOpen = true;
+        }
+    }
+
+    /// <summary>
+    /// Closes the details dialog.
+    /// </summary>
+    [RelayCommand]
+    private void CloseDetailsDialog()
+    {
+        IsDetailsDialogOpen = false;
+        ToolForDetails = null;
+    }
+
     private async void ShowStatusMessage(string message, bool success = false, bool error = false, bool info = false)
     {
         // Cancel any existing hide timer
@@ -368,7 +427,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         _statusHideCts = new System.Threading.CancellationTokenSource();
         try
         {
-            await Task.Delay(5000, _statusHideCts.Token);
+            await Task.Delay(3000, _statusHideCts.Token);
             IsStatusVisible = false;
         }
         catch (TaskCanceledException)

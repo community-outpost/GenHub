@@ -163,20 +163,22 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid Margin="30" RowDefinitions="Auto,Auto,*">
-    <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,20">
-      <TextBlock Grid.Column="0" Text="Tools" Classes="header" VerticalAlignment="Center" />
-      <TextBlock Grid.Column="1" 
-                 Text="Manage and use tool plugins to extend GenHub functionality"
-                 Classes="subheader" 
-                 VerticalAlignment="Center"
-                 HorizontalAlignment="Right"
-                 Margin="20,0,0,0" />
-    </Grid>
+  <!-- Root container with dialog overlay -->
+  <Grid>
+    <Grid Margin="30" RowDefinitions="Auto,Auto,*">
+      <!-- Header -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,20">
+        <TextBlock Grid.Column="0" Text="Tools" Classes="header" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" 
+                   Text="Manage and use tool plugins to extend GenHub functionality"
+                   Classes="subheader" 
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Right"
+                   Margin="20,0,0,0" />
+      </Grid>
 
-    <!-- Status Banner -->
-    <Border Grid.Row="1"
+      <!-- Status Banner -->
+      <Border Grid.Row="1"
             Classes="status-banner success"
             Classes.visible="{Binding IsStatusVisible}"
             IsVisible="{Binding IsStatusSuccess}">
@@ -246,11 +248,41 @@
                        IsVisible="{Binding HasTools}">
                 <ListBox.ItemTemplate>
                   <DataTemplate>
-                    <StackPanel Spacing="4">
-                      <TextBlock Text="{Binding Metadata.Name}" Classes="tool-name" />
-                      <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
-                                 Classes="tool-version" />
-                    </StackPanel>
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                      <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{Binding Metadata.Name}" Classes="tool-name" />
+                        <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
+                                   Classes="tool-version" />
+                      </StackPanel>
+                      
+                      <!-- Menu Button with Flyout -->
+                      <Button Grid.Column="1"
+                              Classes="icon-button"
+                              Width="32"
+                              Height="32"
+                              Padding="4"
+                              Margin="4,0,0,0">
+                        <Button.Flyout>
+                          <MenuFlyout Placement="BottomEdgeAlignedRight">
+                            <MenuItem Header="View Details"
+                                      Command="{Binding $parent[UserControl].((vm:ToolsViewModel)DataContext).ShowToolDetailsCommand}"
+                                      CommandParameter="{Binding}">
+                              <MenuItem.Icon>
+                                <TextBlock Text="ℹ️" FontSize="14" />
+                              </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Remove Tool"
+                                      Command="{Binding $parent[UserControl].((vm:ToolsViewModel)DataContext).RemoveToolCommand}"
+                                      CommandParameter="{Binding}">
+                              <MenuItem.Icon>
+                                <TextBlock Text="🗑️" FontSize="14" />
+                              </MenuItem.Icon>
+                            </MenuItem>
+                          </MenuFlyout>
+                        </Button.Flyout>
+                        <TextBlock Text="…" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                      </Button>
+                    </Grid>
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
@@ -259,11 +291,6 @@
 
           <!-- Tool Actions -->
           <StackPanel Grid.Row="2" Spacing="8" Margin="0,15,0,0">
-            <Button Content="🗑️ Remove Tool"
-                    Command="{Binding RemoveToolCommand}"
-                    Classes="danger-button"
-                    HorizontalAlignment="Stretch"
-                    IsEnabled="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNotNull}}" />
             <Button Content="🔄 Refresh"
                     Command="{Binding RefreshToolsCommand}"
                     Classes="secondary-button"
@@ -320,5 +347,95 @@
         </Grid>
       </Border>
     </Grid>
+    </Grid>
+
+    <!-- Tool Details Dialog -->
+    <Panel IsVisible="{Binding IsDetailsDialogOpen}" Background="#CC000000" ZIndex="100">
+      <Border Background="#2D2D30"
+            BorderBrush="#3F3F46"
+            BorderThickness="1"
+            CornerRadius="8"
+            MaxWidth="600"
+            MaxHeight="500"
+            Padding="25"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Dialog Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
+          <TextBlock Grid.Column="0" 
+                     Text="Tool Details" 
+                     FontSize="20" 
+                     FontWeight="Bold" 
+                     Foreground="#FFFFFF" />
+          <Button Grid.Column="1"
+                  Classes="icon-button"
+                  Command="{Binding CloseDetailsDialogCommand}"
+                  Width="32"
+                  Height="32"
+                  ToolTip.Tip="Close">
+            <TextBlock Text="✕" FontSize="18" FontWeight="Bold" />
+          </Button>
+        </Grid>
+
+        <!-- Dialog Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,20">
+          <StackPanel Spacing="15" IsVisible="{Binding ToolForDetails, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <!-- Tool Name -->
+            <StackPanel Spacing="5">
+              <TextBlock Text="Name" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA" />
+              <TextBlock Text="{Binding ToolForDetails.Metadata.Name}" 
+                         FontSize="16" 
+                         FontWeight="SemiBold" 
+                         Foreground="#FFFFFF" />
+            </StackPanel>
+
+            <!-- Version -->
+            <StackPanel Spacing="5">
+              <TextBlock Text="Version" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA" />
+              <TextBlock Text="{Binding ToolForDetails.Metadata.Version}" 
+                         FontSize="14" 
+                         Foreground="#E0E0E0" />
+            </StackPanel>
+
+            <!-- Author -->
+            <StackPanel Spacing="5">
+              <TextBlock Text="Author" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA" />
+              <TextBlock Text="{Binding ToolForDetails.Metadata.Author}" 
+                         FontSize="14" 
+                         Foreground="#E0E0E0" />
+            </StackPanel>
+
+            <!-- Description -->
+            <StackPanel Spacing="5" 
+                        IsVisible="{Binding ToolForDetails.Metadata.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock Text="Description" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA" />
+              <TextBlock Text="{Binding ToolForDetails.Metadata.Description}" 
+                         FontSize="14" 
+                         Foreground="#E0E0E0"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- Tool ID -->
+            <StackPanel Spacing="5">
+              <TextBlock Text="Tool ID" FontSize="12" FontWeight="SemiBold" Foreground="#AAAAAA" />
+              <TextBlock Text="{Binding ToolForDetails.Metadata.Id}" 
+                         FontSize="14" 
+                         Foreground="#E0E0E0"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Dialog Footer -->
+        <Button Grid.Row="2"
+                Content="Close"
+                Command="{Binding CloseDetailsDialogCommand}"
+                Classes="secondary-button"
+                HorizontalAlignment="Right"
+                MinWidth="100" />
+      </Grid>
+    </Border>
+    </Panel>
   </Grid>
 </UserControl>
