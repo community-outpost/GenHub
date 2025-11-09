@@ -8,31 +8,23 @@ namespace GenHub.Core.Services.Tools;
 /// <summary>
 /// Service for managing tool plugins.
 /// </summary>
-public class ToolService : IToolManager
+/// <remarks>
+/// Initializes a new instance of the <see cref="ToolService"/> class.
+/// </remarks>
+/// <param name="pluginLoader">Plugin loader for loading tool plugins.</param>
+/// <param name="toolRegistry">Registry for managing tool plugins.</param>
+/// <param name="userSettingsService">Service for managing user settings.</param>
+/// <param name="logger">Logger for logging tool service activities.</param>
+public class ToolService(
+    IToolPluginLoader pluginLoader,
+    IToolRegistry toolRegistry,
+    IUserSettingsService userSettingsService,
+    ILogger<ToolService> logger) : IToolManager
 {
-    private readonly IToolPluginLoader _pluginLoader;
-    private readonly IToolRegistry _toolRegistry;
-    private readonly IUserSettingsService _userSettingsService;
-    private readonly ILogger<ToolService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ToolService"/> class.
-    /// </summary>
-    /// <param name="pluginLoader">Plugin loader for loading tool plugins.</param>
-    /// <param name="toolRegistry">Registry for managing tool plugins.</param>
-    /// <param name="userSettingsService">Service for managing user settings.</param>
-    /// <param name="logger">Logger for logging tool service activities.</param>
-    public ToolService(
-        IToolPluginLoader pluginLoader,
-        IToolRegistry toolRegistry,
-        IUserSettingsService userSettingsService,
-        ILogger<ToolService> logger)
-    {
-        _pluginLoader = pluginLoader;
-        _toolRegistry = toolRegistry;
-        _userSettingsService = userSettingsService;
-        _logger = logger;
-    }
+    private readonly IToolPluginLoader _pluginLoader = pluginLoader;
+    private readonly IToolRegistry _toolRegistry = toolRegistry;
+    private readonly IUserSettingsService _userSettingsService = userSettingsService;
+    private readonly ILogger<ToolService> _logger = logger;
 
     /// <inheritdoc/>
     public async Task<OperationResult<IToolPlugin>> AddToolAsync(string assemblyPath)
