@@ -122,6 +122,20 @@
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="Margin" Value="0,0,0,15" />
+      <Setter Property="MaxHeight" Value="0" />
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut" />
+          <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut" />
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <Style Selector="Border.status-banner.visible">
+      <Setter Property="MaxHeight" Value="100" />
+      <Setter Property="Opacity" Value="1" />
     </Style>
 
     <Style Selector="Border.status-banner.success">
@@ -160,18 +174,21 @@
     <!-- Status Banner -->
     <Border Grid.Row="1"
             Classes="status-banner success"
+            Classes.visible="{Binding IsStatusVisible}"
             IsVisible="{Binding IsStatusSuccess}">
       <TextBlock Text="{Binding StatusMessage}" Classes="status-text" />
     </Border>
 
     <Border Grid.Row="1"
             Classes="status-banner error"
+            Classes.visible="{Binding IsStatusVisible}"
             IsVisible="{Binding IsStatusError}">
       <TextBlock Text="{Binding StatusMessage}" Classes="status-text" />
     </Border>
 
     <Border Grid.Row="1"
             Classes="status-banner info"
+            Classes.visible="{Binding IsStatusVisible}"
             IsVisible="{Binding IsStatusInfo}">
       <TextBlock Text="{Binding StatusMessage}" Classes="status-text" />
     </Border>
