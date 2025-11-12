@@ -94,31 +94,32 @@ public class ContentSearchQuery
 
     private static string? NormalizeLanguage(string? language)
     {
-        if (string.IsNullOrWhiteSpace(language))
+        // set default to "ALL" if not specified
+        // create switch for supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
+        switch (language?.Trim().ToUpper())
         {
-            return language;
+            case "EN":
+                return "EN";
+            case "DE":
+                return "DE";
+            case "FR":
+                return "FR";
+            case "PL":
+                return "PL";
+            case "ES":
+                return "ES";
+            case "IT":
+                return "IT";
+            case "KO":
+                return "KO";
+            case "BR":
+                return "BR";
+
+            case "CN"or "ZH-CN"or "ZH":
+                return "CN";
+
+            default:
+                return "ALL";
         }
-
-        // Trim and replace underscores with hyphens
-        var normalized = language.Trim().Replace('_', '-');
-
-        // Convert to uppercase
-        normalized = normalized.ToUpperInvariant();
-
-        // Special case for "ALL" to "All"
-        if (normalized == "ALL")
-        {
-            return "All";
-        }
-
-        // Map variants
-        return normalized switch
-        {
-            "PT" => "PT-BR",
-            "ZH" => "ZH-CN",
-            "ZHTW" or "ZH-TW" => "ZH-TW",
-            "ZHCN" or "ZH-CN" => "ZH-CN",
-            _ => normalized,
-        };
     }
 }
