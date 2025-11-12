@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
 
-namespace GenHub.Core.Models.Content;
-
 /// <summary>
 /// Represents a query for searching content across providers.
 /// </summary>
 public class ContentSearchQuery
 {
+    private string? _language;
+
     /// <summary>
     /// Gets or sets the primary search term.
     /// </summary>
@@ -78,4 +78,48 @@ public class ContentSearchQuery
     /// Gets or sets sort value.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the optional language filter used by CSV content pipeline.
+    /// </summary>
+    /// <remarks>
+    /// Accepts case-insensitive input and is normalized to uppercase to match CSV schema values.
+    /// Values: "All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW".
+    /// </remarks>
+    public string? Language
+    {
+        get => _language;
+        set => _language = NormalizeLanguage(value);
+    }
+
+    private static string? NormalizeLanguage(string? language)
+    {
+        // set default to "ALL" if not specified
+        // create switch for supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
+        switch (language?.Trim().ToUpper())
+        {
+            case "EN":
+                return "EN";
+            case "DE":
+                return "DE";
+            case "FR":
+                return "FR";
+            case "PL":
+                return "PL";
+            case "ES":
+                return "ES";
+            case "IT":
+                return "IT";
+            case "KO":
+                return "KO";
+            case "BR":
+                return "BR";
+
+            case "CN"or "ZH-CN"or "ZH":
+                return "CN";
+
+            default:
+                return "ALL";
+        }
+    }
 }
