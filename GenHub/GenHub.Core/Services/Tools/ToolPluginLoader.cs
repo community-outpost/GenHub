@@ -15,8 +15,6 @@ namespace GenHub.Core.Services.Tools;
 public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
 : IToolPluginLoader
 {
-    private readonly ILogger<ToolPluginLoader> _logger = logger;
-
     /// <inheritdoc/>
     public IToolPlugin? LoadPluginFromAssembly(string assemblyPath)
     {
@@ -24,7 +22,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
         {
             if (!File.Exists(assemblyPath))
             {
-                _logger?.LogWarning("Assembly file does not exist: {AssemblyPath}", assemblyPath);
+                logger.LogWarning("Assembly file does not exist: {AssemblyPath}", assemblyPath);
                 return null;
             }
 
@@ -32,12 +30,12 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
             var pluginDirectory = Path.GetDirectoryName(assemblyPath);
             if (string.IsNullOrEmpty(pluginDirectory))
             {
-                _logger?.LogWarning("Could not determine plugin directory for: {AssemblyPath}", assemblyPath);
+                logger.LogWarning("Could not determine plugin directory for: {AssemblyPath}", assemblyPath);
                 return null;
             }
 
             // Set up assembly resolution to load dependencies from the plugin directory
-            ResolveEventHandler? resolver = (sender, args) =>
+            ResolveEventHandler resolver = (sender, args) =>
             {
                 var assemblyName = new AssemblyName(args.Name);
 
@@ -47,7 +45,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
 
                 if (loadedAssembly != null)
                 {
-                    _logger?.LogDebug("Using already loaded assembly: {AssemblyName}", assemblyName.Name);
+                    logger.LogDebug("Using already loaded assembly: {AssemblyName}", assemblyName.Name);
                     return loadedAssembly;
                 }
 
@@ -56,7 +54,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
 
                 if (File.Exists(dependencyPath))
                 {
-                    _logger?.LogDebug("Resolving dependency: {DependencyName} from {DependencyPath}", assemblyName.Name, dependencyPath);
+                    logger.LogDebug("Resolving dependency: {DependencyName} from {DependencyPath}", assemblyName.Name, dependencyPath);
                     return Assembly.LoadFrom(dependencyPath);
                 }
 
@@ -75,7 +73,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
 
                 if (pluginType == null)
                 {
-                    _logger?.LogWarning("No IToolPlugin implementation found in assembly: {AssemblyPath}", assemblyPath);
+                    logger.LogWarning("No IToolPlugin implementation found in assembly: {AssemblyPath}", assemblyPath);
                     return null;
                 }
 
@@ -83,11 +81,11 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
 
                 if (plugin == null)
                 {
-                    _logger?.LogWarning("Failed to create instance of IToolPlugin from assembly: {AssemblyPath}", assemblyPath);
+                    logger.LogWarning("Failed to create instance of IToolPlugin from assembly: {AssemblyPath}", assemblyPath);
                     return null;
                 }
 
-                _logger?.LogInformation("Successfully loaded tool plugin: {PluginName} v{PluginVersion} from assembly: {AssemblyPath}", plugin.Metadata.Name, plugin.Metadata.Version, assemblyPath);
+                logger.LogInformation("Successfully loaded tool plugin: {PluginName} v{PluginVersion} from assembly: {AssemblyPath}", plugin.Metadata.Name, plugin.Metadata.Version, assemblyPath);
 
                 return plugin;
             }
@@ -99,7 +97,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error loading tool plugin from assembly: {AssemblyPath}", assemblyPath);
+            logger.LogError(ex, "Error loading tool plugin from assembly: {AssemblyPath}", assemblyPath);
             return null;
         }
     }
@@ -126,7 +124,7 @@ public class ToolPluginLoader(ILogger<ToolPluginLoader> logger)
         }
         catch
         {
-            _logger?.LogWarning("Validation failed for plugin assembly: {AssemblyPath}", assemblyPath);
+            logger.LogWarning("Validation failed for plugin assembly: {AssemblyPath}", assemblyPath);
             return false;
         }
     }
