@@ -30,7 +30,7 @@ public class ManifestCacheTests
     public void GetManifest_ReturnsNull_WhenManifestNotFound()
     {
         // Act
-        var result = _cache.GetManifest("1.0.test.publisher");
+        var result = _cache.GetManifest("1.0.genhub.mod.test");
 
         // Assert
         Assert.Null(result);
@@ -43,15 +43,15 @@ public class ManifestCacheTests
     public void AddOrUpdateManifest_AddsNewManifest_Successfully()
     {
         // Arrange
-        var manifest = new ContentManifest { Id = "1.0.test.publisher.content", Name = "Test Manifest" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Test Manifest" };
 
         // Act
         _cache.AddOrUpdateManifest(manifest);
-        var result = _cache.GetManifest("1.0.test.publisher.content");
+        var result = _cache.GetManifest("1.0.genhub.mod.content");
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.0.test.publisher.content", result.Id);
+        Assert.Equal("1.0.genhub.mod.content", result.Id);
         Assert.Equal("Test Manifest", result.Name);
     }
 
@@ -62,17 +62,17 @@ public class ManifestCacheTests
     public void AddOrUpdateManifest_UpdatesExistingManifest_Successfully()
     {
         // Arrange
-        var originalManifest = new ContentManifest { Id = "1.0.test.publisher.content", Name = "Original" };
-        var updatedManifest = new ContentManifest { Id = "1.0.test.publisher.content", Name = "Updated" };
+        var originalManifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Original" };
+        var updatedManifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Updated" };
 
         // Act
         _cache.AddOrUpdateManifest(originalManifest);
         _cache.AddOrUpdateManifest(updatedManifest);
-        var result = _cache.GetManifest("1.0.test.publisher.content");
+        var result = _cache.GetManifest("1.0.genhub.mod.content");
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("1.0.test.publisher.content", result.Id);
+        Assert.Equal("1.0.genhub.mod.content", result.Id);
         Assert.Equal("Updated", result.Name);
     }
 
@@ -83,8 +83,8 @@ public class ManifestCacheTests
     public void GetAllManifests_ReturnsAllCachedManifests()
     {
         // Arrange
-        var manifest1 = new ContentManifest { Id = "1.0.test.publisher.content1", Name = "Manifest 1" };
-        var manifest2 = new ContentManifest { Id = "1.0.test.publisher.content2", Name = "Manifest 2" };
+        var manifest1 = new ContentManifest { Id = "1.0.genhub.mod.content1", Name = "Manifest 1" };
+        var manifest2 = new ContentManifest { Id = "1.0.genhub.mod.content2", Name = "Manifest 2" };
 
         // Act
         _cache.AddOrUpdateManifest(manifest1);
@@ -93,8 +93,8 @@ public class ManifestCacheTests
 
         // Assert
         Assert.Equal(2, results.Count);
-        Assert.Contains(results, m => m.Id == "1.0.test.publisher.content1");
-        Assert.Contains(results, m => m.Id == "1.0.test.publisher.content2");
+        Assert.Contains(results, m => m.Id == "1.0.genhub.mod.content1");
+        Assert.Contains(results, m => m.Id == "1.0.genhub.mod.content2");
     }
 
     /// <summary>
