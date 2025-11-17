@@ -126,6 +126,28 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         }
     }
 
+    /// <inheritdoc/>
+    public void SetPaths(string? generalsPath, string? zeroHourPath)
+    {
+        if (!string.IsNullOrEmpty(generalsPath))
+        {
+            GeneralsPath = generalsPath;
+            HasGenerals = true;
+        }
+
+        if (!string.IsNullOrEmpty(zeroHourPath))
+        {
+            ZeroHourPath = zeroHourPath;
+            HasZeroHour = true;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void PopulateGameClients(IEnumerable<GameClient> clients)
+    {
+        AvailableGameClients.AddRange(clients);
+    }
+
     private bool TryLutris(string installationPath, out string lutrisVersion)
     {
         lutrisVersion = string.Empty;
@@ -195,27 +217,5 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
 
         directory = gameListFiltered.Directory;
         return true;
-    }
-
-    /// <inheritdoc/>
-    public void SetPaths(string? generalsPath, string? zeroHourPath)
-    {
-        if (!string.IsNullOrEmpty(generalsPath))
-        {
-            GeneralsPath = generalsPath;
-            HasGenerals = true;
-        }
-
-        if (!string.IsNullOrEmpty(zeroHourPath))
-        {
-            ZeroHourPath = zeroHourPath;
-            HasZeroHour = true;
-        }
-    }
-
-    /// <inheritdoc/>
-    public void PopulateGameClients(IEnumerable<GameClient> clients)
-    {
-        AvailableGameClients.AddRange(clients);
     }
 }
