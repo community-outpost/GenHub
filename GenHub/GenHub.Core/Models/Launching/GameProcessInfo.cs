@@ -1,5 +1,3 @@
-using System;
-
 namespace GenHub.Core.Models.Launching;
 
 /// <summary>Information about a running game process.</summary>

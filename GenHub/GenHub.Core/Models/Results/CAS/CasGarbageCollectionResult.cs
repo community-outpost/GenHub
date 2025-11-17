@@ -13,7 +13,7 @@ public class CasGarbageCollectionResult : ResultBase
     /// <param name="elapsed">Time taken for the operation.</param>
     public CasGarbageCollectionResult(bool success, IEnumerable<string>? errors = null, TimeSpan elapsed = default)
         : base(success, errors, elapsed)
-{
+    {
     }
 
     /// <summary>

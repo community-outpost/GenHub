@@ -1,6 +1,5 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

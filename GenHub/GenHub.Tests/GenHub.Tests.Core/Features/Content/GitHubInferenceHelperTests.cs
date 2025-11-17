@@ -1,7 +1,6 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Features.Content.Services.Helpers;
-using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content;

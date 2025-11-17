@@ -4,7 +4,6 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Services.Tools;
 using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;

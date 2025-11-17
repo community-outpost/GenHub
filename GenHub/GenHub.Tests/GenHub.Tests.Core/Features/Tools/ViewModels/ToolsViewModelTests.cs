@@ -4,7 +4,6 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Tests.Core.Features.Tools.Mocks;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 

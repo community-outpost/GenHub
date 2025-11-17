@@ -1,7 +1,6 @@
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 

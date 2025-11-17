@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-using Xunit;
 
 namespace GenHub.Tests.Features.Validation;
 

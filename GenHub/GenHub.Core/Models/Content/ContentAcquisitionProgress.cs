@@ -1,6 +1,3 @@
-using System;
-using GenHub.Core.Models.Manifest;
-
 namespace GenHub.Core.Models.Content;
 
 /// <summary>

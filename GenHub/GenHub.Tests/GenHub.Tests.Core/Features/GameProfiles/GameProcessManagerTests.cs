@@ -1,14 +1,8 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Launching;
-using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
 
@@ -354,6 +348,6 @@ public class GameProcessManagerTests
         finally
         {
             File.Delete(tempExe);
+        }
     }
-}
 }

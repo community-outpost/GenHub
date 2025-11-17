@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace GenHub.Core.Models.GitHub;
 
 /// <summary>

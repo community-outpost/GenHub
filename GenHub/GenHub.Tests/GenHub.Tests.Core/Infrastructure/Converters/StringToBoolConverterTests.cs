@@ -1,5 +1,5 @@
-using GenHub.Infrastructure.Converters;
 using System.Globalization;
+using GenHub.Infrastructure.Converters;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

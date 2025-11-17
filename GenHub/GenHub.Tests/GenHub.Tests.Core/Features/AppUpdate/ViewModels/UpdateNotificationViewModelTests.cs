@@ -4,9 +4,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.ViewModels;
 

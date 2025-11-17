@@ -1,4 +1,3 @@
-using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 

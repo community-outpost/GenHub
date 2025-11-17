@@ -1,5 +1,4 @@
 using GenHub.Core.Models.GameProfile;
-using Xunit;
 
 namespace GenHub.Tests.Core.Models.GameProfile
 {

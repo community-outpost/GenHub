@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
 /// <summary>

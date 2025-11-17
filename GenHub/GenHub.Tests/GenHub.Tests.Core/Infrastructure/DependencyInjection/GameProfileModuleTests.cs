@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -10,7 +8,6 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection
 {

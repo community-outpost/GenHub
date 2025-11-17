@@ -1,9 +1,7 @@
-using System;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
-using Xunit;
 
 namespace GenHub.Tests.Core.Models.Manifest;
 

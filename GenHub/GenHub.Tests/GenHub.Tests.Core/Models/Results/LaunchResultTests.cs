@@ -1,6 +1,4 @@
-using System;
 using GenHub.Core.Models.Results;
-using Xunit;
 
 namespace GenHub.Tests.Core.Models.Results;
 

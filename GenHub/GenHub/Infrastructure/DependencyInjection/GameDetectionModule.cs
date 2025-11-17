@@ -1,10 +1,10 @@
+using System.Collections.Generic;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Features.GameClients;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

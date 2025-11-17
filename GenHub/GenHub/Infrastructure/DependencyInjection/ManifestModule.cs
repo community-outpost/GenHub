@@ -2,7 +2,6 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

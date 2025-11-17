@@ -1,7 +1,5 @@
-using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Models.Manifest;
 

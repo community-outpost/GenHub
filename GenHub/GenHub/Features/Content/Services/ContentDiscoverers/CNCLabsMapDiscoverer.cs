@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using AngleSharp;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
@@ -7,12 +13,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 

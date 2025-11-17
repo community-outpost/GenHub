@@ -4,7 +4,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
-using GenHub.Features.Content.Services.ContentResolvers;
 using Microsoft.Extensions.Logging;
 using Moq;
 

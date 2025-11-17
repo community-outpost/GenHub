@@ -1,6 +1,5 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using Xunit;
 
 namespace GenHub.Tests.Core.Models.GameProfile
 {

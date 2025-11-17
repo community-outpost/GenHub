@@ -1,7 +1,6 @@
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Features.GameProfiles.ViewModels;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.ViewModels;
 

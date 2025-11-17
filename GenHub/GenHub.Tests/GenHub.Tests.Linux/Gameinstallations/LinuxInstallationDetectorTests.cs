@@ -1,8 +1,5 @@
-using System.Threading.Tasks;
 using GenHub.Linux.GameInstallations;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
 
 namespace GenHub.Tests.Linux.Gameinstallations;
 

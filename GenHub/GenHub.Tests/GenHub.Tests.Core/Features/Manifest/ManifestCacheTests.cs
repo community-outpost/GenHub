@@ -1,7 +1,5 @@
-using System.Linq;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Manifest;
 

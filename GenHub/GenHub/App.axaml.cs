@@ -1,13 +1,12 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels;
 using GenHub.Common.Views;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
 
 namespace GenHub;
 

@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.IO.Compression;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.AppUpdate;
@@ -13,7 +8,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 

@@ -1,5 +1,4 @@
 using GenHub.Infrastructure.Converters;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

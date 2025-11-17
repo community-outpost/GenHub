@@ -1,6 +1,5 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
-using Xunit;
 
 namespace GenHub.Tests.Core.Constants;
 

@@ -1,5 +1,4 @@
 using System;
-using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;

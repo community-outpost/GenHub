@@ -1,5 +1,3 @@
-using System;
-
 namespace GenHub.Core.Models.GitHub;
 
 /// <summary>

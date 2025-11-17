@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
@@ -142,19 +141,19 @@ public class FileSystemDiscoverer : IContentDiscoverer
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
             !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
             !manifest.Id.Value.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+        {
+            return false;
+        }
 
         if (query.ContentType.HasValue && manifest.ContentType != query.ContentType.Value)
-            {
-                return false;
-            }
+        {
+            return false;
+        }
 
         if (query.TargetGame.HasValue && manifest.TargetGame != query.TargetGame.Value)
-            {
-                return false;
-            }
+        {
+            return false;
+        }
 
         return true;
     }

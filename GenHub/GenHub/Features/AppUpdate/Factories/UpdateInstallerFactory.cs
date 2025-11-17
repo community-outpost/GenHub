@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
 using GenHub.Core.Interfaces.AppUpdate;
-using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

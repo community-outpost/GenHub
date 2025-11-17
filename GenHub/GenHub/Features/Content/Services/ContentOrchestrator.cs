@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -6,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;

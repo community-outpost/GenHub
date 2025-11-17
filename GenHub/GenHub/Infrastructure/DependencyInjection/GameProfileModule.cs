@@ -1,9 +1,7 @@
 using System;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Features.GameInstallations;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.DependencyInjection;

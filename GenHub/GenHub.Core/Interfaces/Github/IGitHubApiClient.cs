@@ -1,5 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Models.GitHub;
 
 namespace GenHub.Core.Interfaces.GitHub;

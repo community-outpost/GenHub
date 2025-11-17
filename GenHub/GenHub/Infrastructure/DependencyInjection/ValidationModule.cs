@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Validation;
 using GenHub.Core.Models.GameClients;
@@ -6,7 +7,6 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

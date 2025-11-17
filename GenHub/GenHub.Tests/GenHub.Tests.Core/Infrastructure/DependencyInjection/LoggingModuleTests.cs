@@ -1,10 +1,8 @@
-using System.Collections.Generic;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 

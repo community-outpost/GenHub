@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
 using FluentAssertions;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Octokit;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 

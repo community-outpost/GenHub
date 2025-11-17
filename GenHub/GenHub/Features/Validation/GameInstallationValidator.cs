@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -5,11 +10,6 @@ using GenHub.Core.Interfaces.Validation;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Validation;

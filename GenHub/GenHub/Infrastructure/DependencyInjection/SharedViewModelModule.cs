@@ -1,9 +1,7 @@
 using System;
 using GenHub.Common.ViewModels;
-using GenHub.Core;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Features.Downloads.ViewModels;
-using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
