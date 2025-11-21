@@ -76,7 +76,6 @@ public class ContentSearchQuery
     /// Gets or sets sort value.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
-<<<<<<< HEAD
 
     /// <summary>
     /// Gets or sets the optional language filter used by CSV content pipeline.
@@ -119,6 +118,3 @@ public class ContentSearchQuery
         return LanguageMap.TryGetValue(key, out var normalized) ? normalized : "ALL";
     }
 }
-=======
-}
->>>>>>> c0aa3084835553ac67b09056bbfc67cddf8f907b
