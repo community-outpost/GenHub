@@ -1,19 +1,17 @@
-using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using GenHub.Features.Manifest;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.Manifest;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDeliverers;
 

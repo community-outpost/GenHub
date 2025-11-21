@@ -1,3 +1,7 @@
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Results;
@@ -5,10 +9,6 @@ using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 

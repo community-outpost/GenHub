@@ -6,9 +6,7 @@ using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 

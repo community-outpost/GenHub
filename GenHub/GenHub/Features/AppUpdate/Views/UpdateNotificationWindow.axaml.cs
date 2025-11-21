@@ -1,14 +1,10 @@
-using Avalonia;
+using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Diagnostics;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub;
 using GenHub.Features.AppUpdate.ViewModels;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
 

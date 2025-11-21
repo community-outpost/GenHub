@@ -1,5 +1,4 @@
 using GenHub.Core.Models.Enums;
-using Xunit;
 
 namespace GenHub.Tests.Core.Common.Models;
 
@@ -15,7 +14,7 @@ public class NavigationTabTests
     public void NavigationTab_AllValuesAreDefined()
     {
         var values = Enum.GetValues<NavigationTab>();
-        Assert.Equal(4, values.Length);
+        Assert.Equal(5, values.Length);
         Assert.Contains(NavigationTab.Home, values);
         Assert.Contains(NavigationTab.GameProfiles, values);
         Assert.Contains(NavigationTab.Downloads, values);

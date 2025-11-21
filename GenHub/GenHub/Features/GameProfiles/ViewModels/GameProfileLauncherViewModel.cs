@@ -1,11 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.GameInstallations;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 

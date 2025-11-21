@@ -68,7 +68,7 @@ public class GameSettingsServiceTests
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
-        var tempDir = Path.GetDirectoryName(tempFile) !;
+        var tempDir = Path.GetDirectoryName(tempFile)!;
         var optionsPath = Path.Combine(tempDir, "Options.ini");
         File.Move(tempFile, optionsPath);
 

@@ -1,5 +1,3 @@
-using System;
-
 namespace GenHub.Core.Models.Results;
 
 /// <summary>Result of a file download operation.</summary>

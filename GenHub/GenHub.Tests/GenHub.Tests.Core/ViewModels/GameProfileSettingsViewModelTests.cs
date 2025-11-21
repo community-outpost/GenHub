@@ -1,5 +1,4 @@
 using GenHub.Features.GameProfiles.ViewModels;
-using Xunit;
 
 namespace GenHub.Tests.Core.ViewModels;
 

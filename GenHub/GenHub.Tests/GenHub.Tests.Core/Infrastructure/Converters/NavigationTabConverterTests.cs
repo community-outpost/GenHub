@@ -1,6 +1,5 @@
 using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
-using Xunit;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 
@@ -54,7 +53,8 @@ public class NavigationTabConverterTests
     [InlineData(0, NavigationTab.Home)]
     [InlineData(1, NavigationTab.GameProfiles)]
     [InlineData(2, NavigationTab.Downloads)]
-    [InlineData(3, NavigationTab.Settings)]
+    [InlineData(3, NavigationTab.Tools)]
+    [InlineData(4, NavigationTab.Settings)]
     public void ConvertBack_WithValidIndex_ReturnsTab(int value, NavigationTab expected)
     {
         var result = NavigationTabConverter.Instance.ConvertBack(value, typeof(NavigationTab), null, null);

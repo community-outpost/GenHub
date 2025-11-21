@@ -1,8 +1,6 @@
-using GenHub;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.App;
 
@@ -19,7 +17,7 @@ public class AppLifecycleTests
     {
         // Act & Assert
         var ex = Assert.ThrowsAny<System.Reflection.TargetInvocationException>(() =>
-            Activator.CreateInstance(Type.GetType("GenHub.App, GenHub") !, new object?[] { null! }));
+            Activator.CreateInstance(Type.GetType("GenHub.App, GenHub")!, new object?[] { null! }));
         Assert.IsType<ArgumentNullException>(ex.InnerException);
     }
 
@@ -35,7 +33,7 @@ public class AppLifecycleTests
 
         // Act & Assert
         var ex = Assert.ThrowsAny<System.Reflection.TargetInvocationException>(() =>
-            Activator.CreateInstance(Type.GetType("GenHub.App, GenHub") !, serviceProvider));
+            Activator.CreateInstance(Type.GetType("GenHub.App, GenHub")!, serviceProvider));
         Assert.IsType<InvalidOperationException>(ex.InnerException);
     }
 
@@ -56,7 +54,7 @@ public class AppLifecycleTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Act & Assert
-        var appType = Type.GetType("GenHub.App, GenHub") !;
+        var appType = Type.GetType("GenHub.App, GenHub")!;
         var app = Activator.CreateInstance(appType, serviceProvider);
         Assert.NotNull(app);
     }

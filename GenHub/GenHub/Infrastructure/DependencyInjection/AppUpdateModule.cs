@@ -7,7 +7,6 @@ using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Octokit;
-using System.Runtime.InteropServices;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

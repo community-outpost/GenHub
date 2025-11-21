@@ -49,6 +49,11 @@ public interface IGameInstallation
     List<GameClient> AvailableGameClients { get; }
 
     /// <summary>
+    /// Fetch the game installations.
+    /// </summary>
+    void Fetch();
+
+    /// <summary>
     /// Sets the paths for Generals and Zero Hour.
     /// </summary>
     /// <param name="generalsPath">The path to Generals, or null if not present.</param>
@@ -60,9 +65,4 @@ public interface IGameInstallation
     /// </summary>
     /// <param name="clients">The clients to add.</param>
     void PopulateGameClients(IEnumerable<GameClient> clients);
-
-    /// <summary>
-    /// Fetch the game installations.
-    /// </summary>
-    void Fetch();
 }

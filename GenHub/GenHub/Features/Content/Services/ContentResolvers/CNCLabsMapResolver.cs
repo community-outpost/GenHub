@@ -1,13 +1,12 @@
-using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -43,43 +42,43 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
         }
 
         try
+        {
+            var response = await _httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
+            var mapDetails = ParseMapDetailPage(response);
+
+            if (string.IsNullOrEmpty(mapDetails.downloadUrl))
             {
-                var response = await _httpClient.GetStringAsync(discoveredItem.SourceUrl, cancellationToken);
-                var mapDetails = ParseMapDetailPage(response);
-
-                if (string.IsNullOrEmpty(mapDetails.downloadUrl))
-                {
-                    return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
-                }
-
-                var manifestVersionInt = int.TryParse(mapDetails.version, out var parsedVersion) ? parsedVersion : 0;
-                var manifest = _manifestBuilder
-                    .WithBasicInfo(discoveredItem.Id, mapDetails.name, manifestVersionInt)
-                    .WithContentType(ContentType.MapPack, GameType.ZeroHour)
-                    .WithPublisher(mapDetails.author)
-                    .WithMetadata(
-                        mapDetails.description,
-                        tags: new List<string> { "Map", "CNC Labs", "Community" },
-                        iconUrl: mapDetails.previewImage,
-                        screenshotUrls: mapDetails.ScreenshotUrls);
-
-                // Add the map file
-                await manifest.AddRemoteFileAsync(
-                    Path.GetFileName(mapDetails.downloadUrl),
-                    mapDetails.downloadUrl,
-                    ContentSourceType.RemoteDownload);
-
-                // Add required directories for maps
-                manifest.AddRequiredDirectories("Maps");
-
-                return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
+                return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
-                return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
-            }
+
+            var manifestVersionInt = int.TryParse(mapDetails.version, out var parsedVersion) ? parsedVersion : 0;
+            var manifest = _manifestBuilder
+                .WithBasicInfo(discoveredItem.Id, mapDetails.name, manifestVersionInt)
+                .WithContentType(ContentType.MapPack, GameType.ZeroHour)
+                .WithPublisher(mapDetails.author)
+                .WithMetadata(
+                    mapDetails.description,
+                    tags: new List<string> { "Map", "CNC Labs", "Community" },
+                    iconUrl: mapDetails.previewImage,
+                    screenshotUrls: mapDetails.ScreenshotUrls);
+
+            // Add the map file
+            await manifest.AddRemoteFileAsync(
+                Path.GetFileName(mapDetails.downloadUrl),
+                mapDetails.downloadUrl,
+                ContentSourceType.RemoteDownload);
+
+            // Add required directories for maps
+            manifest.AddRequiredDirectories("Maps");
+
+            return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to resolve map details from {Url}", discoveredItem.SourceUrl);
+            return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
+        }
+    }
 
     /// <summary>
     /// Parses the HTML detail page for a CNC Labs map and extracts map details.

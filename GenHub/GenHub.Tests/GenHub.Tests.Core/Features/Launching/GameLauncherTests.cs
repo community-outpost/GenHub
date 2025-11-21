@@ -16,7 +16,6 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Launching;
 

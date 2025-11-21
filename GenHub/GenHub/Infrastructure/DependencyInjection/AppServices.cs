@@ -1,5 +1,4 @@
 using System;
-using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -37,6 +36,9 @@ public static class AppServices
         // Register GameProfile services (depends on above services)
         services.AddGameProfileServices();
         services.AddLaunchingServices();
+
+        // Register Tools services
+        services.AddToolsServices();
 
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();

@@ -1,18 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -190,7 +182,7 @@ public class StrategyTests : IDisposable
         // Arrange
         var strategy = CreateStrategy(strategyType);
         var config = CreateValidConfiguration(strategyType);
-        config.Manifests = [ new()];
+        config.Manifests = [new()];
 
         // Act & Assert
         var estimate = strategy.EstimateDiskUsage(config);

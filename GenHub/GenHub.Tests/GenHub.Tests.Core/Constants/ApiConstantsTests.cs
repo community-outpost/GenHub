@@ -1,5 +1,4 @@
 using GenHub.Core.Constants;
-using Xunit;
 
 namespace GenHub.Tests.Core.Constants;
 

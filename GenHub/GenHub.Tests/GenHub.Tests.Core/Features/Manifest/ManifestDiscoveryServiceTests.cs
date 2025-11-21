@@ -1,12 +1,9 @@
-using System.Collections.Generic;
-using System.Linq;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Features.Manifest;

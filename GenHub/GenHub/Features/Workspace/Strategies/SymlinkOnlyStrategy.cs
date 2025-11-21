@@ -19,7 +19,7 @@ public sealed class SymlinkOnlyStrategy(
     IFileOperationsService fileOperations,
     ILogger<SymlinkOnlyStrategy> logger)
     : WorkspaceStrategyBase<SymlinkOnlyStrategy>(fileOperations, logger)
-    {
+{
     private const long LinkOverheadBytes = 1024L;
 
     /// <inheritdoc/>

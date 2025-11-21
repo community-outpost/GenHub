@@ -1,9 +1,3 @@
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Storage;
-using GenHub.Features.Workspace;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +5,12 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Storage;
+using GenHub.Features.Workspace;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace GenHub.Features.Storage.Services;
 

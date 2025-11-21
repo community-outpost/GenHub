@@ -1,3 +1,7 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,16 +10,12 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace GenHub.Common.ViewModels;
 
@@ -38,6 +38,7 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     /// <param name="gameProfilesViewModel">Game profiles view model.</param>
     /// <param name="downloadsViewModel">Downloads view model.</param>
+    /// <param name="toolsViewModel">Tools view model.</param>
     /// <param name="settingsViewModel">Settings view model.</param>
     /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
     /// <param name="configurationProvider">Configuration provider service.</param>
@@ -47,6 +48,7 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
         DownloadsViewModel downloadsViewModel,
+        ToolsViewModel toolsViewModel,
         SettingsViewModel settingsViewModel,
         IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
         IConfigurationProviderService configurationProvider,
@@ -56,6 +58,7 @@ public partial class MainViewModel : ObservableObject
     {
         GameProfilesViewModel = gameProfilesViewModel;
         DownloadsViewModel = downloadsViewModel;
+        ToolsViewModel = toolsViewModel;
         SettingsViewModel = settingsViewModel;
         _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
         _configurationProvider = configurationProvider;
@@ -94,6 +97,11 @@ public partial class MainViewModel : ObservableObject
     public DownloadsViewModel DownloadsViewModel { get; }
 
     /// <summary>
+    /// Gets the tools view model.
+    /// </summary>
+    public ToolsViewModel ToolsViewModel { get; }
+
+    /// <summary>
     /// Gets the settings view model.
     /// </summary>
     public SettingsViewModel SettingsViewModel { get; }
@@ -110,6 +118,7 @@ public partial class MainViewModel : ObservableObject
     {
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
+        NavigationTab.Tools,
         NavigationTab.Settings,
     };
 
@@ -120,6 +129,7 @@ public partial class MainViewModel : ObservableObject
     {
         NavigationTab.GameProfiles => GameProfilesViewModel,
         NavigationTab.Downloads => DownloadsViewModel,
+        NavigationTab.Tools => ToolsViewModel,
         NavigationTab.Settings => SettingsViewModel,
         _ => GameProfilesViewModel,
     };
@@ -133,6 +143,7 @@ public partial class MainViewModel : ObservableObject
     {
         NavigationTab.GameProfiles => "Game Profiles",
         NavigationTab.Downloads => "Downloads",
+        NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
         _ => tab.ToString(),
     };
@@ -145,6 +156,7 @@ public partial class MainViewModel : ObservableObject
     {
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
+        await ToolsViewModel.InitializeAsync();
         _logger?.LogInformation("MainViewModel initialized");
         await Task.CompletedTask;
     }

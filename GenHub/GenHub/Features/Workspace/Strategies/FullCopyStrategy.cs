@@ -132,16 +132,16 @@ public sealed class FullCopyStrategy(
 
                             await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
 
-                        // Verify file integrity if hash is provided
+                            // Verify file integrity if hash is provided
                             if (!string.IsNullOrEmpty(file.Hash))
-                        {
-                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                            if (!hashValid)
                             {
-                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                                if (!hashValid)
+                                {
+                                    Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                                }
                             }
                         }
-                    }
 
                         totalBytesProcessed += file.Size;
                     }

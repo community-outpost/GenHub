@@ -2,11 +2,13 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
+using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -26,6 +28,7 @@ public class MainViewModelTests
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
@@ -34,6 +37,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            toolsVm,
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -53,11 +57,13 @@ public class MainViewModelTests
     [Theory]
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
+    [InlineData(NavigationTab.Tools)]
     [InlineData(NavigationTab.Settings)]
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
@@ -65,6 +71,7 @@ public class MainViewModelTests
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            toolsVm,
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -86,12 +93,14 @@ public class MainViewModelTests
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            toolsVm,
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -114,12 +123,14 @@ public class MainViewModelTests
         // Arrange
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            toolsVm,
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -140,17 +151,20 @@ public class MainViewModelTests
     [Theory]
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
+    [InlineData(NavigationTab.Tools)]
     [InlineData(NavigationTab.Settings)]
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
         var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
             new DownloadsViewModel(),
+            toolsVm,
             settingsVm,
             mockOrchestrator.Object,
             configProvider,
@@ -171,6 +185,9 @@ public class MainViewModelTests
             case NavigationTab.Downloads:
                 Assert.IsType<DownloadsViewModel>(currentViewModel);
                 break;
+            case NavigationTab.Tools:
+                Assert.IsType<ToolsViewModel>(currentViewModel);
+                break;
             case NavigationTab.Settings:
                 Assert.IsType<SettingsViewModel>(currentViewModel);
                 break;
@@ -178,6 +195,17 @@ public class MainViewModelTests
     }
 
     // Helpers must be placed after public members to satisfy StyleCop ordering rules.
+
+    /// <summary>
+    /// Creates a default ToolsViewModel with mocked services for reuse.
+    /// </summary>
+    private static ToolsViewModel CreateToolsVm()
+    {
+        var mockToolService = new Mock<IToolManager>();
+        var mockLogger = new Mock<ILogger<ToolsViewModel>>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        return new ToolsViewModel(mockToolService.Object, mockLogger.Object, mockServiceProvider.Object);
+    }
 
     /// <summary>
     /// Creates a default SettingsViewModel with mocked services for reuse.

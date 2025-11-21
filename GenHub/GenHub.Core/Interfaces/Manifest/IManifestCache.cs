@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Interfaces.Manifest;

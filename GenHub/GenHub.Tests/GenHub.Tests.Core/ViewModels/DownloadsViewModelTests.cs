@@ -1,6 +1,4 @@
 using GenHub.Features.Downloads.ViewModels;
-using Xunit;
-using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.ViewModels;
 

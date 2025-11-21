@@ -1,7 +1,6 @@
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Models.Manifest;

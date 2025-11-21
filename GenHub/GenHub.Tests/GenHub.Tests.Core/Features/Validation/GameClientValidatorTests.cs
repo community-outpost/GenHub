@@ -9,7 +9,6 @@ using GenHub.Core.Models.Validation;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Features.Validation;
 

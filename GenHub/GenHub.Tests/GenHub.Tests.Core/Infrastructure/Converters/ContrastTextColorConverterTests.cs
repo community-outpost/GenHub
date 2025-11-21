@@ -1,6 +1,6 @@
+using System.Globalization;
 using Avalonia.Media;
 using GenHub.Infrastructure.Converters;
-using System.Globalization;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

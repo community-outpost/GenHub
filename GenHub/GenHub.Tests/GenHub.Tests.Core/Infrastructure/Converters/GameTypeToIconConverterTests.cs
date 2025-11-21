@@ -1,7 +1,7 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Infrastructure.Converters;
-using System.Globalization;
 
 namespace GenHub.Tests.Core.Infrastructure.Converters;
 

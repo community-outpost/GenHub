@@ -1,4 +1,3 @@
-using System;
 using GenHub.Core.Models.Launching;
 
 namespace GenHub.Core.Models.GameProfile;
