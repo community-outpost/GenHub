@@ -92,34 +92,31 @@ public class ContentSearchQuery
         set => _language = NormalizeLanguage(value);
     }
 
+    private static readonly Dictionary<string, string> LanguageMap =
+    new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["EN"] = "EN",
+        ["DE"] = "DE",
+        ["FR"] = "FR",
+        ["PL"] = "PL",
+        ["ES"] = "ES",
+        ["IT"] = "IT",
+        ["KO"] = "KO",
+        ["BR"] = "BR",
+        ["CN"] = "CN",
+        ["ZH"] = "CN",
+        ["ZH-CN"] = "CN",
+    };
+
     private static string? NormalizeLanguage(string? language)
     {
         // set default to "ALL" if not specified
-        // create switch for supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
-        switch (language?.Trim().ToUpper())
-        {
-            case "EN":
-                return "EN";
-            case "DE":
-                return "DE";
-            case "FR":
-                return "FR";
-            case "PL":
-                return "PL";
-            case "ES":
-                return "ES";
-            case "IT":
-                return "IT";
-            case "KO":
-                return "KO";
-            case "BR":
-                return "BR";
+        // supported languages Brazilian Chinese English French German Italian Korean Polish Spanish
+        if (string.IsNullOrWhiteSpace(language))
+            return "ALL";
 
-            case "CN"or "ZH-CN"or "ZH":
-                return "CN";
+        var key = language.Trim().ToUpperInvariant();
 
-            default:
-                return "ALL";
-        }
+        return LanguageMap.TryGetValue(key, out var normalized) ? normalized : "ALL";
     }
 }
