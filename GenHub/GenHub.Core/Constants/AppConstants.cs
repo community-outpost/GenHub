@@ -26,4 +26,9 @@ public static class AppConstants
     /// The default theme name as a string.
     /// </summary>
     public const string DefaultThemeName = "Dark";
+
+    /// <summary>
+    /// The default GitHub token file name.
+    /// </summary>
+    public const string TokenFileName = ".ghtoken";
 }
