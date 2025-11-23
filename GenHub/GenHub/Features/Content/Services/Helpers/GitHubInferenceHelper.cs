@@ -88,12 +88,12 @@ public static class GitHubInferenceHelper
             tags.Add("Campaign");
         }
 
-        if (release.Prerelease)
+        if (release.IsPrerelease)
         {
             tags.Add("Prerelease");
         }
 
-        if (release.Draft)
+        if (release.IsDraft)
         {
             tags.Add("Draft");
         }

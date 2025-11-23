@@ -62,8 +62,8 @@ public class GitHubInferenceHelperTests
         {
             Name = "Patch and Fix",
             Body = "Includes mod and map updates",
-            Prerelease = true,
-            Draft = false,
+            IsPrerelease = true,
+            IsDraft = false,
         };
 
         // Act

@@ -38,12 +38,12 @@ public class GitHubRelease
     /// <summary>
     /// Gets or sets a value indicating whether this is a prerelease.
     /// </summary>
-    public bool Prerelease { get; set; }
+    public bool IsPrerelease { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether this is a draft.
     /// </summary>
-    public bool Draft { get; set; }
+    public bool IsDraft { get; set; }
 
     /// <summary>
     /// Gets or sets the release creation date.
