@@ -14,6 +14,8 @@ This section contains detailed flowcharts that illustrate how GenHub's various s
 - **[Content Resolution Flow](./Resolution-Flow.md)** - Converting discovered content into installable manifests
 - **[Content Acquisition Flow](./Acquisition-Flow.md)** - Downloading and preparing content packages
 - **[Workspace Assembly Flow](./Assembly-Flow.md)** - Building isolated game workspaces
+- **[GitHub Manager Flow](./GitHub-Manager-Flow.md)** - Complete GitHub content discovery and installation workflow
+- **[GitHub Content Pipeline Flow](./GitHub-Content-Pipeline-Flow.md)** - Detailed three-tier pipeline for GitHub content
 - **[Complete User Flow](./Complete-User-Flow.md)** - End-to-end user experience example
 
 ## Understanding the Diagrams
