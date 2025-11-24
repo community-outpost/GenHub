@@ -166,3 +166,7 @@ _NCrunch*
 **/.idea/**/*.iml
 **/.idea/**/contentModel.xml
 **/.idea/**/modules.xml
+
+# Velopack releases
+/releases/
+/Releases/

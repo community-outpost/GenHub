@@ -75,6 +75,13 @@ public static class ContentPipelineModule
         // Register cache
         services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();
 
+        // Register Octokit GitHub client
+        services.AddSingleton<Octokit.IGitHubClient>(sp =>
+        {
+            var client = new Octokit.GitHubClient(new Octokit.ProductHeaderValue("GenHub"));
+            return client;
+        });
+
         // Register GitHub API client
         services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
     }

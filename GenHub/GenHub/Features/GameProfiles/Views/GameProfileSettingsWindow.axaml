@@ -15,12 +15,19 @@
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="#141414"
-        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
-
-    <Window.Resources>
-        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
-    </Window.Resources>
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">    <Window.Resources>
+        <!-- Keep existing converters -->
+        <conv:ContrastTextColorConverter x:Key="ProfileSettings_ContrastTextColorConverter" />
+        <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:NotNullConverter x:Key="NotNullConverter" />
+        <conv:NotNullOrEmptyConverter x:Key="NotNullOrEmptyConverter" />
+        <conv:NullSafePropertyConverter x:Key="NullSafeConverter" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+        </Window.Resources>
 
     <Window.Styles>
         <!-- Form field style -->

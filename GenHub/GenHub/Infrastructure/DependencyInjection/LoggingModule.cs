@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,11 +19,14 @@ public static class LoggingModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddLoggingModule(this IServiceCollection services)
     {
+        var logPath = GetLogFilePath();
+
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.AddConsole();
             builder.AddDebug();
+            builder.AddFile(logPath, LogLevel.Information);
         });
 
         services.AddSingleton<IConfigureOptions<LoggerFilterOptions>>(serviceProvider =>
@@ -39,11 +44,25 @@ public static class LoggingModule
     /// Creates a bootstrap logger factory for early logging.
     /// </summary>
     /// <returns>An <see cref="ILoggerFactory"/> instance.</returns>
-    public static ILoggerFactory CreateBootstrapLoggerFactory() =>
-        LoggerFactory.Create(builder =>
+    public static ILoggerFactory CreateBootstrapLoggerFactory()
+    {
+        var logPath = GetLogFilePath();
+
+        return LoggerFactory.Create(builder =>
         {
             builder.AddConsole();
             builder.AddDebug();
+            builder.AddFile(logPath, LogLevel.Debug);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
+    }
+
+    private static string GetLogFilePath()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var logDir = Path.Combine(appData, "GenHub", "logs");
+        Directory.CreateDirectory(logDir);
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
+        return Path.Combine(logDir, $"genhub-{timestamp}.log");
+    }
 }

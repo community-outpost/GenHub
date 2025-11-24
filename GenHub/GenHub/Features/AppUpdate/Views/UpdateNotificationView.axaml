@@ -4,8 +4,8 @@
     x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
     x:DataType="vm:UpdateNotificationViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="20">
-        <!-- Header section -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
+        <!-- Header section with version -->
         <Border Grid.Row="0"
             Padding="20"
             Margin="0,0,0,16"
@@ -13,32 +13,21 @@
             CornerRadius="8">
             <Grid ColumnDefinitions="*,Auto">
                 <Grid Grid.Column="0" ColumnDefinitions="Auto,*">
-                    <!-- Version icon -->
                     <Border Grid.Column="0"
                         Background="#3399FF"
                         CornerRadius="8"
                         Width="40" Height="40"
                         Margin="0,0,16,0"
                         VerticalAlignment="Center">
-                        <Viewbox Width="20" Height="20"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                            <Path
-                                Data="M9,12L11,14L15,10L13.5,8.5L11,11L9.5,9.5L9,12M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"
-                                Fill="White"
-                                Stretch="Uniform" />
+                        <Viewbox Width="20" Height="20">
+                            <Path Data="M9,12L11,14L15,10L13.5,8.5L11,11L9.5,9.5L9,12M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"
+                                Fill="White" Stretch="Uniform" />
                         </Viewbox>
                     </Border>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Current Version"
-                            Foreground="#90FFFFFF"
-                            FontSize="14"
-                            Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding CurrentAppVersion, FallbackValue=1.0.0}"
-                            FontWeight="SemiBold"
-                            FontSize="22"
-                            Foreground="White" />
+                        <TextBlock Text="Current Version" Foreground="#90FFFFFF" FontSize="14" Margin="0,0,0,4" />
+                        <TextBlock Text="{Binding CurrentAppVersion, FallbackValue=1.0.0}" FontWeight="SemiBold" FontSize="22" Foreground="White" />
                     </StackPanel>
                 </Grid>
 
@@ -52,17 +41,11 @@
                     CornerRadius="8"
                     BorderThickness="0">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Viewbox Width="16" Height="16"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Center">
-                            <Path
-                                Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
-                                Fill="White"
-                                Stretch="Uniform" />
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
+                                Fill="White" Stretch="Uniform" />
                         </Viewbox>
-                        <TextBlock Text="Check For Updates"
-                            VerticalAlignment="Center"
-                            FontWeight="Medium" />
+                        <TextBlock Text="Check For Updates" VerticalAlignment="Center" FontWeight="Medium" />
                     </StackPanel>
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
@@ -76,349 +59,180 @@
             </Grid>
         </Border>
 
-        <!-- Repository selection -->
-        <Border Grid.Row="1"
-            Padding="20"
-            Margin="0,0,0,16"
-            Background="#15FFFFFF"
-            CornerRadius="8">
-            <StackPanel Spacing="12">
-                <Grid ColumnDefinitions="Auto,*">
-                    <!-- Repository icon -->
-                    <Border Grid.Column="0"
-                        Background="#666"
-                        CornerRadius="6"
-                        Width="28" Height="28"
-                        Margin="0,0,12,0"
-                        VerticalAlignment="Center">
-                        <Viewbox Width="16" Height="16"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                            <Path
-                                Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"
-                                Fill="White"
-                                Stretch="Uniform" />
-                        </Viewbox>
-                    </Border>
-
-                    <TextBlock Grid.Column="1"
-                        Text="Update Source Repository"
-                        FontSize="16"
-                        FontWeight="SemiBold"
-                        Foreground="White"
-                        VerticalAlignment="Center" />
-                </Grid>
-
-                <Grid ColumnDefinitions="*,*">
-                    <TextBox Grid.Column="0"
-                        Text="{Binding RepositoryOwner}"
-                        Watermark="Repository Owner"
-                        Background="#25FFFFFF"
-                        Foreground="White"
-                        BorderBrush="#3399FF"
-                        CornerRadius="6"
-                        Padding="12,10"
-                        Margin="0,0,8,0" />
-
-                    <TextBox Grid.Column="1"
-                        Text="{Binding RepositoryName}"
-                        Watermark="Repository Name"
-                        Background="#25FFFFFF"
-                        Foreground="White"
-                        BorderBrush="#3399FF"
-                        CornerRadius="6"
-                        Padding="12,10"
-                        Margin="8,0,0,0" />
-                </Grid>
-            </StackPanel>
-        </Border>
-
         <!-- Status section -->
-        <Border Grid.Row="2"
+        <Border Grid.Row="1"
             Background="#15FFFFFF"
             CornerRadius="8"
             Padding="20"
             Margin="0,0,0,16">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                    <!-- Info icon -->
-                    <Border Background="#3399FF"
-                        CornerRadius="6"
-                        Width="28" Height="28"
-                        VerticalAlignment="Center">
-                        <Viewbox Width="16" Height="16"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                            <Path
-                                Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M11,17H13V11H11V17Z"
-                                Fill="White"
-                                Stretch="Uniform" />
+                    <Border Background="#3399FF" CornerRadius="6" Width="28" Height="28" VerticalAlignment="Center">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                Fill="White" Stretch="Uniform" />
                         </Viewbox>
                     </Border>
-
-                    <TextBlock
-                        Text="{Binding StatusMessage, FallbackValue='Ready to check for updates'}"
-                        TextWrapping="Wrap"
-                        Foreground="White"
-                        VerticalAlignment="Center"
-                        FontSize="14" />
+                    <TextBlock Text="{Binding StatusMessage, FallbackValue=Ready}" Foreground="White" FontSize="15" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!--  Loading indicator with proper centering and animation -->
-                <Border Grid.Column="1" 
-                        IsVisible="{Binding IsChecking}" 
-                        Width="28" Height="28"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                    <Grid Width="24" Height="24" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Center">
-                        <!-- Background circle -->
-                        <Ellipse Width="24" Height="24"
-                            Stroke="#40FFFFFF"
-                            StrokeThickness="2" />
-                        <!-- Animated circle with proper Avalonia animation -->
-                        <Ellipse Width="24" Height="24"
-                            Stroke="#3399FF"
-                            StrokeThickness="2"
-                            StrokeDashArray="15,85"
-                            RenderTransformOrigin="50%,50%">
-                            <Ellipse.RenderTransform>
-                                <RotateTransform />
-                            </Ellipse.RenderTransform>
-                            <Ellipse.Styles>
-                                <Style Selector="Ellipse">
-                                    <Style.Animations>
-                                        <Animation Duration="0:0:1.5" IterationCount="Infinite">
-                                            <KeyFrame Cue="0%">
-                                                <Setter Property="RotateTransform.Angle" Value="0" />
-                                            </KeyFrame>
-                                            <KeyFrame Cue="100%">
-                                                <Setter Property="RotateTransform.Angle" Value="360" />
-                                            </KeyFrame>
-                                        </Animation>
-                                    </Style.Animations>
-                                </Style>
-                            </Ellipse.Styles>
-                        </Ellipse>
-                    </Grid>
-                </Border>
+                <ProgressBar Grid.Column="1"
+                    Width="100"
+                    Height="6"
+                    Value="{Binding DownloadProgress}"
+                    Maximum="100"
+                    IsVisible="{Binding IsDownloading}"
+                    Foreground="#3399FF"
+                    Background="#25FFFFFF"
+                    CornerRadius="3" />
             </Grid>
         </Border>
 
-        <!--  Update available panel with proper layout -->
-        <ScrollViewer Grid.Row="3"
-                      IsVisible="{Binding UpdateCheckResult.IsUpdateAvailable, FallbackValue=False, TargetNullValue=False}"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      Margin="0,0,0,16">
-            <Border Background="#30559c6e"
-                    BorderBrush="#559c6e"
-                    BorderThickness="2"
-                    CornerRadius="8"
-                    Padding="20">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                    <!-- Header row -->
-                    <Grid Grid.Row="0"
-                        ColumnDefinitions="Auto,*,Auto"
-                        Margin="0,0,0,12">
-                        <!-- Success icon -->
-                        <Border Background="#559c6e"
-                            CornerRadius="8"
-                            Width="32" Height="32"
-                            Grid.Column="0"
-                            VerticalAlignment="Center"
-                            Margin="0,0,12,0">
-                            <Viewbox Width="18" Height="18"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center">
-                                <Path Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
-                                    Fill="White"
-                                    Stretch="Uniform" />
-                            </Viewbox>
-                        </Border>
-
-                        <TextBlock Text="Update Available!"
-                            Grid.Column="1"
-                            FontWeight="SemiBold"
-                            FontSize="18"
-                            Foreground="White"
-                            VerticalAlignment="Center" />
-
-                        <Border Grid.Column="2"
-                            Background="#40FFFFFF"
-                            CornerRadius="6"
-                            Padding="10,6">
-                            <TextBlock
-                                Text="{Binding DisplayLatestVersion, FallbackValue='v0.0.0'}"
-                                FontFamily="Consolas,Menlo,Monaco,monospace"
-                                FontWeight="SemiBold"
-                                FontSize="14"
-                                Foreground="White" />
-                        </Border>
-                    </Grid>
-
-                    <!-- Release name -->
-                    <TextBlock Grid.Row="1"
-                        Text="{Binding UpdateCheckResult.ReleaseTitle, FallbackValue='Release information', TargetNullValue='Release information'}"
-                        FontWeight="SemiBold"
-                        Foreground="White"
-                        TextWrapping="Wrap"
-                        FontSize="14"
-                        Margin="0,0,0,12" />
-
-                    <!-- Release description in scrollable area -->
-                    <Border Grid.Row="2"
-                            Background="#20FFFFFF"
-                            CornerRadius="6"
-                            Margin="0,0,0,16">
-                        <ScrollViewer MaxHeight="120"
-                                      Padding="12"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      VerticalScrollBarVisibility="Auto">
-                            <TextBlock
-                                Text="{Binding UpdateCheckResult.ReleaseNotes, FallbackValue='No description provided.', TargetNullValue='No description provided.'}"
-                                TextWrapping="Wrap"
-                                Foreground="#CCCCCC"
-                                FontSize="13" />
-                        </ScrollViewer>
+        <!-- Update available section -->
+        <Border Grid.Row="2"
+            Background="#1A4DB3FF"
+            CornerRadius="8"
+            Padding="24"
+            Margin="0,0,0,16"
+            IsVisible="{Binding IsUpdateAvailable}">
+            <StackPanel Spacing="16">
+                <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0"
+                        Background="#3399FF"
+                        CornerRadius="8"
+                        Width="48" Height="48"
+                        Margin="0,0,16,0">
+                        <Viewbox Width="24" Height="24">
+                            <Path Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"
+                                Fill="White" Stretch="Uniform" />
+                        </Viewbox>
                     </Border>
 
-                    <!--  Action buttons with proper spacing -->
-                    <Grid Grid.Row="3" 
-                          ColumnDefinitions="*,Auto,Auto" 
-                          Margin="0,0,0,16">
-                        <Button Grid.Column="1"
-                            Command="{Binding ViewReleaseNotesCommand}"
-                            Background="Transparent"
-                            Foreground="#3399FF"
-                            BorderThickness="0"
-                            Padding="12,8"
-                            Margin="0,0,12,0"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Right">
-                            <TextBlock Text="View Release Notes" FontWeight="Medium" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="Update Available!" FontWeight="Bold" FontSize="20" Foreground="White" Margin="0,0,0,4" />
+                        <TextBlock Foreground="#B3FFFFFF" FontSize="14">
+                            <Run Text="Version" />
+                            <Run Text="{Binding DisplayLatestVersion}" FontWeight="SemiBold" />
+                            <Run Text="is ready to install" />
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+
+                <Border Background="#15FFFFFF" CornerRadius="6" Padding="16">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="What's new:" FontWeight="SemiBold" Foreground="White" FontSize="14" />
+                        <TextBlock Text="This update includes bug fixes, performance improvements, and new features." 
+                                   Foreground="#B3FFFFFF" 
+                                   FontSize="13" 
+                                   TextWrapping="Wrap" />
+                        <Button Command="{Binding ViewReleaseNotesCommand}"
+                                Content="View Release Notes"
+                                Background="Transparent"
+                                Foreground="#3399FF"
+                                BorderThickness="0"
+                                Padding="0,8,0,0"
+                                HorizontalAlignment="Left"
+                                Cursor="Hand">
                             <Button.Styles>
                                 <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="#203399FF" />
+                                    <Setter Property="Foreground" Value="#4DB3FF" />
                                 </Style>
                             </Button.Styles>
                         </Button>
-                        
-                        <Button Grid.Column="2"
-                            Command="{Binding InstallUpdateCommand}"
-                            IsEnabled="{Binding CanDownloadUpdate, FallbackValue=False}"
-                            Background="#3399FF"
-                            Foreground="White"
-                            BorderThickness="0"
-                            Padding="16,10"
-                            CornerRadius="8"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Right">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Viewbox Width="16" Height="16"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    IsVisible="{Binding IsCheckButtonEnabled}">
-                                    <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
-                                        Fill="White"
-                                        Stretch="Uniform" />
-                                </Viewbox>
-                                <!--  Installation progress indicator with animation -->
-                                <Border Width="16" Height="16" 
-                                        IsVisible="{Binding IsInstalling}"
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
-                                    <Grid Width="14" Height="14">
-                                        <Ellipse Width="14" Height="14"
-                                            Stroke="#FFFFFF"
-                                            StrokeThickness="1.5"
-                                            Opacity="0.3" />
-                                        <Ellipse Width="14" Height="14"
-                                            Stroke="#FFFFFF"
-                                            StrokeThickness="1.5"
-                                            StrokeDashArray="10,40"
-                                            RenderTransformOrigin="50%,50%">
-                                            <Ellipse.RenderTransform>
-                                                <RotateTransform />
-                                            </Ellipse.RenderTransform>
-                                            <Ellipse.Styles>
-                                                <Style Selector="Ellipse">
-                                                    <Style.Animations>
-                                                        <Animation Duration="0:0:1" IterationCount="Infinite">
-                                                            <KeyFrame Cue="0%">
-                                                                <Setter Property="RotateTransform.Angle" Value="0" />
-                                                            </KeyFrame>
-                                                            <KeyFrame Cue="100%">
-                                                                <Setter Property="RotateTransform.Angle" Value="360" />
-                                                            </KeyFrame>
-                                                        </Animation>
-                                                    </Style.Animations>
-                                                </Style>
-                                            </Ellipse.Styles>
-                                        </Ellipse>
-                                    </Grid>
-                                </Border>
-                                <TextBlock
-                                    Text="{Binding InstallButtonText}"
-                                    VerticalAlignment="Center"
-                                    FontWeight="Medium" />
-                            </StackPanel>
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#4DB3FF" />
-                                </Style>
-                                <Style Selector="Button:pressed /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#0080E5" />
-                                </Style>
-                                <Style Selector="Button:disabled /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#666666" />
-                                    <Setter Property="TextBlock.Foreground" Value="#999999" />
-                                </Style>
-                            </Button.Styles>
-                        </Button>
-                    </Grid>
+                    </StackPanel>
+                </Border>
 
-                    <!-- Installation Progress Panel -->
-                    <Border Grid.Row="4"
-                        IsVisible="{Binding IsInstalling, FallbackValue=False, TargetNullValue=False}"
-                        Background="#20FFFFFF"
-                        CornerRadius="8"
-                        Padding="20">
-                        <Grid RowDefinitions="Auto,Auto,Auto">
-                            <TextBlock Grid.Row="0"
-                                Text="Installation Progress"
-                                FontWeight="SemiBold"
-                                FontSize="16"
-                                Foreground="White"
-                                Margin="0,0,0,12" />
-                            <ProgressBar Grid.Row="1"
-                                Value="{Binding InstallationProgress.PercentComplete, FallbackValue=0, TargetNullValue=0}"
-                                Maximum="100"
-                                Height="8"
-                                CornerRadius="4"
-                                Background="#40FFFFFF"
-                                Foreground="#3399FF"
-                                Margin="0,0,0,8" />
-                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0"
-                                    Text="{Binding InstallationProgress.Status, FallbackValue='', TargetNullValue=''}"
-                                    Foreground="#CCCCCC"
-                                    FontSize="14"
-                                    TextWrapping="Wrap"
-                                    VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1"
-                                    Text="{Binding InstallationProgress.PercentComplete, StringFormat=\{0:F1\}%, FallbackValue='0.0%', TargetNullValue='0.0%'}"
-                                    Foreground="White"
-                                    FontSize="14"
-                                    FontWeight="Medium"
-                                    VerticalAlignment="Center"
-                                    Margin="12,0,0,0" />
-                            </Grid>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Border>
-        </ScrollViewer>
+                <!-- Installation progress -->
+                <Border Background="#15FFFFFF" 
+                        CornerRadius="6" 
+                        Padding="16"
+                        IsVisible="{Binding IsInstalling}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="{Binding InstallationProgress.Status}" Foreground="White" FontSize="14" />
+                        <ProgressBar Value="{Binding InstallationProgress.PercentComplete}"
+                                     Maximum="100"
+                                     Height="8"
+                                     Foreground="#3399FF"
+                                     Background="#25FFFFFF"
+                                     CornerRadius="4" />
+                        <TextBlock Foreground="#90FFFFFF" FontSize="12">
+                            <Run Text="{Binding InstallationProgress.PercentComplete, StringFormat={}{0:F0}}" />
+                            <Run Text="% complete" />
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Error section -->
+        <Border Grid.Row="2"
+            Background="#1AFF4444"
+            BorderBrush="#FF4444"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="16"
+            Margin="0,0,0,16"
+            IsVisible="{Binding HasError}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Background="#FF4444" CornerRadius="6" Width="28" Height="28">
+                    <Viewbox Width="16" Height="16">
+                        <Path Data="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16"
+                            Fill="White" Stretch="Uniform" />
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="{Binding ErrorMessage}" 
+                           Foreground="#FFB3B3" 
+                           TextWrapping="Wrap" 
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <!-- Action buttons -->
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+            <Button Grid.Column="1"
+                Command="{Binding DismissCommand}"
+                Content="Dismiss"
+                Background="#25FFFFFF"
+                Foreground="White"
+                Padding="20,12"
+                Margin="0,0,12,0"
+                CornerRadius="8"
+                BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#30FFFFFF" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <Button Grid.Column="2"
+                Command="{Binding InstallUpdateCommand}"
+                IsEnabled="{Binding CanDownloadUpdate}"
+                Background="#3399FF"
+                Foreground="White"
+                Padding="20,12"
+                CornerRadius="8"
+                BorderThickness="0">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Viewbox Width="16" Height="16" IsVisible="{Binding !IsInstalling}">
+                        <Path Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                            Fill="White" Stretch="Uniform" />
+                    </Viewbox>
+                    <TextBlock Text="{Binding InstallButtonText}" VerticalAlignment="Center" FontWeight="Medium" />
+                </StackPanel>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#4DB3FF" />
+                    </Style>
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background" Value="#0080E5" />
+                    </Style>
+                    <Style Selector="Button:disabled">
+                        <Setter Property="Background" Value="#40FFFFFF" />
+                        <Setter Property="Foreground" Value="#60FFFFFF" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
     </Grid>
 </UserControl>

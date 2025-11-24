@@ -5,6 +5,7 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Velopack;
 
 namespace GenHub.Linux;
 
@@ -28,6 +29,9 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Initialize Velopack - must be first to handle install/update hooks
+        VelopackApp.Build().Run();
+
         // TODO: Create lockfile to guarantee that only one instance is running on linux
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();

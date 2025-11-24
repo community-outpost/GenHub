@@ -26,7 +26,10 @@ public class DownloadConfigurationTests
         Assert.Equal(TimeSpan.FromMilliseconds(100), config.ProgressReportingInterval);
         Assert.NotNull(config.Headers);
         Assert.Empty(config.Headers);
-        Assert.Equal("GenHub/1.0", config.UserAgent);
+
+        // UserAgent format is "GenHub/{version}" where version is dynamic from assembly
+        Assert.NotNull(config.UserAgent);
+        Assert.StartsWith("GenHub/", config.UserAgent);
         Assert.True(config.VerifySslCertificate);
         Assert.Equal(3, config.MaxRetryAttempts);
         Assert.Equal(TimeSpan.FromSeconds(1), config.RetryDelay);

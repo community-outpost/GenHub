@@ -6,6 +6,7 @@
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:models="clr-namespace:GenHub.Common.Models"
              xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
              xmlns:profileVM="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:profileViews="clr-namespace:GenHub.Features.GameProfiles.Views"
              xmlns:downloadsVM="clr-namespace:GenHub.Features.Downloads.ViewModels"
@@ -208,6 +209,13 @@
         <!-- Main content area -->
         <Grid Grid.Row="1" Background="#1A1A1A">
             <ContentControl Content="{Binding CurrentTabViewModel}" />
+            <!-- Version label in bottom right corner -->
+            <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}" 
+                       FontSize="9" 
+                       Foreground="#404040" 
+                       HorizontalAlignment="Right" 
+                       VerticalAlignment="Bottom" 
+                       Margin="0,0,10,5" />
         </Grid>
     </Grid>
 </UserControl>

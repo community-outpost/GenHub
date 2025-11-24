@@ -228,8 +228,9 @@ public class AppConfigurationTests
         // Act
         var result = service.GetDefaultUserAgent();
 
-        // Assert
-        Assert.Equal("GenHub/1.0", result);
+        // Assert - UserAgent format is "GenHub/{version}" where version is dynamic from assembly
+        Assert.NotNull(result);
+        Assert.StartsWith("GenHub/", result);
     }
 
     /// <summary>

@@ -20,7 +20,7 @@ public static class ApiConstants
     // User agents
 
     /// <summary>
-    /// Default user agent string for HTTP requests.
+    /// Gets the default user agent string for HTTP requests.
     /// </summary>
-    public const string DefaultUserAgent = AppConstants.AppName + "/" + AppConstants.AppVersion;
+    public static string DefaultUserAgent => $"{AppConstants.AppName}/{AppConstants.AppVersion}";
 }

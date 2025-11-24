@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -31,6 +32,7 @@ public class MainViewModelTests
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
 
         // Act
@@ -43,6 +45,7 @@ public class MainViewModelTests
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
+            mockVelopackUpdateManager.Object,
             mockLogger.Object);
 
         // Assert
@@ -66,6 +69,7 @@ public class MainViewModelTests
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
 
         var vm = new MainViewModel(
@@ -77,6 +81,7 @@ public class MainViewModelTests
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
+            mockVelopackUpdateManager.Object,
             mockLogger.Object);
 
         vm.SelectTabCommand.Execute(tab);
@@ -96,6 +101,7 @@ public class MainViewModelTests
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
@@ -106,6 +112,7 @@ public class MainViewModelTests
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
+            mockVelopackUpdateManager.Object,
             mockLogger.Object);
 
         // Act & Assert
@@ -126,6 +133,9 @@ public class MainViewModelTests
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync((Velopack.UpdateInfo?)null);
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
@@ -136,6 +146,7 @@ public class MainViewModelTests
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
+            mockVelopackUpdateManager.Object,
             mockLogger.Object);
 
         // Act & Assert
@@ -160,6 +171,7 @@ public class MainViewModelTests
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
@@ -170,6 +182,7 @@ public class MainViewModelTests
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
+            mockVelopackUpdateManager.Object,
             mockLogger.Object);
 
         vm.SelectTabCommand.Execute(tab);

@@ -12,11 +12,12 @@ launcher and content platform for the Generals community.
 
 ## Core Features
 
-### [App Update](./app-update)
+### [App Update & Installer](/velopack-integration)
 
-Automatic update checking and installation system that keeps GeneralsHub current
-with the latest releases. Updates are delivered seamlessly from GitHub to ensure
-you always have the newest features and fixes.
+Professional installer and automatic update system powered by Velopack. Provides
+zero-config installers for Windows and Linux with delta updates delivered
+from GitHub Releases. See the [Velopack Integration Guide](/velopack-integration) for
+details on building releases, versioning, and deployment.
 
 ---
 

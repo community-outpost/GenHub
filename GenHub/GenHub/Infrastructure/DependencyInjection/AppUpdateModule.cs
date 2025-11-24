@@ -1,12 +1,7 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.AppUpdate;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Features.AppUpdate.Factories;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
 using GenHub.Features.AppUpdate.ViewModels;
-using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.DependencyInjection;
-using Octokit;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -22,21 +17,15 @@ public static class AppUpdateModule
     /// <returns>The updated <see cref="IServiceCollection"/> with App Update module services registered.</returns>
     public static IServiceCollection AddAppUpdateModule(this IServiceCollection services)
     {
-        services.AddSingleton<IAppVersionService, AppVersionService>();
-        services.AddSingleton<IVersionComparator, SemVerComparator>();
-        services.AddSingleton<IGitHubApiClient, OctokitGitHubApiClient>();
-        services.AddSingleton<IAppUpdateService, AppUpdateService>();
-        services.AddSingleton<IGitHubClient>(new GitHubClient(new ProductHeaderValue(AppConstants.AppName)));
+        // Register HTTP client factory for proper HttpClient lifecycle management
+        services.AddHttpClient();
 
-        // Register UpdateInstaller factory and platform-specific implementations
-        services.AddSingleton<UpdateInstallerFactory>();
+        // Register Velopack update manager (only update system needed)
+        services.AddSingleton<IVelopackUpdateManager, VelopackUpdateManager>();
 
-        // Register IUpdateInstaller using factory
-        services.AddSingleton<IUpdateInstaller>(serviceProvider =>
-            serviceProvider.GetRequiredService<UpdateInstallerFactory>().CreateInstaller());
-
-        // Register ViewModel with logger support
+        // Register ViewModel
         services.AddTransient<UpdateNotificationViewModel>();
+
         return services;
     }
 }

@@ -8,6 +8,7 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Velopack;
 
 namespace GenHub.Windows;
 
@@ -32,6 +33,9 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Initialize Velopack - must be first to handle install/update hooks
+        VelopackApp.Build().Run();
+
         // Check if another instance is running and focus that instance instead of creating a new one.
         if (IsAnotherInstanceRunning())
         {

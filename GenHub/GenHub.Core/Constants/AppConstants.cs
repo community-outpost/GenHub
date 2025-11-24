@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using System.Reflection;
 
 namespace GenHub.Core.Constants;
 
@@ -12,10 +13,43 @@ public static class AppConstants
     /// </summary>
     public const string AppName = "GenHub";
 
+    private static readonly Lazy<string> _appVersion = new Lazy<string>(() =>
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        return assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? assembly.GetName().Version?.ToString()
+        ?? "0.0.0-dev";
+    });
+
     /// <summary>
-    /// The version of the application.
+    /// Gets the full semantic version of the application.
+    /// This value is automatically extracted from assembly metadata at runtime.
+    /// To change version: Update &lt;Version&gt; in GenHub/Directory.Build.props.
+    /// Format: Major.Minor.Patch[-prerelease] (e.g., "1.0.0-alpha.1").
     /// </summary>
-    public const string AppVersion = "1.0";
+    public static string AppVersion => _appVersion.Value;
+
+    /// <summary>
+    /// Gets the display version for UI (auto-formatted from AppVersion).
+    /// </summary>
+    public static string DisplayVersion => $"v{AppVersion}";
+
+    /// <summary>
+    /// The GitHub repository URL for the application.
+    /// </summary>
+    public const string GitHubRepositoryUrl = "https://github.com/community-outpost/genhub";
+
+    /// <summary>
+    /// The GitHub repository owner.
+    /// </summary>
+    public const string GitHubRepositoryOwner = "community-outpost";
+
+    /// <summary>
+    /// The GitHub repository name.
+    /// </summary>
+    public const string GitHubRepositoryName = "GenHub";
 
     /// <summary>
     /// The default UI theme for the application.

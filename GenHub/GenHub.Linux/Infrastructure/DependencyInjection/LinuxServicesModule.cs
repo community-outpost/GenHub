@@ -1,38 +1,22 @@
 using System;
-using GenHub.Core.Interfaces.AppUpdate;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Linux.Features.AppUpdate;
 using GenHub.Linux.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Linux.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Provides Linux-specific service registrations.
+/// Provides extension methods for registering Linux-specific services.
 /// </summary>
 public static class LinuxServicesModule
 {
     /// <summary>
-    /// Registers Linux-specific services with the dependency injection container.
+    /// Registers Linux-specific services in the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <returns>The updated service collection.</returns>
+    /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddLinuxServices(this IServiceCollection services)
     {
-        // Configure HttpClient for Linux update installer using config provider
-        services.AddHttpClient<LinuxUpdateInstaller>((serviceProvider, client) =>
-        {
-            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-            var userAgent = configProvider.GetDownloadUserAgent();
-            var timeout = TimeSpan.FromSeconds(configProvider.GetDownloadTimeoutSeconds());
-
-            client.Timeout = timeout;
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
-        });
-
-        // Register Linux-specific services
-        services.AddSingleton<IPlatformUpdateInstaller, LinuxUpdateInstaller>();
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
 
         return services;

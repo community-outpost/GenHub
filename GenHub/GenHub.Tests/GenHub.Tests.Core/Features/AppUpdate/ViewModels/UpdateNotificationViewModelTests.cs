@@ -1,6 +1,4 @@
-using GenHub.Core.Interfaces.AppUpdate;
-using GenHub.Core.Models.GitHub;
-using GenHub.Core.Models.Results;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -8,31 +6,57 @@ using Moq;
 namespace GenHub.Tests.Core.Features.AppUpdate.ViewModels;
 
 /// <summary>
-/// Unit tests for <see cref="UpdateNotificationViewModel"/>.
+/// Unit tests for <see cref="UpdateNotificationViewModel"/> with Velopack integration.
 /// </summary>
 public class UpdateNotificationViewModelTests
 {
     /// <summary>
-    /// Verifies that executing the CheckForUpdatesCommand updates the status and result.
+    /// Verifies that when no update is available, status is updated correctly.
     /// </summary>
-    /// <returns>A task representing the asynchronous test operation.</returns>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesCommand_UpdatesStatus()
+    public async Task CheckForUpdatesCommand_WhenNoUpdateAvailable_UpdatesStatus()
     {
-        var svc = new Mock<IAppUpdateService>();
-        svc.Setup(x => x.CheckForUpdatesAsync("o", "r", It.IsAny<CancellationToken>()))
-           .ReturnsAsync(UpdateCheckResult.UpdateAvailable(new GitHubRelease { TagName = "1.2.3", HtmlUrl = "https://example.com", Body = "Release notes", Name = "Release 1.2.3" }, "1.0.0"));
-        var vm = new UpdateNotificationViewModel(svc.Object, Mock.Of<IUpdateInstaller>(), Mock.Of<ILogger<UpdateNotificationViewModel>>())
-        {
-            RepositoryOwner = "o",
-            RepositoryName = "r",
-        };
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+           .ReturnsAsync((Velopack.UpdateInfo?)null);
 
-        // Use the generated RelayCommand property name
+        var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>());
+
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
-        Assert.NotNull(vm.UpdateCheckResult);
-        Assert.True(vm.UpdateCheckResult.IsUpdateAvailable);
-        Assert.Contains("1.2.3", vm.StatusMessage);
+        Assert.False(vm.IsUpdateAvailable);
+        Assert.Contains("up to date", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that constructor initializes properly.
+    /// </summary>
+    [Fact]
+    public void Constructor_InitializesSuccessfully()
+    {
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>());
+
+        Assert.NotNull(vm);
+        Assert.False(vm.IsUpdateAvailable);
+        Assert.False(vm.IsChecking);
+        Assert.False(vm.IsInstalling);
+    }
+
+    /// <summary>
+    /// Verifies that check button state reflects checking status.
+    /// </summary>
+    [Fact]
+    public void IsCheckButtonEnabled_ReflectsCheckingState()
+    {
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>());
+
+        Assert.True(vm.IsCheckButtonEnabled);
     }
 }

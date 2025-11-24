@@ -29,7 +29,9 @@
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Octokit" />
         <PackageReference Include="ReactiveUI" />
+        <PackageReference Include="Serilog.Extensions.Logging.File" />
         <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="Velopack" />
     </ItemGroup>
 
     <ItemGroup>

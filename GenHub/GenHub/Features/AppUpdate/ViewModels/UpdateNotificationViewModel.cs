@@ -1,53 +1,41 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Models.AppUpdate;
-using GenHub.Core.Models.GitHub;
-using GenHub.Core.Models.Results;
+using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
+using Velopack;
 
 namespace GenHub.Features.AppUpdate.ViewModels;
 
 /// <summary>
-/// ViewModel for the update notification dialog.
+/// ViewModel for the update notification dialog powered by Velopack.
 /// </summary>
-public partial class UpdateNotificationViewModel : ObservableObject
+public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 {
-    private readonly IAppUpdateService _updateService;
-    private readonly IUpdateInstaller _updateInstaller;
+    private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly ILogger<UpdateNotificationViewModel> _logger;
-
-    /// <summary>
-    /// Gets or sets the repository owner.
-    /// </summary>
-    [ObservableProperty]
-    private string _repositoryOwner = "Community-Outpost";
-
-    /// <summary>
-    /// Gets or sets the repository name.
-    /// </summary>
-    [ObservableProperty]
-    private string _repositoryName = AppConstants.AppName;
+    private readonly CancellationTokenSource _cancellationTokenSource;
+    private UpdateInfo? _currentUpdateInfo;
 
     /// <summary>
     /// Gets or sets the status message.
     /// </summary>
     [ObservableProperty]
-    private string _statusMessage = "Ready to check for updates";
+    private string _statusMessage = "Checking for updates...";
 
     /// <summary>
     /// Gets or sets a value indicating whether an update check is in progress.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCheckButtonEnabled))]
+    [NotifyPropertyChangedFor(nameof(DisplayLatestVersion))]
     private bool _isChecking;
 
     /// <summary>
@@ -62,13 +50,29 @@ public partial class UpdateNotificationViewModel : ObservableObject
     [ObservableProperty]
     private double _downloadProgress;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether an update is available.
+    /// </summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
     [NotifyPropertyChangedFor(nameof(DisplayLatestVersion))]
-    private UpdateCheckResult? _updateCheckResult;
+    private bool _isUpdateAvailable;
+
+    /// <summary>
+    /// Gets or sets the latest version string.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLatestVersion))]
+    private string _latestVersion = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the release notes URL.
+    /// </summary>
+    [ObservableProperty]
+    private string _releaseNotesUrl = string.Empty;
 
     [ObservableProperty]
-    private UpdateProgress _installationProgress;
+    private UpdateProgress _installationProgress = new() { Status = "Ready", PercentComplete = 0 };
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InstallButtonText))]
@@ -90,28 +94,23 @@ public partial class UpdateNotificationViewModel : ObservableObject
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateNotificationViewModel"/> class.
     /// </summary>
-    /// <param name="updateService">The update service.</param>
-    /// <param name="updateInstaller">The update installer.</param>
+    /// <param name="velopackUpdateManager">The Velopack update manager.</param>
     /// <param name="logger">The logger.</param>
     public UpdateNotificationViewModel(
-        IAppUpdateService updateService,
-        IUpdateInstaller updateInstaller,
+        IVelopackUpdateManager velopackUpdateManager,
         ILogger<UpdateNotificationViewModel> logger)
     {
-        _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
-        _updateInstaller = updateInstaller ?? throw new ArgumentNullException(nameof(updateInstaller));
+        _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cancellationTokenSource = new CancellationTokenSource();
 
-        // Initialize properties to prevent null binding errors
-        _installationProgress = new UpdateProgress { Status = "Ready", PercentComplete = 0 };
-
-        // Initialize with default non-null values to prevent binding errors
-        _updateCheckResult = UpdateCheckResult.CreateInitial();
-
-        CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync);
+        CheckForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsChecking);
         DismissCommand = new RelayCommand(DismissUpdate);
 
-        _logger.LogInformation("UpdateNotificationViewModel initialized");
+        _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack");
+
+        // Automatically check for updates when dialog opens
+        _ = CheckForUpdatesAsync();
     }
 
     /// <summary>
@@ -127,21 +126,12 @@ public partial class UpdateNotificationViewModel : ObservableObject
     /// <summary>
     /// Gets the current application version.
     /// </summary>
-    public string CurrentAppVersion => _updateService.GetCurrentVersion();
-
-    /// <summary>
-    /// Gets helper property to expose release assets from UpdateCheckResult.
-    /// </summary>
-    public IEnumerable<GitHubReleaseAsset> UpdateAssets =>
-        UpdateCheckResult?.Assets ?? Enumerable.Empty<GitHubReleaseAsset>();
+    public string CurrentAppVersion => AppConstants.AppVersion;
 
     /// <summary>
     /// Gets a value indicating whether an update is available and can be downloaded.
     /// </summary>
-    public bool CanDownloadUpdate =>
-        UpdateCheckResult?.IsUpdateAvailable == true &&
-        UpdateAssets.Any() &&
-        !IsInstalling;
+    public bool CanDownloadUpdate => IsUpdateAvailable && !IsInstalling;
 
     /// <summary>
     /// Gets a value indicating whether the check button should be enabled.
@@ -154,29 +144,40 @@ public partial class UpdateNotificationViewModel : ObservableObject
     public string InstallButtonText => IsInstalling ? "Installing..." : "Install Update";
 
     /// <summary>
-    /// Gets a value indicating whether the update result is not null.
-    /// </summary>
-    public bool HasUpdateResult => UpdateCheckResult is not null;
-
-    /// <summary>
     /// Gets the latest version string, ensuring it has a 'v' prefix for display.
     /// </summary>
     public string DisplayLatestVersion
     {
         get
         {
-            var version = UpdateCheckResult?.LatestVersion;
-            if (string.IsNullOrEmpty(version))
+            if (IsChecking)
             {
-                return "v0.0.0";
+                return "Checking...";
             }
 
-            return version.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? version : $"v{version}";
+            if (string.IsNullOrEmpty(LatestVersion))
+            {
+                return "Unknown";
+            }
+
+            return LatestVersion.StartsWith("v", StringComparison.OrdinalIgnoreCase)
+                ? LatestVersion
+                : $"v{LatestVersion}";
         }
     }
 
     /// <summary>
-    /// Checks for updates asynchronously.
+    /// Disposes of managed resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _cancellationTokenSource.Cancel();
+        _cancellationTokenSource.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Checks for updates asynchronously using Velopack.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     private async Task CheckForUpdatesAsync()
@@ -188,40 +189,47 @@ public partial class UpdateNotificationViewModel : ObservableObject
 
         try
         {
-            // Ensure UI updates happen on UI thread
             IsChecking = true;
             HasError = false;
             ErrorMessage = string.Empty;
             StatusMessage = "Checking for updates...";
+            IsUpdateAvailable = false;
 
-            // Update the current result to show checking state
-            UpdateCheckResult = UpdateCheckResult.CreateChecking(
-                UpdateCheckResult?.CurrentVersion ?? "0.0.0",
-                UpdateCheckResult?.LatestVersion ?? "0.0.0");
+            _logger.LogInformation("Starting Velopack update check");
 
-            _logger.LogInformation("Starting update check");
+            _currentUpdateInfo = await _velopackUpdateManager.CheckForUpdatesAsync(_cancellationTokenSource.Token);
 
-            // Perform the actual update check (this can be on background thread)
-            var result = await _updateService.CheckForUpdatesAsync(RepositoryOwner, RepositoryName);
-
-            // Update UI properties back on UI thread
-            // Ensure we always have a non-null result
-            if (result == null)
+            // Check BOTH UpdateInfo (for installed app with working Velopack) AND GitHub flag (for installed app where Velopack has issues)
+            if (_currentUpdateInfo != null)
             {
-                UpdateCheckResult = UpdateCheckResult.NoUpdateAvailable(
-                    UpdateCheckResult.CurrentVersion,
-                    UpdateCheckResult.CurrentVersion);
+                IsUpdateAvailable = true;
+                LatestVersion = _currentUpdateInfo.TargetFullRelease.Version.ToString();
+                ReleaseNotesUrl = AppConstants.GitHubRepositoryUrl + "/releases/tag/v" + LatestVersion;
+                StatusMessage = $"Update available: v{LatestVersion}";
+                _logger.LogInformation("Update available from UpdateManager: {Version}", LatestVersion);
+            }
+            else if (_velopackUpdateManager.HasUpdateAvailableFromGitHub)
+            {
+                // GitHub API detected update but UpdateManager couldn't confirm
+                var githubVersion = _velopackUpdateManager.LatestVersionFromGitHub;
+                _logger.LogDebug(
+                    "GitHub update detected: HasUpdate={HasUpdate}, Version='{Version}'",
+                    _velopackUpdateManager.HasUpdateAvailableFromGitHub,
+                    githubVersion ?? "NULL");
+
+                IsUpdateAvailable = true;
+                LatestVersion = githubVersion ?? "Unknown";
+                ReleaseNotesUrl = AppConstants.GitHubRepositoryUrl + "/releases/tag/v" + LatestVersion;
+                StatusMessage = $"Update available: v{LatestVersion}";
+                _logger.LogInformation("Update available from GitHub API: {Version}", LatestVersion);
             }
             else
             {
-                UpdateCheckResult = result;
+                IsUpdateAvailable = false;
+                LatestVersion = string.Empty;
+                StatusMessage = "You're up to date!";
+                _logger.LogInformation("No updates available");
             }
-
-            StatusMessage = UpdateCheckResult.IsUpdateAvailable
-                ? $"Update available: {UpdateCheckResult.LatestVersion}"
-                : "No updates available";
-
-            _logger.LogInformation("Update check completed. Update available: {IsUpdateAvailable}", UpdateCheckResult.IsUpdateAvailable);
         }
         catch (Exception ex)
         {
@@ -229,9 +237,7 @@ public partial class UpdateNotificationViewModel : ObservableObject
             HasError = true;
             ErrorMessage = $"Failed to check for updates: {ex.Message}";
             StatusMessage = "Update check failed";
-
-            // Create error result that's still non-null
-            UpdateCheckResult = UpdateCheckResult.Error($"Failed to check for updates: {ex.Message}");
+            IsUpdateAvailable = false;
         }
         finally
         {
@@ -245,22 +251,21 @@ public partial class UpdateNotificationViewModel : ObservableObject
     [RelayCommand]
     private void ViewReleaseNotes()
     {
-        var url = UpdateCheckResult?.UpdateUrl;
-        if (!string.IsNullOrEmpty(url))
+        if (!string.IsNullOrEmpty(ReleaseNotesUrl))
         {
             try
             {
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(ReleaseNotesUrl) { UseShellExecute = true });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to open browser for release notes.");
+                _logger.LogError(ex, "Failed to open browser for release notes");
             }
         }
     }
 
     /// <summary>
-    /// Downloads and applies the update. This is the single entry point for the installation process.
+    /// Downloads and applies the update using Velopack.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanDownloadUpdate))]
     private async Task InstallUpdateAsync()
@@ -270,26 +275,29 @@ public partial class UpdateNotificationViewModel : ObservableObject
             return;
         }
 
+        // If we don't have UpdateInfo, we need to show error that installed app is required
+        if (_currentUpdateInfo == null)
+        {
+            _logger.LogError("Cannot install update - UpdateInfo is null (app not installed via Setup.exe)");
+            HasError = true;
+            ErrorMessage = $"Update installation requires the app to be installed.\n\n" +
+                          $"You are running from: {AppDomain.CurrentDomain.BaseDirectory}\n\n" +
+                          $"To enable updates:\n" +
+                          $"1. Download GenHub-win-Setup.exe from GitHub releases\n" +
+                          $"2. Run Setup.exe to install GenHub properly\n" +
+                          $"3. Launch the installed version (will be in %LOCALAPPDATA%\\GenHub)\n\n" +
+                          $"Update available: v{LatestVersion}";
+            StatusMessage = "Cannot install from this location";
+            return;
+        }
+
         try
         {
             IsInstalling = true;
             HasError = false;
             ErrorMessage = string.Empty;
-            StatusMessage = "Preparing to download update...";
-            InstallationProgress = new UpdateProgress { Status = "Preparing download...", PercentComplete = 0 };
-
-            var downloadUrl = _updateInstaller.GetPlatformDownloadUrl(UpdateAssets);
-            if (string.IsNullOrEmpty(downloadUrl))
-            {
-                StatusMessage = "No compatible update package found for your platform.";
-                InstallationProgress = new UpdateProgress
-                {
-                    Status = "No compatible update package found",
-                    HasError = true,
-                    ErrorMessage = "No compatible update package found for your platform.",
-                };
-                return;
-            }
+            StatusMessage = "Downloading update...";
+            InstallationProgress = new UpdateProgress { Status = "Downloading...", PercentComplete = 0 };
 
             var progress = new Progress<UpdateProgress>(p =>
             {
@@ -301,30 +309,19 @@ public partial class UpdateNotificationViewModel : ObservableObject
                 });
             });
 
-            var success = await _updateInstaller.DownloadAndInstallAsync(downloadUrl, progress);
+            await _velopackUpdateManager.DownloadUpdatesAsync(_currentUpdateInfo, progress, _cancellationTokenSource.Token);
 
-            if (success)
+            StatusMessage = "Update downloaded! Restarting application...";
+            InstallationProgress = new UpdateProgress
             {
-                StatusMessage = "Update prepared successfully! The application will restart automatically.";
-                InstallationProgress = new UpdateProgress
-                {
-                    Status = "Update prepared successfully! The application will restart automatically.",
-                    PercentComplete = 100,
-                    IsCompleted = true,
-                };
+                Status = "Update complete! Restarting...",
+                PercentComplete = 100,
+                IsCompleted = true,
+            };
 
-                await Task.Delay(2000);
-            }
-            else
-            {
-                StatusMessage = "Update installation failed.";
-                InstallationProgress = new UpdateProgress
-                {
-                    Status = "Installation failed",
-                    HasError = true,
-                    ErrorMessage = "Update installation failed.",
-                };
-            }
+            await Task.Delay(1500); // Brief delay to show completion message
+
+            _velopackUpdateManager.ApplyUpdatesAndRestart(_currentUpdateInfo);
         }
         catch (Exception ex)
         {
@@ -332,6 +329,12 @@ public partial class UpdateNotificationViewModel : ObservableObject
             HasError = true;
             ErrorMessage = $"Update failed: {ex.Message}";
             StatusMessage = "Update failed";
+            InstallationProgress = new UpdateProgress
+            {
+                Status = "Installation failed",
+                HasError = true,
+                ErrorMessage = ex.Message,
+            };
         }
         finally
         {
@@ -344,36 +347,12 @@ public partial class UpdateNotificationViewModel : ObservableObject
     /// </summary>
     private void DismissUpdate()
     {
-        UpdateCheckResult = UpdateCheckResult.CreateDismissed(
-            UpdateCheckResult?.CurrentVersion ?? "0.0.0",
-            UpdateCheckResult?.LatestVersion ?? "0.0.0");
-
-        StatusMessage = string.Empty;
+        IsUpdateAvailable = false;
+        _currentUpdateInfo = null;
+        StatusMessage = "Ready to check for updates";
         HasError = false;
         ErrorMessage = string.Empty;
-    }
-
-    /// <summary>
-    /// Handles update progress reporting.
-    /// </summary>
-    /// <param name="progress">The update progress.</param>
-    private void OnUpdateProgress(UpdateProgress progress)
-    {
-        if (progress == null)
-        {
-            return;
-        }
-
-        DownloadProgress = progress.PercentComplete;
-        StatusMessage = progress.Status ?? string.Empty;
-
-        if (progress.HasError)
-        {
-            HasError = true;
-            ErrorMessage = progress.ErrorMessage ?? "An unknown error occurred";
-        }
-
-        _logger.LogDebug("Update progress: {Percent}% - {Status}", progress.PercentComplete, progress.Status);
+        LatestVersion = string.Empty;
     }
 
     // Add method to handle property changes that affect command state
@@ -382,9 +361,8 @@ public partial class UpdateNotificationViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCheckButtonEnabled));
     }
 
-    partial void OnUpdateCheckResultChanged(UpdateCheckResult? value)
+    partial void OnIsUpdateAvailableChanged(bool value)
     {
-        // Ensure command updates happen on UI thread - but avoid recursion
         if (Dispatcher.UIThread.CheckAccess())
         {
             UpdateCommandStates();
@@ -410,9 +388,7 @@ public partial class UpdateNotificationViewModel : ObservableObject
 
     private void UpdateCommandStates()
     {
-        OnPropertyChanged(nameof(UpdateAssets));
         OnPropertyChanged(nameof(CanDownloadUpdate));
-        OnPropertyChanged(nameof(HasUpdateResult));
         OnPropertyChanged(nameof(DisplayLatestVersion));
         OnPropertyChanged(nameof(InstallButtonText));
         InstallUpdateCommand.NotifyCanExecuteChanged();

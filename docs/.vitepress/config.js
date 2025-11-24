@@ -35,14 +35,15 @@ export default withMermaid(
                     items: [
                         { text: 'Introduction', link: '/' },
                         { text: 'Developer Onboarding', link: '/onboarding' },
-                        { text: 'Architecture Overview', link: '/architecture' }
+                        { text: 'Architecture Overview', link: '/architecture' },
+                        { text: 'Velopack Integration', link: '/velopack-integration' }
                     ]
                 },
                 {
                     text: 'Features',
                     items: [
                         { text: 'Overview', link: '/features/index' },
-                        { text: 'App Update', link: '/features/app-update' },
+                        { text: 'App Update & Installer', link: '/velopack-integration' },
                         { text: 'Content System', link: '/features/content' },
                         { text: 'Manifest Service', link: '/features/manifest' },
                         { text: 'Storage & CAS', link: '/features/storage' },

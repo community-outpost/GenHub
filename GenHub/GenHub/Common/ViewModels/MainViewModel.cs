@@ -1,16 +1,18 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Features.AppUpdate.Views;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -22,16 +24,21 @@ namespace GenHub.Common.ViewModels;
 /// <summary>
 /// Main view model for the application.
 /// </summary>
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ILogger<MainViewModel>? _logger;
     private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IProfileEditorFacade _profileEditorFacade;
+    private readonly IVelopackUpdateManager _velopackUpdateManager;
+    private readonly CancellationTokenSource _initializationCts = new();
 
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
+
+    [ObservableProperty]
+    private bool _hasUpdateAvailable;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
@@ -44,6 +51,7 @@ public partial class MainViewModel : ObservableObject
     /// <param name="configurationProvider">Configuration provider service.</param>
     /// <param name="userSettingsService">User settings service for persistence operations.</param>
     /// <param name="profileEditorFacade">Profile editor facade for automatic profile creation.</param>
+    /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
     /// <param name="logger">Logger instance.</param>
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
@@ -54,6 +62,7 @@ public partial class MainViewModel : ObservableObject
         IConfigurationProviderService configurationProvider,
         IUserSettingsService userSettingsService,
         IProfileEditorFacade profileEditorFacade,
+        IVelopackUpdateManager velopackUpdateManager,
         ILogger<MainViewModel>? logger = null)
     {
         GameProfilesViewModel = gameProfilesViewModel;
@@ -64,6 +73,7 @@ public partial class MainViewModel : ObservableObject
         _configurationProvider = configurationProvider;
         _userSettingsService = userSettingsService;
         _profileEditorFacade = profileEditorFacade ?? throw new ArgumentNullException(nameof(profileEditorFacade));
+        _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
         _logger = logger;
 
         // Load initial settings using unified configuration
@@ -80,11 +90,6 @@ public partial class MainViewModel : ObservableObject
 
         // Tab change handled by ObservableProperty partial method
     }
-
-    /// <summary>
-    /// Gets a value indicating whether an update is available (dummy implementation for UI binding).
-    /// </summary>
-    public static bool HasUpdateAvailable => false;
 
     /// <summary>
     /// Gets the game profiles view model.
@@ -149,6 +154,41 @@ public partial class MainViewModel : ObservableObject
     };
 
     /// <summary>
+    /// Selects the specified navigation tab.
+    /// </summary>
+    /// <param name="tab">The navigation tab to select.</param>
+    [RelayCommand]
+    public void SelectTab(NavigationTab tab)
+    {
+        SelectedTab = tab;
+    }
+
+    /// <summary>
+    /// Shows the update notification dialog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ShowUpdateDialogAsync()
+    {
+        try
+        {
+            var mainWindow = GetMainWindow();
+            if (mainWindow != null)
+            {
+                await GenHub.Features.AppUpdate.Views.UpdateNotificationWindow.ShowAsync(mainWindow);
+            }
+            else
+            {
+                _logger?.LogWarning("Cannot show update dialog - main window not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show update dialog");
+        }
+    }
+
+    /// <summary>
     /// Performs asynchronous initialization for the shell and all tabs.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -158,6 +198,10 @@ public partial class MainViewModel : ObservableObject
         await DownloadsViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
         _logger?.LogInformation("MainViewModel initialized");
+
+        // Start background check with cancellation support
+        _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
+
         await Task.CompletedTask;
     }
 
@@ -265,6 +309,16 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Disposes of managed resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _initializationCts?.Cancel();
+        _initializationCts?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private static Window? GetMainWindow()
     {
         return Avalonia.Application.Current?.ApplicationLifetime
@@ -274,12 +328,60 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Switches to the specified navigation tab.
+    /// Checks for available updates using Velopack.
     /// </summary>
-    /// <param name="tab">The tab to navigate to.</param>
-    [RelayCommand]
-    private void SelectTab(NavigationTab tab) =>
-        SelectedTab = tab;
+    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
+    {
+        _logger?.LogDebug("Starting background update check");
+
+        try
+        {
+            var updateInfo = await _velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
+
+            // Check both UpdateInfo (from installed app) and GitHub API flag (works in debug too)
+            var hasUpdate = updateInfo != null || _velopackUpdateManager.HasUpdateAvailableFromGitHub;
+
+            if (hasUpdate)
+            {
+                if (updateInfo != null)
+                {
+                    _logger?.LogInformation("Update available: {Current} → {Latest}", AppConstants.AppVersion, updateInfo.TargetFullRelease.Version);
+                }
+                else if (_velopackUpdateManager.LatestVersionFromGitHub != null)
+                {
+                    _logger?.LogInformation("Update available from GitHub API: {Version}", _velopackUpdateManager.LatestVersionFromGitHub);
+                }
+
+                HasUpdateAvailable = true;
+            }
+            else
+            {
+                _logger?.LogDebug("No updates available");
+                HasUpdateAvailable = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
+            HasUpdateAvailable = false;
+        }
+    }
+
+    private async Task CheckForUpdatesInBackgroundAsync(CancellationToken ct)
+    {
+        try
+        {
+            await CheckForUpdatesAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on cancellation
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Unhandled exception in background update check");
+        }
+    }
 
     private void SaveSelectedTab(NavigationTab selectedTab)
     {
@@ -307,40 +409,5 @@ public partial class MainViewModel : ObservableObject
         SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
 
         SaveSelectedTab(value);
-    }
-
-    /// <summary>
-    /// Shows the update notification dialog.
-    /// </summary>
-    [RelayCommand]
-    private async Task ShowUpdateDialogAsync()
-    {
-        try
-        {
-            _logger?.LogInformation("ShowUpdateDialogCommand executed");
-
-            var mainWindow = GetMainWindow();
-            if (mainWindow is not null)
-            {
-                _logger?.LogInformation("Opening update notification window");
-
-                var updateWindow = new UpdateNotificationWindow
-                {
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                };
-
-                await updateWindow.ShowDialog(mainWindow);
-
-                _logger?.LogInformation("Update notification window closed");
-            }
-            else
-            {
-                _logger?.LogWarning("Could not find main window to show update dialog");
-            }
-        }
-        catch (System.Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to show update notification window");
-        }
     }
 }

@@ -17,6 +17,7 @@
     <PackageReference Include="moq" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
