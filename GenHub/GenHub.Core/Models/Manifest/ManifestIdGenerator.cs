@@ -207,11 +207,8 @@ public static class ManifestIdGenerator
         if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
             return 0;
 
-        // Remove common prefixes
-        var cleaned = tag.TrimStart('v', 'V', 'r', 'R');
-
         // Extract all digits and concatenate
-        var digits = Regex.Replace(cleaned, @"[^\d]", string.Empty);
+        var digits = Regex.Replace(tag, @"[^\d]", string.Empty);
 
         if (string.IsNullOrEmpty(digits))
             return 0;
