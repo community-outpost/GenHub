@@ -57,6 +57,11 @@ public static class ContentSourceNames
     // Deliverers
 
     /// <summary>
+    /// Source name for GitHub content deliverer.
+    /// </summary>
+    public const string GitHubDeliverer = "GitHub Content Deliverer";
+
+    /// <summary>
     /// Source name for HTTP content deliverer.
     /// </summary>
     public const string HttpDeliverer = "HTTP Content Deliverer";
