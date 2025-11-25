@@ -124,6 +124,34 @@ public static class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Generates a manifest ID for GitHub repository content using standard 5-segment format.
+    /// Format: schemaVersion.userVersion.publisher.contentType.contentName.
+    /// </summary>
+    /// <param name="owner">The GitHub repository owner.</param>
+    /// <param name="repo">The GitHub repository name.</param>
+    /// <param name="contentType">The type of content (Mod, Patch, GameClient, etc.).</param>
+    /// <param name="releaseTag">The release tag (used for version extraction and content name).</param>
+    /// <returns>A normalized manifest identifier in standard 5-segment format.</returns>
+    public static string GenerateGitHubContentId(string owner, string repo, ContentType contentType, string? releaseTag = null)
+    {
+        if (string.IsNullOrWhiteSpace(owner))
+            throw new ArgumentException("Owner cannot be empty", nameof(owner));
+        if (string.IsNullOrWhiteSpace(repo))
+            throw new ArgumentException("Repository name cannot be empty", nameof(repo));
+
+        // Extract version from release tag (e.g., "v1.2.3" -> 123, "1.0" -> 10, "v2" -> 2)
+        var userVersion = ExtractVersionFromTag(releaseTag);
+
+        // Create content name from owner-repo-tag combination
+        var contentName = string.IsNullOrWhiteSpace(releaseTag)
+            ? $"{owner}-{repo}"
+            : $"{owner}-{repo}-{releaseTag}";
+
+        // Use the standard publisher content ID generator with GitHub owner as publisher
+        return GeneratePublisherContentId(owner, contentType, contentName, userVersion);
+    }
+
+    /// <summary>
     /// Normalizes a version value to a string without dots.
     /// Examples: "1.08" → "108", "1.04" → "104", "1.8" → "108", 5 → "5", "2.0" → "200", null → "0".
     /// Note: Minor versions are always padded to 2 digits for consistency.
@@ -171,7 +199,32 @@ public static class ManifestIdGenerator
     }
 
     /// <summary>
-    /// Normalizes the input string by converting it to lowercase, trimming whitespace, and removing all non-alphanumeric characters.
+    /// Extracts a numeric version from a release tag string.
+    /// Examples: "v1.2.3" -> 123, "1.0" -> 10, "v2" -> 2, "latest" -> 0.
+    /// </summary>
+    private static int ExtractVersionFromTag(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+            return 0;
+
+        // Remove common prefixes
+        var cleaned = tag.TrimStart('v', 'V', 'r', 'R');
+
+        // Extract all digits and concatenate
+        var digits = Regex.Replace(cleaned, @"[^\d]", string.Empty);
+
+        if (string.IsNullOrEmpty(digits))
+            return 0;
+
+        // Take first 9 digits to avoid overflow
+        if (digits.Length > 9)
+            digits = digits.Substring(0, 9);
+
+        return int.TryParse(digits, out var version) ? version : 0;
+    }
+
+    /// <summary>
+    /// Normalizes a string to lowercase alphanumeric with dots as separators.
     /// </summary>
     /// <param name="input">The input string to normalize.</param>
     /// <returns>The normalized string.</returns>
