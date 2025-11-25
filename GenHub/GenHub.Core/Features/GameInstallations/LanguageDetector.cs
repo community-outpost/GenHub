@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace GenHub.Core.Features.GameInstallations;
 
 /// <summary>
-/// Detects the language of a Command & Conquer Generals or Zero Hour installation.
+/// Detects the language of a Command and Conquer Generals or Zero Hour installation.
 /// </summary>
 public class LanguageDetector : ILanguageDetector
 {
@@ -27,18 +27,18 @@ public class LanguageDetector : ILanguageDetector
         // Check for language-specific directories and files
         var languageMappings = new[]
         {
-            new { Pattern = "Data\\english", Language = "EN" },
-            new { Pattern = "Data\\English", Language = "EN" },
-            new { Pattern = "Data\\german", Language = "DE" },
-            new { Pattern = "Data\\deutsch", Language = "DE" },
-            new { Pattern = "Data\\french", Language = "FR" },
-            new { Pattern = "Data\\spanish", Language = "ES" },
-            new { Pattern = "Data\\italian", Language = "IT" },
-            new { Pattern = "Data\\korean", Language = "KO" },
-            new { Pattern = "Data\\polish", Language = "PL" },
-            new { Pattern = "Data\\portuguese", Language = "PT-BR" },
-            new { Pattern = "Data\\chinese", Language = "ZH-CN" },
-            new { Pattern = "Data\\chinese-traditional", Language = "ZH-TW" },
+            new { Pattern = Path.Combine("Data", "english"), Language = "EN" },
+            new { Pattern = Path.Combine("Data", "English"), Language = "EN" },
+            new { Pattern = Path.Combine("Data", "german"), Language = "DE" },
+            new { Pattern = Path.Combine("Data", "deutsch"), Language = "DE" },
+            new { Pattern = Path.Combine("Data", "french"), Language = "FR" },
+            new { Pattern = Path.Combine("Data", "spanish"), Language = "ES" },
+            new { Pattern = Path.Combine("Data", "italian"), Language = "IT" },
+            new { Pattern = Path.Combine("Data", "korean"), Language = "KO" },
+            new { Pattern = Path.Combine("Data", "polish"), Language = "PL" },
+            new { Pattern = Path.Combine("Data", "portuguese"), Language = "PT-BR" },
+            new { Pattern = Path.Combine("Data", "chinese"), Language = "ZH-CN" },
+            new { Pattern = Path.Combine("Data", "chinese-traditional"), Language = "ZH-TW" },
         };
 
         foreach (var mapping in languageMappings)
@@ -122,7 +122,7 @@ public class LanguageDetector : ILanguageDetector
 
         foreach (var mapping in zhPatterns)
         {
-            if (mapping.Pattern.Contains("*"))
+            if (mapping.Pattern.Contains('*'))
             {
                 // Handle wildcard
                 var files = Directory.GetFiles(installationPath, mapping.Pattern, SearchOption.AllDirectories);
