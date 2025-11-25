@@ -19,37 +19,33 @@ public class WindowsFileOperationsService(
     ICasService casService,
     ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
 {
-    private readonly FileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
-    private readonly ICasService _casService = casService ?? throw new ArgumentNullException(nameof(casService));
-    private readonly ILogger<WindowsFileOperationsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     /// <inheritdoc/>
     public Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken = default)
-        => _baseService.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+        => baseService.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
 
     /// <inheritdoc/>
     public Task CreateSymlinkAsync(string linkPath, string targetPath, bool allowFallback = true, CancellationToken cancellationToken = default)
-        => _baseService.CreateSymlinkAsync(linkPath, targetPath, allowFallback, cancellationToken);
+        => baseService.CreateSymlinkAsync(linkPath, targetPath, allowFallback, cancellationToken);
 
     /// <inheritdoc/>
     public Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
-        => _baseService.VerifyFileHashAsync(filePath, expectedHash, cancellationToken);
+        => baseService.VerifyFileHashAsync(filePath, expectedHash, cancellationToken);
 
     /// <inheritdoc/>
     public Task DownloadFileAsync(string url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
-        => _baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
+        => baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
 
     /// <inheritdoc/>
     public Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
-        => _baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
+        => baseService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
 
     /// <inheritdoc/>
     public Task<string?> StoreInCasAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
-        => _baseService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
+        => baseService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
 
     /// <inheritdoc/>
     public Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default)
-        => _baseService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
+        => baseService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
 
     /// <inheritdoc/>
     public async Task<bool> LinkFromCasAsync(
@@ -60,10 +56,10 @@ public class WindowsFileOperationsService(
     {
         try
         {
-            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
@@ -78,19 +74,19 @@ public class WindowsFileOperationsService(
                 await CreateSymlinkAsync(destinationPath, pathResult.Data, useHardLink ? false : true, cancellationToken).ConfigureAwait(false);
             }
 
-            _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;
         }
     }
 
     /// <inheritdoc/>
     public Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default)
-        => _baseService.OpenCasContentAsync(hash, cancellationToken);
+        => baseService.OpenCasContentAsync(hash, cancellationToken);
 
     /// <inheritdoc/>
     public async Task CreateHardLinkAsync(
@@ -119,14 +115,14 @@ public class WindowsFileOperationsService(
                 },
                 cancellationToken);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created hard link from {Link} to {Target}",
                 linkPath,
                 targetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to create hard link from {Link} to {Target}",
                 linkPath,
