@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Features.Workspace;
@@ -13,11 +14,13 @@ namespace GenHub.Windows.Features.Workspace;
 /// <summary>
 /// Windows-specific implementation of <see cref="IFileOperationsService"/> for file operations.
 /// </summary>
-/// <param name="baseService">The base file operations service.</param>
-/// <param name="logger">The logger instance.</param>
-public class WindowsFileOperationsService(FileOperationsService baseService, ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
+public class WindowsFileOperationsService(
+    FileOperationsService baseService,
+    ICasService casService,
+    ILogger<WindowsFileOperationsService> logger) : IFileOperationsService
 {
     private readonly FileOperationsService _baseService = baseService ?? throw new ArgumentNullException(nameof(baseService));
+    private readonly ICasService _casService = casService ?? throw new ArgumentNullException(nameof(casService));
     private readonly ILogger<WindowsFileOperationsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -49,8 +52,41 @@ public class WindowsFileOperationsService(FileOperationsService baseService, ILo
         => _baseService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
 
     /// <inheritdoc/>
-    public Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default)
-        => _baseService.LinkFromCasAsync(hash, destinationPath, useHardLink, cancellationToken);
+    public async Task<bool> LinkFromCasAsync(
+        string hash,
+        string destinationPath,
+        bool useHardLink = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            if (!pathResult.Success || pathResult.Data == null)
+            {
+                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                return false;
+            }
+
+            FileOperationsService.EnsureDirectoryExists(destinationPath);
+
+            if (useHardLink)
+            {
+                await CreateHardLinkAsync(destinationPath, pathResult.Data, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await CreateSymlinkAsync(destinationPath, pathResult.Data, useHardLink ? false : true, cancellationToken).ConfigureAwait(false);
+            }
+
+            _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            return false;
+        }
+    }
 
     /// <inheritdoc/>
     public Task<Stream?> OpenCasContentAsync(string hash, CancellationToken cancellationToken = default)

@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.AppUpdate;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Features.AppUpdate;
@@ -45,8 +46,9 @@ public static class WindowsServicesModule
         services.AddScoped<IFileOperationsService>(serviceProvider =>
         {
             var baseService = serviceProvider.GetRequiredService<FileOperationsService>();
+            var casService = serviceProvider.GetRequiredService<ICasService>();
             var logger = serviceProvider.GetRequiredService<ILogger<WindowsFileOperationsService>>();
-            return new WindowsFileOperationsService(baseService, logger);
+            return new WindowsFileOperationsService(baseService, casService, logger);
         });
 
         return services;

@@ -27,7 +27,7 @@ public class WindowsFileOperationsServiceTests : IDisposable
         var casServiceMock = new Mock<ICasService>();
         var baseService = new FileOperationsService(loggerMock.Object, downloadServiceMock.Object, casServiceMock.Object);
         _logger = NullLogger<WindowsFileOperationsService>.Instance;
-        _service = new WindowsFileOperationsService(baseService, _logger);
+        _service = new WindowsFileOperationsService(baseService, casServiceMock.Object, _logger);
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDir);
     }

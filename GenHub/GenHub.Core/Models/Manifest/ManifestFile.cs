@@ -40,6 +40,7 @@ public class ManifestFile
     /// <summary>
     /// Gets or sets a value indicating whether the file is executable.
     /// </summary>
+    [JsonPropertyName("isExecutable")]
     public bool IsExecutable { get; set; }
 
     /// <summary>
