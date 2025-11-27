@@ -24,7 +24,7 @@ public class DownloadsViewModelTests
 
         var contentOrchestratorMock = new Mock<GenHub.Core.Interfaces.Content.IContentOrchestrator>();
         var manifestPoolMock = new Mock<IContentManifestPool>();
-        var vm = new DownloadsViewModel(serviceProviderMock.Object, loggerMock.Object, contentOrchestratorMock.Object, manifestPoolMock.Object);
+        var vm = new DownloadsViewModel(serviceProviderMock.Object, loggerMock.Object);
         await vm.InitializeAsync();
     }
 }

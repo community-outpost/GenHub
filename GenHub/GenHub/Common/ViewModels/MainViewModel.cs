@@ -408,6 +408,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Notify SettingsViewModel when it becomes visible/invisible
         SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
 
+        // Refresh Downloads tab when it becomes visible
+        if (value == NavigationTab.Downloads)
+        {
+            _ = DownloadsViewModel.OnTabActivatedAsync();
+        }
+
         SaveSelectedTab(value);
     }
 }

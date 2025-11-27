@@ -40,7 +40,7 @@ public class MainViewModelTests
         // Act
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
-            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>(), Mock.Of<IContentOrchestrator>(), Mock.Of<IContentManifestPool>()),
+            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>()),
             toolsVm,
             settingsVm,
             mockOrchestrator.Object,
@@ -76,7 +76,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
-            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>(), Mock.Of<IContentOrchestrator>(), Mock.Of<IContentManifestPool>()),
+            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>()),
             toolsVm,
             settingsVm,
             mockOrchestrator.Object,
@@ -107,7 +107,7 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var viewModel = new MainViewModel(
             new GameProfileLauncherViewModel(),
-            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>(), Mock.Of<IContentOrchestrator>(), Mock.Of<IContentManifestPool>()),
+            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>()),
             toolsVm,
             settingsVm,
             mockOrchestrator.Object,
@@ -141,7 +141,7 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
-            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>(), Mock.Of<IContentOrchestrator>(), Mock.Of<IContentManifestPool>()),
+            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>()),
             toolsVm,
             settingsVm,
             mockOrchestrator.Object,
@@ -177,7 +177,7 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var vm = new MainViewModel(
             new GameProfileLauncherViewModel(),
-            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>(), Mock.Of<IContentOrchestrator>(), Mock.Of<IContentManifestPool>()),
+            new DownloadsViewModel(Mock.Of<IServiceProvider>(), Mock.Of<ILogger<DownloadsViewModel>>()),
             toolsVm,
             settingsVm,
             mockOrchestrator.Object,
