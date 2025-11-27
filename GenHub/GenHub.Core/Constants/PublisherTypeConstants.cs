@@ -44,6 +44,9 @@ public static class PublisherTypeConstants
     /// <summary>Generals Online community client publisher.</summary>
     public const string GeneralsOnline = "generalsonline";
 
+    /// <summary>The Super Hackers community publisher.</summary>
+    public const string TheSuperHackers = "thesuperhackers";
+
     /// <summary>
     /// Maps GameInstallationType enum to publisher type string.
     /// </summary>
