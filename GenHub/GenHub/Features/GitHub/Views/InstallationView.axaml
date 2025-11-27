@@ -1,0 +1,171 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
+             xmlns:const="using:GenHub.Core.Constants"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="300"
+             x:Class="GenHub.Features.GitHub.Views.InstallationView"
+             x:DataType="vm:InstallationViewModel">
+
+    <UserControl.Resources>
+        <!-- Enhanced Dark Theme Colors -->
+        <SolidColorBrush x:Key="HeaderBackground" Color="#1E1E1E"/>
+        <SolidColorBrush x:Key="HeaderForeground" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="ContentBackground" Color="#252526"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#3E3E42"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#0078D4"/>
+        <SolidColorBrush x:Key="ErrorColor" Color="#F85149"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#238636"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#8A8A8A"/>
+    </UserControl.Resources>
+
+    <Design.DataContext>
+        <vm:InstallationViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Background="{StaticResource ContentBackground}">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource HeaderBackground}" Padding="16,12" CornerRadius="6,6,0,0">
+            <TextBlock Text="{x:Static const:GitHubConstants.InstallationHeaderLabel}"
+                      FontSize="16"
+                      FontWeight="SemiBold"
+                      Foreground="{StaticResource HeaderForeground}" />
+        </Border>
+
+        <!-- Progress and Status -->
+        <Border Grid.Row="1" Padding="16" Background="{StaticResource ContentBackground}">
+            <Grid RowDefinitions="Auto,Auto,Auto,*">
+                <TextBlock Grid.Row="0"
+                          Text="{Binding StatusMessage}"
+                          FontWeight="SemiBold"
+                          Foreground="{StaticResource TextPrimary}"
+                          Margin="0,0,0,12" />
+
+                <ProgressBar Grid.Row="1"
+                           Value="{Binding InstallationProgress}"
+                           Maximum="100"
+                           Height="8"
+                           Margin="0,0,0,8"
+                           Background="#3E3E42"
+                           Foreground="{StaticResource AccentColor}"
+                           CornerRadius="4"
+                           IsVisible="{Binding IsInstalling}" />
+
+                <TextBlock Grid.Row="2"
+                          Text="{Binding InstallationProgress, StringFormat='Progress: {0:F0}%'}"
+                          HorizontalAlignment="Center"
+                          FontSize="12"
+                          Foreground="{StaticResource TextSecondary}"
+                          Margin="0,0,0,16"
+                          IsVisible="{Binding IsInstalling}" />
+
+                <!-- Installation Log -->
+                <Border Grid.Row="3" 
+                        Background="#1E1E1E" 
+                        BorderBrush="{StaticResource BorderBrush}" 
+                        BorderThickness="1" 
+                        CornerRadius="4">
+                    <ListBox x:Name="InstallationLogListBox"
+                            ItemsSource="{Binding InstallationLog}"
+                            Background="Transparent"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            Padding="8">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                          TextWrapping="Wrap"
+                                          FontFamily="Consolas"
+                                          FontSize="11"
+                                          Foreground="{StaticResource TextSecondary}"
+                                          Margin="2" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Action Buttons -->
+        <Border Grid.Row="2" 
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,1,0,0" 
+                Padding="16,12"
+                Background="{StaticResource ContentBackground}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <!-- Install Button -->
+                <Button Content="Install"
+                        Command="{Binding InstallSelectedItemCommand}"
+                        IsEnabled="{Binding CanInstallItem}"
+                        Background="{StaticResource AccentColor}"
+                        Foreground="White"
+                        CornerRadius="4"
+                        Padding="16,8"
+                        FontWeight="SemiBold"
+                        IsVisible="{Binding !IsInstalling}"
+                        ToolTip.Tip="Downloads and creates a game profile" />
+                
+                <!-- Cancel Button -->
+                <Button Content="{x:Static const:GitHubConstants.CancelButtonLabel}"
+                        Command="{Binding CancelInstallationCommand}"
+                        IsEnabled="{Binding IsInstalling}"
+                        Background="{StaticResource ErrorColor}"
+                        Foreground="White"
+                        CornerRadius="4"
+                        Padding="12,6" />
+            </StackPanel>
+        </Border>
+
+        <!-- Instructions/Info Panel -->
+        <Border Grid.Row="3" 
+                Padding="16" 
+                IsVisible="{Binding !IsInstalling}"
+                Background="{StaticResource ContentBackground}">
+            <StackPanel Spacing="8">
+                <!-- Selected Item Info -->
+                <StackPanel IsVisible="{Binding SelectedItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <TextBlock Text="Selected Item:"
+                              FontWeight="SemiBold"
+                              Foreground="{StaticResource TextPrimary}"
+                              FontSize="12" />
+                    <TextBlock Text="{Binding SelectedItem.DisplayName}"
+                              Foreground="{StaticResource TextSecondary}"
+                              FontSize="11"
+                              Margin="0,2,0,8" />
+                    <TextBlock Text="{Binding SelectedItem.Description}"
+                              Foreground="{StaticResource TextSecondary}"
+                              FontSize="10"
+                              TextWrapping="Wrap"
+                              Margin="0,0,0,12" />
+                    
+                    <!-- Content Type Selection -->
+                    <TextBlock Text="Content Type:"
+                              FontWeight="SemiBold"
+                              Foreground="{StaticResource TextPrimary}"
+                              FontSize="12"
+                              Margin="0,0,0,4" />
+                    <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                              SelectedItem="{Binding SelectedContentType}"
+                              MinHeight="28"
+                              Margin="0,0,0,8">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" FontSize="12" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+                
+                <!-- No Selection Message -->
+                <TextBlock Text="Select an item from the tree view to install"
+                          Foreground="{StaticResource TextSecondary}"
+                          TextWrapping="Wrap"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          FontStyle="Italic"
+                          IsVisible="{Binding SelectedItem, Converter={x:Static ObjectConverters.IsNull}}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

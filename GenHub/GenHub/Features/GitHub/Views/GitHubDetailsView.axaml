@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="600"
+             x:Class="GenHub.Features.GitHub.Views.GitHubDetailsView"
+             x:DataType="vm:GitHubDetailsViewModel">
+  <UserControl.Resources>
+    <conv:FileSizeConverter x:Key="FileSizeConverter"/>
+    <conv:IconKeyToPathDataConverter x:Key="IconConverter"/>
+    <conv:NotNullConverter x:Key="NotNullConverter"/>
+
+    <!-- Enhanced Dark Theme -->
+    <SolidColorBrush x:Key="HeaderBackground" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="HeaderForeground" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ContentBackground" Color="#252526"/>
+    <SolidColorBrush x:Key="SectionBackground" Color="#2D2D30"/>
+    <SolidColorBrush x:Key="SectionBorder" Color="#3E3E42"/>
+    <SolidColorBrush x:Key="LabelColor" Color="#9CDCFE"/>
+    <SolidColorBrush x:Key="ValueColor" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#0078D4"/>
+    <SolidColorBrush x:Key="MutedColor" Color="#6A737D"/>
+    <SolidColorBrush x:Key="EmptyStateColor" Color="#8B949E"/>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Section Header Style -->
+    <Style Selector="TextBlock.section-header">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{StaticResource HeaderForeground}"/>
+      <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+
+    <!-- Property Label Style -->
+    <Style Selector="TextBlock.property-label">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+      <Setter Property="Foreground" Value="{StaticResource LabelColor}"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+      <Setter Property="Margin" Value="0,2,0,0"/>
+    </Style>
+
+    <!-- Property Value Style -->
+    <Style Selector="TextBlock.property-value">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource ValueColor}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+
+    <!-- Section Container Style -->
+    <Style Selector="Border.section">
+      <Setter Property="Background" Value="{StaticResource SectionBackground}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SectionBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+
+    <!-- Empty State Style -->
+    <Style Selector="StackPanel.empty-state">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Spacing" Value="12"/>
+    </Style>
+
+    <!-- Button Styles -->
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource AccentColor}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Padding" Value="16,8"/>
+      <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+
+    <Style Selector="Button.primary:pointerover">
+      <Setter Property="Background" Value="#106EBE"/>
+    </Style>
+
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource ValueColor}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SectionBorder}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Padding" Value="16,8"/>
+    </Style>
+
+    <Style Selector="Button.secondary:pointerover">
+      <Setter Property="Background" Value="{StaticResource SectionBackground}"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Background="{StaticResource ContentBackground}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- Header -->
+    <Border Grid.Row="0"
+            Background="{StaticResource HeaderBackground}"
+            BorderBrush="{StaticResource SectionBorder}"
+            BorderThickness="0,0,0,1">
+      <TextBlock Text="Details"
+                 FontSize="18"
+                 FontWeight="SemiBold"
+                 Foreground="{StaticResource HeaderForeground}"
+                 Margin="16,12"/>
+    </Border>
+
+    <!-- Content -->
+    <ScrollViewer Grid.Row="1" Padding="16" Background="{StaticResource ContentBackground}">
+      <Grid>
+        <!-- Empty State -->
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="12"
+                    IsVisible="{Binding SelectedItem, Converter={x:Static ObjectConverters.IsNull}}">
+          <TextBlock Text="📄"
+                     FontSize="48"
+                     HorizontalAlignment="Center"
+                     Opacity="0.3"/>
+          <TextBlock Text="No item selected"
+                     FontSize="16"
+                     Foreground="{StaticResource EmptyStateColor}"
+                     FontWeight="Medium"
+                     HorizontalAlignment="Center"/>
+          <TextBlock Text="Select an item from the tree to view its details"
+                     FontSize="12"
+                     Foreground="{StaticResource MutedColor}"
+                     TextAlignment="Center"
+                     HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Details Content -->
+        <StackPanel Spacing="16"
+                    IsVisible="{Binding SelectedItem, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <!-- Item Info Section -->
+          <Border Classes="section">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="section-header" Text="Information"/>
+
+              <ItemsControl ItemsSource="{Binding Details}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+
+                      <TextBlock Grid.Column="0"
+                                 Classes="property-label"
+                                 Text="{Binding Label}"/>
+                      <TextBlock Grid.Column="1"
+                                 Classes="property-value"
+                                 Text="{Binding Value}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+
+  </Grid>
+</UserControl>

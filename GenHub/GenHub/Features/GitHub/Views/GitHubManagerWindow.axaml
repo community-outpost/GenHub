@@ -1,0 +1,241 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
+        xmlns:items="using:GenHub.Features.GitHub.ViewModels.Items"
+        xmlns:views="using:GenHub.Features.GitHub.Views"
+        xmlns:const="using:GenHub.Core.Constants"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="GenHub.Features.GitHub.Views.GitHubManagerWindow"
+        x:DataType="vm:GitHubManagerViewModel"
+        Title="{x:Static const:GitHubConstants.GitHubManagerTitle}"
+        Width="1400"
+        Height="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
+
+    <Window.Resources>
+        <!-- Enhanced Color Scheme -->
+        <SolidColorBrush x:Key="WindowBackground" Color="#1E1E1E"/>
+        <SolidColorBrush x:Key="HeaderBackground" Color="#0078D4"/>
+        <SolidColorBrush x:Key="ToolbarBackground" Color="#252526"/>
+        <SolidColorBrush x:Key="ContentBackground" Color="#2D2D30"/>
+        <SolidColorBrush x:Key="CardBackground" Color="#2D2D30"/>
+        <SolidColorBrush x:Key="CardBorder" Color="#3E3E42"/>
+        <SolidColorBrush x:Key="SplitterBackground" Color="#3E3E42"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#8A8A8A"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#0078D4"/>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{StaticResource ContentBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+        </Style>
+
+        <Style Selector="GridSplitter">
+            <Setter Property="Background" Value="{StaticResource SplitterBackground}"/>
+        </Style>
+    </Window.Styles>
+
+    <Design.DataContext>
+        <vm:GitHubManagerViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,Auto,*,Auto,*" Background="{StaticResource WindowBackground}">
+        <!-- Repository Toolbar -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5"
+                Background="{StaticResource ToolbarBackground}"
+                BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <!-- Repository Label and Selection -->
+                <TextBlock Text="Repository:" FontSize="14" VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}"/>
+                
+                <ComboBox ItemsSource="{Binding RepositoryControlVM.Repositories}"
+                          SelectedItem="{Binding RepositoryControlVM.SelectedRepository}"
+                          IsEnabled="{Binding !RepositoryControlVM.IsLoading}"
+                          MinHeight="28"
+                          Width="350"
+                          VerticalAlignment="Center">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Spacing="1" Margin="6,3">
+                                <TextBlock Text="{Binding ComputedDisplayName}" 
+                                           FontWeight="Medium"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextPrimary}" />
+                                <TextBlock Text="{Binding Description}" 
+                                           FontSize="10"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="300" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <!-- Refresh Button -->
+                <Button Command="{Binding RepositoryControlVM.DiscoverRepositoriesCommand}"
+                        Content="🔄" 
+                        ToolTip.Tip="Refresh repository list"
+                        Classes="secondary"
+                        Padding="8,6"
+                        MinWidth="32"
+                        IsEnabled="{Binding !RepositoryControlVM.IsDiscovering}" />
+                
+                <!-- Configure Token Button -->
+                <Button Content="⚙️ Configure Token" 
+                        Command="{Binding OpenGitHubTokenDialogCommand}"
+                        Classes="secondary"
+                        Padding="10,6"
+                        FontSize="12"
+                        ToolTip.Tip="Set GitHub Personal Access Token" />
+            </StackPanel>
+        </Border>
+
+        <!-- Items Tree View with Search -->
+        <Border Grid.Row="1" Grid.Column="0" 
+                Background="{StaticResource ContentBackground}"
+                BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto,*">
+                <!-- Search Bar -->
+                <Border Grid.Row="0"
+                        Background="{StaticResource ToolbarBackground}"
+                        BorderBrush="{StaticResource CardBorder}"
+                        BorderThickness="0,0,0,1"
+                        Padding="8">
+                    <Grid ColumnDefinitions="*,Auto,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding SearchQuery}"
+                                 Watermark="Search by PR#, name, branch, actor, commit..."
+                                 FontSize="12"
+                                 Padding="8,4"
+                                 Background="{StaticResource ContentBackground}"
+                                 BorderBrush="{StaticResource CardBorder}"
+                                 Foreground="{StaticResource TextPrimary}" />
+                        
+                        <Button Grid.Column="1"
+                                Content="🔍"
+                                Command="{Binding ApplySearchCommand}"
+                                ToolTip.Tip="Apply search filter"
+                                Classes="secondary"
+                                Padding="8,4"
+                                Margin="4,0,0,0"
+                                MinWidth="32" />
+                        
+                        <Button Grid.Column="2"
+                                Content="✕"
+                                Command="{Binding ClearSearchCommand}"
+                                IsVisible="{Binding HasSearchQuery}"
+                                ToolTip.Tip="Clear search"
+                                Classes="secondary"
+                                Padding="8,4"
+                                Margin="4,0,0,0"
+                                MinWidth="32" />
+                    </Grid>
+                </Border>
+                
+                <!-- Tree View -->
+                <views:GitHubDisplayItemsView Grid.Row="1" DataContext="{Binding ItemsTreeViewModel}" />
+            </Grid>
+        </Border>
+
+        <!-- First Splitter -->
+        <GridSplitter Grid.Row="1" Grid.Column="1" Width="4" />
+
+        <!-- Details View -->
+        <Border Grid.Row="1" Grid.Column="2" 
+                Background="{StaticResource ContentBackground}"
+                BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,0,1,0">
+            <views:GitHubDetailsView DataContext="{Binding DetailsViewModel}" />
+        </Border>
+
+        <!-- Second Splitter -->
+        <GridSplitter Grid.Row="1" Grid.Column="3" Width="4" />
+
+        <!-- Installation View -->
+        <Border Grid.Row="1" Grid.Column="4" Background="{StaticResource ContentBackground}">
+            <views:InstallationView DataContext="{Binding InstallationViewModel}" />
+        </Border>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5"
+                Background="{StaticResource ToolbarBackground}"
+                BorderBrush="{StaticResource CardBorder}"
+                BorderThickness="0,1,0,0"
+                Padding="24,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding StatusMessage}" 
+                               Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center"
+                               FontSize="12" />
+                    
+                    <!-- Load More Workflows Button -->
+                    <Button Content="📥 Load More Workflows"
+                            Command="{Binding LoadMoreWorkflowsCommand}"
+                            IsVisible="{Binding !IsLoading}"
+                            Background="Transparent"
+                            Foreground="{StaticResource AccentColor}"
+                            BorderBrush="{StaticResource AccentColor}"
+                            BorderThickness="1"
+                            Padding="8,4"
+                            FontSize="11"
+                            ToolTip.Tip="Load the next page of workflow runs" />
+                </StackPanel>
+                
+                <!-- Progress Bar and Percentage -->
+                <StackPanel Grid.Column="1" 
+                           Orientation="Horizontal" 
+                           Spacing="8"
+                           IsVisible="{Binding ShowProgressBar}">
+                    <TextBlock Text="{Binding LoadingProgress, StringFormat={}{0:F0}%}" 
+                               Foreground="{StaticResource TextSecondary}"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               MinWidth="35"
+                               TextAlignment="Right" />
+                    <ProgressBar Value="{Binding LoadingProgress}"
+                                 Maximum="100"
+                                 Width="120"
+                                 Height="4"
+                                 VerticalAlignment="Center"
+                                 Background="{StaticResource ContentBackground}"
+                                 Foreground="{StaticResource AccentColor}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
