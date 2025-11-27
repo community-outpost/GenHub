@@ -56,7 +56,7 @@
             <!-- Header with expand/collapse -->
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <!-- Icon - Logo Image or Color Circle -->
-                <Panel Grid.Column="0" 
+                <Panel Grid.Column="0"
                        Width="24" Height="24"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0">
@@ -120,12 +120,12 @@
             <!-- Metadata Row -->
             <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !IsLoading}" Margin="0,4,0,0">
                 <!-- Content Summary -->
-                <TextBlock Text="{Binding ContentSummary}" 
-                           Foreground="#AAAAAA" 
+                <TextBlock Text="{Binding ContentSummary}"
+                           Foreground="#AAAAAA"
                            FontSize="13"
                            FontWeight="Medium"
                            IsVisible="{Binding ShowContentSummary}" />
-                
+
                 <TextBlock Text="|" Foreground="#444444">
                     <TextBlock.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -136,8 +136,8 @@
                 </TextBlock>
 
                 <!-- Date -->
-                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:MMM dd, yyyy}'}" 
-                           Foreground="#888888" 
+                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:MMM dd, yyyy}'}"
+                           Foreground="#888888"
                            FontSize="13"
                            IsVisible="{Binding ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
             </StackPanel>
@@ -147,8 +147,8 @@
                 <ItemsControl ItemsSource="{Binding ContentTypes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#1A1A1A" 
-                                    CornerRadius="6" 
+                            <Border Background="#1A1A1A"
+                                    CornerRadius="6"
                                     Padding="12"
                                     Margin="0,4">
                                 <StackPanel Spacing="8">
@@ -169,20 +169,20 @@
                                                             <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Medium" />
                                                             <TextBlock Text="{Binding Version}" Foreground="#888888" FontSize="12" VerticalAlignment="Center" />
                                                         </StackPanel>
-                                                        
+
                                                         <!-- Item Description / Changelog -->
                                                         <StackPanel IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding Description}" 
-                                                                       FontSize="12" 
-                                                                       Foreground="#999999" 
+                                                            <TextBlock Text="{Binding Description}"
+                                                                       FontSize="12"
+                                                                       Foreground="#999999"
                                                                        TextWrapping="Wrap"
                                                                        MaxLines="3"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        IsVisible="{Binding !IsChangelogExpanded}" />
-                                                            
-                                                            <TextBlock Text="{Binding Description}" 
-                                                                       FontSize="12" 
-                                                                       Foreground="#999999" 
+
+                                                            <TextBlock Text="{Binding Description}"
+                                                                       FontSize="12"
+                                                                       Foreground="#999999"
                                                                        TextWrapping="Wrap"
                                                                        IsVisible="{Binding IsChangelogExpanded}" />
 
@@ -201,20 +201,20 @@
                                                         </StackPanel>
 
                                                         <!-- Progress Bar - visible during installation -->
-                                                        <ProgressBar Value="{Binding InstallProgress}" 
-                                                                     Maximum="100" 
-                                                                     Height="4" 
+                                                        <ProgressBar Value="{Binding InstallProgress}"
+                                                                     Maximum="100"
+                                                                     Height="4"
                                                                      IsVisible="{Binding IsInstalling}"
                                                                      Foreground="#4CAF50"
                                                                      Background="#333333" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
-                                                        <TextBlock Text="{Binding InstallStatus}" 
-                                                                   FontSize="10" 
+                                                        <TextBlock Text="{Binding InstallStatus}"
+                                                                   FontSize="10"
                                                                    Foreground="#AAAAAA"
                                                                    TextWrapping="Wrap"
                                                                    IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                     </StackPanel>
-                                                    
+
                                                     <!-- Install button - only shown when not installed and not installing -->
                                                     <Button Grid.Column="2"
                                                             Classes="card-action"
@@ -246,8 +246,8 @@
             </StackPanel>
 
             <!-- Error Message -->
-            <Border Background="#4D1F1F" 
-                    CornerRadius="6" 
+            <Border Background="#4D1F1F"
+                    CornerRadius="6"
                     Padding="12"
                     IsVisible="{Binding HasError}">
                 <TextBlock Text="{Binding ErrorMessage}"
