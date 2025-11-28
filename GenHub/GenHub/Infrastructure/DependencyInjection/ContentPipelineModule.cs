@@ -36,6 +36,7 @@ public static class ContentPipelineModule
         // Register content pipelines
         AddGitHubPipeline(services);
         AddGeneralsOnlinePipeline(services);
+        AddCommunityOutpostPipeline(services);
         AddCNCLabsPipeline(services);
         AddLocalFileSystemPipeline(services);
         AddSharedComponents(services);
@@ -94,12 +95,26 @@ public static class ContentPipelineModule
         // Register GitHub content provider
         services.AddTransient<IContentProvider, GitHubContentProvider>();
 
-        // Register GitHub discoverers
+        // Register SuperHackers provider (uses GitHub discoverer/resolver/deliverer)
+        services.AddTransient<IContentProvider, SuperHackersProvider>();
+
+        // Register GitHub discoverers (both concrete and interface registrations)
+        services.AddTransient<GitHubDiscoverer>();
+        services.AddTransient<GitHubReleasesDiscoverer>();
         services.AddTransient<IContentDiscoverer, GitHubDiscoverer>();
         services.AddTransient<IContentDiscoverer, GitHubReleasesDiscoverer>();
 
         // Register GitHub resolver
         services.AddTransient<IContentResolver, GitHubResolver>();
+
+        // Register GitHub deliverer
+        services.AddTransient<IContentDeliverer, GitHubContentDeliverer>();
+
+        // Register SuperHackers manifest factory
+        services.AddTransient<IPublisherManifestFactory, SuperHackersManifestFactory>();
+
+        // Register SuperHackers update service
+        services.AddSingleton<SuperHackersUpdateService>();
     }
 
     /// <summary>
@@ -110,10 +125,12 @@ public static class ContentPipelineModule
         // Register Generals Online provider
         services.AddTransient<IContentProvider, GeneralsOnlineProvider>();
 
-        // Register Generals Online discoverer
+        // Register Generals Online discoverer (concrete and interface)
+        services.AddTransient<GeneralsOnlineDiscoverer>();
         services.AddTransient<IContentDiscoverer, GeneralsOnlineDiscoverer>();
 
-        // Register Generals Online resolver
+        // Register Generals Online resolver (concrete and interface)
+        services.AddTransient<GeneralsOnlineResolver>();
         services.AddTransient<IContentResolver, GeneralsOnlineResolver>();
 
         // Register Generals Online deliverer
@@ -121,9 +138,36 @@ public static class ContentPipelineModule
 
         // Register Generals Online manifest factory
         services.AddTransient<GeneralsOnlineManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, GeneralsOnlineManifestFactory>();
 
         // Register Generals Online update service
         services.AddSingleton<GeneralsOnlineUpdateService>();
+    }
+
+    /// <summary>
+    /// Registers Community Outpost content pipeline services.
+    /// </summary>
+    private static void AddCommunityOutpostPipeline(IServiceCollection services)
+    {
+        // Register Community Outpost provider
+        services.AddTransient<IContentProvider, CommunityOutpostProvider>();
+
+        // Register Community Outpost discoverer (concrete and interface)
+        services.AddTransient<CommunityOutpostDiscoverer>();
+        services.AddTransient<IContentDiscoverer, CommunityOutpostDiscoverer>();
+
+        // Register Community Outpost resolver
+        services.AddTransient<IContentResolver, CommunityOutpostResolver>();
+
+        // Register Community Outpost deliverer
+        services.AddTransient<IContentDeliverer, CommunityOutpostDeliverer>();
+
+        // Register Community Outpost manifest factory
+        services.AddTransient<CommunityOutpostManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, CommunityOutpostManifestFactory>();
+
+        // Register Community Outpost update service
+        services.AddSingleton<CommunityOutpostUpdateService>();
     }
 
     /// <summary>
