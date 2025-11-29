@@ -27,7 +27,7 @@ public class CommunityOutpostUpdateService(
     protected override string ServiceName => CommunityOutpostConstants.PublisherName;
 
     /// <inheritdoc/>
-    protected override TimeSpan UpdateCheckInterval => TimeSpan.FromHours(24); // Check daily
+    protected override TimeSpan UpdateCheckInterval => TimeSpan.FromDays(1);
 
     /// <inheritdoc/>
     public override async Task<ContentUpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken)

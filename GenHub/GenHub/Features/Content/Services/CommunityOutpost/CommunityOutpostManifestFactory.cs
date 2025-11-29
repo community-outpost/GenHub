@@ -155,7 +155,7 @@ public class CommunityOutpostManifestFactory(
             var executables = allFiles.Where(f =>
                 f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
                 (f.Contains("generals", StringComparison.OrdinalIgnoreCase) ||
-                 f.Contains("zeromour", StringComparison.OrdinalIgnoreCase) ||
+                 f.Contains("zerohour", StringComparison.OrdinalIgnoreCase) ||
                  f.Contains("game", StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
