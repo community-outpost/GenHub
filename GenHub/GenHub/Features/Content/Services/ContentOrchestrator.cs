@@ -398,6 +398,22 @@ public class ContentOrchestrator : IContentOrchestrator
             {
                 manifest = embeddedManifest;
             }
+            else if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
+            {
+                // Content requires resolution through a resolver (e.g., GitHub releases)
+                _logger.LogInformation(
+                    "Content requires resolution. Using resolver: {ResolverId}",
+                    searchResult.ResolverId);
+
+                var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
+                if (!resolveResult.Success || resolveResult.Data == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to resolve manifest: {resolveResult.FirstError}");
+                }
+
+                manifest = resolveResult.Data;
+            }
             else
             {
                 var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
