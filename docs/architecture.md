@@ -159,6 +159,24 @@ Profiles maintain loose coupling with content through string-based EnabledConten
 - **IFileOperationsService**: Comprehensive low-level operations contract with CopyFileAsync, CreateSymlinkAsync, CreateHardLinkAsync, VerifyFileHashAsync, DownloadFileAsync, ApplyPatchAsync, CopyFromCasAsync
 - **FileOperationsService**: Platform-aware implementation with full CAS integration, cross-platform file operations, symbolic link creation, and hash verification
 
+**Workspace Lifecycle Management**:
+
+**Creation:**
+
+- Deferred until first profile launch (not during profile creation)
+- Workspace ID stored in profile.ActiveWorkspaceId after preparation
+
+**Persistence:**
+
+- Workspaces persist across launches for quick re-launch
+- No cleanup on profile stop (only on deletion or strategy changes)
+
+**Cleanup:**
+
+- Manual: User-initiated cleanup via profile deletion
+- Automatic: Content changes requiring workspace refresh
+- CAS unreference: Tracked via CasReferenceTracker
+
 **CAS Integration**:
 Workspace strategies now fully integrate with the Content Addressable Storage system through  CAS operations:
 
@@ -223,6 +241,18 @@ The reconciler uses multiple heuristics to determine if a file needs updating:
 - **Hash Verification**: For regular files under 100MB, computes SHA-256 hash and compares with manifest
 - **Size Verification**: Fast check comparing file size against manifest expectation
 - **Existence Check**: Verifies file exists at expected path
+
+**Multi-Priority Source Path Resolution**:
+
+WorkspaceStrategyBase.ResolveSourcePath uses priority-based resolution:
+
+1. **Absolute SourcePath**: File's SourcePath if already absolute
+2. **Manifest Source Map**: configuration.ManifestSourcePaths[manifestId]
+3. **GameInstallation Base**: configuration.BaseInstallationPath for GameInstallation content
+4. **Relative SourcePath**: Combine BaseInstallationPath + file.SourcePath
+5. **Fallback**: Combine BaseInstallationPath + file.RelativePath
+
+This enables multi-source installations where content comes from different directories.
 
 ### 1.6 GameLaunching: The Runtime Orchestration Layer
 
@@ -395,6 +425,9 @@ public class GitHubContentProvider : BaseContentProvider
 - **ModDBContentProvider**: Orchestrates `ModDBDiscoverer` → `ModDBResolver` → `HttpContentDeliverer`
 - **CNCLabsContentProvider**: Orchestrates `CNCLabsMapDiscoverer` → `CNCLabsMapResolver` → `HttpContentDeliverer`
 - **LocalFileSystemContentProvider**: Simple provider handling all operations for local files
+- **GeneralsOnlineProvider**: Orchestrates `GeneralsOnlineDiscoverer` → `GeneralsOnlineResolver` → `GeneralsOnlineDeliverer` (specialized for dual 30Hz/60Hz variant creation)
+- **SuperHackersProvider**: Uses GitHub pipeline (`GitHubDiscoverer` → `GitHubResolver` → `GitHubContentDeliverer`) for weekly game client releases
+- **CommunityOutpostProvider**: Orchestrates `CommunityOutpostDiscoverer` → `CommunityOutpostResolver` → `CommunityOutpostDeliverer` (specialized for community patch extraction)
 
 **Provider Internal Orchestration Flow**:
 
@@ -419,6 +452,8 @@ public class GitHubContentProvider : BaseContentProvider
 - **GitHubReleasesDiscoverer**: Monitors configured GitHub repositories for new releases
 - **CNCLabsMapDiscoverer**: Scrapes CNC Labs website for maps
 - **FileSystemDiscoverer**: Scans local directories for manifest files or recognizable content
+- **GeneralsOnlineDiscoverer**: Fetches releases from Generals Online API
+- **CommunityOutpostDiscoverer**: Scrapes legi.cc for weekly community patches
 
 **Discovery Coordination**:
 
@@ -438,6 +473,8 @@ public class GitHubContentProvider : BaseContentProvider
 - **GitHubResolver**: Fetches GitHub release details, analyzes assets, and constructs a `ContentManifest`
 - **CNCLabsMapResolver**: Scrapes individual map pages for download URLs and metadata to build a manifest
 - **LocalManifestResolver**: Reads `ContentManifest` files directly from the filesystem
+- **GeneralsOnlineResolver**: Creates ContentManifest from GeneralsOnline release data
+- **CommunityOutpostResolver**: Builds ContentManifest with remote ZIP download URL for community patches
 
 **Resolution Flow**:
 
@@ -459,6 +496,9 @@ public class GitHubContentProvider : BaseContentProvider
 
 - **HttpContentDeliverer**: Downloads content from HTTP/HTTPS URLs, handles package extraction
 - **FileSystemDeliverer**: Handles content already available on the filesystem, preparing it for storage
+- **GitHubContentDeliverer**: Downloads GitHub release assets, extracts ZIPs, creates manifests via factory
+- **GeneralsOnlineDeliverer**: Downloads Generals Online ZIP, extracts, creates dual 30Hz/60Hz manifests via factory, registers to CAS
+- **CommunityOutpostDeliverer**: Downloads community patch ZIP, extracts, creates manifests via CommunityOutpostManifestFactory, registers to CAS
 
 **Delivery Transformation Process**:
 Deliverers receive a `ContentManifest`. The delivery process might involve downloading packages, extracting contents, and verifying files. It produces a final, validated manifest and a directory of content ready for the `IContentStorageService`.
@@ -485,7 +525,32 @@ Some content providers need multiple discoverers, resolvers, or deliverers to ha
 
 This architecture allows providers to select the most appropriate component based on query context or content type, providing maximum flexibility while maintaining clean separation of concerns.
 
----
+### 2.6 ProfileContentLoader: Content Resolution for Game Profiles
+
+**Primary Responsibility**: Bridge game profile content requirements with the content pipeline, providing seamless content resolution and validation for profile launches.
+
+**Core ProfileContentLoader Architecture**:
+
+- **IProfileContentLoader**: Interface for resolving and validating profile content requirements
+- **ProfileContentLoader**: Implementation that orchestrates content resolution for game profiles
+- **ContentResolutionRequest**: Input specification with ProfileId, EnabledContentIds, and resolution options
+- **ContentResolutionResult**: Comprehensive result with resolved manifests, validation issues, and dependency information
+
+**Content Resolution Flow**:
+
+1. **Profile Content Analysis**: Extract EnabledContentIds from game profile
+2. **Manifest Resolution**: Resolve each content ID through IContentManifestPool
+3. **Dependency Validation**: Check content compatibility and dependency requirements
+4. **Conflict Detection**: Identify conflicting content that cannot be enabled together
+5. **Resolution Optimization**: Optimize content loading order and workspace preparation
+
+**Profile-Content Integration Features**:
+
+- **Automatic Content Validation**: Ensures all enabled content is available and compatible
+- **Dependency Resolution**: Automatically resolves content dependencies during profile launch
+- **Content Conflict Prevention**: Prevents enabling mutually exclusive content
+- **Workspace Optimization**: Optimizes content loading for efficient workspace preparation
+- **Launch Readiness Verification**: Confirms all content is ready before initiating launch pipeline
 
 ## 3. Content Caching Strategy
 
@@ -583,7 +648,15 @@ if(result.Success)
 return result;
 ```
 
----
+**ManifestProvider Fallbacks**:
+
+The content pipeline includes robust fallback mechanisms for manifest resolution when primary providers are unavailable:
+
+- **Provider Chain Resolution**: IManifestProvider implementations are tried in priority order until one succeeds
+- **Fallback to Local Manifests**: If remote manifest providers fail, system falls back to locally cached manifests
+- **Generated Manifest Creation**: For content without explicit manifests, system can generate basic manifests from file analysis
+- **Cross-Provider Manifest Sharing**: Manifests from one provider can be used as fallbacks for content from other providers
+- **Offline Mode Support**: System maintains functionality with cached manifests when network providers are unavailable
 
 ## 4. Game Profile Management and Runtime Orchestration
 
@@ -744,7 +817,30 @@ GameProfile objects seamlessly integrate with the workspace system:
 - **Launch Customization**: Profile's LaunchArguments and EnvironmentVariables customize process creation
 - **Isolation**: Each profile launch uses an isolated workspace preventing conflicts
 
----
+### 4.4 Additional Services and Interfaces
+
+**Profile Content Integration Services**:
+
+- **IProfileContentLoader**: Orchestrates content resolution for game profiles, ensuring all enabled content is available and compatible
+- **IProfileEditorFacade**: Provides high-level profile editing operations for UI integration, including ScanAndCreateProfilesAsync
+
+**Manifest and Content Services**:
+
+- **IManifestProvider**: Provides base installation manifests with fallback chain resolution
+- **IContentManifestPool**: Long-term cache and database for acquired content manifests with full CRUD operations
+- **IContentStorageService**: Manages content storage operations and CAS integration
+
+**Launch and Process Services**:
+
+- **ILaunchRegistry**: Tracks active launch sessions with persistence and recovery capabilities
+- **IGameProcessManager**: Cross-platform process lifecycle management with monitoring and cleanup
+- **IProcessMonitor**: Real-time process monitoring and health checking
+
+**Validation and Compatibility Services**:
+
+- **IWorkspaceValidator**: Ensures workspace integrity and validates file operations
+- **IGameInstallationValidator**: Validates game installation compatibility and requirements
+- **IContentValidator**: Validates content integrity and security before installation
 
 ## 5. Data Models and Type System
 
@@ -1122,4 +1218,98 @@ The system provides comprehensive CAS lifecycle management:
 - **Garbage Collection**: Unused CAS objects can be safely removed
 - **Deduplication**: Multiple workspaces can share CAS content efficiently
 
-This comprehensive architecture analysis demonstrates GenHub's sophisticated approach to solving C&C Generals/Zero Hour ecosystem complexity through a **six-pillar architectural foundation** with **three-tier content pipeline**, enhanced by comprehensive **game profile management** and **runtime orchestration** systems. The architecture enables seamless integration of content from diverse sources, provides isolated execution environments, and offers comprehensive game profile management while maintaining user experience simplicity and system reliability through well-defined contracts and flexible component composition.
+### 8.4 GitHub Manager Content Acquisition Workflow
+
+**GitHub Content Discovery and Installation**:
+User discovers and installs community content through the GitHub Manager feature.
+
+**End-to-End Workflow**:
+
+1. **Repository Configuration**: User opens GitHub Manager and configures TheSuperHackers repository
+2. **Content Discovery**: GitHubDiscoverer scans repository releases through GitHub API
+   - Fetches available releases and tags
+   - Applies content type inference heuristics
+   - Detects game type compatibility
+   - Returns ContentSearchResult objects to UI
+3. **User Selection**: User browses releases in GitHub Manager window and selects desired release
+4. **Installation Request**: User clicks "Install" triggering content acquisition pipeline
+5. **Pipeline Orchestration**: ContentOrchestrator routes request to GitHubContentProvider
+   - Provider coordinates GitHubDiscoverer → GitHubResolver → GitHubContentDeliverer
+6. **Content Resolution**: GitHubResolver transforms release into ContentManifest
+   - Fetches complete release metadata from GitHub
+   - Analyzes release assets for file structure
+   - Generates ContentManifest with download URLs
+7. **Content Delivery**: GitHubContentDeliverer executes download and extraction
+   - Downloads ZIP archives from GitHub release assets
+   - Detects GameClient content type
+   - Extracts archives to target directory
+   - Recursively scans extracted files
+   - Marks executable files (.exe) as IsExecutable
+   - Builds updated ContentManifest with all extracted files
+   - Returns updated manifest to ContentOrchestrator
+8. **Content Storage and Validation**: ContentOrchestrator finalizes acquisition
+   - Validates delivered content against manifest
+   - Reports validation progress to UI
+   - Adds validated manifest to IContentManifestPool
+   - Cleans up staging directories
+9. **Profile Integration**: Manifests available through ProfileContentLoader
+   - Manifests validated for completeness
+   - Added to pool with deterministic ManifestId
+   - Indexed by GameType for profile queries
+10. **Profile Integration**: Content immediately available
+    - Appears in GameProfile content dropdowns
+    - User enables content in profile
+    - Workspace preparation includes GitHub content
+    - Game launches successfully with modifications
+
+**GitHub Pipeline Components**:
+
+**GitHubDiscoverer**:
+
+- Queries GitHub API for repository releases
+- Implements rate limiting and authentication
+- Caches API responses for performance
+- Filters and classifies release types
+
+**GitHubResolver**:
+
+- Transforms lightweight search results into full manifests
+- Analyzes release assets and metadata
+- Generates file lists with download URLs
+- Preserves publisher and version information
+
+**GitHubContentDeliverer**:
+
+- Downloads assets from GitHub URLs
+- Extracts ZIP archives for GameClient content
+- Recursively scans extracted files and marks executables
+- Builds updated manifests with extracted file references
+- Returns manifests to ContentOrchestrator for validation and storage
+
+**Integration Benefits**:
+The GitHub Manager provides seamless content integration:
+
+- **Zero-Configuration Discovery**: Automatic detection of game content in releases
+- **Type Inference**: Intelligent content and game type classification
+- **Executable Detection**: Automatic scanning for game clients
+- **Manifest Generation**: Automated ContentManifest creation from extracted content
+- **Immediate Availability**: Content ready for use immediately after installation
+- **Profile Integration**: Direct enablement in GameProfiles without manual configuration
+- **Workspace Compatibility**: GitHub content works with all workspace strategies
+- **Error Recovery**: Robust handling of download failures and extraction errors
+
+**Real-World Example - TheSuperHackers Content**:
+
+1. User configures TheSuperHackers/ZeroHour repository
+2. System discovers latest release with game client ZIP
+3. User clicks install on release
+4. System downloads and extracts 200MB ZIP archive
+5. Deliverer scans extracted files and marks executables
+6. Manifest generated with all extracted files and IsExecutable flags
+7. ContentOrchestrator validates and adds manifest to pool
+8. Content appears in profile UI within seconds via ProfileContentLoader
+9. User enables in "My Modded Setup" profile
+10. Workspace prepared with TheSuperHackers content
+11. Game launches with community modifications active
+
+This comprehensive architecture analysis demonstrates GenHub's sophisticated approach to solving C&C Generals/Zero Hour ecosystem complexity through a **six-pillar architectural foundation** with **three-tier content pipeline**, enhanced by comprehensive **game profile management**, **runtime orchestration**, and **GitHub integration** systems. The architecture enables seamless integration of content from diverse sources including GitHub repositories, provides isolated execution environments, and offers comprehensive game profile management while maintaining user experience simplicity and system reliability through well-defined contracts and flexible component composition.

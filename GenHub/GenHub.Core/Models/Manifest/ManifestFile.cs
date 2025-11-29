@@ -21,6 +21,13 @@ public class ManifestFile
     public ContentSourceType SourceType { get; set; } = ContentSourceType.Unknown;
 
     /// <summary>
+    /// Gets or sets the target installation location for this file.
+    /// Most files go to the Workspace, but maps go to UserMapsDirectory, etc.
+    /// </summary>
+    [JsonPropertyName("installTarget")]
+    public ContentInstallTarget InstallTarget { get; set; } = ContentInstallTarget.Workspace;
+
+    /// <summary>
     /// Gets or sets the size of the file in bytes.
     /// </summary>
     [JsonPropertyName("size")]

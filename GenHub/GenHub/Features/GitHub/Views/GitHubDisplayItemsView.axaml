@@ -1,0 +1,179 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
+             xmlns:items="using:GenHub.Features.GitHub.ViewModels.Items"
+             xmlns:conv="using:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+             x:Class="GenHub.Features.GitHub.Views.GitHubDisplayItemsView"
+             x:DataType="vm:GitHubItemsTreeViewModel">
+  <UserControl.Resources>
+    <conv:IconKeyToPathDataConverter x:Key="IconConverter"/>
+    <conv:NotNullConverter x:Key="NotNullConverter"/>
+
+    <!-- Dark Theme Colors -->
+    <SolidColorBrush x:Key="TreeViewBackground" Color="#303030"/>
+    <SolidColorBrush x:Key="DetailsBackground" Color="#2D2D2D"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#404040"/>
+    <SolidColorBrush x:Key="SidebarBackground" Color="#252525"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="White"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#B0B0B0"/>
+    <SolidColorBrush x:Key="AccentColor" Color="#0078D7"/>
+    <SolidColorBrush x:Key="HoverColor" Color="#404040"/>
+    <SolidColorBrush x:Key="SelectedColor" Color="#0078D7"/>
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Enhanced TreeView Styles -->
+    <Style Selector="TreeView">
+      <Setter Property="Background" Value="{StaticResource TreeViewBackground}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="4"/>
+    </Style>
+
+    <!-- Modern TreeViewItem Selection and Hover -->
+    <Style Selector="TreeViewItem">
+      <Setter Property="Padding" Value="2"/>
+      <Setter Property="Margin" Value="0"/>
+    </Style>
+
+    <!-- Selection Background Style -->
+    <Style Selector="TreeViewItem:selected /template/ Border#PART_SelectedBorder">
+      <Setter Property="Background" Value="{StaticResource SelectedColor}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource SelectedColor}"/>
+      <Setter Property="BorderThickness" Value="2"/>
+      <Setter Property="CornerRadius" Value="3"/>
+    </Style>
+
+    <!-- Selected Text Style -->
+    <Style Selector="TreeViewItem:selected">
+      <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+    </Style>
+
+    <!-- Modern Hover Effect -->
+    <Style Selector="TreeViewItem:pointerover /template/ Border#PART_SelectedBorder">
+      <Setter Property="Background" Value="{StaticResource HoverColor}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="3"/>
+    </Style>
+
+    <!-- Hover Text Style -->
+    <Style Selector="TreeViewItem:pointerover">
+      <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+    </Style>
+
+    <!-- Focus Ring Style -->
+    <Style Selector="TreeViewItem:focus /template/ Border#PART_SelectedBorder">
+      <Setter Property="BorderBrush" Value="{StaticResource AccentColor}"/>
+      <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+
+    <!-- Show native chevron for proper expand/collapse functionality -->
+    <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+      <Setter Property="IsVisible" Value="True"/>
+      <Setter Property="Width" Value="16"/>
+      <Setter Property="Height" Value="16"/>
+    </Style>
+
+    <!-- Item Content Style -->
+    <Style Selector="Border.item-content">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="CornerRadius" Value="3"/>
+      <Setter Property="Margin" Value="0,1"/>
+    </Style>
+
+    <Style Selector="Border.item-content:pointerover">
+      <Setter Property="Background" Value="{StaticResource HoverColor}"/>
+    </Style>
+
+    <!-- Icon Style -->
+    <Style Selector="Path.item-icon">
+      <Setter Property="Fill" Value="{StaticResource TextSecondary}"/>
+      <Setter Property="Width" Value="16"/>
+      <Setter Property="Height" Value="16"/>
+      <Setter Property="Margin" Value="0,0,8,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Text Styles -->
+    <Style Selector="TextBlock.item-name">
+      <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBlock.item-description">
+      <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Opacity" Value="0.8"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Toolbar -->
+    <Border Grid.Row="0" Background="{StaticResource SidebarBackground}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Orientation="Horizontal" Margin="8" Spacing="8">
+        <Button Content="▼ Expand All" 
+                Command="{Binding ExpandAllCommand}" 
+                Background="Transparent" 
+                Foreground="{StaticResource TextSecondary}" 
+                BorderBrush="{StaticResource BorderBrush}" 
+                BorderThickness="1" 
+                Padding="8,4"
+                FontSize="12"/>
+        <Button Content="▶ Collapse All" 
+                Command="{Binding CollapseAllCommand}" 
+                Background="Transparent" 
+                Foreground="{StaticResource TextSecondary}" 
+                BorderBrush="{StaticResource BorderBrush}" 
+                BorderThickness="1" 
+                Padding="8,4"
+                FontSize="12"/>
+      </StackPanel>
+    </Border>
+
+    <!-- Tree View -->
+    <TreeView Grid.Row="1"
+              Name="MainTreeView"
+              ItemsSource="{Binding Items}"
+              SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+              SelectionMode="Single"
+              AutoScrollToSelectedItem="True">
+      <TreeView.ItemTemplate>
+        <TreeDataTemplate ItemsSource="{Binding Children}">
+          <Border Classes="item-content">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- Icon -->
+              <Path Grid.Column="0"
+                    Classes="item-icon"
+                    Data="{Binding IconSource, Converter={StaticResource IconConverter}}"
+                    IsVisible="{Binding IconSource, Converter={StaticResource NotNullConverter}}"/>
+
+              <!-- Content -->
+              <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="2">
+                <TextBlock Classes="item-name" Text="{Binding DisplayName}"/>
+                <TextBlock Classes="item-description" Text="{Binding Description}"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </TreeDataTemplate>
+      </TreeView.ItemTemplate>
+
+    </TreeView>
+  </Grid>
+</UserControl>

@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
@@ -49,7 +50,7 @@ public class GitHubDiscoverer : IContentDiscoverer
     }
 
     /// <inheritdoc />
-    public string SourceName => "GitHub";
+    public string SourceName => ContentSourceNames.GitHubDiscoverer;
 
     /// <inheritdoc />
     public string Description => "Discovers content from GitHub releases.";
@@ -82,26 +83,34 @@ public class GitHubDiscoverer : IContentDiscoverer
                 {
                     var inferred = GitHubInferenceHelper.InferContentType(repo, latestRelease.Name);
                     var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, latestRelease.Name);
+
+                    // Generate proper ManifestId using 5-segment format with ContentType
+                    var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
+                        owner,
+                        repo,
+                        inferred.type,
+                        latestRelease.TagName);
+
                     var discovered = new ContentSearchResult
                     {
-                        Id = $"github.{owner}.{repo}.{latestRelease.TagName}",
+                        Id = manifestId,
                         Name = latestRelease.Name ?? repo,
                         Description = "GitHub release - full details available after resolution",
-                        Version = latestRelease.TagName,
+                        Version = latestRelease.TagName ?? "latest",
                         AuthorName = latestRelease.Author,
                         ContentType = inferred.type,
                         TargetGame = inferredGame.type,
                         IsInferred = inferred.isInferred || inferredGame.isInferred,
                         ProviderName = SourceName,
                         RequiresResolution = true,
-                        ResolverId = "GitHubRelease",
+                        ResolverId = ContentSourceNames.GitHubResolverId,
                         SourceUrl = latestRelease.HtmlUrl,
                         LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
                         ResolverMetadata =
                         {
-                            ["owner"] = owner,
-                            ["repo"] = repo,
-                            ["tag"] = latestRelease.TagName,
+                            [GitHubConstants.OwnerMetadataKey] = owner,
+                            [GitHubConstants.RepoMetadataKey] = repo,
+                            [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
                         },
                     };
 
@@ -140,6 +149,4 @@ public class GitHubDiscoverer : IContentDiscoverer
 
         return true;
     }
-
-    // Inference logic extracted to GitHubInferenceHelper
 }

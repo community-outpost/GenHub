@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -25,10 +26,10 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
     private readonly ILogger<HttpContentDeliverer> _logger = logger;
 
     /// <inheritdoc />
-    public string SourceName => "HTTP Content Deliverer";
+    public string SourceName => ContentSourceNames.HttpDeliverer;
 
     /// <inheritdoc />
-    public string Description => "Delivers content from HTTP/HTTPS URLs";
+    public string Description => ContentSourceNames.HttpDelivererDescription;
 
     /// <inheritdoc />
     public bool IsEnabled => true;
@@ -55,10 +56,13 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
     {
         try
         {
-            // Use builder to create delivered manifest
+            // Extract publisher from the manifest ID (3rd segment)
+            var idSegments = packageManifest.Id.Value.Split('.');
+            var publisherId = idSegments.Length >= 3 ? idSegments[2] : "unknown";
+
             var manifestVersionInt = int.TryParse(packageManifest.Version, out var parsedVersion) ? parsedVersion : 0;
             var deliveredManifest = _manifestBuilder
-                .WithBasicInfo(packageManifest.Id, packageManifest.Name, manifestVersionInt)
+                .WithBasicInfo(publisherId, packageManifest.Name, manifestVersionInt)
                 .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
                 .WithPublisher(
                     packageManifest.Publisher?.Name ?? string.Empty,

@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -18,7 +19,7 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
     /// <summary>
     /// Gets the resolver ID for local manifest content.
     /// </summary>
-    public string ResolverId => "LocalManifest";
+    public string ResolverId => ContentSourceNames.LocalResolverId;
 
     /// <summary>
     /// Resolves the manifest for discovered local content asynchronously.

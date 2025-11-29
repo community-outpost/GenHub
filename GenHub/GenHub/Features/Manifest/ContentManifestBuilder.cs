@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
@@ -182,10 +183,18 @@ public class ContentManifestBuilder(
         // Generate ID now that we have all required information
         if (_publisherId != null && _contentName != null && _manifestVersion.HasValue)
         {
+            _logger.LogDebug(
+                "Generating manifest ID with: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
+                _publisherId,
+                contentType,
+                _contentName,
+                _manifestVersion.Value);
+
             var idResult = _manifestIdService.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value);
             if (idResult.Success)
             {
                 _manifest.Id = idResult.Data;
+                _logger.LogDebug("Generated manifest ID (from service): {ManifestId}", _manifest.Id);
             }
             else
             {
@@ -194,12 +203,18 @@ public class ContentManifestBuilder(
                 // Fallback to direct generation if service fails
                 _manifest.Id = ManifestId.Create(
                     ManifestIdGenerator.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value));
+                _logger.LogDebug("Generated manifest ID (fallback): {ManifestId}", _manifest.Id);
             }
 
             // Ensure the generated ID conforms to the project's validation rules.
             ManifestIdValidator.EnsureValid(_manifest.Id);
 
             _logger.LogDebug("Generated ID for publisher content: {Id}", _manifest.Id);
+
+            // Clear the stored values to prevent regeneration in Build()
+            _publisherId = null;
+            _contentName = null;
+            _manifestVersion = null;
         }
 
         _logger.LogDebug("Set content type: {ContentType}, Target game: {TargetGame}", contentType, targetGame);
@@ -768,6 +783,16 @@ public class ContentManifestBuilder(
             {
                 manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
             }
+        }
+
+        // Check for duplicate relative paths before adding
+        if (_manifest.Files.Any(f => f.RelativePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase)))
+        {
+            _logger.LogWarning(
+                "Skipping duplicate file: {RelativePath} (Source: {SourceType}). File already exists in manifest.",
+                relativePath,
+                sourceType);
+            return this;
         }
 
         _manifest.Files.Add(manifestFile);

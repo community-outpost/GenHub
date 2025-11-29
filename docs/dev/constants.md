@@ -14,12 +14,12 @@ API and network related constants.
 
 ### User Agents
 
-- `DefaultUserAgent`: Default user agent string for HTTP requests (constructed as `"GenHub/1.0"` from `AppConstants.ApplicationName` and `AppConstants.Version`)
+- `DefaultUserAgent`: Default user agent string for HTTP requests (constructed as `"GenHub/1.0"` from `AppConstants.AppName` and `AppConstants.AppVersion`)
 
 ### GitHub
 
 - `GitHubDomain`: GitHub domain name (`"github.com"`)
-- `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs  
+- `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs
   (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
 ### UriConstants
@@ -39,11 +39,12 @@ Application-wide constants for GenHub.
 
 | Constant           | Value          | Description                  |
 | ------------------ | -------------- | ---------------------------- |
-| `ApplicationName`  | `"GenHub"`     | Application name             |
+| `AppName`  | `"GenHub"`     | Application name             |
 | `Version`          | `"1.0"`        | Current version of GenHub    |
 | `DefaultTheme`     | `Theme.Dark`   | Default UI theme             |
 | `DefaultThemeName` | `"Dark"`       | Default theme name as string |
 | `DefaultUserAgent` | `"GenHub/1.0"` | Default user agent string    |
+| `TokenFileName`    | `".ghtoken"`   | Default GitHub token file name |
 
 ---
 
@@ -137,13 +138,13 @@ Directory names used for organizing content storage.
 
 Default values and limits for download operations.
 
-- `BufferSizeBytes`: 81920  
-- `BufferSizeKB`: 80.0  
-- `MinBufferSizeKB`: 4.0  
-- `MaxBufferSizeKB`: 1024.0  
-- `MaxConcurrentDownloads`: 3  
-- `MaxRetryAttempts`: 3  
-- `TimeoutSeconds`: 600  
+- `BufferSizeBytes`: 81920
+- `BufferSizeKB`: 80.0
+- `MinBufferSizeKB`: 4.0
+- `MaxBufferSizeKB`: 1024.0
+- `MaxConcurrentDownloads`: 3
+- `MaxRetryAttempts`: 3
+- `TimeoutSeconds`: 600
 
 ---
 
@@ -206,7 +207,6 @@ Constants related to manifest ID generation, validation, and file operations.
 | Constant                         | Description                     |
 | -------------------------------- | ------------------------------- |
 | `PublisherContentRegexPattern`   | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
-
 
 **Publisher Content Regex Pattern (5-segment format):**
 
@@ -290,10 +290,10 @@ using GenHub.Core.Constants;
 
 // Add runtime hash for 3rd party client
 GameClientHashRegistry.AddKnownHash(
-    "abc123...", 
-    GameType.Generals, 
-    "1.09", 
-    "CommunityPatch", 
+    "abc123...",
+    GameType.Generals,
+    "1.09",
+    "CommunityPatch",
     "Community-enhanced Generals executable",
     false);
 
@@ -590,7 +590,6 @@ This ensures type-safe game name handling and prevents typos in display strings.
 
 Installation source type identifiers for game installations. These constants represent WHERE the game was installed from (Steam, EA App, Retail, etc.).
 
-
 **Content Provider Discovery**:
 
 - Content providers register themselves with `ContentOrchestrator` via dependency injection
@@ -638,7 +637,7 @@ public static string FromInstallationType(GameInstallationType installationType)
 
 ## IoConstants Class
 
-- `DefaultFileBufferSize`: 4096  
+- `DefaultFileBufferSize`: 4096
 
 ---
 
@@ -652,10 +651,10 @@ Process and system constants.
 
 ### Windows API Constants
 
-- `SW_RESTORE`: 9  
-- `SW_SHOW`: 5  
-- `SW_MINIMIZE`: 6  
-- `SW_MAXIMIZE`: 3  
+- `SW_RESTORE`: 9
+- `SW_SHOW`: 5
+- `SW_MINIMIZE`: 6
+- `SW_MAXIMIZE`: 3
 
 ---
 
@@ -680,38 +679,39 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ### CAS Maintenance
 
-- `AutoGcIntervalDays`: 1  
+- `AutoGcIntervalDays`: 1
 
 ---
 
 ## TimeIntervals Class
 
-- `UpdaterTimeout`: 10 minutes  
-- `DownloadTimeout`: 30 minutes  
-- `NotificationHideDelay`: 3000ms  
+- `UpdaterTimeout`: 10 minutes
+- `DownloadTimeout`: 30 minutes
+- `NotificationHideDelay`: 3000ms
 
 ---
 
-### Status Colors
+### Component Descriptions
 
-- `StatusSuccessColor`: Color used to indicate success or positive status (`"#4CAF50"`)
-- `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
+- `GitHubReleasesDiscovererDescription`: Description for GitHub releases discoverer (`"Discovers content from GitHub releases"`)
+- `GitHubDelivererDescription`: Description for GitHub content deliverer (`"Delivers GitHub content including release archives"`)
 
-### ValidationLimits
+### Metadata Keys
 
-- `DefaultWindowWidth`: 1200  
-- `DefaultWindowHeight`: 800  
+- `OwnerMetadataKey`: Metadata key for repository owner (`"owner"`)
+- `RepoMetadataKey`: Metadata key for repository name (`"repo"`)
+- `TagMetadataKey`: Metadata key for release tag (`"tag"`)
 
 ---
 
 ## ValidationLimits Class
 
-- `MinConcurrentDownloads`: 1  
-- `MaxConcurrentDownloads`: 10  
-- `MinDownloadTimeoutSeconds`: 30  
-- `MaxDownloadTimeoutSeconds`: 3600  
-- `MinDownloadBufferSizeBytes`: 4096  
-- `MaxDownloadBufferSizeBytes`: 1048576  
+- `MinConcurrentDownloads`: 1
+- `MaxConcurrentDownloads`: 10
+- `MinDownloadTimeoutSeconds`: 30
+- `MaxDownloadTimeoutSeconds`: 3600
+- `MinDownloadBufferSizeBytes`: 4096
+- `MaxDownloadBufferSizeBytes`: 1048576
 
 ---
 
@@ -770,10 +770,10 @@ using GenHub.Core.Constants;
 
 // Add runtime hash for 3rd party client
 GameClientHashRegistry.AddKnownHash(
-    "abc123...", 
-    GameType.Generals, 
-    "1.09", 
-    "CommunityPatch", 
+    "abc123...",
+    GameType.Generals,
+    "1.09",
+    "CommunityPatch",
     "Community-enhanced Generals executable",
     false);
 
@@ -932,8 +932,8 @@ using GenHub.Core.Constants;
 var userAgent = AppConstants.DefaultUserAgent; // "GenHub/1.0"
 
 // Get application info
-var appName = AppConstants.ApplicationName;
-var version = AppConstants.Version;
+var appName = AppConstants.AppName;
+var version = AppConstants.AppVersion;
 ```
 
 ### Directory Operations
@@ -947,7 +947,7 @@ var cachePath = Path.Combine(basePath, DirectoryNames.Cache);
 var tempPath = Path.Combine(basePath, DirectoryNames.Temp);
 var casPoolPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-    AppConstants.ApplicationName,
+    AppConstants.AppName,
     DirectoryNames.CasPool);
 ```
 
@@ -1146,45 +1146,166 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ## MaintenanceWhen adding new constants
 
-1. Choose the appropriate constants file based on functionality  
-2. Follow naming conventions (PascalCase for constants)  
-3. Add comprehensive XML documentation  
-4. Update this documentation  
-5. Add tests for new constants  
-6. Ensure StyleCop compliance  
+1. Choose the appropriate constants file based on functionality
+2. Follow naming conventions (PascalCase for constants)
+3. Add comprehensive XML documentation
+4. Update this documentation
+5. Add tests for new constants
+6. Ensure StyleCop compliance
 
 ### Constants File Organization
 
-- **ApiConstants**: Network and API-related constants  
-- **AppConstants**: Application-wide settings and metadata  
-- **CasDefaults**: Content-Addressable Storage defaults  
-- **ConfigurationKeys**: Configuration file keys and paths  
-- **ConversionConstants**: Unit conversion constants  
-- **DirectoryNames**: Standard directory naming conventions  
-- **DownloadDefaults**: Download operation defaults  
-- **FileTypes**: File extensions and naming patterns  
-- **IoConstants**: Input/output operation constants  
-- **ManifestConstants**: Manifest ID and validation constants  
-- **ProcessConstants**: System process and exit code constants  
-- **PublisherInfoConstants**: Publisher display names, websites, and support URLs  
-- **PublisherTypeConstants**: Publisher type identifiers for content sources  
-- **StorageConstants**: Storage and CAS operation constants  
-- **TimeIntervals**: Time spans and intervals  
-- **UiConstants**: User interface sizing and behavior  
-- **ValidationLimits**: Input validation boundaries  
+- **ApiConstants**: Network and API-related constants
+- **AppConstants**: Application-wide settings and metadata
+- **CasDefaults**: Content-Addressable Storage defaults
+- **ConfigurationKeys**: Configuration file keys and paths
+- **ConversionConstants**: Unit conversion constants
+- **DirectoryNames**: Standard directory naming conventions
+- **DownloadDefaults**: Download operation defaults
+- **FileTypes**: File extensions and naming patterns
+- **IoConstants**: Input/output operation constants
+- **ManifestConstants**: Manifest ID and validation constants
+- **ProcessConstants**: System process and exit code constants
+- **PublisherInfoConstants**: Publisher display names, websites, and support URLs
+- **PublisherTypeConstants**: Publisher type identifiers for content sources
+- **StorageConstants**: Storage and CAS operation constants
+- **TimeIntervals**: Time spans and intervals
+- **UiConstants**: User interface sizing and behavior
+- **ValidationLimits**: Input validation boundaries
 
 ### Best Practices
 
-1. **Centralization**: All constants should be defined in the appropriate constants file  
-2. **Documentation**: Every constant should have XML documentation explaining its purpose  
-3. **Testing**: Constants should be tested for correctness and reasonable values  
-4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase  
-5. **Naming**: Use descriptive names that clearly indicate the constant's purpose  
-6. **Grouping**: Related constants should be grouped together within their respective files  
+1. **Centralization**: All constants should be defined in the appropriate constants file
+2. **Documentation**: Every constant should have XML documentation explaining its purpose
+3. **Testing**: Constants should be tested for correctness and reasonable values
+4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase
+5. **Naming**: Use descriptive names that clearly indicate the constant's purpose
+6. **Grouping**: Related constants should be grouped together within their respective files
 
 ---
 
-## GameSettingsConstants Class
+## GitHubConstants Class
+
+Constants related to GitHub integration, including resolver IDs, status messages, and API configuration.
+
+### Resolver IDs
+
+| Constant                    | Value             | Description                             |
+| --------------------------- | ----------------- | --------------------------------------- |
+| `GitHubReleaseResolverId`   | `"GitHubRelease"` | Resolver ID for GitHub release resolver |
+| `GitHubArtifactResolverId`  | `"GitHubArtifact"`| Resolver ID for GitHub artifact resolver|
+
+### Status Messages
+
+| Constant                      | Value                          | Description                              |
+| ----------------------------- | ------------------------------ | ---------------------------------------- |
+| `ReadyToInstallMessage`       | `"Ready to install"`           | Message shown when ready to install      |
+| `InstallationCancelledMessage`| `"Installation cancelled"`     | Message shown when installation cancelled|
+| `InstallationCompletedMessage`| `"Installation completed"`     | Message shown when installation succeeds |
+
+### Publisher ID Prefix
+
+| Constant            | Value        | Description                          |
+| ------------------- | ------------ | ------------------------------------ |
+| `PublisherIdPrefix` | `"github-"`  | Prefix for GitHub publisher IDs      |
+
+---
+
+## GeneralsOnlineConstants Class
+
+Constants specific to Generals Online content provider and multiplayer service.
+
+### API Endpoints
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `CdnBaseUrl` | `"https://cdn.playgenerals.online"` | Base URL for Generals Online CDN |
+| `ManifestApiUrl` | `"https://cdn.playgenerals.online/manifest.json"` | API endpoint for manifest data |
+| `LatestVersionUrl` | `"https://cdn.playgenerals.online/latest.txt"` | Endpoint for latest version information |
+| `ReleasesUrl` | `"https://cdn.playgenerals.online/releases"` | Base URL for release downloads |
+
+### Web URLs
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `WebsiteUrl` | `"https://www.playgenerals.online/"` | Official Generals Online website |
+| `DownloadPageUrl` | `"https://www.playgenerals.online/#download"` | Download page URL |
+| `SupportUrl` | `"https://discord.playgenerals.online/"` | Support/discord URL |
+
+### Content Metadata
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherName` | `"Generals Online Team"` | Publisher name for manifests |
+| `ContentName` | `"Generals Online"` | Content name for manifests |
+| `Description` | `"Community-driven multiplayer service for C&C Generals Zero Hour. Features 60Hz tick rate, automatic updates, encrypted traffic, and improved stability."` | Content description |
+| `ShortDescription` | `"Community-driven multiplayer service for C&C Generals Zero Hour"` | Short content description |
+| `IconUrl` | `"https://www.playgenerals.online/logo.png"` | Content icon URL |
+| `ChangelogUrl` | `"https://www.playgenerals.online/changelog"` | Changelog URL |
+
+### Content Tags
+
+- `Tags`: Array of content tags
+  - `"multiplayer"`
+  - `"online"`
+  - `"community"`
+  - `"enhancement"`
+
+### Version Parsing
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `VersionDateFormat` | `"ddMMyy"` | Format for parsing version dates (DDMMYY) |
+| `QfeSeparator` | `"_QFE"` | Separator between date and QFE number in versions |
+
+### File Extensions
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PortableExtension` | `".zip"` | File extension for portable downloads |
+| `InstallerExtension` | `".exe"` | File extension for installer downloads |
+
+### Update Intervals
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `UpdateCheckIntervalHours` | `24` | Hours between update checks |
+
+---
+
+## UiConstants Class
+
+Constants for user interface sizing, behavior, and display names.
+
+### Window Dimensions
+
+| Constant             | Value | Description                    |
+| -------------------- | ----- | ------------------------------ |
+| `DefaultWindowWidth` | `1200`| Default main window width in pixels |
+| `DefaultWindowHeight`| `800` | Default main window height in pixels |
+
+### Status Colors
+
+| Constant            | Value     | Description                              |
+| ------------------- | --------- | ---------------------------------------- |
+| `StatusSuccessColor`| `"#4CAF50"`| Color used to indicate success or positive status |
+| `StatusErrorColor`  | `"#F44336"`| Color used to indicate error or negative status |
+
+### Content Type Display Names
+
+| Constant                  | Value             | Description                          |
+| ------------------------- | ----------------- | ------------------------------------ |
+| `GameClientDisplayName`   | `"Game Clients"`  | Display name for Game Client content type |
+| `MapPackDisplayName`      | `"Map Packs"`     | Display name for Map Pack content type |
+| `PatchDisplayName`        | `"Patches"`       | Display name for Patch content type |
+| `AddonDisplayName`        | `"Addons"`        | Display name for Addon content type |
+| `ModDisplayName`          | `"Mods"`          | Display name for Mod content type |
+| `MissionDisplayName`      | `"Missions"`      | Display name for Mission content type |
+| `MapDisplayName`          | `"Maps"`          | Display name for Map content type |
+| `LanguagePackDisplayName` | `"Language Packs"`| Display name for Language Pack content type |
+| `ContentBundleDisplayName`| `"Bundles"`       | Display name for Content Bundle content type |
+
+---
 
 Constants for game settings management, including texture quality, resolution, volume levels, and folder names.
 
@@ -1233,21 +1354,21 @@ Constants for game settings management, including texture quality, resolution, v
 
 Predefined resolution options available in the game settings.
 
-- `"640x480"`  
-- `"800x600"`  
-- `"1024x768"`  
-- `"1024x768"`  
-- `"1280x720"`  
-- `"1280x1024"`  
-- `"1366x768"`  
-- `"1600x900"`  
-- `"1920x1080"`  
-- `"2560x1440"`  
-- `"3840x2160"`  
+- `"640x480"`
+- `"800x600"`
+- `"1024x768"`
+- `"1024x768"`
+- `"1280x720"`
+- `"1280x1024"`
+- `"1366x768"`
+- `"1600x900"`
+- `"1920x1080"`
+- `"2560x1440"`
+- `"3840x2160"`
 
 ---
 
 ## Related Documentation
 
-- [Manifest ID System](manifest-id-system.md)  
+- [Manifest ID System](manifest-id-system.md)
 - [Complete System Architecture](../architecture.md)

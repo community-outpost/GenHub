@@ -37,6 +37,9 @@ public static class LoggingModule
                 options.MinLevel = minLevel;
             }));
 
+        services.AddSingleton<ILogger>(serviceProvider =>
+            serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("GenHub"));
+
         return services;
     }
 

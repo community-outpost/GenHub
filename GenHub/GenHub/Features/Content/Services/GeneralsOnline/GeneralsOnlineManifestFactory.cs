@@ -289,15 +289,9 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
                     Hash = string.Empty,
                 },
             },
-            Dependencies = new List<ContentDependency>
-            {
-                new ContentDependency
-                {
-                    Name = GameClientConstants.ZeroHourInstallationDependencyName,
-                    DependencyType = ContentType.GameInstallation,
-                    MinVersion = ManifestConstants.ZeroHourManifestVersion,
-                },
-            },
+            Dependencies = variantSuffix == GeneralsOnlineConstants.Variant60HzSuffix
+                ? GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz()
+                : GeneralsOnlineDependencyBuilder.GetDependenciesFor30Hz(),
         };
     }
 }

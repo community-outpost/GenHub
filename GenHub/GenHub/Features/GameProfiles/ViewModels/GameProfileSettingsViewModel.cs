@@ -3,10 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
@@ -24,54 +23,15 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for managing game profile settings, including content selection and configuration.
 /// </summary>
-public partial class GameProfileSettingsViewModel : ViewModelBase
+public partial class GameProfileSettingsViewModel(
+    IGameProfileManager? gameProfileManager,
+    IGameSettingsService? gameSettingsService,
+    IConfigurationProviderService? configurationProvider,
+    IProfileContentLoader? profileContentLoader,
+    ILogger<GameProfileSettingsViewModel>? logger,
+    ILogger<GameSettingsViewModel>? gameSettingsLogger) : ViewModelBase
 {
-    private readonly IGameInstallationService? _gameInstallationService;
-    private readonly IGameProfileManager? _gameProfileManager;
-    private readonly IConfigurationProviderService? _configurationProvider;
-    private readonly IProfileContentLoader? _profileContentLoader;
-    private readonly IContentDisplayFormatter? _contentDisplayFormatter;
-    private readonly ILogger<GameProfileSettingsViewModel> _logger;
-    private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GameProfileSettingsViewModel"/> class.
-    /// </summary>
-    /// <param name="gameInstallationService">The game installation service.</param>
-    /// <param name="gameProfileManager">The game profile manager.</param>
-    /// <param name="gameSettingsService">The game settings service.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
-    /// <param name="profileContentLoader">The profile content loader.</param>
-    /// <param name="contentDisplayFormatter">The content display formatter.</param>
-    /// <param name="logger">The logger for GameProfileSettingsViewModel.</param>
-    /// <param name="gameSettingsLogger">The logger for GameSettingsViewModel.</param>
-    public GameProfileSettingsViewModel(
-        IGameInstallationService? gameInstallationService,
-        IGameProfileManager? gameProfileManager,
-        IGameSettingsService? gameSettingsService,
-        IConfigurationProviderService? configurationProvider,
-        IProfileContentLoader? profileContentLoader,
-        IContentDisplayFormatter? contentDisplayFormatter,
-        ILogger<GameProfileSettingsViewModel>? logger,
-        ILogger<GameSettingsViewModel>? gameSettingsLogger)
-    {
-        _gameInstallationService = gameInstallationService;
-        _gameProfileManager = gameProfileManager;
-        _configurationProvider = configurationProvider;
-        _profileContentLoader = profileContentLoader;
-        _contentDisplayFormatter = contentDisplayFormatter;
-        _logger = logger ?? NullLogger<GameProfileSettingsViewModel>.Instance;
-        _gameSettingsLogger = gameSettingsLogger;
-
-        if (gameSettingsService != null)
-        {
-            GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService, gameSettingsLogger ?? NullLogger<GameSettingsViewModel>.Instance);
-        }
-        else
-        {
-            GameSettingsViewModel = null!;
-        }
-    }
+    private readonly ILogger<GameProfileSettingsViewModel> _logger = logger ?? NullLogger<GameProfileSettingsViewModel>.Instance;
 
     [ObservableProperty]
     private string _name = string.Empty;
@@ -134,6 +94,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _commandLineArguments = string.Empty;
+
+    [ObservableProperty]
+    private ObservableCollection<ProfileInfoItem> _availableCovers = new();
+
+    [ObservableProperty]
+    private ProfileInfoItem? _selectedCover;
 
     [ObservableProperty]
     private ObservableCollection<ProfileInfoItem> _availableGameClients = new();
@@ -250,7 +216,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     /// <summary>
     /// Gets the Game Settings ViewModel for the third tab.
     /// </summary>
-    public GameSettingsViewModel GameSettingsViewModel { get; }
+    public GameSettingsViewModel GameSettingsViewModel { get; } = new(gameSettingsService!, gameSettingsLogger!);
 
     /// <summary>
     /// Initializes the view model for creating a new profile.
@@ -323,13 +289,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
             _currentProfileId = profileId;
             _logger.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
-            if (_gameProfileManager == null)
+            if (gameProfileManager == null)
             {
                 throw new InvalidOperationException("GameProfileManager service is not available.");
             }
 
             // Load the existing profile
-            var profileResult = await _gameProfileManager.GetProfileAsync(profileId);
+            var profileResult = await gameProfileManager.GetProfileAsync(profileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
                 _logger.LogWarning("Failed to load profile {ProfileId}: {Errors}", profileId, string.Join(", ", profileResult.Errors));
@@ -362,7 +328,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
                 var updateRequest = new UpdateProfileRequest();
                 PopulateGameSettings(updateRequest, gameSettings);
 
-                var updateResult = await _gameProfileManager.UpdateProfileAsync(profileId, updateRequest);
+                var updateResult = await gameProfileManager.UpdateProfileAsync(profileId, updateRequest);
                 if (updateResult.Success)
                 {
                     _logger.LogInformation("Saved default game settings for profile {ProfileId}", profileId);
@@ -455,7 +421,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     /// </summary>
     private WorkspaceStrategy GetDefaultWorkspaceStrategy()
     {
-        return _configurationProvider?.GetDefaultWorkspaceStrategy() ?? WorkspaceStrategy.SymlinkOnly;
+        return configurationProvider?.GetDefaultWorkspaceStrategy() ?? WorkspaceStrategy.SymlinkOnly;
     }
 
     /// <summary>
@@ -466,7 +432,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     {
         try
         {
-            if (_profileContentLoader == null)
+            if (profileContentLoader == null)
             {
                 StatusMessage = "Profile content loader service not available";
                 _logger.LogWarning("Profile content loader service not available");
@@ -481,11 +447,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
             var enabledContentIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
 
             // Convert AvailableGameInstallations to Core items for the service
-            var coreAvailableInstallations = new List<Core.Models.GameProfile.ContentDisplayItem>();
+            var coreAvailableInstallations = new List<Core.Models.Content.ContentDisplayItem>();
             foreach (var vmItem in AvailableGameInstallations)
             {
-                coreAvailableInstallations.Add(new Core.Models.GameProfile.ContentDisplayItem
+                coreAvailableInstallations.Add(new Core.Models.Content.ContentDisplayItem
                 {
+                    Id = vmItem.ManifestId.Value,
                     ManifestId = vmItem.ManifestId.Value,
                     DisplayName = vmItem.DisplayName,
                     ContentType = vmItem.ContentType,
@@ -499,9 +466,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
                 });
             }
 
-            var coreItems = await _profileContentLoader.LoadAvailableContentAsync(
+            var coreItems = await profileContentLoader.LoadAvailableContentAsync(
                 SelectedContentType,
-                new ObservableCollection<Core.Models.GameProfile.ContentDisplayItem>(coreAvailableInstallations),
+                new ObservableCollection<Core.Models.Content.ContentDisplayItem>(coreAvailableInstallations),
                 enabledContentIds);
 
             // Convert Core items to ViewModel items, excluding already-enabled content
@@ -542,13 +509,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
         {
             AvailableGameInstallations.Clear();
 
-            if (_profileContentLoader == null)
+            if (profileContentLoader == null)
             {
                 _logger.LogWarning("Profile content loader service not available");
                 return;
             }
 
-            var coreItems = await _profileContentLoader.LoadAvailableGameInstallationsAsync();
+            var coreItems = await profileContentLoader.LoadAvailableGameInstallationsAsync();
 
             // Convert Core.ContentDisplayItem to ViewModel items
             foreach (var coreItem in coreItems)
@@ -584,13 +551,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
         {
             EnabledContent.Clear();
 
-            if (_profileContentLoader == null)
+            if (profileContentLoader == null)
             {
                 _logger.LogWarning("Profile content loader service not available");
                 return;
             }
 
-            var coreItems = await _profileContentLoader.LoadEnabledContentForProfileAsync(profile);
+            var coreItems = await profileContentLoader.LoadEnabledContentForProfileAsync(profile);
 
             // Convert Core items to ViewModel items
             foreach (var coreItem in coreItems)
@@ -810,7 +777,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
             IsSaving = true;
             StatusMessage = "Saving profile...";
 
-            if (_gameProfileManager == null)
+            if (gameProfileManager == null)
             {
                 StatusMessage = "Profile manager not available";
                 return;
@@ -848,6 +815,20 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
             if (string.IsNullOrEmpty(_currentProfileId))
             {
                 // Create new profile
+                // Auto-enable GameClient ONLY if no GameClient content is already enabled
+                var hasGameClientEnabled = EnabledContent.Any(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
+                if (!hasGameClientEnabled &&
+                    !string.IsNullOrEmpty(SelectedGameInstallation.GameClientId) &&
+                    !enabledContentIds.Contains(SelectedGameInstallation.GameClientId))
+                {
+                    enabledContentIds.Add(SelectedGameInstallation.GameClientId);
+                    _logger.LogInformation("Auto-enabled default GameClient content: {GameClientId}", SelectedGameInstallation.GameClientId);
+                }
+                else if (hasGameClientEnabled)
+                {
+                    _logger.LogInformation("Skipping auto-enable GameClient - user has already selected a GameClient");
+                }
+
                 var createRequest = new CreateProfileRequest
                 {
                     Name = Name,
@@ -859,7 +840,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
                     CommandLineArguments = CommandLineArguments,
                 };
 
-                var result = await _gameProfileManager.CreateProfileAsync(createRequest);
+                var result = await gameProfileManager.CreateProfileAsync(createRequest);
                 if (result.Success)
                 {
                     StatusMessage = "Profile created successfully";
@@ -897,7 +878,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
 
                 PopulateGameSettings(updateRequest, gameSettings);
 
-                var result = await _gameProfileManager.UpdateProfileAsync(_currentProfileId, updateRequest);
+                var result = await gameProfileManager.UpdateProfileAsync(_currentProfileId, updateRequest);
                 if (result.Success)
                 {
                     StatusMessage = "Profile updated successfully";
@@ -1056,7 +1037,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     /// </summary>
     /// <param name="coreItem">The core content display item.</param>
     /// <returns>A ViewModel content display item.</returns>
-    private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.GameProfile.ContentDisplayItem coreItem)
+    private ContentDisplayItem ConvertToViewModelContentDisplayItem(Core.Models.Content.ContentDisplayItem coreItem)
     {
         return new ContentDisplayItem
         {
@@ -1079,6 +1060,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase
     /// <param name="coreItems">The core content display items.</param>
     /// <returns>An observable collection of ViewModel content display items.</returns>
     private ObservableCollection<ContentDisplayItem> ConvertToViewModelContentDisplayItems(
-        IEnumerable<Core.Models.GameProfile.ContentDisplayItem> coreItems)
+        IEnumerable<Core.Models.Content.ContentDisplayItem> coreItems)
         => new(coreItems.Select(ConvertToViewModelContentDisplayItem));
 }

@@ -164,7 +164,7 @@ public class ProfileLauncherFacade(
                     effectiveStrategy);
             }
 
-            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly || effectiveStrategy == WorkspaceStrategy.HardLink))
+            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
                 _logger.LogWarning(
                     "Profile {ProfileId} launch blocked - Admin required for {Strategy} but user is not admin",
@@ -739,7 +739,51 @@ public class ProfileLauncherFacade(
                     // Check if specific dependency ID is required (not a generic type-based constraint)
                     if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
                     {
-                        if (!manifestsById.ContainsKey(dependency.Id.ToString()))
+                        ContentManifest? requiredManifest = null;
+
+                        // First try exact ID match
+                        if (manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
+                        {
+                            requiredManifest = exactMatch;
+                        }
+
+                        // If StrictPublisher is false, try semantic matching (any publisher satisfies the dependency)
+                        else if (!dependency.StrictPublisher)
+                        {
+                            // Parse the dependency ID to get contentType and contentName segments
+                            // Format: schemaVersion.userVersion.publisher.contentType.contentName
+                            var depIdSegments = dependency.Id.ToString().Split('.');
+                            if (depIdSegments.Length >= 5)
+                            {
+                                var depContentType = depIdSegments[3];
+                                var depContentName = depIdSegments[4];
+
+                                // Find any manifest that matches contentType and contentName (regardless of publisher)
+                                requiredManifest = potentialMatches.FirstOrDefault(m =>
+                                {
+                                    var manifestIdSegments = m.Id.ToString().Split('.');
+                                    if (manifestIdSegments.Length >= 5)
+                                    {
+                                        var manifestContentType = manifestIdSegments[3];
+                                        var manifestContentName = manifestIdSegments[4];
+                                        return string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase) &&
+                                               string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase);
+                                    }
+
+                                    return false;
+                                });
+
+                                if (requiredManifest != null)
+                                {
+                                    _logger.LogDebug(
+                                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher=false)",
+                                        dependency.Id,
+                                        requiredManifest.Id);
+                                }
+                            }
+                        }
+
+                        if (requiredManifest == null)
                         {
                             errors.Add($"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected");
                             _logger.LogWarning(
@@ -748,8 +792,6 @@ public class ProfileLauncherFacade(
                                 dependency.Id);
                             continue;
                         }
-
-                        var requiredManifest = manifestsById[dependency.Id.ToString()];
 
                         // Validate version compatibility if specified
                         if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Any())
@@ -769,7 +811,7 @@ public class ProfileLauncherFacade(
                     }
                     else
                     {
-                        // Generic dependency - just check that ANY of that type exists (already validated above)
+                        // Generic dependency - just check that any of that type exists (already validated above)
                         _logger.LogDebug("Generic dependency {DependencyType} satisfied for {ManifestName}", dependency.DependencyType, manifest.Name);
                     }
 
@@ -805,8 +847,8 @@ public class ProfileLauncherFacade(
                         }
                     }
 
-                    // Validate RequiredPublisherTypes
-                    if (dependency.RequiredPublisherTypes != null && dependency.RequiredPublisherTypes.Any())
+                    // Validate RequiredPublisherTypes (using StrictPublisher and PublisherType)
+                    if (dependency.StrictPublisher && !string.IsNullOrEmpty(dependency.PublisherType))
                     {
                         // Get the publisher type from the matched dependency manifest
                         var dependencyManifest = potentialMatches.FirstOrDefault();
@@ -814,21 +856,22 @@ public class ProfileLauncherFacade(
                         {
                             var publisherType = dependencyManifest.Publisher?.PublisherType ?? PublisherTypeConstants.Unknown;
 
-                            if (!dependency.RequiredPublisherTypes.Contains(publisherType))
+                            if (!string.Equals(dependency.PublisherType, publisherType, StringComparison.OrdinalIgnoreCase))
                             {
-                                var requiredPublishersStr = string.Join(", ", dependency.RequiredPublisherTypes);
-                                errors.Add($"Content '{manifest.Name}' dependency '{dependency.Name}' requires publisher type {requiredPublishersStr}, but found '{publisherType}'");
+                                errors.Add($"Content '{manifest.Name}' dependency '{dependency.Name}' requires publisher type '{dependency.PublisherType}', but found '{publisherType}'");
                                 _logger.LogWarning(
-                                    "Publisher type mismatch: {ManifestName} dependency {DependencyName} requires {RequiredPublishers}, but found {ActualPublisher}",
+                                    "Publisher type mismatch: {ManifestName} dependency {DependencyName} requires {RequiredPublisher}, but found {ActualPublisher}",
                                     manifest.Name,
                                     dependency.Name,
-                                    requiredPublishersStr,
+                                    dependency.PublisherType,
                                     publisherType);
                             }
                         }
                     }
 
-                    // Validate IncompatiblePublisherTypes
+                    // Validate IncompatiblePublisherTypes (not implemented in current ContentDependency model)
+                    // TODO: Implement incompatible publisher types validation when the model supports it
+                    /*
                     if (dependency.IncompatiblePublisherTypes != null && dependency.IncompatiblePublisherTypes.Any())
                     {
                         // Get the publisher type from the matched dependency manifest
@@ -849,6 +892,7 @@ public class ProfileLauncherFacade(
                             }
                         }
                     }
+                    */
                 }
 
                 // Check for conflicts

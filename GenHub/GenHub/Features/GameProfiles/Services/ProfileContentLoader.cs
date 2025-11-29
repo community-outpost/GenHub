@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -82,59 +83,45 @@ public class ProfileContentLoader(
                     if (baseClient == null)
                         continue;
 
-                    // Use game client version if available and valid, otherwise use manifest version constants
-                    var clientVersion = baseClient.Version;
-                    string manifestVersionString;
-                    int manifestVersionInt;
+                    // Use the detected client version for manifest ID generation to match GameInstallationService logic
+                    // If version is unknown or empty, fall back to 0 (same logic as GameInstallationService)
+                    var detectedVersion = baseClient.Version;
+                    string versionForManifestId;
+                    string versionForDisplay;
 
-                    if (!string.IsNullOrEmpty(clientVersion) &&
-                        !clientVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
+                    if (string.IsNullOrEmpty(detectedVersion) ||
+                        detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                        detectedVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Use actual client version for manifest ID generation
-                        var versionNormalized = clientVersion.Replace(".", string.Empty);
-                        manifestVersionInt = int.TryParse(versionNormalized, out var v) ? v : 0;
-                        manifestVersionString = manifestVersionInt.ToString();
+                        versionForManifestId = "0"; // Use 0 for unknown versions to match GameInstallationService
+                        versionForDisplay = _displayFormatter.NormalizeVersion(ManifestConstants.DefaultManifestFormatVersion.ToString());
                     }
                     else
                     {
-                        // Fallback to manifest version constants
-                        manifestVersionString = gameType == GameType.ZeroHour
-                            ? ManifestConstants.ZeroHourManifestVersion
-                            : ManifestConstants.GeneralsManifestVersion;
-                        manifestVersionInt = int.TryParse(manifestVersionString, out var v) ? v : 0;
+                        versionForManifestId = detectedVersion; // Use the detected version (e.g., "1.04" or "1.08")
+                        versionForDisplay = _displayFormatter.NormalizeVersion(detectedVersion);
                     }
 
-                    // Generate manifest ID for GameInstallation content using the correct version
+                    // Generate manifest ID for GameInstallation content using the detected version
                     var installationManifestId = ManifestId.Create(
-                        ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, manifestVersionInt));
-
-                    // Use game client version if available and valid, otherwise use manifest version
-                    string normalizedVersion;
-                    if (string.IsNullOrEmpty(clientVersion) ||
-                        clientVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Fallback to manifest version string for display
-                        normalizedVersion = _displayFormatter.NormalizeVersion(manifestVersionString);
-                    }
-                    else
-                    {
-                        normalizedVersion = _displayFormatter.NormalizeVersion(clientVersion);
-                    }
+                        ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, versionForManifestId));
 
                     var publisherName = _displayFormatter.GetPublisherFromInstallationType(installation.InstallationType);
-                    var displayName = _displayFormatter.BuildDisplayName(gameType, normalizedVersion);
+                    var displayName = _displayFormatter.BuildDisplayName(gameType, versionForDisplay);
 
                     var item = new ContentDisplayItem
                     {
+                        Id = installationManifestId.Value,
                         ManifestId = installationManifestId.Value,
                         SourceId = installation.Id,
                         GameClientId = baseClient.Id,
                         DisplayName = displayName,
+                        Description = $"{publisherName} - {installation.InstallationType} - {gameType}",
+                        Version = versionForDisplay,
                         ContentType = ContentType.GameInstallation,
                         GameType = gameType,
                         InstallationType = installation.InstallationType,
                         Publisher = publisherName,
-                        Version = normalizedVersion,
                         IsEnabled = false,
                     };
                     result.Add(item);
@@ -145,7 +132,7 @@ public class ProfileContentLoader(
                         publisherName,
                         installation.InstallationType,
                         gameType,
-                        normalizedVersion);
+                        versionForDisplay);
                 }
             }
 
@@ -176,6 +163,9 @@ public class ProfileContentLoader(
                 return result;
             }
 
+            // Track which manifest IDs are already included from installations
+            var includedManifestIds = new HashSet<string>();
+
             foreach (var installation in installationsResult.Data)
             {
                 if (!installation.AvailableGameClients.Any())
@@ -195,6 +185,7 @@ public class ProfileContentLoader(
 
                     var item = new ContentDisplayItem
                     {
+                        Id = gameClient.Id,
                         ManifestId = gameClient.Id, // Use game client ID as manifest ID
                         SourceId = installation.Id,
                         GameClientId = gameClient.Id,
@@ -207,6 +198,7 @@ public class ProfileContentLoader(
                         IsEnabled = false,
                     };
                     result.Add(item);
+                    includedManifestIds.Add(gameClient.Id);
 
                     _logger.LogDebug(
                         "Added GameClient option: {DisplayName} (Publisher={Publisher}, ExecutablePath={ExecutablePath})",
@@ -216,10 +208,108 @@ public class ProfileContentLoader(
                 }
             }
 
+            // Now load additional GameClient manifests from ContentManifestPool that are not associated with installations
+            // This includes CAS-stored content like standalone GameClient packages
+            var manifestsResult = await _contentManifestPool.GetAllManifestsAsync();
+            if (manifestsResult.Success && manifestsResult.Data != null)
+            {
+                var gameClientManifests = manifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient);
+
+                foreach (var manifest in gameClientManifests)
+                {
+                    // Skip if already included from installations
+                    if (includedManifestIds.Contains(manifest.Id.Value))
+                        continue;
+
+                    var publisher = _displayFormatter.GetPublisherFromManifest(manifest);
+                    var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                    var displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+
+                    var item = new ContentDisplayItem
+                    {
+                        Id = manifest.Id.Value,
+                        ManifestId = manifest.Id.Value,
+                        DisplayName = displayName,
+                        ContentType = ContentType.GameClient,
+                        GameType = manifest.TargetGame,
+                        InstallationType = _displayFormatter.GetInstallationTypeFromManifest(manifest),
+                        Publisher = publisher,
+                        Version = normalizedVersion,
+                        IsEnabled = false,
+
+                        // For CAS-stored content, SourceId and GameClientId are not applicable
+                        SourceId = string.Empty,
+                        GameClientId = string.Empty,
+                    };
+                    result.Add(item);
+
+                    _logger.LogDebug(
+                        "Added CAS-stored GameClient option: {DisplayName} (Publisher={Publisher}, ManifestId={ManifestId})",
+                        item.DisplayName,
+                        publisher,
+                        manifest.Id.Value);
+                }
+            }
+
             _logger.LogInformation(
-                "Loaded {Count} game client options from {InstallationCount} detected installations",
+                "Loaded {Count} game client options from {InstallationCount} detected installations and manifest pool",
                 result.Count,
                 installationsResult.Data.Count());
+
+            // Also load GameClient manifests from the manifest pool (e.g., from GitHub Manager)
+            var poolManifestsResult = await _contentManifestPool.GetAllManifestsAsync();
+            if (poolManifestsResult.Success && poolManifestsResult.Data != null)
+            {
+                var gameClientManifests = poolManifestsResult.Data.Where(m => m.ContentType == ContentType.GameClient).ToList();
+
+                _logger.LogInformation("Found {Count} GameClient manifests in manifest pool", gameClientManifests.Count);
+
+                foreach (var manifest in gameClientManifests)
+                {
+                    // Check if this manifest is already in the result (from installations)
+                    var alreadyExists = result.Any(r => r.ManifestId == manifest.Id.Value);
+                    if (alreadyExists)
+                    {
+                        _logger.LogDebug("Skipping manifest {ManifestId} - already loaded from installation", manifest.Id.Value);
+                        continue;
+                    }
+
+                    var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                    var publisherName = _displayFormatter.GetPublisherFromManifest(manifest);
+                    var installationType = _displayFormatter.GetInstallationTypeFromManifest(manifest);
+                    var displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+
+                    var item = new ContentDisplayItem
+                    {
+                        Id = manifest.Id.Value,
+                        ManifestId = manifest.Id.Value,
+                        SourceId = string.Empty, // No source installation
+                        GameClientId = manifest.Id.Value,
+                        DisplayName = displayName,
+                        ContentType = ContentType.GameClient,
+                        GameType = manifest.TargetGame,
+                        InstallationType = installationType,
+                        Publisher = publisherName,
+                        Version = normalizedVersion,
+                        IsEnabled = false,
+                    };
+                    result.Add(item);
+
+                    _logger.LogInformation(
+                        "Added GameClient from manifest pool: {DisplayName} (ManifestId={ManifestId}, Publisher={Publisher})",
+                        item.DisplayName,
+                        manifest.Id.Value,
+                        publisherName);
+                }
+
+                _logger.LogInformation(
+                    "Total {Count} game client options (installations + manifest pool)",
+                    result.Count);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to load manifests from pool: {Errors}", poolManifestsResult.Success ? "No data" : string.Join(", ", poolManifestsResult.Errors));
+            }
         }
         catch (Exception ex)
         {
@@ -247,15 +337,17 @@ public class ProfileContentLoader(
                 {
                     var item = new ContentDisplayItem
                     {
+                        Id = installationItem.Id,
                         ManifestId = installationItem.ManifestId,
                         DisplayName = installationItem.DisplayName,
+                        Description = installationItem.Description,
+                        Version = installationItem.Version,
                         ContentType = installationItem.ContentType,
                         GameType = installationItem.GameType,
                         InstallationType = installationItem.InstallationType,
                         Publisher = installationItem.Publisher,
                         SourceId = installationItem.SourceId,
                         GameClientId = installationItem.GameClientId,
-                        Version = installationItem.Version,
                         IsEnabled = enabledSet.Contains(installationItem.ManifestId),
                     };
                     result.Add(item);
@@ -271,6 +363,7 @@ public class ProfileContentLoader(
                 var gameClients = await LoadAvailableGameClientsAsync();
                 foreach (var client in gameClients)
                 {
+                    // Items are already ContentDisplayItem, just update IsEnabled
                     client.IsEnabled = enabledSet.Contains(client.ManifestId);
                     result.Add(client);
                 }
@@ -343,6 +436,7 @@ public class ProfileContentLoader(
 
                         var gameClientItem = new ContentDisplayItem
                         {
+                            Id = manifest.Id.Value,
                             ManifestId = manifest.Id.Value,
                             DisplayName = displayName,
                             Version = clientNormalizedVersion,
@@ -373,6 +467,7 @@ public class ProfileContentLoader(
                 var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
                 var item = new ContentDisplayItem
                 {
+                    Id = manifest.Id.Value,
                     ManifestId = manifest.Id.Value,
                     DisplayName = displayName,
                     Version = normalizedVersion,
@@ -380,6 +475,8 @@ public class ProfileContentLoader(
                     GameType = manifest.TargetGame,
                     InstallationType = installationType,
                     Publisher = publisher,
+                    SourceId = string.Empty,
+                    GameClientId = string.Empty,
                     IsEnabled = enabledSet.Contains(manifest.Id.Value),
                 };
                 result.Add(item);
@@ -538,16 +635,17 @@ public class ProfileContentLoader(
 
                             var gameClientItem = new ContentDisplayItem
                             {
+                                Id = manifest.Id.Value,
                                 ManifestId = manifest.Id.Value,
                                 DisplayName = displayName,
+                                Version = normalizedVersion,
                                 ContentType = manifest.ContentType,
                                 GameType = gameType,
                                 InstallationType = installationType,
                                 Publisher = publisher,
-                                Version = normalizedVersion,
-                                IsEnabled = true,
                                 SourceId = sourceId,
                                 GameClientId = gameClientId,
+                                IsEnabled = true,
                             };
                             result.Add(gameClientItem);
                             _logger.LogDebug(
@@ -558,11 +656,39 @@ public class ProfileContentLoader(
                         }
                         else
                         {
-                            // Fallback: GameClient not found in ANY installation - log warning and skip
-                            _logger.LogWarning(
-                                "GameClient manifest {ManifestId} not found in any installation - skipping",
+                            // Fallback: GameClient not found in any installation
+                            // This can happen for standalone GameClients (e.g., from GitHub Manager)
+                            _logger.LogInformation(
+                                "GameClient manifest {ManifestId} not found in any installation - creating standalone entry from manifest pool",
                                 manifest.Id.Value);
-                            continue;
+
+                            // Create a ContentDisplayItem directly from the manifest
+                            var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                            var publisherName = _displayFormatter.GetPublisherFromManifest(manifest);
+                            displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+                            gameType = manifest.TargetGame;
+                            installationType = _displayFormatter.GetInstallationTypeFromManifest(manifest);
+                            publisher = publisherName;
+
+                            var standaloneClientItem = new ContentDisplayItem
+                            {
+                                Id = manifest.Id.Value,
+                                ManifestId = manifest.Id.Value,
+                                DisplayName = displayName,
+                                Version = normalizedVersion,
+                                ContentType = manifest.ContentType,
+                                GameType = gameType,
+                                InstallationType = installationType,
+                                Publisher = publisher,
+                                SourceId = string.Empty, // No source installation
+                                GameClientId = manifest.Id.Value,
+                                IsEnabled = true,
+                            };
+                            result.Add(standaloneClientItem);
+                            _logger.LogInformation(
+                                "Successfully loaded standalone GameClient {DisplayName} from manifest pool",
+                                displayName);
+                            continue; // Skip the generic item creation below
                         }
                     }
 
@@ -583,6 +709,7 @@ public class ProfileContentLoader(
                         // Create the item directly here with the normalized version to prevent "Automatically added" from showing
                         var installationItem = new ContentDisplayItem
                         {
+                            Id = manifest.Id.Value,
                             ManifestId = manifest.Id.Value,
                             DisplayName = displayName,
                             ContentType = manifest.ContentType,
@@ -623,16 +750,17 @@ public class ProfileContentLoader(
                 // Create generic content item for non-GameClient types
                 var item = new ContentDisplayItem
                 {
+                    Id = manifest.Id.Value,
                     ManifestId = manifest.Id.Value,
                     DisplayName = displayName,
+                    Version = _displayFormatter.NormalizeVersion(manifest.Version),
                     ContentType = manifest.ContentType,
                     GameType = gameType,
                     InstallationType = installationType,
                     Publisher = publisher,
-                    Version = _displayFormatter.NormalizeVersion(manifest.Version),
-                    IsEnabled = true,
                     SourceId = sourceId ?? string.Empty,
                     GameClientId = gameClientId ?? string.Empty,
+                    IsEnabled = true,
                 };
                 result.Add(item);
             }

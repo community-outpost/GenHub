@@ -35,16 +35,18 @@ public class GameProfileSettingsViewModelTests
         var mockContentLoader = new Mock<IProfileContentLoader>();
         var mockConfigProvider = new Mock<IConfigurationProviderService>();
 
-        var availableInstallations = new ObservableCollection<GenHub.Core.Models.GameProfile.ContentDisplayItem>
+        var availableInstallations = new ObservableCollection<GenHub.Core.Models.Content.ContentDisplayItem>
        {
-           new GenHub.Core.Models.GameProfile.ContentDisplayItem
+           new GenHub.Core.Models.Content.ContentDisplayItem
            {
+               Id = "1.108.steam.gameinstallation.generals",
                ManifestId = "1.108.steam.gameinstallation.generals",
                DisplayName = "Command & Conquer: Generals",
                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
            },
-           new GenHub.Core.Models.GameProfile.ContentDisplayItem
+           new GenHub.Core.Models.Content.ContentDisplayItem
            {
+               Id = "1.108.steam.gameinstallation.zh",
                ManifestId = "1.108.steam.gameinstallation.zh",
                DisplayName = "Zero Hour",
                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
@@ -58,9 +60,9 @@ public class GameProfileSettingsViewModelTests
         mockContentLoader
             .Setup(x => x.LoadAvailableContentAsync(
                 It.IsAny<GenHub.Core.Models.Enums.ContentType>(),
-                It.IsAny<ObservableCollection<GenHub.Core.Models.GameProfile.ContentDisplayItem>>(),
+                It.IsAny<ObservableCollection<GenHub.Core.Models.Content.ContentDisplayItem>>(),
                 It.IsAny<IReadOnlyList<string>>()))
-            .ReturnsAsync(new ObservableCollection<GenHub.Core.Models.GameProfile.ContentDisplayItem>());
+            .ReturnsAsync(new ObservableCollection<GenHub.Core.Models.Content.ContentDisplayItem>());
 
         mockConfigProvider
             .Setup(x => x.GetDefaultWorkspaceStrategy())
@@ -71,11 +73,9 @@ public class GameProfileSettingsViewModelTests
 
         var vm = new GameProfileSettingsViewModel(
             null,
-            null,
             mockGameSettingsService.Object,
             mockConfigProvider.Object,
             mockContentLoader.Object,
-            null,
             nullLogger1,
             nullLogger2);
 
@@ -108,9 +108,7 @@ public class GameProfileSettingsViewModelTests
 
         var vm = new GameProfileSettingsViewModel(
             null,
-            null,
             mockGameSettingsService.Object,
-            null,
             null,
             null,
             nullLogger1,

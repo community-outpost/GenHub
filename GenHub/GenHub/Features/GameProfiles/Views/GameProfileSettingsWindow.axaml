@@ -17,7 +17,7 @@
         Background="#141414"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">    <Window.Resources>
         <!-- Keep existing converters -->
-        <conv:ContrastTextColorConverter x:Key="ProfileSettings_ContrastTextColorConverter" />
+        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
         <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
         <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
         <conv:StringToImageConverter x:Key="StringToImageConverter" />

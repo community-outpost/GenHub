@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -38,8 +39,16 @@ public interface IContentDisplayFormatter
     /// Formats a version string for display.
     /// </summary>
     /// <param name="version">The raw version string.</param>
-    /// <param name="contentType">The type of content.</param>
     /// <returns>A formatted version string.</returns>
+    string FormatVersion(string version);
+
+    /// <summary>
+    /// Formats a version string for display.
+    /// </summary>
+    /// <param name="version">The raw version string.</param>
+    /// <param name="contentType">The type of content (unused - parameter kept for backward compatibility).</param>
+    /// <returns>A formatted version string.</returns>
+    [Obsolete("The contentType parameter is unused. Use FormatVersion(string version) instead.")]
     string FormatVersion(string version, ContentType contentType);
 
     /// <summary>

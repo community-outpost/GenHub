@@ -37,6 +37,14 @@ and provides seamless integration with launching and content management features
 
 ---
 
+### [GitHub Manager](./github-manager)
+
+Direct integration with GitHub repositories for community content discovery and
+installation. Browse releases, download game clients and mods, automatically
+extract and detect content, with seamless GameProfile integration for immediate use.
+
+---
+
 ### [Manifest Service](./manifest)
 
 Content manifest generation and validation system that ensures game files are

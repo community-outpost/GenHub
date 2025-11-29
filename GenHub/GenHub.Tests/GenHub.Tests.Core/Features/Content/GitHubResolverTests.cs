@@ -1,9 +1,11 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -19,6 +21,7 @@ public class GitHubResolverTests
     private readonly Mock<IGitHubApiClient> _apiClientMock;
     private readonly Mock<IContentManifestBuilder> _manifestBuilderMock;
     private readonly Mock<ILogger<GitHubResolver>> _loggerMock;
+    private readonly IServiceProvider _serviceProvider;
     private readonly GitHubResolver _resolver;
 
     /// <summary>
@@ -29,7 +32,13 @@ public class GitHubResolverTests
         _apiClientMock = new Mock<IGitHubApiClient>();
         _manifestBuilderMock = new Mock<IContentManifestBuilder>();
         _loggerMock = new Mock<ILogger<GitHubResolver>>();
-        _resolver = new GitHubResolver(_apiClientMock.Object, _manifestBuilderMock.Object, _loggerMock.Object);
+
+        // Create a service provider that returns the manifest builder mock
+        var services = new ServiceCollection();
+        services.AddTransient<IContentManifestBuilder>(sp => _manifestBuilderMock.Object);
+        _serviceProvider = services.BuildServiceProvider();
+
+        _resolver = new GitHubResolver(_apiClientMock.Object, _serviceProvider, _loggerMock.Object);
     }
 
     /// <summary>
@@ -45,9 +54,9 @@ public class GitHubResolverTests
             Id = "github.test.mod.v1",
             ResolverId = "GitHubRelease",
         };
-        discoveredItem.ResolverMetadata["owner"] = "test-owner";
-        discoveredItem.ResolverMetadata["repo"] = "test-repo";
-        discoveredItem.ResolverMetadata["tag"] = "v1.0";
+        discoveredItem.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = "test-owner";
+        discoveredItem.ResolverMetadata[GitHubConstants.RepoMetadataKey] = "test-repo";
+        discoveredItem.ResolverMetadata[GitHubConstants.TagMetadataKey] = "v1.0";
 
         var releaseAsset = new GitHubReleaseAsset
         {
@@ -74,7 +83,7 @@ public class GitHubResolverTests
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithContentType(It.IsAny<ContentType>(), It.IsAny<GameType>()))
             .Returns(manifestBuilder.Object);
-        manifestBuilder.Setup(m => m.WithPublisher(It.IsAny<string>(), string.Empty, string.Empty, string.Empty, string.Empty))
+        manifestBuilder.Setup(m => m.WithPublisher(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(manifestBuilder.Object);
         manifestBuilder.Setup(m => m.WithMetadata(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<string>()))
             .Returns(manifestBuilder.Object);

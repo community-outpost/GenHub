@@ -37,7 +37,7 @@ public class GitHubContentProviderTests
         // Setup mocks to be correctly identified by the provider
         _discovererMock.Setup(d => d.SourceName).Returns("GitHub");
         _resolverMock.Setup(r => r.ResolverId).Returns("GitHubRelease");
-        _delivererMock.Setup(d => d.SourceName).Returns("HTTP Content Deliverer");
+        _delivererMock.Setup(d => d.SourceName).Returns("GitHub Content Deliverer");
 
         // Setup validator to return valid results for all calls
         _validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
@@ -46,7 +46,6 @@ public class GitHubContentProviderTests
             .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
 
         _provider = new GitHubContentProvider(
-            _gitHubApiClientMock.Object,
             new[] { _discovererMock.Object },
             new[] { _resolverMock.Object },
             new[] { _delivererMock.Object },

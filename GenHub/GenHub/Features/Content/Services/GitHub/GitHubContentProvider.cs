@@ -5,8 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
@@ -18,40 +18,14 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// GitHub content provider that orchestrates discovery→resolution→delivery pipeline
 /// for GitHub-hosted content (releases, repositories).
 /// </summary>
-public class GitHubContentProvider : BaseContentProvider
+public class GitHubContentProvider(
+   IEnumerable<IContentDiscoverer> discoverers,
+   IEnumerable<IContentResolver> resolvers,
+   IEnumerable<IContentDeliverer> deliverers,
+   ILogger<GitHubContentProvider> logger,
+   IContentValidator contentValidator)
+   : BaseContentProvider(contentValidator, logger)
 {
-    private readonly IGitHubApiClient _gitHubApiClient;
-    private readonly IContentDiscoverer _gitHubDiscoverer;
-    private readonly IContentResolver _gitHubResolver;
-    private readonly IContentDeliverer _httpDeliverer;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubContentProvider"/> class.
-    /// </summary>
-    /// <param name="gitHubApiClient">GitHub API client.</param>
-    /// <param name="discoverers">Available content discoverers.</param>
-    /// <param name="resolvers">Available content resolvers.</param>
-    /// <param name="deliverers">Available content deliverers.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="contentValidator">Content validator.</param>
-    public GitHubContentProvider(
-        IGitHubApiClient gitHubApiClient,
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        ILogger<GitHubContentProvider> logger,
-        IContentValidator contentValidator)
-        : base(contentValidator, logger)
-    {
-        _gitHubApiClient = gitHubApiClient;
-        _gitHubDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No GitHub discoverer found. Ensure a discoverer with 'GitHub' in its SourceName is registered.");
-        _gitHubResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.GitHubResolverId, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No GitHub resolver found. Ensure a resolver with 'GitHub' in its ResolverId is registered.");
-        _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No HTTP deliverer found. Ensure a deliverer with 'HTTP' in its SourceName is registered.");
-    }
-
     /// <inheritdoc />
     public override string SourceName => "GitHub";
 
@@ -59,13 +33,30 @@ public class GitHubContentProvider : BaseContentProvider
     public override string Description => "GitHub releases and repository content";
 
     /// <inheritdoc />
-    protected override IContentDiscoverer Discoverer => _gitHubDiscoverer;
+    public override bool IsEnabled => true;
 
     /// <inheritdoc />
-    protected override IContentResolver Resolver => _gitHubResolver;
+    public override ContentSourceCapabilities Capabilities =>
+        ContentSourceCapabilities.RequiresDiscovery |
+        ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc />
-    protected override IContentDeliverer Deliverer => _httpDeliverer;
+    protected override IContentDiscoverer Discoverer =>
+        discoverers.FirstOrDefault(d =>
+            d.SourceName?.Equals(ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No GitHub discoverer found. Ensure a discoverer with 'GitHub' in its SourceName is registered.");
+
+    /// <inheritdoc />
+    protected override IContentResolver Resolver =>
+        resolvers.FirstOrDefault(r =>
+            r.ResolverId?.Equals(ContentSourceNames.GitHubResolverId, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No GitHub resolver found. Ensure a resolver with 'GitHub' in its ResolverId is registered.");
+
+    /// <inheritdoc />
+    protected override IContentDeliverer Deliverer =>
+        deliverers.FirstOrDefault(d =>
+            d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No GitHub deliverer found. Ensure a deliverer with 'GitHub Content Deliverer' in its SourceName is registered.");
 
     /// <inheritdoc />
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(

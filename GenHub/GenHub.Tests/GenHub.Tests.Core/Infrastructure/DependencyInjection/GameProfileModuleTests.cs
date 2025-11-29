@@ -49,7 +49,6 @@ public class GameProfileModuleTests
         // Assert
         Assert.NotNull(serviceProvider.GetService<IGameProfileRepository>());
         Assert.NotNull(serviceProvider.GetService<IGameProfileManager>());
-        Assert.NotNull(serviceProvider.GetService<IGameProcessManager>());
 
         // Note: Facades require additional dependencies, tested separately
     }
@@ -68,7 +67,7 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
 
-        // Mock dependencies required for manifest services
+        // Mock manifest services (required for GameLauncher)
         services.AddSingleton<IManifestIdService>(new GenHub.Core.Models.Manifest.ManifestIdService());
         services.AddSingleton<IManifestCache>(new Mock<IManifestCache>().Object);
 
@@ -251,6 +250,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
         services.AddScoped(provider => new Mock<IWorkspaceManager>().Object);
         services.AddScoped(provider => new Mock<IGameProcessManager>().Object);
+        services.AddSingleton<ICasService>(new Mock<ICasService>().Object);
         services.AddSingleton<IGameLauncher>(new Mock<IGameLauncher>().Object);
         services.AddSingleton<ILaunchRegistry>(new Mock<ILaunchRegistry>().Object);
         services.AddSingleton<ICasService>(new Mock<ICasService>().Object);

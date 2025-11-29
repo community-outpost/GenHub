@@ -50,4 +50,10 @@ public class WorkspaceInfo
 
     /// <summary>Gets or sets the working directory.</summary>
     public string WorkingDirectory { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the list of manifest IDs used to create this workspace.
+    /// Used to detect when manifests have changed and workspace needs recreation.
+    /// </summary>
+    public List<string> ManifestIds { get; set; } = [];
 }

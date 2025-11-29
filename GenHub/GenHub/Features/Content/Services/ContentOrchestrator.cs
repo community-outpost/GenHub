@@ -398,6 +398,22 @@ public class ContentOrchestrator : IContentOrchestrator
             {
                 manifest = embeddedManifest;
             }
+            else if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
+            {
+                // Content requires resolution through a resolver (e.g., GitHub releases)
+                _logger.LogInformation(
+                    "Content requires resolution. Using resolver: {ResolverId}",
+                    searchResult.ResolverId);
+
+                var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
+                if (!resolveResult.Success || resolveResult.Data == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to resolve manifest: {resolveResult.FirstError}");
+                }
+
+                manifest = resolveResult.Data;
+            }
             else
             {
                 var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
@@ -492,7 +508,7 @@ public class ContentOrchestrator : IContentOrchestrator
                     }
                 }
 
-                // Step 6: Store in permanent storage
+                // Step 6: Store in permanent storage (only if not already stored by deliverer)
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Extracting,
@@ -500,8 +516,20 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = "Adding to content library",
                 });
 
-                // Store the prepared manifest in the pool
-                await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken);
+                // Check if the manifest was already stored by the deliverer
+                // This prevents double-storage which could overwrite files with empty arrays
+                var alreadyStoredResult = await _manifestPool.IsManifestAcquiredAsync(prepareResult.Data.Id, cancellationToken);
+                if (!alreadyStoredResult.Success || !alreadyStoredResult.Data)
+                {
+                    // Manifest not yet stored, store it now
+                    _logger.LogDebug("Manifest {ManifestId} not yet stored, storing now from staging directory", prepareResult.Data.Id);
+                    await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken);
+                }
+                else
+                {
+                    // Manifest already stored by deliverer, skip redundant storage
+                    _logger.LogDebug("Manifest {ManifestId} already stored by deliverer, skipping redundant storage", prepareResult.Data.Id);
+                }
 
                 progress?.Report(new ContentAcquisitionProgress
                 {

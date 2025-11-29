@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Features.GameClients;
 using GenHub.Features.GameProfiles.Services;
 using Moq;
 using Xunit;
@@ -25,7 +26,6 @@ public class ContentDisplayFormatterTests
     public ContentDisplayFormatterTests()
     {
         _hashRegistryMock = new Mock<IGameClientHashRegistry>();
-        _hashRegistryMock.Setup(x => x.GetGameInfoFromHash(It.IsAny<string>())).Returns((GameType.Unknown, "Unknown"));
         _formatter = new ContentDisplayFormatter(_hashRegistryMock.Object);
     }
 

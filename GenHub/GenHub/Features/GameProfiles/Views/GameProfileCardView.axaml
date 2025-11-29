@@ -371,7 +371,7 @@
 
                 <!-- Action buttons container (centered group) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- Prepare Workspace button - disabled when already prepared, running, or ANY workspace is being prepared -->
+                    <!-- Prepare Workspace button - disabled when already prepared, running, or any workspace is being prepared -->
                     <Button Classes="prepare-button"
                         Content="{Binding WorkspaceStatus}"
                         Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
