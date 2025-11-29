@@ -95,6 +95,18 @@ with specific configurations. Profiles support:
 
 ---
 
+### [Notifications](./notifications)
+
+Modern toast notification system for user feedback and status updates. Provides:
+
+- Four notification types (Info, Success, Warning, Error)
+- Auto-dismiss with configurable timeout
+- Thread-safe operation from any context
+- Smooth fade animations
+- Optional action buttons
+
+---
+
 ## Feature Architecture
 
 Each feature is designed as a **modular component** that can be used
