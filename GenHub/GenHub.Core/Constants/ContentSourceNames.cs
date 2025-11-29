@@ -67,6 +67,11 @@ public static class ContentSourceNames
     public const string HttpDeliverer = "HTTP Content Deliverer";
 
     /// <summary>
+    /// Description for HTTP content deliverer.
+    /// </summary>
+    public const string HttpDelivererDescription = "Delivers content from HTTP/HTTPS URLs";
+
+    /// <summary>
     /// Source name for local file system deliverer.
     /// </summary>
     public const string FileSystemDeliverer = "Local File System Deliverer";

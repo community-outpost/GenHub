@@ -83,15 +83,19 @@ public class GameProcessManager(
             var extension = Path.GetExtension(configuration.ExecutablePath).ToLowerInvariant();
             var isBatchFile = Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd");
 
+            // UseShellExecute = false is required for symlinks to CAS blobs (extensionless files).
+            // When UseShellExecute = true, Windows follows the symlink and fails to recognize
+            // the target as executable because it has no extension.
+            // UseShellExecute = false launches the process directly using the symlink path,
             var processStartInfo = new ProcessStartInfo
             {
                 WorkingDirectory = workingDirectory,
                 FileName = configuration.ExecutablePath,
-                UseShellExecute = true,  // TRUE - same as double-clicking in Explorer (FAST for GUI apps)
+                UseShellExecute = false,
                 CreateNoWindow = false,
             };
 
-            // Add arguments using Arguments string (compatible with UseShellExecute = true)
+            // Add arguments using Arguments string
             if (configuration.Arguments != null && configuration.Arguments.Count > 0)
             {
                 _logger.LogDebug("[Process] Adding {ArgumentCount} arguments to process", configuration.Arguments.Count);
@@ -138,14 +142,18 @@ public class GameProcessManager(
                 processStartInfo.Arguments = string.Join(" ", argList);
             }
 
-            // NOTE: Environment variables cannot be set with UseShellExecute = true
-            // If custom environment is needed, would need to use UseShellExecute = false
+            // With UseShellExecute = false, we can set environment variables
             if (configuration.EnvironmentVariables != null && configuration.EnvironmentVariables.Count > 0)
             {
-                _logger.LogWarning(
-                    "[Process] {Count} environment variables requested but UseShellExecute=true does not support custom environment. " +
-                    "Environment variables will be ignored for fast launch performance.",
+                _logger.LogDebug(
+                    "[Process] Setting {Count} environment variables",
                     configuration.EnvironmentVariables.Count);
+
+                foreach (var envVar in configuration.EnvironmentVariables)
+                {
+                    processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+                    _logger.LogDebug("[Process] Set environment variable: {Key}={Value}", envVar.Key, envVar.Value);
+                }
             }
 
             _logger.LogInformation(
@@ -328,224 +336,78 @@ public class GameProcessManager(
         await _terminationSemaphore.WaitAsync(cancellationToken);
         try
         {
+            _logger.LogInformation("[Terminate] Starting termination of process {ProcessId}", processId);
+
             Process? process = null;
 
             // Try to get from managed processes first
             if (!_managedProcesses.TryRemove(processId, out process))
             {
+                _logger.LogDebug("[Terminate] Process {ProcessId} not in managed processes, trying system lookup", processId);
+
                 // Try to get from system processes
                 try
                 {
                     process = Process.GetProcessById(processId);
+                    _logger.LogDebug("[Terminate] Found process {ProcessId} via system lookup", processId);
                 }
                 catch (ArgumentException)
                 {
                     // Process not found - it may have already exited
-                    _logger.LogInformation("Process {ProcessId} not found - already exited", processId);
+                    _logger.LogInformation("[Terminate] Process {ProcessId} not found - already exited", processId);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
                 catch (InvalidOperationException)
                 {
                     // Process access denied or already exited
-                    _logger.LogInformation("Process {ProcessId} is no longer accessible - access denied or already exited", processId);
+                    _logger.LogInformation("[Terminate] Process {ProcessId} is no longer accessible - access denied or already exited", processId);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
+            }
+            else
+            {
+                _logger.LogDebug("[Terminate] Found process {ProcessId} in managed processes", processId);
             }
 
             if (process == null)
             {
-                _logger.LogInformation("Process {ProcessId} is null - already exited", processId);
+                _logger.LogInformation("[Terminate] Process {ProcessId} is null - already exited", processId);
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
-            // Check if already exited BEFORE attempting ANY termination
-            // Wrap all process operations in try-catch to handle race conditions
+            // Force kill immediately
             try
             {
-                process.Refresh(); // Get latest state from OS
-                if (process.HasExited)
-                {
-                    _logger.LogInformation("Process {ProcessId} has already exited - no termination needed", processId);
-                    process.Dispose();
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // Process already exited or access denied
-                _logger.LogInformation("Process {ProcessId} is no longer accessible - already exited", processId);
-                process.Dispose();
-                return OperationResult<bool>.CreateSuccess(true);
-            }
+                _logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
+                process.Kill(entireProcessTree: true);
 
-            // Try graceful termination first (only for processes with UI)
-            bool hasExited = false;
+                // Wait for the process to actually exit
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-            try
-            {
-                // Refresh process info to get current window handle
-                process.Refresh();
-
-                // Check if process has exited during refresh
-                if (process.HasExited)
-                {
-                    _logger.LogInformation("Process {ProcessId} exited during termination preparation", processId);
-                    hasExited = true;
-                }
-                else if (process.MainWindowHandle != IntPtr.Zero)
-                {
-                    _logger.LogDebug("Process {ProcessId} has main window, attempting graceful close", processId);
-                    process.CloseMainWindow();
-
-                    // Give process time to respond to close request
-                    await Task.Delay(100, cancellationToken);
-
-                    // Refresh and check if it exited
-                    process.Refresh();
-
-                    if (process.HasExited)
-                    {
-                        _logger.LogDebug("Process {ProcessId} exited after CloseMainWindow", processId);
-                        hasExited = true;
-                    }
-                    else
-                    {
-                        // Process still running - wait up to 1 second
-                        _logger.LogDebug("Process {ProcessId} still running after CloseMainWindow, waiting for exit", processId);
-                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                        cts.CancelAfter(TimeSpan.FromSeconds(1));
-                        try
-                        {
-                            await process.WaitForExitAsync(cts.Token);
-                            hasExited = true;
-                            _logger.LogDebug("Process {ProcessId} exited gracefully", processId);
-                        }
-                        catch (TaskCanceledException)
-                        {
-                            _logger.LogDebug("Process {ProcessId} did not exit within graceful timeout", processId);
-                        }
-                        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                        {
-                            _logger.LogDebug("Process {ProcessId} termination grace period expired", processId);
-                        }
-                    }
-                }
-                else
-                {
-                    // No UI window, skip graceful close and go straight to kill
-                    _logger.LogDebug("Process {ProcessId} has no main window, will force terminate", processId);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // Process exited during graceful close attempt
-                _logger.LogInformation("Process {ProcessId} exited during graceful close", processId);
-                hasExited = true;
-            }
-
-            // Force termination if graceful fails or no UI
-            if (!hasExited)
-            {
                 try
                 {
-                    // Check one more time before killing
-                    process.Refresh();
-                    if (process.HasExited)
-                    {
-                        _logger.LogInformation("Process {ProcessId} exited before force kill", processId);
-                        hasExited = true;
-                    }
-                    else
-                    {
-                        _logger.LogDebug("Force killing process {ProcessId}", processId);
-                        process.Kill(entireProcessTree: true);
-
-                        // Give OS time to terminate process
-                        await Task.Delay(100, cancellationToken);
-
-                        // Refresh and check if killed
-                        process.Refresh();
-
-                        if (process.HasExited)
-                        {
-                            _logger.LogInformation("Process {ProcessId} force terminated successfully", processId);
-                            hasExited = true;
-                        }
-                        else
-                        {
-                            // Still running somehow - wait with shorter timeout
-                            _logger.LogDebug("Process {ProcessId} still running after Kill, waiting", processId);
-                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                            cts.CancelAfter(TimeSpan.FromMilliseconds(500));
-                            try
-                            {
-                                await process.WaitForExitAsync(cts.Token);
-                                hasExited = true;
-                                _logger.LogInformation("Process {ProcessId} terminated after wait", processId);
-                            }
-                            catch (TaskCanceledException)
-                            {
-                                // Check one final time if it actually exited despite timeout
-                                try
-                                {
-                                    process.Refresh();
-                                    if (process.HasExited)
-                                    {
-                                        _logger.LogInformation("Process {ProcessId} terminated despite timeout", processId);
-                                        hasExited = true;
-                                    }
-                                    else
-                                    {
-                                        _logger.LogWarning("Process {ProcessId} did not terminate after force kill", processId);
-                                    }
-                                }
-                                catch
-                                {
-                                    _logger.LogInformation("Process {ProcessId} assumed terminated (cannot verify)", processId);
-                                    hasExited = true;
-                                }
-                            }
-                            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                            {
-                                // Check one final time if it actually exited
-                                try
-                                {
-                                    process.Refresh();
-                                    if (process.HasExited)
-                                    {
-                                        _logger.LogInformation("Process {ProcessId} terminated despite timeout", processId);
-                                        hasExited = true;
-                                    }
-                                    else
-                                    {
-                                        _logger.LogWarning("Process {ProcessId} termination timed out", processId);
-                                    }
-                                }
-                                catch
-                                {
-                                    _logger.LogInformation("Process {ProcessId} assumed terminated (cannot verify)", processId);
-                                    hasExited = true;
-                                }
-                            }
-                        }
-                    }
+                    await process.WaitForExitAsync(cts.Token);
+                    _logger.LogInformation("[Terminate] Process {ProcessId} terminated successfully", processId);
                 }
-                catch (InvalidOperationException ex)
+                catch (TaskCanceledException)
                 {
-                    // Process already exited before we could kill it - this is a race condition we handle
-                    _logger.LogInformation("Process {ProcessId} already exited before force kill: {Message}", processId, ex.Message);
-                    hasExited = true;
+                    _logger.LogWarning("[Terminate] Process {ProcessId} did not exit within 5 seconds after Kill()", processId);
                 }
             }
-
-            if (!hasExited)
+            catch (InvalidOperationException ex)
             {
+                // Process already exited
+                _logger.LogInformation("[Terminate] Process {ProcessId} already exited: {Message}", processId, ex.Message);
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                _logger.LogError(ex, "[Terminate] Win32 error killing process {ProcessId}: {ErrorCode}", processId, ex.NativeErrorCode);
                 process.Dispose();
-                return OperationResult<bool>.CreateFailure("Failed to terminate process within timeout");
+                return OperationResult<bool>.CreateFailure($"Failed to terminate process: {ex.Message}");
             }
 
             process.Dispose();
-
             _logger.LogInformation("Terminated process {ProcessId}", processId);
             return OperationResult<bool>.CreateSuccess(true);
         }

@@ -5,8 +5,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Validation;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
@@ -18,9 +20,10 @@ namespace GenHub.Features.Content.Services;
 /// Provides implementation for validating content manifests and their integrity.
 /// Focuses specifically on content-related validation (manifests, files, dependencies).
 /// </summary>
-public class ContentValidator(IFileOperationsService fileOperations, ILogger<ContentValidator> logger) : IContentValidator, IValidator<ContentManifest>
+public class ContentValidator(IFileOperationsService fileOperations, ICasService casService, ILogger<ContentValidator> logger) : IContentValidator, IValidator<ContentManifest>
 {
     private readonly IFileOperationsService _fileOperations = fileOperations;
+    private readonly ICasService _casService = casService;
     private readonly ILogger<ContentValidator> _logger = logger;
 
     /// <inheritdoc/>
@@ -117,17 +120,45 @@ public class ContentValidator(IFileOperationsService fileOperations, ILogger<Con
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var filePath = Path.Combine(contentPath, file.RelativePath);
                 var fileIssues = new List<ValidationIssue>();
 
-                if (!File.Exists(filePath))
+                // Check file existence based on source type
+                bool fileExists;
+                if (file.SourceType == ContentSourceType.ContentAddressable)
+                {
+                    // For CAS files, check if the hash exists in CAS
+                    if (string.IsNullOrWhiteSpace(file.Hash))
+                    {
+                        fileIssues.Add(new ValidationIssue($"ContentAddressable file missing hash: {file.RelativePath}", ValidationSeverity.Error));
+                        return fileIssues;
+                    }
+
+                    var casExistsResult = await _casService.ExistsAsync(file.Hash, cancellationToken);
+                    if (!casExistsResult.Success)
+                    {
+                        fileIssues.Add(new ValidationIssue($"Failed to check CAS existence for file: {file.RelativePath} - {casExistsResult.FirstError}", ValidationSeverity.Error));
+                        return fileIssues;
+                    }
+
+                    fileExists = casExistsResult.Data;
+                }
+                else
+                {
+                    // For other source types, check filesystem existence
+                    var filePath = Path.Combine(contentPath, file.RelativePath);
+                    fileExists = File.Exists(filePath);
+                }
+
+                if (!fileExists)
                 {
                     fileIssues.Add(new ValidationIssue($"File not found: {file.RelativePath}", ValidationSeverity.Error));
                     return fileIssues;
                 }
 
-                if (!string.IsNullOrWhiteSpace(file.Hash))
+                // For filesystem files, also verify hash if present
+                if (file.SourceType != ContentSourceType.ContentAddressable && !string.IsNullOrWhiteSpace(file.Hash))
                 {
+                    var filePath = Path.Combine(contentPath, file.RelativePath);
                     var isHashValid = await _fileOperations.VerifyFileHashAsync(filePath, file.Hash, cancellationToken);
                     if (!isHashValid)
                     {

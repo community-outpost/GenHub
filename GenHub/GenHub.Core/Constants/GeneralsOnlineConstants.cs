@@ -47,6 +47,9 @@ public static class GeneralsOnlineConstants
     /// <summary>Content icon URL.</summary>
     public const string IconUrl = "https://www.playgenerals.online/logo.png";
 
+    /// <summary>Publisher icon color.</summary>
+    public const string IconColor = "#4CAF50";
+
     // ===== Version Parsing =====
 
     /// <summary>Format for parsing version dates (DDMMYY).</summary>

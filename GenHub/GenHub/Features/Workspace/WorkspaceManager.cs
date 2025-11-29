@@ -70,49 +70,71 @@ public class WorkspaceManager(
                     {
                         // Strategy matches, proceed with normal reuse validation
                         logger.LogDebug(
-                            "[Workspace] Strategy matches ({Strategy}), checking file counts...",
+                            "[Workspace] Strategy matches ({Strategy}), checking manifests and file counts...",
                             workspace.Strategy);
 
-                        // Quick check: compare expected file count from manifests with cached workspace file count
-                        // Account for file deduplication - files with same relative path keep highest priority version only
-                        var allFiles = (configuration.Manifests ?? Enumerable.Empty<ContentManifest>())
-                            .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>()).Select(f => new { File = f, Manifest = m }))
-                            .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                            .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType)).First().File);
-                        var expectedFileCount = allFiles.Count();
+                        // Check if manifest IDs have changed
+                        var currentManifestIds = (configuration.Manifests ?? Enumerable.Empty<ContentManifest>())
+                            .Select(m => m.Id.Value)
+                            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        var cachedManifestIds = (workspace.ManifestIds ?? new List<string>())
+                            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
 
-                        // Use cached file count from workspace metadata (set during preparation)
-                        // This avoids expensive Directory.EnumerateFiles call on every launch
-                        var cachedFileCount = workspace.FileCount;
-
-                        logger.LogInformation(
-                            "[Workspace] Cached file count: {Cached}, Expected: {Expected}",
-                            cachedFileCount,
-                            expectedFileCount);
-
-                        // Perform basic validation before reusing workspace
-                        // Ensure workspace is not corrupted or incomplete
-                        if (!ValidateWorkspaceBasics(workspace, configuration))
+                        var manifestsChanged = !currentManifestIds.SequenceEqual(cachedManifestIds, StringComparer.OrdinalIgnoreCase);
+                        if (manifestsChanged)
                         {
                             logger.LogWarning(
-                                "[Workspace] Workspace {Id} validation failed, will recreate",
-                                configuration.Id);
+                                "[Workspace] Manifest IDs have changed - cached: [{Cached}], current: [{Current}]. Workspace will be recreated.",
+                                string.Join(", ", cachedManifestIds),
+                                string.Join(", ", currentManifestIds));
 
                             // Fall through to recreate
                         }
-                        else if (cachedFileCount > 0 || Directory.Exists(workspace.WorkspacePath))
+                        else
                         {
+                            // Quick check: compare expected file count from manifests with cached workspace file count
+                            // Account for file deduplication - files with same relative path keep highest priority version only
+                            var allFiles = (configuration.Manifests ?? Enumerable.Empty<ContentManifest>())
+                                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>()).Select(f => new { File = f, Manifest = m }))
+                                .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
+                                .Select(g => g.OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType)).First().File);
+                            var expectedFileCount = allFiles.Count();
+
+                            // Use cached file count from workspace metadata (set during preparation)
+                            // This avoids expensive Directory.EnumerateFiles call on every launch
+                            var cachedFileCount = workspace.FileCount;
+
                             logger.LogInformation(
-                                "[Workspace] Reusing existing workspace {Id} for fast launch (basic validation passed)",
-                                configuration.Id);
-                            return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                                "[Workspace] Cached file count: {Cached}, Expected: {Expected}",
+                                cachedFileCount,
+                                expectedFileCount);
+
+                            // Perform basic validation before reusing workspace
+                            // Ensure workspace is not corrupted or incomplete
+                            if (!ValidateWorkspaceBasics(workspace, configuration))
+                            {
+                                logger.LogWarning(
+                                    "[Workspace] Workspace {Id} validation failed, will recreate",
+                                    configuration.Id);
+
+                                // Fall through to recreate
+                            }
+                            else if (cachedFileCount > 0 || Directory.Exists(workspace.WorkspacePath))
+                            {
+                                logger.LogInformation(
+                                    "[Workspace] Reusing existing workspace {Id} for fast launch (basic validation passed)",
+                                    configuration.Id);
+                                return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                            }
+
+                            // Workspace directory missing or empty - need to recreate
+                            logger.LogWarning(
+                                "[Workspace] Workspace directory missing or empty, will recreate");
+
+                            // Fall through to strategy preparation below
                         }
-
-                        // Workspace directory missing or empty - need to recreate
-                        logger.LogWarning(
-                            "[Workspace] Workspace directory missing or empty, will recreate");
-
-                        // Fall through to strategy preparation below
                     }
                 }
                 else if (workspace != null)
@@ -199,6 +221,11 @@ public class WorkspaceManager(
 
             logger.LogDebug("[Workspace] Post-preparation validation passed");
         }
+
+        // Store manifest IDs for future reuse comparison
+        workspaceInfo.ManifestIds = (configuration.Manifests ?? Enumerable.Empty<ContentManifest>())
+            .Select(m => m.Id.Value)
+            .ToList();
 
         logger.LogDebug("[Workspace] Saving workspace metadata");
         await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
