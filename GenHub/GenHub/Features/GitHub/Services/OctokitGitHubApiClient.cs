@@ -331,7 +331,7 @@ public class OctokitGitHubApiClient(
             foreach (var run in runs.WorkflowRuns)
             {
                 // Skip if not successful
-                if (run.Conclusion != WorkflowRunConclusion.Success.ToString().ToLowerInvariant())
+                if (!string.Equals(run.Conclusion?.StringValue, WorkflowRunConclusion.Success.ToString(), StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

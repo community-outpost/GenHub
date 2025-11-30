@@ -78,6 +78,7 @@ public static class GitHubConstants
     /// <summary>Format string for build descriptions.</summary>
     public const string BuildDescriptionFormat = "{0} {1} ({2})";
 
+    // TODO: Move to translations when localization is implemented
     // UI Messages
 
     /// <summary>Message displayed when no item is selected in details view.</summary>

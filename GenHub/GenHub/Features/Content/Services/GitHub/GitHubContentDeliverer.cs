@@ -46,7 +46,7 @@ public class GitHubContentDeliverer(
         // Can deliver if files have GitHub download URLs
         return manifest.Files.Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
-            f.DownloadUrl.Contains("github.com", StringComparison.OrdinalIgnoreCase));
+            IsGitHubUrl(f.DownloadUrl));
     }
 
     /// <inheritdoc />
@@ -158,7 +158,7 @@ public class GitHubContentDeliverer(
             // Validate that all required URLs are GitHub URLs
             foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {
-                if (file.DownloadUrl != null && !file.DownloadUrl.Contains("github.com", StringComparison.OrdinalIgnoreCase))
+                if (file.DownloadUrl != null && !IsGitHubUrl(file.DownloadUrl))
                 {
                     return Task.FromResult(OperationResult<bool>.CreateSuccess(false));
                 }
@@ -171,6 +171,23 @@ public class GitHubContentDeliverer(
             logger.LogError(ex, "Validation failed for GitHub content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
+    }
+
+    /// <summary>
+    /// Validates that a URL is a legitimate GitHub URL.
+    /// </summary>
+    /// <param name="url">The URL to validate.</param>
+    /// <returns>True if the URL is a GitHub URL, false otherwise.</returns>
+    private static bool IsGitHubUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+            return false;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        return uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
+               uri.Host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

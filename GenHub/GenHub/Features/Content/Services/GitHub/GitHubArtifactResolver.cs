@@ -112,13 +112,15 @@ public class GitHubArtifactResolver(
                 "github", // Publisher ID (builder generates manifest ID)
                 artifactContentName, // Content name
                 workflowRun.RunNumber) // Version
-                .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
+                .WithContentType(
+                    discoveredItem.ContentType,
+                    discoveredItem.TargetGame)
                 .WithPublisher(
-                name: $"github-{owner}",
-                website: string.Empty,
-                supportUrl: string.Empty,
-                contactEmail: string.Empty,
-                publisherType: "github")
+                    name: $"github-{owner}",
+                    website: string.Empty,
+                    supportUrl: string.Empty,
+                    contactEmail: string.Empty,
+                    publisherType: "github")
                 .WithMetadata(
                     $"Workflow: {workflowRun.Name}, Run #{workflowRun.RunNumber}",
                     tags: new List<string> { "workflow", "artifact", workflowRun.Status ?? "unknown" },

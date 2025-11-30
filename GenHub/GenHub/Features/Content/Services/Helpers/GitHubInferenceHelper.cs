@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,18 +22,18 @@ public static class GitHubInferenceHelper
     /// <returns>A tuple of the inferred <see cref="ContentType"/> and a boolean indicating the value is inferred.</returns>
     public static (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
     {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
+        var searchText = $"{repo} {releaseName ?? string.Empty}";
 
-        if (searchText.Contains("patch") || searchText.Contains("fix"))
+        if (searchText.Contains("patch", StringComparison.OrdinalIgnoreCase) || searchText.Contains("fix", StringComparison.OrdinalIgnoreCase))
             return (ContentType.Patch, true);
 
-        if (searchText.Contains("map"))
+        if (searchText.Contains("map", StringComparison.OrdinalIgnoreCase))
             return (ContentType.MapPack, true);
 
-        if (searchText.Contains("game") && (searchText.Contains("client") || searchText.Contains("code")))
+        if (searchText.Contains("game", StringComparison.OrdinalIgnoreCase) && (searchText.Contains("client", StringComparison.OrdinalIgnoreCase) || searchText.Contains("code", StringComparison.OrdinalIgnoreCase)))
             return (ContentType.GameClient, true);
 
-        if (searchText.Contains("mod") || searchText.Contains("addon"))
+        if (searchText.Contains("mod", StringComparison.OrdinalIgnoreCase) || searchText.Contains("addon", StringComparison.OrdinalIgnoreCase))
             return (ContentType.Mod, true);
 
         // Default to GameClient for GitHub releases (most are standalone game builds)
@@ -47,12 +48,12 @@ public static class GitHubInferenceHelper
     /// <returns>A tuple of the inferred <see cref="GameType"/> and a boolean indicating the value is inferred.</returns>
     public static (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
     {
-        var searchText = $"{repo} {releaseName ?? string.Empty}".ToLowerInvariant();
+        var searchText = $"{repo} {releaseName ?? string.Empty}";
 
-        if (searchText.Contains("zero hour") || searchText.Contains("zh"))
+        if (searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase) || searchText.Contains("zh", StringComparison.OrdinalIgnoreCase))
             return (GameType.ZeroHour, true);
 
-        if (searchText.Contains("generals") && !searchText.Contains("zero hour"))
+        if (searchText.Contains("generals", StringComparison.OrdinalIgnoreCase) && !searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase))
             return (GameType.Generals, true);
 
         return (GameType.ZeroHour, true);
@@ -66,29 +67,29 @@ public static class GitHubInferenceHelper
     public static List<string> InferTagsFromRelease(GitHubRelease release)
     {
         var tags = new List<string>();
-        var text = $"{release.Name} {release.Body}".ToLowerInvariant();
+        var text = $"{release.Name} {release.Body}";
 
-        if (text.Contains("patch"))
+        if (text.Contains("patch", StringComparison.OrdinalIgnoreCase))
         {
             tags.Add("Patch");
         }
 
-        if (text.Contains("fix"))
+        if (text.Contains("fix", StringComparison.OrdinalIgnoreCase))
         {
             tags.Add("Fix");
         }
 
-        if (text.Contains("mod"))
+        if (text.Contains("mod", StringComparison.OrdinalIgnoreCase))
         {
             tags.Add("Mod");
         }
 
-        if (text.Contains("map"))
+        if (text.Contains("map", StringComparison.OrdinalIgnoreCase))
         {
             tags.Add("Map");
         }
 
-        if (text.Contains("campaign"))
+        if (text.Contains("campaign", StringComparison.OrdinalIgnoreCase))
         {
             tags.Add("Campaign");
         }
@@ -113,12 +114,12 @@ public static class GitHubInferenceHelper
     /// <returns>True when the extension matches a known executable type.</returns>
     public static bool IsExecutableFile(string fileName)
     {
-        var ext = Path.GetExtension(fileName).ToLowerInvariant();
-        return ext == ".exe"
-            || ext == ".dll"
-            || ext == ".sh"
-            || ext == ".bat"
-            || ext == ".so";
+        var ext = Path.GetExtension(fileName);
+        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".sh", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".bat", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".so", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -129,30 +130,30 @@ public static class GitHubInferenceHelper
     /// <returns>The inferred GameType, or null if unable to determine.</returns>
     public static GameType? InferGameTypeFromAsset(string assetName)
     {
-        var name = assetName.ToLowerInvariant();
-
-        // Check for SuperHackers executables (most specific)
-        if (name.Contains(GameClientConstants.SuperHackersGeneralsExecutable.ToLowerInvariant()))
+        // Check for SuperHackers executables
+        if (assetName.Contains(GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
             return GameType.Generals;
 
-        if (name.Contains(GameClientConstants.SuperHackersZeroHourExecutable.ToLowerInvariant()))
+        if (assetName.Contains(GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
             return GameType.ZeroHour;
 
         // Check for GeneralsOnline executables
-        if (name.Contains(GameClientConstants.GeneralsOnline30HzExecutable.ToLowerInvariant()) ||
-            name.Contains(GameClientConstants.GeneralsOnline60HzExecutable.ToLowerInvariant()) ||
-            name.Contains(GameClientConstants.GeneralsOnlineDefaultExecutable.ToLowerInvariant()))
+        if (assetName.Contains(GameClientConstants.GeneralsOnline30HzExecutable, StringComparison.OrdinalIgnoreCase) ||
+            assetName.Contains(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase) ||
+            assetName.Contains(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase))
             return GameType.ZeroHour;
 
-        // Check filename patterns for "zh" or "zerohour"
-        if (name.Contains("zh") || name.Contains("zerohour") || name.Contains("zero-hour"))
+        // Check filename patterns
+        if (assetName.Contains("zh", StringComparison.OrdinalIgnoreCase) ||
+            assetName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) ||
+            assetName.Contains("zero-hour", StringComparison.OrdinalIgnoreCase))
             return GameType.ZeroHour;
 
-        // Check for "generals" without "zh" or "zerohour"
-        if (name.Contains("generals") && !name.Contains("zh") && !name.Contains("zerohour"))
+        if (assetName.Contains("generals", StringComparison.OrdinalIgnoreCase) &&
+            !assetName.Contains("zh", StringComparison.OrdinalIgnoreCase) &&
+            !assetName.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
             return GameType.Generals;
 
-        // Unable to determine
         return null;
     }
 
