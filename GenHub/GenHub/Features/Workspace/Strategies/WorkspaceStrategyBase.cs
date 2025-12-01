@@ -484,6 +484,8 @@ public abstract class WorkspaceStrategyBase<T>(
 
     /// <summary>
     /// Processes a manifest file according to its source type. Dispatcher for all strategies.
+    /// NOTE: User data files (UserMapsDirectory, UserReplaysDirectory, etc.) are NOT processed here.
+    /// They are handled separately by UserDataTrackerService during profile content linking.
     /// </summary>
     /// <param name="file">The manifest file to process.</param>
     /// <param name="manifest">The manifest containing the file.</param>
@@ -493,18 +495,19 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <returns>A task representing the asynchronous operation.</returns>
     protected virtual async Task ProcessManifestFileAsync(ManifestFile file, ContentManifest manifest, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        // Resolve target path based on InstallTarget - maps go to user Documents, etc.
-        var targetPath = ResolveTargetPath(file, workspacePath, manifest);
-
-        // Log if installing to non-workspace location
+        // Skip user data files - they are handled by UserDataTrackerService during launch
+        // This includes files with InstallTarget: UserMapsDirectory, UserReplaysDirectory, UserScreenshotsDirectory, UserDataDirectory
         if (file.InstallTarget != ContentInstallTarget.Workspace)
         {
-            Logger.LogInformation(
-                "Installing file to {InstallTarget}: {RelativePath} -> {TargetPath}",
-                file.InstallTarget,
+            Logger.LogDebug(
+                "Skipping user data file {RelativePath} with InstallTarget {InstallTarget} - handled by UserDataTrackerService",
                 file.RelativePath,
-                targetPath);
+                file.InstallTarget);
+            return;
         }
+
+        // Resolve target path (will always be workspace since we filtered above)
+        var targetPath = ResolveTargetPath(file, workspacePath, manifest);
 
         switch (file.SourceType)
         {

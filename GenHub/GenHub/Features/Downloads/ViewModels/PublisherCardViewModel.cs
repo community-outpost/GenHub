@@ -250,7 +250,10 @@ public partial class PublisherCardViewModel : ObservableObject
 
         if (progress.TotalFiles > 0)
         {
-            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({percentText})";
+            var phasePercent = progress.TotalFiles > 0
+                ? (int)((double)progress.FilesProcessed / progress.TotalFiles * 100)
+                : 0;
+            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
         }
 
         if (!string.IsNullOrEmpty(progress.CurrentOperation))
@@ -262,22 +265,33 @@ public partial class PublisherCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Simple check if content is installed - matches by publisher, content type, and version date.
+    /// Simple check if content is installed - matches by manifest ID or by ID components with version.
     /// </summary>
     private static bool IsContentInstalledSimple(
         ContentItemViewModel item,
         List<Core.Models.Manifest.ContentManifest> allManifests,
         string publisherId)
     {
+        var itemId = item.Model.Id ?? string.Empty;
         var itemVersion = item.Version ?? string.Empty;
         var itemDatePart = ExtractDateFromVersion(itemVersion);
 
         foreach (var manifest in allManifests)
         {
-            // Check publisher match (by type or by ID containing publisher name)
-            var publisherMatch =
-                (manifest.Publisher?.PublisherType?.Contains(publisherId, StringComparison.OrdinalIgnoreCase) == true) ||
-                manifest.Id.Value.Contains(publisherId, StringComparison.OrdinalIgnoreCase);
+            // Direct ID match - most reliable
+            if (!string.IsNullOrEmpty(itemId) &&
+                manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // If no direct ID match, try matching by publisher + content type + name
+            // Check publisher match by exact ID prefix or type
+            var manifestIdParts = manifest.Id.Value.Split('.');
+            var hasPublisherInId = manifestIdParts.Length > 2 &&
+                manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
+            var publisherMatch = hasPublisherInId ||
+                (manifest.Publisher?.PublisherType?.Equals(publisherId, StringComparison.OrdinalIgnoreCase) == true);
 
             if (!publisherMatch)
             {
@@ -290,11 +304,31 @@ public partial class PublisherCardViewModel : ObservableObject
                 continue;
             }
 
-            // Check version match - compare date parts
+            // For manifests from the same publisher with same content type, check name match
+            // This prevents matching all map packs just because they share publisher + type
+            var itemName = item.Name?.ToLowerInvariant() ?? string.Empty;
+            var manifestName = manifest.Name?.ToLowerInvariant() ?? string.Empty;
+
+            // Skip if names don't match and we have name info
+            if (!string.IsNullOrEmpty(itemName) && !string.IsNullOrEmpty(manifestName))
+            {
+                // Allow for slight variations (e.g., "Far Cry" vs "FarCry")
+                var normalizedItemName = itemName.Replace(" ", string.Empty).Replace("-", string.Empty);
+                var normalizedManifestName = manifestName.Replace(" ", string.Empty).Replace("-", string.Empty);
+
+                if (!normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) &&
+                    !normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
+            // Publisher + content type + name all match - this is enough to consider it installed
+            // Version matching is optional and used for additional confirmation
             var manifestVersion = manifest.Version ?? string.Empty;
             var manifestDatePart = ExtractDateFromVersion(manifestVersion);
 
-            // Direct version match
+            // Direct version match - strongest confirmation
             if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -307,6 +341,10 @@ public partial class PublisherCardViewModel : ObservableObject
             {
                 return true;
             }
+
+            // If publisher + content type + name match but versions differ,
+            // do not consider it installed - this could be a different version
+            // and would hide available updates from the user
         }
 
         return false;

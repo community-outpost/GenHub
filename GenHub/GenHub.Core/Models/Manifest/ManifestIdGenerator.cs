@@ -240,5 +240,4 @@ public static class ManifestIdGenerator
 
         return string.IsNullOrEmpty(normalized) ? throw new ArgumentException("Input results in empty string after normalization", nameof(input)) : normalized;
     }
-
 }

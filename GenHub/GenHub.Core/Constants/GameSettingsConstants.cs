@@ -114,6 +114,21 @@ public static class GameSettingsConstants
         /// Folder name for Command and Conquer Generals Zero Hour settings.
         /// </summary>
         public const string ZeroHour = "Command and Conquer Generals Zero Hour Data";
+
+        /// <summary>
+        /// Subfolder name for user maps within the game data directory.
+        /// </summary>
+        public const string Maps = "Maps";
+
+        /// <summary>
+        /// Subfolder name for replays within the game data directory.
+        /// </summary>
+        public const string Replays = "Replays";
+
+        /// <summary>
+        /// Subfolder name for screenshots within the game data directory.
+        /// </summary>
+        public const string Screenshots = "Screenshots";
     }
 
     /// <summary>

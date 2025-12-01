@@ -277,7 +277,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to populate SuperHackers card");
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "thesuperhackers");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card != null)
             {
                 card.HasError = true;
@@ -286,7 +286,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
         }
         finally
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "thesuperhackers");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card != null) card.IsLoading = false;
         }
     }
@@ -295,7 +295,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "communityoutpost");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card == null) return;
 
             var discoverer = serviceProvider.GetService(typeof(GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) as GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer;
@@ -337,7 +337,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to populate Community Outpost card");
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "communityoutpost");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card != null)
             {
                 card.HasError = true;
@@ -346,7 +346,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
         }
         finally
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "communityoutpost");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card != null) card.IsLoading = false;
         }
     }
@@ -456,7 +456,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
 
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "generalsonline");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GeneralsOnlineConstants.PublisherType);
             if (card != null)
             {
                 await card.InstallLatestCommand.ExecuteAsync(null);
@@ -489,7 +489,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "thesuperhackers");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card != null)
             {
                 await card.InstallLatestCommand.ExecuteAsync(null);
@@ -510,7 +510,7 @@ public partial class DownloadsViewModel(IServiceProvider serviceProvider, ILogge
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == "communityoutpost");
+            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card != null)
             {
                 await card.InstallLatestCommand.ExecuteAsync(null);
