@@ -4,13 +4,17 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Services.Providers;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Publishers;
+using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,6 +79,14 @@ public static class ContentPipelineModule
 
         // Register cache
         services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();
+
+        // Register provider definition loader for data-driven provider configuration
+        services.AddSingleton<IProviderDefinitionLoader, ProviderDefinitionLoader>();
+
+        // Register catalog parser factory and parsers
+        services.AddSingleton<ICatalogParserFactory, CatalogParserFactory>();
+        services.AddSingleton<ICatalogParser, GenPatcherDatCatalogParser>();
+        services.AddSingleton<ICatalogParser, GeneralsOnlineJsonCatalogParser>();
 
         // Register Octokit GitHub client
         services.AddSingleton<Octokit.IGitHubClient>(sp =>
@@ -213,5 +225,9 @@ public static class ContentPipelineModule
 
         // Register publisher manifest factory resolver
         services.AddTransient<PublisherManifestFactoryResolver>();
+
+        // Register content pipeline factory for provider-based component lookup
+        services.AddSingleton<IContentPipelineFactory, ContentPipelineFactory>();
+        services.AddTransient<PublisherCardViewModel>();
     }
 }

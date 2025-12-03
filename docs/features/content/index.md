@@ -9,6 +9,7 @@ The GenHub content system provides a flexible, extensible architecture for disco
 
 ## Core Documentation
 
+- [Provider Configuration](./provider-configuration.md) - Data-driven provider configuration for flexible content pipeline customization
 - [Publisher Manifest Factories](./publisher-manifest-factories.md) - Extensible architecture for publisher-specific content handling
 
 ## Architecture
@@ -22,6 +23,7 @@ The content system follows a layered architecture with clear separation of conce
    - **Resolvers**: Transform lightweight results into full manifests
    - **Deliverers**: Download and extract content files
 4. **Publisher Factories**: Handle publisher-specific manifest generation
+5. **Provider Configuration**: Data-driven JSON-based settings (see [Provider Configuration](./provider-configuration.md))
 
 ## Key Features
 

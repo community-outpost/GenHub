@@ -182,6 +182,25 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
+    /// Gets the user data base path for a specific game type.
+    /// For Generals: Documents\Command and Conquer Generals Data.
+    /// For Zero Hour: Documents\Command and Conquer Generals Zero Hour Data.
+    /// </summary>
+    /// <param name="gameType">The target game type.</param>
+    /// <returns>The path to the user data directory.</returns>
+    protected static string GetUserDataBasePath(GameType gameType)
+    {
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+        return gameType switch
+        {
+            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
+            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+        };
+    }
+
+    /// <summary>
     /// Cleans up the workspace directory if a failure occurs during workspace preparation.
     /// Ensures that no partial or corrupted workspace directories are left behind.
     /// Logs the cleanup operation and any exceptions encountered.
@@ -460,25 +479,6 @@ public abstract class WorkspaceStrategyBase<T>(
                 "System install target is not supported for workspace operations. " +
                 "Prerequisites like Visual C++ runtimes should be installed through system package managers."),
             _ => Path.Combine(workspacePath, file.RelativePath),
-        };
-    }
-
-    /// <summary>
-    /// Gets the user data base path for a specific game type.
-    /// For Generals: Documents\Command and Conquer Generals Data.
-    /// For Zero Hour: Documents\Command and Conquer Generals Zero Hour Data.
-    /// </summary>
-    /// <param name="gameType">The target game type.</param>
-    /// <returns>The path to the user data directory.</returns>
-    protected static string GetUserDataBasePath(GameType gameType)
-    {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-        return gameType switch
-        {
-            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
-            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
-            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
         };
     }
 
