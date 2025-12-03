@@ -30,18 +30,6 @@ public static class SuperHackersConstants
     /// </summary>
     public const string ResolverId = "GitHubRelease";
 
-    // ===== GitHub Repository =====
-
-    /// <summary>
-    /// The GitHub repository owner.
-    /// </summary>
-    public const string GeneralsGameCodeOwner = "thesuperhackers";
-
-    /// <summary>
-    /// The GitHub repository name.
-    /// </summary>
-    public const string GeneralsGameCodeRepo = "GeneralsGameCode";
-
     // ===== Service Configuration =====
 
     /// <summary>

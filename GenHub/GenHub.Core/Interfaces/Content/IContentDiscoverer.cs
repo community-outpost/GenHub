@@ -1,18 +1,54 @@
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
-/// Defines a contract for a service that discovers potential content from a specific source.
+/// Discovers content from external sources and returns searchable results.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Discoverers are responsible for fetching raw catalog data from external URLs and
+/// delegating parsing to <see cref="ICatalogParser"/> implementations. They handle
+/// network concerns like timeouts, retries, and error handling.
+/// </para>
+/// <para>
+/// Discoverers should not parse raw data themselves (that's the parser's job), create
+/// manifests (resolver), or download content files (deliverer).
+/// </para>
+/// <para>
+/// Pipeline: Discoverer → Parser → Resolver → Deliverer → Factory.
+/// </para>
+/// </remarks>
 public interface IContentDiscoverer : IContentSource
 {
     /// <summary>
-    /// Discovers potential content items that can be resolved into full ContentSearchResult objects.
+    /// Discovers content items from this source. Typically fetches catalog data and
+    /// delegates to a parser, then applies search filters to the results.
     /// </summary>
-    /// <param name="query">The search criteria to apply during discovery.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A <see cref="T:GenHub.Core.Models.Results.OperationResult"/> containing discovered content search results.</returns>
-    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(ContentSearchQuery query, CancellationToken cancellationToken = default);
+    /// <param name="query">Search criteria to filter results.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Discovered content items matching the query.</returns>
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Discovers content using configuration from a provider definition.
+    /// </summary>
+    /// <param name="provider">
+    /// Provider definition with endpoints and configuration. Falls back to constants if null.
+    /// </param>
+    /// <param name="query">Search criteria to filter results.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Discovered content items matching the query.</returns>
+    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+        ProviderDefinition? provider,
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        return DiscoverAsync(query, cancellationToken);
+    }
 }

@@ -54,4 +54,11 @@
     <ItemGroup>
       <AvaloniaResource Include="Assets\**\*.*" />
     </ItemGroup>
+
+    <!-- Copy provider definition files to output directory -->
+    <ItemGroup>
+      <Content Include="Providers\*.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
 </Project>
