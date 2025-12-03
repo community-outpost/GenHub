@@ -4,11 +4,15 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GenHub.Common.Views"
         xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
+        xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="GenHub"
         WindowStartupLocation="CenterScreen"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
-    <local:MainView x:Name="MainViewRoot" />
+    <Grid>
+        <local:MainView x:Name="MainViewRoot" />
+        <notifications:NotificationContainerView DataContext="{Binding NotificationManager}" />
+    </Grid>
 </Window>

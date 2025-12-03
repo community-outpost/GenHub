@@ -105,6 +105,7 @@ public class SharedViewModelModuleTests
         services.AddWorkspaceServices();
         services.AddCasServices();
         services.AddDownloadServices();
+        services.AddNotificationModule();
         services.AddAppUpdateModule();
         services.AddGameProfileServices();
         services.AddLaunchingServices();

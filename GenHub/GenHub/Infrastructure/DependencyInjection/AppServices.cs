@@ -40,6 +40,9 @@ public static class AppServices
         // Register Tools services
         services.AddToolsServices();
 
+        // Register Notification services
+        services.AddNotificationModule();
+
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();

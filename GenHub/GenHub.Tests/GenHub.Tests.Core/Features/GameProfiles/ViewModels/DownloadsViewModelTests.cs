@@ -1,4 +1,6 @@
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Downloads.ViewModels;
+using Moq;
 
 namespace GenHub.Tests.Core.ViewModels;
 
@@ -14,7 +16,11 @@ public class DownloadsViewModelTests
     [Fact]
     public async Task InitializeAsync_CompletesSuccessfully()
     {
-        var vm = new DownloadsViewModel();
+        // Arrange
+        var mockNotificationService = new Mock<INotificationService>();
+
+        // Act
+        var vm = new DownloadsViewModel(mockNotificationService.Object);
         await vm.InitializeAsync();
     }
 }
