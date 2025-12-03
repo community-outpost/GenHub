@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -17,10 +18,10 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// <summary>
 /// Resolves CNC Labs map details from discovered content items.
 /// </summary>
-public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder manifestBuilder, ILogger<CNCLabsMapResolver> logger) : IContentResolver
+public class CNCLabsMapResolver(HttpClient httpClient, IServiceProvider serviceProvider, ILogger<CNCLabsMapResolver> logger) : IContentResolver
 {
     private readonly HttpClient _httpClient = httpClient;
-    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly ILogger<CNCLabsMapResolver> _logger = logger;
 
     /// <summary>
@@ -51,8 +52,11 @@ public class CNCLabsMapResolver(HttpClient httpClient, IContentManifestBuilder m
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
             }
 
+            // Create a new manifest builder for each resolve operation to ensure clean state
+            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+
             var manifestVersionInt = int.TryParse(mapDetails.version, out var parsedVersion) ? parsedVersion : 0;
-            var manifest = _manifestBuilder
+            var manifest = manifestBuilder
                 .WithBasicInfo(discoveredItem.Id, mapDetails.name, manifestVersionInt)
                 .WithContentType(ContentType.MapPack, GameType.ZeroHour)
                 .WithPublisher(mapDetails.author)

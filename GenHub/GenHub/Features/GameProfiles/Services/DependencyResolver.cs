@@ -57,6 +57,14 @@ public class DependencyResolver(
                                 continue;
                             }
 
+                            // Skip type-based dependencies (StrictPublisher = false means any matching type will satisfy)
+                            // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
+                            if (!dep.StrictPublisher)
+                            {
+                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
+                                continue;
+                            }
+
                             // TODO: AutoInstall dependencies are resolved here but not automatically installed.
                             // Future PR should implement IAutoInstallService to acquire missing AutoInstall content.
                             if (!resolvedIds.Contains(dep.Id))
@@ -136,6 +144,14 @@ public class DependencyResolver(
                             if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
                             {
                                 _logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                                continue;
+                            }
+
+                            // Skip type-based dependencies (StrictPublisher = false means any matching type will satisfy)
+                            // These use semantic IDs like "1.104.any.gameinstallation.zerohour" and are validated separately
+                            if (!dep.StrictPublisher)
+                            {
+                                _logger.LogDebug("Skipping type-based dependency {DependencyName} (StrictPublisher=false, validated by type matching)", dep.Name);
                                 continue;
                             }
 
