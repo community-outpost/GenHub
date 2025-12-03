@@ -485,7 +485,139 @@ Some content providers need multiple discoverers, resolvers, or deliverers to ha
 
 This architecture allows providers to select the most appropriate component based on query context or content type, providing maximum flexibility while maintaining clean separation of concerns.
 
----
+### 2.5.1 Data-Driven Provider Configuration
+
+GenHub supports **data-driven provider configuration** that allows endpoint URLs, timeouts, and other runtime settings to be externalized into JSON files rather than hardcoded in constants.
+
+**Core Components**:
+
+- **ProviderDefinition**: Central model containing provider identity, endpoints, timeouts, and metadata
+- **ProviderEndpoints**: URL configuration with CatalogUrl, WebsiteUrl, SupportUrl, and custom endpoints
+- **ProviderTimeouts**: Configurable timeout settings for catalog and content operations
+- **IProviderDefinitionLoader**: Service for loading and managing provider definitions
+- **ProviderDefinitionLoader**: Implementation with auto-loading, caching, and hot-reload support
+- **IContentPipelineFactory**: Factory for obtaining pipeline components by provider ID
+
+**Provider Definition Schema**:
+
+```json
+{
+  "providerId": "community-outpost",
+  "publisherType": "communityoutpost",
+  "displayName": "Community Outpost",
+  "description": "Official patches, tools, and addons from GenPatcher",
+  "providerType": "Static",
+  "catalogFormat": "genpatcher-dat",
+  "enabled": true,
+  "endpoints": {
+    "catalogUrl": "https://legi.cc/gp2/dl.dat",
+    "websiteUrl": "https://legi.cc",
+    "supportUrl": "https://legi.cc/patch",
+    "custom": {
+      "patchPageUrl": "https://legi.cc/patch"
+    }
+  },
+  "mirrorPreference": ["legi.cc", "gentool.net"],
+  "targetGame": "ZeroHour",
+  "defaultTags": ["community", "genpatcher"],
+  "timeouts": {
+    "catalogTimeoutSeconds": 30,
+    "contentTimeoutSeconds": 300
+  }
+}
+```
+
+**Provider Loading Flow**:
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Loader as ProviderDefinitionLoader
+    participant FS as FileSystem
+    participant Cache as In-Memory Cache
+
+    App->>Loader: GetProvider("community-outpost")
+    alt First Access (Not Loaded)
+        Loader->>Loader: EnsureInitializedAsync()
+        Loader->>FS: Scan Providers/*.provider.json
+        FS-->>Loader: Provider JSON files
+        Loader->>Loader: Deserialize & Validate
+        Loader->>Cache: Store all providers
+    end
+    Cache-->>Loader: ProviderDefinition
+    Loader-->>App: ProviderDefinition?
+```
+
+1. **Auto-Loading**: Providers are automatically loaded on first access via `GetProvider()`
+2. **File Discovery**: Loader scans `Providers/` directory for `*.provider.json` files
+3. **Validation**: Each provider is validated for required fields (providerId, enabled)
+4. **Caching**: Loaded providers are cached in memory for fast subsequent access
+5. **Hot-Reload**: `ReloadProvidersAsync()` allows runtime updates without restart
+
+**Integration with Content Providers**:
+
+```csharp
+// BaseContentProvider passes ProviderDefinition to discoverers
+protected virtual ProviderDefinition? GetProviderDefinition() => null;
+
+public virtual async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
+    ContentSearchQuery query, CancellationToken cancellationToken = default)
+{
+    var providerDefinition = GetProviderDefinition();
+    var discoveryResult = await Discoverer.DiscoverAsync(
+        providerDefinition, query, cancellationToken);
+    // ...
+}
+```
+
+**Discoverer Usage Example**:
+
+```csharp
+public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    ProviderDefinition? provider, 
+    ContentSearchQuery query, 
+    CancellationToken cancellationToken = default)
+{
+    // Use provider-defined endpoints with fallback to constants
+    var catalogUrl = provider?.Endpoints.CatalogUrl 
+        ?? CommunityOutpostConstants.CatalogUrl;
+    var timeout = provider?.Timeouts.CatalogTimeoutSeconds 
+        ?? CommunityOutpostConstants.CatalogDownloadTimeoutSeconds;
+    
+    // Use custom endpoints from the dictionary
+    var patchPageUrl = provider?.Endpoints.GetEndpoint("patchPageUrl") 
+        ?? CommunityOutpostConstants.PatchPageUrl;
+    
+    // Perform discovery with configured values...
+}
+```
+
+### 2.6 ProfileContentLoader: Content Resolution for Game Profiles
+
+**Primary Responsibility**: Bridge game profile content requirements with the content pipeline, providing seamless content resolution and validation for profile launches.
+
+**Core ProfileContentLoader Architecture**:
+
+- **IProfileContentLoader**: Interface for resolving and validating profile content requirements
+- **ProfileContentLoader**: Implementation that orchestrates content resolution for game profiles
+- **ContentResolutionRequest**: Input specification with ProfileId, EnabledContentIds, and resolution options
+- **ContentResolutionResult**: Comprehensive result with resolved manifests, validation issues, and dependency information
+
+**Content Resolution Flow**:
+
+1. **Profile Content Analysis**: Extract EnabledContentIds from game profile
+2. **Manifest Resolution**: Resolve each content ID through IContentManifestPool
+3. **Dependency Validation**: Check content compatibility and dependency requirements
+4. **Conflict Detection**: Identify conflicting content that cannot be enabled together
+5. **Resolution Optimization**: Optimize content loading order and workspace preparation
+
+**Profile-Content Integration Features**:
+
+- **Automatic Content Validation**: Ensures all enabled content is available and compatible
+- **Dependency Resolution**: Automatically resolves content dependencies during profile launch
+- **Content Conflict Prevention**: Prevents enabling mutually exclusive content
+- **Workspace Optimization**: Optimizes content loading for efficient workspace preparation
+- **Launch Readiness Verification**: Confirms all content is ready before initiating launch pipeline
 
 ## 3. Content Caching Strategy
 

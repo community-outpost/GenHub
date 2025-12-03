@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 using System;
@@ -13,12 +14,14 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// <summary>
 /// Background service for checking Generals Online updates.
 /// Polls CDN for new releases and notifies when updates are available.
+/// Uses data-driven configuration from provider.json for endpoints.
 /// </summary>
 public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
 {
     private readonly ILogger<GeneralsOnlineUpdateService> _logger;
     private readonly IContentManifestPool _manifestPool;
     private readonly HttpClient _httpClient;
+    private readonly IProviderDefinitionLoader _providerLoader;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GeneralsOnlineUpdateService"/> class.
@@ -26,15 +29,18 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
     /// <param name="logger">The logger for diagnostic information.</param>
     /// <param name="manifestPool">The content manifest pool.</param>
     /// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
+    /// <param name="providerLoader">The provider definition loader.</param>
     public GeneralsOnlineUpdateService(
         ILogger<GeneralsOnlineUpdateService> logger,
         IContentManifestPool manifestPool,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IProviderDefinitionLoader providerLoader)
         : base(logger)
     {
         _logger = logger;
         _manifestPool = manifestPool;
         _httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
+        _providerLoader = providerLoader;
     }
 
     /// <inheritdoc />
@@ -119,8 +125,23 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
     {
         try
         {
+            // Get provider definition
+            var provider = _providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+            if (provider == null)
+            {
+                _logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
+                return null;
+            }
+
+            var latestVersionUrl = provider.Endpoints.GetEndpoint("latestVersionUrl");
+            if (string.IsNullOrEmpty(latestVersionUrl))
+            {
+                _logger.LogError("latestVersionUrl not configured in provider definition");
+                return null;
+            }
+
             // Try to get version from latest.txt
-            var response = await _httpClient.GetAsync(GeneralsOnlineConstants.LatestVersionUrl, cancellationToken);
+            var response = await _httpClient.GetAsync(latestVersionUrl, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {

@@ -5,9 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
@@ -17,12 +19,14 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// <summary>
 /// Content provider for Community Outpost community patches.
 /// </summary>
+/// <param name="providerDefinitionLoader">The provider definition loader for data-driven configuration.</param>
 /// <param name="discoverers">Available content discoverers.</param>
 /// <param name="resolvers">Available content resolvers.</param>
 /// <param name="deliverers">Available content deliverers.</param>
 /// <param name="contentValidator">The content validator.</param>
 /// <param name="logger">The logger.</param>
 public class CommunityOutpostProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
@@ -30,6 +34,8 @@ public class CommunityOutpostProvider(
     ILogger<CommunityOutpostProvider> logger)
     : BaseContentProvider(contentValidator, logger)
 {
+    private readonly IProviderDefinitionLoader _providerDefinitionLoader = providerDefinitionLoader;
+
     private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
             d.SourceName.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("No Community Outpost discoverer found");
@@ -44,6 +50,8 @@ public class CommunityOutpostProvider(
             d.SourceName?.Equals(CommunityOutpostConstants.PublisherId, StringComparison.OrdinalIgnoreCase) == true)
             ?? throw new InvalidOperationException("No Community Outpost deliverer found");
 
+    private ProviderDefinition? _cachedProviderDefinition;
+
     /// <inheritdoc/>
     public override string SourceName => CommunityOutpostConstants.PublisherType;
 
@@ -57,15 +65,6 @@ public class CommunityOutpostProvider(
     public override ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
-
-    /// <inheritdoc/>
-    protected override IContentDiscoverer Discoverer => _discoverer;
-
-    /// <inheritdoc/>
-    protected override IContentResolver Resolver => _resolver;
-
-    /// <inheritdoc/>
-    protected override IContentDeliverer Deliverer => _deliverer;
 
     /// <inheritdoc/>
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
@@ -101,6 +100,48 @@ public class CommunityOutpostProvider(
         }
 
         return manifestResult;
+    }
+
+    /// <inheritdoc/>
+    protected override IContentDiscoverer Discoverer => _discoverer;
+
+    /// <inheritdoc/>
+    protected override IContentResolver Resolver => _resolver;
+
+    /// <inheritdoc/>
+    protected override IContentDeliverer Deliverer => _deliverer;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the CommunityOutpost provider definition loaded from JSON configuration.
+    /// The definition contains endpoint URLs, timeouts, and other configuration that can be
+    /// modified without recompiling the application.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        // Use cached definition if available
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        // Try to get from the loader (it should already be loaded at startup)
+        _cachedProviderDefinition = _providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogDebug(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                CommunityOutpostConstants.PublisherId);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                CommunityOutpostConstants.PublisherId);
+        }
+
+        return _cachedProviderDefinition;
     }
 
     /// <inheritdoc/>

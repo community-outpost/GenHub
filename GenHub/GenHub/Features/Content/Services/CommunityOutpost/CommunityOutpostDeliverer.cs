@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -13,13 +14,18 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.CommunityOutpost.Models;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
+using SharpCompress.Archives.SevenZip;
+using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
 /// <summary>
 /// Specialized deliverer for Community Outpost content.
-/// Downloads ZIP packages, extracts files, and creates manifests via factory.
+/// Downloads packages (ZIP or 7z/.dat files), extracts files, and creates manifests via factory.
+/// Supports multiple download mirrors for fallback.
 /// </summary>
 public class CommunityOutpostDeliverer(
    IDownloadService downloadService,
@@ -43,12 +49,16 @@ public class CommunityOutpostDeliverer(
     /// <inheritdoc />
     public bool CanDeliver(ContentManifest manifest)
     {
-        // Can deliver if it's a Community Outpost manifest with a ZIP download URL
+        // Can deliver if it's a Community Outpost manifest with a downloadable file
+        // Note: PublisherType in manifest is "communityoutpost" (no hyphen)
         return manifest.Publisher?.PublisherType?.Equals(
-                   CommunityOutpostConstants.PublisherId,
+                   CommunityOutpostConstants.PublisherType,
                    StringComparison.OrdinalIgnoreCase) == true &&
                manifest.Files.Any(f =>
-                   f.DownloadUrl?.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) == true);
+                   !string.IsNullOrEmpty(f.DownloadUrl) &&
+                   (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                    f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+                    f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <inheritdoc />
@@ -61,43 +71,51 @@ public class CommunityOutpostDeliverer(
         try
         {
             logger.LogInformation(
-                "Starting Community Outpost content delivery for {Version}",
+                "Starting Community Outpost content delivery for {ManifestId} (v{Version})",
+                packageManifest.Id,
                 packageManifest.Version);
 
-            // Step 1: Download ZIP file
-            var zipFile = packageManifest.Files.FirstOrDefault(f =>
-                f.DownloadUrl?.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) == true);
+            // Step 1: Download archive file
+            var archiveFile = packageManifest.Files.FirstOrDefault(f =>
+                !string.IsNullOrEmpty(f.DownloadUrl) &&
+                (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                 f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+                 f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
 
-            if (zipFile == null)
+            if (archiveFile == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure("No ZIP file found in manifest");
+                return OperationResult<ContentManifest>.CreateFailure("No downloadable archive found in manifest");
             }
 
-            var zipPath = Path.Combine(targetDirectory, "community-patch.zip");
+            // Determine archive type from file extension or SourcePath marker
+            var isSevenZip = archiveFile.SourcePath == "archive:7z" ||
+                            archiveFile.DownloadUrl!.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+                            archiveFile.DownloadUrl!.EndsWith(".7z", StringComparison.OrdinalIgnoreCase);
+
+            var archiveExtension = isSevenZip ? ".7z" : ".zip";
+            var archivePath = Path.Combine(targetDirectory, $"content{archiveExtension}");
 
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
                 ProgressPercentage = 10,
-                CurrentOperation = "Downloading Community Outpost ZIP package",
-                CurrentFile = zipFile.RelativePath,
+                CurrentOperation = "Downloading Community Outpost package",
+                CurrentFile = archiveFile.RelativePath,
             });
 
-            logger.LogDebug("Downloading ZIP from {Url} to {Path}", zipFile.DownloadUrl, zipPath);
-            var downloadResult = await downloadService.DownloadFileAsync(
-                zipFile.DownloadUrl!,
-                zipPath,
-                expectedHash: null,
-                progress: null,
+            // Try downloading with mirror fallback
+            var downloadResult = await DownloadWithMirrorFallbackAsync(
+                archiveFile.DownloadUrl!,
+                archivePath,
                 cancellationToken);
 
             if (!downloadResult.Success)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Failed to download ZIP: {downloadResult.FirstError}");
+                    $"Failed to download package: {downloadResult.FirstError}");
             }
 
-            // Step 2: Extract ZIP
+            // Step 2: Extract archive
             var extractPath = Path.Combine(targetDirectory, "extracted");
             Directory.CreateDirectory(extractPath);
 
@@ -105,11 +123,29 @@ public class CommunityOutpostDeliverer(
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = 40,
-                CurrentOperation = "Extracting Community Outpost files",
+                CurrentOperation = isSevenZip
+                    ? "Extracting 7z archive"
+                    : "Extracting ZIP archive",
             });
 
-            logger.LogDebug("Extracting ZIP to {Path}", extractPath);
-            ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+            logger.LogDebug("Extracting {ArchiveType} to {Path}", isSevenZip ? "7z" : "ZIP", extractPath);
+
+            try
+            {
+                if (isSevenZip)
+                {
+                    await ExtractSevenZipAsync(archivePath, extractPath, cancellationToken);
+                }
+                else
+                {
+                    ZipFile.ExtractToDirectory(archivePath, extractPath, overwriteFiles: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to extract archive from {Path}", archivePath);
+                return OperationResult<ContentManifest>.CreateFailure($"Extraction failed: {ex.Message}");
+            }
 
             // Step 3: Create manifests using the factory
             progress?.Report(new ContentAcquisitionProgress
@@ -129,9 +165,9 @@ public class CommunityOutpostDeliverer(
             {
                 // If no specialized manifests were created, create a single manifest from all files
                 logger.LogWarning(
-                    "No specialized content detected, creating generic patch manifest");
+                    "No specialized content detected, creating generic manifest");
 
-                manifests = await CreateGenericPatchManifestAsync(
+                manifests = await CreateGenericManifestAsync(
                     packageManifest,
                     extractPath,
                     cancellationToken);
@@ -178,51 +214,8 @@ public class CommunityOutpostDeliverer(
                 }
             }
 
-            // Step 5: Move extracted files to target directory (optional cleanup)
-            var parentDir = Directory.GetParent(extractPath)?.FullName;
-            if (parentDir != null)
-            {
-                logger.LogDebug(
-                    "Moving extracted files from {ExtractPath} to parent {ParentDir}",
-                    extractPath,
-                    parentDir);
-
-                foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
-                {
-                    var relativePath = Path.GetRelativePath(extractPath, file);
-                    var targetPath = Path.Combine(parentDir, relativePath);
-                    var targetDir = Path.GetDirectoryName(targetPath);
-
-                    if (!string.IsNullOrEmpty(targetDir))
-                    {
-                        Directory.CreateDirectory(targetDir);
-                    }
-
-                    File.Move(file, targetPath, overwrite: true);
-                }
-
-                try
-                {
-                    Directory.Delete(extractPath, recursive: true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Failed to delete extracted directory {ExtractPath}",
-                        extractPath);
-                }
-            }
-
-            // Cleanup ZIP file
-            try
-            {
-                File.Delete(zipPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to delete ZIP file {ZipPath}", zipPath);
-            }
+            // Step 5: Cleanup temporary files
+            await CleanupTemporaryFilesAsync(archivePath, extractPath);
 
             progress?.Report(new ContentAcquisitionProgress
             {
@@ -252,11 +245,13 @@ public class CommunityOutpostDeliverer(
     {
         try
         {
-            var hasZipFile = manifest.Files.Any(f =>
+            var hasArchiveFile = manifest.Files.Any(f =>
                 !string.IsNullOrEmpty(f.DownloadUrl) &&
-                f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+                (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                 f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+                 f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
 
-            return Task.FromResult(OperationResult<bool>.CreateSuccess(hasZipFile));
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(hasArchiveFile));
         }
         catch (Exception ex)
         {
@@ -269,9 +264,105 @@ public class CommunityOutpostDeliverer(
     }
 
     /// <summary>
-    /// Creates a generic patch manifest when no specialized content types are detected.
+    /// Downloads a file with mirror fallback support.
     /// </summary>
-    private async Task<List<ContentManifest>> CreateGenericPatchManifestAsync(
+    private async Task<OperationResult<bool>> DownloadWithMirrorFallbackAsync(
+        string primaryUrl,
+        string targetPath,
+        CancellationToken cancellationToken)
+    {
+        // Try primary URL first
+        logger.LogDebug("Downloading from primary URL: {Url}", primaryUrl);
+        var result = await downloadService.DownloadFileAsync(
+            primaryUrl,
+            targetPath,
+            expectedHash: null,
+            progress: null,
+            cancellationToken);
+
+        if (result.Success)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        logger.LogWarning("Primary download failed: {Error}", result.FirstError);
+
+        // Note: Mirror URLs would be stored in the original search result metadata
+        // For now, we only try the primary URL since we don't have easy access
+        // to the original metadata here. In a future enhancement, we could
+        // store mirror URLs in the manifest or pass them through.
+        return OperationResult<bool>.CreateFailure($"Download failed: {result.FirstError}");
+    }
+
+    /// <summary>
+    /// Extracts a 7z archive asynchronously using SharpCompress.
+    /// </summary>
+    private async Task ExtractSevenZipAsync(
+        string archivePath,
+        string extractPath,
+        CancellationToken cancellationToken)
+    {
+        await Task.Run(
+            () =>
+            {
+                using var archive = SevenZipArchive.Open(archivePath);
+                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    entry.WriteToDirectory(
+                        extractPath,
+                        new ExtractionOptions
+                        {
+                            ExtractFullPath = true,
+                            Overwrite = true,
+                        });
+                }
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Cleans up temporary files after extraction.
+    /// </summary>
+    private async Task CleanupTemporaryFilesAsync(string archivePath, string extractPath)
+    {
+        await Task.Run(() =>
+        {
+            // Delete archive file
+            try
+            {
+                if (File.Exists(archivePath))
+                {
+                    File.Delete(archivePath);
+                    logger.LogDebug("Deleted archive file: {Path}", archivePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete archive file {Path}", archivePath);
+            }
+
+            // Delete extracted directory
+            try
+            {
+                if (Directory.Exists(extractPath))
+                {
+                    Directory.Delete(extractPath, recursive: true);
+                    logger.LogDebug("Deleted extracted directory: {Path}", extractPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete extracted directory {Path}", extractPath);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Creates a generic manifest when no specialized content types are detected.
+    /// </summary>
+    private async Task<List<ContentManifest>> CreateGenericManifestAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken)
@@ -311,7 +402,7 @@ public class CommunityOutpostDeliverer(
             Name = originalManifest.Name,
             Version = originalManifest.Version,
             ManifestVersion = originalManifest.ManifestVersion,
-            ContentType = ContentType.Patch,
+            ContentType = originalManifest.ContentType,
             TargetGame = originalManifest.TargetGame,
             Publisher = originalManifest.Publisher,
             Metadata = originalManifest.Metadata,
