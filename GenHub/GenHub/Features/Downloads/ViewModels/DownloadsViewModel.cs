@@ -106,6 +106,23 @@ public partial class DownloadsViewModel(
         }
     }
 
+    private static string GetContentTypeDisplayName(ContentType type)
+    {
+        return type switch
+        {
+            ContentType.GameClient => UiConstants.GameClientDisplayName,
+            ContentType.MapPack => UiConstants.MapPackDisplayName,
+            ContentType.Patch => UiConstants.PatchDisplayName,
+            ContentType.Addon => UiConstants.AddonDisplayName,
+            ContentType.Mod => UiConstants.ModDisplayName,
+            ContentType.Mission => UiConstants.MissionDisplayName,
+            ContentType.Map => UiConstants.MapDisplayName,
+            ContentType.LanguagePack => UiConstants.LanguagePackDisplayName,
+            ContentType.ContentBundle => UiConstants.ContentBundleDisplayName,
+            _ => type.ToString(),
+        };
+    }
+
     private void InitializePublisherCards()
     {
         // Create Generals Online publisher card (Feature 2)
@@ -573,23 +590,6 @@ public partial class DownloadsViewModel(
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == ModDBConstants.PublisherType);
             if (card != null) card.IsLoading = false;
         }
-    }
-
-    private static string GetContentTypeDisplayName(ContentType type)
-    {
-        return type switch
-        {
-            ContentType.GameClient => UiConstants.GameClientDisplayName,
-            ContentType.MapPack => UiConstants.MapPackDisplayName,
-            ContentType.Patch => UiConstants.PatchDisplayName,
-            ContentType.Addon => UiConstants.AddonDisplayName,
-            ContentType.Mod => UiConstants.ModDisplayName,
-            ContentType.Mission => UiConstants.MissionDisplayName,
-            ContentType.Map => UiConstants.MapDisplayName,
-            ContentType.LanguagePack => UiConstants.LanguagePackDisplayName,
-            ContentType.ContentBundle => UiConstants.ContentBundleDisplayName,
-            _ => type.ToString(),
-        };
     }
 
     private async Task FetchGeneralsOnlineVersionAsync()

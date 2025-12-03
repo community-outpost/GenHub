@@ -10,6 +10,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.CommunityOutpost.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -18,10 +19,10 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// Resolves Community Outpost content into manifests.
 /// Supports the GenPatcher dl.dat catalog format with multiple download mirrors.
 /// </summary>
-/// <param name="manifestBuilderFactory">Factory to create new manifest builders per resolve operation.</param>
+/// <param name="serviceProvider">Service provider to create new manifest builders per resolve operation.</param>
 /// <param name="logger">The logger.</param>
 public class CommunityOutpostResolver(
-    Func<IContentManifestBuilder> manifestBuilderFactory,
+    IServiceProvider serviceProvider,
     ILogger<CommunityOutpostResolver> logger) : IContentResolver
 {
     /// <inheritdoc/>
@@ -83,12 +84,13 @@ public class CommunityOutpostResolver(
                 contentName,
                 manifestVersion);
 
-            // Create a fresh manifest builder instance for each resolve operation
-            // Using factory pattern ensures we get a new Transient instance each time
-            var manifestBuilder = manifestBuilderFactory();
+            // Create a new manifest builder for each resolve operation to ensure clean state
+            // This is critical because the builder accumulates files, and reusing the same
+            // instance across multiple ResolveAsync calls would cause files to accumulate
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             // Build manifest with correct parameters
-            // Use PublisherType (e.g., "communityoutpost") as the publisher ID, NOT combined with content code
+            // IMPORTANT: Use PublisherType (e.g., "communityoutpost") as the publisher ID, NOT combined with content code
             var manifest = manifestBuilder
                 .WithBasicInfo(
                     CommunityOutpostConstants.PublisherType,
@@ -150,12 +152,12 @@ public class CommunityOutpostResolver(
             if (mirrorUrls.Count > 1)
             {
                 // Store as custom tag since Metadata doesn't have arbitrary storage
-                builtManifest.Metadata.Tags ??= new List<string>();
+                builtManifest.Metadata.Tags ??= [];
                 builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
             }
 
             // Store the content code for the factory to use
-            builtManifest.Metadata.Tags ??= new List<string>();
+            builtManifest.Metadata.Tags ??= [];
             builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
             builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
 
@@ -215,7 +217,7 @@ public class CommunityOutpostResolver(
         if (metadata.Category == GenPatcherContentCategory.OfficialPatch && !string.IsNullOrEmpty(metadata.LanguageCode))
         {
             var languageName = GetLanguageDisplayName(metadata.LanguageCode);
-            var codePrefix = contentCode.Length >= 3 ? contentCode.Substring(0, 3) : contentCode;
+            var codePrefix = contentCode.Length >= 3 ? contentCode[..3] : contentCode;
             return $"patch{codePrefix}{languageName}".ToLowerInvariant();
         }
 
@@ -263,7 +265,6 @@ public class CommunityOutpostResolver(
             return "0";
         }
 
-        // Handle date versions like "2025-11-07" - exact format check for YYYY-MM-DD
         if (version.Length == 10 && version[4] == '-' && version[7] == '-')
         {
             var dateDigits = version.Replace("-", string.Empty);
@@ -361,12 +362,12 @@ public class CommunityOutpostResolver(
 
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? new List<string>();
+            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? [];
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to deserialize mirror URLs");
-            return new List<string>();
+            return [];
         }
     }
 }

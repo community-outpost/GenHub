@@ -146,12 +146,12 @@ cbbs 003754194 legi.cc https://legi.cc/cbbs.dat";
         {
             ContentCode = "108e",
             FileSize = 19955034L,
-            Mirrors = new()
-            {
+            Mirrors =
+            [
                 new() { Name = "gentool.net", Url = "https://gentool.net/108e.dat" },
                 new() { Name = "legi.cc", Url = "https://legi.cc/108e.dat" },
                 new() { Name = "drive.google.com", Url = "https://drive.google.com/108e" },
-            },
+            ],
         };
 
         // Act
@@ -172,11 +172,11 @@ cbbs 003754194 legi.cc https://legi.cc/cbbs.dat";
         {
             ContentCode = "drtx",
             FileSize = 100465954L,
-            Mirrors = new()
-            {
+            Mirrors =
+            [
                 new() { Name = "gentool.net", Url = "https://gentool.net/drtx.dat" },
                 new() { Name = "drive.google.com", Url = "https://drive.google.com/drtx" },
-            },
+            ],
         };
 
         // Act
@@ -197,12 +197,12 @@ cbbs 003754194 legi.cc https://legi.cc/cbbs.dat";
         {
             ContentCode = "108e",
             FileSize = 19955034L,
-            Mirrors = new()
-            {
+            Mirrors =
+            [
                 new() { Name = "drive.google.com", Url = "https://drive.google.com/108e" },
                 new() { Name = "gentool.net", Url = "https://gentool.net/108e.dat" },
                 new() { Name = "legi.cc", Url = "https://legi.cc/108e.dat" },
-            },
+            ],
         };
 
         // Act

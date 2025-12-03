@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +25,6 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
-using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
@@ -284,7 +282,7 @@ public class ProfileLauncherFacade(
             }
 
             // A game profile must have content enabled to be launchable
-            if (profile.EnabledContentIds == null || !profile.EnabledContentIds.Any())
+            if (profile.EnabledContentIds == null || profile.EnabledContentIds.Count == 0)
             {
                 errors.Add("At least one content item must be enabled for launch");
                 return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
@@ -334,7 +332,7 @@ public class ProfileLauncherFacade(
                 errors.Add("At least one game client content item must be enabled for launch");
             }
 
-            if (errors.Any())
+            if (errors.Count > 0)
             {
                 logger.LogWarning("Profile {ProfileId} launch validation failed: {Errors}", profile.Id, string.Join(", ", errors));
                 return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
@@ -342,7 +340,7 @@ public class ProfileLauncherFacade(
 
             // Validate dependencies between manifests
             var dependencyErrors = ValidateDependencies(manifests, profile.GameClient.GameType);
-            if (dependencyErrors.Any())
+            if (dependencyErrors.Count > 0)
             {
                 errors.AddRange(dependencyErrors);
                 logger.LogWarning("Profile {ProfileId} dependency validation failed: {Errors}", profile.Id, string.Join(", ", dependencyErrors));
@@ -475,10 +473,6 @@ public class ProfileLauncherFacade(
                 }
             }
 
-            // Build list of manifests from enabled content IDs only
-            var manifests = new List<ContentManifest>();
-            var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds ?? Enumerable.Empty<string>());
-
             // Resolve dependencies recursively
             var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
             if (!resolutionResult.Success)
@@ -486,7 +480,7 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
             }
 
-            manifests = resolutionResult.ResolvedManifests.ToList();
+            var manifests = resolutionResult.ResolvedManifests.ToList();
 
             // CAS preflight check - verify all CAS content is available before workspace preparation.
             // This prevents late failure and ensures early error detection.
@@ -704,7 +698,7 @@ public class ProfileLauncherFacade(
     private static bool IsVersionCompatible(string version, ContentDependency dependency)
     {
         // If compatible versions list is specified, check exact match
-        if (dependency.CompatibleVersions.Any())
+        if (dependency.CompatibleVersions.Count > 0)
         {
             return dependency.CompatibleVersions.Contains(version, StringComparer.OrdinalIgnoreCase);
         }
@@ -737,7 +731,7 @@ public class ProfileLauncherFacade(
     /// <returns>A string describing the version requirements.</returns>
     private static string BuildVersionRequirementString(ContentDependency dependency)
     {
-        if (dependency.CompatibleVersions.Any())
+        if (dependency.CompatibleVersions.Count > 0)
         {
             return $"(version: {string.Join(" or ", dependency.CompatibleVersions)})";
         }
@@ -753,7 +747,7 @@ public class ProfileLauncherFacade(
             parts.Add($"version <= {dependency.MaxVersion}");
         }
 
-        return parts.Any() ? $"({string.Join(" and ", parts)})" : string.Empty;
+        return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
     }
 
     /// <summary>
@@ -777,7 +771,7 @@ public class ProfileLauncherFacade(
             foreach (var manifest in manifests)
             {
                 // Skip if no dependencies
-                if (manifest.Dependencies == null || !manifest.Dependencies.Any())
+                if (manifest.Dependencies == null || manifest.Dependencies.Count == 0)
                 {
                     continue;
                 }
@@ -787,7 +781,7 @@ public class ProfileLauncherFacade(
                 foreach (var dependency in manifest.Dependencies)
                 {
                     // Validate by dependency type
-                    if (!manifestsByType.TryGetValue(dependency.DependencyType, out var potentialMatches) || !potentialMatches.Any())
+                    if (!manifestsByType.TryGetValue(dependency.DependencyType, out var potentialMatches) || potentialMatches.Count == 0)
                     {
                         errors.Add($"Content '{manifest.Name}' requires {dependency.DependencyType} content, but none is selected");
                         logger.LogWarning(
@@ -855,7 +849,7 @@ public class ProfileLauncherFacade(
                         }
 
                         // Validate version compatibility if specified
-                        if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Any())
+                        if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
                         {
                             if (!IsVersionCompatible(requiredManifest.Version, dependency))
                             {
@@ -893,7 +887,7 @@ public class ProfileLauncherFacade(
                     }
 
                     // Validate CompatibleGameTypes for all dependency types
-                    if (dependency.CompatibleGameTypes != null && dependency.CompatibleGameTypes.Any())
+                    if (dependency.CompatibleGameTypes != null && dependency.CompatibleGameTypes.Count > 0)
                     {
                         if (!dependency.CompatibleGameTypes.Contains(profileGameType))
                         {
@@ -956,9 +950,9 @@ public class ProfileLauncherFacade(
                 }
 
                 // Check for conflicts
-                if (manifest.Dependencies.Any())
+                if (manifest.Dependencies.Count > 0)
                 {
-                    foreach (var dependency in manifest.Dependencies.Where(d => d.ConflictsWith.Any()))
+                    foreach (var dependency in manifest.Dependencies.Where(d => d.ConflictsWith.Count > 0))
                     {
                         foreach (var conflictId in dependency.ConflictsWith)
                         {
@@ -975,7 +969,7 @@ public class ProfileLauncherFacade(
                 }
             }
 
-            if (errors.Any())
+            if (errors.Count > 0)
             {
                 logger.LogWarning("Dependency validation found {Count} errors", errors.Count);
             }
@@ -1099,8 +1093,7 @@ public class ProfileLauncherFacade(
     /// Applies game settings from the profile to the Options.ini file.
     /// </summary>
     /// <param name="profile">The game profile with settings.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    private async Task ApplyGameSettingsAsync(GameProfile profile, CancellationToken cancellationToken)
+    private async Task ApplyGameSettingsAsync(GameProfile profile)
     {
         try
         {
@@ -1189,7 +1182,7 @@ public class ProfileLauncherFacade(
             }
         }
 
-        if (missingHashes.Any())
+        if (missingHashes.Count > 0)
         {
             var distinctMissing = missingHashes.Distinct().ToList();
             logger.LogError("[CAS Preflight] Found {Count} missing CAS objects: {Hashes}", distinctMissing.Count, string.Join(", ", distinctMissing.Take(10)));

@@ -12,22 +12,9 @@ namespace GenHub.Features.Content.Services.CommunityOutpost.Models;
 /// - Line 1: Version header (e.g., "2.13                ;;")
 /// - Content lines: [4-char-code] [9-digit-padded-size] [mirror-name] [url].
 /// </summary>
-public class GenPatcherDatParser(ILogger logger)
+public partial class GenPatcherDatParser(ILogger logger)
 {
-    /// <summary>
-    /// Regex pattern to match content lines.
-    /// Groups: 1=code, 2=size, 3=mirror, 4=url.
-    /// </summary>
-    private static readonly Regex ContentLinePattern = new(
-        @"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$",
-        RegexOptions.Compiled);
-
-    /// <summary>
-    /// Regex pattern to match the version header line.
-    /// </summary>
-    private static readonly Regex VersionLinePattern = new(
-        @"^([\d\.]+)\s+;;$",
-        RegexOptions.Compiled);
+    private static readonly string[] LineSeparators = ["\r\n", "\n"];
 
     /// <summary>
     /// Gets all download URLs for a content item, ordered by preference.
@@ -117,7 +104,7 @@ public class GenPatcherDatParser(ILogger logger)
         }
 
         // Split into lines (handle both \r\n and \n)
-        var lines = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = content.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         logger.LogDebug("Parsing dl.dat with {LineCount} lines", lines.Length);
 
@@ -135,7 +122,7 @@ public class GenPatcherDatParser(ILogger logger)
             }
 
             // Check for version header
-            var versionMatch = VersionLinePattern.Match(trimmedLine);
+            var versionMatch = VersionLineRegex().Match(trimmedLine);
             if (versionMatch.Success)
             {
                 catalog.CatalogVersion = versionMatch.Groups[1].Value;
@@ -144,7 +131,7 @@ public class GenPatcherDatParser(ILogger logger)
             }
 
             // Try to parse as content line
-            var contentMatch = ContentLinePattern.Match(trimmedLine);
+            var contentMatch = ContentLineRegex().Match(trimmedLine);
             if (!contentMatch.Success)
             {
                 logger.LogDebug("Skipping unrecognized line: {Line}", trimmedLine.Length > 50 ? trimmedLine[..50] + "..." : trimmedLine);
@@ -181,7 +168,7 @@ public class GenPatcherDatParser(ILogger logger)
             });
         }
 
-        catalog.Items = contentByCode.Values.ToList();
+        catalog.Items = [.. contentByCode.Values];
 
         // Log unique mirror count to show distinct mirrors, not total occurrences
         var uniqueMirrors = catalog.Items
@@ -197,4 +184,17 @@ public class GenPatcherDatParser(ILogger logger)
 
         return catalog;
     }
+
+    /// <summary>
+    /// Regex pattern to match content lines.
+    /// Groups: 1=code, 2=size, 3=mirror, 4=url.
+    /// </summary>
+    [GeneratedRegex(@"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$")]
+    private static partial Regex ContentLineRegex();
+
+    /// <summary>
+    /// Regex pattern to match the version header line.
+    /// </summary>
+    [GeneratedRegex(@"^([\d\.]+)\s+;;$")]
+    private static partial Regex VersionLineRegex();
 }

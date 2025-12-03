@@ -29,6 +29,20 @@ public class CNCLabsMapResolver(
     ILogger<CNCLabsMapResolver> logger) : IContentResolver
 {
     /// <summary>
+    /// Extracts a metadata value from the document by finding a label and reading the next text sibling.
+    /// </summary>
+    /// <param name="document">The HTML document.</param>
+    /// <param name="label">The label text to search for (e.g., "File Size:").</param>
+    /// <returns>The extracted value or null if not found.</returns>
+    private static string? ExtractMetadataValue(IDocument document, string label)
+    {
+        var strongEl = document.QuerySelectorAll("strong")
+            .FirstOrDefault(s => s.TextContent?.Trim().EndsWith(label, StringComparison.OrdinalIgnoreCase) == true);
+
+        return CNCLabsHelper.GetNextNonEmptyTextSibling(strongEl);
+    }
+
+    /// <summary>
     /// Gets the unique resolver ID for CNC Labs Map.
     /// </summary>
     public string ResolverId => CNCLabsConstants.ResolverId;
@@ -195,19 +209,5 @@ public class CNCLabsMapResolver(
             contentType: contentType,
             fileType: Path.GetExtension(downloadUrl),
             rating: rating);
-    }
-
-    /// <summary>
-    /// Extracts a metadata value from the document by finding a label and reading the next text sibling.
-    /// </summary>
-    /// <param name="document">The HTML document.</param>
-    /// <param name="label">The label text to search for (e.g., "File Size:").</param>
-    /// <returns>The extracted value or null if not found.</returns>
-    private string? ExtractMetadataValue(IDocument document, string label)
-    {
-        var strongEl = document.QuerySelectorAll("strong")
-            .FirstOrDefault(s => s.TextContent?.Trim().EndsWith(label, StringComparison.OrdinalIgnoreCase) == true);
-
-        return CNCLabsHelper.GetNextNonEmptyTextSibling(strongEl);
     }
 }

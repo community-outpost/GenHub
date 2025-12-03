@@ -50,7 +50,7 @@ public static class GenPatcherDependencyBuilder
                 break;
 
             case GenPatcherContentCategory.ControlBar:
-                AddControlBarDependencies(dependencies, metadata);
+                AddControlBarDependencies(dependencies);
                 break;
 
             case GenPatcherContentCategory.Camera:
@@ -58,15 +58,15 @@ public static class GenPatcherDependencyBuilder
                 break;
 
             case GenPatcherContentCategory.Hotkeys:
-                AddHotkeyDependencies(dependencies, metadata);
+                AddHotkeyDependencies(dependencies);
                 break;
 
             case GenPatcherContentCategory.Tools:
-                AddToolDependencies(dependencies, contentCode, metadata);
+                AddToolDependencies(dependencies, contentCode);
                 break;
 
             case GenPatcherContentCategory.Maps:
-                AddMapDependencies(dependencies, metadata);
+                AddMapDependencies(dependencies);
                 break;
 
             case GenPatcherContentCategory.Visuals:
@@ -108,7 +108,7 @@ public static class GenPatcherDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false, // Any publisher's ZH installation will work (EA, Steam, etc.)
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
+            CompatibleGameTypes = [GameType.ZeroHour],
         };
     }
 
@@ -131,7 +131,7 @@ public static class GenPatcherDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false, // Any publisher's Generals installation will work
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
+            CompatibleGameTypes = [GameType.Generals],
         };
     }
 
@@ -151,7 +151,7 @@ public static class GenPatcherDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
+            CompatibleGameTypes = [GameType.ZeroHour],
         };
     }
 
@@ -171,7 +171,7 @@ public static class GenPatcherDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
+            CompatibleGameTypes = [GameType.Generals],
         };
     }
 
@@ -241,7 +241,7 @@ public static class GenPatcherDependencyBuilder
                 "ewba", "ewbi", "hlde", "hleg", "hlei", "hlen",
             }.FindAll(c => !c.Equals(contentCode, StringComparison.OrdinalIgnoreCase)),
 
-            _ => new List<string>(),
+            _ => [],
         };
     }
 
@@ -285,8 +285,7 @@ public static class GenPatcherDependencyBuilder
     /// Control bars require Zero Hour 1.04 to work properly.
     /// </summary>
     private static void AddControlBarDependencies(
-        List<ContentDependency> dependencies,
-        GenPatcherContentMetadata metadata)
+        List<ContentDependency> dependencies)
     {
         // All control bars need Zero Hour 1.04
         dependencies.Add(CreateZeroHour104Dependency());
@@ -319,8 +318,7 @@ public static class GenPatcherDependencyBuilder
     /// Hotkeys require the patched game installation.
     /// </summary>
     private static void AddHotkeyDependencies(
-        List<ContentDependency> dependencies,
-        GenPatcherContentMetadata metadata)
+        List<ContentDependency> dependencies)
     {
         // Hotkeys typically work with Zero Hour
         dependencies.Add(CreateZeroHour104Dependency());
@@ -332,8 +330,7 @@ public static class GenPatcherDependencyBuilder
     /// </summary>
     private static void AddToolDependencies(
         List<ContentDependency> dependencies,
-        string contentCode,
-        GenPatcherContentMetadata metadata)
+        string contentCode)
     {
         var code = contentCode.ToLowerInvariant();
 
@@ -374,8 +371,7 @@ public static class GenPatcherDependencyBuilder
     /// Maps require the patched game to load correctly.
     /// </summary>
     private static void AddMapDependencies(
-        List<ContentDependency> dependencies,
-        GenPatcherContentMetadata metadata)
+        List<ContentDependency> dependencies)
     {
         // Maps need the patched game
         dependencies.Add(CreateZeroHour104Dependency());

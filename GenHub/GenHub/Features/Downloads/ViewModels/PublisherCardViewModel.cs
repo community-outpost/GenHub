@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,9 +9,6 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels;
 using Microsoft.Extensions.Logging;
 
@@ -311,7 +307,7 @@ public partial class PublisherCardViewModel : ObservableObject
                 return true;
             }
 
-            // Date part match (e.g., "20251107" from "2025-11-07" or "weekly-2025-11-21")
+            // Date part match (e.g., "20251121" from "weekly-2025-11-21")
             if (!string.IsNullOrEmpty(itemDatePart) &&
                 !string.IsNullOrEmpty(manifestDatePart) &&
                 itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase))

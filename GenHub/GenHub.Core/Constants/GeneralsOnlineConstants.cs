@@ -5,31 +5,6 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class GeneralsOnlineConstants
 {
-    // ===== API Endpoints =====
-
-    /// <summary>Base URL for Generals Online CDN.</summary>
-    public const string CdnBaseUrl = "https://cdn.playgenerals.online";
-
-    /// <summary>API endpoint for JSON manifest with full release information.</summary>
-    public const string ManifestApiUrl = "https://cdn.playgenerals.online/manifest.json";
-
-    /// <summary>Endpoint for latest version information (plain text version string).</summary>
-    public const string LatestVersionUrl = "https://cdn.playgenerals.online/latest.txt";
-
-    /// <summary>Base URL for release downloads.</summary>
-    public const string ReleasesUrl = "https://cdn.playgenerals.online/releases";
-
-    // ===== Web URLs =====
-
-    /// <summary>Official Generals Online website.</summary>
-    public const string WebsiteUrl = "https://www.playgenerals.online/";
-
-    /// <summary>Download page URL.</summary>
-    public const string DownloadPageUrl = "https://www.playgenerals.online/#download";
-
-    /// <summary>Support/discord URL.</summary>
-    public const string SupportUrl = "https://discord.playgenerals.online/";
-
     // ===== Content Metadata =====
 
     /// <summary>Publisher name for manifests.</summary>
@@ -111,5 +86,5 @@ public static class GeneralsOnlineConstants
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "multiplayer", "online", "community", "enhancement" };
+    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
 }

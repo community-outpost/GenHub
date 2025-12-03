@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
-namespace GenHub.Tests.Core.ViewModels;
+namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
 /// <summary>
 /// Contains unit tests for the <see cref="MainViewModel"/> class.
@@ -162,7 +162,7 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
-        mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+        mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((Velopack.UpdateInfo?)null);
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
@@ -255,7 +255,7 @@ public class MainViewModelTests
     /// <summary>
     /// Creates a default SettingsViewModel with mocked services for reuse.
     /// </summary>
-    private static (SettingsViewModel settingsVm, Mock<IUserSettingsService> userSettingsMock) CreateSettingsVm()
+    private static (SettingsViewModel SettingsVm, Mock<IUserSettingsService> UserSettingsMock) CreateSettingsVm()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());

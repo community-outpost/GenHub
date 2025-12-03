@@ -10,9 +10,10 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.ContentResolvers;
+namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// Resolves GitHub workflow artifacts into ContentManifest objects.
@@ -85,7 +86,7 @@ public class GitHubArtifactResolver(
                     publisherType: "github")
                     .WithMetadata(
                         $"Artifact: {artifactName}, Run #{runNumber}",
-                        tags: new List<string> { "workflow", "artifact" },
+                        tags: ["workflow", "artifact"],
                         changelogUrl: string.Empty)
                     .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
@@ -132,7 +133,7 @@ public class GitHubArtifactResolver(
                     publisherType: "github")
                 .WithMetadata(
                     $"Workflow: {workflowRun.Name}, Run #{workflowRun.RunNumber}",
-                    tags: new List<string> { "workflow", "artifact", workflowRun.Status ?? "unknown" },
+                    tags: ["workflow", "artifact", workflowRun.Status ?? "unknown"],
                     changelogUrl: workflowRun.HtmlUrl ?? string.Empty)
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 

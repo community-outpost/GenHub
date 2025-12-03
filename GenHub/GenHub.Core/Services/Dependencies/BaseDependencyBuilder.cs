@@ -50,8 +50,8 @@ public abstract class BaseDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = strictPublisher,
-            RequiredPublisherTypes = requiredPublisherTypes ?? new List<string>(),
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
+            RequiredPublisherTypes = requiredPublisherTypes ?? [],
+            CompatibleGameTypes = [GameType.ZeroHour],
         };
     }
 
@@ -76,8 +76,8 @@ public abstract class BaseDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = strictPublisher,
-            RequiredPublisherTypes = requiredPublisherTypes ?? new List<string>(),
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
+            RequiredPublisherTypes = requiredPublisherTypes ?? [],
+            CompatibleGameTypes = [GameType.Generals],
         };
     }
 
@@ -96,7 +96,7 @@ public abstract class BaseDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
+            CompatibleGameTypes = [GameType.ZeroHour],
         };
     }
 
@@ -114,7 +114,7 @@ public abstract class BaseDependencyBuilder
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
+            CompatibleGameTypes = [GameType.Generals],
         };
     }
 
@@ -188,13 +188,13 @@ public abstract class BaseDependencyBuilder
         // Default implementation: Game clients require game installation
         if (manifest.ContentType == ContentType.GameClient)
         {
-            return new List<ContentDependency>
-            {
+            return
+            [
                 CreateGameInstallationDependency(manifest.TargetGame, requirePatchedVersion: true),
-            };
+            ];
         }
 
-        return new List<ContentDependency>();
+        return [];
     }
 
     /// <summary>
@@ -205,7 +205,7 @@ public abstract class BaseDependencyBuilder
     /// <returns>List of conflicting content codes.</returns>
     public virtual List<string> GetConflictingCodes(string contentCode)
     {
-        return new List<string>();
+        return [];
     }
 
     /// <summary>
