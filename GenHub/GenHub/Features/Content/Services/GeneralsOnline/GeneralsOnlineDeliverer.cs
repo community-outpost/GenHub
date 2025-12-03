@@ -103,36 +103,36 @@ public class GeneralsOnlineDeliverer(
             logger.LogDebug("Extracting ZIP to {Path}", extractPath);
             ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
 
-            // Step 3: Create both variant manifests using the factory
+            // Step 3: Create all variant manifests using the factory (30Hz, 60Hz GameClients + QuickMatch MapPack)
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
                 ProgressPercentage = 50,
-                CurrentOperation = "Creating manifests for both variants",
+                CurrentOperation = "Creating manifests for all variants",
             });
 
-            logger.LogInformation("Creating dual manifests for GeneralsOnline variants");
+            logger.LogInformation("Creating manifests for GeneralsOnline variants (30Hz, 60Hz, QuickMatch MapPack)");
             var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
                 cancellationToken);
 
-            if (manifests.Count != 2)
+            if (manifests.Count != 3)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Expected 2 manifests but got {manifests.Count}");
+                    $"Expected 3 manifests (30Hz, 60Hz, MapPack) but got {manifests.Count}");
             }
 
-            // Step 4: Register both variant manifests to CAS
-            // This ensures all files (including both executables) are stored before validation
+            // Step 4: Register all variant manifests to CAS
+            // This ensures all files (including both executables and map pack) are stored before validation
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
                 ProgressPercentage = 90,
-                CurrentOperation = "Registering both variant manifests to content library",
+                CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            logger.LogInformation("Registering both variant manifests (30Hz and 60Hz) in pool");
+            logger.LogInformation("Registering all variant manifests (30Hz, 60Hz, QuickMatch MapPack) in pool");
 
             // Register 30Hz manifest first
             var hz30Manifest = manifests[0];
@@ -162,6 +162,21 @@ public class GeneralsOnlineDeliverer(
             else
             {
                 logger.LogInformation("Successfully registered 60Hz manifest: {ManifestId}", hz60Manifest.Id);
+            }
+
+            // Register QuickMatch MapPack manifest
+            var mapPackManifest = manifests[2];
+            var addMapPackResult = await manifestPool.AddManifestAsync(mapPackManifest, extractPath, cancellationToken);
+            if (!addMapPackResult.Success)
+            {
+                logger.LogWarning(
+                    "Failed to register QuickMatch MapPack manifest {ManifestId}: {Error}",
+                    mapPackManifest.Id,
+                    addMapPackResult.FirstError);
+            }
+            else
+            {
+                logger.LogInformation("Successfully registered QuickMatch MapPack manifest: {ManifestId}", mapPackManifest.Id);
             }
 
             var parentDir = Directory.GetParent(extractPath)?.FullName;
@@ -204,12 +219,12 @@ public class GeneralsOnlineDeliverer(
             {
                 Phase = ContentAcquisitionPhase.Completed,
                 ProgressPercentage = 100,
-                CurrentOperation = "Generals Online content delivered successfully (both variants)",
+                CurrentOperation = "Generals Online content delivered successfully (all variants)",
             });
 
             var primaryManifest = manifests[0];
             logger.LogInformation(
-                "Successfully delivered Generals Online content: 2 manifests created, both registered to pool");
+                "Successfully delivered Generals Online content: 3 manifests created, all registered to pool");
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }

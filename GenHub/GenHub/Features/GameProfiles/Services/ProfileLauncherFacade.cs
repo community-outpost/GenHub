@@ -739,7 +739,51 @@ public class ProfileLauncherFacade(
                     // Check if specific dependency ID is required (not a generic type-based constraint)
                     if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
                     {
-                        if (!manifestsById.ContainsKey(dependency.Id.ToString()))
+                        ContentManifest? requiredManifest = null;
+
+                        // First try exact ID match
+                        if (manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch))
+                        {
+                            requiredManifest = exactMatch;
+                        }
+
+                        // If StrictPublisher is false, try semantic matching (any publisher satisfies the dependency)
+                        else if (!dependency.StrictPublisher)
+                        {
+                            // Parse the dependency ID to get contentType and contentName segments
+                            // Format: schemaVersion.userVersion.publisher.contentType.contentName
+                            var depIdSegments = dependency.Id.ToString().Split('.');
+                            if (depIdSegments.Length >= 5)
+                            {
+                                var depContentType = depIdSegments[3];
+                                var depContentName = depIdSegments[4];
+
+                                // Find any manifest that matches contentType and contentName (regardless of publisher)
+                                requiredManifest = potentialMatches.FirstOrDefault(m =>
+                                {
+                                    var manifestIdSegments = m.Id.ToString().Split('.');
+                                    if (manifestIdSegments.Length >= 5)
+                                    {
+                                        var manifestContentType = manifestIdSegments[3];
+                                        var manifestContentName = manifestIdSegments[4];
+                                        return string.Equals(manifestContentType, depContentType, StringComparison.OrdinalIgnoreCase) &&
+                                               string.Equals(manifestContentName, depContentName, StringComparison.OrdinalIgnoreCase);
+                                    }
+
+                                    return false;
+                                });
+
+                                if (requiredManifest != null)
+                                {
+                                    _logger.LogDebug(
+                                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher=false)",
+                                        dependency.Id,
+                                        requiredManifest.Id);
+                                }
+                            }
+                        }
+
+                        if (requiredManifest == null)
                         {
                             errors.Add($"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected");
                             _logger.LogWarning(
@@ -748,8 +792,6 @@ public class ProfileLauncherFacade(
                                 dependency.Id);
                             continue;
                         }
-
-                        var requiredManifest = manifestsById[dependency.Id.ToString()];
 
                         // Validate version compatibility if specified
                         if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Any())

@@ -10,6 +10,7 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
@@ -18,7 +19,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Resolves GitHub workflow artifacts into ContentManifest objects.
 /// </summary>
 public class GitHubArtifactResolver(
-    IContentManifestBuilder manifestBuilder,
+    IServiceProvider serviceProvider,
     ILogger<GitHubArtifactResolver> logger) : IContentResolver
 {
     /// <summary>
@@ -65,6 +66,9 @@ public class GitHubArtifactResolver(
                 // Content name for manifest ID: "owner-repo-runN"
                 var contentName = $"{owner}-{repo}-run{runNumber}";
 
+                // Create a new manifest builder for each resolve operation to ensure clean state
+                var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
+
                 var manifest = manifestBuilder
                     .WithBasicInfo(
                     "github", // Publisher ID (builder generates manifest ID)
@@ -107,7 +111,10 @@ public class GitHubArtifactResolver(
                 workflowRun.Name,
                 workflowRun.RunNumber);
 
-            var manifestWithRun = manifestBuilder
+            // Create a new manifest builder for each resolve operation to ensure clean state
+            var runManifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
+
+            var manifestWithRun = runManifestBuilder
                 .WithBasicInfo(
                 "github", // Publisher ID (builder generates manifest ID)
                 artifactContentName, // Content name

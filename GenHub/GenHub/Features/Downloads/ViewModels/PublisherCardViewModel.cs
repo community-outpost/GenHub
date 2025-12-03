@@ -262,9 +262,7 @@ public partial class PublisherCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Simple check if content is installed - matches by publisher and version date.
-    /// Handles cases where discovered content type (e.g., Patch) transforms into different
-    /// manifest types (e.g., GameClient, Addon) after extraction and factory processing.
+    /// Simple check if content is installed - matches by publisher, content type, and version date.
     /// </summary>
     private static bool IsContentInstalledSimple(
         ContentItemViewModel item,
@@ -286,9 +284,13 @@ public partial class PublisherCardViewModel : ObservableObject
                 continue;
             }
 
+            // Check content type match
+            if (manifest.ContentType != item.Model.ContentType)
+            {
+                continue;
+            }
+
             // Check version match - compare date parts
-            // Note: We don't check ContentType here because extracted content can transform
-            // (e.g., a "Patch" download becomes "GameClient" + "Addon" manifests)
             var manifestVersion = manifest.Version ?? string.Empty;
             var manifestDatePart = ExtractDateFromVersion(manifestVersion);
 
@@ -298,7 +300,7 @@ public partial class PublisherCardViewModel : ObservableObject
                 return true;
             }
 
-            // Date part match (e.g., "20251107" from "2025-11-07" or "weekly-2025-11-21")
+            // Date part match (e.g., "20251121" from "weekly-2025-11-21")
             if (!string.IsNullOrEmpty(itemDatePart) &&
                 !string.IsNullOrEmpty(manifestDatePart) &&
                 itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase))
