@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -49,7 +50,7 @@ public static class ManifestIdGenerator
             throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
         var safePublisher = Normalize(publisherId);
-        var contentTypeString = GetContentTypeString(contentType);
+        var contentTypeString = contentType.ToManifestIdString();
         var safeName = Normalize(contentName);
         var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{userVersion}";
 
@@ -238,31 +239,5 @@ public static class ManifestIdGenerator
         var normalized = Regex.Replace(lower, "[^a-zA-Z0-9]", string.Empty);
 
         return string.IsNullOrEmpty(normalized) ? throw new ArgumentException("Input results in empty string after normalization", nameof(input)) : normalized;
-    }
-
-    /// <summary>
-    /// Gets a string representation for ContentType.
-    /// </summary>
-    /// <param name="contentType">The content type enum value.</param>
-    /// <returns>A stable lowercase string representation.</returns>
-    private static string GetContentTypeString(ContentType contentType)
-    {
-        return contentType switch
-        {
-            ContentType.GameInstallation => nameof(ContentType.GameInstallation).ToLowerInvariant(),
-            ContentType.GameClient => nameof(ContentType.GameClient).ToLowerInvariant(),
-            ContentType.Mod => nameof(ContentType.Mod).ToLowerInvariant(),
-            ContentType.Patch => nameof(ContentType.Patch).ToLowerInvariant(),
-            ContentType.Addon => nameof(ContentType.Addon).ToLowerInvariant(),
-            ContentType.MapPack => nameof(ContentType.MapPack).ToLowerInvariant(),
-            ContentType.LanguagePack => nameof(ContentType.LanguagePack).ToLowerInvariant(),
-            ContentType.ContentBundle => nameof(ContentType.ContentBundle).ToLowerInvariant(),
-            ContentType.PublisherReferral => nameof(ContentType.PublisherReferral).ToLowerInvariant(),
-            ContentType.ContentReferral => nameof(ContentType.ContentReferral).ToLowerInvariant(),
-            ContentType.Mission => nameof(ContentType.Mission).ToLowerInvariant(),
-            ContentType.Map => nameof(ContentType.Map).ToLowerInvariant(),
-            ContentType.UnknownContentType => "unknown",
-            _ => throw new ArgumentOutOfRangeException(nameof(contentType), contentType, "Unknown content type")
-        };
     }
 }

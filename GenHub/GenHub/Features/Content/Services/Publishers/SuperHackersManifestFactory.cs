@@ -272,6 +272,9 @@ public class SuperHackersManifestFactory(ILogger<SuperHackersManifestFactory> lo
 
         var gameTypeName = gameType == GameType.Generals ? SuperHackersConstants.GeneralsDisplayName : SuperHackersConstants.ZeroHourDisplayName;
 
+        // Get proper dependencies based on game type
+        var dependencies = SuperHackersDependencyBuilder.GetDependenciesForGameType(gameType);
+
         var manifest = new ContentManifest
         {
             ManifestVersion = originalManifest.ManifestVersion,
@@ -282,7 +285,7 @@ public class SuperHackersManifestFactory(ILogger<SuperHackersManifestFactory> lo
             TargetGame = gameType,
             Publisher = originalManifest.Publisher,
             Metadata = originalManifest.Metadata,
-            Dependencies = originalManifest.Dependencies,
+            Dependencies = dependencies,
             ContentReferences = originalManifest.ContentReferences,
             KnownAddons = originalManifest.KnownAddons,
             Files = files,

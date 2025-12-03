@@ -1,14 +1,15 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GeneralsOnline;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,24 +17,32 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
 /// Discovers Generals Online releases by querying the CDN API.
-/// Supports both manifest.json API and latest.txt polling for release discovery.
+/// Fetches catalog data and delegates parsing to <see cref="GeneralsOnlineJsonCatalogParser"/>.
 /// </summary>
 public class GeneralsOnlineDiscoverer : IContentDiscoverer
 {
     private readonly ILogger<GeneralsOnlineDiscoverer> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly IProviderDefinitionLoader _providerLoader;
+    private readonly ICatalogParserFactory _catalogParserFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GeneralsOnlineDiscoverer"/> class.
     /// </summary>
     /// <param name="logger">The logger for diagnostic information.</param>
-    /// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
+    /// <param name="providerLoader">Provider definition loader.</param>
+    /// <param name="catalogParserFactory">Factory for getting catalog parsers.</param>
+    /// <param name="httpClientFactory">HTTP client factory for fetching catalog data.</param>
     public GeneralsOnlineDiscoverer(
         ILogger<GeneralsOnlineDiscoverer> logger,
+        IProviderDefinitionLoader providerLoader,
+        ICatalogParserFactory catalogParserFactory,
         IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
-        _httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
+        _providerLoader = providerLoader;
+        _catalogParserFactory = catalogParserFactory;
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <inheritdoc />
@@ -55,56 +64,81 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     /// </summary>
     public void Dispose()
     {
-        _httpClient?.Dispose();
+        // No resources to dispose
     }
 
     /// <summary>
-    /// Discovers Generals Online releases from CDN API.
-    /// Tries manifest.json first, then latest.txt. Returns error if CDN is unreachable.
+    /// Discovers Generals Online releases from CDN API using provider definition.
     /// </summary>
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing discovered content.</returns>
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Discovering Generals Online releases");
+        return DiscoverAsync(provider: null, query, cancellationToken);
+    }
 
+    /// <inheritdoc />
+    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+        ProviderDefinition? provider,
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
         try
         {
-            // Try to get release from API
-            var (cdnAvailable, release) = await TryGetReleaseFromApiAsync(cancellationToken);
+            _logger.LogInformation("Discovering Generals Online releases");
 
-            // If CDN is unreachable, return failure
-            if (!cdnAvailable)
+            // Get provider definition if not provided
+            provider ??= _providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+            if (provider == null)
             {
-                _logger.LogWarning("Generals Online CDN is currently unreachable");
+                _logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    $"Provider definition '{GeneralsOnlineConstants.PublisherType}' not found. Ensure generalsonline.provider.json exists.");
+            }
+
+            _logger.LogInformation(
+                "Using provider configuration - CatalogUrl: {CatalogUrl}, CatalogFormat: {Format}",
+                provider.Endpoints.CatalogUrl,
+                provider.CatalogFormat);
+
+            // Step 1: Fetch catalog data from CDN (Discoverer's responsibility)
+            var catalogContent = await FetchCatalogDataAsync(provider, cancellationToken);
+            if (catalogContent == null)
+            {
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     "Generals Online CDN is currently unavailable. Please try again later.");
             }
 
-            // CDN is reachable but has no releases
-            if (release == null)
+            // Step 2: Get the catalog parser for this provider's format
+            var parser = _catalogParserFactory.GetParser(provider.CatalogFormat);
+            if (parser == null)
             {
-                _logger.LogInformation("No Generals Online releases available");
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                    Enumerable.Empty<ContentSearchResult>());
+                _logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    $"No catalog parser registered for format '{provider.CatalogFormat}'");
             }
 
-            // Filter by search query if provided
-            if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
-                !release.Version.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
-                !GeneralsOnlineConstants.ContentName.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
+            // Step 3: Parse the catalog content (Parser's responsibility - NO HTTP calls)
+            var parseResult = await parser.ParseAsync(catalogContent, provider, cancellationToken);
+            if (!parseResult.Success || parseResult.Data == null)
             {
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                    Enumerable.Empty<ContentSearchResult>());
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    parseResult.FirstError ?? "Failed to parse catalog");
             }
 
-            var searchResult = CreateSearchResult(release);
+            // Step 4: Apply search filters
+            var results = parseResult.Data;
+            if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+            {
+                results = results.Where(r =>
+                    (r.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
 
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                new[] { searchResult });
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
         }
         catch (Exception ex)
         {
@@ -115,173 +149,85 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     }
 
     /// <summary>
-    /// Attempts to get release information from the Generals Online CDN API.
+    /// Fetches catalog data from Generals Online CDN.
+    /// Tries manifest.json first, falls back to latest.txt.
     /// </summary>
-    /// <returns>Tuple of (cdnAvailable, release). cdnAvailable is false if CDN is unreachable, release is null if none found.</returns>
-    private async Task<(bool cdnAvailable, GeneralsOnlineRelease? release)> TryGetReleaseFromApiAsync(
+    /// <param name="provider">The provider configuration.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// JSON string containing catalog data, or null if CDN is unreachable.
+    /// Format: JSON object with "source" field indicating which endpoint responded.
+    /// </returns>
+    private async Task<string?> FetchCatalogDataAsync(
+        ProviderDefinition provider,
         CancellationToken cancellationToken)
     {
         try
         {
-            _logger.LogDebug("Attempting to query Generals Online CDN API");
+            using var httpClient = _httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
+            httpClient.Timeout = TimeSpan.FromSeconds(provider.Timeouts.CatalogTimeoutSeconds);
+
+            var catalogUrl = provider.Endpoints.CatalogUrl;
+            var latestVersionUrl = provider.Endpoints.GetEndpoint("latestVersionUrl");
 
             // Try manifest.json first (full API response)
-            var manifestResponse = await _httpClient.GetAsync(
-                GeneralsOnlineConstants.ManifestApiUrl,
-                cancellationToken);
-
-            if (manifestResponse.IsSuccessStatusCode)
+            if (!string.IsNullOrEmpty(catalogUrl))
             {
-                var json = await manifestResponse.Content.ReadAsStringAsync(cancellationToken);
-                var apiResponse = JsonSerializer.Deserialize<GeneralsOnlineApiResponse>(json);
-
-                if (apiResponse != null && !string.IsNullOrEmpty(apiResponse.Version))
+                _logger.LogDebug("Fetching catalog from {Url}", catalogUrl);
+                try
                 {
-                    _logger.LogInformation("Retrieved release from manifest.json API: {Version}", apiResponse.Version);
-                    return (true, CreateReleaseFromApiResponse(apiResponse));
+                    var response = await httpClient.GetAsync(catalogUrl, cancellationToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                        if (!string.IsNullOrWhiteSpace(json))
+                        {
+                            _logger.LogInformation("Successfully fetched catalog from manifest.json");
+
+                            // Wrap in metadata so parser knows the source
+                            return $"{{\"source\":\"manifest\",\"data\":{json}}}";
+                        }
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch manifest.json, trying latest.txt");
                 }
             }
 
             // Fall back to latest.txt (simple version polling)
-            var versionResponse = await _httpClient.GetAsync(
-                GeneralsOnlineConstants.LatestVersionUrl,
-                cancellationToken);
-
-            if (versionResponse.IsSuccessStatusCode)
+            if (!string.IsNullOrEmpty(latestVersionUrl))
             {
-                var version = await versionResponse.Content.ReadAsStringAsync(cancellationToken);
-                version = version?.Trim();
-
-                if (!string.IsNullOrEmpty(version))
+                _logger.LogDebug("Fetching version from {Url}", latestVersionUrl);
+                try
                 {
-                    _logger.LogInformation("Retrieved version from latest.txt: {Version}", version);
-                    return (true, CreateReleaseFromVersion(version));
+                    var response = await httpClient.GetAsync(latestVersionUrl, cancellationToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var version = await response.Content.ReadAsStringAsync(cancellationToken);
+                        version = version?.Trim();
+                        if (!string.IsNullOrWhiteSpace(version))
+                        {
+                            _logger.LogInformation("Successfully fetched version from latest.txt: {Version}", version);
+
+                            // Wrap in metadata so parser knows the source
+                            return $"{{\"source\":\"latest\",\"version\":\"{version}\"}}";
+                        }
+                    }
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch latest.txt");
                 }
             }
 
-            // CDN responded but had no valid data (unlikely)
-            _logger.LogDebug("CDN responded but contains no release data");
-            return (true, null);
-        }
-        catch (HttpRequestException ex)
-        {
-            // Network error - CDN is unreachable
-            _logger.LogWarning(ex, "Generals Online CDN is unreachable");
-            return (false, null);
-        }
-        catch (Exception ex)
-        {
-            // Other errors (parsing, etc.) - treat as CDN issue
-            _logger.LogWarning(ex, "Failed to query Generals Online CDN");
-            return (false, null);
-        }
-    }
-
-    /// <summary>
-    /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
-    /// </summary>
-    /// <param name="apiResponse">The API response.</param>
-    /// <returns>A fully populated GeneralsOnlineRelease.</returns>
-    private GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
-    {
-        var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
-
-        return new GeneralsOnlineRelease
-        {
-            Version = apiResponse.Version,
-            VersionDate = versionDate,
-            ReleaseDate = versionDate,
-            PortableUrl = apiResponse.DownloadUrl,
-            PortableSize = apiResponse.Size,
-            Changelog = apiResponse.ReleaseNotes ?? $"Generals Online {apiResponse.Version}",
-        };
-    }
-
-    /// <summary>
-    /// Creates a GeneralsOnlineRelease from a version string (latest.txt fallback).
-    /// Constructs URLs and uses default sizes since full API data is unavailable.
-    /// </summary>
-    /// <param name="version">The version string (e.g., "101525_QFE5").</param>
-    /// <returns>A GeneralsOnlineRelease with constructed URLs.</returns>
-    private GeneralsOnlineRelease CreateReleaseFromVersion(string version)
-    {
-        var versionDate = ParseVersionDate(version) ?? DateTime.Now;
-
-        return new GeneralsOnlineRelease
-        {
-            Version = version,
-            VersionDate = versionDate,
-            ReleaseDate = versionDate,
-            PortableUrl = $"{GeneralsOnlineConstants.ReleasesUrl}/GeneralsOnline_portable_{version}{GeneralsOnlineConstants.PortableExtension}",
-            PortableSize = null, // Size unknown when using latest.txt fallback
-            Changelog = $"Generals Online {version}",
-        };
-    }
-
-    /// <summary>
-    /// Parses a version string (MMDDYY_QFE#) to extract the date.
-    /// </summary>
-    /// <param name="version">The version string.</param>
-    /// <returns>The parsed date, or null if parsing fails.</returns>
-    private DateTime? ParseVersionDate(string version)
-    {
-        try
-        {
-            // Split on underscore to separate date from QFE portion
-            var parts = version.Split(new[] { GeneralsOnlineConstants.QfeSeparator }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length < 1)
-            {
-                _logger.LogWarning("Failed to parse version date from: {Version} - invalid format", version);
-                return null;
-            }
-
-            var datePart = parts[0];
-            if (datePart.Length != 6)
-            {
-                _logger.LogWarning("Failed to parse version date from: {Version} - invalid date length", version);
-                return null;
-            }
-
-            var month = int.Parse(datePart.Substring(0, 2));
-            var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart.Substring(4, 2));
-
-            return new DateTime(year, month, day);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to parse version date from: {Version}", version);
+            _logger.LogWarning("Generals Online CDN is unreachable");
             return null;
         }
-    }
-
-    private ContentSearchResult CreateSearchResult(GeneralsOnlineRelease release)
-    {
-        var searchResult = new ContentSearchResult
+        catch (Exception ex)
         {
-            Id = $"GeneralsOnline_{release.Version}",
-            Name = GeneralsOnlineConstants.ContentName,
-            Description = release.Changelog ?? GeneralsOnlineConstants.Description,
-            Version = release.Version,
-            ContentType = ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            ProviderName = SourceName,
-            AuthorName = GeneralsOnlineConstants.PublisherName,
-            IconUrl = GeneralsOnlineConstants.IconUrl,
-            LastUpdated = release.ReleaseDate,
-            DownloadSize = release.PortableSize ?? 0,
-            RequiresResolution = true,
-            ResolverId = GeneralsOnlineConstants.ResolverId,
-            SourceUrl = GeneralsOnlineConstants.DownloadPageUrl,
-        };
-
-        foreach (var tag in GeneralsOnlineConstants.Tags)
-        {
-            searchResult.Tags.Add(tag);
+            _logger.LogError(ex, "Failed to fetch Generals Online catalog");
+            return null;
         }
-
-        searchResult.SetData(release);
-
-        return searchResult;
     }
 }

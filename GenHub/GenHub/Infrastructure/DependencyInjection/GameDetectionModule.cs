@@ -26,6 +26,9 @@ public static class GameDetectionModule
         // Register game client detector
         services.AddSingleton<IGameClientDetector, GameClientDetector>();
 
+        // Register game client hash registry
+        services.AddSingleton<IGameClientHashRegistry, GameClientHashRegistry>();
+
         // Register orchestrators with logging
         services.AddTransient<IGameInstallationDetectionOrchestrator>(provider =>
         {

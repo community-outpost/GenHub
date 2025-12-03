@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
@@ -67,9 +68,14 @@ public class GitHubContentProviderTests
         var discoveredItem = new ContentSearchResult { Id = "1.0.genhub.mod.ghtestmod", RequiresResolution = true, ResolverId = "GitHubRelease" };
         var resolvedManifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Name = "Resolved Test Mod" };
 
+        // Setup both overloads of DiscoverAsync - the new provider-aware overload is now called by BaseContentProvider
+        _discovererMock.Setup(d => d.DiscoverAsync(It.IsAny<ProviderDefinition?>(), query, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
         _discovererMock.Setup(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
 
+        _resolverMock.Setup(r => r.ResolveAsync(It.IsAny<ProviderDefinition?>(), discoveredItem, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
         _resolverMock.Setup(r => r.ResolveAsync(discoveredItem, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
 
@@ -86,8 +92,9 @@ public class GitHubContentProviderTests
         Assert.False(searchResult.RequiresResolution); // Should be resolved now
         Assert.NotNull(searchResult.GetData<ContentManifest>()); // Manifest should be embedded
 
-        _discovererMock.Verify(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()), Times.Once);
-        _resolverMock.Verify(r => r.ResolveAsync(discoveredItem, It.IsAny<CancellationToken>()), Times.Once);
+        // BaseContentProvider now calls the provider-aware overload
+        _discovererMock.Verify(d => d.DiscoverAsync(It.IsAny<ProviderDefinition?>(), query, It.IsAny<CancellationToken>()), Times.Once);
+        _resolverMock.Verify(r => r.ResolveAsync(It.IsAny<ProviderDefinition?>(), discoveredItem, It.IsAny<CancellationToken>()), Times.Once);
         _validatorMock.Verify(v => v.ValidateManifestAsync(resolvedManifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 

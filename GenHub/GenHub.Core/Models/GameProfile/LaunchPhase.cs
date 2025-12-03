@@ -14,6 +14,9 @@ public enum LaunchPhase
     /// <summary>Preparing the workspace for launch.</summary>
     PreparingWorkspace,
 
+    /// <summary>Preparing user data content (maps, replays, etc.) via hard links from CAS.</summary>
+    PreparingUserData,
+
     /// <summary>Starting the game process.</summary>
     Starting,
 

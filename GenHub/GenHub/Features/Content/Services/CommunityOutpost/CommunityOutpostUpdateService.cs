@@ -53,7 +53,7 @@ public class CommunityOutpostUpdateService(
             // Check if we already have this version in the manifest pool
             var manifestsResult = await manifestPool.GetAllManifestsAsync();
             var existingCommunityPatches = (manifestsResult.Data ?? Enumerable.Empty<GenHub.Core.Models.Manifest.ContentManifest>())
-                .Where(m => m.Publisher?.PublisherType == CommunityOutpostConstants.PublisherId)
+                .Where(m => m.Publisher?.PublisherType == CommunityOutpostConstants.PublisherType)
                 .OrderByDescending(m => m.ManifestVersion)
                 .ToList();
 

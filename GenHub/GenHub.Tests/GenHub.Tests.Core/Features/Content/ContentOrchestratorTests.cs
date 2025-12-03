@@ -103,6 +103,10 @@ public class ContentOrchestratorTests
         _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(manifest.Id, new List<ValidationIssue>()));
 
+        // Mock IsManifestAcquiredAsync to return false so AddManifestAsync will be called
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,
             new[] { providerMock.Object },

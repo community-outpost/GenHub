@@ -5,9 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
@@ -19,6 +21,7 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Discovers and delivers game client releases from TheSuperHackers GitHub repositories.
 /// </summary>
 public class SuperHackersProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
@@ -37,6 +40,8 @@ public class SuperHackersProvider(
     private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
             d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
+
+    private ProviderDefinition? _cachedProviderDefinition;
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
@@ -97,6 +102,38 @@ public class SuperHackersProvider(
         }
 
         return manifestResult;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the TheSuperHackers provider definition loaded from JSON configuration.
+    /// The definition contains GitHub repository info, endpoints, and other configuration.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        // Use cached definition if available
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        // Try to get from the loader (it should already be loaded at startup)
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
+
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                SuperHackersConstants.PublisherId);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                SuperHackersConstants.PublisherId);
+        }
+
+        return _cachedProviderDefinition;
     }
 
     /// <inheritdoc/>
