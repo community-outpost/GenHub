@@ -1,0 +1,254 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="200"
+             x:Class="GenHub.Features.Downloads.Views.PublisherCardView"
+             x:DataType="vm:PublisherCardViewModel"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.publisher-card">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="Margin" Value="10,5" />
+            <Setter Property="MaxWidth" Value="500" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #30000000" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#404040" />
+        </Style>
+
+        <Style Selector="Border.publisher-card:pointerover">
+            <Setter Property="BorderBrush" Value="#555555" />
+        </Style>
+
+        <Style Selector="Button.card-action">
+            <Setter Property="Background" Value="#404040" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="5,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.card-action:pointerover">
+            <Setter Property="Background" Value="#505050" />
+        </Style>
+
+        <Style Selector="Border.content-type-badge">
+            <Setter Property="Background" Value="#404040" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="4,2" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="publisher-card" VerticalAlignment="Top">
+        <StackPanel Spacing="12">
+            <!-- Header with expand/collapse -->
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <!-- Icon -->
+                <Ellipse Grid.Column="0" 
+                         Width="12" Height="12"
+                         Fill="{Binding IconColor}"
+                         VerticalAlignment="Center"
+                         Margin="0,0,12,0" />
+
+                <!-- Publisher Name and Version -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding DisplayName}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="White" />
+                    <TextBlock Text="{Binding LatestVersion}"
+                               FontSize="14"
+                               Foreground="#AAAAAA"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Loading/Error Indicator -->
+                <TextBlock Grid.Column="2"
+                           Text="⟳"
+                           FontSize="16"
+                           Foreground="#FF9800"
+                           IsVisible="{Binding IsLoading}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0" />
+
+                <!-- Expand/Collapse Button -->
+                <Button Grid.Column="3"
+                        Command="{Binding ToggleExpandCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="8"
+                        Cursor="Hand">
+                    <Button.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="HasContent" />
+                            <Binding Path="!IsLoading" />
+                        </MultiBinding>
+                    </Button.IsVisible>
+                    <Panel>
+                        <TextBlock Text="▲" FontSize="16" Foreground="White" IsVisible="{Binding IsExpanded}" />
+                        <TextBlock Text="▼" FontSize="16" Foreground="White" IsVisible="{Binding !IsExpanded}" />
+                    </Panel>
+                </Button>
+            </Grid>
+
+            <!-- Release Notes (Always visible when available) -->
+            <TextBlock Text="{Binding ReleaseNotes}"
+                       FontSize="13"
+                       Foreground="#CCCCCC"
+                       TextWrapping="Wrap"
+                       TextTrimming="CharacterEllipsis"
+                       MaxLines="2"
+                       IsVisible="{Binding ReleaseNotes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Margin="0,0,0,4" />
+
+            <!-- Metadata Row -->
+            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !IsLoading}" Margin="0,4,0,0">
+                <!-- Content Summary -->
+                <TextBlock Text="{Binding ContentSummary}" 
+                           Foreground="#AAAAAA" 
+                           FontSize="13"
+                           FontWeight="Medium"
+                           IsVisible="{Binding ShowContentSummary}" />
+                
+                <TextBlock Text="|" Foreground="#444444">
+                    <TextBlock.IsVisible>
+                        <MultiBinding Converter="{x:Static BoolConverters.And}">
+                            <Binding Path="ShowContentSummary" />
+                            <Binding Path="ReleaseDate" Converter="{x:Static ObjectConverters.IsNotNull}" />
+                        </MultiBinding>
+                    </TextBlock.IsVisible>
+                </TextBlock>
+
+                <!-- Date -->
+                <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:MMM dd, yyyy}'}" 
+                           Foreground="#888888" 
+                           FontSize="13"
+                           IsVisible="{Binding ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            </StackPanel>
+
+            <!-- Expanded Content Details -->
+            <StackPanel IsVisible="{Binding IsExpanded}" Spacing="8" Margin="0,8,0,0">
+                <ItemsControl ItemsSource="{Binding ContentTypes}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#1A1A1A" 
+                                    CornerRadius="6" 
+                                    Padding="12"
+                                    Margin="0,4">
+                                <StackPanel Spacing="8">
+                                    <!-- Content Type Header -->
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="#AAAAAA" />
+
+                                    <!-- Content Items -->
+                                    <ItemsControl ItemsSource="{Binding Items}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4">
+                                                    <TextBlock Grid.Column="0" Text="•" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                    <StackPanel Grid.Column="1" Spacing="4">
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Medium" />
+                                                            <TextBlock Text="{Binding Version}" Foreground="#888888" FontSize="12" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                        
+                                                        <!-- Item Description / Changelog -->
+                                                        <StackPanel IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                            <TextBlock Text="{Binding Description}" 
+                                                                       FontSize="12" 
+                                                                       Foreground="#999999" 
+                                                                       TextWrapping="Wrap"
+                                                                       MaxLines="3"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding !IsChangelogExpanded}" />
+                                                            
+                                                            <TextBlock Text="{Binding Description}" 
+                                                                       FontSize="12" 
+                                                                       Foreground="#999999" 
+                                                                       TextWrapping="Wrap"
+                                                                       IsVisible="{Binding IsChangelogExpanded}" />
+
+                                                            <Button Classes="link-button"
+                                                                    Content="{Binding IsChangelogExpanded, Converter={x:Static converters:BoolToTextConverter.Instance}, ConverterParameter='Show Less|Show More'}"
+                                                                    Command="{Binding ToggleChangelogCommand}"
+                                                                    Foreground="#2196F3"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="0"
+                                                                    FontSize="11"
+                                                                    HorizontalAlignment="Left"
+                                                                    Margin="0,2,0,0"
+                                                                    Cursor="Hand"
+                                                                    IsVisible="{Binding ShouldShowChangelogToggle}" />
+                                                        </StackPanel>
+
+                                                        <!-- Progress Bar - visible during installation -->
+                                                        <ProgressBar Value="{Binding InstallProgress}" 
+                                                                     Maximum="100" 
+                                                                     Height="4" 
+                                                                     IsVisible="{Binding IsInstalling}"
+                                                                     Foreground="#4CAF50"
+                                                                     Background="#333333" />
+                                                        <!-- Status Text - visible during install or when there's a status message -->
+                                                        <TextBlock Text="{Binding InstallStatus}" 
+                                                                   FontSize="10" 
+                                                                   Foreground="#AAAAAA"
+                                                                   TextWrapping="Wrap"
+                                                                   IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                    </StackPanel>
+                                                    
+                                                    <!-- Install button - only shown when not installed and not installing -->
+                                                    <Button Grid.Column="2"
+                                                            Classes="card-action"
+                                                            Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).InstallContentCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Content="Install"
+                                                            FontSize="12"
+                                                            Padding="8,4"
+                                                            VerticalAlignment="Top"
+                                                            IsVisible="{Binding CanInstall}"
+                                                            IsEnabled="{Binding !IsInstalling}" />
+                                                    <!-- Installed indicator -->
+                                                    <TextBlock Grid.Column="2"
+                                                               Text="✓ Installed"
+                                                               FontSize="12"
+                                                               Foreground="#4CAF50"
+                                                               VerticalAlignment="Top"
+                                                               Padding="8,4"
+                                                               IsVisible="{Binding IsInstalled}" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Error Message -->
+            <Border Background="#4D1F1F" 
+                    CornerRadius="6" 
+                    Padding="12"
+                    IsVisible="{Binding HasError}">
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#FF5555"
+                           TextWrapping="Wrap" />
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

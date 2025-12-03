@@ -1,6 +1,8 @@
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using System.Collections.ObjectModel;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
@@ -49,4 +51,19 @@ public interface IProfileContentLoader
     /// <param name="profile">The game profile containing enabled content IDs.</param>
     /// <returns>A collection of content display items representing enabled content.</returns>
     Task<ObservableCollection<ContentDisplayItem>> LoadEnabledContentForProfileAsync(GameProfile profile);
+
+    /// <summary>
+    /// Gets content display items for auto-install dependencies of a manifest.
+    /// This is used to automatically enable required dependencies when content is enabled.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID to get dependencies for.</param>
+    /// <returns>A collection of content display items for dependencies that should be auto-installed.</returns>
+    Task<ObservableCollection<ContentDisplayItem>> GetAutoInstallDependenciesAsync(string manifestId);
+
+    /// <summary>
+    /// Gets a content manifest by its ID from the manifest pool.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID to retrieve.</param>
+    /// <returns>An operation result containing the manifest if found.</returns>
+    Task<OperationResult<ContentManifest?>> GetManifestAsync(string manifestId);
 }

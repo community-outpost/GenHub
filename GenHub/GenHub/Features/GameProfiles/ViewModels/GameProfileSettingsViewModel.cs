@@ -199,6 +199,7 @@ public partial class GameProfileSettingsViewModel(
         ContentType.GameClient,
         ContentType.Mod,
         ContentType.MapPack,
+        ContentType.Addon,
         ContentType.Patch,
     };
 
@@ -689,6 +690,150 @@ public partial class GameProfileSettingsViewModel(
 
         StatusMessage = $"Enabled {contentItem.DisplayName}";
         _logger.LogInformation("Enabled content {ContentName} for profile", contentItem.DisplayName);
+
+        // Auto-enable required dependencies (fire and forget, but capture failures for user feedback)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await EnableAutoInstallDependenciesAsync(contentItem.ManifestId.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to auto-enable dependencies for {ManifestId}", contentItem.ManifestId.Value);
+                StatusMessage = "Warning: Some dependencies could not be auto-enabled";
+            }
+        });
+    }
+
+    /// <summary>
+    /// Automatically enables required dependencies for a manifest.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID to get dependencies for.</param>
+    private async Task EnableAutoInstallDependenciesAsync(string manifestId)
+    {
+        try
+        {
+            // GetAutoInstallDependenciesAsync returns Core.Models.Content.ContentDisplayItem
+            var coreDependencies = await profileContentLoader!.GetAutoInstallDependenciesAsync(manifestId);
+
+            // Get the manifest to check for GameInstallation dependencies that need to be resolved from available installations
+            var manifestResult = await profileContentLoader.GetManifestAsync(manifestId);
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                var manifest = manifestResult.Data;
+                var gameInstallationDep = manifest.Dependencies.FirstOrDefault(d =>
+                    d.DependencyType == ContentType.GameInstallation && !d.IsOptional);
+
+                if (gameInstallationDep != null)
+                {
+                    // Check if GameInstallation is already enabled
+                    var hasGameInstallation = EnabledContent.Any(e =>
+                        e.ContentType == ContentType.GameInstallation && e.IsEnabled);
+
+                    if (!hasGameInstallation)
+                    {
+                        // Auto-select a compatible GameInstallation from available installations
+                        var compatibleInstallation = AvailableGameInstallations.FirstOrDefault(gi =>
+                            gi.GameType == manifest.TargetGame);
+
+                        if (compatibleInstallation != null)
+                        {
+                            _logger.LogInformation(
+                                "Auto-selecting GameInstallation dependency: {DisplayName} for {ManifestId}",
+                                compatibleInstallation.DisplayName,
+                                manifestId);
+
+                            // Enable the GameInstallation
+                            var installationToEnable = new ContentDisplayItem
+                            {
+                                ManifestId = compatibleInstallation.ManifestId,
+                                DisplayName = compatibleInstallation.DisplayName,
+                                ContentType = compatibleInstallation.ContentType,
+                                GameType = compatibleInstallation.GameType,
+                                InstallationType = compatibleInstallation.InstallationType,
+                                Publisher = compatibleInstallation.Publisher,
+                                Version = compatibleInstallation.Version,
+                                SourceId = compatibleInstallation.SourceId,
+                                GameClientId = compatibleInstallation.GameClientId,
+                                IsEnabled = true,
+                            };
+
+                            EnabledContent.Add(installationToEnable);
+                            SelectedGameInstallation = installationToEnable;
+                            _logger.LogInformation(
+                                "Auto-enabled GameInstallation: {DisplayName} ({ManifestId})",
+                                compatibleInstallation.DisplayName,
+                                compatibleInstallation.ManifestId.Value);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "No compatible GameInstallation found for {GameType} when enabling {ManifestId}",
+                                manifest.TargetGame,
+                                manifestId);
+                        }
+                    }
+                }
+            }
+
+            if (!coreDependencies.Any())
+            {
+                return;
+            }
+
+            _logger.LogInformation("Auto-enabling {Count} dependencies for {ManifestId}", coreDependencies.Count(), manifestId);
+
+            foreach (var coreDep in coreDependencies)
+            {
+                // Skip GameInstallation - those are handled separately above from AvailableGameInstallations
+                if (coreDep.ContentType == ContentType.GameInstallation)
+                {
+                    _logger.LogDebug("Skipping GameInstallation dependency {DisplayName} - handled separately", coreDep.DisplayName);
+                    continue;
+                }
+
+                // Check if already enabled (compare string ManifestId)
+                var alreadyEnabled = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == coreDep.ManifestId);
+                if (alreadyEnabled != null)
+                {
+                    _logger.LogDebug("Dependency {DisplayName} already enabled", coreDep.DisplayName);
+                    continue;
+                }
+
+                // Convert Core.Models.Content.ContentDisplayItem to ViewModels.ContentDisplayItem
+                var viewModelItem = new ContentDisplayItem
+                {
+                    ManifestId = ManifestId.Create(coreDep.ManifestId),
+                    DisplayName = coreDep.DisplayName,
+                    ContentType = coreDep.ContentType,
+                    GameType = coreDep.GameType,
+                    InstallationType = coreDep.InstallationType,
+                    Publisher = coreDep.Publisher,
+                    Version = coreDep.Version,
+                    SourceId = coreDep.SourceId,
+                    GameClientId = coreDep.GameClientId,
+                    IsEnabled = true,
+                };
+
+                EnabledContent.Add(viewModelItem);
+
+                // Remove from AvailableContent if present
+                var itemToRemove = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == coreDep.ManifestId);
+                if (itemToRemove != null)
+                {
+                    AvailableContent.Remove(itemToRemove);
+                }
+
+                _logger.LogInformation("Auto-enabled dependency: {DisplayName} ({ManifestId})", coreDep.DisplayName, coreDep.ManifestId);
+            }
+
+            StatusMessage = $"Auto-enabled {coreDependencies.Count()} required dependencies";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to auto-enable dependencies for {ManifestId}", manifestId);
+        }
     }
 
     /// <summary>

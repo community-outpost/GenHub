@@ -31,4 +31,31 @@ public static class ContentTypeExtensions
             _ => contentType.ToString(),
         };
     }
+
+    /// <summary>
+    /// Gets a lowercase string representation of a content type for manifest IDs.
+    /// This is the canonical method for converting ContentType to string in manifest IDs.
+    /// </summary>
+    /// <param name="contentType">The content type.</param>
+    /// <returns>A stable lowercase string representation (e.g., "gameinstallation", "gameclient").</returns>
+    public static string ToManifestIdString(this ContentType contentType)
+    {
+        return contentType switch
+        {
+            ContentType.GameInstallation => "gameinstallation",
+            ContentType.GameClient => "gameclient",
+            ContentType.Mod => "mod",
+            ContentType.Patch => "patch",
+            ContentType.Addon => "addon",
+            ContentType.MapPack => "mappack",
+            ContentType.LanguagePack => "languagepack",
+            ContentType.ContentBundle => "contentbundle",
+            ContentType.PublisherReferral => "publisherreferral",
+            ContentType.ContentReferral => "contentreferral",
+            ContentType.Mission => "mission",
+            ContentType.Map => "map",
+            ContentType.UnknownContentType => "unknown",
+            _ => "unknown",
+        };
+    }
 }
