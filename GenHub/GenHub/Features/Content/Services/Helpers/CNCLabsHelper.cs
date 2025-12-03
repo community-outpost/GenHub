@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Web;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
@@ -20,34 +19,33 @@ public static partial class CNCLabsHelper
     /// <summary>
     /// Tries to extract a numeric content identifier from a CNC Labs details URL.
     /// The method first ensures the URL is absolute and that its path contains the expected
-    /// details marker (e.g., <c>/details.aspx</c>), then reads the <c>id</c> query parameter.
+    /// marker (e.g., <c>details.aspx</c>). It then parses the <c>id</c> query parameter.
     /// </summary>
-    /// <param name="targetUrl">The absolute URL to inspect.</param>
-    /// <param name="detailsPathMarker">
-    /// A case-insensitive path marker that must appear in the URL for the extraction to proceed
-    /// (for CNC Labs, typically <see cref="CNCLabsConstants.DetailsPathMarker"/>).
-    /// </param>
-    /// <param name="id">When this method returns, contains the parsed numeric identifier if successful; otherwise 0.</param>
+    /// <param name="url">The URL string to inspect.</param>
+    /// <param name="pathMarker">A substring expected in the absolute path (e.g., "details.aspx").</param>
+    /// <param name="id">When this method returns, contains the parsed ID if successful; otherwise, <c>0</c>.</param>
     /// <returns><see langword="true"/> if an <c>id</c> value was found and parsed; otherwise, <see langword="false"/>.</returns>
-    public static bool TryExtractMapIdFromUrl(string targetUrl, string detailsPathMarker, out int id)
+    public static bool TryExtractMapIdFromUrl(string? url, string pathMarker, out int id)
     {
-        id = default;
-
-        if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out var uri))
+        id = 0;
+        if (string.IsNullOrWhiteSpace(url))
         {
             return false;
         }
 
-        // Quick path check to reduce false positives.
-        if (!uri.AbsolutePath.Contains(detailsPathMarker, StringComparison.OrdinalIgnoreCase))
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             return false;
         }
 
-        var query = HttpUtility.ParseQueryString(uri.Query);
-        var idValue = query.Get(CNCLabsConstants.QueryStringIdParameter);
+        if (!uri.AbsolutePath.Contains(pathMarker, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
 
-        return int.TryParse(idValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out id);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var idStr = query[CNCLabsConstants.QueryStringIdParameter];
+        return int.TryParse(idStr, out id);
     }
 
     /// <summary>
@@ -62,8 +60,9 @@ public static partial class CNCLabsHelper
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        // Base + page path (depends on game + content type)
-        var sb = new StringBuilder(CNCLabsConstants.SearchMapsUrlBase);
+        // Determine base URL based on content type
+        var baseUrl = DetermineBaseUrl(query.ContentType);
+        var sb = new StringBuilder(baseUrl);
         sb.Append(ResolveListingPath(query.TargetGame, query.ContentType));
 
         // Query parameters
@@ -74,12 +73,24 @@ public static partial class CNCLabsHelper
           .Append('=')
           .Append(pageIndex.ToString(CultureInfo.InvariantCulture));
 
-        if (query.NumberOfPlayers.HasValue && query.NumberOfPlayers.Value > 0)
+        // Only add tags/players filters for Maps & Missions as other sections don't support them
+        if (SupportsFilters(query.ContentType))
         {
-            sb.Append('&')
-              .Append(CNCLabsConstants.PlayersQueryParam)
-              .Append('=')
-              .Append(query.NumberOfPlayers.Value.ToString(CultureInfo.InvariantCulture));
+            if (query.NumberOfPlayers.HasValue && query.NumberOfPlayers.Value > 0)
+            {
+                sb.Append('&')
+                  .Append(CNCLabsConstants.PlayersQueryParam)
+                  .Append('=')
+                  .Append(query.NumberOfPlayers.Value.ToString(CultureInfo.InvariantCulture));
+            }
+
+            if (query.Tags != null && query.Tags.Any())
+            {
+                sb.Append('&')
+                  .Append(CNCLabsConstants.TagsQueryParam)
+                  .Append('=')
+                  .Append(string.Join(CNCLabsConstants.CommaSeparator, query.Tags));
+            }
         }
 
         if (!string.IsNullOrEmpty(query.Sort))
@@ -88,14 +99,6 @@ public static partial class CNCLabsHelper
               .Append(CNCLabsConstants.Sort)
               .Append('=')
               .Append(query.Sort);
-        }
-
-        if (query.Tags != null && query.Tags.Any())
-        {
-            sb.Append('&')
-              .Append(CNCLabsConstants.TagsQueryParam)
-              .Append('=')
-              .Append(string.Join(CNCLabsConstants.CommaSeparator, query.Tags));
         }
 
         var url = sb.ToString();
@@ -179,52 +182,8 @@ public static partial class CNCLabsHelper
     /// element specified by <c>CNCLabsConstants.BreadcrumbHeaderSelector</c>.
     /// </param>
     /// <returns>
-    /// A tuple of (<see cref="GameType"/>, <see cref="ContentType"/>):
-    /// <list type="bullet">
-    ///   <item>
-    ///     <description>
-    ///     (<see cref="GameType.Generals"/>, <see cref="ContentType.Map"/>) if the
-    ///     breadcrumb contains "Generals Maps".
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <description>
-    ///     (<see cref="GameType.Generals"/>, <see cref="ContentType.Mission"/>) if the
-    ///     breadcrumb contains "Generals Missions".
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <description>
-    ///     (<see cref="GameType.ZeroHour"/>, <see cref="ContentType.Map"/>) if the
-    ///     breadcrumb contains "Zero Hour Maps".
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <description>
-    ///     (<see cref="GameType.ZeroHour"/>, <see cref="ContentType.Mission"/>) if the
-    ///     breadcrumb contains "Zero Hour Missions".
-    ///     </description>
-    ///   </item>
-    ///   <item>
-    ///     <description>
-    ///     (<see cref="GameType.Unknown"/>, <see cref="ContentType.UnknownContentType"/>)
-    ///     if the breadcrumb header is missing, has fewer than the expected number of parts,
-    ///     or does not match any of the recognized categories.
-    ///     </description>
-    ///   </item>
-    /// </list>
+    /// A tuple of (<see cref="GameType"/>, <see cref="ContentType"/>).
     /// </returns>
-    /// <remarks>
-    /// <para>
-    /// The method inspects the breadcrumb text, splits it by the defined
-    /// <c>CNCLabsConstants.BreadcrumbSeparator</c>, normalizes whitespace,
-    /// and canonicalizes the category name in a case-insensitive manner.
-    /// </para>
-    /// <para>
-    /// Only four breadcrumb categories are recognized. Any unexpected or malformed
-    /// category results in the Unknown tuple.
-    /// </para>
-    /// </remarks>
     public static (GameType, ContentType) ExtractBreadcrumbCategory(IDocument document)
     {
         var header = document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector);
@@ -241,13 +200,20 @@ public static partial class CNCLabsHelper
 
         var raw = parts[CNCLabsConstants.BreadcrumbCategoryIndex];
 
-        // Canonicalize to the four allowed values (case/spacing tolerant).
+        // Canonicalize to the allowed values (case/spacing tolerant).
         return raw.Trim().ToLowerInvariant() switch
         {
             "generals maps" => (GameType.Generals, ContentType.Map),
             "generals missions" => (GameType.Generals, ContentType.Mission),
             "zero hour maps" => (GameType.ZeroHour, ContentType.Map),
             "zero hour missions" => (GameType.ZeroHour, ContentType.Mission),
+            "generals winamp skins" => (GameType.Generals, ContentType.Skin),
+            "modding and mapping" => (GameType.Unknown, ContentType.ModdingTool),
+            "mods (generals and zero hour)" => (GameType.Unknown, ContentType.Mod),
+            "patches (generals and zero hour)" => (GameType.Unknown, ContentType.Patch),
+            "screensavers" => (GameType.Unknown, ContentType.Screensaver),
+            "videos (generals and zero hour)" => (GameType.Unknown, ContentType.Video),
+            "zero hour replays" => (GameType.ZeroHour, ContentType.Replay),
             _ => (GameType.Unknown, ContentType.UnknownContentType)
         };
     }
@@ -279,33 +245,60 @@ public static partial class CNCLabsHelper
     /// <returns>A relative page path (e.g., <c>maps.aspx</c>).</returns>
     private static string ResolveListingPath(GameType? game, ContentType? contentType)
     {
-        // Default to Generals/Maps if unspecified — caller validation controls when this is allowed.
-        if (!game.HasValue || !contentType.HasValue)
+        return (game, contentType) switch
         {
-            return CNCLabsConstants.MapsPagePath;
-        }
+            // Maps & Missions (with filters)
+            (GameType.Generals, ContentType.Map) => CNCLabsConstants.MapsPagePath,
+            (GameType.Generals, ContentType.Mission) => CNCLabsConstants.MissionsPagePath,
+            (GameType.ZeroHour, ContentType.Map) => CNCLabsConstants.ZeroHourMapsPagePath,
+            (GameType.ZeroHour, ContentType.Mission) => CNCLabsConstants.ZeroHourMissionsPagePath,
 
-        if (game == GameType.Generals && contentType == ContentType.Map)
+            // Skins (Generals only, no filters)
+            (GameType.Generals, ContentType.Skin) => CNCLabsConstants.WinampSkinsPagePath,
+
+            // Modding tools (shared, no filters)
+            (_, ContentType.ModdingTool) => CNCLabsConstants.ModdingMappingPagePath,
+
+            // Mods (shared between Generals & ZH, no filters)
+            (GameType.Generals, ContentType.Mod) => CNCLabsConstants.DownloadsPagePath,
+            (GameType.ZeroHour, ContentType.Mod) => CNCLabsConstants.DownloadsPagePath,
+            (_, ContentType.Mod) => CNCLabsConstants.DownloadsPagePath,
+
+            // Patches (shared, no filters)
+            (GameType.Generals, ContentType.Patch) => CNCLabsConstants.PatchesPagePath,
+            (GameType.ZeroHour, ContentType.Patch) => CNCLabsConstants.PatchesPagePath,
+            (_, ContentType.Patch) => CNCLabsConstants.PatchesPagePath,
+
+            // Screensavers (shared, no filters)
+            (_, ContentType.Screensaver) => CNCLabsConstants.ScreensaversPagePath,
+
+            // Videos (shared, no filters)
+            (GameType.Generals, ContentType.Video) => CNCLabsConstants.VideosPagePath,
+            (GameType.ZeroHour, ContentType.Video) => CNCLabsConstants.VideosPagePath,
+            (_, ContentType.Video) => CNCLabsConstants.VideosPagePath,
+
+            // Replays (Zero Hour only, no filters)
+            (GameType.ZeroHour, ContentType.Replay) => CNCLabsConstants.ZeroHourReplaysPagePath,
+
+            // Default fallback
+            _ => CNCLabsConstants.MapsPagePath,
+        };
+    }
+
+    private static string DetermineBaseUrl(ContentType? contentType)
+    {
+        return contentType switch
         {
-            return CNCLabsConstants.MapsPagePath;
-        }
+            ContentType.Map => CNCLabsConstants.SearchMapsUrlBase,
+            ContentType.Mission => CNCLabsConstants.SearchMapsUrlBase,
+            ContentType.Mod => CNCLabsConstants.SearchModsUrlBase,
+            _ => CNCLabsConstants.SearchDownloadsUrlBase
+        };
+    }
 
-        if (game == GameType.Generals && contentType == ContentType.Mission)
-        {
-            return CNCLabsConstants.MissionsPagePath;
-        }
-
-        if (game == GameType.ZeroHour && contentType == ContentType.Map)
-        {
-            return CNCLabsConstants.ZeroHourMapsPagePath;
-        }
-
-        if (game == GameType.ZeroHour && contentType == ContentType.Mission)
-        {
-            return CNCLabsConstants.ZeroHourMissionsPagePath;
-        }
-
-        // Fallback: maps list.
-        return CNCLabsConstants.MapsPagePath;
+    private static bool SupportsFilters(ContentType? contentType)
+    {
+        // Only Maps and Missions support tag/player filtering
+        return contentType == ContentType.Map || contentType == ContentType.Mission;
     }
 }

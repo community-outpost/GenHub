@@ -41,9 +41,19 @@ public static class CNCLabsConstants
     public const string SearchUrlBase = "http://search.cnclabs.com/?cse=labs&q=";
 
     /// <summary>
-    /// Base URL for CNC Labs search.
+    /// Base URL for CNC Labs maps search.
     /// </summary>
     public const string SearchMapsUrlBase = "https://www.cnclabs.com/maps/generals/";
+
+    /// <summary>
+    /// Base URL for CNC Labs mods search.
+    /// </summary>
+    public const string SearchModsUrlBase = "https://www.cnclabs.com/mods/generals/";
+
+    /// <summary>
+    /// Base URL for CNC Labs downloads (patches, skins, videos, etc.).
+    /// </summary>
+    public const string SearchDownloadsUrlBase = "https://www.cnclabs.com/downloads/generals/";
 
     /// <summary>
     /// Source name for CNC Labs map discoverer.
@@ -233,4 +243,54 @@ public static class CNCLabsConstants
     /// Query parameter name for sorting by selected value.
     /// </summary>
     public const string Sort = "sort";
+
+    /// <summary>
+    /// Publisher prefix used in manifest IDs and publisher identifiers.
+    /// </summary>
+    public const string PublisherPrefix = "cnclabs";
+
+    /// <summary>
+    /// Official CNC Labs website URL.
+    /// </summary>
+    public const string PublisherWebsite = "https://www.cnclabs.com";
+
+    /// <summary>
+    /// Manifest version for CNC Labs content. Always 0 per specification.
+    /// </summary>
+    public const int ManifestVersion = 0;
+
+    /// <summary>
+    /// Relative path for the Winamp skins list page.
+    /// </summary>
+    public const string WinampSkinsPagePath = "winamp-skins.aspx";
+
+    /// <summary>
+    /// Relative path for the modding and mapping tools list page.
+    /// </summary>
+    public const string ModdingMappingPagePath = "modding-and-mapping.aspx";
+
+    /// <summary>
+    /// Relative path for the general downloads list page.
+    /// </summary>
+    public const string DownloadsPagePath = "downloads.aspx";
+
+    /// <summary>
+    /// Relative path for the patches list page.
+    /// </summary>
+    public const string PatchesPagePath = "patches.aspx";
+
+    /// <summary>
+    /// Relative path for the screensavers list page.
+    /// </summary>
+    public const string ScreensaversPagePath = "screensavers.aspx";
+
+    /// <summary>
+    /// Relative path for the videos list page.
+    /// </summary>
+    public const string VideosPagePath = "videos.aspx";
+
+    /// <summary>
+    /// Relative path for the Zero Hour replays list page.
+    /// </summary>
+    public const string ZeroHourReplaysPagePath = "zerohour-replays.aspx";
 }

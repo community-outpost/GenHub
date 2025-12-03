@@ -47,6 +47,21 @@ public enum ContentType
     /// <summary>Free-play or skirmish mode on a map.</summary>
     Map,
 
+    /// <summary>UI customization skins (e.g., Winamp skins).</summary>
+    Skin,
+
+    /// <summary>Video content (trailers, gameplay recordings).</summary>
+    Video,
+
+    /// <summary>Game replay files.</summary>
+    Replay,
+
+    /// <summary>Screensaver files.</summary>
+    Screensaver,
+
+    /// <summary>Modding and mapping tools/utilities.</summary>
+    ModdingTool,
+
     /// <summary>Unknown content type</summary>
     UnknownContentType,
 }

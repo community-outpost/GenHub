@@ -37,6 +37,7 @@ public static class ContentPipelineModule
         AddGitHubPipeline(services);
         AddGeneralsOnlinePipeline(services);
         AddCNCLabsPipeline(services);
+        AddModDBPipeline(services);
         AddLocalFileSystemPipeline(services);
         AddSharedComponents(services);
 
@@ -139,6 +140,33 @@ public static class ContentPipelineModule
 
         // Register CNCLabs resolver
         services.AddTransient<IContentResolver, CNCLabsMapResolver>();
+
+        // Register CNCLabs manifest factory
+        services.AddTransient<CNCLabsManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, CNCLabsManifestFactory>();
+    }
+
+    /// <summary>
+    /// Registers ModDB content pipeline services.
+    /// </summary>
+    private static void AddModDBPipeline(IServiceCollection services)
+    {
+        // Register named HTTP client for ModDB
+        services.AddHttpClient(ModDBConstants.PublisherPrefix, static httpClient =>
+        {
+            httpClient.Timeout = TimeSpan.FromSeconds(45); // ModDB can be slower
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+        });
+
+        // Register ModDB discoverer
+        services.AddTransient<IContentDiscoverer, ModDBDiscoverer>();
+
+        // Register ModDB resolver
+        services.AddTransient<IContentResolver, ModDBResolver>();
+
+        // Register ModDB manifest factory
+        services.AddTransient<ModDBManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory, ModDBManifestFactory>();
     }
 
     /// <summary>
