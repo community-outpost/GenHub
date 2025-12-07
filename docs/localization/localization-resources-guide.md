@@ -51,6 +51,22 @@ All resource files are located in `GenHub.Core/Resources/Strings/` and follow a 
 - Update-related errors
 - Example keys: `Status.CheckingForUpdates`, `Button.InstallUpdate`, `Version.Current`
 
+**UI.Tools.resx** - Tools management UI
+
+- Tool plugin management strings
+- Tool status messages
+- Empty state messages
+- Tool installation/removal dialogs
+- Example keys: `Title.Tools`, `Button.AddTool`, `Status.ToolInstalledSuccess`
+
+**UI.Downloads.resx** - Downloads UI
+
+- Download section headers
+- Download category labels
+- Download status messages
+- Coming soon labels
+- Example keys: `Section.PrimaryDownloads`, `Category.GitHubBuilds`, `Status.Downloading`
+
 ### Error Resources
 
 **Errors.Validation.resx** - Validation error messages
@@ -196,6 +212,8 @@ StringResources.UiNavigation          // UI.Navigation.resx
 StringResources.UiGameProfiles        // UI.GameProfiles.resx
 StringResources.UiSettings            // UI.Settings.resx
 StringResources.UiUpdates             // UI.Updates.resx
+StringResources.UiTools               // UI.Tools.resx
+StringResources.UiDownloads           // UI.Downloads.resx
 StringResources.ErrorsValidation      // Errors.Validation.resx
 StringResources.ErrorsOperations      // Errors.Operations.resx
 StringResources.MessagesSuccess       // Messages.Success.resx
@@ -393,12 +411,19 @@ await _localizationService.SetCulture("fr");
 
 **Phase 2 Complete** ✅
 
-- 10 .resx files created with 200+ English strings
+- 10 .resx files created with 278 English strings
 - Resource configuration in GenHub.Core.csproj
 - StringResources helper class
 - LocalizationService updated with resource namespace support
 - Integration tests for resource loading
 - Documentation complete
+
+**Phase 2.5 Complete** ✅ (String Audit)
+
+- Comprehensive audit of all ViewModels and XAML views
+- 2 new .resx files created (UI.Tools, UI.Downloads)
+- 159 additional strings added across all resource files
+- StringResources.cs updated with new resource namespaces
 
 **Next Phase: Phase 3** - ViewModel Integration
 
@@ -408,16 +433,33 @@ await _localizationService.SetCulture("fr");
 
 ## Resource Statistics
 
-Total resource files: **10**
-Total English strings: **200+**
+Total resource files: **12**
+Total English strings: **437**
+
+By resource file:
+
+| Resource File | String Count |
+|---------------|-------------|
+| UI.Common.resx | 47 |
+| UI.Navigation.resx | 9 |
+| UI.GameProfiles.resx | 77 |
+| UI.Settings.resx | 66 |
+| UI.Updates.resx | 28 |
+| UI.Tools.resx | 32 |
+| UI.Downloads.resx | 18 |
+| Errors.Validation.resx | 22 |
+| Errors.Operations.resx | 43 |
+| Messages.Success.resx | 29 |
+| Messages.Confirmations.resx | 28 |
+| Tooltips.resx | 38 |
 
 By category:
 
-- UI resources: ~100 strings
-- Error messages: ~50 strings
-- Success messages: ~25 strings
-- Confirmations: ~20 strings
-- Tooltips: ~30 strings
+- UI resources: ~277 strings
+- Error messages: ~65 strings
+- Success messages: ~29 strings
+- Confirmations: ~28 strings
+- Tooltips: ~38 strings
 
 ## Additional Resources
 

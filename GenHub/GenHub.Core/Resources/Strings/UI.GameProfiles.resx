@@ -345,11 +345,11 @@
   
   <!-- Game Types -->
   <data name="GameType.Generals" xml:space="preserve">
-    <value>C&C Generals</value>
+    <value>C&amp;C Generals</value>
     <comment>Command and Conquer Generals game name</comment>
   </data>
   <data name="GameType.ZeroHour" xml:space="preserve">
-    <value>C&C Generals: Zero Hour</value>
+    <value>C&amp;C Generals: Zero Hour</value>
     <comment>Command and Conquer Generals Zero Hour game name</comment>
   </data>
   
