@@ -95,7 +95,7 @@
   
   <!-- Application Branding -->
   <data name="App.Tagline" xml:space="preserve">
-    <value>C&C Generals Launcher</value>
+    <value>C&amp;C Generals Launcher</value>
     <comment>Application tagline shown in navigation</comment>
   </data>
 </root>
