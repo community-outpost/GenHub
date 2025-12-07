@@ -130,4 +130,18 @@
     <value>Culture '{0}' not found. Using invariant culture</value>
     <comment>Warning when culture is not found. {0} is the culture name</comment>
   </data>
+  
+  <!-- Profile Validation -->
+  <data name="SelectGameInstallation" xml:space="preserve">
+    <value>Please select a game installation</value>
+    <comment>Validation error when no game installation is selected</comment>
+  </data>
+  <data name="EnterProfileName" xml:space="preserve">
+    <value>Please enter a profile name</value>
+    <comment>Validation error when profile name is empty</comment>
+  </data>
+  <data name="GameInstallationRequired" xml:space="preserve">
+    <value>A Game Installation must be enabled for the profile to be launchable.</value>
+    <comment>Validation error when no game installation is enabled</comment>
+  </data>
 </root>
