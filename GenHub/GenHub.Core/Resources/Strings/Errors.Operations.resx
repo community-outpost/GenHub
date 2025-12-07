@@ -208,4 +208,34 @@
     <value>Error during satellite assembly discovery</value>
     <comment>Error message when satellite assembly discovery fails</comment>
   </data>
+  
+  <!-- Service Availability Errors -->
+  <data name="ServiceNotAvailable.GameProfileManager" xml:space="preserve">
+    <value>GameProfileManager service is not available.</value>
+    <comment>Error when GameProfileManager service is unavailable</comment>
+  </data>
+  <data name="ServiceNotAvailable.ProfileContentLoader" xml:space="preserve">
+    <value>Profile content loader service not available</value>
+    <comment>Error when ProfileContentLoader service is unavailable</comment>
+  </data>
+  <data name="ServiceNotAvailable.GameSettingsService" xml:space="preserve">
+    <value>Game settings service not available</value>
+    <comment>Error when GameSettingsService is unavailable</comment>
+  </data>
+  
+  <!-- File System Errors -->
+  <data name="OptionsFileDirectoryNotFound" xml:space="preserve">
+    <value>Options file directory not found</value>
+    <comment>Error when options file directory cannot be found</comment>
+  </data>
+  
+  <!-- Tool Errors -->
+  <data name="FailedToLoadTools" xml:space="preserve">
+    <value>Failed to load tools: {0}</value>
+    <comment>Error when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="ErrorLoadingTool" xml:space="preserve">
+    <value>Error loading tool '{0}': {1}</value>
+    <comment>Error when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
 </root>
