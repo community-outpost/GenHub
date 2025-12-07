@@ -32,6 +32,16 @@ public static class StringResources
     public const string UiUpdates = "GenHub.Core.Resources.Strings.UI.Updates";
 
     /// <summary>
+    /// Base name for tools management UI resources.
+    /// </summary>
+    public const string UiTools = "GenHub.Core.Resources.Strings.UI.Tools";
+
+    /// <summary>
+    /// Base name for downloads UI resources.
+    /// </summary>
+    public const string UiDownloads = "GenHub.Core.Resources.Strings.UI.Downloads";
+
+    /// <summary>
     /// Base name for validation error messages.
     /// </summary>
     public const string ErrorsValidation = "GenHub.Core.Resources.Strings.Errors.Validation";
