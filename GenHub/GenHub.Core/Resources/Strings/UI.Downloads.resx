@@ -97,11 +97,11 @@
     <comment>Download category for maps</comment>
   </data>
   <data name="Category.ToolsAndUtilities" xml:space="preserve">
-    <value>Tools & Utilities</value>
+    <value>Tools &amp; Utilities</value>
     <comment>Download category for tools and utilities</comment>
   </data>
   <data name="Category.PatchesAndFixes" xml:space="preserve">
-    <value>Patches & Fixes</value>
+    <value>Patches &amp; Fixes</value>
     <comment>Download category for patches and fixes</comment>
   </data>
   
