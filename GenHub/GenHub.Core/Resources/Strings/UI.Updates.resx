@@ -152,4 +152,30 @@
     <value>v0.0.0</value>
     <comment>Default version display when no version is available</comment>
   </data>
+  
+  <!-- Update Dialog Strings -->
+  <data name="Status.UpdateAvailableExclaim" xml:space="preserve">
+    <value>Update Available!</value>
+    <comment>Heading when an update is available (with exclamation)</comment>
+  </data>
+  <data name="Label.WhatsNew" xml:space="preserve">
+    <value>What's new:</value>
+    <comment>Label for release notes section</comment>
+  </data>
+  <data name="Description.DefaultUpdateNotes" xml:space="preserve">
+    <value>This update includes bug fixes, performance improvements, and new features.</value>
+    <comment>Default text for update description when no specific notes</comment>
+  </data>
+  <data name="Status.UpToDate" xml:space="preserve">
+    <value>You're up to date!</value>
+    <comment>Status message when app is already on latest version</comment>
+  </data>
+  <data name="Label.VersionReady" xml:space="preserve">
+    <value>is ready to install</value>
+    <comment>Partial text indicating version is ready</comment>
+  </data>
+  <data name="Progress.PercentComplete" xml:space="preserve">
+    <value>% complete</value>
+    <comment>Partial text for percentage completion</comment>
+  </data>
 </root>
