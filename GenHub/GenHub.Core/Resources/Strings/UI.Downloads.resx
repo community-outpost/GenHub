@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Page Titles and Subtitles -->
+  <data name="Title.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Page title for the Downloads tab</comment>
+  </data>
+  <data name="Subtitle.Downloads" xml:space="preserve">
+    <value>Manage your downloads and installations</value>
+    <comment>Page subtitle for the Downloads tab</comment>
+  </data>
+  
+  <!-- Section Headers -->
+  <data name="Section.PrimaryDownloads" xml:space="preserve">
+    <value>Primary Downloads</value>
+    <comment>Section header for primary downloads area</comment>
+  </data>
+  <data name="Section.AdditionalContent" xml:space="preserve">
+    <value>Additional Content</value>
+    <comment>Section header for additional content area</comment>
+  </data>
+  
+  <!-- Download Categories -->
+  <data name="Category.GitHubBuilds" xml:space="preserve">
+    <value>GitHub Builds</value>
+    <comment>Download category for GitHub builds</comment>
+  </data>
+  <data name="Category.OfficialReleases" xml:space="preserve">
+    <value>Official Releases</value>
+    <comment>Download category for official releases</comment>
+  </data>
+  <data name="Category.ModDownloads" xml:space="preserve">
+    <value>Mod Downloads</value>
+    <comment>Download category for mods</comment>
+  </data>
+  <data name="Category.Maps" xml:space="preserve">
+    <value>Maps</value>
+    <comment>Download category for maps</comment>
+  </data>
+  <data name="Category.ToolsAndUtilities" xml:space="preserve">
+    <value>Tools & Utilities</value>
+    <comment>Download category for tools and utilities</comment>
+  </data>
+  <data name="Category.PatchesAndFixes" xml:space="preserve">
+    <value>Patches & Fixes</value>
+    <comment>Download category for patches and fixes</comment>
+  </data>
+  
+  <!-- Status Labels -->
+  <data name="Label.ComingSoon" xml:space="preserve">
+    <value>(Coming Soon)</value>
+    <comment>Label indicating a feature is coming soon, with parentheses</comment>
+  </data>
+  <data name="Status.ComingSoon" xml:space="preserve">
+    <value>Coming Soon</value>
+    <comment>Status text indicating a feature is coming soon</comment>
+  </data>
+  
+  <!-- Download Status Messages -->
+  <data name="Status.Downloading" xml:space="preserve">
+    <value>Downloading...</value>
+    <comment>Status shown while downloading</comment>
+  </data>
+  <data name="Status.DownloadComplete" xml:space="preserve">
+    <value>Download Complete</value>
+    <comment>Status shown when download is complete</comment>
+  </data>
+  <data name="Status.DownloadFailed" xml:space="preserve">
+    <value>Download Failed</value>
+    <comment>Status shown when download fails</comment>
+  </data>
+  <data name="Status.Paused" xml:space="preserve">
+    <value>Paused</value>
+    <comment>Status shown when download is paused</comment>
+  </data>
+  <data name="Status.Queued" xml:space="preserve">
+    <value>Queued</value>
+    <comment>Status shown when download is queued</comment>
+  </data>
+  <data name="Status.Installing" xml:space="preserve">
+    <value>Installing...</value>
+    <comment>Status shown while installing</comment>
+  </data>
+</root>
