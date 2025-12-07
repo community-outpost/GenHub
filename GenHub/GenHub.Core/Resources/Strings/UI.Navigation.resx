@@ -88,4 +88,14 @@
     <value>Home</value>
     <comment>Navigation tab name for home section</comment>
   </data>
+  <data name="Tab.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Navigation tab name for tools section</comment>
+  </data>
+  
+  <!-- Application Branding -->
+  <data name="App.Tagline" xml:space="preserve">
+    <value>C&C Generals Launcher</value>
+    <comment>Application tagline shown in navigation</comment>
+  </data>
 </root>

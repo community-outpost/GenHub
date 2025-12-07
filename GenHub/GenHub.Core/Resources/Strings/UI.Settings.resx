@@ -196,4 +196,212 @@
     <value>Current Memory Usage (MB)</value>
     <comment>Label for current memory usage display</comment>
   </data>
+  
+  <!-- Page Titles and Subtitles -->
+  <data name="Title.Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Page title for the Settings section</comment>
+  </data>
+  <data name="Subtitle.Settings" xml:space="preserve">
+    <value>Configure your GenHub preferences and application behavior</value>
+    <comment>Page subtitle for the Settings section</comment>
+  </data>
+  
+  <!-- Notification Messages -->
+  <data name="Notification.SettingsSaved" xml:space="preserve">
+    <value>✓ Settings saved successfully!</value>
+    <comment>Notification shown when settings are saved</comment>
+  </data>
+  
+  <!-- Section Headers -->
+  <data name="Section.GameConfiguration" xml:space="preserve">
+    <value>🎮 Game Configuration</value>
+    <comment>Section header for game configuration settings</comment>
+  </data>
+  <data name="Section.Downloads" xml:space="preserve">
+    <value>📥 Downloads</value>
+    <comment>Section header for download settings</comment>
+  </data>
+  <data name="Section.Appearance" xml:space="preserve">
+    <value>🎨 Appearance</value>
+    <comment>Section header for appearance settings</comment>
+  </data>
+  <data name="Section.Performance" xml:space="preserve">
+    <value>⚡ Performance</value>
+    <comment>Section header for performance settings</comment>
+  </data>
+  <data name="Section.CAS" xml:space="preserve">
+    <value>🔗 Content-Addressable Storage (CAS)</value>
+    <comment>Section header for CAS settings</comment>
+  </data>
+  <data name="Section.Storage" xml:space="preserve">
+    <value>🗄️ Storage</value>
+    <comment>Section header for storage settings</comment>
+  </data>
+  <data name="Section.ContentDirectories" xml:space="preserve">
+    <value>📂 Local Content Directories</value>
+    <comment>Section header for content directories settings</comment>
+  </data>
+  <data name="Section.GitHubDiscovery" xml:space="preserve">
+    <value>🌐 GitHub Discovery</value>
+    <comment>Section header for GitHub discovery settings</comment>
+  </data>
+  
+  <!-- Labels -->
+  <data name="Label.PreferredGamePath" xml:space="preserve">
+    <value>Preferred Game Installation Path</value>
+    <comment>Label for preferred game path setting</comment>
+  </data>
+  <data name="Label.CacheDirectory" xml:space="preserve">
+    <value>Cache Directory</value>
+    <comment>Label for cache directory setting</comment>
+  </data>
+  <data name="Label.ContentStorage" xml:space="preserve">
+    <value>Content Storage Directory</value>
+    <comment>Label for content storage directory setting</comment>
+  </data>
+  <data name="Label.ContentDirectories" xml:space="preserve">
+    <value>Content Directories (one per line)</value>
+    <comment>Label for content directories setting</comment>
+  </data>
+  <data name="Label.GitHubRepositories" xml:space="preserve">
+    <value>GitHub Repositories (one per line, owner/repo)</value>
+    <comment>Label for GitHub repositories setting</comment>
+  </data>
+  <data name="Label.MemoryUsage" xml:space="preserve">
+    <value>Memory Usage</value>
+    <comment>Label for memory usage display</comment>
+  </data>
+  
+  <!-- Watermarks/Placeholders -->
+  <data name="Watermark.GamePath" xml:space="preserve">
+    <value>Auto-detect game installation path...</value>
+    <comment>Placeholder for game path input</comment>
+  </data>
+  <data name="Watermark.DefaultPlatform" xml:space="preserve">
+    <value>Default (platform-dependent)</value>
+    <comment>Placeholder for platform-dependent default paths</comment>
+  </data>
+  <data name="Watermark.DefaultCasPool" xml:space="preserve">
+    <value>Default (%AppData%/GenHub/cas-pool)</value>
+    <comment>Placeholder for CAS root path</comment>
+  </data>
+  <data name="Watermark.DefaultContent" xml:space="preserve">
+    <value>Default (%AppData%/GenHub/Content)</value>
+    <comment>Placeholder for content storage path</comment>
+  </data>
+  <data name="Watermark.ModsExample" xml:space="preserve">
+    <value>e.g. C:\Games\GenHub\Mods</value>
+    <comment>Example placeholder for mods directory</comment>
+  </data>
+  <data name="Watermark.GitHubRepoExample" xml:space="preserve">
+    <value>e.g. some-author/some-mod</value>
+    <comment>Example placeholder for GitHub repository</comment>
+  </data>
+  
+  <!-- Setting Descriptions -->
+  <data name="Description.GamePath" xml:space="preserve">
+    <value>Specify where you prefer games to be installed. Leave empty for auto-detection.</value>
+    <comment>Description for game path setting</comment>
+  </data>
+  <data name="Description.WorkspaceStrategy" xml:space="preserve">
+    <value>Choose how files are managed in game workspaces</value>
+    <comment>Description for workspace strategy setting</comment>
+  </data>
+  <data name="Description.MaxConcurrent" xml:space="preserve">
+    <value>Limit the number of simultaneous downloads to manage bandwidth usage (1-10)</value>
+    <comment>Description for max concurrent downloads setting</comment>
+  </data>
+  <data name="Description.BufferSize" xml:space="preserve">
+    <value>Buffer size used for file downloads (4KB - 1MB, default: 80KB)</value>
+    <comment>Description for buffer size setting</comment>
+  </data>
+  <data name="Description.Timeout" xml:space="preserve">
+    <value>Timeout for each download operation (10-3600 seconds, default: 600 seconds)</value>
+    <comment>Description for timeout setting</comment>
+  </data>
+  <data name="Description.UserAgent" xml:space="preserve">
+    <value>HTTP User-Agent string sent with download requests</value>
+    <comment>Description for user agent setting</comment>
+  </data>
+  <data name="Description.BackgroundDownloads" xml:space="preserve">
+    <value>Continue downloads when the application is minimized or in the background</value>
+    <comment>Description for background downloads setting</comment>
+  </data>
+  <data name="Description.Theme" xml:space="preserve">
+    <value>Choose between light and dark themes</value>
+    <comment>Description for theme setting</comment>
+  </data>
+  <data name="Description.DetailedLogging" xml:space="preserve">
+    <value>Enable verbose logging for troubleshooting. May impact performance.</value>
+    <comment>Description for detailed logging setting</comment>
+  </data>
+  <data name="Description.AutoCheckUpdates" xml:space="preserve">
+    <value>Automatically check for GenHub updates when the application starts</value>
+    <comment>Description for auto check updates setting</comment>
+  </data>
+  <data name="Description.SettingsFilePath" xml:space="preserve">
+    <value>Specify a custom location for your settings file. Leave empty to use the default location.</value>
+    <comment>Description for settings file path setting</comment>
+  </data>
+  <data name="Description.MemoryUsage" xml:space="preserve">
+    <value>Monitor application memory consumption</value>
+    <comment>Description for memory usage display</comment>
+  </data>
+  <data name="Description.CasRootPath" xml:space="preserve">
+    <value>Directory where deduplicated content is stored. All workspaces reference files from here.</value>
+    <comment>Description for CAS root path setting</comment>
+  </data>
+  <data name="Description.MaxCacheSize" xml:space="preserve">
+    <value>Maximum size for the CAS pool before garbage collection runs (1-1000 GB)</value>
+    <comment>Description for max cache size setting</comment>
+  </data>
+  <data name="Description.CasConcurrentOperations" xml:space="preserve">
+    <value>Number of simultaneous CAS operations (1-16, default: 4)</value>
+    <comment>Description for CAS concurrent operations setting</comment>
+  </data>
+  <data name="Description.AutomaticGc" xml:space="preserve">
+    <value>Automatically clean up unreferenced content to free disk space</value>
+    <comment>Description for automatic GC setting</comment>
+  </data>
+  <data name="Description.GcGracePeriod" xml:space="preserve">
+    <value>How long to keep unreferenced content before deletion (1-365 days)</value>
+    <comment>Description for GC grace period setting</comment>
+  </data>
+  <data name="Description.AutoGcInterval" xml:space="preserve">
+    <value>How often to run automatic garbage collection (1-30 days)</value>
+    <comment>Description for auto GC interval setting</comment>
+  </data>
+  <data name="Description.VerifyIntegrity" xml:space="preserve">
+    <value>Check file hashes to ensure data integrity (recommended, slight performance impact)</value>
+    <comment>Description for verify integrity setting</comment>
+  </data>
+  <data name="Description.CachePath" xml:space="preserve">
+    <value>Override the default cache directory for downloads and temp files.</value>
+    <comment>Description for cache path setting</comment>
+  </data>
+  <data name="Description.ContentStoragePath" xml:space="preserve">
+    <value>Override the default directory where downloaded content is stored permanently.</value>
+    <comment>Description for content storage path setting</comment>
+  </data>
+  <data name="Description.ContentDirectories" xml:space="preserve">
+    <value>Specify directories to scan for local content. One path per line.</value>
+    <comment>Description for content directories setting</comment>
+  </data>
+  <data name="Description.GitHubRepositories" xml:space="preserve">
+    <value>Specify GitHub repositories to scan for releases. One owner/repo per line.</value>
+    <comment>Description for GitHub repositories setting</comment>
+  </data>
+  
+  <!-- Hints -->
+  <data name="Hint.SettingsAutoSave" xml:space="preserve">
+    <value>Settings are automatically saved and will take effect immediately or on next restart as needed.</value>
+    <comment>Hint about settings auto-save behavior</comment>
+  </data>
+  
+  <!-- Buttons -->
+  <data name="Button.ResetToDefaults" xml:space="preserve">
+    <value>Reset to Defaults</value>
+    <comment>Button to reset settings to default values</comment>
+  </data>
 </root>
