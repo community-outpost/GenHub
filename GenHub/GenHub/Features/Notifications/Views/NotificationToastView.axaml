@@ -1,0 +1,118 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="120"
+             x:Class="GenHub.Features.Notifications.Views.NotificationToastView"
+             x:DataType="vm:NotificationItemViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.toast">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+
+        <Style Selector="Border.toast[IsVisible=True]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.3" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
+        <Style Selector="Border.toast[IsVisible=False]">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" FillMode="Forward">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="1"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Name="ToastBorder"
+            Classes="toast"
+            IsVisible="{Binding IsVisible}"
+            Background="{Binding BackgroundBrush}"
+            CornerRadius="8"
+            Padding="16"
+            MaxWidth="350"
+            MinWidth="300"
+            Cursor="Hand">
+
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16"
+                              OffsetX="0"
+                              OffsetY="4"
+                              Opacity="0.3"/>
+        </Border.Effect>
+
+        <Grid RowDefinitions="Auto,Auto,Auto">
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                <Path Grid.Column="0"
+                      Data="{Binding IconPath}"
+                      Fill="White"
+                      Width="24"
+                      Height="24"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      Margin="0,0,12,0"/>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="White"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button Grid.Column="2"
+                        Command="{Binding DismissCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="4"
+                        Cursor="Hand"
+                        VerticalAlignment="Top">
+                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Fill="White"
+                          Width="16"
+                          Height="16"
+                          Stretch="Uniform"
+                          Opacity="0.8"/>
+                </Button>
+            </Grid>
+
+            <TextBlock Grid.Row="1"
+                       Text="{Binding Message}"
+                       FontSize="13"
+                       Foreground="White"
+                       TextWrapping="Wrap"
+                       Opacity="0.95"
+                       Margin="36,8,0,0"/>
+
+            <Button Grid.Row="2"
+                    IsVisible="{Binding IsActionable}"
+                    Command="{Binding ActionCommand}"
+                    Content="{Binding ActionText}"
+                    Background="White"
+                    Foreground="{Binding BackgroundBrush}"
+                    BorderThickness="0"
+                    CornerRadius="4"
+                    Padding="12,6"
+                    Margin="36,12,0,0"
+                    HorizontalAlignment="Left"
+                    FontWeight="SemiBold"
+                    FontSize="13"
+                    Cursor="Hand"/>
+        </Grid>
+    </Border>
+</UserControl>
