@@ -182,6 +182,25 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
+    /// Gets the user data base path for a specific game type.
+    /// For Generals: Documents\Command and Conquer Generals Data.
+    /// For Zero Hour: Documents\Command and Conquer Generals Zero Hour Data.
+    /// </summary>
+    /// <param name="gameType">The target game type.</param>
+    /// <returns>The path to the user data directory.</returns>
+    protected static string GetUserDataBasePath(GameType gameType)
+    {
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+        return gameType switch
+        {
+            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
+            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+        };
+    }
+
+    /// <summary>
     /// Cleans up the workspace directory if a failure occurs during workspace preparation.
     /// Ensures that no partial or corrupted workspace directories are left behind.
     /// Logs the cleanup operation and any exceptions encountered.
@@ -432,6 +451,38 @@ public abstract class WorkspaceStrategyBase<T>(
     protected abstract Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Resolves the target path for a manifest file based on its InstallTarget.
+    /// Files can be installed to different locations based on their content type.
+    /// </summary>
+    /// <param name="file">The manifest file to resolve the path for.</param>
+    /// <param name="workspacePath">The root workspace path.</param>
+    /// <param name="manifest">The manifest containing the file (for target game info).</param>
+    /// <returns>The fully resolved target path.</returns>
+    protected string ResolveTargetPath(ManifestFile file, string workspacePath, ContentManifest manifest)
+    {
+        // Most content goes to the workspace
+        if (file.InstallTarget == ContentInstallTarget.Workspace)
+        {
+            return Path.Combine(workspacePath, file.RelativePath);
+        }
+
+        // Get the user data base path for non-workspace content
+        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+
+        return file.InstallTarget switch
+        {
+            ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, file.RelativePath),
+            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, "Maps", file.RelativePath),
+            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, "Replays", file.RelativePath),
+            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, "Screenshots", file.RelativePath),
+            ContentInstallTarget.System => throw new NotSupportedException(
+                "System install target is not supported for workspace operations. " +
+                "Prerequisites like Visual C++ runtimes should be installed through system package managers."),
+            _ => Path.Combine(workspacePath, file.RelativePath),
+        };
+    }
+
+    /// <summary>
     /// Processes a manifest file according to its source type. Dispatcher for all strategies.
     /// </summary>
     /// <param name="file">The manifest file to process.</param>
@@ -442,7 +493,19 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <returns>A task representing the asynchronous operation.</returns>
     protected virtual async Task ProcessManifestFileAsync(ManifestFile file, ContentManifest manifest, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
-        var targetPath = Path.Combine(workspacePath, file.RelativePath);
+        // Resolve target path based on InstallTarget - maps go to user Documents, etc.
+        var targetPath = ResolveTargetPath(file, workspacePath, manifest);
+
+        // Log if installing to non-workspace location
+        if (file.InstallTarget != ContentInstallTarget.Workspace)
+        {
+            Logger.LogInformation(
+                "Installing file to {InstallTarget}: {RelativePath} -> {TargetPath}",
+                file.InstallTarget,
+                file.RelativePath,
+                targetPath);
+        }
+
         switch (file.SourceType)
         {
             case ContentSourceType.ContentAddressable:
@@ -453,6 +516,9 @@ public abstract class WorkspaceStrategyBase<T>(
                 break;
             case ContentSourceType.LocalFile:
                 await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
+                break;
+            case ContentSourceType.ExtractedPackage:
+                await ProcessExtractedPackageFileAsync(file, targetPath, cancellationToken);
                 break;
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
@@ -531,5 +597,32 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         // Default: throw if not implemented
         throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
+    }
+
+    /// <summary>
+    /// Processes a file from an extracted package (e.g., downloaded and extracted from Community Outpost).
+    /// Default implementation copies the file from SourcePath to targetPath.
+    /// </summary>
+    /// <param name="file">The manifest file representing the extracted content.</param>
+    /// <param name="targetPath">The target path for the file.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual async Task ProcessExtractedPackageFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(file.SourcePath))
+        {
+            throw new ArgumentException($"ExtractedPackage file {file.RelativePath} has no SourcePath");
+        }
+
+        // Ensure target directory exists
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        // Copy from extracted source to target
+        await FileOperations.CopyFileAsync(file.SourcePath, targetPath, cancellationToken);
+        Logger.LogDebug("Copied extracted file: {Source} -> {Target}", file.SourcePath, targetPath);
     }
 }

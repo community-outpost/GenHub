@@ -1,0 +1,26 @@
+{
+  "providerId": "community-outpost",
+  "publisherType": "communityoutpost",
+  "displayName": "Community Outpost",
+  "description": "Official patches, tools, and addons from GenPatcher (Community Outpost)",
+  "iconColor": "#2196F3",
+  "providerType": "Static",
+  "catalogFormat": "genpatcher-dat",
+  "endpoints": {
+    "catalogUrl": "https://legi.cc/gp2/dl.dat",
+    "websiteUrl": "https://legi.cc",
+    "supportUrl": "https://legi.cc/patch",
+    "custom": {
+      "patchPageUrl": "https://legi.cc/patch",
+      "gentoolWebsite": "https://gentool.net"
+    }
+  },
+  "mirrorPreference": ["legi.cc", "gentool.net"],
+  "targetGame": "ZeroHour",
+  "defaultTags": ["community", "genpatcher"],
+  "timeouts": {
+    "catalogTimeoutSeconds": 30,
+    "contentTimeoutSeconds": 300
+  },
+  "enabled": true
+}

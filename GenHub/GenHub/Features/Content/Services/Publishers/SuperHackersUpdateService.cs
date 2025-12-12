@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
@@ -18,13 +19,10 @@ namespace GenHub.Features.Content.Services.Publishers;
 public class SuperHackersUpdateService(
     ILogger<SuperHackersUpdateService> logger,
     IGitHubApiClient gitHubClient,
-    IContentManifestPool manifestPool)
+    IContentManifestPool manifestPool,
+    IProviderDefinitionLoader providerLoader)
     : ContentUpdateServiceBase(logger)
 {
-    // TheSuperHackers repository information
-    private const string RepositoryOwner = SuperHackersConstants.GeneralsGameCodeOwner;
-    private const string RepositoryName = SuperHackersConstants.GeneralsGameCodeRepo;
-
     /// <inheritdoc />
     protected override string ServiceName => SuperHackersConstants.ServiceName;
 
@@ -38,15 +36,36 @@ public class SuperHackersUpdateService(
 
         try
         {
+            // Get provider definition for repository info
+            var provider = providerLoader.GetProvider(SuperHackersConstants.PublisherId);
+            if (provider == null)
+            {
+                logger.LogError("Provider definition not found for {ProviderId}", SuperHackersConstants.PublisherId);
+                return ContentUpdateCheckResult.CreateFailure(
+                    $"Provider definition '{SuperHackersConstants.PublisherId}' not found. Ensure thesuperhackers.provider.json exists.");
+            }
+
+            var repositoryOwner = provider.Endpoints.GetEndpoint("githubOwner");
+            var repositoryName = provider.Endpoints.GetEndpoint("githubRepo");
+
+            if (string.IsNullOrEmpty(repositoryOwner) || string.IsNullOrEmpty(repositoryName))
+            {
+                logger.LogError("GitHub repository info not configured in provider definition");
+                return ContentUpdateCheckResult.CreateFailure(
+                    "GitHub repository information not found in provider configuration");
+            }
+
+            logger.LogDebug("Using GitHub repository: {Owner}/{Repo}", repositoryOwner, repositoryName);
+
             // Get latest release from GitHub
             var latestRelease = await gitHubClient.GetLatestReleaseAsync(
-                RepositoryOwner,
-                RepositoryName,
+                repositoryOwner,
+                repositoryName,
                 cancellationToken);
 
             if (latestRelease == null)
             {
-                logger.LogWarning("No releases found for {Owner}/{Repo}", RepositoryOwner, RepositoryName);
+                logger.LogWarning("No releases found for {Owner}/{Repo}", repositoryOwner, repositoryName);
                 return ContentUpdateCheckResult.CreateNoUpdateAvailable();
             }
 

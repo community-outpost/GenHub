@@ -13,6 +13,7 @@ using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -20,7 +21,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class GitHubResolver(
     IGitHubApiClient gitHubApiClient,
-    IContentManifestBuilder manifestBuilder,
+    IServiceProvider serviceProvider,
     ILogger<GitHubResolver> logger) : IContentResolver
 {
     // Regex breakdown:
@@ -105,6 +106,9 @@ public class GitHubResolver(
             // Determine publisher type for factory resolution
             // This allows SuperHackersManifestFactory to handle TheSuperHackers releases
             var publisherType = DeterminePublisherType(owner, repo);
+
+            // Create a new manifest builder for each resolve operation to ensure clean state
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
@@ -277,6 +281,9 @@ public class GitHubResolver(
 
             // Determine publisher type for factory resolution (same logic as full release)
             var publisherType = DeterminePublisherType(owner, repo);
+
+            // Create a new manifest builder for each resolve operation to ensure clean state
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
