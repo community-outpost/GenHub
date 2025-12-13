@@ -1,4 +1,5 @@
 ﻿using System;
+using GenHub.Core.Interfaces.SingleInstance;
 
 namespace GenHub;
 
@@ -14,6 +15,11 @@ public static class AppLocator
     /// Gets or sets the service provider for dependency injection.
     /// </summary>
     public static IServiceProvider? Services { get; set; }
+
+    /// <summary>
+    /// Gets or sets the single instance manager for IPC communication (Windows only).
+    /// </summary>
+    public static ISingleInstanceCommandReceiver? SingleInstanceManager { get; set; }
 
     /// <summary>
     /// Gets a service of type <typeparamref name="T"/> from the service provider, or returns <c>null</c> if not found.

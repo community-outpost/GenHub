@@ -107,6 +107,16 @@ Modern toast notification system for user feedback and status updates. Provides:
 
 ---
 
+### [Desktop Shortcuts](./desktop-shortcuts)
+
+Create native desktop shortcuts that launch game profiles directly. Features include:
+
+- One-click profile launching from desktop
+- Single-instance handling via IPC
+- Platform-specific shortcuts (Windows `.lnk`, Linux `.desktop`)
+
+---
+
 ## Feature Architecture
 
 Each feature is designed as a **modular component** that can be used

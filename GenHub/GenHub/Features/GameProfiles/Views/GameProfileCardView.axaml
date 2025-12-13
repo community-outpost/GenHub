@@ -371,24 +371,6 @@
 
                 <!-- Action buttons container (centered group) -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- Prepare Workspace button - disabled when already prepared, running, or any workspace is being prepared -->
-                    <Button Classes="prepare-button"
-                        Content="{Binding WorkspaceStatus}"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).PrepareWorkspaceCommand}"
-                        CommandParameter="{Binding}"
-                        ToolTip.Tip="Prepare workspace for this profile"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center">
-                        <Button.IsEnabled>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                <Binding Path="IsWorkspacePrepared" Converter="{StaticResource NotConverter}" />
-                                <Binding Path="$parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsPreparingWorkspace" Converter="{StaticResource NotConverter}" />
-                            </MultiBinding>
-                        </Button.IsEnabled>
-                    </Button>
-
                     <!-- Stop button - only visible when process is running -->
                     <Button Classes="action-button"
                         Content="⏹"
@@ -401,6 +383,21 @@
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         FontSize="16" />
+
+                    <!-- Shortcut button - only visible in edit mode -->
+                    <Button Classes="action-button" 
+                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
+                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateShortcutCommand}"
+                        CommandParameter="{Binding}"
+                        ToolTip.Tip="Create desktop shortcut"
+                        IsVisible="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode}"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center">
+                        <PathIcon Data="M3.9,12C3.9,10.29 5.29,8.9 7,8.9H11V7H7A5,5 0 0,0 2,12A5,5 0 0,0 7,17H11V15.1H7C5.29,15.1 3.9,13.71 3.9,12M8,13H16V11H8V13M17,7H13V8.9H17C18.71,8.9 20.1,10.29 20.1,12C20.1,13.71 18.71,15.1 17,15.1H13V17H17A5,5 0 0,0 22,12A5,5 0 0,0 17,7Z" 
+                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
+                            Width="14" Height="14" />
+                    </Button>
 
                     <!-- Edit button - disabled when process is running or workspace being prepared -->
                     <Button Classes="action-button" 

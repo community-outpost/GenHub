@@ -1,10 +1,16 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using GenHub.Common.ViewModels;
 using GenHub.Common.Views;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +24,7 @@ public partial class App : Application
     private readonly IServiceProvider _serviceProvider;
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
+    private readonly IProfileLauncherFacade _profileLauncherFacade;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -28,6 +35,7 @@ public partial class App : Application
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
         _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
+        _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
     }
 
     /// <summary>
@@ -53,9 +61,45 @@ public partial class App : Application
             ApplyWindowSettings(mainWindow);
             desktop.MainWindow = mainWindow;
             desktop.ShutdownRequested += OnShutdownRequested;
+
+            // Subscribe to IPC commands from secondary instances (Windows only)
+            SubscribeToSingleInstanceCommands(mainWindow);
+
+            // Handle launch profile from startup args (first launch with shortcut)
+            SafeFireAndForget(HandleLaunchProfileArgsAsync(desktop.Args, mainWindow), "HandleLaunchProfileArgsAsync");
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
+    {
+        var mainViewModel = mainWindow.DataContext as MainViewModel;
+        if (mainViewModel?.GameProfilesViewModel == null)
+        {
+            return;
+        }
+
+        var targetProfile = mainViewModel.GameProfilesViewModel.Profiles
+            .FirstOrDefault(p => p.ProfileId.Equals(profileId, StringComparison.OrdinalIgnoreCase));
+
+        if (targetProfile != null)
+        {
+            targetProfile.IsProcessRunning = true;
+            targetProfile.ProcessId = processId;
+        }
+
+        mainViewModel.GameProfilesViewModel.StatusMessage = $"Profile launched (Process ID: {processId})";
+    }
+
+    private static void UpdateViewModelWithError(MainWindow mainWindow, string error)
+    {
+        var mainViewModel = mainWindow.DataContext as MainViewModel;
+        if (mainViewModel?.GameProfilesViewModel != null)
+        {
+            mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
+            mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+        }
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)
@@ -124,6 +168,108 @@ public partial class App : Application
             {
                 disposable.Dispose();
             }
+        }
+    }
+
+    private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var profileId = CommandLineParser.ExtractProfileId(args);
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup launch detected for profile: {ProfileId}", profileId);
+
+        await LaunchProfileByIdAsync(profileId, mainWindow);
+    }
+
+    private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
+    {
+        // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
+        var singleInstanceManager = AppLocator.SingleInstanceManager;
+        if (singleInstanceManager is null)
+        {
+            return;
+        }
+
+        singleInstanceManager.CommandReceived += (_, command) =>
+        {
+            // Dispatch to UI thread since the event comes from a background pipe listener
+            Dispatcher.UIThread.Post(() => HandleSingleInstanceCommand(command, mainWindow));
+        };
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogDebug("Subscribed to single instance IPC commands");
+    }
+
+    private void HandleSingleInstanceCommand(string command, MainWindow mainWindow)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+
+        if (command.StartsWith(IpcCommands.LaunchProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var profileId = command[IpcCommands.LaunchProfilePrefix.Length..];
+            logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
+
+            // Launch the profile
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), "LaunchProfileByIdAsync");
+        }
+        else
+        {
+            logger?.LogWarning("Unknown IPC command received: {Command}", command);
+        }
+    }
+
+    private void SafeFireAndForget(Task task, string context)
+    {
+        _ = task.ContinueWith(
+            t =>
+            {
+                var logger = _serviceProvider.GetService<ILogger<App>>();
+                if (t.Exception != null)
+                {
+                    logger?.LogError(t.Exception, "Error in {Context}", context);
+                }
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    private async Task LaunchProfileByIdAsync(string profileId, MainWindow mainWindow)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+
+        try
+        {
+            logger?.LogInformation("Launching profile {ProfileId}...", profileId);
+
+            var launchResult = await _profileLauncherFacade.LaunchProfileAsync(profileId);
+
+            if (launchResult.Success && launchResult.Data != null)
+            {
+                logger?.LogInformation(
+                    "Profile {ProfileId} launched successfully. Process ID: {ProcessId}",
+                    profileId,
+                    launchResult.Data.ProcessInfo.ProcessId);
+
+                UpdateViewModelAfterLaunch(mainWindow, profileId, launchResult.Data.ProcessInfo.ProcessId);
+            }
+            else
+            {
+                var errors = string.Join(", ", launchResult.Errors);
+                logger?.LogError("Failed to launch profile {ProfileId}: {Errors}", profileId, errors);
+                UpdateViewModelWithError(mainWindow, errors);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
         }
     }
 }

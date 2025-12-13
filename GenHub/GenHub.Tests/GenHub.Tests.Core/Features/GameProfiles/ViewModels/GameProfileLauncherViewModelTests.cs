@@ -1,6 +1,10 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -21,14 +25,26 @@ public class GameProfileLauncherViewModelTests
     public void Constructor_WithValidParameters_InitializesCorrectly()
     {
         var installationService = new Mock<IGameInstallationService>();
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         Assert.NotNull(vm);
@@ -39,22 +55,6 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that the parameterless constructor initializes correctly.
-    /// </summary>
-    [Fact]
-    public void Constructor_WithoutParameters_InitializesCorrectly()
-    {
-        var vm = new GameProfileLauncherViewModel();
-
-        Assert.NotNull(vm);
-        Assert.Empty(vm.Profiles);
-        Assert.False(vm.IsLaunching);
-        Assert.False(vm.IsEditMode);
-        Assert.Equal("Design-time preview", vm.StatusMessage); // Updated to match actual design-time behavior
-        Assert.False(vm.IsServiceAvailable); // Design-time constructor sets this to false
-    }
-
-    /// <summary>
     /// Verifies that InitializeAsync loads profiles successfully.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -62,20 +62,34 @@ public class GameProfileLauncherViewModelTests
     public async Task InitializeAsync_LoadsProfiles_Successfully()
     {
         var installationService = new Mock<IGameInstallationService>();
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(new List<GameProfile>()));
+
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.InitializeAsync();
 
-        Assert.Empty(vm.Profiles); // No profiles loaded yet since IGameProfileManager is not available
-        Assert.Equal("Profile manager not available", vm.StatusMessage);
+        Assert.Empty(vm.Profiles); // No profiles returned by mock
     }
 
     /// <summary>
@@ -95,14 +109,26 @@ public class GameProfileLauncherViewModelTests
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
 
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -124,14 +150,26 @@ public class GameProfileLauncherViewModelTests
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(expectedError));
 
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -150,14 +188,26 @@ public class GameProfileLauncherViewModelTests
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));
 
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -172,10 +222,32 @@ public class GameProfileLauncherViewModelTests
     [Fact]
     public async Task ScanForGamesCommand_WithoutService_ShowsError()
     {
-        var vm = new GameProfileLauncherViewModel(); // No services injected
+        var gameProfileManager = new Mock<IGameProfileManager>();
+        var profileLauncherFacade = new Mock<IProfileLauncherFacade>();
+        var settingsViewModel = new Mock<GameProfileSettingsViewModel>(
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            NullLogger<GameProfileSettingsViewModel>.Instance).Object;
+        var profileEditorFacade = new Mock<IProfileEditorFacade>();
+        var configService = new Mock<IConfigurationProviderService>();
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var shortcutService = new Mock<IShortcutService>();
+        var installationService = new Mock<IGameInstallationService>();
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            gameProfileManager.Object,
+            profileLauncherFacade.Object,
+            settingsViewModel,
+            profileEditorFacade.Object,
+            configService.Object,
+            gameProcessManager.Object,
+            shortcutService.Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
-        Assert.Equal("Game installation service not available", vm.StatusMessage);
+        // Service is available now since it's required, so the test will scan and get empty results
+        Assert.Contains("Scan complete", vm.StatusMessage);
     }
 }

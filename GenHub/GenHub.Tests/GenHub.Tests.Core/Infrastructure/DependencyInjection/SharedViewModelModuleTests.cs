@@ -2,6 +2,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -94,6 +95,10 @@ public class SharedViewModelModuleTests
         services.AddSingleton<IContentDeliverer>(fileSystemDelivererMock.Object);
         var validatorMock = new Mock<IContentValidator>();
         services.AddSingleton<IContentValidator>(validatorMock.Object);
+
+        // Mock IShortcutService (platform-specific service)
+        var shortcutServiceMock = new Mock<IShortcutService>();
+        services.AddSingleton<IShortcutService>(shortcutServiceMock.Object);
 
         // Register required modules in correct order
         services.AddLoggingModule();

@@ -1,11 +1,11 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using Avalonia;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.DependencyInjection;
+using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Velopack;
@@ -17,9 +17,8 @@ namespace GenHub.Windows;
 /// </summary>
 public class Program
 {
-    private const string MutexName = "Global\\GenHub";
     private static readonly TimeSpan UpdaterTimeout = TimeIntervals.UpdaterTimeout;
-    private static Mutex? mutex;
+    private static SingleInstanceManager? _singleInstanceManager;
 
     /// <summary>
     /// Main entry point for the application.
@@ -36,17 +35,31 @@ public class Program
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
-        // Check if another instance is running and focus that instance instead of creating a new one.
-        if (IsAnotherInstanceRunning())
-        {
-            FocusRunningInstance();
-
-            // End this program if another instance already exists
-            return;
-        }
-
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+
+        // Extract profile ID from args if present (for IPC forwarding)
+        var profileId = CommandLineParser.ExtractProfileId(args);
+
+        // Initialize single-instance manager
+        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+
+        if (!_singleInstanceManager.IsFirstInstance)
+        {
+            // Forward launch command to primary instance if we have a profile ID
+            if (!string.IsNullOrEmpty(profileId))
+            {
+                bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+            }
+
+            // Focus the existing instance
+            SingleInstanceManager.FocusPrimaryInstance();
+
+            // Exit this secondary instance
+            _singleInstanceManager.Dispose();
+            return;
+        }
 
         try
         {
@@ -68,12 +81,19 @@ public class Program
             var serviceProvider = services.BuildServiceProvider();
             AppLocator.Services = serviceProvider;
 
+            // Store the single instance manager in the service locator for App to access
+            AppLocator.SingleInstanceManager = _singleInstanceManager;
+
             BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
         }
         catch (Exception ex)
         {
             bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
             throw;
+        }
+        finally
+        {
+            _singleInstanceManager?.Dispose();
         }
     }
 
@@ -90,32 +110,4 @@ public class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
-
-    /// <summary>
-    /// Checks if another instance is already running by attempting to acquire a named <see cref="Mutex" />.
-    /// </summary>
-    /// <returns>True if another instance already owns the <see cref="Mutex" />.</returns>
-    private static bool IsAnotherInstanceRunning()
-    {
-        mutex = new Mutex(true, MutexName, out bool createdNew);
-        return !createdNew;
-    }
-
-    /// <summary>
-    /// Brings the main window of the current running instance to the foreground and restores it if minimized.
-    /// </summary>
-    private static void FocusRunningInstance()
-    {
-        // Find a process of the same name
-        var process = Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).FirstOrDefault();
-
-        // If no process is found, we can't restore it
-        if (process == null)
-            return;
-
-        // Restore the window if minimized and bring it to the foreground
-        var windowHandle = process.MainWindowHandle;
-        NativeMethods.ShowWindow(windowHandle, NativeMethods.SW_RESTORE);
-        NativeMethods.SetForegroundWindow(windowHandle);
-    }
 }

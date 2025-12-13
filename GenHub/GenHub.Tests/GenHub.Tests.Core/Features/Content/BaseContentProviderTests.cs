@@ -91,7 +91,9 @@ public class BaseContentProviderTests
         Assert.NotEmpty(reports);
 
         // Ensure we received a validation-related update (manifest validation or prepared-content validation)
-        Assert.Contains(reports, r => r.CurrentOperation != null && r.CurrentOperation.Contains("Validating"));
+        // Create a snapshot of the list to avoid collection modification during enumeration
+        var reportsList = reports.ToList();
+        Assert.Contains(reportsList, r => r.CurrentOperation != null && r.CurrentOperation.Contains("Validating"));
     }
 
     /// <summary>

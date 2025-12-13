@@ -17,7 +17,8 @@
         Background="#141414"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">    <Window.Resources>
         <!-- Keep existing converters -->
-        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
+        <conv:ContrastTextColorConverter x:Key="ProfileSettings_ContrastTextColorConverter" />
+        <conv:ColorToBrushConverter x:Key="ProfileSettings_ColorToBrushConverter" />
         <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
         <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
@@ -114,7 +115,7 @@
 
     <Grid RowDefinitions="Auto,Auto,*">
         <!-- Header with profile preview and action buttons -->
-        <Border Grid.Row="0" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}" 
+        <Border Grid.Row="0" Background="{Binding ColorValue, Converter={StaticResource ProfileSettings_ColorToBrushConverter}, Mode=OneWay}" 
                 CornerRadius="0,0,0,20" Height="80">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="20">
                 <!-- Profile Icon placeholder -->
@@ -125,17 +126,17 @@
                     <PathIcon
                         Data="M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8V16M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20Z"
                         Width="24" Height="24"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}" />
+                        Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}" />
                 </Border>
 
                 <!-- Profile Name -->
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
                     <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                               Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
+                               Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}"
                                FontSize="18"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Description, Mode=OneWay, FallbackValue='Game profile description'}"
-                               Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
+                               Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}"
                                Opacity="0.8"
                                FontSize="12" />
                 </StackPanel>
@@ -145,8 +146,8 @@
                     <Button Content="Cancel" 
                             Command="{Binding ExecuteCancelCommand}"  
                             Background="#30000000"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
+                            Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}"
+                            BorderBrush="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}"
                             BorderThickness="1"
                             Width="90" Height="38"
                             CornerRadius="19"
@@ -157,10 +158,10 @@
                     <Button Content="💾 Save" 
                             Command="{Binding SaveCommand}">
                         <Button.Background>
-                            <Binding Path="ColorValue" Converter="{StaticResource ContrastTextColorConverter}" Mode="OneWay" />
+                            <Binding Path="ColorValue" Converter="{StaticResource ProfileSettings_ContrastTextColorConverter}" Mode="OneWay" />
                         </Button.Background>
                         <Button.Foreground>
-                            <Binding Path="ColorValue" Converter="{StaticResource ColorToBrushConverter}" Mode="OneWay" />
+                            <Binding Path="ColorValue" Converter="{StaticResource ProfileSettings_ColorToBrushConverter}" Mode="OneWay" />
                         </Button.Foreground>
                         <Button.Width>110</Button.Width>
                         <Button.Height>38</Button.Height>
@@ -174,7 +175,7 @@
                     
                     <Button Command="{Binding RandomizeColorCommand}"
                             Background="#30000000"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
+                            BorderBrush="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}"
                             BorderThickness="1"
                             Width="38" Height="38"
                             CornerRadius="19"
@@ -185,7 +186,7 @@
                         <PathIcon
                             Data="M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8V16M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20Z"
                             Width="16" Height="16"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}" />
+                            Foreground="{Binding ColorValue, Converter={StaticResource ProfileSettings_ContrastTextColorConverter}, Mode=OneWay}" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -575,7 +576,12 @@
 
             <!-- Game Settings Tab -->
             <TabItem Header="GAME SETTINGS">
-                <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="20" Margin="0,0,0,20">
+                        <!-- Embedded GameSettingsView -->
+                        <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 

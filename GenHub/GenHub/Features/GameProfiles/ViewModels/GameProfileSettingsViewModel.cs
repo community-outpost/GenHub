@@ -979,17 +979,6 @@ public partial class GameProfileSettingsViewModel(
     }
 
     /// <summary>
-    /// Creates a shortcut for the profile.
-    /// </summary>
-    [RelayCommand]
-    private void CreateShortcut()
-    {
-        // TODO: Implement shortcut creation using IWshRuntimeLibrary or similar
-        ShortcutStatusMessage = "Shortcut creation: TODO - Implement";
-        _logger.LogInformation("CreateShortcutCommand executed");
-    }
-
-    /// <summary>
     /// Selects an icon file.
     /// </summary>
     [RelayCommand]
