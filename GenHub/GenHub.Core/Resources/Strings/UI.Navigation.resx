@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Navigation Tab Names - from MainViewModel.GetTabDisplayName -->
+  <data name="Tab.GameProfiles" xml:space="preserve">
+    <value>Game Profiles</value>
+    <comment>Navigation tab name for game profiles section</comment>
+  </data>
+  <data name="Tab.Downloads" xml:space="preserve">
+    <value>Downloads</value>
+    <comment>Navigation tab name for downloads section</comment>
+  </data>
+  <data name="Tab.Settings" xml:space="preserve">
+    <value>Settings</value>
+    <comment>Navigation tab name for settings section</comment>
+  </data>
+  <data name="Tab.Content" xml:space="preserve">
+    <value>Content</value>
+    <comment>Navigation tab name for content browser section</comment>
+  </data>
+  <data name="Tab.About" xml:space="preserve">
+    <value>About</value>
+    <comment>Navigation tab name for about section</comment>
+  </data>
+  <data name="Tab.Updates" xml:space="preserve">
+    <value>Updates</value>
+    <comment>Navigation tab name for updates section</comment>
+  </data>
+  <data name="Tab.Home" xml:space="preserve">
+    <value>Home</value>
+    <comment>Navigation tab name for home section</comment>
+  </data>
+  <data name="Tab.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Navigation tab name for tools section</comment>
+  </data>
+  
+  <!-- Application Branding -->
+  <data name="App.Tagline" xml:space="preserve">
+    <value>C&amp;C Generals Launcher</value>
+    <comment>Application tagline shown in navigation</comment>
+  </data>
+</root>

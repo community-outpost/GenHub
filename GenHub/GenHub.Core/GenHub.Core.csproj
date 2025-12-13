@@ -4,6 +4,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <GenerateSatelliteAssembliesForCore>true</GenerateSatelliteAssembliesForCore>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="StyleCop.Analyzers" />
@@ -12,5 +13,12 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Console" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" />
         <PackageReference Include="CsvHelper" />
+        <PackageReference Include="System.Reactive" />
+    </ItemGroup>
+    <ItemGroup>
+        <EmbeddedResource Update="Resources\Strings\*.resx">
+            <Generator>ResXFileCodeGenerator</Generator>
+            <CustomToolNamespace>GenHub.Core.Resources.Strings</CustomToolNamespace>
+        </EmbeddedResource>
     </ItemGroup>
 </Project>

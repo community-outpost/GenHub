@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Common Button Tooltips -->
+  <data name="Button.Save" xml:space="preserve">
+    <value>Save changes</value>
+    <comment>Tooltip for save button</comment>
+  </data>
+  <data name="Button.Cancel" xml:space="preserve">
+    <value>Cancel and discard changes</value>
+    <comment>Tooltip for cancel button</comment>
+  </data>
+  <data name="Button.Refresh" xml:space="preserve">
+    <value>Refresh data</value>
+    <comment>Tooltip for refresh button</comment>
+  </data>
+  <data name="Button.Delete" xml:space="preserve">
+    <value>Delete selected item</value>
+    <comment>Tooltip for delete button</comment>
+  </data>
+  <data name="Button.Edit" xml:space="preserve">
+    <value>Edit selected item</value>
+    <comment>Tooltip for edit button</comment>
+  </data>
+  <data name="Button.Add" xml:space="preserve">
+    <value>Add new item</value>
+    <comment>Tooltip for add button</comment>
+  </data>
+  <data name="Button.Browse" xml:space="preserve">
+    <value>Browse for file or folder</value>
+    <comment>Tooltip for browse button</comment>
+  </data>
+  <data name="Button.Reset" xml:space="preserve">
+    <value>Reset to default values</value>
+    <comment>Tooltip for reset button</comment>
+  </data>
+  
+  <!-- Settings Tooltips -->
+  <data name="Settings.Theme" xml:space="preserve">
+    <value>Choose between dark and light theme</value>
+    <comment>Tooltip for theme setting</comment>
+  </data>
+  <data name="Settings.WorkspacePath" xml:space="preserve">
+    <value>Default workspace directory for game profiles</value>
+    <comment>Tooltip for workspace path setting</comment>
+  </data>
+  <data name="Settings.MaxConcurrentDownloads" xml:space="preserve">
+    <value>Maximum number of simultaneous downloads (1-10)</value>
+    <comment>Tooltip for max concurrent downloads setting</comment>
+  </data>
+  <data name="Settings.DownloadBufferSize" xml:space="preserve">
+    <value>Buffer size for downloads in kilobytes</value>
+    <comment>Tooltip for download buffer size setting</comment>
+  </data>
+  <data name="Settings.DownloadTimeout" xml:space="preserve">
+    <value>Timeout duration for downloads in seconds</value>
+    <comment>Tooltip for download timeout setting</comment>
+  </data>
+  <data name="Settings.AutoCheckUpdates" xml:space="preserve">
+    <value>Automatically check for application updates when starting</value>
+    <comment>Tooltip for auto check updates setting</comment>
+  </data>
+  <data name="Settings.AllowBackgroundDownloads" xml:space="preserve">
+    <value>Allow downloads to continue in the background</value>
+    <comment>Tooltip for allow background downloads setting</comment>
+  </data>
+  <data name="Settings.EnableDetailedLogging" xml:space="preserve">
+    <value>Enable detailed logging for troubleshooting</value>
+    <comment>Tooltip for enable detailed logging setting</comment>
+  </data>
+  <data name="Settings.DefaultWorkspaceStrategy" xml:space="preserve">
+    <value>Default strategy for creating game workspaces</value>
+    <comment>Tooltip for default workspace strategy setting</comment>
+  </data>
+  <data name="Settings.CasRootPath" xml:space="preserve">
+    <value>Root directory for Content-Addressable Storage</value>
+    <comment>Tooltip for CAS root path setting</comment>
+  </data>
+  <data name="Settings.EnableAutomaticGC" xml:space="preserve">
+    <value>Automatically clean up unused cache files</value>
+    <comment>Tooltip for enable automatic GC setting</comment>
+  </data>
+  <data name="Settings.MaxCacheSize" xml:space="preserve">
+    <value>Maximum cache size in gigabytes</value>
+    <comment>Tooltip for max cache size setting</comment>
+  </data>
+  <data name="Settings.VerifyIntegrity" xml:space="preserve">
+    <value>Verify file integrity during cache operations</value>
+    <comment>Tooltip for verify integrity setting</comment>
+  </data>
+  
+  <!-- Profile Tooltips -->
+  <data name="Profile.CreateNew" xml:space="preserve">
+    <value>Create a new game profile</value>
+    <comment>Tooltip for create new profile button</comment>
+  </data>
+  <data name="Profile.Launch" xml:space="preserve">
+    <value>Launch game with this profile</value>
+    <comment>Tooltip for launch profile button</comment>
+  </data>
+  <data name="Profile.Edit" xml:space="preserve">
+    <value>Edit profile settings</value>
+    <comment>Tooltip for edit profile button</comment>
+  </data>
+  <data name="Profile.Delete" xml:space="preserve">
+    <value>Delete this profile</value>
+    <comment>Tooltip for delete profile button</comment>
+  </data>
+  <data name="Profile.CreateShortcut" xml:space="preserve">
+    <value>Create desktop shortcut for this profile</value>
+    <comment>Tooltip for create shortcut button</comment>
+  </data>
+  <data name="Profile.ScanForGames" xml:space="preserve">
+    <value>Scan system for installed games</value>
+    <comment>Tooltip for scan for games button</comment>
+  </data>
+  
+  <!-- Update Tooltips -->
+  <data name="Update.CheckForUpdates" xml:space="preserve">
+    <value>Check for application updates</value>
+    <comment>Tooltip for check for updates button</comment>
+  </data>
+  <data name="Update.ViewReleaseNotes" xml:space="preserve">
+    <value>View release notes in browser</value>
+    <comment>Tooltip for view release notes button</comment>
+  </data>
+  <data name="Update.InstallUpdate" xml:space="preserve">
+    <value>Download and install the update</value>
+    <comment>Tooltip for install update button</comment>
+  </data>
+  <data name="Update.Dismiss" xml:space="preserve">
+    <value>Dismiss update notification</value>
+    <comment>Tooltip for dismiss update button</comment>
+  </data>
+  
+  <!-- Navigation Tooltips -->
+  <data name="Nav.GameProfiles" xml:space="preserve">
+    <value>Manage and launch game profiles</value>
+    <comment>Tooltip for game profiles navigation tab</comment>
+  </data>
+  <data name="Nav.Downloads" xml:space="preserve">
+    <value>View and manage downloads</value>
+    <comment>Tooltip for downloads navigation tab</comment>
+  </data>
+  <data name="Nav.Settings" xml:space="preserve">
+    <value>Configure application settings</value>
+    <comment>Tooltip for settings navigation tab</comment>
+  </data>
+  <data name="Nav.Content" xml:space="preserve">
+    <value>Browse and search for content</value>
+    <comment>Tooltip for content browser navigation tab</comment>
+  </data>
+  
+  <!-- Content Browser Tooltips -->
+  <data name="Content.Search" xml:space="preserve">
+    <value>Search for content</value>
+    <comment>Tooltip for content search button</comment>
+  </data>
+  <data name="Content.Filter" xml:space="preserve">
+    <value>Filter search results</value>
+    <comment>Tooltip for content filter options</comment>
+  </data>
+  <data name="Content.Sort" xml:space="preserve">
+    <value>Sort search results</value>
+    <comment>Tooltip for content sort options</comment>
+  </data>
+  
+  <!-- Icon Tooltips -->
+  <data name="Icon.Help" xml:space="preserve">
+    <value>Show help information</value>
+    <comment>Tooltip for help icon</comment>
+  </data>
+  <data name="Icon.Info" xml:space="preserve">
+    <value>Show additional information</value>
+    <comment>Tooltip for info icon</comment>
+  </data>
+  <data name="Icon.Warning" xml:space="preserve">
+    <value>Warning - attention required</value>
+    <comment>Tooltip for warning icon</comment>
+  </data>
+  <data name="Icon.Error" xml:space="preserve">
+    <value>Error - action failed</value>
+    <comment>Tooltip for error icon</comment>
+  </data>
+  <data name="Icon.Success" xml:space="preserve">
+    <value>Success - action completed</value>
+    <comment>Tooltip for success icon</comment>
+  </data>
+</root>
