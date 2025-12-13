@@ -8,6 +8,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -20,9 +21,9 @@ namespace GenHub.Features.Downloads.ViewModels;
 public partial class DownloadsViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsViewModel> logger,
-    INotificationService notificationService) : ViewModelBase
+    INotificationService notificationService,
+    GitHubTopicsDiscoverer gitHubTopicsDiscoverer) : ViewModelBase
 {
-    private readonly INotificationService _notificationService = notificationService;
     [ObservableProperty]
     private string _title = "Downloads";
 
@@ -142,6 +143,18 @@ public partial class DownloadsViewModel(
             PublisherCards.Add(communityOutpostCard);
         }
 
+        // Create GitHub publisher card (topic-based discovery)
+        var githubCard = serviceProvider.GetService(typeof(PublisherCardViewModel)) as PublisherCardViewModel;
+        if (githubCard != null)
+        {
+            githubCard.PublisherId = GitHubTopicsConstants.PublisherType;
+            githubCard.DisplayName = GitHubTopicsConstants.PublisherName;
+            githubCard.LogoSource = GitHubTopicsConstants.LogoSource;
+            githubCard.ReleaseNotes = GitHubTopicsConstants.ProviderDescription;
+            githubCard.IsLoading = true;
+            PublisherCards.Add(githubCard);
+        }
+
         // Create CNC Labs publisher card
         var cncLabsCard = serviceProvider.GetService(typeof(PublisherCardViewModel)) as PublisherCardViewModel;
         if (cncLabsCard != null)
@@ -176,6 +189,7 @@ public partial class DownloadsViewModel(
             PopulateGeneralsOnlineCardAsync(),
             PopulateSuperHackersCardAsync(),
             PopulateCommunityOutpostCardAsync(),
+            PopulateGithubCardAsync(),
             PopulateCNCLabsCardAsync(),
             PopulateModDBCardAsync());
     }
@@ -217,7 +231,6 @@ public partial class DownloadsViewModel(
                 {
                     card.LatestVersion = latest.Version;
 
-                    // card.ReleaseNotes = latest.Description ?? card.ReleaseNotes; // Keep generic description
                     card.DownloadSize = latest.DownloadSize;
                     card.ReleaseDate = latest.LastUpdated;
                 }
@@ -376,6 +389,65 @@ public partial class DownloadsViewModel(
         {
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card != null) card.IsLoading = false;
+        }
+    }
+
+    private async Task PopulateGithubCardAsync()
+    {
+        var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GitHubTopicsConstants.PublisherType);
+        if (card == null) return;
+
+        try
+        {
+            var result = await gitHubTopicsDiscoverer.DiscoverAsync(new ContentSearchQuery());
+            if (result.Success && result.Data?.Any() == true)
+            {
+                var repositories = result.Data.ToList();
+
+                // Group by content type
+                var groupedContent = repositories.GroupBy(r => r.ContentType).ToList();
+
+                foreach (var group in groupedContent)
+                {
+                    var contentGroup = new ContentTypeGroup
+                    {
+                        Type = group.Key,
+                        DisplayName = GetContentTypeDisplayName(group.Key),
+                        Count = group.Count(),
+                        Items = new ObservableCollection<ContentItemViewModel>(
+                            group.Select(item => new ContentItemViewModel(item))),
+                    };
+                    card.ContentTypes.Add(contentGroup);
+                }
+
+                // Set card metadata - this is an aggregate card showing multiple repos
+                // LatestVersion here represents the count of discovered repositories
+                // TODO: Consider adding a separate Summary property for aggregate cards
+                if (repositories.Count > 0)
+                {
+                    card.LatestVersion = $"{repositories.Count} repos";
+                }
+
+                logger.LogInformation("Populated GitHub card with {Count} repositories", repositories.Count);
+            }
+            else
+            {
+                logger.LogInformation("No GitHub repositories found with GenHub topics");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to populate GitHub card");
+            card.HasError = true;
+            card.ErrorMessage = "Failed to discover GitHub repositories";
+
+            notificationService.ShowError(
+                "GitHub Discovery Failed",
+                $"Failed to discover GitHub repositories: {ex.Message}");
+        }
+        finally
+        {
+            card.IsLoading = false;
         }
     }
 

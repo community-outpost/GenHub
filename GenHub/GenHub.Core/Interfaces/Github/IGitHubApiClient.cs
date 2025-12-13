@@ -127,4 +127,45 @@ public interface IGitHubApiClient
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The authenticated user information, or null if not authenticated.</returns>
     Task<GitHubUser?> GetAuthenticatedUserAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for repositories by topic using GitHub's Search API.
+    /// </summary>
+    /// <param name="topic">The topic to search for (e.g., "genhub").</param>
+    /// <param name="perPage">Number of results per page (max 100).</param>
+    /// <param name="page">The page number to fetch (1-indexed).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A search response containing matching repositories.</returns>
+    Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicAsync(
+        string topic,
+        int perPage = 30,
+        int page = 1,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches for repositories by multiple topics using GitHub's Search API.
+    /// Repositories matching ANY of the specified topics will be returned.
+    /// </summary>
+    /// <param name="topics">The topics to search for.</param>
+    /// <param name="perPage">Number of results per page (max 100).</param>
+    /// <param name="page">The page number to fetch (1-indexed).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A search response containing matching repositories.</returns>
+    Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicsAsync(
+        IEnumerable<string> topics,
+        int perPage = 30,
+        int page = 1,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets detailed repository information including topics.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The repository information, or null if not found.</returns>
+    Task<GitHubRepository?> GetRepositoryAsync(
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default);
 }

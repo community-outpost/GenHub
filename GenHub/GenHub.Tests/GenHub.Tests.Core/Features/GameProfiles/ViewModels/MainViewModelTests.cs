@@ -6,17 +6,20 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -283,7 +286,11 @@ public class MainViewModelTests
         var mockServiceProvider = new Mock<IServiceProvider>();
         var mockLogger = new Mock<ILogger<DownloadsViewModel>>();
         var mockNotificationService = new Mock<INotificationService>();
-        return new DownloadsViewModel(mockServiceProvider.Object, mockLogger.Object, mockNotificationService.Object);
+        var mockGitHubDiscoverer = new Mock<GitHubTopicsDiscoverer>(
+            It.IsAny<IGitHubApiClient>(),
+            It.IsAny<ILogger<GitHubTopicsDiscoverer>>(),
+            It.IsAny<IMemoryCache>());
+        return new DownloadsViewModel(mockServiceProvider.Object, mockLogger.Object, mockNotificationService.Object, mockGitHubDiscoverer.Object);
     }
 
     private static Mock<INotificationService> CreateNotificationServiceMock()

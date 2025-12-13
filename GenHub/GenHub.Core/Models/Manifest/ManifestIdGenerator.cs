@@ -142,12 +142,10 @@ public static class ManifestIdGenerator
         // Extract version from release tag (e.g., "v1.2.3" -> 123, "1.0" -> 10, "v2" -> 2)
         var userVersion = ExtractVersionFromTag(releaseTag);
 
-        // Create content name from owner-repo-tag combination
-        var contentName = string.IsNullOrWhiteSpace(releaseTag)
-            ? $"{owner}-{repo}"
-            : $"{owner}-{repo}-{releaseTag}";
+        // Create content name from repo name only (owner is publisher, tag is version)
+        var contentName = repo;
 
-        // Use the standard publisher content ID generator with GitHub owner as publisher
+        // Use owner as publisher to identify the content source
         return GeneratePublisherContentId(owner, contentType, contentName, userVersion);
     }
 

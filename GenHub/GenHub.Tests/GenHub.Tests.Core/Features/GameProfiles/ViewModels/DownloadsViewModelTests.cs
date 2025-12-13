@@ -1,5 +1,8 @@
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Threading.Tasks;
@@ -23,9 +26,13 @@ public class DownloadsViewModelTests
         var serviceProviderMock = new Mock<IServiceProvider>();
         var loggerMock = new Mock<ILogger<DownloadsViewModel>>();
         var mockNotificationService = new Mock<INotificationService>();
+        var mockGitHubDiscoverer = new Mock<GitHubTopicsDiscoverer>(
+            It.IsAny<IGitHubApiClient>(),
+            It.IsAny<ILogger<GitHubTopicsDiscoverer>>(),
+            It.IsAny<IMemoryCache>());
 
         // Act
-        var vm = new DownloadsViewModel(serviceProviderMock.Object, loggerMock.Object, mockNotificationService.Object);
+        var vm = new DownloadsViewModel(serviceProviderMock.Object, loggerMock.Object, mockNotificationService.Object, mockGitHubDiscoverer.Object);
 
         // Assert
         await vm.InitializeAsync();

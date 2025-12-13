@@ -36,7 +36,7 @@ public partial class PublisherCardViewModel : ObservableObject
     private string? _logoSource;
 
     [ObservableProperty]
-    private string _latestVersion = "Loading...";
+    private string _latestVersion = string.Empty;
 
     [ObservableProperty]
     private string _releaseNotes = string.Empty;
@@ -108,14 +108,14 @@ public partial class PublisherCardViewModel : ObservableObject
         {
             if (ContentTypes == null || ContentTypes.Count == 0)
             {
-                return "No content available";
+                return string.Empty;
             }
 
             var totalCount = ContentTypes.Sum(g => g.Items.Count);
 
             if (totalCount == 0)
             {
-                return "No content available";
+                return string.Empty;
             }
 
             return totalCount == 1 ? "1 Content" : $"{totalCount} Content";

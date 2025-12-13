@@ -58,7 +58,25 @@ public class GitHubResolver(
                 return OperationResult<ContentManifest>.CreateFailure("Missing required metadata for GitHub resolution");
             }
 
-            // Check if this is a SINGLE RELEASE ASSET selection
+            // Check if this is a SINGLE ASSET selection (from multi-asset split)
+            if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName))
+            {
+                logger.LogInformation(
+                    "Resolving single asset: {AssetName} from {Owner}/{Repo}:{Tag}",
+                    assetName,
+                    owner,
+                    repo,
+                    tag);
+
+                // Get the asset data from the discovered item
+                var assetData = discoveredItem.GetData<GitHubArtifact>();
+                if (assetData != null)
+                {
+                    return await ResolveSingleAssetAsync(discoveredItem, owner, repo, tag, assetData);
+                }
+            }
+
+            // Check if this is a SINGLE RELEASE ASSET selection (legacy path)
             if (discoveredItem.Data is GitHubArtifact singleAsset && singleAsset.IsRelease)
             {
                 logger.LogInformation(
@@ -210,6 +228,38 @@ public class GitHubResolver(
         return int.TryParse(digits, out var version) ? version : 0;
     }
 
+    /// <summary>
+    /// Extracts a variant name from an asset filename.
+    /// Examples: "0_ImprovedMenusEnglish.big" -> "English", "mod_russian.big" -> "Russian".
+    /// </summary>
+    private static string ExtractAssetVariant(string assetName)
+    {
+        var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
+
+        // Common language patterns
+        var languagePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "english", "English" },
+            { "russian", "Russian" },
+            { "spanish", "Spanish" },
+            { "french", "French" },
+            { "german", "German" },
+            { "chinese", "Chinese" },
+            { "japanese", "Japanese" },
+            { "korean", "Korean" },
+        };
+
+        // Check if filename contains a language keyword
+        foreach (var (pattern, displayName) in languagePatterns)
+        {
+            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                return displayName;
+        }
+
+        // Fallback: use the filename itself (cleaned up)
+        return nameWithoutExt.Replace("_", " ").Replace("-", " ").Trim();
+    }
+
     private static GitHubUrlParseResult ParseGitHubUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -263,26 +313,22 @@ public class GitHubResolver(
     {
         try
         {
-            // Generate proper ManifestId using 5-segment format per manifest-id-system.md
-            // Format: schemaVersion.userVersion.publisher.contentType.contentName
-            // For GitHub content: publisher segment MUST be "github"
-            // Example: 1.20251031.github.gameclient.thesuperhackers-generalsgamecode
+            // Extract variant from asset name (e.g., "English" from "0_ImprovedMenusEnglish.big")
+            var variant = ExtractAssetVariant(asset.Name);
+
+            // Generate manifest ID matching the discoverer format
+            // Publisher = owner, Content name = repo + variant
             var userVersion = ExtractVersionFromReleaseTag(tag);
+            var contentName = $"{repo}{variant}";
 
-            // Publisher segment = "github" (not owner name)
-            var publisherId = "github";
-
-            // Content name = owner-repo combination for uniqueness
-            var contentName = $"{owner}-{repo}";
-
-            // Determine publisher type for factory resolution (same logic as full release)
+            // Determine publisher type for factory resolution
             var publisherType = DeterminePublisherType(owner, repo);
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
-                    publisherId, // Publisher = "github" (per manifest-id-system.md)
-                    contentName, // Content name = "owner-repo"
-                    userVersion) // User version extracted from tag (e.g., 20251031)
+                    owner, // Publisher = owner (matches discoverer)
+                    contentName, // Content name = repo + variant (matches discoverer)
+                    userVersion) // User version extracted from tag
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(
             name: owner,
@@ -290,7 +336,7 @@ public class GitHubResolver(
             publisherType: publisherType)
                 .WithMetadata(
             discoveredItem.Description ?? $"Release asset from {owner}/{repo}",
-            tags: new List<string> { "github", "release", owner, repo },
+            tags: new List<string> { "github", "release", owner, repo, variant.ToLowerInvariant() },
             changelogUrl: $"https://github.com/{owner}/{repo}/releases/tag/{tag}")
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 

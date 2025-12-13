@@ -55,29 +55,28 @@
         <StackPanel Spacing="12">
             <!-- Header with expand/collapse -->
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                <!-- Icon - Logo Image -->
+                <!-- Icon - Logo Image or Color Circle -->
                 <Panel Grid.Column="0" 
                        Width="24" Height="24"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0">
-                    <!-- Logo Image (shown when LogoSource is set) -->
                     <Image Source="{Binding LogoSource, Converter={StaticResource StringToImageConverter}}"
                            Width="24" Height="24"
-                           Stretch="Uniform"
-                           IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                           Stretch="UniformToFill"
+                           IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <Image.Clip>
+                            <EllipseGeometry Center="12,12" RadiusX="12" RadiusY="12" />
+                        </Image.Clip>
+                    </Image>
                 </Panel>
 
-                <!-- Publisher Name and Version -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding DisplayName}"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="White" />
-                    <TextBlock Text="{Binding LatestVersion}"
-                               FontSize="14"
-                               Foreground="#AAAAAA"
-                               VerticalAlignment="Center" />
-                </StackPanel>
+                <!-- Publisher Name -->
+                <TextBlock Grid.Column="1"
+                           Text="{Binding DisplayName}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           VerticalAlignment="Center" />
 
                 <!-- Loading/Error Indicator -->
                 <TextBlock Grid.Column="2"

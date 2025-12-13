@@ -36,8 +36,8 @@ public static class GitHubInferenceHelper
         if (searchText.Contains("mod", StringComparison.OrdinalIgnoreCase) || searchText.Contains("addon", StringComparison.OrdinalIgnoreCase))
             return (ContentType.Mod, true);
 
-        // Default to GameClient for GitHub releases (most are standalone game builds)
-        return (ContentType.GameClient, true);
+        // Default to Addon for GitHub releases (most community content are addons/mods, not full game clients)
+        return (ContentType.Addon, true);
     }
 
     /// <summary>

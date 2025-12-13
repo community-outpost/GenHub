@@ -23,6 +23,7 @@ public class OctokitGitHubApiClient(
    ILogger<OctokitGitHubApiClient> logger)
    : IGitHubApiClient
 {
+    private const int MaxPerPage = 100;
     private SecureString? token;
 
     /// <summary>
@@ -523,6 +524,146 @@ public class OctokitGitHubApiClient(
             logger.LogError(ex, "Failed to get authenticated user");
             return null;
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicAsync(
+        string topic,
+        int perPage = 30,
+        int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        return await SearchRepositoriesByTopicsAsync(new[] { topic }, perPage, page, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicsAsync(
+        IEnumerable<string> topics,
+        int perPage = 30,
+        int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var topicList = topics.ToList();
+            if (topicList.Count == 0)
+            {
+                logger.LogWarning("No topics provided for repository search");
+                return new GitHubRepositorySearchResponse();
+            }
+
+            // Build query: topic:genhub topic:generalsonline etc.
+            var topicQuery = string.Join(" ", topicList.Select(t => $"topic:{t}"));
+            logger.LogDebug("Searching repositories with query: {Query}", topicQuery);
+
+            var request = new SearchRepositoriesRequest(topicQuery)
+            {
+                PerPage = Math.Min(perPage, MaxPerPage),
+                Page = page,
+                SortField = RepoSearchSort.Updated,
+                Order = SortDirection.Descending,
+            };
+
+            var result = await gitHubClient.Search.SearchRepo(request).ConfigureAwait(false);
+
+            var response = new GitHubRepositorySearchResponse
+            {
+                TotalCount = result.TotalCount,
+                IncompleteResults = result.IncompleteResults,
+                Items = result.Items.Select(MapToSearchItem).ToList(),
+            };
+
+            logger.LogInformation("Found {Count} repositories for topics: {Topics}", response.TotalCount, string.Join(", ", topicList));
+            return response;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to search repositories by topics: {Topics}", string.Join(", ", topics));
+            return new GitHubRepositorySearchResponse();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<GitHubRepository?> GetRepositoryAsync(
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var repository = await gitHubClient.Repository.Get(owner, repo).ConfigureAwait(false);
+            return new GitHubRepository
+            {
+                Id = repository.Id,
+                RepoOwner = repository.Owner?.Login ?? owner,
+                RepoName = repository.Name,
+                Description = repository.Description,
+                HtmlUrl = repository.HtmlUrl,
+                Topics = repository.Topics?.ToList() ?? new List<string>(),
+                StarCount = repository.StargazersCount,
+                ForkCount = repository.ForksCount,
+                DisplayName = repository.Name,
+            };
+        }
+        catch (NotFoundException)
+        {
+            logger.LogWarning("Repository {Owner}/{Repo} not found", owner, repo);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get repository {Owner}/{Repo}", owner, repo);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Maps an Octokit Repository to our search item model.
+    /// </summary>
+    private static GitHubRepositorySearchItem MapToSearchItem(Repository repo)
+    {
+        return new GitHubRepositorySearchItem
+        {
+            Id = repo.Id,
+            NodeId = repo.NodeId ?? string.Empty,
+            Name = repo.Name,
+            FullName = repo.FullName,
+            Owner = new GitHubSearchOwner
+            {
+                Login = repo.Owner?.Login ?? string.Empty,
+                Id = repo.Owner?.Id ?? 0,
+                AvatarUrl = repo.Owner?.AvatarUrl ?? string.Empty,
+                HtmlUrl = repo.Owner?.HtmlUrl ?? string.Empty,
+                Type = repo.Owner?.Type?.ToString() ?? "User",
+            },
+            IsPrivate = repo.Private,
+            HtmlUrl = repo.HtmlUrl,
+            Description = repo.Description,
+            IsFork = repo.Fork,
+            Url = repo.Url,
+            CreatedAt = repo.CreatedAt.DateTime,
+            UpdatedAt = repo.UpdatedAt.DateTime,
+            PushedAt = repo.PushedAt?.DateTime,
+            Homepage = repo.Homepage,
+            Size = repo.Size,
+            StargazersCount = repo.StargazersCount,
+            Language = repo.Language,
+            ForksCount = repo.ForksCount,
+            OpenIssuesCount = repo.OpenIssuesCount,
+            DefaultBranch = repo.DefaultBranch ?? "main",
+            Topics = repo.Topics?.ToList() ?? new List<string>(),
+            IsArchived = repo.Archived,
+            Visibility = repo.Visibility?.ToString() ?? "public",
+            ReleasesUrl = $"https://api.github.com/repos/{repo.FullName}/releases{{/id}}",
+            License = repo.License != null ? new GitHubLicense
+            {
+                Key = repo.License.Key ?? string.Empty,
+                Name = repo.License.Name ?? string.Empty,
+                SpdxId = repo.License.SpdxId ?? string.Empty,
+                Url = repo.License.Url,
+            }
+            : null,
+        };
     }
 
     /// <summary>
