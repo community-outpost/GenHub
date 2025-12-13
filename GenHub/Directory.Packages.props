@@ -38,5 +38,6 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="moq" Version="4.20.72" />
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
+    <PackageVersion Include="SharpCompress" Version="0.42.0" />
   </ItemGroup>
 </Project>

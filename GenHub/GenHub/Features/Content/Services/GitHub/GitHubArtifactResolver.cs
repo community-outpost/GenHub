@@ -17,8 +17,10 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// <summary>
 /// Resolves GitHub workflow artifacts into ContentManifest objects.
 /// </summary>
+/// <param name="manifestBuilderFactory">Factory to create new manifest builders per resolve operation.</param>
+/// <param name="logger">Logger instance.</param>
 public class GitHubArtifactResolver(
-    IContentManifestBuilder manifestBuilder,
+    Func<IContentManifestBuilder> manifestBuilderFactory,
     ILogger<GitHubArtifactResolver> logger) : IContentResolver
 {
     /// <summary>
@@ -65,6 +67,10 @@ public class GitHubArtifactResolver(
                 // Content name for manifest ID: "owner-repo-runN"
                 var contentName = $"{owner}-{repo}-run{runNumber}";
 
+                // Create a fresh manifest builder instance for each resolve operation
+                // Using factory pattern ensures we get a new Transient instance each time
+                var manifestBuilder = manifestBuilderFactory();
+
                 var manifest = manifestBuilder
                     .WithBasicInfo(
                     "github", // Publisher ID (builder generates manifest ID)
@@ -107,7 +113,10 @@ public class GitHubArtifactResolver(
                 workflowRun.Name,
                 workflowRun.RunNumber);
 
-            var manifestWithRun = manifestBuilder
+            // Create a fresh manifest builder instance for each resolve operation
+            var runManifestBuilder = manifestBuilderFactory();
+
+            var manifestWithRun = runManifestBuilder
                 .WithBasicInfo(
                 "github", // Publisher ID (builder generates manifest ID)
                 artifactContentName, // Content name

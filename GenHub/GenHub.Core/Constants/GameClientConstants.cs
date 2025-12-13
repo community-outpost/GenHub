@@ -63,6 +63,9 @@ public static class GameClientConstants
     /// <summary>Name for Zero Hour installation dependency requirement.</summary>
     public const string ZeroHourInstallationDependencyName = "Zero Hour Installation (Required)";
 
+    /// <summary>Name for Generals installation dependency requirement.</summary>
+    public const string GeneralsInstallationDependencyName = "Generals Installation (Required)";
+
     // ===== Version Strings =====
 
     /// <summary>Version string used for automatically detected clients.</summary>

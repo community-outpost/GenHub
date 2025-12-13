@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
@@ -49,6 +50,11 @@ public static class ManifestModule
         services.AddScoped<IManifestGenerationService, ManifestGenerationService>();
 
         services.AddTransient<IContentManifestBuilder, ContentManifestBuilder>();
+
+        // Register factory function for creating transient manifest builders
+        // This allows resolvers to get fresh builder instances without injecting IServiceProvider
+        services.AddTransient<Func<IContentManifestBuilder>>(provider =>
+            () => provider.GetRequiredService<IContentManifestBuilder>());
 
         // Startup service
         services.AddHostedService<ManifestInitializationService>();
