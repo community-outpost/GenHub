@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
@@ -121,6 +123,129 @@ public class GameSettingsService : IGameSettingsService
         {
             // Always release the semaphore
             _optionsIniWriteSemaphore.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<TheSuperHackersSettings>> LoadTheSuperHackersSettingsAsync(GameType gameType)
+    {
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
+
+        try
+        {
+            var optionsResult = await LoadOptionsAsync(gameType);
+            if (!optionsResult.Success || optionsResult.Data == null)
+            {
+                return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+            }
+
+            var settings = new TheSuperHackersSettings();
+            var options = optionsResult.Data;
+
+            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+            {
+                ParseTheSuperHackersSection(settings, tshSection);
+            }
+
+            _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
+            return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
+            return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> SaveTheSuperHackersSettingsAsync(GameType gameType, TheSuperHackersSettings settings)
+    {
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
+
+        try
+        {
+            var optionsResult = await LoadOptionsAsync(gameType);
+            if (!optionsResult.Success || optionsResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+            }
+
+            var options = optionsResult.Data;
+            var tshSection = SerializeTheSuperHackersSettings(settings);
+            options.AdditionalSections["TheSuperHackers"] = tshSection;
+
+            var saveResult = await SaveOptionsAsync(gameType, options);
+            return saveResult;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
+            return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    {
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+
+        try
+        {
+            var settingsPath = GetGeneralsOnlineSettingsPath();
+            _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
+
+            if (!File.Exists(settingsPath))
+            {
+                _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
+                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+            }
+
+            var json = await File.ReadAllTextAsync(settingsPath);
+            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json);
+
+            if (settings == null)
+            {
+                _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
+                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+            }
+
+            _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
+            return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load GeneralsOnline settings");
+            return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    {
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+
+        try
+        {
+            var settingsPath = GetGeneralsOnlineSettingsPath();
+            var directory = Path.GetDirectoryName(settingsPath);
+
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                _logger.LogDebug("Creating directory: {Directory}", directory);
+                Directory.CreateDirectory(directory);
+            }
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            var json = JsonSerializer.Serialize(settings, options);
+            await File.WriteAllTextAsync(settingsPath, json, Encoding.UTF8);
+
+            _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save GeneralsOnline settings");
+            return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
         }
     }
 
@@ -293,4 +418,78 @@ public class GameSettingsService : IGameSettingsService
     }
 
     private static string BoolToString(bool value) => value ? "yes" : "no";
+
+    private static void ParseTheSuperHackersSection(TheSuperHackersSettings settings, Dictionary<string, string> values)
+    {
+        if (values.TryGetValue("ArchiveReplays", out var archiveReplays))
+            settings.ArchiveReplays = ParseBool(archiveReplays);
+
+        if (values.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+            settings.CursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
+
+        if (values.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+            settings.CursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
+
+        if (values.TryGetValue("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+            settings.CursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
+
+        if (values.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+            settings.CursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
+
+        if (values.TryGetValue("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, out var mv))
+            settings.MoneyTransactionVolume = mv;
+
+        if (values.TryGetValue("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, out var nlf))
+            settings.NetworkLatencyFontSize = nlf;
+
+        if (values.TryGetValue("PlayerObserverEnabled", out var playerObserver))
+            settings.PlayerObserverEnabled = ParseBool(playerObserver);
+
+        if (values.TryGetValue("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, out var ff))
+            settings.RenderFpsFontSize = ff;
+
+        if (values.TryGetValue("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, out var rfa))
+            settings.ResolutionFontAdjustment = rfa;
+
+        if (values.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+            settings.ScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
+
+        if (values.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+            settings.ScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
+
+        if (values.TryGetValue("ShowMoneyPerMinute", out var showMoney))
+            settings.ShowMoneyPerMinute = ParseBool(showMoney);
+
+        if (values.TryGetValue("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, out var stf))
+            settings.SystemTimeFontSize = stf;
+    }
+
+    private static Dictionary<string, string> SerializeTheSuperHackersSettings(TheSuperHackersSettings settings)
+    {
+        return new Dictionary<string, string>
+        {
+            ["ArchiveReplays"] = BoolToString(settings.ArchiveReplays),
+            ["CursorCaptureEnabledInFullscreenGame"] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),
+            ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
+            ["CursorCaptureEnabledInWindowedGame"] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
+            ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
+            ["MoneyTransactionVolume"] = settings.MoneyTransactionVolume.ToString(),
+            ["NetworkLatencyFontSize"] = settings.NetworkLatencyFontSize.ToString(),
+            ["PlayerObserverEnabled"] = BoolToString(settings.PlayerObserverEnabled),
+            ["RenderFpsFontSize"] = settings.RenderFpsFontSize.ToString(),
+            ["ResolutionFontAdjustment"] = settings.ResolutionFontAdjustment.ToString(),
+            ["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
+            ["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
+            ["ShowMoneyPerMinute"] = BoolToString(settings.ShowMoneyPerMinute),
+            ["SystemTimeFontSize"] = settings.SystemTimeFontSize.ToString(),
+        };
+    }
+
+    private string GetGeneralsOnlineSettingsPath()
+    {
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
+        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
+        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
 }

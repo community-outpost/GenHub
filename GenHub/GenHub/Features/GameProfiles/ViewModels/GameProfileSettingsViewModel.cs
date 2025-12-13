@@ -310,6 +310,9 @@ public partial class GameProfileSettingsViewModel(
             Name = profile.Name;
             Description = profile.Description ?? string.Empty;
             ColorValue = profile.ThemeColor ?? "#1976D2";
+            IconPath = !string.IsNullOrEmpty(profile.IconPath)
+                ? $"avares://GenHub/{profile.IconPath}"
+                : Core.Constants.UriConstants.DefaultIconUri;
             SelectedWorkspaceStrategy = profile.WorkspaceStrategy;
             _originalWorkspaceStrategy = profile.WorkspaceStrategy; // Track original strategy
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;

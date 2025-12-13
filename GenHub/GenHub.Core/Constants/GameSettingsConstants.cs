@@ -114,6 +114,11 @@ public static class GameSettingsConstants
         /// Folder name for Command and Conquer Generals Zero Hour settings.
         /// </summary>
         public const string ZeroHour = "Command and Conquer Generals Zero Hour Data";
+
+        /// <summary>
+        /// Folder name for GeneralsOnline settings.
+        /// </summary>
+        public const string GeneralsOnlineData = "GeneralsOnlineData";
     }
 
     /// <summary>

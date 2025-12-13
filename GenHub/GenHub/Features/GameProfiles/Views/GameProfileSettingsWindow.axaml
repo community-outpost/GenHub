@@ -6,18 +6,20 @@
         xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
         xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-        mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="750"
+        mc:Ignorable="d" d:DesignWidth="750" d:DesignHeight="700"
         x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsWindow"
         x:DataType="vm:GameProfileSettingsViewModel"
-        Title="Game Profile Settings"
-        Width="700" Height="750"
-        MinWidth="500" MinHeight="600"
+        Title="Profile Settings"
+        Width="750" Height="700"
+        MinWidth="600" MinHeight="550"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
-        Background="#141414"
-        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">    <Window.Resources>
-        <!-- Keep existing converters -->
+        Background="#0F0F0F"
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
+    
+    <Window.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
         <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
@@ -27,130 +29,157 @@
         <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
-        </Window.Resources>
+    </Window.Resources>
 
     <Window.Styles>
-        <!-- Form field style -->
+        <!-- Modern tab style -->
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+        </Style>
+        
+        <!-- Section card style -->
+        <Style Selector="Border.section-card">
+            <Setter Property="Background" Value="#18FFFFFF" />
+            <Setter Property="BorderBrush" Value="#25FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        
+        <!-- Section title -->
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        
+        <!-- Form field -->
         <Style Selector="StackPanel.form-field">
             <Setter Property="Margin" Value="0,0,0,12" />
         </Style>
-
-        <!-- Form label style -->
+        
+        <!-- Form label -->
         <Style Selector="TextBlock.form-label">
             <Setter Property="Margin" Value="0,0,0,6" />
-            <Setter Property="Opacity" Value="0.9" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Opacity" Value="0.85" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
         </Style>
         
-        <!-- Input field style -->
+        <!-- Input fields -->
         <Style Selector="TextBox, ComboBox">
-            <Setter Property="MinHeight" Value="35" />
-            <Setter Property="Background" Value="#22FFFFFF" />
-            <Setter Property="BorderBrush" Value="#44FFFFFF" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Background" Value="#15FFFFFF" />
+            <Setter Property="BorderBrush" Value="#30FFFFFF" />
+            <Setter Property="CornerRadius" Value="6" />
         </Style>
         
-        <!-- Color button style -->
-        <Style Selector="Button.color-button">
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
+        <!-- Compact color button -->
+        <Style Selector="Button.color-btn">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         
-        <!-- Content action button styles -->
-        <Style Selector="Button.add-content-button">
+        <!-- Content action buttons -->
+        <Style Selector="Button.btn-add">
             <Setter Property="Background" Value="#1976D2" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="10,5" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.add-content-button:pointerover /template/ ContentPresenter">
+        <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1565C0" />
         </Style>
         
-        <Style Selector="Button.remove-content-button">
-            <Setter Property="Background" Value="#D32F2F" />
+        <Style Selector="Button.btn-remove">
+            <Setter Property="Background" Value="#C62828" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="8,5" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Button.remove-content-button:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#C62828" />
+        <Style Selector="Button.btn-remove:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#B71C1C" />
         </Style>
-
-        <!-- Content Type Filter Button Styles -->
-        <Style Selector="Button.content-filter-button">
-            <Setter Property="Background" Value="#22FFFFFF" />
+        
+        <!-- Content filter pills -->
+        <Style Selector="Button.filter-pill">
+            <Setter Property="Background" Value="#18FFFFFF" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#44FFFFFF" />
+            <Setter Property="BorderBrush" Value="#30FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="MinHeight" Value="60" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="MinWidth" Value="100" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
-        <Style Selector="Button.content-filter-button:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#33FFFFFF" />
+        <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#25FFFFFF" />
         </Style>
-        <Style Selector="Button.content-filter-button.selected">
+        <Style Selector="Button.filter-pill.selected">
             <Setter Property="Background" Value="#1976D2" />
-            <Setter Property="BorderBrush" Value="#2196F3" />
-            <Setter Property="BorderThickness" Value="2" />
-        </Style>
-        <Style Selector="Button.content-filter-button.selected:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1565C0" />
+            <Setter Property="BorderBrush" Value="#42A5F5" />
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,*">
-        <!-- Header with profile preview and action buttons -->
-        <Border Grid.Row="0" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}" 
-                CornerRadius="0,0,0,20" Height="80">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="20">
-                <!-- Profile Icon placeholder -->
+    <Grid RowDefinitions="Auto,*">
+        <!-- Compact Header -->
+        <Border Grid.Row="0" 
+                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}" 
+                CornerRadius="0,0,16,16" 
+                Height="70">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0">
+                <!-- Profile Icon -->
                 <Border Grid.Column="0"
-                        Width="50" Height="50"
-                        Background="#30FFFFFF"
-                        CornerRadius="25">
-                    <PathIcon
-                        Data="M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8V16M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20Z"
-                        Width="24" Height="24"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}" />
+                        Width="44" Height="44"
+                        Background="#25FFFFFF"
+                        CornerRadius="22"
+                        ClipToBounds="True">
+                    <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                           Width="44" Height="44"
+                           Stretch="UniformToFill" />
                 </Border>
 
-                <!-- Profile Name -->
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="15,0,0,0">
+                <!-- Profile Info -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
                     <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
-                               FontSize="18"
+                               FontSize="16"
                                FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding Description, Mode=OneWay, FallbackValue='Game profile description'}"
+                    <TextBlock Text="{Binding Description, Mode=OneWay, FallbackValue=''}"
                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
-                               Opacity="0.8"
-                               FontSize="12" />
+                               Opacity="0.75"
+                               FontSize="11"
+                               MaxWidth="300"
+                               TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
-                <!-- Action Buttons (Save, Cancel, Random Color) -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Button Content="Cancel" 
                             Command="{Binding ExecuteCancelCommand}"  
-                            Background="#30000000"
+                            Background="#25000000"
                             Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
                             BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
                             BorderThickness="1"
-                            Width="90" Height="38"
-                            CornerRadius="19"
-                            FontWeight="SemiBold"
+                            Width="80" Height="34"
+                            CornerRadius="17"
+                            FontWeight="Medium"
+                            FontSize="12"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center" />
                     
@@ -162,28 +191,26 @@
                         <Button.Foreground>
                             <Binding Path="ColorValue" Converter="{StaticResource ColorToBrushConverter}" Mode="OneWay" />
                         </Button.Foreground>
-                        <Button.Width>110</Button.Width>
-                        <Button.Height>38</Button.Height>
-                        <Button.CornerRadius>19</Button.CornerRadius>
+                        <Button.Width>90</Button.Width>
+                        <Button.Height>34</Button.Height>
+                        <Button.CornerRadius>17</Button.CornerRadius>
                         <Button.FontWeight>Bold</Button.FontWeight>
-                        <Button.FontSize>14</Button.FontSize>
+                        <Button.FontSize>13</Button.FontSize>
                         <Button.HorizontalContentAlignment>Center</Button.HorizontalContentAlignment>
                         <Button.VerticalContentAlignment>Center</Button.VerticalContentAlignment>
                         <ToolTip.Tip>Save profile changes (Ctrl+S)</ToolTip.Tip>
                     </Button>
                     
                     <Button Command="{Binding RandomizeColorCommand}"
-                            Background="#30000000"
+                            Background="#25000000"
                             BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}"
                             BorderThickness="1"
-                            Width="38" Height="38"
-                            CornerRadius="19"
+                            Width="34" Height="34"
+                            CornerRadius="17"
                             Padding="0"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            ToolTip.Tip="Randomize profile color">
+                            ToolTip.Tip="Randomize color">
                         <PathIcon
-                            Data="M12,18V6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8V16M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20Z"
+                            Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
                             Width="16" Height="16"
                             Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, Mode=OneWay}" />
                     </Button>
@@ -191,437 +218,295 @@
             </Grid>
         </Border>
 
-        <!-- Status Message Bar -->
-        <Border Grid.Row="1" Background="#22FFFFFF" Padding="15,8" 
-                IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding StatusMessage}" 
-                       FontSize="12"
-                       Opacity="0.9"
-                       TextWrapping="Wrap" />
-        </Border>
+        <!-- Main Content with Tabs -->
+        <TabControl Grid.Row="1" Margin="12,12,12,12">
+            
+            <!-- Profile Tab -->
+            <TabItem Header="⚙️ Profile">
+                <ScrollViewer Padding="4">
+                    <StackPanel Spacing="0">
+                        
+                        <!-- Basic Info Section -->
+                        <Border Classes="section-card">
+                            <StackPanel>
+                                <TextBlock Classes="section-title" Text="Basic Information" />
+                                
+                                <StackPanel Classes="form-field">
+                                    <TextBlock Classes="form-label" Text="Profile Name" />
+                                    <TextBox Text="{Binding Name, Mode=TwoWay}" 
+                                             Watermark="Enter profile name" />
+                                </StackPanel>
 
-        <!-- Main content with tabs -->
-        <TabControl Grid.Row="2" Margin="15,15,15,15">
-            <!-- Profile Information Tab -->
-            <TabItem Header="PROFILE INFORMATION">
-                <ScrollViewer>
-                    <StackPanel Margin="10">
-                        <!-- Profile Name -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Profile Name" />
-                            <TextBox Text="{Binding Name, Mode=TwoWay}" 
-                                     Watermark="Enter a name for this profile" />
-                        </StackPanel>
+                                <StackPanel Classes="form-field">
+                                    <TextBlock Classes="form-label" Text="Description" />
+                                    <TextBox Text="{Binding Description, Mode=TwoWay}" 
+                                             Watermark="Optional description" 
+                                             Height="50" 
+                                             AcceptsReturn="True" 
+                                             TextWrapping="Wrap" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Launch Options Section -->
+                        <Border Classes="section-card">
+                            <StackPanel>
+                                <TextBlock Classes="section-title" Text="Launch Options" />
+                                
+                                <StackPanel Classes="form-field">
+                                    <TextBlock Classes="form-label" Text="Workspace Strategy" />
+                                    <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                              SelectedItem="{Binding SelectedWorkspaceStrategy}"
+                                              HorizontalAlignment="Stretch">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding .}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap">
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}{0}">
+                                                <Binding Path="SelectedWorkspaceStrategy" />
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
 
-                        <!-- Description -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Description" />
-                            <TextBox Text="{Binding Description, Mode=TwoWay}" 
-                                     Watermark="Enter a description" Height="60" 
-                                     AcceptsReturn="True" TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <!-- Workspace Strategy Selection -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Workspace Strategy" />
-                            <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
-                                      SelectedItem="{Binding SelectedWorkspaceStrategy}"
-                                      HorizontalAlignment="Stretch">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding .}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <TextBlock Text="💾 COPY - Copies all files to workspace. Slowest but most compatible. No admin required. High disk usage."
-                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       IsVisible="{Binding SelectedWorkspaceStrategy, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:WorkspaceStrategy.FullCopy}}" />
-                            <TextBlock Text="⚡ HYBRID - Copies essential files, creates instant symlinks for large files. Balanced approach. Requires admin. Medium disk usage."
-                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       IsVisible="{Binding SelectedWorkspaceStrategy, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:WorkspaceStrategy.HybridCopySymlink}}" />
-                            <TextBlock Text="🚀 SYMLINK (Recommended) - Creates instant symbolic links to all files. Fastest launch, minimal disk usage. Requires admin."
-                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       IsVisible="{Binding SelectedWorkspaceStrategy, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:WorkspaceStrategy.SymlinkOnly}}" />
-                            <TextBlock Text="🔗 HARDLINK - Creates hard links for all files. Fast, saves disk space. Requires same drive. Requires admin."
-                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       IsVisible="{Binding SelectedWorkspaceStrategy, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:WorkspaceStrategy.HardLink}}" />
-                        </StackPanel>
-
-                        <!-- Command Line Arguments -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Command Line Arguments" />
-                            <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" 
-                                     Watermark="e.g., -win -quicklaunch" />
-                            <TextBlock Text="Optional command line arguments to pass to the game executable when launching."
-                                       FontSize="11" Opacity="0.7" Margin="0,4,0,0" TextWrapping="Wrap" />
-                        </StackPanel>
-
-                        <!-- Color Selection -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Profile Color" />
-                            <Border Background="#1AFFFFFF" CornerRadius="5" Padding="10">
+                                <StackPanel Classes="form-field">
+                                    <TextBlock Classes="form-label" Text="Command Line Arguments" />
+                                    <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" 
+                                             Watermark="-win -quicklaunch" />
+                                    <TextBlock Text="Optional arguments passed to the game executable"
+                                               FontSize="11" Opacity="0.6" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Theme Section -->
+                        <Border Classes="section-card">
+                            <StackPanel>
+                                <TextBlock Classes="section-title" Text="Theme Color" />
                                 <WrapPanel>
-                                    <!-- Pre-defined color buttons -->
-                                    <Button Classes="color-button" Background="#D32F2F" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#D32F2F" />
-                                    <Button Classes="color-button" Background="#C2185B" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#C2185B" />
-                                    <Button Classes="color-button" Background="#7B1FA2" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#7B1FA2" />
-                                    <Button Classes="color-button" Background="#512DA8" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#512DA8" />
-                                    <Button Classes="color-button" Background="#303F9F" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#303F9F" />
-                                    <Button Classes="color-button" Background="#1976D2" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#1976D2" />
-                                    <Button Classes="color-button" Background="#0288D1" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#0288D1" />
-                                    <Button Classes="color-button" Background="#0097A7" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#0097A7" />
-                                    <Button Classes="color-button" Background="#00796B" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#00796B" />
-                                    <Button Classes="color-button" Background="#388E3C" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#388E3C" />
-                                    <Button Classes="color-button" Background="#689F38" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#689F38" />
-                                    <Button Classes="color-button" Background="#AFB42B" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#AFB42B" />
-                                    <Button Classes="color-button" Background="#FBC02D" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#FBC02D" />
-                                    <Button Classes="color-button" Background="#FFA000" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#FFA000" />
-                                    <Button Classes="color-button" Background="#E64A19" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#E64A19" />
-                                    <!-- Game-specific colors -->
-                                    <Button Classes="color-button" Background="#BD5A0F" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#BD5A0F" 
-                                            ToolTip.Tip="Generals Color" />
-                                    <Button Classes="color-button" Background="#2D4963" 
-                                            Command="{Binding SelectThemeColorCommand}" 
-                                            CommandParameter="#2D4963" 
-                                            ToolTip.Tip="Zero Hour Color" />
+                                    <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" />
+                                    <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" />
+                                    <Button Classes="color-btn" Background="#7B1FA2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#7B1FA2" />
+                                    <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" />
+                                    <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" />
+                                    <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" />
+                                    <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" />
+                                    <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" />
+                                    <Button Classes="color-btn" Background="#00796B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00796B" />
+                                    <Button Classes="color-btn" Background="#388E3C" Command="{Binding SelectThemeColorCommand}" CommandParameter="#388E3C" />
+                                    <Button Classes="color-btn" Background="#689F38" Command="{Binding SelectThemeColorCommand}" CommandParameter="#689F38" />
+                                    <Button Classes="color-btn" Background="#FFA000" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFA000" />
+                                    <Button Classes="color-btn" Background="#E64A19" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E64A19" />
+                                    <Button Classes="color-btn" Background="#BD5A0F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#BD5A0F" ToolTip.Tip="Generals" />
+                                    <Button Classes="color-btn" Background="#2D4963" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2D4963" ToolTip.Tip="Zero Hour" />
                                 </WrapPanel>
-                            </Border>
-                        </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Content Management Tab -->
-            <TabItem Header="CONTENT MANAGEMENT">
-                <ScrollViewer>
-                    <StackPanel Margin="10">
-                        <!-- Refresh Button -->
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-                            <TextBlock Grid.Column="0" Text="Manage enabled content for this profile" 
-                                       FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="⟳ Refresh" 
-                                    Command="{Binding LoadAvailableContentCommand}"
-                                    Background="Transparent"
-                                    Padding="8,4"
-                                    FontSize="11" />
-                        </Grid>
-
-                        <!-- Enabled Content List (Shown First for Priority) -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Currently Enabled Content" />
-                            
-                            <!-- Warning if no content enabled -->
-                            <Border Background="#33FF9800" CornerRadius="5" Padding="12" Margin="0,0,0,8"
-                                    IsVisible="{Binding EnabledContent.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="⚠️ No Content Enabled" 
-                                               FontWeight="SemiBold" Foreground="#FFA000" />
-                                    <TextBlock Text="You must enable at least one Game Installation for the profile to be launchable. Use the content browser below to add content."
-                                               FontSize="11" Opacity="0.9" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                            
-                            <!-- Enabled content cards -->
-                            <ItemsControl ItemsSource="{Binding EnabledContent}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="#1A1976D2" BorderBrush="#1976D2" BorderThickness="1" 
-                                                CornerRadius="5" Padding="10" Margin="0,0,0,6">
-                                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                                                <!-- Content Info -->
-                                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
-                                                    <TextBlock Text="{Binding DisplayName}" 
-                                                               FontWeight="SemiBold" FontSize="13" />
-                                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                                        <!-- Publisher Badge -->
-                                                        <Border Background="#FF6B6B" 
-                                                                CornerRadius="3" Padding="6,2"
-                                                                IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding Publisher}" 
-                                                                       FontSize="10" Foreground="White" FontWeight="SemiBold" />
-                                                        </Border>
-                                                        
-                                                        <!-- Game Type Badge -->
-                                                        <Border Background="{Binding GameType, Converter={x:Static conv:GameTypeToBrushConverter.Instance}}" 
-                                                                CornerRadius="3" Padding="6,2">
-                                                            <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" 
-                                                                       FontSize="10" Foreground="White" />
-                                                        </Border>
-                                                        
-                                                        <!-- Content Type Badge -->
-                                                        <Border Background="#9E9E9E" 
-                                                                CornerRadius="3" Padding="6,2">
-                                                            <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" 
-                                                                       FontSize="10" Foreground="White" />
-                                                        </Border>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                                
-                                                <!-- Remove Button -->
-                                                <Button Grid.Row="0" Grid.Column="1"
-                                                        Content="✕ Remove"
-                                                        Classes="remove-content-button"
-                                                        Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        VerticalAlignment="Top" />
-                                                
-                                                <!-- Future: Content-Specific Settings Placeholder -->
-                                                <!-- This section will expand when content-specific settings are implemented -->
-                                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                                        Background="#10FFFFFF" CornerRadius="3" Padding="8" Margin="0,8,0,0"
-                                                        IsVisible="False">
-                                                    <!-- This will be shown when settings are available for this content type -->
-                                                    <StackPanel Spacing="4">
-                                                        <TextBlock Text="⚙️ Content Settings" FontSize="11" FontWeight="SemiBold" Opacity="0.7" />
-                                                        <TextBlock Text="(Future: options.ini, launch args, etc.)" FontSize="10" Opacity="0.5" />
-                                                    </StackPanel>
-                                                </Border>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-
-                        <!-- Content Browser Section -->
-                        <StackPanel Classes="form-field">
-                            <TextBlock Classes="form-label" Text="Add Content to Profile" />
-                            
-                            <!-- Content Type Filter - Responsive Button Layout -->
-                            <TextBlock Text="Filter by Content Type:" 
-                                       FontSize="12" Opacity="0.7" Margin="0,0,0,8" />
-                            <ItemsControl>
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <!-- WrapPanel for responsive layout like GameProfileLauncherView -->
-                                        <WrapPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
+            <!-- Content Tab -->
+            <TabItem Header="📦 Content">
+                <ScrollViewer Padding="4">
+                    <StackPanel Spacing="0">
+                        
+                        <!-- Enabled Content Section -->
+                        <Border Classes="section-card">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="section-title" Text="Enabled Content" Margin="0" />
+                                    <Button Grid.Column="1" Content="⟳ Refresh" 
+                                            Command="{Binding LoadAvailableContentCommand}"
+                                            Background="Transparent"
+                                            Padding="8,4"
+                                            FontSize="11"
+                                            VerticalAlignment="Top" />
+                                </Grid>
                                 
-                                <ItemsControl.Items>
-                                    <!-- GameInstallation Button -->
-                                    <Button Classes="content-filter-button"
+                                <!-- Warning if no content -->
+                                <Border Background="#30FF9800" CornerRadius="6" Padding="12" Margin="0,4,0,8"
+                                        IsVisible="{Binding EnabledContent.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="⚠️" FontSize="14" />
+                                        <TextBlock Text="No content enabled. Add at least one Game Installation to launch this profile."
+                                                   FontSize="12" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                                
+                                <!-- Enabled content list -->
+                                <ItemsControl ItemsSource="{Binding EnabledContent}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#12FFFFFF" CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <Border Background="#FF6B6B" CornerRadius="3" Padding="5,2"
+                                                                    IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="White" FontWeight="SemiBold" />
+                                                            </Border>
+                                                            <Border Background="{Binding GameType, Converter={x:Static conv:GameTypeToBrushConverter.Instance}}" CornerRadius="3" Padding="5,2">
+                                                                <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" FontSize="10" Foreground="White" />
+                                                            </Border>
+                                                            <Border Background="#757575" CornerRadius="3" Padding="5,2">
+                                                                <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="White" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="✕" Classes="btn-remove"
+                                                            Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Add Content Section -->
+                        <Border Classes="section-card">
+                            <StackPanel>
+                                <TextBlock Classes="section-title" Text="Add Content" />
+                                
+                                <!-- Content type filter pills -->
+                                <WrapPanel Margin="0,0,0,12">
+                                    <Button Classes="filter-pill" Margin="0,0,8,8"
                                             Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.GameInstallation}}"
                                             Command="{Binding SelectContentTypeFilterCommand}"
-                                            CommandParameter="{x:Static models:ContentType.GameInstallation}"
-                                            MinWidth="180"
-                                            Margin="0,0,8,8">
-                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                            <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" 
-                                                      Width="24" Height="24" />
-                                            <TextBlock Text="Installation" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Text="Base game files" FontSize="9" Opacity="0.7" />
+                                            CommandParameter="{x:Static models:ContentType.GameInstallation}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z" Width="16" Height="16" />
+                                            <TextBlock Text="Installation" FontSize="12" />
                                         </StackPanel>
                                     </Button>
-
-                                    <!-- GameClient Button -->
-                                    <Button Classes="content-filter-button"
+                                    
+                                    <Button Classes="filter-pill" Margin="0,0,8,8"
                                             Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.GameClient}}"
                                             Command="{Binding SelectContentTypeFilterCommand}"
-                                            CommandParameter="{x:Static models:ContentType.GameClient}"
-                                            MinWidth="180"
-                                            Margin="0,0,8,8">
-                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                            <PathIcon Data="M20,19V7H4V19H20M20,3A2,2 0 0,1 22,5V19A2,2 0 0,1 20,21H4A2,2 0 0,1 2,19V5C2,3.89 2.9,3 4,3H20M13,17V15H18V17H13M9.58,13L5.57,9H8.4L11.7,12.3C12.09,12.69 12.09,13.33 11.7,13.72L8.42,17H5.59L9.58,13Z" 
-                                                      Width="24" Height="24" />
-                                            <TextBlock Text="Executable" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Text="Game launcher" FontSize="9" Opacity="0.7" />
+                                            CommandParameter="{x:Static models:ContentType.GameClient}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="M20,19V7H4V19H20M20,3A2,2 0 0,1 22,5V19A2,2 0 0,1 20,21H4A2,2 0 0,1 2,19V5C2,3.89 2.9,3 4,3H20" Width="16" Height="16" />
+                                            <TextBlock Text="Executable" FontSize="12" />
                                         </StackPanel>
                                     </Button>
-
-                                    <!-- Mod Button -->
-                                    <Button Classes="content-filter-button"
+                                    
+                                    <Button Classes="filter-pill" Margin="0,0,8,8"
                                             Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.Mod}}"
                                             Command="{Binding SelectContentTypeFilterCommand}"
-                                            CommandParameter="{x:Static models:ContentType.Mod}"
-                                            MinWidth="180"
-                                            Margin="0,0,8,8">
-                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                            <PathIcon Data="M22.7,19L13.6,9.9C13.9,9.3 14.1,8.6 14.1,7.9C14.1,5.7 12.4,3.9 10.2,3.9C8,3.9 6.3,5.7 6.3,7.9C6.3,10.1 8,11.8 10.2,11.8C10.9,11.8 11.6,11.6 12.2,11.3L21.3,20.4L22.7,19M10.2,9.5C8.9,9.5 7.8,8.4 7.8,7.1C7.8,5.8 8.9,4.7 10.2,4.7C11.5,4.7 12.6,5.8 12.6,7.1C12.6,8.4 11.5,9.5 10.2,9.5M19.1,13.1L20.5,14.5L22,13L20.5,11.5" 
-                                                      Width="24" Height="24" />
-                                            <TextBlock Text="Mods" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Text="Modifications" FontSize="9" Opacity="0.7" />
+                                            CommandParameter="{x:Static models:ContentType.Mod}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="M22.7,19L13.6,9.9C13.9,9.3 14.1,8.6 14.1,7.9C14.1,5.7 12.4,3.9 10.2,3.9C8,3.9 6.3,5.7 6.3,7.9C6.3,10.1 8,11.8 10.2,11.8C10.9,11.8 11.6,11.6 12.2,11.3L21.3,20.4L22.7,19Z" Width="16" Height="16" />
+                                            <TextBlock Text="Mods" FontSize="12" />
                                         </StackPanel>
                                     </Button>
-
-                                    <!-- MapPack Button -->
-                                    <Button Classes="content-filter-button"
+                                    
+                                    <Button Classes="filter-pill" Margin="0,0,8,8"
                                             Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.MapPack}}"
                                             Command="{Binding SelectContentTypeFilterCommand}"
-                                            CommandParameter="{x:Static models:ContentType.MapPack}"
-                                            MinWidth="180"
-                                            Margin="0,0,8,8">
-                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                            <PathIcon Data="M15,19L9,16.89V5L15,7.11M20.5,3C20.44,3 20.39,3 20.34,3L15,5.1L9,3L3.36,4.9C3.15,4.97 3,5.15 3,5.38V20.5A0.5,0.5 0 0,0 3.5,21C3.55,21 3.61,21 3.66,20.97L9,18.9L15,21L20.64,19.1C20.85,19 21,18.85 21,18.62V3.5A0.5,0.5 0 0,0 20.5,3Z" 
-                                                      Width="24" Height="24" />
-                                            <TextBlock Text="Map Packs" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Text="Custom maps" FontSize="9" Opacity="0.7" />
+                                            CommandParameter="{x:Static models:ContentType.MapPack}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="M15,19L9,16.89V5L15,7.11M20.5,3C20.44,3 20.39,3 20.34,3L15,5.1L9,3L3.36,4.9C3.15,4.97 3,5.15 3,5.38V20.5A0.5,0.5 0 0,0 3.5,21C3.55,21 3.61,21 3.66,20.97L9,18.9L15,21L20.64,19.1C20.85,19 21,18.85 21,18.62V3.5A0.5,0.5 0 0,0 20.5,3Z" Width="16" Height="16" />
+                                            <TextBlock Text="Maps" FontSize="12" />
                                         </StackPanel>
                                     </Button>
-
-                                    <!-- Patch Button -->
-                                    <Button Classes="content-filter-button"
+                                    
+                                    <Button Classes="filter-pill" Margin="0,0,8,8"
                                             Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.Patch}}"
                                             Command="{Binding SelectContentTypeFilterCommand}"
-                                            CommandParameter="{x:Static models:ContentType.Patch}"
-                                            MinWidth="180"
-                                            Margin="0,0,8,8">
-                                        <StackPanel Spacing="4" HorizontalAlignment="Center">
-                                            <PathIcon Data="M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6Z" 
-                                                      Width="24" Height="24" />
-                                            <TextBlock Text="Patches" FontSize="11" FontWeight="SemiBold" />
-                                            <TextBlock Text="Game updates" FontSize="9" Opacity="0.7" />
+                                            CommandParameter="{x:Static models:ContentType.Patch}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <PathIcon Data="M14.6,16.6L19.2,12L14.6,7.4L16,6L22,12L16,18L14.6,16.6M9.4,16.6L4.8,12L9.4,7.4L8,6L2,12L8,18L9.4,16.6Z" Width="16" Height="16" />
+                                            <TextBlock Text="Patches" FontSize="12" />
                                         </StackPanel>
                                     </Button>
-                                </ItemsControl.Items>
-                            </ItemsControl>
-                            
-                            <!-- Available Content List -->
-                            <Border Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="1" 
-                                    CornerRadius="5" Padding="8" MinHeight="150" MaxHeight="300">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding AvailableContent}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <!-- Only show items that are NOT enabled -->
-                                                <Border Background="#15FFFFFF" CornerRadius="3" Padding="10" Margin="0,4">
-                                                    <Border.IsVisible>
-                                                        <Binding Path="IsEnabled" Converter="{x:Static conv:InvertedBoolToVisibilityConverter.Instance}" />
-                                                    </Border.IsVisible>
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <StackPanel Grid.Column="0" Spacing="4">
-                                                            <TextBlock Text="{Binding DisplayName}" 
-                                                                       FontWeight="SemiBold" FontSize="12" />
-                                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                <!-- Publisher Badge -->
-                                                                <Border Background="#FF6B6B" 
-                                                                        CornerRadius="2" Padding="5,2"
-                                                                        IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                    <TextBlock Text="{Binding Publisher}" 
-                                                                               FontSize="9" Foreground="White" FontWeight="SemiBold" />
-                                                                </Border>
-                                                                
-                                                                <!-- Game Type Badge -->
-                                                                <Border Background="{Binding GameType, Converter={x:Static conv:GameTypeToBrushConverter.Instance}}" 
-                                                                        CornerRadius="2" Padding="5,2">
-                                                                    <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" 
-                                                                               FontSize="9" Foreground="White" />
-                                                                </Border>
+                                </WrapPanel>
+                                
+                                <!-- Available content list -->
+                                <Border Background="#0A000000" BorderBrush="#20FFFFFF" BorderThickness="1" 
+                                        CornerRadius="6" Padding="8" MinHeight="120" MaxHeight="250">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding AvailableContent}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#10FFFFFF" CornerRadius="4" Padding="10" Margin="0,3">
+                                                        <Border.IsVisible>
+                                                            <Binding Path="IsEnabled" Converter="{x:Static conv:InvertedBoolToVisibilityConverter.Instance}" />
+                                                        </Border.IsVisible>
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <StackPanel Grid.Column="0" Spacing="3">
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" />
+                                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                                    <Border Background="#FF6B6B" CornerRadius="2" Padding="4,1"
+                                                                            IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                        <TextBlock Text="{Binding Publisher}" FontSize="9" Foreground="White" FontWeight="SemiBold" />
+                                                                    </Border>
+                                                                    <Border Background="{Binding GameType, Converter={x:Static conv:GameTypeToBrushConverter.Instance}}" CornerRadius="2" Padding="4,1">
+                                                                        <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" FontSize="9" Foreground="White" />
+                                                                    </Border>
+                                                                </StackPanel>
                                                             </StackPanel>
-                                                        </StackPanel>
-                                                        <Button Grid.Column="1"
-                                                                Content="+ Add"
-                                                                Classes="add-content-button"
-                                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                            
-                            <!-- No content available message - shows when no content exists for this type -->
-                            <Border Background="#1A000000" BorderBrush="#33FFFFFF" BorderThickness="1" 
-                                    CornerRadius="5" Padding="20" MinHeight="150"
-                                    IsVisible="{Binding AvailableContent.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
-                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" 
-                                              Width="32" Height="32" Foreground="#666" Opacity="0.5" />
-                                    <TextBlock Text="No Content Available" 
-                                               FontSize="14" FontWeight="SemiBold" Opacity="0.7" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Use the Refresh button above to reload content." 
-                                               FontSize="11" Opacity="0.5" HorizontalAlignment="Center" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
+                                                            <Button Grid.Column="1" Content="+ Add" Classes="btn-add"
+                                                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Game Settings Tab -->
-            <TabItem Header="GAME SETTINGS">
+            <!-- Settings Tab -->
+            <TabItem Header="🎮 Settings">
                 <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
             </TabItem>
         </TabControl>
 
         <!-- Loading overlay -->
-        <Border Grid.RowSpan="3" 
+        <Border Grid.RowSpan="2" 
                 IsVisible="{Binding IsInitializing}"
-                Background="#AA000000" 
+                Background="#DD000000" 
                 ZIndex="1001">
-            <StackPanel VerticalAlignment="Center"
-                        HorizontalAlignment="Center"
-                        Spacing="15">
-                <ProgressBar IsIndeterminate="True" 
-                             Width="200"
-                             Height="4"/>
-                <TextBlock Text="Loading content..."
-                           Foreground="White"
-                           FontSize="16"
-                           HorizontalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                <TextBlock Text="Loading..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
 
         <!-- Saving overlay -->
-        <Border Grid.RowSpan="3"
+        <Border Grid.RowSpan="2"
                 IsVisible="{Binding IsSaving}"
-                Background="#80000000"
+                Background="#CC000000"
                 ZIndex="1000">
-            <StackPanel VerticalAlignment="Center"
-                        HorizontalAlignment="Center"
-                        Spacing="15">
-                <ProgressBar IsIndeterminate="True" 
-                             Width="200"
-                             Height="4"/>
-                <TextBlock Text="Saving profile..."
-                          Foreground="White"
-                          FontSize="16"
-                          HorizontalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                <TextBlock Text="Saving..." Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
 
         <!-- Error Panel -->
-        <Border Grid.RowSpan="3"
-                Background="#80000000"
+        <Border Grid.RowSpan="2"
+                Background="#CC000000"
                 IsVisible="{Binding LoadingError}"
                 ZIndex="1000">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock Text="Failed to load settings" FontSize="18" Foreground="White" Margin="0,0,0,10" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <TextBlock Text="❌ Failed to load settings" FontSize="16" Foreground="White" />
                 <Button Content="Close" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
             </StackPanel>
         </Border>

@@ -4,254 +4,351 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.GameProfiles.Views.GameSettingsView"
              x:DataType="vm:GameSettingsViewModel">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="20" Margin="20">
-            <!-- Header Section -->
-            <StackPanel Spacing="10">
-                <TextBlock Text="Game Settings (Options.ini)" 
-                           FontSize="20" 
-                           FontWeight="Bold" />
-                
-                <TextBlock Text="Configure video and audio settings for Generals and Zero Hour. These settings are saved to this profile and will be applied when launching the game."
-                           TextWrapping="Wrap"
-                           Opacity="0.7"
-                           FontSize="13" />
+    <UserControl.Styles>
+        <!-- Settings card for brick layout -->
+        <Style Selector="Border.settings-card">
+            <Setter Property="Background" Value="#14FFFFFF" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,12,12" />
+            <Setter Property="MinWidth" Value="350" />
+            <Setter Property="MaxWidth" Value="500" />
+        </Style>
+        
+        <!-- Section header -->
+        <Style Selector="TextBlock.section-header">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        
+        <!-- Subsection header -->
+        <Style Selector="TextBlock.subsection-header">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Opacity" Value="0.9" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        
+        <!-- Setting row -->
+        <Style Selector="Grid.setting-row">
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        
+        <!-- Expander style for collapsible sections -->
+        <Style Selector="Expander">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Expander /template/ ToggleButton">
+            <Setter Property="Background" Value="#10FFFFFF" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12,10" />
+        </Style>
+        
+        <!-- Slider style -->
+        <Style Selector="Slider">
+            <Setter Property="Margin" Value="8,0" />
+        </Style>
+        
+        <!-- Info box style -->
+        <Style Selector="Border.info-box">
+            <Setter Property="Background" Value="#15FFFFFF" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+    </UserControl.Styles>
 
-                <!-- Game Type Selector -->
-                <Border Background="#20FFFFFF"
-                        Padding="12"
-                        CornerRadius="6"
-                        Margin="0,8,0,0">
-                    <StackPanel Spacing="8">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" 
-                                       Text="Load Settings Template:" 
-                                       VerticalAlignment="Center" 
-                                       FontWeight="Medium"
-                                       Margin="0,0,12,0" />
-                            
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                                <RadioButton Content="Generals" 
-                                             GroupName="GameType"
-                                             IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
-                                <RadioButton Content="Zero Hour"
-                                             GroupName="GameType"
-                                             IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
-                            </StackPanel>
-                        </Grid>
-                        
-                        <TextBlock Text="💡 Use these buttons to load settings from your existing Options.ini file as a starting point. Your changes will be saved to this profile."
-                                   TextWrapping="Wrap"
-                                   Opacity="0.8"
-                                   FontSize="11"
-                                   Margin="0,4,0,0" />
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
+        <StackPanel Spacing="0" Margin="12">
+            
+            <!-- Header with game type selector -->
+            <Border Classes="info-box">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="Game Settings" FontSize="18" FontWeight="Bold" />
+                        <TextBlock Text="Configure video, audio, and client-specific settings for this profile."
+                                   FontSize="12" Opacity="0.7" />
                     </StackPanel>
-                </Border>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Load from:" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
+                        <RadioButton Content="Generals" GroupName="GameType"
+                                     IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
+                        <RadioButton Content="Zero Hour" GroupName="GameType"
+                                     IsChecked="{Binding SelectedGameType, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- Status Message -->
+            <Border Background="#25FFA000" CornerRadius="6" Padding="10" Margin="0,0,0,12"
+                    IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="12" />
+            </Border>
 
-                <!-- Status Message -->
-                <Border Background="#20FFFFFF"
-                        Padding="10"
-                        CornerRadius="4"
-                        IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock Text="{Binding StatusMessage}"
-                               TextWrapping="Wrap"
-                               FontSize="12" />
-                </Border>
-            </StackPanel>
-
-            <!-- Video Settings Section -->
-            <Border BorderBrush="{DynamicResource SystemAccentColor}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="15">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Video Settings"
-                               FontSize="16"
-                               FontWeight="SemiBold" />
-
-                    <!-- Resolution -->
-                    <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="Resolution" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <ComboBox Grid.Column="1"
-                                  ItemsSource="{Binding ResolutionPresets}"
-                                  SelectedItem="{Binding SelectedResolutionPreset}"
-                                  PlaceholderText="Select Resolution"
-                                  Height="32"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </Grid>
-
-                    <!-- Windowed Mode -->
-                    <CheckBox Content="Run in Windowed Mode (instead of fullscreen)"
-                              IsChecked="{Binding Windowed}" />
-
-                    <!-- Texture Quality -->
-                    <Grid ColumnDefinitions="Auto,*">
-                        <TextBlock Grid.Column="0" Text="Texture Quality" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                            <RadioButton Content="Low" 
-                                         GroupName="TextureQuality"
-                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
-                            <RadioButton Content="Medium"
-                                         GroupName="TextureQuality"
-                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
-                            <RadioButton Content="High"
-                                         GroupName="TextureQuality"
-                                         IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=2}" />
+            <!-- Brick Layout Container -->
+            <WrapPanel Orientation="Horizontal">
+                
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!-- VIDEO SETTINGS CARD -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <StackPanel VerticalAlignment="Top">
+                <Expander IsExpanded="False">
+                    <Expander.Header>
+                        <TextBlock Text="🎬 Video Settings" FontWeight="SemiBold" FontSize="14" />
+                    </Expander.Header>
+                    
+                    <Border Classes="settings-card">
+                        <StackPanel>
+                            <!-- Resolution -->
+                            <Grid ColumnDefinitions="110,*" Classes="setting-row">
+                                <TextBlock Grid.Column="0" Text="Resolution" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="1"
+                                          ItemsSource="{Binding ResolutionPresets}"
+                                          SelectedItem="{Binding SelectedResolutionPreset}"
+                                          PlaceholderText="Select Resolution"
+                                          HorizontalAlignment="Stretch"
+                                          Height="34">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                            
+                            <!-- Windowed Mode -->
+                            <CheckBox Content="Run in Windowed Mode" IsChecked="{Binding Windowed}" Margin="0,4,0,8" />
+                            
+                            <!-- Texture Quality -->
+                            <Grid ColumnDefinitions="110,*" Classes="setting-row">
+                                <TextBlock Grid.Column="0" Text="Texture Quality" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                    <RadioButton Content="Low" GroupName="TextureQuality"
+                                                 IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=0}" />
+                                    <RadioButton Content="Med" GroupName="TextureQuality"
+                                                 IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=1}" />
+                                    <RadioButton Content="High" GroupName="TextureQuality"
+                                                 IsChecked="{Binding TextureQuality, Converter={StaticResource IntToBoolConverter}, ConverterParameter=2}" />
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- Graphics Options -->
+                            <TextBlock Classes="subsection-header" Text="Graphics Options" Margin="0,8,0,8" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,6" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,6" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,0" />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" />
+                            </Grid>
+                            
+                            <!-- Gamma Slider -->
+                            <Grid ColumnDefinitions="110,*,40" Margin="0,12,0,0">
+                                <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" 
+                                        TickFrequency="10" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding Gamma}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
                         </StackPanel>
-                    </Grid>
+                    </Border>
+                </Expander>
+                </StackPanel>
 
-                    <!-- Graphics Options in 2-column grid -->
-                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                        <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,5" />
-                        <CheckBox Grid.Column="1" Grid.Row="0" Content="Particle Effects" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,5" />
-                        <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Animations" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,0" />
-                        <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Animations" IsChecked="{Binding BuildingAnimations}" />
-                    </Grid>
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!-- AUDIO SETTINGS CARD -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <StackPanel VerticalAlignment="Top">
+                <Expander IsExpanded="False">
+                    <Expander.Header>
+                        <TextBlock Text="🔊 Audio Settings" FontWeight="SemiBold" FontSize="14" />
+                    </Expander.Header>
+                    
+                    <Border Classes="settings-card">
+                        <StackPanel>
+                            <CheckBox Content="Audio Enabled" IsChecked="{Binding AudioEnabled}" FontWeight="Medium" Margin="0,0,0,12" />
+                            
+                            <!-- Volume sliders grid -->
+                            <Grid ColumnDefinitions="100,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" IsEnabled="{Binding AudioEnabled}">
+                                <!-- Sound Volume -->
+                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Sound" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <Slider Grid.Column="1" Grid.Row="0" Value="{Binding SoundVolume}" Minimum="0" Maximum="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Grid.Column="2" Grid.Row="0" Text="{Binding SoundVolume}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
 
-                    <!-- Gamma -->
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0" Text="Gamma" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <Slider Grid.Column="1" 
-                                Value="{Binding Gamma}"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="10"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="2" 
-                                   Text="{Binding Gamma}" 
-                                   MinWidth="35"
-                                   VerticalAlignment="Center"
-                                   FontWeight="SemiBold"
-                                   Margin="12,0,0,0" />
-                    </Grid>
+                                <!-- 3D Sound Volume -->
+                                <TextBlock Grid.Column="0" Grid.Row="1" Text="3D Sound" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <Slider Grid.Column="1" Grid.Row="1" Value="{Binding ThreeDSoundVolume}" Minimum="0" Maximum="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Grid.Column="2" Grid.Row="1" Text="{Binding ThreeDSoundVolume}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
+
+                                <!-- Speech Volume -->
+                                <TextBlock Grid.Column="0" Grid.Row="2" Text="Speech" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <Slider Grid.Column="1" Grid.Row="2" Value="{Binding SpeechVolume}" Minimum="0" Maximum="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding SpeechVolume}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
+
+                                <!-- Music Volume -->
+                                <TextBlock Grid.Column="0" Grid.Row="3" Text="Music" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <Slider Grid.Column="1" Grid.Row="3" Value="{Binding MusicVolume}" Minimum="0" Maximum="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding MusicVolume}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,0,10" />
+
+                                <!-- Number of Sounds -->
+                                <TextBlock Grid.Column="0" Grid.Row="4" Text="Channels" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Grid.Row="4" Value="{Binding NumSounds}" Minimum="2" Maximum="32" 
+                                        TickFrequency="2" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding NumSounds}" FontWeight="Bold" 
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Expander>
+                </StackPanel>
+
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!-- THESUPERHACKERS CLIENT SETTINGS CARD -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <StackPanel VerticalAlignment="Top">
+                <Expander IsExpanded="False">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" 
+                                   Width="20" Height="20" />
+                            <TextBlock Text="TheSuperHackers" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Expander.Header>
+                    
+                    <Border Classes="settings-card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Options.ini settings for TheSuperHackers client"
+                                       FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            
+                            <!-- Display & Replays -->
+                            <TextBlock Classes="subsection-header" Text="Display &amp; Replays" />
+                            <CheckBox Content="Archive Replays" Margin="0,0,0,4" />
+                            <CheckBox Content="Show Money/Min" Margin="0,0,0,4" />
+                            <CheckBox Content="Observer Mode" Margin="0,0,0,8" />
+                            
+                            <!-- Font Sizes -->
+                            <TextBlock Classes="subsection-header" Text="Font Sizes" />
+                            <Grid ColumnDefinitions="110,*,40" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Column="0" Grid.Row="0" Text="System Time" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                <Slider Grid.Column="1" Grid.Row="0" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
+                                <TextBlock Grid.Column="2" Grid.Row="0" Text="8" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                
+                                <TextBlock Grid.Column="0" Grid.Row="1" Text="Latency" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                <Slider Grid.Column="1" Grid.Row="1" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
+                                <TextBlock Grid.Column="2" Grid.Row="1" Text="8" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                
+                                <TextBlock Grid.Column="0" Grid.Row="2" Text="FPS" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                <Slider Grid.Column="1" Grid.Row="2" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
+                                <TextBlock Grid.Column="2" Grid.Row="2" Text="0" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,0,8" />
+                                
+                                <TextBlock Grid.Column="0" Grid.Row="3" Text="Adjustment" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Grid.Row="3" Minimum="-100" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" />
+                                <TextBlock Grid.Column="2" Grid.Row="3" Text="0" FontWeight="Bold" VerticalAlignment="Center" />
+                            </Grid>
+                            
+                            <!-- Cursor Capture -->
+                            <TextBlock Classes="subsection-header" Text="Cursor Capture" Margin="0,8,0,8" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="FS Game" Margin="0,0,8,4" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="FS Menu" Margin="0,0,0,4" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Win Game" Margin="0,0,8,0" />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Win Menu" />
+                            </Grid>
+                            
+                            <!-- Screen Edge Scroll -->
+                            <TextBlock Classes="subsection-header" Text="Edge Scroll" Margin="0,8,0,8" />
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <CheckBox Content="Fullscreen" />
+                                <CheckBox Content="Windowed" />
+                            </StackPanel>
+                            
+                            <!-- Money Alert Volume -->
+                            <Grid ColumnDefinitions="110,*,40" Margin="0,12,0,0">
+                                <TextBlock Grid.Column="0" Text="Money Alert" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" />
+                                <TextBlock Grid.Column="2" Text="50" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Expander>
+                </StackPanel>
+
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <!-- GENERALSONLINE CLIENT SETTINGS CARD -->
+                <!-- ═══════════════════════════════════════════════════════════ -->
+                <StackPanel VerticalAlignment="Top">
+                <Expander IsExpanded="False">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" 
+                                   Width="20" Height="20" />
+                            <TextBlock Text="GeneralsOnline" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Expander.Header>
+                    
+                    <Border Classes="settings-card">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="settings.json for GeneralsOnline client (includes TSH settings)"
+                                       FontSize="11" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            
+                            <!-- Display Options -->
+                            <TextBlock Classes="subsection-header" Text="Display" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Show FPS" Margin="0,0,8,4" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Show Ping" Margin="0,0,0,4" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Show Ranks" Margin="0,0,8,0" />
+                            </Grid>
+                            
+                            <!-- Account Options -->
+                            <TextBlock Classes="subsection-header" Text="Account" Margin="0,8,0,8" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Auto-Login" Margin="0,0,8,4" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Remember User" Margin="0,0,0,4" />
+                            </Grid>
+                            
+                            <!-- Notifications -->
+                            <TextBlock Classes="subsection-header" Text="Notifications" Margin="0,8,0,8" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Enable Notifs" Margin="0,0,8,4" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Sound Notifs" Margin="0,0,0,4" />
+                            </Grid>
+                            
+                            <!-- Chat Font Size -->
+                            <Grid ColumnDefinitions="110,*,40" Margin="0,8,0,0">
+                                <TextBlock Grid.Column="0" Text="Chat Font" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Minimum="8" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" />
+                                <TextBlock Grid.Column="2" Text="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Expander>
+                </StackPanel>
+                
+            </WrapPanel>
+
+            <!-- Footer Note -->
+            <Border Classes="info-box" Margin="0,4,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="ℹ️" FontSize="14" />
+                    <TextBlock Text="Settings are saved to this profile and applied when launching. Click Save at the top to save changes."
+                               FontSize="11" Opacity="0.8" TextWrapping="Wrap" VerticalAlignment="Center" />
                 </StackPanel>
             </Border>
-
-            <!-- Audio Settings Section -->
-            <Border BorderBrush="{DynamicResource SystemAccentColor}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="15">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="🔊 Audio Settings"
-                               FontSize="16"
-                               FontWeight="SemiBold" />
-
-                    <CheckBox Content="Audio Enabled"
-                              IsChecked="{Binding AudioEnabled}"
-                              FontWeight="Medium" />
-
-                    <!-- Volume Sliders in compact grid layout -->
-                    <Grid ColumnDefinitions="120,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" 
-                          IsEnabled="{Binding AudioEnabled}">
-                        
-                        <!-- Sound Volume -->
-                        <TextBlock Grid.Column="0" Grid.Row="0" Text="Sound Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
-                        <Slider Grid.Column="1" Grid.Row="0"
-                                Value="{Binding SoundVolume}"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,10" />
-                        <TextBlock Grid.Column="2" Grid.Row="0" 
-                                   Text="{Binding SoundVolume}" 
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,0,10" />
-
-                        <!-- 3D Sound Volume -->
-                        <TextBlock Grid.Column="0" Grid.Row="1" Text="3D Sound Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
-                        <Slider Grid.Column="1" Grid.Row="1"
-                                Value="{Binding ThreeDSoundVolume}"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,10" />
-                        <TextBlock Grid.Column="2" Grid.Row="1" 
-                                   Text="{Binding ThreeDSoundVolume}" 
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,0,10" />
-
-                        <!-- Speech Volume -->
-                        <TextBlock Grid.Column="0" Grid.Row="2" Text="Speech Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
-                        <Slider Grid.Column="1" Grid.Row="2"
-                                Value="{Binding SpeechVolume}"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,10" />
-                        <TextBlock Grid.Column="2" Grid.Row="2" 
-                                   Text="{Binding SpeechVolume}" 
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,0,10" />
-
-                        <!-- Music Volume -->
-                        <TextBlock Grid.Column="0" Grid.Row="3" Text="Music Volume" VerticalAlignment="Center" Margin="0,0,12,10" />
-                        <Slider Grid.Column="1" Grid.Row="3"
-                                Value="{Binding MusicVolume}"
-                                Minimum="0"
-                                Maximum="100"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,10" />
-                        <TextBlock Grid.Column="2" Grid.Row="3" 
-                                   Text="{Binding MusicVolume}" 
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,0,10" />
-
-                        <!-- Number of Sounds -->
-                        <TextBlock Grid.Column="0" Grid.Row="4" Text="Number of Sounds" VerticalAlignment="Center" Margin="0,0,12,0" />
-                        <Slider Grid.Column="1" Grid.Row="4"
-                                Value="{Binding NumSounds}"
-                                Minimum="2"
-                                Maximum="32"
-                                TickFrequency="2"
-                                IsSnapToTickEnabled="True"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,0" />
-                        <TextBlock Grid.Column="2" Grid.Row="4" 
-                                   Text="{Binding NumSounds}" 
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center" />
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- Info note about profile settings -->
-            <Border Background="#20FFFFFF"
-                    Padding="12"
-                    CornerRadius="6">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="ℹ️ These settings are saved to this profile"
-                               FontWeight="SemiBold"
-                               FontSize="13" />
-                    <TextBlock Text="When you launch this profile, these settings will be used. Click the main Save button at the top to save your changes."
-                               FontSize="11"
-                               Opacity="0.8"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+            
         </StackPanel>
     </ScrollViewer>
 </UserControl>

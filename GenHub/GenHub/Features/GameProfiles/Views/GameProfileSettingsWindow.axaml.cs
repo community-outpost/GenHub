@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 
 namespace GenHub.Features.GameProfiles.Views;
@@ -10,6 +11,10 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class GameProfileSettingsWindow : Window
 {
+    // Static fields to persist window size across instances
+    private static double? _savedWidth;
+    private static double? _savedHeight;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsWindow"/> class.
     /// </summary>
@@ -19,6 +24,12 @@ public partial class GameProfileSettingsWindow : Window
 
         // Subscribe to DataContext changes to handle commands
         DataContextChanged += OnDataContextChanged;
+
+        // Restore saved window size
+        RestoreWindowSize();
+
+        // Subscribe to property changes to save window size
+        PropertyChanged += OnPropertyChanged;
     }
 
     /// <summary>
@@ -31,6 +42,9 @@ public partial class GameProfileSettingsWindow : Window
         {
             viewModel.CloseRequested -= OnCloseRequested;
         }
+
+        // Save window size before closing
+        SaveWindowSize();
 
         base.OnClosed(e);
     }
@@ -66,5 +80,37 @@ public partial class GameProfileSettingsWindow : Window
     private void OnCloseRequested(object? sender, EventArgs e)
     {
         Close();
+    }
+
+    /// <summary>
+    /// Handles property changes to save window size when it changes.
+    /// </summary>
+    private void OnPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == WidthProperty || e.Property == HeightProperty)
+        {
+            SaveWindowSize();
+        }
+    }
+
+    /// <summary>
+    /// Restores the window size from saved static fields.
+    /// </summary>
+    private void RestoreWindowSize()
+    {
+        Width = _savedWidth ?? UiConstants.DefaultProfileSettingsWidth;
+        Height = _savedHeight ?? UiConstants.DefaultProfileSettingsHeight;
+    }
+
+    /// <summary>
+    /// Saves the current window size to static fields.
+    /// </summary>
+    private void SaveWindowSize()
+    {
+        if (Width > 0 && Height > 0)
+        {
+            _savedWidth = Width;
+            _savedHeight = Height;
+        }
     }
 }

@@ -15,6 +15,16 @@ public static class UiConstants
     /// </summary>
     public const double DefaultWindowHeight = 800;
 
+    /// <summary>
+    /// Default width for GameProfileSettingsWindow in pixels.
+    /// </summary>
+    public const double DefaultProfileSettingsWidth = 750;
+
+    /// <summary>
+    /// Default height for GameProfileSettingsWindow in pixels.
+    /// </summary>
+    public const double DefaultProfileSettingsHeight = 700;
+
     // Status colors
 
     /// <summary>
