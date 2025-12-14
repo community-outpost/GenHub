@@ -33,6 +33,7 @@
         <PackageReference Include="Slugify.Core" />
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="Velopack" />
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     </ItemGroup>
 
     <ItemGroup>

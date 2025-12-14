@@ -1,0 +1,176 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GeneralsOnline.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+
+  <UserControl.Styles>
+    <!-- Primary Button Style -->
+    <Style Selector="Button.primary-btn">
+      <Setter Property="Background">
+        <Setter.Value>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#6366f1" Offset="0" />
+            <GradientStop Color="#8b5cf6" Offset="1" />
+          </LinearGradientBrush>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Padding" Value="24,12"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Transitions">
+        <Setter.Value>
+          <Transitions>
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+          </Transitions>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style Selector="Button.primary-btn:pointerover">
+      <Setter Property="RenderTransform" Value="scale(1.05)"/>
+    </Style>
+
+    <Style Selector="Button.primary-btn:disabled">
+      <Setter Property="Opacity" Value="0.5"/>
+      <Setter Property="Cursor" Value="Arrow"/>
+    </Style>
+
+    <!-- Secondary Button Style -->
+    <Style Selector="Button.secondary-btn">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#a78bfa"/>
+      <Setter Property="Padding" Value="12,6"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.secondary-btn:pointerover">
+      <Setter Property="Foreground" Value="#c4b5fd"/>
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="*,Auto,Auto,*">
+    <!-- Logo and Title Section -->
+    <StackPanel Grid.Row="1" HorizontalAlignment="Center" Spacing="24">
+      <!-- Logo -->
+      <Border Background="#1E1E2E" CornerRadius="16" Width="120" Height="120" 
+              HorizontalAlignment="Center" Padding="20">
+        <Viewbox>
+          <TextBlock Text="🎮" FontSize="48"/>
+        </Viewbox>
+      </Border>
+
+      <!-- Title -->
+      <StackPanel Spacing="8">
+        <TextBlock Text="Generals Online" 
+                   FontSize="28" 
+                   FontWeight="Bold" 
+                   Foreground="White" 
+                   HorizontalAlignment="Center"/>
+        <TextBlock Text="Login Required" 
+                   FontSize="14" 
+                   Foreground="#94a3b8" 
+                   HorizontalAlignment="Center"/>
+      </StackPanel>
+
+      <!-- Description -->
+      <TextBlock Text="Sign in to access multiplayer features, leaderboards, and match history"
+                 FontSize="13"
+                 Foreground="#64748b"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"
+                 MaxWidth="400"
+                 HorizontalAlignment="Center"
+                 Margin="0,8,0,0"/>
+    </StackPanel>
+
+    <!-- Login Button Section -->
+    <StackPanel Grid.Row="2" HorizontalAlignment="Center" Spacing="16" Margin="0,32,0,0">
+      <Button Classes="primary-btn" 
+              Command="{Binding LoginCommand}"
+              MinWidth="200"
+              IsVisible="{Binding !IsPolling}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="🔐" FontSize="16" VerticalAlignment="Center"/>
+          <TextBlock Text="Ready to log in" 
+                     FontSize="14" 
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <!-- Cancel Button (shown during polling) -->
+      <Button Classes="primary-btn" 
+              Command="{Binding CancelLoginCommand}"
+              MinWidth="200"
+              IsVisible="{Binding IsPolling}"
+              Background="#ef4444">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="✖" FontSize="16" VerticalAlignment="Center"/>
+          <TextBlock Text="Cancel Login" 
+                     FontSize="14" 
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+      </Button>
+
+      <!-- Status Message -->
+      <TextBlock Text="{Binding StatusMessage}" 
+                 FontSize="12" 
+                 Foreground="#a78bfa" 
+                 HorizontalAlignment="Center"
+                 Margin="0,4,0,0"
+                 IsVisible="{Binding IsPolling}"/>
+
+      <!-- Registration Link -->
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4"
+                  IsVisible="{Binding !IsPolling}">
+        <TextBlock Text="Don't have an account?" 
+                   Foreground="#64748b" 
+                   FontSize="12" 
+                   VerticalAlignment="Center"/>
+        <Button Classes="secondary-btn" 
+                Command="{Binding OpenRegistrationPageCommand}"
+                Content="Sign up"/>
+      </StackPanel>
+    </StackPanel>
+
+    <!-- Status/Info Section -->
+    <Border Grid.Row="3" 
+            Background="Transparent" 
+            CornerRadius="8" 
+            Padding="16" 
+            Margin="40,16,40,0"
+            MaxWidth="500"
+            HorizontalAlignment="Center">
+      <StackPanel Spacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="ℹ️" FontSize="14" VerticalAlignment="Top"/>
+          <TextBlock TextWrapping="Wrap" 
+                     Foreground="#94a3b8" 
+                     FontSize="12">
+            <Run Text="A browser window will open for you to log in."/>
+            <LineBreak/>
+            <Run Text="After authentication, you'll be redirected back to GenHub automatically."/>
+          </TextBlock>
+        </StackPanel>
+
+        <!-- Loading Indicator -->
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsPolling}">
+          <TextBlock Text="⏳" FontSize="14" VerticalAlignment="Center"/>
+          <TextBlock Text="Waiting for authentication..." 
+                     Foreground="#a78bfa" 
+                     FontSize="12" 
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

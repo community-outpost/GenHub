@@ -1,6 +1,7 @@
-using System;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Linux.GameInstallations;
+using GenHub.Linux.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Linux.Infrastructure.DependencyInjection;
@@ -18,6 +19,7 @@ public static class LinuxServicesModule
     public static IServiceCollection AddLinuxServices(this IServiceCollection services)
     {
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
+        services.AddSingleton<IExternalLinkService, LinuxExternalLinkService>();
 
         return services;
     }

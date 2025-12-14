@@ -1,0 +1,162 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GeneralsOnline;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GeneralsOnline.Views.LobbiesView"
+             x:DataType="vm:LobbiesViewModel">
+
+  <UserControl.Resources>
+    <conv:PlayerStatusToColorConverter x:Key="PlayerStatusToColorConverter" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.stat-card">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    
+    <Style Selector="Border.player-row">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,2" />
+    </Style>
+    <Style Selector="Border.player-row:pointerover">
+      <Setter Property="Background" Value="#252535" />
+    </Style>
+    
+    <Style Selector="Border.region-eu">
+      <Setter Property="Background" Value="#1e3a5f" />
+    </Style>
+    <Style Selector="Border.region-as">
+      <Setter Property="Background" Value="#3d1e5f" />
+    </Style>
+    <Style Selector="Border.region-na">
+      <Setter Property="Background" Value="#1e5f3d" />
+    </Style>
+    <Style Selector="Border.region-af">
+      <Setter Property="Background" Value="#5f3d1e" />
+    </Style>
+    <Style Selector="Border.region-sa">
+      <Setter Property="Background" Value="#5f1e3d" />
+    </Style>
+    
+    <Style Selector="Border.status-ingame">
+      <Setter Property="Background" Value="#22c55e" />
+    </Style>
+    <Style Selector="Border.status-setup">
+      <Setter Property="Background" Value="#f59e0b" />
+    </Style>
+    <Style Selector="Border.status-chatroom">
+      <Setter Property="Background" Value="#6366f1" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <!-- Stats Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,*,*,Auto" Margin="0,0,0,12">
+      <Border Grid.Column="0" Classes="stat-card" Margin="0,0,6,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="🟢" FontSize="14" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding OnlinePlayersCount, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#4ade80"/>
+            <TextBlock Text="Online Players" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <Border Grid.Column="1" Classes="stat-card" Margin="3,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="⚔️" FontSize="14" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding TotalActiveMatches, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#60a5fa"/>
+            <TextBlock Text="Active Matches" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <Border Grid.Column="2" Classes="stat-card" Margin="6,0,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="👥" FontSize="14" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding TotalLifetimePlayers, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#a78bfa"/>
+            <TextBlock Text="Lifetime Players" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0">
+        <TextBox Text="{Binding SearchText}" Watermark="Search players..." 
+                 Width="200" VerticalAlignment="Center"/>
+        <Button Content="↻" Command="{Binding RefreshCommand}" 
+                ToolTip.Tip="Refresh"
+                Background="#2A2A3E" Foreground="White" 
+                CornerRadius="4" Padding="10,8"/>
+      </StackPanel>
+    </Grid>
+    
+    <!-- Column Headers -->
+    <Border Grid.Row="1" Background="#16161e" CornerRadius="4" Padding="12,6" Margin="0,0,0,4">
+      <Grid ColumnDefinitions="150,*,150,140">
+        <TextBlock Grid.Column="0" Text="Player" FontSize="11" Foreground="#666666" FontWeight="SemiBold"/>
+        <TextBlock Grid.Column="1" Text="Status" FontSize="11" Foreground="#666666" FontWeight="SemiBold"/>
+        <TextBlock Grid.Column="2" Text="Client" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+        <TextBlock Grid.Column="3" Text="Time Online" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Right"/>
+      </Grid>
+    </Border>
+    
+    <!-- Loading Indicator -->
+    <Border Grid.Row="2" IsVisible="{Binding IsLoading}" 
+            Background="#80000000" CornerRadius="8">
+      <TextBlock Text="Loading players..." Foreground="White" 
+                 HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" />
+    </Border>
+    
+    <!-- Players List -->
+    <ScrollViewer Grid.Row="2" IsVisible="{Binding !IsLoading}">
+      <ItemsControl ItemsSource="{Binding ActivePlayers}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="models:ActivePlayer">
+            <Border Classes="player-row">
+              <Grid ColumnDefinitions="150,*,150,140">
+                <!-- Player Name -->
+                <TextBlock Grid.Column="0" Text="{Binding PlayerName}" 
+                           FontWeight="Medium" Foreground="White" 
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                
+                <!-- Status (Lobby/Chat) -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Border CornerRadius="3" Padding="6,2" 
+                          Background="{Binding Status, Converter={StaticResource PlayerStatusToColorConverter}}">
+                    <TextBlock Text="{Binding StatusText}" FontSize="10" Foreground="White"/>
+                  </Border>
+                  <TextBlock Text="{Binding LobbyName}" Foreground="#888888" FontSize="11" 
+                             TextTrimming="CharacterEllipsis" MaxWidth="280"
+                             IsVisible="{Binding IsInLobby}"/>
+                </StackPanel>
+                
+                <!-- Client Version -->
+                <TextBlock Grid.Column="2" Text="{Binding ClientVersion}" 
+                           Foreground="#666666" FontSize="11" 
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                
+                <!-- Time Online -->
+                <TextBlock Grid.Column="3" Text="{Binding TimeOnlineDisplay}" 
+                           Foreground="#888888" FontSize="11" 
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

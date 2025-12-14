@@ -10,11 +10,14 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.AppUpdate.Views;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GeneralsOnline.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
@@ -34,6 +37,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly IProfileEditorFacade _profileEditorFacade;
     private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly CancellationTokenSource _initializationCts = new();
+    private readonly IGeneralsOnlineAuthService _generalsOnlineAuthService;
 
     [ObservableProperty]
     private NavigationTab _selectedTab = NavigationTab.GameProfiles;
@@ -49,11 +53,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <param name="toolsViewModel">Tools view model.</param>
     /// <param name="settingsViewModel">Settings view model.</param>
     /// <param name="notificationManager">Notification manager view model.</param>
+    /// <param name="generalsOnlineViewModel">Generals Online view model.</param>
     /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
     /// <param name="configurationProvider">Configuration provider service.</param>
     /// <param name="userSettingsService">User settings service for persistence operations.</param>
     /// <param name="profileEditorFacade">Profile editor facade for automatic profile creation.</param>
     /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
+    /// <param name="generalsOnlineAuthService">Generals Online authentication service.</param>
     /// <param name="logger">Logger instance.</param>
     public MainViewModel(
         GameProfileLauncherViewModel gameProfilesViewModel,
@@ -61,11 +67,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ToolsViewModel toolsViewModel,
         SettingsViewModel settingsViewModel,
         NotificationManagerViewModel notificationManager,
+        GeneralsOnlineViewModel generalsOnlineViewModel,
         IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
         IConfigurationProviderService configurationProvider,
         IUserSettingsService userSettingsService,
         IProfileEditorFacade profileEditorFacade,
         IVelopackUpdateManager velopackUpdateManager,
+        IGeneralsOnlineAuthService generalsOnlineAuthService,
         ILogger<MainViewModel>? logger = null)
     {
         GameProfilesViewModel = gameProfilesViewModel;
@@ -73,12 +81,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
         ToolsViewModel = toolsViewModel;
         SettingsViewModel = settingsViewModel;
         NotificationManager = notificationManager;
+        GeneralsOnlineViewModel = generalsOnlineViewModel;
         _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
         _configurationProvider = configurationProvider;
         _userSettingsService = userSettingsService;
         _profileEditorFacade = profileEditorFacade ?? throw new ArgumentNullException(nameof(profileEditorFacade));
         _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
+        _generalsOnlineAuthService = generalsOnlineAuthService ?? throw new ArgumentNullException(nameof(generalsOnlineAuthService));
         _logger = logger;
+
+        // Initialize available tabs
+        AvailableTabs = new ObservableCollection<NavigationTab>
+        {
+            NavigationTab.GameProfiles,
+            NavigationTab.Downloads,
+            NavigationTab.Tools,
+            NavigationTab.GeneralsOnline,
+            NavigationTab.Settings,
+        };
 
         // Load initial settings using unified configuration
         try
@@ -121,6 +141,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public NotificationManagerViewModel NotificationManager { get; }
 
     /// <summary>
+    /// Gets the Generals Online view model.
+    /// </summary>
+    public GeneralsOnlineViewModel GeneralsOnlineViewModel { get; }
+
+    /// <summary>
     /// Gets the collection of detected game installations.
     /// </summary>
     public ObservableCollection<string> GameInstallations { get; } = new();
@@ -128,13 +153,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the available navigation tabs.
     /// </summary>
-    public NavigationTab[] AvailableTabs { get; } =
-    {
-        NavigationTab.GameProfiles,
-        NavigationTab.Downloads,
-        NavigationTab.Tools,
-        NavigationTab.Settings,
-    };
+    public ObservableCollection<NavigationTab> AvailableTabs { get; }
 
     /// <summary>
     /// Gets the current tab's ViewModel for ContentControl binding.
@@ -145,6 +164,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavigationTab.Downloads => DownloadsViewModel,
         NavigationTab.Tools => ToolsViewModel,
         NavigationTab.Settings => SettingsViewModel,
+        NavigationTab.GeneralsOnline => GeneralsOnlineViewModel,
         _ => GameProfilesViewModel,
     };
 
@@ -159,6 +179,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavigationTab.Downloads => "Downloads",
         NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
+        NavigationTab.GeneralsOnline => "Generals Online",
         _ => tab.ToString(),
     };
 
@@ -173,31 +194,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Shows the update notification dialog.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task ShowUpdateDialogAsync()
-    {
-        try
-        {
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await GenHub.Features.AppUpdate.Views.UpdateNotificationWindow.ShowAsync(mainWindow);
-            }
-            else
-            {
-                _logger?.LogWarning("Cannot show update dialog - main window not found");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to show update dialog");
-        }
-    }
-
-    /// <summary>
     /// Performs asynchronous initialization for the shell and all tabs.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -206,6 +202,47 @@ public partial class MainViewModel : ObservableObject, IDisposable
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
+        await GeneralsOnlineViewModel.InitializeAsync();
+        await _generalsOnlineAuthService.InitializeAsync();
+
+        // Subscribe to authentication changes
+        /*
+        _generalsOnlineAuthService.IsAuthenticated.Subscribe(isAuthenticated =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (isAuthenticated)
+                {
+                    if (!AvailableTabs.Contains(NavigationTab.GeneralsOnline))
+                    {
+                        // Insert before Settings (last item)
+                        var settingsIndex = AvailableTabs.IndexOf(NavigationTab.Settings);
+                        if (settingsIndex >= 0)
+                        {
+                            AvailableTabs.Insert(settingsIndex, NavigationTab.GeneralsOnline);
+                        }
+                        else
+                        {
+                            AvailableTabs.Add(NavigationTab.GeneralsOnline);
+                        }
+                    }
+                }
+                else
+                {
+                    if (AvailableTabs.Contains(NavigationTab.GeneralsOnline))
+                    {
+                        AvailableTabs.Remove(NavigationTab.GeneralsOnline);
+
+                        // If user was on this tab, switch to default
+                        if (SelectedTab == NavigationTab.GeneralsOnline)
+                        {
+                            SelectedTab = NavigationTab.GameProfiles;
+                        }
+                    }
+                }
+            });
+        });
+        */
         _logger?.LogInformation("MainViewModel initialized");
 
         // Start background check with cancellation support
@@ -424,5 +461,40 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
 
         SaveSelectedTab(value);
+    }
+
+    /// <summary>
+    /// Shows the update notification dialog.
+    /// </summary>
+    [RelayCommand]
+    private async Task ShowUpdateDialogAsync()
+    {
+        try
+        {
+            _logger?.LogInformation("ShowUpdateDialogCommand executed");
+
+            var mainWindow = GetMainWindow();
+            if (mainWindow is not null)
+            {
+                _logger?.LogInformation("Opening update notification window");
+
+                var updateWindow = new UpdateNotificationWindow
+                {
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                };
+
+                await updateWindow.ShowDialog(mainWindow);
+
+                _logger?.LogInformation("Update notification window closed");
+            }
+            else
+            {
+                _logger?.LogWarning("Could not find main window to show update dialog");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to show update notification window");
+        }
     }
 }
