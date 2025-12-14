@@ -33,6 +33,7 @@ public class GameProfileManagerTests
             _profileRepositoryMock.Object,
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
+            null,
             _loggerMock.Object);
     }
 

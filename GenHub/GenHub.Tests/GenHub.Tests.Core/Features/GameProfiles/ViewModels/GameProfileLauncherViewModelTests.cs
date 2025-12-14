@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
@@ -7,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
-namespace GenHub.Tests.Core.ViewModels;
+namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
 /// <summary>
 /// Contains unit tests for <see cref="GameProfileLauncherViewModel"/>.
@@ -21,6 +22,7 @@ public class GameProfileLauncherViewModelTests
     public void Constructor_WithValidParameters_InitializesCorrectly()
     {
         var installationService = new Mock<IGameInstallationService>();
+        var gameClientProfileService = new Mock<IGameClientProfileService>();
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
             null,
@@ -28,6 +30,7 @@ public class GameProfileLauncherViewModelTests
             null,
             null,
             null,
+            gameClientProfileService.Object,
             null,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
@@ -62,6 +65,7 @@ public class GameProfileLauncherViewModelTests
     public async Task InitializeAsync_LoadsProfiles_Successfully()
     {
         var installationService = new Mock<IGameInstallationService>();
+        var gameClientProfileService = new Mock<IGameClientProfileService>();
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
             null,
@@ -69,6 +73,7 @@ public class GameProfileLauncherViewModelTests
             null,
             null,
             null,
+            gameClientProfileService.Object,
             null,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
@@ -102,6 +107,7 @@ public class GameProfileLauncherViewModelTests
             null,
             null,
             null,
+            new Mock<IGameClientProfileService>().Object,
             null,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
@@ -131,6 +137,7 @@ public class GameProfileLauncherViewModelTests
             null,
             null,
             null,
+            new Mock<IGameClientProfileService>().Object,
             null,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
@@ -157,6 +164,7 @@ public class GameProfileLauncherViewModelTests
             null,
             null,
             null,
+            new Mock<IGameClientProfileService>().Object,
             null,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 

@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Services.Providers;
 using GenHub.Features.Content.Services;
@@ -18,7 +19,9 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -76,6 +79,26 @@ public static class ContentPipelineModule
 
         // Register core orchestrator
         services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
+
+        // Register content acquisition service with Lazy wrappers to break circular dependencies
+        services.AddScoped<IContentAcquisitionService>(sp =>
+        {
+            var lazyOrchestrator = new Lazy<IContentOrchestrator>(() => sp.GetRequiredService<IContentOrchestrator>());
+            var manifestPool = sp.GetRequiredService<IContentManifestPool>();
+            var discoverers = sp.GetRequiredService<IEnumerable<IContentDiscoverer>>();
+            var resolvers = sp.GetRequiredService<IEnumerable<IContentResolver>>();
+            var publisherFactories = sp.GetRequiredService<IEnumerable<IPublisherManifestFactory>>();
+            var logger = sp.GetRequiredService<ILogger<ContentAcquisitionService>>();
+
+            return new ContentAcquisitionService(
+                lazyOrchestrator,
+                manifestPool,
+                discoverers,
+                resolvers,
+                publisherFactories,
+                sp.GetService<INotificationService>(),
+                logger);
+        });
 
         // Register cache
         services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();

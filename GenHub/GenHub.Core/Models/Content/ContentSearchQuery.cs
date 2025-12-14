@@ -1,5 +1,7 @@
 using GenHub.Core.Models.Enums;
 
+namespace GenHub.Core.Models.Content;
+
 /// <summary>
 /// Represents a query for searching content across providers.
 /// </summary>
@@ -18,6 +20,11 @@ public class ContentSearchQuery
     public ContentType? ContentType { get; set; }
 
     /// <summary>
+    /// Optional provider name to restrict the search to a specific provider.
+    /// </summary>
+    public string? ProviderName { get; set; }
+
+    /// <summary>
     /// Gets or sets the target game to filter by.
     /// </summary>
     public GameType? TargetGame { get; set; }
@@ -25,7 +32,7 @@ public class ContentSearchQuery
     /// <summary>
     /// Gets or sets a list of tags to filter by.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the author's name to filter by.

@@ -341,7 +341,11 @@ public class GameClientDetectorTests : IDisposable
 
         // Setup manifest generation
         var manifestBuilderMock = new Mock<IContentManifestBuilder>();
-        var generalsOnlineManifest = new ContentManifest { Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-30hz") };
+        var generalsOnlineManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-30hz"),
+            Publisher = new PublisherInfo { Name = PublisherTypeConstants.GeneralsOnline }
+        };
         manifestBuilderMock.Setup(x => x.Build()).Returns(generalsOnlineManifest);
 
         _manifestGenerationServiceMock.Setup(
@@ -375,8 +379,9 @@ public class GameClientDetectorTests : IDisposable
         var generalsOnlineClient = result.Items.FirstOrDefault(c => c.Name.Contains("GeneralsOnline"));
         Assert.NotNull(generalsOnlineClient);
         Assert.Equal(GameType.Generals, generalsOnlineClient.GameType);
-        Assert.Equal("Auto-Updated", generalsOnlineClient.Version); // GeneralsOnline clients auto-update
+        Assert.Equal("Automatically added", generalsOnlineClient.Version); // GeneralsOnline clients auto-update
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
+
         Assert.Contains("30Hz", generalsOnlineClient.Name);
     }
 
@@ -446,7 +451,7 @@ public class GameClientDetectorTests : IDisposable
         var generalsOnlineClient = result.Items.FirstOrDefault(c => c.Name.Contains("GeneralsOnline"));
         Assert.NotNull(generalsOnlineClient);
         Assert.Equal(GameType.ZeroHour, generalsOnlineClient.GameType);
-        Assert.Equal("Auto-Updated", generalsOnlineClient.Version); // GeneralsOnline clients auto-update
+        Assert.Equal("Automatically added", generalsOnlineClient.Version); // GeneralsOnline clients auto-update
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
         Assert.Contains("60Hz", generalsOnlineClient.Name);
     }
@@ -522,82 +527,7 @@ public class GameClientDetectorTests : IDisposable
         Assert.Single(generalsOnlineClients, c => c.Name.Contains("60Hz"));
     }
 
-    /// <summary>
-    /// Tests that GeneralsOnline manifest is generated with correct publisher info.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_GeneralsOnlineManifestHasCorrectPublisher_VerifiesPublisherInfo()
-    {
-        // Arrange
-        var generalsPath = Path.Combine(_tempDirectory, "GeneralsPublisher");
-        Directory.CreateDirectory(generalsPath);
 
-        var generalsOnlineExePath = Path.Combine(generalsPath, "generalsonlinezh_30.exe");
-        await File.WriteAllTextAsync(generalsOnlineExePath, "dummy");
-
-        var standardExePath = Path.Combine(generalsPath, "generals.exe");
-        await File.WriteAllTextAsync(standardExePath, "dummy");
-
-        var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Steam)
-        {
-            HasGenerals = true,
-            GeneralsPath = generalsPath,
-        };
-
-        var installations = new List<GameInstallation> { installation };
-
-        // Setup hash provider
-        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(standardExePath, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(GameClientHashRegistry.Generals108HashPublic);
-
-        // Setup manifest generation to capture the call
-        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
-        var manifest = new ContentManifest
-        {
-            Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-30hz"),
-            Publisher = new PublisherInfo { Name = PublisherTypeConstants.GeneralsOnline, },
-        };
-        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
-
-        _manifestGenerationServiceMock.Setup(
-                x => x.CreateGeneralsOnlineClientManifestAsync(
-                    generalsPath,
-                    GameType.Generals,
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    generalsOnlineExePath))
-            .ReturnsAsync(manifestBuilderMock.Object);
-
-        _manifestGenerationServiceMock.Setup(
-                x => x.CreateGameClientManifestAsync(
-                    generalsPath,
-                    GameType.Generals,
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    standardExePath))
-            .ReturnsAsync(manifestBuilderMock.Object);
-
-        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        // Act
-        var result = await _detector.DetectGameClientsFromInstallationsAsync(installations);
-
-        // Assert
-        Assert.True(result.Success);
-        Assert.NotEmpty(result.Items);
-
-        // Verify CreateGeneralsOnlineClientManifestAsync was called with correct parameters
-        _manifestGenerationServiceMock.Verify(
-            x => x.CreateGeneralsOnlineClientManifestAsync(
-                generalsPath,
-                GameType.Generals,
-                It.IsAny<string>(),
-                "Auto-Updated", // GeneralsOnline clients auto-update
-                generalsOnlineExePath),
-            Times.Once);
-    }
 
     /// <summary>
     /// Tests that GeneralsOnline detection skips missing executable files gracefully.

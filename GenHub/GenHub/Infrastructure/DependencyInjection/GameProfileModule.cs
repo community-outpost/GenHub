@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -39,6 +40,25 @@ public static class GameProfileModule
         services.AddSingleton<IGameSettingsService, GameSettingsService>();
         services.AddSingleton<IContentDisplayFormatter, ContentDisplayFormatter>();
         services.AddScoped<IProfileContentLoader, ProfileContentLoader>();
+
+        // Register GameClientProfileService
+        services.AddScoped<IGameClientProfileService>(sp =>
+        {
+            var profileManager = sp.GetRequiredService<IGameProfileManager>();
+            var installationService = sp.GetRequiredService<Core.Interfaces.GameInstallations.IGameInstallationService>();
+            var configService = sp.GetRequiredService<IConfigurationProviderService>();
+            var acquisitionService = sp.GetRequiredService<IContentAcquisitionService>();
+            var manifestPool = sp.GetRequiredService<Core.Interfaces.Manifest.IContentManifestPool>();
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GameClientProfileService>>();
+
+            return new GameClientProfileService(
+                profileManager,
+                installationService,
+                configService,
+                acquisitionService,
+                manifestPool,
+                logger);
+        });
 
         return services;
     }

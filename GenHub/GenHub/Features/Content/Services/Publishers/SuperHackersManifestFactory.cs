@@ -116,6 +116,80 @@ public class SuperHackersManifestFactory(ILogger<SuperHackersManifestFactory> lo
     }
 
     /// <summary>
+    /// Creates manifests from an existing local installation without downloading.
+    /// This is used when the GameClientDetector finds existing SuperHackers executables.
+    /// </summary>
+    /// <param name="installationPath">The path where the game is installed.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of created content manifests.</returns>
+    public async Task<List<ContentManifest>> CreateManifestsFromLocalInstallAsync(
+        string installationPath,
+        CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Creating SuperHackers manifests from local install at: {Path}", installationPath);
+
+        // Detect executables in installation path
+        // For SuperHackers, the "extracted directory" logic works on installation path too
+        // since the executables are direct children usually
+        var detectedExecutables = DetectGameExecutables(installationPath);
+
+        if (detectedExecutables.Count == 0)
+        {
+            logger.LogWarning("No SuperHackers game executables detected in {Path}", installationPath);
+            return new List<ContentManifest>();
+        }
+
+        logger.LogInformation("Detected {Count} game executables for SuperHackers local install", detectedExecutables.Count);
+
+        var manifests = new List<ContentManifest>();
+
+        // Create a synthetic manifest to drive the build process
+        // This acts as the "original manifest" template
+        var templateManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(Guid.NewGuid().ToString()), // Temporary ID
+            ManifestVersion = "1.0",
+            Name = "SuperHackers (Local)",
+            Version = GameClientConstants.AutoDetectedVersion,
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo
+            {
+                Name = "The Super Hackers",
+                PublisherType = PublisherTypeConstants.TheSuperHackers
+            },
+            Metadata = new ContentMetadata
+            {
+                Description = "Auto-detected local installation",
+                ReleaseDate = DateTime.Now
+            }
+        };
+
+        // Sort by game type to ensure consistent ordering (Generals first, then Zero Hour)
+        foreach (var (gameType, executablePath) in detectedExecutables.OrderBy(kv => kv.Key))
+        {
+            // Build the manifest using the existing logic, but pointing to the installation path
+            var manifest = await BuildManifestForGameTypeAsync(
+                templateManifest,
+                installationPath,
+                gameType,
+                executablePath,
+                cancellationToken);
+
+            // Ensure the ID reflects the auto-detected nature if needed
+            // BuildManifestForGameTypeAsync handles ID generation, will use "0" as version which is fine
+
+            manifests.Add(manifest);
+
+            logger.LogInformation(
+                "Created SuperHackers {GameType} manifest {ManifestId} from local files",
+                gameType,
+                manifest.Id);
+        }
+
+        return manifests;
+    }
+
+    /// <summary>
     /// Detects SuperHackers game executables in the extracted directory.
     /// </summary>
     private Dictionary<GameType, string> DetectGameExecutables(string directory)
@@ -279,7 +353,7 @@ public class SuperHackersManifestFactory(ILogger<SuperHackersManifestFactory> lo
         {
             ManifestVersion = originalManifest.ManifestVersion,
             Id = ManifestId.Create(manifestId),
-            Name = $"{originalManifest.Name} - {gameTypeName}",
+            Name = $"SuperHackers - {gameTypeName}",
             Version = originalManifest.Version,
             ContentType = ContentType.GameClient,
             TargetGame = gameType,

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -9,13 +10,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -31,13 +34,22 @@ public partial class GameProfileLauncherViewModel(
     IProfileLauncherFacade? profileLauncherFacade,
     GameProfileSettingsViewModel? settingsViewModel,
     IProfileEditorFacade? profileEditorFacade,
-    IConfigurationProviderService? configService,
     IGameProcessManager? gameProcessManager,
+    IGameClientProfileService gameClientProfileService,
+    INotificationService? notificationService,
     ILogger<GameProfileLauncherViewModel>? logger) : ViewModelBase
 {
     private readonly ILogger<GameProfileLauncherViewModel> logger = logger ?? NullLogger<GameProfileLauncherViewModel>.Instance;
+    private readonly IGameClientProfileService _gameClientProfileService = gameClientProfileService ?? throw new ArgumentNullException(nameof(gameClientProfileService));
+    private readonly INotificationService? _notificationService = notificationService;
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
+
+    /// <summary>
+    /// Tracks profile IDs already added to UI to prevent duplicates from race conditions.
+    /// Thread-safe dictionary for concurrent access from async operations.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, byte> _addedProfileIds = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private ObservableCollection<GameProfileItemViewModel> _profiles = new();
@@ -68,11 +80,32 @@ public partial class GameProfileLauncherViewModel(
     /// This constructor is only for design-time and testing scenarios.
     /// </summary>
     public GameProfileLauncherViewModel()
-        : this(null, null, null, null, null, null, null, null)
+        : this(null, null, null, null, null, null, new StubGameClientProfileService(), null, null)
     {
         // Initialize with sample data for design-time
         StatusMessage = "Design-time preview";
         IsServiceAvailable = false;
+    }
+
+    /// <summary>
+    /// Stub implementation of IGameClientProfileService for design-time use.
+    /// </summary>
+    private class StubGameClientProfileService : IGameClientProfileService
+    {
+        public Task<ProfileOperationResult<GameProfile>> CreateProfileForGameClientAsync(
+            GameInstallation installation, GameClient gameClient, CancellationToken cancellationToken = default)
+            => Task.FromResult(ProfileOperationResult<GameProfile>.CreateFailure("Design-time stub"));
+
+        public Task<List<ProfileOperationResult<GameProfile>>> CreateProfilesForGameClientAsync(
+            GameInstallation installation, GameClient gameClient, CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<ProfileOperationResult<GameProfile>>());
+
+        public Task<ProfileOperationResult<GameProfile>> CreateProfileFromManifestAsync(
+            ContentManifest manifest, CancellationToken cancellationToken = default)
+            => Task.FromResult(ProfileOperationResult<GameProfile>.CreateFailure("Design-time stub"));
+
+        public Task<bool> ProfileExistsForGameClientAsync(string gameClientId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     /// <summary>
@@ -114,6 +147,12 @@ public partial class GameProfileLauncherViewModel(
             {
                 foreach (var profile in profilesResult.Data)
                 {
+                    // Skip if already added during this session
+                    if (!_addedProfileIds.TryAdd(profile.Id, 0))
+                    {
+                        continue;
+                    }
+
                     // Use profile's IconPath if available, otherwise fall back to generalshub icon
                     var iconPath = !string.IsNullOrEmpty(profile.IconPath)
                         ? $"avares://GenHub/{profile.IconPath}"
@@ -254,6 +293,7 @@ public partial class GameProfileLauncherViewModel(
 
     /// <summary>
     /// Scans for games and automatically creates profiles for detected installations.
+    /// Profiles are added to the UI progressively as they're created, providing immediate feedback.
     /// </summary>
     [RelayCommand]
     private async Task ScanForGamesAsync()
@@ -276,6 +316,11 @@ public partial class GameProfileLauncherViewModel(
             IsScanning = true;
             StatusMessage = "Scanning for games...";
             ErrorMessage = string.Empty;
+
+            _notificationService?.ShowInfo(
+                "Scanning for Games",
+                "Detecting game installations and creating profiles...",
+                autoDismissMs: NotificationDurations.Short);
 
             // Scan for all installations
             var installations = await installationService.GetAllInstallationsAsync();
@@ -306,17 +351,53 @@ public partial class GameProfileLauncherViewModel(
                         {
                             foreach (var gameClient in installation.AvailableGameClients)
                             {
-                                var profileCreated = await TryCreateProfileForGameClientAsync(installation, gameClient);
-                                if (profileCreated) profilesCreated++;
+                                // Update status to show which client is being processed
+                                StatusMessage = $"Creating profile for {gameClient.Name}...";
+
+                                // TryCreateProfilesForGameClientAsync returns ALL created profiles
+                                // For multi-variant content (GeneralsOnline, SuperHackers), this includes all variants
+                                var createdProfiles = await TryCreateProfilesForGameClientAsync(installation, gameClient);
+
+                                foreach (var createdProfile in createdProfiles)
+                                {
+                                    profilesCreated++;
+
+                                    // Skip if already added (prevents duplicates from race conditions)
+                                    if (!_addedProfileIds.TryAdd(createdProfile.Id, 0))
+                                    {
+                                        logger.LogDebug(
+                                            "Skipping duplicate profile '{ProfileName}' - already in UI",
+                                            createdProfile.Name);
+                                        continue;
+                                    }
+
+                                    // PROGRESSIVE LOADING: Add the newly created profile to the UI immediately
+                                    // This provides instant feedback instead of waiting for all profiles
+                                    var iconPath = !string.IsNullOrEmpty(createdProfile.IconPath)
+                                        ? $"avares://GenHub/{createdProfile.IconPath}"
+                                        : Core.Constants.UriConstants.DefaultIconUri;
+
+                                    var item = new GameProfileItemViewModel(
+                                        createdProfile.Id,
+                                        createdProfile,
+                                        iconPath,
+                                        iconPath);
+
+                                    Profiles.Add(item);
+
+                                    logger.LogInformation(
+                                        "Progressive load: Added profile '{ProfileName}' to UI",
+                                        createdProfile.Name);
+                                }
                             }
                         }
                     }
                 }
 
-                // Refresh the profiles list to show the newly created ones
-                await InitializeAsync();
-
                 StatusMessage = $"Scan complete. Found {installationCount} installations, generated {manifestsGenerated} manifests, created {profilesCreated} profiles";
+
+                // NOTE: No post-scan reload needed - CreateProfilesForGameClientAsync returns ALL profiles
+                // including all variants (30Hz/60Hz, Generals/ZeroHour) which are added progressively above
             }
             else
             {
@@ -324,6 +405,11 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = $"Scan failed: {errors}";
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
+
+                _notificationService?.ShowError(
+                    "Scan Failed",
+                    $"Could not scan for games: {errors}",
+                    autoDismissMs: NotificationDurations.Long);
             }
         }
         catch (Exception ex)
@@ -331,6 +417,11 @@ public partial class GameProfileLauncherViewModel(
             logger.LogError(ex, "Error scanning for games");
             StatusMessage = "Error during scan";
             ErrorMessage = ex.Message;
+
+            _notificationService?.ShowError(
+                "Scan Error",
+                $"An error occurred while scanning: {ex.Message}",
+                autoDismissMs: NotificationDurations.Critical);
         }
         finally
         {
@@ -339,131 +430,30 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
-    /// Attempts to create a profile for a specific game client within an installation.
+    /// Attempts to create profiles for a specific game client within an installation.
+    /// For multi-variant content (GeneralsOnline, SuperHackers), returns ALL created profiles.
     /// </summary>
     /// <param name="installation">The game installation.</param>
-    /// <param name="gameClient">The game client to create a profile for.</param>
-    /// <returns>True if profile was created successfully, false otherwise.</returns>
-    private async Task<bool> TryCreateProfileForGameClientAsync(GameInstallation installation, GameClient gameClient)
+    /// <param name="gameClient">The game client to create profiles for.</param>
+    /// <returns>A list of created GameProfiles (empty if none could be created).</returns>
+    private async Task<List<GameProfile>> TryCreateProfilesForGameClientAsync(GameInstallation installation, GameClient gameClient)
     {
-        try
+        var createdProfiles = new List<GameProfile>();
+
+        // Use CreateProfilesForGameClientAsync which returns ALL created profiles
+        var results = await _gameClientProfileService.CreateProfilesForGameClientAsync(
+            installation,
+            gameClient);
+
+        foreach (var result in results)
         {
-            if (profileEditorFacade == null || gameProfileManager == null)
-                return false;
-
-            if (gameClient == null)
+            if (result.Success && result.Data != null)
             {
-                logger.LogWarning(
-                    "GameClient is null for installation {InstallationId}",
-                    installation.Id);
-                return false;
-            }
-
-            // Define profile name based on game client name and installation type
-            var profileName = $"{installation.InstallationType} {gameClient.Name}";
-
-            // Check if a profile already exists for this exact name and installation
-            var existingProfiles = await gameProfileManager.GetAllProfilesAsync();
-            if (existingProfiles.Success && existingProfiles.Data != null)
-            {
-                // Check by name AND installation ID
-                bool profileExists = existingProfiles.Data.Any(p =>
-                    p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
-                    p.GameInstallationId.Equals(installation.Id, StringComparison.OrdinalIgnoreCase));
-
-                if (profileExists)
-                {
-                    logger.LogDebug("Profile already exists for {InstallationType} {GameClientName} (matched by Name+InstallationId), skipping", installation.InstallationType, gameClient.Name);
-                    return false;
-                }
-
-                // Also check by name AND game client ID (in case installation ID changed but it's the same logical profile)
-                bool profileExistsByClient = existingProfiles.Data.Any(p =>
-                    p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
-                    p.GameClient != null &&
-                    p.GameClient.Id.Equals(gameClient.Id, StringComparison.OrdinalIgnoreCase));
-
-                if (profileExistsByClient)
-                {
-                    logger.LogDebug("Profile already exists for {InstallationType} {GameClientName} (matched by Name+ClientId), skipping", installation.InstallationType, gameClient.Name);
-                    return false;
-                }
-            }
-
-            // Get user's preferred workspace strategy or default
-            var preferredStrategy = configService?.GetDefaultWorkspaceStrategy() ?? WorkspaceStrategy.SymlinkOnly;
-
-            // Use the detected version from the game client for the GameInstallation manifest ID
-            // This must match the version used in ProfileContentLoader and ManifestGenerationService
-            int manifestVersionInt;
-            if (string.IsNullOrEmpty(gameClient.Version) ||
-                gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
-                gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-                gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                // For unknown/auto versions, use manifest constants as fallback
-                var fallbackVersion = gameClient.GameType == GameType.ZeroHour
-                    ? ManifestConstants.ZeroHourManifestVersion
-                    : ManifestConstants.GeneralsManifestVersion;
-
-                // Normalize the fallback version (remove dots): "1.04" → 104, "1.08" → 108
-                var normalizedFallback = fallbackVersion.Replace(".", string.Empty);
-                manifestVersionInt = int.TryParse(normalizedFallback, out var v) ? v : 0;
-            }
-            else if (gameClient.Version.Contains("."))
-            {
-                // Normalize dotted version ("1.04" → 104, "1.08" → 108)
-                var normalized = gameClient.Version.Replace(".", string.Empty);
-                manifestVersionInt = int.TryParse(normalized, out var v) ? v : 0;
-            }
-            else
-            {
-                // Try to parse version as int directly
-                manifestVersionInt = int.TryParse(gameClient.Version, out var parsed) ? parsed : 0;
-            }
-
-            // Generate the GameInstallation manifest ID for this specific game type
-            // This must match what ManifestProvider generates
-            var installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, manifestVersionInt);
-
-            // Create enabled content list: GameInstallation manifest + GameClient manifest
-            var enabledContentIds = new List<string>
-            {
-                installationManifestId, // GameInstallation manifest (required for launch validation)
-                gameClient.Id,          // GameClient manifest (required for launch validation)
-            };
-
-            // Create the profile request using the client manifest ID for GameClientId
-            var createRequest = new Core.Models.GameProfile.CreateProfileRequest
-            {
-                Name = profileName,
-                GameInstallationId = installation.Id, // The actual installation GUID
-                GameClientId = gameClient.Id, // Client manifest ID
-                Description = $"Auto-created profile for {installation.InstallationType} {gameClient.Name}",
-                PreferredStrategy = preferredStrategy,
-                EnabledContentIds = enabledContentIds, // Both GameInstallation and GameClient manifests
-                ThemeColor = GetThemeColorForGameType(gameClient.GameType),
-                IconPath = GetIconPathForGame(gameClient.GameType, installation.InstallationType),
-            };
-
-            var profileResult = await profileEditorFacade.CreateProfileWithWorkspaceAsync(createRequest);
-            if (profileResult.Success && profileResult.Data != null)
-            {
-                logger.LogInformation("Successfully created profile '{ProfileName}' for {InstallationType} {GameClientName}", profileResult.Data.Name, installation.InstallationType, gameClient.Name);
-                return true;
-            }
-            else
-            {
-                var errors = string.Join(", ", profileResult.Errors);
-                logger.LogWarning("Failed to create profile for {InstallationType} {GameClientName}: {Errors}", installation.InstallationType, gameClient.Name, errors);
-                return false;
+                createdProfiles.Add(result.Data);
             }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? "Unknown");
-            return false;
-        }
+
+        return createdProfiles;
     }
 
     /// <summary>

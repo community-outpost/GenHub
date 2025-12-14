@@ -24,28 +24,11 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// Supports the GenPatcher dl.dat catalog format with multiple download mirrors.
 /// Uses <see cref="GenPatcherContentRegistry"/> for content metadata.
 /// </summary>
-public class CommunityOutpostResolver : IContentResolver
+public class CommunityOutpostResolver(
+IServiceProvider serviceProvider,
+IProviderDefinitionLoader providerLoader,
+ILogger<CommunityOutpostResolver> logger) : IContentResolver
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IProviderDefinitionLoader _providerLoader;
-    private readonly ILogger<CommunityOutpostResolver> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="CommunityOutpostResolver"/> class.
-    /// </summary>
-    /// <param name="serviceProvider">Service provider to create new manifest builders per resolve operation.</param>
-    /// <param name="providerLoader">Provider definition loader for endpoint configuration.</param>
-    /// <param name="logger">The logger.</param>
-    public CommunityOutpostResolver(
-        IServiceProvider serviceProvider,
-        IProviderDefinitionLoader providerLoader,
-        ILogger<CommunityOutpostResolver> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _providerLoader = providerLoader;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public string ResolverId => CommunityOutpostConstants.PublisherId;
 
@@ -59,31 +42,31 @@ public class CommunityOutpostResolver : IContentResolver
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> ResolveAsync(
+    public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ProviderDefinition? provider,
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Resolving Community Outpost content: {Name} v{Version}",
                 discoveredItem.Name,
                 discoveredItem.Version);
 
             // Get provider definition if not provided
-            provider ??= _providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
             if (provider == null)
             {
-                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
-                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists."));
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists.");
             }
 
             // Get configuration from provider definition
             var websiteUrl = provider.Endpoints.WebsiteUrl ?? provider.Endpoints.GetEndpoint("websiteUrl") ?? string.Empty;
             var patchPageUrl = provider.Endpoints.GetEndpoint("patchPageUrl") ?? string.Empty;
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Using endpoints - WebsiteUrl: {WebsiteUrl}, PatchPageUrl: {PatchPageUrl}",
                 websiteUrl,
                 patchPageUrl);
@@ -106,22 +89,26 @@ public class CommunityOutpostResolver : IContentResolver
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Resolving content code {Code} with {MirrorCount} mirrors, file size: {Size} bytes",
                 contentCode,
                 mirrorUrls.Count,
                 fileSize);
 
             // Generate a deterministic content name from the content code
+            // For patches like "104p", create name like "patch104polish"
+            // For addons like "cbbs", use the content code directly
             var contentName = GenerateContentName(contentCode, contentMetadata);
 
             // Extract version number for manifest ID
+            // For patches like "1.04", extract as 104
+            // For content with dynamic versions (like community-patch), use the discovered version
             var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
                 ? contentMetadata.Version
                 : discoveredItem.Version;
             var manifestVersion = ExtractManifestVersion(versionSource);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Generating manifest ID: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
                 CommunityOutpostConstants.PublisherType,
                 contentMetadata.ContentType,
@@ -129,9 +116,12 @@ public class CommunityOutpostResolver : IContentResolver
                 manifestVersion);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+            // This is critical because the builder accumulates files, and reusing the same
+            // instance across multiple ResolveAsync calls would cause files to accumulate
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             // Build manifest with correct parameters
+            // IMPORTANT: Use PublisherType (e.g., "communityoutpost") as the publisher ID, NOT combined with content code
             var manifest = manifestBuilder
                 .WithBasicInfo(
                     CommunityOutpostConstants.PublisherType,
@@ -139,15 +129,15 @@ public class CommunityOutpostResolver : IContentResolver
                     manifestVersion)
                 .WithContentType(contentMetadata.ContentType, contentMetadata.TargetGame)
                 .WithPublisher(
-                    name: CommunityOutpostConstants.PublisherName,
-                    website: websiteUrl,
-                    supportUrl: patchPageUrl,
+                    name: provider?.DisplayName ?? CommunityOutpostConstants.PublisherName,
+                    website: provider?.Endpoints.GetEndpoint("websiteUrl") ?? string.Empty,
+                    supportUrl: provider?.Endpoints.GetEndpoint("supportUrl") ?? string.Empty,
                     contactEmail: string.Empty,
                     publisherType: CommunityOutpostConstants.PublisherType)
                 .WithMetadata(
                     contentMetadata.Description,
                     tags: BuildTags(discoveredItem, contentMetadata),
-                    changelogUrl: patchPageUrl)
+                    changelogUrl: provider?.Endpoints.GetEndpoint("supportUrl") ?? string.Empty)
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
             // Add dependencies based on content type and category
@@ -165,7 +155,7 @@ public class CommunityOutpostResolver : IContentResolver
                     isExclusive: GenPatcherDependencyBuilder.IsCategoryExclusive(contentMetadata.Category),
                     conflictsWith: dependency.ConflictsWith);
 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Added dependency {DepName} ({DepType}) to manifest for {ContentCode}",
                     dependency.Name,
                     dependency.DependencyType,
@@ -173,11 +163,12 @@ public class CommunityOutpostResolver : IContentResolver
             }
 
             // Add the file as a remote download
-            manifest.AddRemoteFileAsync(
+            // Note: .dat files are actually .7z archives that need extraction
+            await manifest.AddRemoteFileAsync(
                 filename,
                 downloadUrl,
                 ContentSourceType.RemoteDownload,
-                isExecutable: false).Wait(cancellationToken);
+                isExecutable: false);
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
@@ -191,12 +182,13 @@ public class CommunityOutpostResolver : IContentResolver
             // Store mirror URLs in metadata for fallback support during delivery
             if (mirrorUrls.Count > 1)
             {
-                builtManifest.Metadata.Tags ??= new List<string>();
+                // Store as custom tag since Metadata doesn't have arbitrary storage
+                builtManifest.Metadata.Tags ??= [];
                 builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
             }
 
             // Store the content code for the factory to use
-            builtManifest.Metadata.Tags ??= new List<string>();
+            builtManifest.Metadata.Tags ??= [];
             builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
             builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
 
@@ -207,7 +199,11 @@ public class CommunityOutpostResolver : IContentResolver
                 {
                     if (file.RelativePath == filename)
                     {
+                        // Store the archive type in SourcePath temporarily
+                        // The deliverer will use this to know to extract as 7z
                         file.SourcePath = "archive:7z";
+
+                        // Set the install target from content metadata
                         file.InstallTarget = contentMetadata.InstallTarget;
                     }
                 }
@@ -225,31 +221,34 @@ public class CommunityOutpostResolver : IContentResolver
                 ? contentMetadata.Version
                 : discoveredItem.Version;
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
                 builtManifest.Id,
                 contentCode,
                 category);
 
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(builtManifest));
+            return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to resolve Community Outpost content");
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}"));
+            logger.LogError(ex, "Failed to resolve Community Outpost content");
+            return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
     }
 
     /// <summary>
     /// Generates a deterministic content name for manifest ID generation.
     /// </summary>
+    /// <param name="contentCode">The 4-character content code.</param>
+    /// <param name="metadata">The content metadata.</param>
+    /// <returns>A normalized content name suitable for manifest IDs.</returns>
     private static string GenerateContentName(string contentCode, GenPatcherContentMetadata metadata)
     {
         // For official patches like "104p" -> "patch104polish"
         if (metadata.Category == GenPatcherContentCategory.OfficialPatch && !string.IsNullOrEmpty(metadata.LanguageCode))
         {
             var languageName = GetLanguageDisplayName(metadata.LanguageCode);
-            var codePrefix = contentCode.Length >= 3 ? contentCode.Substring(0, 3) : contentCode;
+            var codePrefix = contentCode.Length >= 3 ? contentCode[..3] : contentCode;
             return $"patch{codePrefix}{languageName}".ToLowerInvariant();
         }
 
@@ -288,6 +287,8 @@ public class CommunityOutpostResolver : IContentResolver
     /// <summary>
     /// Extracts a numeric version suitable for manifest ID.
     /// </summary>
+    /// <param name="version">The version string (e.g., "1.04", "1.08", "1.0", "2025-11-07").</param>
+    /// <returns>A numeric version string (e.g., "104", "108", "20251107").</returns>
     private static string ExtractManifestVersion(string version)
     {
         if (string.IsNullOrEmpty(version))
@@ -295,7 +296,7 @@ public class CommunityOutpostResolver : IContentResolver
             return "0";
         }
 
-        // Handle date versions like "2025-11-07"
+        // Handle date versions like "2025-11-07" - exact format check for YYYY-MM-DD
         if (version.Length == 10 && version[4] == '-' && version[7] == '-')
         {
             var dateDigits = version.Replace("-", string.Empty);
@@ -306,8 +307,10 @@ public class CommunityOutpostResolver : IContentResolver
         }
 
         // Remove dots and leading zeros to get numeric version
+        // "1.04" -> "104", "1.08" -> "108", "1.0" -> "10"
         var digits = version.Replace(".", string.Empty);
 
+        // Try to parse as integer to normalize
         if (int.TryParse(digits, out var numericVersion))
         {
             return numericVersion.ToString();
@@ -323,11 +326,13 @@ public class CommunityOutpostResolver : IContentResolver
     {
         var tags = new List<string>(item.Tags);
 
+        // Add language tag if present
         if (!string.IsNullOrEmpty(metadata.LanguageCode))
         {
             tags.Add(metadata.LanguageCode);
         }
 
+        // Add category tag
         tags.Add(metadata.Category.ToString().ToLowerInvariant());
 
         return tags;
@@ -376,6 +381,7 @@ public class CommunityOutpostResolver : IContentResolver
             // Fall through to default filename
         }
 
+        // Generate filename from content code
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
     }
 
@@ -388,12 +394,12 @@ public class CommunityOutpostResolver : IContentResolver
 
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? new List<string>();
+            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? [];
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to deserialize mirror URLs");
-            return new List<string>();
+            logger.LogWarning(ex, "Failed to deserialize mirror URLs");
+            return [];
         }
     }
 }

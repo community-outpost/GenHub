@@ -178,6 +178,9 @@ public class ProfileContentLoader(
                 // Create an entry for EACH game client (including all GeneralsOnline variants)
                 foreach (var gameClient in installation.AvailableGameClients)
                 {
+                    // Skip placeholder/pending game clients
+                    if (gameClient.Id.Contains(":pending:", StringComparison.OrdinalIgnoreCase))
+                        continue;
                     var normalizedVersion = _displayFormatter.NormalizeVersion(gameClient.Version);
                     var publisherName = _displayFormatter.GetPublisherFromInstallationType(installation.InstallationType);
 
@@ -220,6 +223,10 @@ public class ProfileContentLoader(
                 {
                     // Skip if already included from installations
                     if (includedManifestIds.Contains(manifest.Id.Value))
+                        continue;
+
+                    // Skip placeholder/pending manifests
+                    if (manifest.Id.Value.Contains(":pending:", StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     var publisher = _displayFormatter.GetPublisherFromManifest(manifest);
@@ -525,118 +532,118 @@ public class ProfileContentLoader(
                 string? gameClientId = null;
 
                 if (manifest.ContentType == ContentType.GameClient)
+                {
+                    GameInstallation? clientInstallation = null;
+                    GameClient? matchingClient = null;
+
+                    // First, try the profile's primary installation if available
+                    if (gameInstallation != null)
                     {
-                        GameInstallation? clientInstallation = null;
-                        GameClient? matchingClient = null;
-
-                        // First, try the profile's primary installation if available
-                        if (gameInstallation != null)
+                        matchingClient = gameInstallation.AvailableGameClients?.FirstOrDefault(gc => gc.Id == manifest.Id.Value);
+                        if (matchingClient != null)
                         {
-                            matchingClient = gameInstallation.AvailableGameClients?.FirstOrDefault(gc => gc.Id == manifest.Id.Value);
-                            if (matchingClient != null)
-                            {
-                                clientInstallation = gameInstallation;
-                            }
+                            clientInstallation = gameInstallation;
                         }
+                    }
 
-                        // If not found in primary installation, search ALL installations
-                        if (matchingClient == null)
+                    // If not found in primary installation, search ALL installations
+                    if (matchingClient == null)
+                    {
+                        _logger.LogDebug(
+                            "GameClient {ManifestId} not found in primary installation, searching all installations",
+                            manifest.Id.Value);
+
+                        var allInstallationsResult = await _gameInstallationService.GetAllInstallationsAsync();
+                        if (allInstallationsResult.Success && allInstallationsResult.Data != null)
                         {
-                            _logger.LogDebug(
-                                "GameClient {ManifestId} not found in primary installation, searching all installations",
-                                manifest.Id.Value);
-
-                            var allInstallationsResult = await _gameInstallationService.GetAllInstallationsAsync();
-                            if (allInstallationsResult.Success && allInstallationsResult.Data != null)
+                            foreach (var installation in allInstallationsResult.Data)
                             {
-                                foreach (var installation in allInstallationsResult.Data)
+                                matchingClient = installation.AvailableGameClients?.FirstOrDefault(gc => gc.Id == manifest.Id.Value);
+                                if (matchingClient != null)
                                 {
-                                    matchingClient = installation.AvailableGameClients?.FirstOrDefault(gc => gc.Id == manifest.Id.Value);
-                                    if (matchingClient != null)
-                                    {
-                                        clientInstallation = installation;
-                                        _logger.LogInformation(
-                                            "Found GameClient {ManifestId} in installation {InstallationId} ({InstallationType})",
-                                            manifest.Id.Value,
-                                            installation.Id,
-                                            installation.InstallationType);
-                                        break;
-                                    }
+                                    clientInstallation = installation;
+                                    _logger.LogInformation(
+                                        "Found GameClient {ManifestId} in installation {InstallationId} ({InstallationType})",
+                                        manifest.Id.Value,
+                                        installation.Id,
+                                        installation.InstallationType);
+                                    break;
                                 }
                             }
                         }
-
-                        if (matchingClient != null && clientInstallation != null)
-                        {
-                            var normalizedVersion = _displayFormatter.NormalizeVersion(matchingClient.Version);
-                            var publisherName = _displayFormatter.GetPublisherFromInstallationType(clientInstallation.InstallationType);
-
-                            // Build display name from GameClient properties (e.g., "Steam Zero Hour 1.04")
-                            displayName = _displayFormatter.BuildDisplayName(matchingClient.GameType, normalizedVersion, matchingClient.Name);
-                            gameType = matchingClient.GameType;
-                            installationType = clientInstallation.InstallationType;
-                            publisher = publisherName;
-                            sourceId = clientInstallation.Id;
-                            gameClientId = matchingClient.Id;
-
-                            var gameClientItem = new ContentDisplayItem
-                            {
-                                Id = manifest.Id.Value,
-                                ManifestId = manifest.Id.Value,
-                                DisplayName = displayName,
-                                Version = normalizedVersion,
-                                ContentType = manifest.ContentType,
-                                GameType = gameType,
-                                InstallationType = installationType,
-                                Publisher = publisher,
-                                SourceId = sourceId,
-                                GameClientId = gameClientId,
-                                IsEnabled = true,
-                            };
-                            result.Add(gameClientItem);
-                            _logger.LogDebug(
-                                "Successfully loaded GameClient {DisplayName} from installation {InstallationId}",
-                                displayName,
-                                clientInstallation.Id);
-                            continue; // Skip the generic item creation below
-                        }
-                        else
-                        {
-                            // Fallback: GameClient not found in any installation
-                            // This can happen for standalone GameClients (e.g., from GitHub Manager)
-                            _logger.LogInformation(
-                                "GameClient manifest {ManifestId} not found in any installation - creating standalone entry from manifest pool",
-                                manifest.Id.Value);
-
-                            // Create a ContentDisplayItem directly from the manifest
-                            var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
-                            var publisherName = _displayFormatter.GetPublisherFromManifest(manifest);
-                            displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
-                            gameType = manifest.TargetGame;
-                            installationType = _displayFormatter.GetInstallationTypeFromManifest(manifest);
-                            publisher = publisherName;
-
-                            var standaloneClientItem = new ContentDisplayItem
-                            {
-                                Id = manifest.Id.Value,
-                                ManifestId = manifest.Id.Value,
-                                DisplayName = displayName,
-                                Version = normalizedVersion,
-                                ContentType = manifest.ContentType,
-                                GameType = gameType,
-                                InstallationType = installationType,
-                                Publisher = publisher,
-                                SourceId = string.Empty, // No source installation
-                                GameClientId = manifest.Id.Value,
-                                IsEnabled = true,
-                            };
-                            result.Add(standaloneClientItem);
-                            _logger.LogInformation(
-                                "Successfully loaded standalone GameClient {DisplayName} from manifest pool",
-                                displayName);
-                            continue; // Skip the generic item creation below
-                        }
                     }
+
+                    if (matchingClient != null && clientInstallation != null)
+                    {
+                        var normalizedVersion = _displayFormatter.NormalizeVersion(matchingClient.Version);
+                        var publisherName = _displayFormatter.GetPublisherFromInstallationType(clientInstallation.InstallationType);
+
+                        // Build display name from GameClient properties (e.g., "Steam Zero Hour 1.04")
+                        displayName = _displayFormatter.BuildDisplayName(matchingClient.GameType, normalizedVersion, matchingClient.Name);
+                        gameType = matchingClient.GameType;
+                        installationType = clientInstallation.InstallationType;
+                        publisher = publisherName;
+                        sourceId = clientInstallation.Id;
+                        gameClientId = matchingClient.Id;
+
+                        var gameClientItem = new ContentDisplayItem
+                        {
+                            Id = manifest.Id.Value,
+                            ManifestId = manifest.Id.Value,
+                            DisplayName = displayName,
+                            Version = normalizedVersion,
+                            ContentType = manifest.ContentType,
+                            GameType = gameType,
+                            InstallationType = installationType,
+                            Publisher = publisher,
+                            SourceId = sourceId,
+                            GameClientId = gameClientId,
+                            IsEnabled = true,
+                        };
+                        result.Add(gameClientItem);
+                        _logger.LogDebug(
+                            "Successfully loaded GameClient {DisplayName} from installation {InstallationId}",
+                            displayName,
+                            clientInstallation.Id);
+                        continue; // Skip the generic item creation below
+                    }
+                    else
+                    {
+                        // Fallback: GameClient not found in any installation
+                        // This can happen for standalone GameClients (e.g., from GitHub Manager)
+                        _logger.LogInformation(
+                            "GameClient manifest {ManifestId} not found in any installation - creating standalone entry from manifest pool",
+                            manifest.Id.Value);
+
+                        // Create a ContentDisplayItem directly from the manifest
+                        var normalizedVersion = _displayFormatter.NormalizeVersion(manifest.Version);
+                        var publisherName = _displayFormatter.GetPublisherFromManifest(manifest);
+                        displayName = _displayFormatter.BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
+                        gameType = manifest.TargetGame;
+                        installationType = _displayFormatter.GetInstallationTypeFromManifest(manifest);
+                        publisher = publisherName;
+
+                        var standaloneClientItem = new ContentDisplayItem
+                        {
+                            Id = manifest.Id.Value,
+                            ManifestId = manifest.Id.Value,
+                            DisplayName = displayName,
+                            Version = normalizedVersion,
+                            ContentType = manifest.ContentType,
+                            GameType = gameType,
+                            InstallationType = installationType,
+                            Publisher = publisher,
+                            SourceId = string.Empty, // No source installation
+                            GameClientId = manifest.Id.Value,
+                            IsEnabled = true,
+                        };
+                        result.Add(standaloneClientItem);
+                        _logger.LogInformation(
+                            "Successfully loaded standalone GameClient {DisplayName} from manifest pool",
+                            displayName);
+                        continue; // Skip the generic item creation below
+                    }
+                }
 
                 // Handle GameInstallation content type
                 if (manifest.ContentType == ContentType.GameInstallation && gameInstallation != null)

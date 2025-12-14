@@ -70,7 +70,7 @@ public class GeneralsOnlineProvider(
                     $"Invalid contentId format: '{contentId}'. Expected format: 'GeneralsOnline_{{version}}'");
             }
 
-            var version = contentId.Substring("GeneralsOnline_".Length);
+            var version = contentId["GeneralsOnline_".Length..];
 
             if (string.IsNullOrWhiteSpace(version))
             {
@@ -98,16 +98,23 @@ public class GeneralsOnlineProvider(
                 }
             }
 
-            // Not found - resolve new manifest
-            var searchResultObj = new ContentSearchResult
+            // Not found - use discoverer to get release data with proper metadata
+            var query = new ContentSearchQuery
             {
-                Id = contentId,
-                Name = GeneralsOnlineConstants.ContentName,
-                Version = version, // Use parsed version, not full contentId
-                ProviderName = SourceName,
-                RequiresResolution = true,
-                ResolverId = GeneralsOnlineConstants.ResolverId,
+                SearchTerm = version,
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Take = 1,
             };
+
+            var discoveryResult = await Discoverer.DiscoverAsync(query, cancellationToken);
+            if (!discoveryResult.Success || discoveryResult.Data == null || !discoveryResult.Data.Any())
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to discover release data for version: {version}");
+            }
+
+            var searchResultObj = discoveryResult.Data.First();
 
             var manifestResult = await Resolver.ResolveAsync(searchResultObj, cancellationToken);
             if (!manifestResult.Success || manifestResult.Data == null)

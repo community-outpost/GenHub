@@ -69,8 +69,12 @@ public class GameClientDetector(
                     _logger.LogWarning("Skipping Generals game client for {InstallationId}: no valid executable found at {ExePath}", inst.Id, actualExePath);
                 }
 
-                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.Generals, cancellationToken);
+                var generalsOnlineClients = DetectGeneralsOnlineClients(inst, GameType.Generals, cancellationToken);
                 gameClients.AddRange(generalsOnlineClients);
+
+                // Also check for SuperHackers clients (generalsv.exe) in the installation directory
+                var superHackersClients = DetectSuperHackersClients(inst, GameType.Generals, cancellationToken);
+                gameClients.AddRange(superHackersClients);
             }
 
             if (inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && Directory.Exists(inst.ZeroHourPath))
@@ -97,8 +101,12 @@ public class GameClientDetector(
                 }
 
                 // Then check for GeneralsOnline clients in the installation directory
-                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.ZeroHour, cancellationToken);
+                var generalsOnlineClients = DetectGeneralsOnlineClients(inst, GameType.ZeroHour, cancellationToken);
                 gameClients.AddRange(generalsOnlineClients);
+
+                // Also check for SuperHackers clients (generalszh.exe) in the installation directory
+                var superHackersClients = DetectSuperHackersClients(inst, GameType.ZeroHour, cancellationToken);
+                gameClients.AddRange(superHackersClients);
             }
         }
 
@@ -413,11 +421,15 @@ public class GameClientDetector(
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of detected GeneralsOnline game clients.</returns>
     /// <remarks>
-    /// GeneralsOnline executables are auto-updated by the GeneralsOnline launcher,
-    /// which can invalidate hash verification. For now, we detect by filename only
-    /// and skip hash validation until a dedicated publisher system is implemented.
+    /// GeneralsOnline clients require manifests from the publisher to get:
+    /// 1. Deterministic versioned IDs (e.g., 1.1118252.generalsonline.gameclient.zerohour30hz)
+    /// 2. Proper dependency chain (GameInstallation + MapPack)
+    /// 3. Correct file hashes from the official release
+    ///
+    /// This method only detects the executable - manifest acquisition is deferred to
+    /// GameClientProfileService which will fetch from the GeneralsOnline provider.
     /// </remarks>
-    private async Task<List<GameClient>> DetectGeneralsOnlineClientsAsync(
+    private List<GameClient> DetectGeneralsOnlineClients(
         GameInstallation installation,
         GameType gameType,
         CancellationToken cancellationToken)
@@ -429,9 +441,6 @@ public class GameClientDetector(
         {
             return detectedClients;
         }
-
-        // GeneralsOnline clients auto-update, so we use a fixed version string
-        const string generalsOnlineVersion = "Auto-Updated";
 
         var generalsOnlineExecutables = GameClientConstants.GeneralsOnlineExecutableNames;
 
@@ -468,14 +477,20 @@ public class GameClientDetector(
                     variantName,
                     executablePath);
 
-                // Format display name: "GeneralsOnline 60Hz"
-                var displayName = $"{variantName}";
+                // Extract variant suffix for placeholder ID
+                var variantSuffix = executableName.Contains("30") ? GeneralsOnlineConstants.Variant30HzSuffix :
+                                   executableName.Contains("60") ? GeneralsOnlineConstants.Variant60HzSuffix :
+                                   "standard";
+
+                // Create placeholder ID - GameClientProfileService will replace with proper versioned ID
+                // Format: generalsonline:pending:<variant> - signals that provider acquisition is needed
+                var placeholderId = $"{PublisherTypeConstants.GeneralsOnline}:{GameClientConstants.PendingManifestMarker}:{variantSuffix}";
 
                 var gameClient = new GameClient
                 {
-                    Name = displayName,
-                    Id = string.Empty, // Will be set by manifest generation
-                    Version = generalsOnlineVersion,
+                    Name = variantName,
+                    Id = placeholderId, // Placeholder - will be replaced by provider manifest
+                    Version = GameClientConstants.AutoDetectedVersion, // Signals auto-update client
                     ExecutablePath = executablePath,
                     GameType = gameType,
                     InstallationId = installation.Id,
@@ -483,12 +498,10 @@ public class GameClientDetector(
                     SourceType = ContentType.GameClient,
                 };
 
-                // Generate manifest for this GeneralsOnline client
-                await GenerateGeneralsOnlineClientManifestAsync(gameClient, installationPath, installation, gameType);
                 detectedClients.Add(gameClient);
 
                 _logger.LogDebug(
-                    "Added GeneralsOnline game client {VariantName} with ID {ClientId}",
+                    "Added GeneralsOnline game client {VariantName} with placeholder ID {ClientId} - manifest will be fetched from provider",
                     variantName,
                     gameClient.Id);
             }
@@ -504,7 +517,7 @@ public class GameClientDetector(
         if (detectedClients.Count > 0)
         {
             _logger.LogInformation(
-                "Detected {Count} GeneralsOnline clients in {InstallationPath}",
+                "Detected {Count} GeneralsOnline clients in {InstallationPath} - manifests will be fetched from provider",
                 detectedClients.Count,
                 installationPath);
         }
@@ -513,97 +526,102 @@ public class GameClientDetector(
     }
 
     /// <summary>
-    /// Generates a manifest for a GeneralsOnline game client with special handling.
+    /// Detects SuperHackers game clients by name in the game installation directory.
+    /// This helper enables detection of SuperHackers executables (generalsv.exe, generalszh.exe)
+    /// that users already have from weekly SuperHackers releases.
     /// </summary>
-    /// <param name="gameClient">The GeneralsOnline game client.</param>
-    /// <param name="clientPath">The client installation path.</param>
-    /// <param name="installation">The parent game installation.</param>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task GenerateGeneralsOnlineClientManifestAsync(
-        GameClient gameClient,
-        string clientPath,
+    /// <param name="installation">The game installation to scan.</param>
+    /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of detected SuperHackers game clients.</returns>
+    /// <remarks>
+    /// SuperHackers clients require manifests from the publisher to get:
+    /// 1. Deterministic versioned IDs based on the weekly release
+    /// 2. Proper dependency chain (GameInstallation)
+    /// 3. Correct file hashes from the official release
+    ///
+    /// This method only detects the executable - manifest acquisition is deferred to
+    /// GameClientProfileService which will fetch from the SuperHackers provider.
+    /// </remarks>
+    private List<GameClient> DetectSuperHackersClients(
         GameInstallation installation,
-        GameType gameType)
+        GameType gameType,
+        CancellationToken cancellationToken)
     {
+        var detectedClients = new List<GameClient>();
+        var installationPath = gameType == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
+
+        if (string.IsNullOrEmpty(installationPath) || !Directory.Exists(installationPath))
+        {
+            return detectedClients;
+        }
+
+        // Get the expected executable for this game type
+        var expectedExecutable = gameType == GameType.Generals
+            ? GameClientConstants.SuperHackersGeneralsExecutable
+            : GameClientConstants.SuperHackersZeroHourExecutable;
+
+        var executablePath = Path.Combine(installationPath, expectedExecutable);
+
+        if (!File.Exists(executablePath))
+        {
+            return detectedClients;
+        }
+
         try
         {
-            // Validate that the GameClient has a valid executable path
-            if (string.IsNullOrWhiteSpace(gameClient.ExecutablePath))
+            // Determine the display name based on game type
+            var displayName = gameType == GameType.Generals
+                ? GameClientConstants.SuperHackersGeneralsDisplayName
+                : GameClientConstants.SuperHackersZeroHourDisplayName;
+
+            _logger.LogInformation(
+                "Detected SuperHackers client: {DisplayName} at {ExecutablePath}",
+                displayName,
+                executablePath);
+
+            // Create placeholder ID - GameClientProfileService will replace with proper versioned ID
+            // Format: thesuperhackers:pending:<gameType> - signals that provider acquisition is needed
+            var gameTypeSuffix = gameType == GameType.Generals
+                ? SuperHackersConstants.GeneralsSuffix
+                : SuperHackersConstants.ZeroHourSuffix;
+            var placeholderId = $"{SuperHackersConstants.PublisherId}:{GameClientConstants.PendingManifestMarker}:{gameTypeSuffix}";
+
+            var gameClient = new GameClient
             {
-                _logger.LogError("GeneralsOnline client {ClientName} has no executable path - cannot generate manifest", gameClient.Name);
-                gameClient.Id = Guid.NewGuid().ToString(); // Fallback
-                return;
-            }
-
-            if (!File.Exists(gameClient.ExecutablePath))
-            {
-                _logger.LogError("GeneralsOnline executable not found at {ExecutablePath} - cannot generate manifest", gameClient.ExecutablePath);
-                gameClient.Id = Guid.NewGuid().ToString(); // Fallback
-                return;
-            }
-
-            // Generate GeneralsOnline-specific manifest with executable included
-            var builder = await _manifestGenerationService.CreateGeneralsOnlineClientManifestAsync(
-                clientPath,
-                gameType,
-                gameClient.Name,
-                gameClient.Version,
-                gameClient.ExecutablePath);
-
-            var manifest = builder.Build();
-            manifest.ContentType = ContentType.GameClient;
-
-            var zhDependency = new ContentDependency
-            {
-                Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
-                Name = GameClientConstants.ZeroHourInstallationDependencyName,
-                DependencyType = ContentType.GameInstallation,
-                InstallBehavior = DependencyInstallBehavior.RequireExisting,
-                CompatibleGameTypes = [GameType.ZeroHour],
+                Name = displayName,
+                Id = placeholderId, // Placeholder - will be replaced by provider manifest
+                Version = GameClientConstants.AutoDetectedVersion, // Signals auto-update client
+                ExecutablePath = executablePath,
+                GameType = gameType,
+                InstallationId = installation.Id,
+                WorkingDirectory = installationPath,
+                SourceType = ContentType.GameClient,
             };
-            manifest.Dependencies.Add(zhDependency);
 
-            var manifestVersion = gameType == GameType.ZeroHour
-                ? ManifestConstants.ZeroHourManifestVersion
-                : ManifestConstants.GeneralsManifestVersion;
+            detectedClients.Add(gameClient);
 
-            // Generate deterministic ID for GeneralsOnline client
-            // Use publisher-based content ID format: version.publisher.contentType.contentName
-            // This allows multiple GeneralsOnline variants (30Hz, 60Hz)
-            var executableName = Path.GetFileNameWithoutExtension(gameClient.ExecutablePath).ToLowerInvariant();
-
-            // Extract the variant (30hz or 60hz) from executable name
-            // generalsonlinezh_30 → 30hz, generalsonlinezh_60 → 60hz
-            string variantSuffix = executableName.Contains("30") ? "30hz" :
-                                   executableName.Contains("60") ? "60hz" :
-                                   "standard";
-
-            // GeneralsOnline always uses version 0 since it auto-updates
-            var clientIdResult = ManifestIdGenerator.GeneratePublisherContentId(
-                PublisherTypeConstants.GeneralsOnline,
-                ContentType.GameClient,
-                $"{gameType.ToString().ToLowerInvariant()}{variantSuffix}",
-                userVersion: 0);
-            manifest.Id = ManifestId.Create(clientIdResult);
-
-            // Add to pool
-            var addResult = await _contentManifestPool.AddManifestAsync(manifest, clientPath);
-            if (addResult.Success)
-            {
-                gameClient.Id = manifest.Id.ToString();
-                _logger.LogDebug("Generated GeneralsOnline manifest ID {Id} for {ClientName}", gameClient.Id, gameClient.Name);
-            }
-            else
-            {
-                _logger.LogWarning("Failed to pool GeneralsOnline manifest for {ClientName}: {Errors}", gameClient.Name, string.Join(", ", addResult.Errors));
-                gameClient.Id = Guid.NewGuid().ToString(); // Fallback
-            }
+            _logger.LogDebug(
+                "Added SuperHackers game client {DisplayName} with placeholder ID {ClientId} - manifest will be fetched from provider",
+                displayName,
+                gameClient.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate manifest for GeneralsOnline client {ClientName}", gameClient.Name);
-            gameClient.Id = Guid.NewGuid().ToString(); // Fallback
+            _logger.LogWarning(
+                ex,
+                "Failed to detect SuperHackers client at {ExecutablePath}",
+                executablePath);
         }
+
+        if (detectedClients.Count > 0)
+        {
+            _logger.LogInformation(
+                "Detected {Count} SuperHackers clients in {InstallationPath} - manifests will be fetched from provider",
+                detectedClients.Count,
+                installationPath);
+        }
+
+        return detectedClients;
     }
 }

@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -21,11 +23,13 @@ public class GameProfileManager(
     IGameProfileRepository profileRepository,
     IGameInstallationService installationService,
     IContentManifestPool manifestPool,
+    INotificationService? notificationService,
     ILogger<GameProfileManager> logger) : IGameProfileManager
 {
     private readonly IGameProfileRepository _profileRepository = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
     private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
     private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
+    private readonly INotificationService? _notificationService = notificationService;
     private readonly ILogger<GameProfileManager> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -56,10 +60,26 @@ public class GameProfileManager(
             }
 
             var gameInstallation = installationResult.Data!;
-            var gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
-            if (gameClient == null)
+
+            // Use GameClient from request if provided (for provider-based clients like GeneralsOnline/SuperHackers)
+            // Otherwise, look it up from AvailableGameClients (for standard installation-detected clients)
+            GameClient? gameClient;
+            if (request.GameClient != null)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                // Provider-based client: use the resolved game client directly
+                gameClient = request.GameClient;
+                _logger.LogDebug(
+                    "Using provided GameClient for profile creation: {GameClientId}",
+                    gameClient.Id);
+            }
+            else
+            {
+                // Standard client: look up from AvailableGameClients
+                gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
+                if (gameClient == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                }
             }
 
             var profile = new GameProfile
@@ -80,6 +100,12 @@ public class GameProfileManager(
             if (saveResult.Success)
             {
                 _logger.LogInformation("Successfully created game profile: {ProfileName}", profile.Name);
+
+                // Emit success notification for profile creation
+                _notificationService?.ShowSuccess(
+                    "Profile Created",
+                    $"Successfully created profile '{profile.Name}'",
+                    autoDismissMs: NotificationDurations.Medium);
             }
             else
             {

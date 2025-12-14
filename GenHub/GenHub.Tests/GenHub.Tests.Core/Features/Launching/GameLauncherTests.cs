@@ -73,23 +73,14 @@ public class GameLauncherTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Setup profile content linker mock
-        _profileContentLinkerMock.Setup(x => x.PrepareProfileUserDataAsync(
-                It.IsAny<string>(),
-                It.IsAny<IEnumerable<ContentManifest>>(),
-                It.IsAny<GameType>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
+        // Setup profile content linker mock
         _profileContentLinkerMock.Setup(x => x.SwitchProfileUserDataAsync(
-                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<ContentManifest>>(),
                 It.IsAny<GameType>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        _profileContentLinkerMock.Setup(x => x.GetActiveProfileId())
-            .Returns((string?)null);
 
         // Setup dependency resolver mock - returns resolved manifests including dependencies
         _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
@@ -139,14 +130,6 @@ public class GameLauncherTests
 
         _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-
-        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
-                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { "1.0.genhub.mod.test" })),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
-                new[] { "1.0.genhub.mod.test" },
-                new[] { manifest },
-                new string[0]));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
@@ -278,13 +261,6 @@ public class GameLauncherTests
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
         _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
-                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { "1.0.genhub.mod.test" })),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
-                new[] { "1.0.genhub.mod.test" },
-                new[] { manifest },
-                new string[0]));
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
         _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
@@ -368,14 +344,6 @@ public class GameLauncherTests
 
         _manifestPoolMock.Setup(x => x.GetManifestAsync("1.0.genhub.mod.test", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
-
-        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
-                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { "1.0.genhub.mod.test" })),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
-                new[] { "1.0.genhub.mod.test" },
-                new[] { manifest },
-                new string[0]));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .Callback<WorkspaceConfiguration, IProgress<WorkspacePreparationProgress>, CancellationToken>((_, p, _) =>
@@ -651,14 +619,6 @@ public class GameLauncherTests
         _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "1.0.genhub.mod.test" }));
 
-        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
-                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { "1.0.genhub.mod.test" })),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
-                new[] { "1.0.genhub.mod.test" },
-                new[] { new ContentManifest { Id = "1.0.genhub.mod.test" } },
-                new string[0]));
-
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
 
@@ -709,14 +669,6 @@ public class GameLauncherTests
 
         _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest { Id = "1.0.genhub.mod.test" }));
-
-        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
-                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(new[] { "1.0.genhub.mod.test" })),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(
-                new[] { "1.0.genhub.mod.test" },
-                new[] { new ContentManifest { Id = "1.0.genhub.mod.test" } },
-                new string[0]));
 
         _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));

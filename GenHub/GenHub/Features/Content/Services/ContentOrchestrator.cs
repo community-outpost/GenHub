@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -31,6 +32,7 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IDynamicContentCache _cache;
     private readonly IContentValidator _contentValidator;
     private readonly IContentManifestPool _manifestPool;
+    private readonly IGameClientProfileService? _gameClientProfileService;
     private readonly object _providerLock = new object();
 
     /// <summary>
@@ -43,6 +45,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cache">The dynamic content cache service for performance optimization.</param>
     /// <param name="contentValidator">The content validator service for manifest and content integrity.</param>
     /// <param name="manifestPool">The manifest pool for acquired content.</param>
+    /// <param name="gameClientProfileService">Optional service for auto-creating profiles for GameClient content.</param>
     public ContentOrchestrator(
         ILogger<ContentOrchestrator> logger,
         IEnumerable<IContentProvider> providers,
@@ -50,7 +53,8 @@ public class ContentOrchestrator : IContentOrchestrator
         IEnumerable<IContentResolver> resolvers,
         IDynamicContentCache cache,
         IContentValidator contentValidator,
-        IContentManifestPool manifestPool)
+        IContentManifestPool manifestPool,
+        IGameClientProfileService? gameClientProfileService = null)
     {
         _logger = logger;
         _providers = new ConcurrentBag<IContentProvider>(providers);
@@ -67,6 +71,7 @@ public class ContentOrchestrator : IContentOrchestrator
         _cache = cache;
         _contentValidator = contentValidator;
         _manifestPool = manifestPool;
+        _gameClientProfileService = gameClientProfileService;
 
         _logger.LogInformation("ContentOrchestrator initialized with {ProviderCount} providers, {DiscovererCount} discoverers, {ResolverCount} resolvers", _providers.Count, _discoverers.Count, _resolvers.Count);
     }
@@ -105,9 +110,15 @@ public class ContentOrchestrator : IContentOrchestrator
 
         // Orchestrate search across all enabled providers concurrently
         // Each provider handles its own internal discovery→resolution→delivery pipeline
-        var searchTasks = _providers
-            .Where(p => p.IsEnabled)
-            .ToList();
+        var providersToSearch = _providers.Where(p => p.IsEnabled);
+
+        // Optimization: If provider is specified in query, only search that provider
+        if (!string.IsNullOrEmpty(query.ProviderName))
+        {
+            providersToSearch = providersToSearch.Where(p => p.SourceName.Equals(query.ProviderName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var searchTasks = providersToSearch.ToList();
 
         if (!searchTasks.Any())
         {
@@ -539,6 +550,48 @@ public class ContentOrchestrator : IContentOrchestrator
                 });
 
                 _logger.LogInformation("Content {ContentName} acquired and stored in manifest pool", searchResult.Name);
+
+                // Auto-create profile for GameClient content
+                // Skip GeneralsOnline and SuperHackers - they're multi-variant and handled by
+                // CreateProfilesForGameClientAsync which creates ALL variant profiles at once
+                if (_gameClientProfileService != null && prepareResult.Data.ContentType == ContentType.GameClient)
+                {
+                    // Check if this is multi-variant content by examining the manifest ID
+                    var manifestId = prepareResult.Data.Id.Value.ToLowerInvariant();
+                    var isMultiVariantContent =
+                        manifestId.Contains(".generalsonline.") ||
+                        manifestId.Contains(".thesuperhackers.");
+
+                    if (isMultiVariantContent)
+                    {
+                        _logger.LogDebug(
+                            "Skipping auto-profile for multi-variant content {ManifestId} - handled by CreateProfilesForGameClientAsync",
+                            prepareResult.Data.Id);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var profileResult = await _gameClientProfileService.CreateProfileFromManifestAsync(
+                                prepareResult.Data,
+                                cancellationToken);
+                            if (profileResult.Success)
+                            {
+                                _logger.LogInformation(
+                                    "Auto-created profile for GameClient content: {ContentName}",
+                                    searchResult.Name);
+                            }
+                        }
+                        catch (Exception profileEx)
+                        {
+                            _logger.LogWarning(
+                                profileEx,
+                                "Failed to auto-create profile for GameClient content: {ContentName}",
+                                searchResult.Name);
+                        }
+                    }
+                }
+
                 return OperationResult<ContentManifest>.CreateSuccess(prepareResult.Data);
             }
             finally
