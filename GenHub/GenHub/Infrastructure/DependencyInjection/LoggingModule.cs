@@ -27,15 +27,8 @@ public static class LoggingModule
             builder.AddConsole();
             builder.AddDebug();
             builder.AddFile(logPath, LogLevel.Information);
+            builder.SetMinimumLevel(LogLevel.Information);
         });
-
-        services.AddSingleton<IConfigureOptions<LoggerFilterOptions>>(serviceProvider =>
-            new ConfigureNamedOptions<LoggerFilterOptions>(null, options =>
-            {
-                var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
-                var minLevel = configProvider.GetEnableDetailedLogging() ? LogLevel.Debug : LogLevel.Information;
-                options.MinLevel = minLevel;
-            }));
 
         return services;
     }

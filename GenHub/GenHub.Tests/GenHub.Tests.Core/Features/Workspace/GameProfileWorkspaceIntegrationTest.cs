@@ -316,8 +316,16 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
                 System.Security.Principal.WindowsIdentity.GetCurrent())
             .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 
+        // Skip symlink strategies when not admin on Windows
         if ((strategy == WorkspaceStrategy.SymlinkOnly || strategy == WorkspaceStrategy.HybridCopySymlink) &&
             (!isWindows || !isAdmin))
+        {
+            return;
+        }
+
+        // Skip HardLink strategy on Windows in Core tests - the base FileOperationsService
+        // doesn't support hard links on Windows, use WindowsFileOperationsService instead
+        if (strategy == WorkspaceStrategy.HardLink && isWindows)
         {
             return;
         }

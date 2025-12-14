@@ -107,10 +107,21 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
             if (!sameVolume)
             {
-                Logger.LogWarning(
-                    "Source ({SourceVolume}) and destination ({DestVolume}) are on different volumes. Hard links will fall back to copies.",
-                    sourceRoot,
-                    destRoot);
+                var errorMessage = $"HardLink strategy cannot be used across different drives.\n" +
+                    $"Game installation: {configuration.BaseInstallationPath} (drive {sourceRoot})\n" +
+                    $"Workspace location: {workspacePath} (drive {destRoot})\n" +
+                    $"Please manually change to FullCopy strategy in profile settings or move your workspace to the same drive as your game.";
+                Logger.LogError(errorMessage);
+
+                workspaceInfo.IsPrepared = false;
+                workspaceInfo.ValidationIssues.Add(new()
+                {
+                    Message = errorMessage,
+                    Severity = Core.Models.Validation.ValidationSeverity.Error,
+                });
+
+                CleanupWorkspaceOnFailure(workspacePath);
+                return workspaceInfo;
             }
 
             Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
@@ -119,6 +130,12 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Process each manifest and its files to maintain manifest context for source path resolution
             foreach (var manifest in configuration.Manifests)
             {
+                Logger.LogDebug(
+                    "[HardLink] Processing manifest: {ManifestId} ({ContentType}) with {FileCount} files",
+                    manifest.Id.Value,
+                    manifest.ContentType,
+                    manifest.Files?.Count ?? 0);
+
                 foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -147,6 +164,12 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         {
                             // Resolve source path supporting multi-source installations
                             var sourcePath = ResolveSourcePath(file, manifest, configuration);
+                            Logger.LogDebug(
+                                "[HardLink] File: {RelativePath}, Manifest: {ManifestId} ({ContentType}), Resolved source: {SourcePath}",
+                                file.RelativePath,
+                                manifest.Id.Value,
+                                manifest.ContentType,
+                                sourcePath);
 
                             if (!ValidateSourceFile(sourcePath, file.RelativePath))
                             {
@@ -162,20 +185,53 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                                     hardLinkedFiles++;
                                     totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
                                 }
+                                catch (IOException ioEx)
+                                {
+                                    // Check if it's a missing file error - skip it gracefully
+                                    if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
+                                        ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
+                                        continue;
+                                    }
+
+                                    Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+
+                                    // Fall back to copy - but first verify source exists
+                                    if (!File.Exists(sourcePath))
+                                    {
+                                        Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
+                                        continue;
+                                    }
+
+                                    try
+                                    {
+                                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                                        copiedFiles++;
+                                        totalBytesProcessed += file.Size;
+                                        verifyHash = true;
+                                    }
+                                    catch (IOException copyEx)
+                                    {
+                                        Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
+                                        continue;
+                                    }
+                                }
                                 catch (Exception hardLinkEx)
                                 {
-                                    Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
-
-                                    // Fall back to copy
-                                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                    copiedFiles++;
-                                    totalBytesProcessed += file.Size;
-                                    verifyHash = true; // Since copied, verify
+                                    Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
+                                    continue;
                                 }
                             }
                             else
                             {
-                                // Different volumes, must copy
+                                // Different volumes, must copy - but first verify source exists
+                                if (!File.Exists(sourcePath))
+                                {
+                                    Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
+                                    continue;
+                                }
+
                                 await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
                                 copiedFiles++;
                                 totalBytesProcessed += file.Size;

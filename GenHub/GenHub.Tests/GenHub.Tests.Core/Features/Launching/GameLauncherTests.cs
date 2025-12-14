@@ -37,6 +37,7 @@ public class GameLauncherTests
     private readonly Mock<IManifestProvider> _manifestProviderMock = new();
     private readonly Mock<ICasService> _casServiceMock = new();
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
+    private readonly Mock<IStorageLocationService> _storageLocationServiceMock = new();
     private readonly GameLauncher _gameLauncher;
 
     /// <summary>
@@ -50,6 +51,10 @@ public class GameLauncherTests
 
         // Setup game installation service mock
         var testInstallation = new GameInstallation(@"C:\Games\CommandAndConquer", GameInstallationType.Steam);
+
+        // Ensure Generals path is set so GameLauncher validation passes
+        testInstallation.SetPaths(@"C:\Games\CommandAndConquer", null);
+
         _gameInstallationServiceMock.Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(testInstallation));
 
@@ -69,6 +74,12 @@ public class GameLauncherTests
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
+        // Setup storage location service mock
+        _storageLocationServiceMock.Setup(x => x.GetWorkspacePath(It.IsAny<GameInstallation>()))
+            .Returns(@"C:\Workspaces");
+        _storageLocationServiceMock.Setup(x => x.GetCasPoolPath(It.IsAny<GameInstallation>()))
+            .Returns(@"C:\CAS");
+
         _gameLauncher = new GameLauncher(
             _loggerMock.Object,
             _profileManagerMock.Object,
@@ -78,7 +89,7 @@ public class GameLauncherTests
             _launchRegistryMock.Object,
             _gameInstallationServiceMock.Object,
             _casServiceMock.Object,
-            _configurationProviderServiceMock.Object,
+            _storageLocationServiceMock.Object,
             _gameSettingsServiceMock.Object);
     }
 

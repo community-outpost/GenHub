@@ -45,10 +45,13 @@ public static class ConfigurationModule
             bootstrapLoggerFactory.CreateLogger<UserSettingsService>());
         services.AddSingleton<ILogger<ConfigurationProviderService>>(provider =>
             bootstrapLoggerFactory.CreateLogger<ConfigurationProviderService>());
+        services.AddSingleton<ILogger<StorageLocationService>>(provider =>
+            bootstrapLoggerFactory.CreateLogger<StorageLocationService>());
 
         services.AddSingleton<IAppConfiguration, AppConfiguration>();
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
         services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
+        services.AddSingleton<IStorageLocationService, StorageLocationService>();
 
         return services;
     }

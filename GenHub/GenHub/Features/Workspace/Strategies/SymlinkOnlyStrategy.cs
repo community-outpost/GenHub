@@ -206,6 +206,21 @@ public sealed class SymlinkOnlyStrategy(
             await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
             Logger.LogDebug("Successfully created symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
         }
+        catch (UnauthorizedAccessException) when (FileOperationsService.AreSameVolume(sourcePath, targetPath))
+        {
+            // Fall back to hardlink on same volume when symlink fails due to lack of admin rights
+            Logger.LogWarning("Symlink creation failed (no admin rights), falling back to hardlink for {RelativePath}", file.RelativePath);
+            try
+            {
+                await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
+                Logger.LogDebug("Successfully created hardlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+            }
+            catch (Exception hardLinkEx)
+            {
+                Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
+                await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+            }
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);

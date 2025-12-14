@@ -32,6 +32,7 @@ public class SharedViewModelModuleTests
         // Register all required configuration services first
         var configProvider = CreateMockConfigProvider();
         services.AddSingleton<IConfigurationProviderService>(configProvider);
+        services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
         services.AddSingleton<IUserSettingsService>(CreateMockUserSettingsService());
         services.AddSingleton<IAppConfiguration>(CreateMockAppConfiguration());
 
@@ -100,10 +101,10 @@ public class SharedViewModelModuleTests
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
+        services.AddCasServices();
         services.AddContentPipelineServices();
         services.AddManifestServices();
         services.AddWorkspaceServices();
-        services.AddCasServices();
         services.AddDownloadServices();
         services.AddNotificationModule();
         services.AddAppUpdateModule();

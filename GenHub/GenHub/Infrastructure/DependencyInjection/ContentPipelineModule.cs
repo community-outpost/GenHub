@@ -1,9 +1,12 @@
+using System;
+using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
@@ -16,8 +19,6 @@ using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -71,7 +72,15 @@ public static class ContentPipelineModule
         });
 
         // Register core storage and manifest services
-        services.AddSingleton<IContentStorageService, ContentStorageService>();
+        services.AddSingleton<IContentStorageService>(sp =>
+        {
+            var configService = sp.GetRequiredService<IConfigurationProviderService>();
+            var logger = sp.GetRequiredService<ILogger<ContentStorageService>>();
+            var casService = sp.GetRequiredService<ICasService>();
+            var storageRoot = configService.GetContentStoragePath();
+
+            return new ContentStorageService(storageRoot, logger, casService);
+        });
         services.AddScoped<IContentManifestPool, ContentManifestPool>();
 
         // Register core orchestrator

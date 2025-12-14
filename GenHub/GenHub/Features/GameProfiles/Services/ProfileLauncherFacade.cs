@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -25,6 +26,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
@@ -44,6 +46,8 @@ public class ProfileLauncherFacade(
     IDependencyResolver dependencyResolver,
     ICasService casService,
     IGameSettingsService gameSettingsService,
+    IStorageLocationService storageLocationService,
+    INotificationService notificationService,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     /// <summary>
@@ -61,6 +65,8 @@ public class ProfileLauncherFacade(
     private readonly IDependencyResolver _dependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
     private readonly ICasService _casService = casService ?? throw new ArgumentNullException(nameof(casService));
     private readonly IGameSettingsService _gameSettingsService = gameSettingsService ?? throw new ArgumentNullException(nameof(gameSettingsService));
+    private readonly IStorageLocationService _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
+    private readonly INotificationService _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
     private readonly ILogger<ProfileLauncherFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -132,17 +138,16 @@ public class ProfileLauncherFacade(
 
             _logger.LogDebug("[Launch] Validation passed");
 
-            // NOTE: Options.ini application moved to GameLauncher.LaunchProfileAsync() (before process start)
-            // This eliminates duplicate writes and race conditions that caused black screens
+            // Options.ini application moved to GameLauncher.LaunchProfileAsync() (before process start)
+            // This eliminates duplicate writes and race conditions that caused black screens.
             // See: GameLauncher.ApplyProfileSettingsToIniOptionsAsync()
             _logger.LogDebug("[Launch] Step 4: Options.ini will be applied by GameLauncher (delegated)");
 
             var effectiveStrategy = profile.WorkspaceStrategy;
             _logger.LogDebug("[Launch] Step 5: Checking workspace strategy and admin rights - Strategy: {Strategy}", effectiveStrategy);
 
-            // Admin check for symlink strategies
-            // NOTE: Auto-fallback to FullCopy has been disabled to allow proper testing of symlink strategies
-            // Users will get a clear error if they try to use symlink without admin rights
+            // Admin check for symlink strategies.
+            // If not admin and using a symlink-based strategy, permanently switch the profile to HardLink strategy.
             var isAdmin = false;
             if (OperatingSystem.IsWindows())
             {
@@ -166,21 +171,91 @@ public class ProfileLauncherFacade(
 
             if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
-                _logger.LogWarning(
-                    "Profile {ProfileId} launch blocked - Admin required for {Strategy} but user is not admin",
+                // No admin rights - switch profile to HardLink strategy permanently
+                var originalStrategy = effectiveStrategy;
+                effectiveStrategy = WorkspaceStrategy.HardLink;
+
+                _logger.LogInformation(
+                    "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",
                     profileId,
-                    effectiveStrategy);
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                    $"Administrator privileges required for {effectiveStrategy} workspace strategy. " +
-                    $"Please restart GenHub as administrator or change the profile's workspace strategy to FullCopy in settings.");
+                    originalStrategy);
+
+                _notificationService.ShowInfo(
+                    "Workspace Strategy Changed",
+                    $"'{profile.Name}' requires admin for {originalStrategy}. Switching to HardLink strategy.",
+                    NotificationDurations.Long);
+            }
+
+            // Use dynamic workspace path based on the game installation location
+            var casPoolPath = _storageLocationService.GetCasPoolPath(resolvedInstallation);
+            var workspacePath = _storageLocationService.GetWorkspacePath(resolvedInstallation);
+            _logger.LogInformation(
+                "[Launch] Using dynamic storage paths - Installation: {InstallPath}, CAS: {CasPath}, Workspace: {WorkspacePath}",
+                resolvedInstallation.InstallationPath,
+                casPoolPath,
+                workspacePath);
+
+            _notificationService.ShowInfo(
+                "Launching Profile",
+                $"Starting '{profile.Name}' with {effectiveStrategy} workspace strategy...",
+                NotificationDurations.Medium);
+
+            // Persist the effective strategy to the profile if it changed due to lack of admin rights
+            if (effectiveStrategy != profile.WorkspaceStrategy)
+            {
+                var updateRequest = new UpdateProfileRequest
+                {
+                    PreferredStrategy = effectiveStrategy,
+                };
+                var strategyUpdateResult = await _profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+                if (strategyUpdateResult.Success)
+                {
+                    profile.WorkspaceStrategy = effectiveStrategy;
+                    _logger.LogInformation(
+                        "Updated profile {ProfileId} workspace strategy to {Strategy} due to admin rights requirement",
+                        profileId,
+                        effectiveStrategy);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "Failed to persist strategy change for profile {ProfileId}: {Error}",
+                        profileId,
+                        strategyUpdateResult.FirstError);
+                }
             }
 
             // Launch the game using the profile
             _logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
+
             var launchResult = await _gameLauncher.LaunchProfileAsync(profile, cancellationToken: cancellationToken);
+
             if (launchResult.Failed)
             {
                 _logger.LogError("[Launch] GameLauncher failed: {Errors}", string.Join(", ", launchResult.Errors));
+
+                // If HardLink failed due to cross-drive, show specific error about FullCopy
+                if (profile.WorkspaceStrategy == WorkspaceStrategy.HardLink &&
+                    launchResult.Errors.Any(e => e.Contains("different volumes") || e.Contains("cross-drive")))
+                {
+                    var gameDrive = Path.GetPathRoot(resolvedInstallation.InstallationPath);
+                    var errorMessage = $"HardLink strategy failed because your workspace is on a different drive than the game on {gameDrive} drive. " +
+                        $"You can manually change to FullCopy strategy (uses more disk space) or move your workspace to the same drive as your game.";
+
+                    _notificationService.ShowError(
+                        "Launch Failed - Cross-Drive Issue",
+                        errorMessage,
+                        NotificationDurations.Critical);
+
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(errorMessage);
+                }
+
+                // General error notification
+                _notificationService.ShowError(
+                    "Launch Failed",
+                    $"Cannot launch '{profile.Name}': {launchResult.FirstError ?? "Unknown error"}",
+                    NotificationDurations.VeryLong);
+
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
             }
 
@@ -356,12 +431,11 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", stopResult.Errors));
             }
 
-            // NOTE: Workspace is NOT cleaned up when stopping - it persists across launches
-            // This allows quick re-launches without re-creating symlinks/copies
+            // Workspace is not cleaned up when stopping - it persists across launches.
+            // This allows quick re-launches without re-creating symlinks/copies.
             // Workspace is only cleaned up when:
             // 1. Profile is deleted
             // 2. Content changes require workspace refresh
-            // TODO: Add feature for manual workspace cleanup
             _logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
             return ProfileOperationResult<bool>.CreateSuccess(true);
         }
@@ -429,8 +503,8 @@ public class ProfileLauncherFacade(
 
             manifests = resolutionResult.ResolvedManifests.ToList();
 
-            // CRITICAL: CAS preflight check - verify all CAS content is available before workspace preparation
-            // This prevents late failure and ensures early error detection
+            // CAS preflight check - verify all CAS content is available before workspace preparation.
+            // This prevents late failure and ensures early error detection.
             _logger.LogDebug("[Workspace] Running CAS preflight check for {ManifestCount} manifests", manifests.Count);
             var casCheckResult = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
             if (!casCheckResult.Success)
@@ -505,7 +579,9 @@ public class ProfileLauncherFacade(
 
             var installationPath = resolvedInstallation.InstallationPath;
             workspaceConfig.BaseInstallationPath = installationPath;
-            workspaceConfig.WorkspaceRootPath = _config.GetWorkspacePath();
+
+            // Use dynamic workspace path based on game installation location
+            workspaceConfig.WorkspaceRootPath = _storageLocationService.GetWorkspacePath(resolvedInstallation);
 
             var prepareResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
             if (prepareResult.Failed)
@@ -828,7 +904,6 @@ public class ProfileLauncherFacade(
                     }
 
                     // Validate IncompatiblePublisherTypes (not implemented in current ContentDependency model)
-                    // TODO: Implement incompatible publisher types validation when the model supports it
                     /*
                     if (dependency.IncompatiblePublisherTypes != null && dependency.IncompatiblePublisherTypes.Any())
                     {

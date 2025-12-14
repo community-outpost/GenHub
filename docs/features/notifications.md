@@ -326,6 +326,37 @@ Potential improvements for future versions:
 
 ---
 
+## Storage & Workspace Notifications
+
+The following notifications help users understand storage configuration and workspace strategy behavior:
+
+### Storage Location Selection
+
+When game installations are detected during a scan:
+
+| Scenario | Notification Type | Message |
+|----------|------------------|---------|
+| Single drive | Info | "Storage Location Set" - CAS pool and workspaces will be created at the detected drive |
+| Multiple drives | Warning | "Multiple Game Installations Found" - Lists drives and explains which one was auto-selected |
+| Configuration success | Success | "Dynamic Storage Enabled" - Shows the configured CAS pool path |
+| Configuration failure | Error | "Storage Setup Failed" - Explains why configuration failed |
+
+### Workspace Strategy Fallback
+
+When launching a profile with symlink strategies without admin rights:
+
+| Scenario | Behavior |
+|----------|----------|
+| Same volume (hardlink possible) | Launch proceeds with hardlink fallback (logged) |
+| Cross-drive (hardlink impossible) | Launch blocked with error explaining options: move CAS/workspace to same drive OR run as admin |
+
+### User Settings Integration
+
+- `UseInstallationAdjacentStorage`: When enabled, CAS pool and workspace paths are resolved dynamically from the preferred game installation
+- `PreferredStorageInstallationId`: Persists the user's selected installation for storage
+
+---
+
 ## Related
 
 - [Architecture Overview](../architecture.md)

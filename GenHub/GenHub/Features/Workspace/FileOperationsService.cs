@@ -121,6 +121,26 @@ public class FileOperationsService(
     }
 
     /// <summary>
+    /// Checks if two paths are on the same volume/drive.
+    /// </summary>
+    /// <param name="path1">First path to compare.</param>
+    /// <param name="path2">Second path to compare.</param>
+    /// <returns>True if both paths are on the same volume.</returns>
+    public static bool AreSameVolume(string path1, string path2)
+    {
+        try
+        {
+            var root1 = Path.GetPathRoot(Path.GetFullPath(path1));
+            var root2 = Path.GetPathRoot(Path.GetFullPath(path2));
+            return string.Equals(root1, root2, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Copies a file from the source path to the destination path asynchronously.
     /// </summary>
     /// <param name="sourcePath">The source file path.</param>

@@ -65,7 +65,8 @@ public class WorkspaceIntegrationTests : IDisposable
         services.AddSingleton<ICasService, CasService>();
 
         // Register FileOperationsService for workspace strategies
-        services.AddSingleton<IFileOperationsService, FileOperationsService>();
+        // Register TestFileOperationsService for workspace strategies (supports HardLinks on Windows)
+        services.AddSingleton<IFileOperationsService, TestFileOperationsService>();
 
         // Add configuration services
         var mockConfiguration = new Mock<Microsoft.Extensions.Configuration.IConfiguration>();
@@ -80,7 +81,6 @@ public class WorkspaceIntegrationTests : IDisposable
         services.AddSingleton(mockConfiguration.Object);
         services.AddSingleton(mockAppConfig.Object);
         services.AddSingleton(mockUserSettings.Object);
-        services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
 
         // Add workspace services
         services.AddWorkspaceServices();
@@ -315,7 +315,7 @@ public class WorkspaceIntegrationTests : IDisposable
         foreach (var file in testFiles)
         {
             var fullPath = Path.Combine(_tempGameInstall, file);
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPath) !);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
             await File.WriteAllTextAsync(fullPath, $"Test content for {file}");
         }
     }

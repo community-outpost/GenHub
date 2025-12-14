@@ -23,11 +23,9 @@ public class CasConfiguration : ICloneable
 
     /// <summary>
     /// Gets or sets the root path for the CAS pool.
+    /// If empty, the path will be resolved dynamically based on the preferred game installation.
     /// </summary>
-    public string CasRootPath { get; set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        AppConstants.AppName,
-        DirectoryNames.CasPool);
+    public string CasRootPath { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
@@ -88,8 +86,11 @@ public class CasConfiguration : ICloneable
     /// </summary>
     public void Validate()
     {
+        // Allow empty CasRootPath for dynamic resolution
         if (string.IsNullOrWhiteSpace(CasRootPath))
-            throw new ArgumentException("CasRootPath cannot be null or empty");
+        {
+            return;
+        }
 
         try
         {

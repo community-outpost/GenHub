@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Features.Workspace;
+using GenHub.Windows.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Windows.Features.Workspace;
@@ -96,21 +97,25 @@ public class WindowsFileOperationsService(
     {
         try
         {
-            var directory = Path.GetDirectoryName(linkPath);
-            if (directory != null)
-            {
-                FileOperationsService.EnsureDirectoryExists(directory);
-            }
+            // Normalize paths to absolute paths for Windows API compatibility
+            var absoluteLinkPath = Path.GetFullPath(linkPath);
+            var absoluteTargetPath = Path.GetFullPath(targetPath);
 
-            FileOperationsService.DeleteFileIfExists(linkPath);
+            // Ensure destination directory exists
+            // Note: We pass the full file path to EnsureDirectoryExists which extracts and creates the parent directory
+            FileOperationsService.EnsureDirectoryExists(absoluteLinkPath);
+
+            FileOperationsService.DeleteFileIfExists(absoluteLinkPath);
 
             await Task.Run(
                 () =>
                 {
-                    if (!CreateHardLinkW(linkPath, targetPath, IntPtr.Zero))
+                    if (!CreateHardLinkW(absoluteLinkPath, absoluteTargetPath, IntPtr.Zero))
                     {
+                        var errorCode = Marshal.GetLastWin32Error();
+                        var errorMessage = Win32ErrorCodes.GetErrorMessage(errorCode);
                         throw new IOException(
-                            $"Failed to create hard link from {linkPath} to {targetPath}");
+                            $"Failed to create hard link from {absoluteLinkPath} to {absoluteTargetPath}: {errorMessage}");
                     }
                 },
                 cancellationToken);

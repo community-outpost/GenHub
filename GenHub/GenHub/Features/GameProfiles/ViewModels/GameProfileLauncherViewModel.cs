@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -33,9 +35,13 @@ public partial class GameProfileLauncherViewModel(
     IProfileEditorFacade? profileEditorFacade,
     IConfigurationProviderService? configService,
     IGameProcessManager? gameProcessManager,
+    IStorageLocationService? storageLocationService,
+    INotificationService? notificationService,
     ILogger<GameProfileLauncherViewModel>? logger) : ViewModelBase
 {
     private readonly ILogger<GameProfileLauncherViewModel> logger = logger ?? NullLogger<GameProfileLauncherViewModel>.Instance;
+    private readonly IStorageLocationService? _storageLocationService = storageLocationService;
+    private readonly INotificationService? _notificationService = notificationService;
 
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
 
@@ -68,7 +74,7 @@ public partial class GameProfileLauncherViewModel(
     /// This constructor is only for design-time and testing scenarios.
     /// </summary>
     public GameProfileLauncherViewModel()
-        : this(null, null, null, null, null, null, null, null)
+        : this(null, null, null, null, null, null, null, null, null, null)
     {
         // Initialize with sample data for design-time
         StatusMessage = "Design-time preview";
@@ -291,6 +297,9 @@ public partial class GameProfileLauncherViewModel(
                     generalsCount,
                     zeroHourCount);
 
+                // Check if we need to set up dynamic storage location
+                await CheckAndSetupStorageLocationAsync(installations.Data);
+
                 // Generate manifests and populate versions for detected installations
                 int manifestsGenerated = 0;
                 int profilesCreated = 0;
@@ -335,6 +344,105 @@ public partial class GameProfileLauncherViewModel(
         finally
         {
             IsScanning = false;
+        }
+    }
+
+    /// <summary>
+    /// Checks if multiple game installations are on different drives and sets up the preferred storage location.
+    /// This enables hardlink-based workspace creation without requiring admin privileges.
+    /// </summary>
+    /// <param name="installations">The list of detected game installations.</param>
+    private async Task CheckAndSetupStorageLocationAsync(IReadOnlyCollection<GameInstallation> installations)
+    {
+        if (_storageLocationService == null || installations.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            // Check if a preferred installation is already set
+            var existingPreferred = await _storageLocationService.GetPreferredInstallationAsync();
+            if (existingPreferred != null)
+            {
+                logger.LogDebug("Preferred storage installation already set: {InstallationId}", existingPreferred.Id);
+                return;
+            }
+
+            // Group installations by drive
+            var installationsByDrive = installations
+                .GroupBy(i => Path.GetPathRoot(i.InstallationPath)?.ToUpperInvariant() ?? string.Empty)
+                .Where(g => !string.IsNullOrEmpty(g.Key))
+                .ToList();
+
+            if (installationsByDrive.Count == 0)
+            {
+                logger.LogWarning("Could not determine drive information for any installations");
+                return;
+            }
+
+            // If all installations are on the same drive, use the first one
+            GameInstallation selectedInstallation;
+            if (installationsByDrive.Count == 1)
+            {
+                selectedInstallation = installationsByDrive.First().First();
+                logger.LogInformation(
+                    "All {Count} installations are on drive {Drive}, using {InstallationPath} for storage",
+                    installations.Count,
+                    installationsByDrive.First().Key,
+                    selectedInstallation.InstallationPath);
+
+                _notificationService?.ShowInfo(
+                    "Storage Location Set",
+                    $"CAS pool and workspaces will be created at {Path.GetPathRoot(selectedInstallation.InstallationPath)}");
+            }
+            else
+            {
+                // Multiple drives - select the drive with the most installations (prioritizing Zero Hour)
+                var bestDrive = installationsByDrive
+                    .OrderByDescending(g => g.Count(i => i.HasZeroHour))
+                    .ThenByDescending(g => g.Count())
+                    .First();
+
+                selectedInstallation = bestDrive.FirstOrDefault(i => i.HasZeroHour) ?? bestDrive.First();
+
+                var driveList = string.Join(", ", installationsByDrive.Select(g => $"{g.Key} ({g.Count()})"));
+                logger.LogInformation(
+                    "Installations found on multiple drives: {Drives}. Auto-selected {InstallationPath} on {Drive}",
+                    driveList,
+                    selectedInstallation.InstallationPath,
+                    Path.GetPathRoot(selectedInstallation.InstallationPath));
+
+                var warningMessage = $"Installations found on drives: {driveList}. " +
+                    $"Using {Path.GetPathRoot(selectedInstallation.InstallationPath)} for CAS pool and workspaces. " +
+                    $"Profiles on other drives may require admin rights or use file copying.";
+                _notificationService?.ShowWarning(
+                    "Multiple Game Installations Found",
+                    warningMessage,
+                    autoDismissMs: 10000);
+            }
+
+            // Set the preferred installation
+            await _storageLocationService.SetPreferredInstallationAsync(selectedInstallation.Id);
+
+            var casPoolPath = _storageLocationService.GetCasPoolPath(selectedInstallation);
+            var workspacePath = _storageLocationService.GetWorkspacePath(selectedInstallation);
+
+            logger.LogInformation(
+                "Dynamic storage configured - CAS Pool: {CasPoolPath}, Workspace: {WorkspacePath}",
+                casPoolPath,
+                workspacePath);
+
+            _notificationService?.ShowSuccess(
+                "Dynamic Storage Enabled",
+                $"CAS pool: {casPoolPath}");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to set up dynamic storage location");
+            _notificationService?.ShowError(
+                "Storage Setup Failed",
+                $"Could not configure dynamic storage: {ex.Message}");
         }
     }
 

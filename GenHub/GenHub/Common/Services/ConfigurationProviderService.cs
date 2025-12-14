@@ -279,9 +279,38 @@ public class ConfigurationProviderService(
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// WARNING: If the specific configuration is missing or incomplete, this method may return a
+    /// new instance with default values (disconnected from the underlying settings).
+    /// modifying the returned object will NOT update the persistent settings.
+    /// To update settings, use <see cref="IUserSettingsService.TryUpdateAndSaveAsync"/>.
+    /// </remarks>
     public CasConfiguration GetCasConfiguration()
     {
         var settings = _userSettings.Get();
-        return settings.CasConfiguration;
+        var casConfig = settings.CasConfiguration;
+
+        // If CasRootPath is empty, apply the default path
+        if (string.IsNullOrWhiteSpace(casConfig.CasRootPath))
+        {
+            var defaultPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                AppConstants.AppName,
+                DirectoryNames.CasPool);
+
+            return new CasConfiguration
+            {
+                CasRootPath = defaultPath,
+                EnableAutomaticGc = casConfig.EnableAutomaticGc,
+                HashAlgorithm = casConfig.HashAlgorithm,
+                GcGracePeriod = casConfig.GcGracePeriod,
+                MaxCacheSizeBytes = casConfig.MaxCacheSizeBytes,
+                AutoGcInterval = casConfig.AutoGcInterval,
+                MaxConcurrentOperations = casConfig.MaxConcurrentOperations,
+                VerifyIntegrity = casConfig.VerifyIntegrity,
+            };
+        }
+
+        return casConfig;
     }
 }

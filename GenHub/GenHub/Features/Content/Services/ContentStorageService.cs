@@ -32,18 +32,22 @@ public class ContentStorageService : IContentStorageService
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
+    /// <param name="storageRoot">The root directory for content storage.</param>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="configurationProviderService">The configuration provider service.</param>
     /// <param name="casService">The CAS service for content-addressable storage.</param>
     public ContentStorageService(
+        string storageRoot,
         ILogger<ContentStorageService> logger,
-        IConfigurationProviderService configurationProviderService,
         ICasService casService)
     {
+        if (string.IsNullOrWhiteSpace(storageRoot))
+        {
+            throw new ArgumentException("Storage root path cannot be null or whitespace.", nameof(storageRoot));
+        }
+
+        _storageRoot = storageRoot;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        var configService = configurationProviderService ?? throw new ArgumentNullException(nameof(configurationProviderService));
         _casService = casService ?? throw new ArgumentNullException(nameof(casService));
-        _storageRoot = configService.GetContentStoragePath();
 
         // Ensure storage directory structure exists using FileOperationsService for future configurability.
         var requiredDirs = new[]

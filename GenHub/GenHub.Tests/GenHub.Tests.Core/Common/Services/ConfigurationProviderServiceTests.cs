@@ -38,7 +38,10 @@ public class ConfigurationProviderServiceTests
     [Fact]
     public void Constructor_WithValidDependencies_DoesNotThrow()
     {
-        var provider = new ConfigurationProviderService(_mockAppConfig.Object, _mockUserSettings.Object, _mockLogger.Object);
+        var provider = new ConfigurationProviderService(
+            _mockAppConfig.Object,
+            _mockUserSettings.Object,
+            _mockLogger.Object);
         Assert.NotNull(provider);
     }
 
@@ -49,7 +52,10 @@ public class ConfigurationProviderServiceTests
     public void Constructor_WithNullAppConfig_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new ConfigurationProviderService(null!, _mockUserSettings.Object, _mockLogger.Object));
+            new ConfigurationProviderService(
+                null!,
+                _mockUserSettings.Object,
+                _mockLogger.Object));
     }
 
     /// <summary>
@@ -59,7 +65,10 @@ public class ConfigurationProviderServiceTests
     public void Constructor_WithNullUserSettings_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new ConfigurationProviderService(_mockAppConfig.Object, null!, _mockLogger.Object));
+            new ConfigurationProviderService(
+                _mockAppConfig.Object,
+                null!,
+                _mockLogger.Object));
     }
 
     /// <summary>
@@ -69,7 +78,10 @@ public class ConfigurationProviderServiceTests
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            new ConfigurationProviderService(_mockAppConfig.Object, _mockUserSettings.Object, null!));
+            new ConfigurationProviderService(
+                _mockAppConfig.Object,
+                _mockUserSettings.Object,
+                null!));
     }
 
     /// <summary>
@@ -756,6 +768,9 @@ public class ConfigurationProviderServiceTests
     /// <returns>A new ConfigurationProviderService instance.</returns>
     private ConfigurationProviderService CreateProvider()
     {
-        return new ConfigurationProviderService(_mockAppConfig.Object, _mockUserSettings.Object, _mockLogger.Object);
+        return new ConfigurationProviderService(
+            _mockAppConfig.Object,
+            _mockUserSettings.Object,
+            _mockLogger.Object);
     }
 }

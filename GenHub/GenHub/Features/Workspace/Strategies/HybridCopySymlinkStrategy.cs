@@ -161,9 +161,30 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                             }
                             else
                             {
-                                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
-                                symlinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes;
+                                try
+                                {
+                                    await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+                                    symlinkedFiles++;
+                                    totalBytesProcessed += LinkOverheadBytes;
+                                }
+                                catch (UnauthorizedAccessException) when (FileOperationsService.AreSameVolume(sourcePath, destinationPath))
+                                {
+                                    // Fall back to hardlink on same volume when symlink fails due to lack of admin rights
+                                    Logger.LogWarning("Symlink creation failed (no admin rights), falling back to hardlink for {RelativePath}", file.RelativePath);
+                                    try
+                                    {
+                                        await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
+                                        symlinkedFiles++; // Still count as symlinked for reporting purposes
+                                        totalBytesProcessed += LinkOverheadBytes;
+                                    }
+                                    catch (Exception hardLinkEx)
+                                    {
+                                        Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
+                                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                                        copiedFiles++;
+                                        totalBytesProcessed += file.Size;
+                                    }
+                                }
                             }
                         }
                     }
@@ -257,7 +278,24 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
         else
         {
             // Create symlinks for non-essential files
-            await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
+            try
+            {
+                await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
+            }
+            catch (UnauthorizedAccessException) when (FileOperationsService.AreSameVolume(sourcePath, targetPath))
+            {
+                // Fall back to hardlink on same volume when symlink fails due to lack of admin rights
+                Logger.LogWarning("Symlink creation failed (no admin rights), falling back to hardlink for {RelativePath}", file.RelativePath);
+                try
+                {
+                    await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
+                }
+                catch (Exception hardLinkEx)
+                {
+                    Logger.LogError(hardLinkEx, "Hardlink fallback also failed for {RelativePath}, attempting copy", file.RelativePath);
+                    await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
+                }
+            }
         }
     }
 
