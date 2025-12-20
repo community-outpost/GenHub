@@ -107,7 +107,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            Manifests = new List<ContentManifest> { gameInstallManifest, gameClientManifest },
+            Manifests = [gameInstallManifest, gameClientManifest],
             GameClient = new GameClient { Name = "Zero Hour", ExecutablePath = "generals.exe" },
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempWorkspaceRoot,
@@ -155,7 +155,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            Manifests = new List<ContentManifest> { gameInstallManifest, communityClientManifest },
+            Manifests = [gameInstallManifest, communityClientManifest],
             GameClient = new GameClient { Name = "GenTool", ExecutablePath = "generals.exe" },
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempWorkspaceRoot,
@@ -235,7 +235,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            Manifests = new List<ContentManifest> { gameInstallManifest, communityClientManifest, modManifest, mapPackManifest },
+            Manifests = [gameInstallManifest, communityClientManifest, modManifest, mapPackManifest],
             GameClient = new GameClient { Name = "GenTool", ExecutablePath = "generals.exe" },
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempWorkspaceRoot,
@@ -318,7 +318,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            Manifests = new List<ContentManifest> { generalsInstall, zerohourClientManifest },
+            Manifests = [generalsInstall, zerohourClientManifest],
             GameClient = new GameClient { Name = "GenTool", ExecutablePath = "generals.exe" },
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempWorkspaceRoot,
@@ -369,7 +369,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         var config = new WorkspaceConfiguration
         {
             Id = Guid.NewGuid().ToString(),
-            Manifests = new List<ContentManifest> { gameInstallManifest, gameClientManifest, modManifest },
+            Manifests = [gameInstallManifest, gameClientManifest, modManifest],
             GameClient = new GameClient { Name = "GenTool", ExecutablePath = "generals.exe" },
             Strategy = WorkspaceStrategy.FullCopy,
             WorkspaceRootPath = _tempWorkspaceRoot,
@@ -444,11 +444,11 @@ public class MixedInstallationIntegrationTests : IDisposable
 
     private async Task CreateTestFile(string path, string content)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(path) !);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, content);
     }
 
-    private ContentManifest CreateManifest(string id, string name, ContentType contentType, (string relativePath, string sourcePath)[] files)
+    private ContentManifest CreateManifest(string id, string name, ContentType contentType, (string RelativePath, string SourcePath)[] files)
     {
         var manifest = new ContentManifest
         {

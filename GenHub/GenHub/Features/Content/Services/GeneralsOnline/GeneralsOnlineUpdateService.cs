@@ -176,21 +176,21 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
         }
 
         // Compare date first
-        if (latest.Value.date > current.Value.date)
+        if (latest.Value.Date > current.Value.Date)
         {
             return true;
         }
 
-        if (latest.Value.date == current.Value.date)
+        if (latest.Value.Date == current.Value.Date)
         {
             // Same date, compare QFE number
-            return latest.Value.qfe > current.Value.qfe;
+            return latest.Value.Qfe > current.Value.Qfe;
         }
 
         return false;
     }
 
-    private (DateTime date, int qfe)? ParseVersion(string version)
+    private (DateTime Date, int Qfe)? ParseVersion(string version)
     {
         try
         {

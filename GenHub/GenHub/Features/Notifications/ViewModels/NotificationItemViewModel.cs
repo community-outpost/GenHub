@@ -74,7 +74,7 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
         NotificationType.Success => NotificationConstants.SuccessIconPath,
         NotificationType.Warning => NotificationConstants.WarningIconPath,
         NotificationType.Error => NotificationConstants.ErrorIconPath,
-        _ => string.Empty
+        _ => string.Empty,
     };
 
     private static readonly IBrush InfoBrush = new SolidColorBrush(Color.Parse(NotificationConstants.InfoColor));
@@ -92,7 +92,7 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
         NotificationType.Success => SuccessBrush,
         NotificationType.Warning => WarningBrush,
         NotificationType.Error => ErrorBrush,
-        _ => DefaultBrush
+        _ => DefaultBrush,
     };
 
     /// <summary>

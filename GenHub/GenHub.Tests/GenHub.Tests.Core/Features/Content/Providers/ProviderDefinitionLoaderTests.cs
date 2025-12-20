@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Services.Providers;
 using Microsoft.Extensions.Logging;

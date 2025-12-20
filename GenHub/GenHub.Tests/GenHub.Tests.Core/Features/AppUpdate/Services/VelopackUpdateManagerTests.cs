@@ -162,8 +162,8 @@ public class VelopackUpdateManagerTests
                 It.IsAny<LogLevel>(),
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) =>
-                    v.ToString() !.Contains("Velopack") ||
-                    v.ToString() !.Contains("Update")),
+                    v.ToString()!.Contains("Velopack") ||
+                    v.ToString()!.Contains("Update")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);

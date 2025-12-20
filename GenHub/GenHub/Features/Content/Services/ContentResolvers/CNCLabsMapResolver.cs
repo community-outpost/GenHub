@@ -87,7 +87,7 @@ public class CNCLabsMapResolver(
             }
 
             // Use factory to create manifest
-            var manifest = await manifestFactory.CreateManifestAsync(mapDetails, mapId, discoveredItem.SourceUrl);
+            var manifest = await manifestFactory.CreateManifestAsync(mapDetails, discoveredItem.SourceUrl);
 
             logger.LogInformation(
                 "Successfully resolved CNC Labs content: {ManifestId} - {Name}",

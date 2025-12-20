@@ -45,7 +45,7 @@ public partial class ModDBManifestFactory(
             ContentType.ModdingTool => true,
             ContentType.LanguagePack => true,
             ContentType.Addon => true,
-            _ => false
+            _ => false,
         };
 
         return publisherMatches && supportedTypes;
@@ -63,7 +63,7 @@ public partial class ModDBManifestFactory(
 
         // For now, return the original manifest
         // Future enhancement: scan extracted directory for additional metadata or variants
-        return await Task.FromResult(new List<ContentManifest> { originalManifest });
+        return await Task.FromResult<List<ContentManifest>>([originalManifest]);
     }
 
     /// <inheritdoc />
@@ -108,9 +108,11 @@ public partial class ModDBManifestFactory(
 
         if (!manifestIdResult.Success)
         {
-            var errorMsg = $"Failed to generate manifest ID for ModDB content '{details.name}': {manifestIdResult.FirstError}";
-            logger.LogError(errorMsg);
-            throw new InvalidOperationException(errorMsg);
+            logger.LogError(
+                "Failed to generate manifest ID for ModDB content '{ContentName}': {Error}",
+                details.name,
+                manifestIdResult.FirstError);
+            throw new InvalidOperationException($"Failed to generate manifest ID for ModDB content '{details.name}': {manifestIdResult.FirstError}");
         }
 
         logger.LogInformation(
@@ -134,10 +136,10 @@ public partial class ModDBManifestFactory(
                 description: details.description,
                 tags: GenerateTags(details),
                 iconUrl: details.previewImage,
-                screenshotUrls: details.screenshots ?? new List<string>());
+                screenshotUrls: details.screenshots ?? []);
 
         // 6. Add custom metadata
-        manifest = AddCustomMetadata(manifest, details);
+        manifest = AddCustomMetadata(manifest);
 
         // 7. Add the download file
         var fileName = ExtractFileNameFromUrl(details.downloadUrl);
@@ -158,7 +160,7 @@ public partial class ModDBManifestFactory(
     /// </summary>
     /// <param name="author">The raw author name.</param>
     /// <returns>A normalized publisher ID component.</returns>
-    private string NormalizeAuthorForPublisherId(string author)
+    private static string NormalizeAuthorForPublisherId(string author)
     {
         if (string.IsNullOrWhiteSpace(author))
         {
@@ -179,7 +181,7 @@ public partial class ModDBManifestFactory(
     /// </summary>
     /// <param name="title">The content title.</param>
     /// <returns>A slugified version of the title.</returns>
-    private string SlugifyTitle(string title)
+    private static string SlugifyTitle(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -204,9 +206,9 @@ public partial class ModDBManifestFactory(
     /// </summary>
     /// <param name="details">The content details.</param>
     /// <returns>A list of tags.</returns>
-    private List<string> GenerateTags(GenHub.Core.Models.ModDB.MapDetails details)
+    private static List<string> GenerateTags(GenHub.Core.Models.ModDB.MapDetails details)
     {
-        var tags = new List<string> { "ModDB", "Community" };
+        List<string> tags = ["ModDB", "Community"];
 
         // Add game-specific tag
         if (details.targetGame == GameType.Generals)
@@ -230,7 +232,7 @@ public partial class ModDBManifestFactory(
             ContentType.ModdingTool => "Modding Tool",
             ContentType.LanguagePack => "Language Pack",
             ContentType.Addon => "Addon",
-            _ => "Other"
+            _ => "Other",
         });
 
         // Add author tag
@@ -246,9 +248,8 @@ public partial class ModDBManifestFactory(
     /// Adds custom metadata fields specific to ModDB content.
     /// </summary>
     /// <param name="builder">The manifest builder.</param>
-    /// <param name="details">The content details.</param>
     /// <returns>The updated manifest builder.</returns>
-    private IContentManifestBuilder AddCustomMetadata(IContentManifestBuilder builder, GenHub.Core.Models.ModDB.MapDetails details)
+    private static IContentManifestBuilder AddCustomMetadata(IContentManifestBuilder builder)
     {
         // Store ModDB-specific metadata in the manifest's custom metadata collection
         // This can be accessed later for display in UI or for special handling
@@ -265,7 +266,7 @@ public partial class ModDBManifestFactory(
     /// <param name="builder">The manifest builder.</param>
     /// <param name="targetGame">The target game type.</param>
     /// <returns>The updated manifest builder.</returns>
-    private IContentManifestBuilder AddGameDependencies(IContentManifestBuilder builder, GameType targetGame)
+    private static IContentManifestBuilder AddGameDependencies(IContentManifestBuilder builder, GameType targetGame)
     {
         // Add dependency on the appropriate game installation
         // Note: Using RequireExisting since game installations must already exist

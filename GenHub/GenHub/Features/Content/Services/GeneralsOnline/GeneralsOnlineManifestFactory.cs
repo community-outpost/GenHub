@@ -70,7 +70,7 @@ public class GeneralsOnlineManifestFactory(
     {
         try
         {
-            var parts = version.Split(new[] { GeneralsOnlineConstants.QfeSeparator }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = version.Split(GeneralsOnlineConstants.QfeSeparator, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 2)
             {
                 return 0;
@@ -108,7 +108,7 @@ public class GeneralsOnlineManifestFactory(
         if (relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
             relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + "/", StringComparison.OrdinalIgnoreCase))
         {
-            mapRelativePath = relativePath.Substring(GeneralsOnlineConstants.MapsSubdirectory.Length + 1);
+            mapRelativePath = relativePath[(GeneralsOnlineConstants.MapsSubdirectory.Length + 1)..];
         }
 
         return new ManifestFile
@@ -131,7 +131,7 @@ public class GeneralsOnlineManifestFactory(
     /// <returns>List of variant manifests ready for file hash population.</returns>
     private List<ContentManifest> CreateVariantManifestsFromOriginal(ContentManifest originalManifest)
     {
-        var manifests = new List<ContentManifest>();
+        List<ContentManifest> manifests = [];
         var version = originalManifest.Version ?? "unknown";
         var userVersion = ParseVersionForManifestId(version);
 
@@ -175,10 +175,10 @@ public class GeneralsOnlineManifestFactory(
                 Description = GeneralsOnlineConstants.ShortDescription,
                 ReleaseDate = releaseDate,
                 IconUrl = iconUrl,
-                Tags = new List<string>(GeneralsOnlineConstants.Tags),
+                Tags = [.. GeneralsOnlineConstants.Tags],
                 ChangelogUrl = changelogUrl,
             },
-            Files = new List<ManifestFile>(),
+            Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor30Hz(userVersion),
         });
 
@@ -200,10 +200,10 @@ public class GeneralsOnlineManifestFactory(
                 Description = GeneralsOnlineConstants.ShortDescription,
                 ReleaseDate = releaseDate,
                 IconUrl = iconUrl,
-                Tags = new List<string>(GeneralsOnlineConstants.Tags),
+                Tags = [.. GeneralsOnlineConstants.Tags],
                 ChangelogUrl = changelogUrl,
             },
-            Files = new List<ManifestFile>(),
+            Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
         });
 
@@ -225,14 +225,14 @@ public class GeneralsOnlineManifestFactory(
                 Description = GeneralsOnlineConstants.QuickMatchMapPackDescription,
                 ReleaseDate = releaseDate,
                 IconUrl = iconUrl,
-                Tags = new List<string> { "maps", "multiplayer", "quickmatch", "competitive" },
+                Tags = ["maps", "multiplayer", "quickmatch", "competitive"],
                 ChangelogUrl = changelogUrl,
             },
-            Files = new List<ManifestFile>(),
-            Dependencies = new List<ContentDependency>
-            {
+            Files = [],
+            Dependencies =
+            [
                 GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
-            },
+            ],
         });
 
         return manifests;
@@ -258,7 +258,7 @@ public class GeneralsOnlineManifestFactory(
         var allFiles = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
         logger.LogInformation("Processing {Count} files", allFiles.Length);
 
-        var filesWithHashes = new List<(string relativePath, FileInfo fileInfo, string hash, bool isMap)>();
+        List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap)> filesWithHashes = [];
 
         // Detect Maps directory (case-insensitive)
         var mapsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
@@ -288,11 +288,11 @@ public class GeneralsOnlineManifestFactory(
             logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap})", relativePath, fileInfo.Length, hash[..8], isMap);
         }
 
-        var updatedManifests = new List<ContentManifest>();
+        List<ContentManifest> updatedManifests = [];
 
         foreach (var manifest in manifests)
         {
-            var manifestFiles = new List<ManifestFile>();
+            List<ManifestFile> manifestFiles = [];
             var isMapPackManifest = manifest.ContentType == ContentType.MapPack;
 
             if (isMapPackManifest)
@@ -316,12 +316,12 @@ public class GeneralsOnlineManifestFactory(
                 // Map files are included with UserMapsDirectory install target so they install to Documents
                 var is30Hz = manifest.Name.Contains(GeneralsOnlineConstants.Variant30HzSuffix, StringComparison.OrdinalIgnoreCase);
                 var targetExecutable = is30Hz
-                    ? GameClientConstants.GeneralsOnline30HzExecutable.ToLowerInvariant()
-                    : GameClientConstants.GeneralsOnline60HzExecutable.ToLowerInvariant();
+                    ? GameClientConstants.GeneralsOnline30HzExecutable
+                    : GameClientConstants.GeneralsOnline60HzExecutable;
 
                 foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
                 {
-                    var fileName = Path.GetFileName(relativePath).ToLowerInvariant();
+                    var fileName = Path.GetFileName(relativePath);
                     var isExecutable = false;
 
                     // Handle map files - include them with UserMapsDirectory install target
@@ -331,12 +331,12 @@ public class GeneralsOnlineManifestFactory(
                         continue;
                     }
 
-                    if (fileName == targetExecutable)
+                    if (string.Equals(fileName, targetExecutable, StringComparison.OrdinalIgnoreCase))
                     {
                         isExecutable = true;
                     }
-                    else if (fileName == GameClientConstants.GeneralsOnline30HzExecutable.ToLowerInvariant() ||
-                             fileName == GameClientConstants.GeneralsOnline60HzExecutable.ToLowerInvariant())
+                    else if (string.Equals(fileName, GameClientConstants.GeneralsOnline30HzExecutable, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(fileName, GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

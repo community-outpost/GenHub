@@ -338,7 +338,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     WorkspaceStrategy.FullCopy => "Copied",
                     WorkspaceStrategy.HybridCopySymlink => "Hybrid",
                     WorkspaceStrategy.HardLink => "Hard Linked",
-                    _ => "Prepared"
+                    _ => "Prepared",
                 };
             }
         }
@@ -385,7 +385,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 WorkspaceStrategy.FullCopy => "Copied",
                 WorkspaceStrategy.HybridCopySymlink => "Hybrid",
                 WorkspaceStrategy.HardLink => "Hard Linked",
-                _ => "Prepared"
+                _ => "Prepared",
             };
         }
 
@@ -405,7 +405,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         return gameType switch
         {
             GameType.Generals => GameClientConstants.GeneralsFullName,
-            _ => GameClientConstants.ZeroHourFullName // Default to Zero Hour as it's the most commonly played
+            _ => GameClientConstants.ZeroHourFullName, // Default to Zero Hour as it's the most commonly played
         };
     }
 
@@ -424,7 +424,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             GameInstallationType.Wine => "Wine/Linux",
             GameInstallationType.Retail => "Retail",
             GameInstallationType.CDISO => "CD/ISO",
-            _ => "PC Game"
+            _ => "PC Game",
         };
     }
 
@@ -439,7 +439,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             GameType.Generals => "#BD5A0F", // Orange/yellow for Generals
             GameType.ZeroHour => "#1B6575", // Teal/blue for Zero Hour
-            _ => "#2A2A2A" // Default dark gray
+            _ => "#2A2A2A", // Default dark gray
         };
     }
 
@@ -483,19 +483,19 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 "retail" => "Retail",
                 "cdiso" => "CD/ISO",
                 "wine" => "Wine",
-                _ => segments[2].ToUpperInvariant()
+                _ => segments[2].ToUpperInvariant(),
             };
 
             // Parse content type from suffix in segment[3]
             var gameTypeSegment = segments[3];
-            if (gameTypeSegment.Contains("-"))
+            if (gameTypeSegment.Contains('-'))
             {
                 var parts = gameTypeSegment.Split('-');
                 ContentType = parts[1] switch
                 {
                     "installation" => "Game Installation",
                     "client" => "Game Client",
-                    _ => parts[1]
+                    _ => parts[1],
                 };
             }
         }

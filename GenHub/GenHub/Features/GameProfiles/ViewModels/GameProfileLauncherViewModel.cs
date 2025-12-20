@@ -41,7 +41,7 @@ public partial class GameProfileLauncherViewModel(
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
 
     [ObservableProperty]
-    private ObservableCollection<GameProfileItemViewModel> _profiles = new();
+    private ObservableCollection<GameProfileItemViewModel> _profiles = [];
 
     [ObservableProperty]
     private bool _isLaunching;
@@ -87,7 +87,7 @@ public partial class GameProfileLauncherViewModel(
                     // Use profile's IconPath if available, otherwise fall back to generalshub icon
                     var iconPath = !string.IsNullOrEmpty(profile.IconPath)
                         ? profile.IconPath
-                        : Core.Constants.UriConstants.DefaultIconUri;
+                        : UriConstants.DefaultIconUri;
 
                     // Use profile's CoverPath if available, otherwise fall back to icon path
                     var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
@@ -140,16 +140,16 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The relative icon path.</returns>
     private static string GetIconPathForGame(GameType gameType, GameInstallationType installationType)
     {
-        var gameIcon = gameType == GameType.Generals ? Core.Constants.UriConstants.GeneralsIconFilename : Core.Constants.UriConstants.ZeroHourIconFilename;
-        var platformIcon = installationType switch
+        var gameIcon = gameType == GameType.Generals ? UriConstants.GeneralsIconFilename : UriConstants.ZeroHourIconFilename;
+        _ = installationType switch
         {
-            GameInstallationType.Steam => Core.Constants.UriConstants.SteamIconFilename,
-            GameInstallationType.EaApp => Core.Constants.UriConstants.EaAppIconFilename,
-            _ => Core.Constants.UriConstants.GenHubIconFilename
+            GameInstallationType.Steam => UriConstants.SteamIconFilename,
+            GameInstallationType.EaApp => UriConstants.EaAppIconFilename,
+            _ => UriConstants.GenHubIconFilename,
         };
 
         // For now, return the game-specific icon - could be enhanced to combine with platform icon
-        return $"{Core.Constants.UriConstants.IconsBasePath}/{gameIcon}";
+        return $"{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public partial class GameProfileLauncherViewModel(
                     // Update the profile data
                     var iconPath = !string.IsNullOrEmpty(profile.IconPath)
                         ? profile.IconPath
-                        : Core.Constants.UriConstants.DefaultIconUri;
+                        : UriConstants.DefaultIconUri;
 
                     // Use profile's CoverPath if available, otherwise fall back to icon path
                     var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
@@ -263,7 +263,7 @@ public partial class GameProfileLauncherViewModel(
 
                 foreach (var installation in installations.Data)
                 {
-                    manifestsGenerated += installation.AvailableGameClients?.Count() * 2 ?? 0;
+                    manifestsGenerated += installation.AvailableGameClients?.Count * 2 ?? 0;
 
                     // Create profiles for ALL detected game clients (not just one per game type)
                     if (installation.AvailableGameClients != null)
@@ -370,7 +370,7 @@ public partial class GameProfileLauncherViewModel(
                 var normalizedFallback = fallbackVersion.Replace(".", string.Empty);
                 manifestVersionInt = int.TryParse(normalizedFallback, out var v) ? v : 0;
             }
-            else if (gameClient.Version.Contains("."))
+            else if (gameClient.Version.Contains('.'))
             {
                 // Normalize dotted version ("1.04" → 104, "1.08" → 108)
                 var normalized = gameClient.Version.Replace(".", string.Empty);

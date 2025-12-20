@@ -16,6 +16,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.ContentResolvers;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Features.Content.Services.GitHub;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
@@ -275,5 +276,9 @@ public static class ContentPipelineModule
         // Register content pipeline factory for provider-based component lookup
         services.AddSingleton<IContentPipelineFactory, ContentPipelineFactory>();
         services.AddTransient<PublisherCardViewModel>();
+
+        // Register content orchestrator and validator
+        services.AddSingleton<IContentValidator, ContentValidator>();
+        services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
     }
 }

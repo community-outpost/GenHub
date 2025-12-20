@@ -11,6 +11,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
