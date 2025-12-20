@@ -348,50 +348,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  release:
-    name: Create Release
-    needs: [build-windows, build-linux]
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download Windows Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: genhub-velopack-windows-*
-          merge-multiple: true
-          path: release-assets/windows
 
-      - name: Download Linux Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: genhub-velopack-linux-*
-          merge-multiple: true
-          path: release-assets/linux
-
-      - name: Prepare Release Assets
-        run: |
-          mkdir final-assets
-          cp release-assets/windows/*.nupkg final-assets/
-          cp release-assets/linux/*.nupkg final-assets/ || true
-          # Prioritize Windows RELEASES file for now
-          cp release-assets/windows/RELEASES final-assets/RELEASES || true
-          # Include Setup.exe for easy first-time installation (Velopack names it GenHub-win-Setup.exe)
-          cp release-assets/windows/*-Setup.exe final-assets/ || true
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.0.${{ github.run_number }}
-          name: GenHub Alpha ${{ github.run_number }}
-          prerelease: true
-          draft: false
-          files: final-assets/*
 
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux, release]
+    needs: [build-windows, build-linux]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -405,4 +366,3 @@ jobs:
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Release | ${{ needs.release.result == 'success' && '✅ Created' || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
