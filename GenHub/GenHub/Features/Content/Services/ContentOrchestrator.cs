@@ -31,7 +31,7 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IDynamicContentCache _cache;
     private readonly IContentValidator _contentValidator;
     private readonly IContentManifestPool _manifestPool;
-    private readonly object _providerLock = new object();
+    private readonly object _providerLock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentOrchestrator"/> class.
@@ -53,8 +53,8 @@ public class ContentOrchestrator : IContentOrchestrator
         IContentManifestPool manifestPool)
     {
         _logger = logger;
-        _providers = new ConcurrentBag<IContentProvider>(providers);
-        _discoverers = new ConcurrentBag<IContentDiscoverer>(discoverers);
+        _providers = [.. providers];
+        _discoverers = [.. discoverers];
         _resolvers = new ConcurrentDictionary<string, IContentResolver>();
         foreach (var resolver in resolvers)
         {
@@ -100,8 +100,8 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
         }
 
-        var allResults = new List<ContentSearchResult>();
-        var errors = new List<string>();
+        List<ContentSearchResult> allResults = [];
+        List<string> errors = [];
 
         // Orchestrate search across all enabled providers concurrently
         // Each provider handles its own internal discovery→resolution→delivery pipeline
@@ -109,7 +109,7 @@ public class ContentOrchestrator : IContentOrchestrator
             .Where(p => p.IsEnabled)
             .ToList();
 
-        if (!searchTasks.Any())
+        if (searchTasks.Count == 0)
         {
             _logger.LogWarning("No enabled providers available for search");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("No enabled providers available");
@@ -170,7 +170,7 @@ public class ContentOrchestrator : IContentOrchestrator
             .ToList();
 
         // Cache results for future queries
-        if (sortedResults.Any())
+        if (sortedResults.Count > 0)
         {
             await _cache.SetAsync(cacheKey, sortedResults, TimeSpan.FromMinutes(5), cancellationToken);
         }
@@ -243,7 +243,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         var result = await SearchAsync(query, cancellationToken);
         return result.Success
-            ? OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? Enumerable.Empty<ContentSearchResult>())
+            ? OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(result.Data ?? [])
             : OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(result.Errors);
     }
 
@@ -438,7 +438,7 @@ public class ContentOrchestrator : IContentOrchestrator
             if (!validationResult.IsValid)
             {
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
-                if (errors.Any())
+                if (errors.Count > 0)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
                         errors.Select(e => $"Manifest validation failed: {e.Message}"));
@@ -501,7 +501,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 if (!fullValidation.IsValid)
                 {
                     var errors = fullValidation.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
-                    if (errors.Any())
+                    if (errors.Count > 0)
                     {
                         return OperationResult<ContentManifest>.CreateFailure(
                             errors.Select(e => $"Content validation failed: {e.Message}"));
@@ -572,7 +572,7 @@ public class ContentOrchestrator : IContentOrchestrator
         var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
         if (manifestsResult.Success)
         {
-            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? Enumerable.Empty<ContentManifest>());
+            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? []);
         }
         else
         {
@@ -608,7 +608,7 @@ public class ContentOrchestrator : IContentOrchestrator
         }
     }
 
-    private IEnumerable<ContentSearchResult> ApplySorting(
+    private static IEnumerable<ContentSearchResult> ApplySorting(
         IEnumerable<ContentSearchResult> results, ContentSortField sortOrder)
     {
         return sortOrder switch
@@ -617,7 +617,7 @@ public class ContentOrchestrator : IContentOrchestrator
             ContentSortField.DateCreated => results.OrderByDescending(r => r.LastUpdated),
             ContentSortField.DownloadCount => results.OrderByDescending(r => r.DownloadCount),
             ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
-            _ => results // Relevance - keep original order
+            _ => results, // Relevance - keep original order
         };
     }
 }

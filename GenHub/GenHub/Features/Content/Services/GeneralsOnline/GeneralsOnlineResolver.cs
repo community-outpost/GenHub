@@ -14,7 +14,7 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// <summary>
 /// Resolves Generals Online search results into ContentManifests.
 /// </summary>
-public class GeneralsOnlineResolver(GeneralsOnlineManifestFactory manifestFactory, ILogger<GeneralsOnlineResolver> logger) : IContentResolver
+public class GeneralsOnlineResolver(ILogger<GeneralsOnlineResolver> logger) : IContentResolver
 {
     /// <inheritdoc />
     public string ResolverId => GeneralsOnlineConstants.ResolverId;
@@ -41,7 +41,7 @@ public class GeneralsOnlineResolver(GeneralsOnlineManifestFactory manifestFactor
                     "Release information not found in search result");
             }
 
-            var manifests = manifestFactory.CreateManifests(release);
+            var manifests = GeneralsOnlineManifestFactory.CreateManifests(release);
             var primaryManifest = manifests.FirstOrDefault();
 
             if (primaryManifest == null)

@@ -48,7 +48,7 @@ public class GameClientDetector(
             if (inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && Directory.Exists(inst.GeneralsPath))
             {
                 // First, detect the standard installation client (priority over GeneralsOnline for auto-selection)
-                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, inst, cancellationToken);
+                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, cancellationToken);
                 if (File.Exists(actualExePath))
                 {
                     var generalsVersion = new GameClient
@@ -69,13 +69,13 @@ public class GameClientDetector(
                     _logger.LogWarning("Skipping Generals game client for {InstallationId}: no valid executable found at {ExePath}", inst.Id, actualExePath);
                 }
 
-                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.Generals, cancellationToken);
+                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.Generals);
                 gameClients.AddRange(generalsOnlineClients);
             }
 
             if (inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && Directory.Exists(inst.ZeroHourPath))
             {
-                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.ZeroHourPath, GameType.ZeroHour, inst, cancellationToken);
+                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.ZeroHourPath, GameType.ZeroHour, cancellationToken);
                 if (File.Exists(actualExePath))
                 {
                     var zeroHourVersion = new GameClient
@@ -97,7 +97,7 @@ public class GameClientDetector(
                 }
 
                 // Then check for GeneralsOnline clients in the installation directory
-                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.ZeroHour, cancellationToken);
+                var generalsOnlineClients = await DetectGeneralsOnlineClientsAsync(inst, GameType.ZeroHour);
                 gameClients.AddRange(generalsOnlineClients);
             }
         }
@@ -337,10 +337,9 @@ public class GameClientDetector(
     /// </summary>
     /// <param name="installationPath">The installation directory path.</param>
     /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
-    /// <param name="installation">The game installation.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple containing the detected version string and the actual executable path found, or ("Unknown", original path) if not recognized.</returns>
-    private async Task<(string version, string executablePath)> DetectVersionFromInstallationAsync(string installationPath, GameType gameType, GameInstallation? installation, CancellationToken cancellationToken)
+    private async Task<(string Version, string ExecutablePath)> DetectVersionFromInstallationAsync(string installationPath, GameType gameType, CancellationToken cancellationToken)
     {
         // Use the possible executable names from the registry
         foreach (var executableName in _hashRegistry.PossibleExecutableNames)
@@ -410,7 +409,7 @@ public class GameClientDetector(
     /// </summary>
     /// <param name="installation">The game installation to scan.</param>
     /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+
     /// <returns>A list of detected GeneralsOnline game clients.</returns>
     /// <remarks>
     /// GeneralsOnline executables are auto-updated by the GeneralsOnline launcher,
@@ -419,8 +418,7 @@ public class GameClientDetector(
     /// </remarks>
     private async Task<List<GameClient>> DetectGeneralsOnlineClientsAsync(
         GameInstallation installation,
-        GameType gameType,
-        CancellationToken cancellationToken)
+        GameType gameType)
     {
         var detectedClients = new List<GameClient>();
         var installationPath = gameType == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
@@ -484,7 +482,7 @@ public class GameClientDetector(
                 };
 
                 // Generate manifest for this GeneralsOnline client
-                await GenerateGeneralsOnlineClientManifestAsync(gameClient, installationPath, installation, gameType);
+                await GenerateGeneralsOnlineClientManifestAsync(gameClient, installationPath, gameType);
                 detectedClients.Add(gameClient);
 
                 _logger.LogDebug(
@@ -517,13 +515,12 @@ public class GameClientDetector(
     /// </summary>
     /// <param name="gameClient">The GeneralsOnline game client.</param>
     /// <param name="clientPath">The client installation path.</param>
-    /// <param name="installation">The parent game installation.</param>
+
     /// <param name="gameType">The game type.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task GenerateGeneralsOnlineClientManifestAsync(
         GameClient gameClient,
         string clientPath,
-        GameInstallation installation,
         GameType gameType)
     {
         try

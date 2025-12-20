@@ -14,7 +14,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.ContentDiscoverers;
+namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// Discovers content from GitHub releases in configured repositories.
@@ -25,7 +25,7 @@ public class GitHubDiscoverer : IContentDiscoverer
     private readonly ILogger<GitHubDiscoverer> _logger;
     private readonly IConfigurationProviderService _configurationProvider;
 
-    private readonly List<(string owner, string repo)> _repositories;
+    private readonly List<(string Owner, string Repo)> _repositories;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GitHubDiscoverer"/> class.
@@ -43,9 +43,9 @@ public class GitHubDiscoverer : IContentDiscoverer
             .Select(r =>
             {
                 var parts = r.Split('/');
-                return parts.Length == ContentConstants.GitHubRepoPartsCount ? (owner: parts[0], repo: parts[1]) : (owner: string.Empty, repo: string.Empty);
+                return parts.Length == ContentConstants.GitHubRepoPartsCount ? (Owner: parts[0], Repo: parts[1]) : (Owner: string.Empty, Repo: string.Empty);
             })
-            .Where(t => !string.IsNullOrEmpty(t.owner) && !string.IsNullOrEmpty(t.repo))
+            .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))
             .ToList();
     }
 
@@ -72,7 +72,7 @@ public class GitHubDiscoverer : IContentDiscoverer
     public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
-        var discoveredItems = new List<ContentSearchResult>();
+        List<ContentSearchResult> discoveredItems = [];
 
         foreach (var (owner, repo) in _repositories)
         {
@@ -88,7 +88,7 @@ public class GitHubDiscoverer : IContentDiscoverer
                     var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
                         owner,
                         repo,
-                        inferred.type,
+                        inferred.Type,
                         latestRelease.TagName);
 
                     var discovered = new ContentSearchResult
@@ -98,9 +98,9 @@ public class GitHubDiscoverer : IContentDiscoverer
                         Description = "GitHub release - full details available after resolution",
                         Version = latestRelease.TagName ?? "latest",
                         AuthorName = latestRelease.Author,
-                        ContentType = inferred.type,
-                        TargetGame = inferredGame.type,
-                        IsInferred = inferred.isInferred || inferredGame.isInferred,
+                        ContentType = inferred.Type,
+                        TargetGame = inferredGame.Type,
+                        IsInferred = inferred.IsInferred || inferredGame.IsInferred,
                         ProviderName = SourceName,
                         RequiresResolution = true,
                         ResolverId = ContentSourceNames.GitHubResolverId,
@@ -129,7 +129,7 @@ public class GitHubDiscoverer : IContentDiscoverer
         return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(discoveredItems);
     }
 
-    private bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
+    private static bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
     {
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
             !result.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))

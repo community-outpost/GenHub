@@ -215,7 +215,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
             x => x.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString() !.Contains("File conflict")),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("File conflict")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

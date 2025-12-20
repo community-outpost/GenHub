@@ -68,7 +68,7 @@ internal static class Win32ErrorCodes
             ErrorFileExists => "The destination file already exists",
             ErrorAlreadyExists => "The destination file already exists",
             ErrorTooManyLinks => "Maximum number of hard links (1023) exceeded for this file",
-            _ => $"Win32 error code {errorCode}"
+            _ => $"Win32 error code {errorCode}",
         };
     }
 }

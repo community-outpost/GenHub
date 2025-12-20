@@ -18,7 +18,7 @@ namespace GenHub.Core.Models.Manifest;
 /// - Human-readable format for debugging and logging
 /// Examples: "1.0.ea.gameinstallation.generals", "1.108.steam.mod.communitymaps".
 /// </summary>
-public static class ManifestIdGenerator
+public static partial class ManifestIdGenerator
 {
     /// <summary>
     /// Generates a manifest ID for publisher-provided content.
@@ -75,8 +75,7 @@ public static class ManifestIdGenerator
     /// <exception cref="ArgumentException">Thrown when version format is invalid.</exception>
     public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, string? userVersion)
     {
-        if (installation == null)
-            throw new ArgumentNullException(nameof(installation));
+        ArgumentNullException.ThrowIfNull(installation);
 
         // Normalize user version - remove dots and convert to string
         string normalizedUserVersion = NormalizeVersionString(userVersion);
@@ -109,8 +108,7 @@ public static class ManifestIdGenerator
     /// <exception cref="ArgumentException">Thrown when <paramref name="userVersion"/> is negative.</exception>
     public static string GenerateGameInstallationId(GameInstallation installation, GameType gameType, int userVersion = 0)
     {
-        if (installation == null)
-            throw new ArgumentNullException(nameof(installation));
+        ArgumentNullException.ThrowIfNull(installation);
         if (userVersion < 0)
             throw new ArgumentException("User version cannot be negative", nameof(userVersion));
 
@@ -207,14 +205,14 @@ public static class ManifestIdGenerator
             return 0;
 
         // Extract all digits and concatenate
-        var digits = Regex.Replace(tag, @"[^\d]", string.Empty);
+        var digits = DigitsRegex().Replace(tag, string.Empty);
 
         if (string.IsNullOrEmpty(digits))
             return 0;
 
         // Take first 9 digits to avoid overflow
         if (digits.Length > 9)
-            digits = digits.Substring(0, 9);
+            digits = digits[..9];
 
         return int.TryParse(digits, out var version) ? version : 0;
     }
@@ -234,8 +232,14 @@ public static class ManifestIdGenerator
         var lower = input.ToLowerInvariant().Trim();
 
         // Remove all non-alphanumeric characters
-        var normalized = Regex.Replace(lower, "[^a-zA-Z0-9]", string.Empty);
+        var normalized = NonAlphaNumericRegex().Replace(lower, string.Empty);
 
         return string.IsNullOrEmpty(normalized) ? throw new ArgumentException("Input results in empty string after normalization", nameof(input)) : normalized;
     }
+
+    [GeneratedRegex(@"[^\d]")]
+    private static partial Regex DigitsRegex();
+
+    [GeneratedRegex("[^a-zA-Z0-9]")]
+    private static partial Regex NonAlphaNumericRegex();
 }

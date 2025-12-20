@@ -111,5 +111,5 @@ public static class GeneralsOnlineConstants
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "multiplayer", "online", "community", "enhancement" };
+    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
 }

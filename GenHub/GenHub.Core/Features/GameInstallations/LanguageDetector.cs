@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace GenHub.Core.Features.GameInstallations;
 
 /// <summary>
-/// Detects the language of a Command & Conquer Generals or Zero Hour installation.
+/// Detects the language of a Command &amp; Conquer Generals or Zero Hour installation.
 /// </summary>
 public class LanguageDetector : ILanguageDetector
 {

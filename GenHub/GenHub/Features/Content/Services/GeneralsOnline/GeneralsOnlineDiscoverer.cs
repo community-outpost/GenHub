@@ -118,7 +118,7 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     /// Attempts to get release information from the Generals Online CDN API.
     /// </summary>
     /// <returns>Tuple of (cdnAvailable, release). cdnAvailable is false if CDN is unreachable, release is null if none found.</returns>
-    private async Task<(bool cdnAvailable, GeneralsOnlineRelease? release)> TryGetReleaseFromApiAsync(
+    private async Task<(bool CdnAvailable, GeneralsOnlineRelease? Release)> TryGetReleaseFromApiAsync(
         CancellationToken cancellationToken)
     {
         try

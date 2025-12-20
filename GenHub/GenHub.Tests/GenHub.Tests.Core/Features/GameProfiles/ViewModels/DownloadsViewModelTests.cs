@@ -8,7 +8,7 @@ using Moq;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace GenHub.Tests.Core.ViewModels;
+namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
 /// <summary>
 /// Tests for DownloadsViewModel.

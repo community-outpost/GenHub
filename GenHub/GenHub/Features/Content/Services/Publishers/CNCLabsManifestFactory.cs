@@ -72,7 +72,7 @@ public partial class CNCLabsManifestFactory(
             ContentType.Screensaver => true,
             ContentType.Replay => true,
             ContentType.ModdingTool => true,
-            _ => false
+            _ => false,
         };
 
         return publisherMatches && supportedTypes;
@@ -87,7 +87,7 @@ public partial class CNCLabsManifestFactory(
         // CNC Labs content is delivered directly, no extraction needed
         // This method is not used for CNC Labs, but required by interface
         logger.LogWarning("CreateManifestsFromExtractedContentAsync called for CNC Labs content, which does not support extraction");
-        return await Task.FromResult(new List<ContentManifest> { originalManifest });
+        return await Task.FromResult<List<ContentManifest>>([originalManifest]);
     }
 
     /// <inheritdoc />
@@ -101,10 +101,9 @@ public partial class CNCLabsManifestFactory(
     /// Creates a content manifest from CNC Labs map/mission details.
     /// </summary>
     /// <param name="details">The parsed map/mission details.</param>
-    /// <param name="mapId">The CNC Labs map ID.</param>
     /// <param name="detailPageUrl">The detail page URL.</param>
     /// <returns>A fully constructed ContentManifest.</returns>
-    public async Task<ContentManifest> CreateManifestAsync(MapDetails details, int mapId, string detailPageUrl)
+    public async Task<ContentManifest> CreateManifestAsync(MapDetails details, string detailPageUrl)
     {
         ArgumentNullException.ThrowIfNull(details);
         ArgumentException.ThrowIfNullOrWhiteSpace(detailPageUrl, nameof(detailPageUrl));
@@ -130,9 +129,11 @@ public partial class CNCLabsManifestFactory(
 
         if (!manifestIdResult.Success)
         {
-            var errorMsg = $"Failed to generate manifest ID for CNC Labs content '{details.name}': {manifestIdResult.FirstError}";
-            logger.LogError(errorMsg);
-            throw new InvalidOperationException(errorMsg);
+            logger.LogError(
+                "Failed to generate manifest ID for CNC Labs content '{ContentName}': {Error}",
+                details.name,
+                manifestIdResult.FirstError);
+            throw new InvalidOperationException($"Failed to generate manifest ID for CNC Labs content '{details.name}': {manifestIdResult.FirstError}");
         }
 
         logger.LogInformation(
@@ -171,7 +172,7 @@ public partial class CNCLabsManifestFactory(
     /// </summary>
     /// <param name="author">The raw author name.</param>
     /// <returns>A normalized publisher ID component.</returns>
-    private string NormalizeAuthorForPublisherId(string author)
+    private static string NormalizeAuthorForPublisherId(string author)
     {
         if (string.IsNullOrWhiteSpace(author))
         {
@@ -190,7 +191,7 @@ public partial class CNCLabsManifestFactory(
     /// </summary>
     /// <param name="title">The content title.</param>
     /// <returns>A slugified version of the title.</returns>
-    private string SlugifyTitle(string title)
+    private static string SlugifyTitle(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -215,9 +216,9 @@ public partial class CNCLabsManifestFactory(
     /// </summary>
     /// <param name="details">The map/mission details.</param>
     /// <returns>A list of tags.</returns>
-    private List<string> GenerateTags(MapDetails details)
+    private static List<string> GenerateTags(MapDetails details)
     {
-        var tags = new List<string> { "CNC Labs", "Community" };
+        List<string> tags = ["CNC Labs", "Community"];
 
         // Add game-specific tag
         if (details.targetGame == GameType.Generals)
@@ -241,7 +242,7 @@ public partial class CNCLabsManifestFactory(
             ContentType.Screensaver => "Screensaver",
             ContentType.Replay => "Replay",
             ContentType.ModdingTool => "Modding Tool",
-            _ => "Other"
+            _ => "Other",
         });
 
         return tags;

@@ -20,7 +20,7 @@ public static class GitHubInferenceHelper
     /// <param name="repo">Repository name or owner/repo segment used for inference.</param>
     /// <param name="releaseName">Optional release name/tag used for inference.</param>
     /// <returns>A tuple of the inferred <see cref="ContentType"/> and a boolean indicating the value is inferred.</returns>
-    public static (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName)
+    public static (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}";
 
@@ -46,17 +46,17 @@ public static class GitHubInferenceHelper
     /// <param name="repo">Repository name or owner/repo segment used for inference.</param>
     /// <param name="releaseName">Optional release name/tag used for inference.</param>
     /// <returns>A tuple of the inferred <see cref="GameType"/> and a boolean indicating the value is inferred.</returns>
-    public static (GameType type, bool isInferred) InferTargetGame(string repo, string? releaseName)
+    public static (GameType Type, bool IsInferred) InferTargetGame(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}";
 
         if (searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase) || searchText.Contains("zh", StringComparison.OrdinalIgnoreCase))
-            return (GameType.ZeroHour, true);
+            return (Type: GameType.ZeroHour, IsInferred: true);
 
         if (searchText.Contains("generals", StringComparison.OrdinalIgnoreCase) && !searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase))
-            return (GameType.Generals, true);
+            return (Type: GameType.Generals, IsInferred: true);
 
-        return (GameType.ZeroHour, true);
+        return (Type: GameType.ZeroHour, IsInferred: true);
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public static class GitHubInferenceHelper
     /// <returns>A list of inferred tags.</returns>
     public static List<string> InferTagsFromRelease(GitHubRelease release)
     {
-        var tags = new List<string>();
+        List<string> tags = [];
         var text = $"{release.Name} {release.Body}";
 
         if (text.Contains("patch", StringComparison.OrdinalIgnoreCase))
@@ -104,7 +104,7 @@ public static class GitHubInferenceHelper
             tags.Add("Draft");
         }
 
-        return tags.Distinct().ToList();
+        return [.. tags.Distinct()];
     }
 
     /// <summary>
@@ -165,7 +165,7 @@ public static class GitHubInferenceHelper
     public static bool IsMultiGameRelease(IEnumerable<GitHubReleaseAsset> assets)
     {
         var assetNames = assets.Select(a => a.Name).ToList();
-        var detectedGames = new HashSet<GameType>();
+        HashSet<GameType> detectedGames = [];
 
         foreach (var assetName in assetNames)
         {

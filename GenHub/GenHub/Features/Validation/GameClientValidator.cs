@@ -89,7 +89,7 @@ public class GameClientValidator(
         return new ValidationResult(gameClient.Id, issues);
     }
 
-    private async Task<List<ValidationIssue>> ValidateGameClientSpecificAsync(GameClient gameClient, ContentManifest manifest, CancellationToken cancellationToken)
+    private static async Task<List<ValidationIssue>> ValidateGameClientSpecificAsync(GameClient gameClient, ContentManifest manifest, CancellationToken cancellationToken)
     {
         var issues = new List<ValidationIssue>();
 
@@ -98,7 +98,8 @@ public class GameClientValidator(
                 () =>
             Directory.EnumerateFiles(gameClient.WorkingDirectory, "*", SearchOption.AllDirectories)
                 .Select(f => Path.GetRelativePath(gameClient.WorkingDirectory, f).Replace('\\', '/'))
-                .ToList(), cancellationToken);
+                .ToList(),
+                cancellationToken);
 
         // KnownAddons detection - check against actual files
         if (manifest.KnownAddons != null)

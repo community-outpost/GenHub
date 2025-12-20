@@ -198,23 +198,26 @@ public class CasStorage(
         {
             var hashes = await Task.Run(
                 () =>
-            {
-                if (!Directory.Exists(_objectsDirectory))
-                    return Array.Empty<string>();
+                {
+                    if (!Directory.Exists(_objectsDirectory))
+                    {
+                        return [];
+                    }
 
-                return Directory.GetFiles(_objectsDirectory, "*", SearchOption.AllDirectories)
-                    .Select(Path.GetFileName)
-                    .Where(name => name != null && !string.IsNullOrEmpty(name) && IsValidHash(name))
-                    .Cast<string>()
-                    .ToArray();
-            }, cancellationToken);
+                    return Directory.GetFiles(_objectsDirectory, "*", SearchOption.AllDirectories)
+                        .Select(Path.GetFileName)
+                        .Where(name => name != null && !string.IsNullOrEmpty(name) && IsValidHash(name))
+                        .Cast<string>()
+                        .ToArray();
+                },
+                cancellationToken);
 
             return hashes;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to enumerate CAS objects");
-            return Array.Empty<string>();
+            return [];
         }
     }
 
@@ -261,35 +264,7 @@ public class CasStorage(
         return hash.Length == 64 && hash.All(c => char.IsAsciiHexDigit(c));
     }
 
-    private void EnsureDirectoryStructure()
-    {
-        var requiredDirectories = new[]
-        {
-            _config.CasRootPath,
-            _objectsDirectory,
-            _tempDirectory,
-            _lockDirectory,
-        };
-
-        foreach (var directory in requiredDirectories)
-        {
-            if (FileOperationsService.EnsureDirectoryExists(directory))
-            {
-                _logger.LogDebug("Created CAS directory: {Directory}", directory);
-            }
-        }
-    }
-
-    private void EnsureDirectoriesCreated()
-    {
-        if (!_directoriesEnsured)
-        {
-            EnsureDirectoryStructure();
-            _directoriesEnsured = true;
-        }
-    }
-
-    private async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)
+    private static async Task<CasLock> AcquireLockAsync(string lockPath, CancellationToken cancellationToken)
     {
         // Ensure the lock file's directory exists
         var lockDirectory = Path.GetDirectoryName(lockPath);
@@ -318,16 +293,38 @@ public class CasStorage(
         throw new InvalidOperationException($"Unable to acquire lock for CAS operation: {lockPath}");
     }
 
-    private class CasLock : IAsyncDisposable
+    private void EnsureDirectoryStructure()
     {
-        private readonly string _lockPath;
-        private readonly FileStream _lockStream;
+        string[] requiredDirectories =
+        [
+            _config.CasRootPath,
+            _objectsDirectory,
+            _tempDirectory,
+            _lockDirectory,
+        ];
 
-        public CasLock(string lockPath, FileStream lockStream)
+        foreach (var directory in requiredDirectories)
         {
-            _lockPath = lockPath;
-            _lockStream = lockStream;
+            if (FileOperationsService.EnsureDirectoryExists(directory))
+            {
+                _logger.LogDebug("Created CAS directory: {Directory}", directory);
+            }
         }
+    }
+
+    private void EnsureDirectoriesCreated()
+    {
+        if (!_directoriesEnsured)
+        {
+            EnsureDirectoryStructure();
+            _directoriesEnsured = true;
+        }
+    }
+
+    private class CasLock(string lockPath, FileStream lockStream) : IAsyncDisposable
+    {
+        private readonly string _lockPath = lockPath;
+        private readonly FileStream _lockStream = lockStream;
 
         public async ValueTask DisposeAsync()
         {

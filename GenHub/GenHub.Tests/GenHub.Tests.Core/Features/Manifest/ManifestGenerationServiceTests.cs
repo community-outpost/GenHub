@@ -211,7 +211,7 @@ public class ManifestGenerationServiceTests : IDisposable
     /// Prepares a dummy executable file for testing.
     /// </summary>
     /// <returns>A tuple containing the client path and executable path.</returns>
-    private async Task<(string clientPath, string executablePath)> PrepareDummyExeAsync()
+    private async Task<(string ClientPath, string ExecutablePath)> PrepareDummyExeAsync()
     {
         var clientPath = Path.Combine(_tempDirectory, "TestClient");
         Directory.CreateDirectory(clientPath);

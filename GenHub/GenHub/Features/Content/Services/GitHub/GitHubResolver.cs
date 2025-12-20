@@ -367,7 +367,7 @@ public class GitHubResolver(
         }
     }
 
-    private (ContentType type, bool isInferred) InferContentType(string repo, string? releaseName, string? description)
+    private (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName, string? description)
     {
         return GitHubInferenceHelper.InferContentType(repo, releaseName);
     }

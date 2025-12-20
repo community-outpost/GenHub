@@ -99,7 +99,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                         return manifest;
                     }
 
-                    logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, string.Join(", ", addResult?.Errors ?? Array.Empty<string>()));
+                    logger.LogWarning("Embedded manifest {Id} parsed but failed to add to pool: {Errors}", manifest.Id, string.Join(", ", addResult?.Errors ?? []));
 
                     return manifest;
                 }
@@ -139,7 +139,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             // Determine a sensible source directory for the generated manifest.
             // Prefer the working directory if present, otherwise fall back to the directory
             // containing the configured executable path.
-            string? gameDir = null;
+            string? gameDir;
             try
             {
                 gameDir = !string.IsNullOrEmpty(gameClient.WorkingDirectory)
@@ -154,7 +154,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
             if (addRes?.Success != true)
             {
-                logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
+                logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? []));
             }
 
             return generated;
@@ -182,7 +182,6 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             ? ManifestConstants.ZeroHourManifestVersion
             : ManifestConstants.GeneralsManifestVersion;
 
-        int manifestVersionInt = int.TryParse(manifestVersion, out var v) ? v : 0;
         var deterministicId = ManifestIdGenerator.GenerateGameInstallationId(tempInstallForId, gameType, manifestVersion);
 
         // Try CAS using deterministic id
@@ -208,7 +207,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     // For embedded installation manifests, provide the installation path as source when available.
                     var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
                     if (addRes?.Success != true)
-                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? Array.Empty<string>()));
+                        logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
                     return manifest;
                 }
             }
@@ -265,7 +264,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, cancellationToken);
             if (addRes2?.Success != true)
             {
-                logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? Array.Empty<string>()));
+                logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));
             }
 
             return generated;
@@ -300,15 +299,4 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             throw new ManifestValidationException(expectedId, $"Manifest ID mismatch: expected '{expectedId}' but manifest contains '{manifest.Id.Value}'");
         }
     }
-}
-
-/// <summary>
-/// Options to control <see cref="ManifestProvider"/> behaviour.
-/// </summary>
-public sealed class ManifestProviderOptions
-{
-    /// <summary>
-    /// Gets or sets a value indicating whether fallback manifests should be generated when none are found in CAS or embedded resources.
-    /// </summary>
-    public bool GenerateFallbackManifests { get; set; } = false;
 }

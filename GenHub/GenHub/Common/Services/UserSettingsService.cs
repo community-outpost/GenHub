@@ -269,7 +269,7 @@ public class UserSettingsService : IUserSettingsService
             "contentStoragePath" => nameof(UserSettings.ContentStoragePath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),
             "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
-            _ => string.Empty
+            _ => string.Empty,
         };
     }
 

@@ -175,7 +175,7 @@ public class SettingsViewModelTests
             x => x.Log(
             LogLevel.Error,
             It.IsAny<EventId>(),
-            It.Is<It.IsAnyType>((v, t) => v != null && v.ToString() !.Contains("Failed to save settings")),
+            It.Is<It.IsAnyType>((v, t) => v != null && v.ToString()!.Contains("Failed to save settings")),
             It.IsAny<IOException>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

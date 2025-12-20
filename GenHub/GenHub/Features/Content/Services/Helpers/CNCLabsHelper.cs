@@ -84,7 +84,7 @@ public static partial class CNCLabsHelper
                   .Append(query.NumberOfPlayers.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            if (query.Tags != null && query.Tags.Any())
+            if (query.Tags != null && query.Tags.Count > 0)
             {
                 sb.Append('&')
                   .Append(CNCLabsConstants.TagsQueryParam)
@@ -184,7 +184,7 @@ public static partial class CNCLabsHelper
     /// <returns>
     /// A tuple of (<see cref="GameType"/>, <see cref="ContentType"/>).
     /// </returns>
-    public static (GameType, ContentType) ExtractBreadcrumbCategory(IDocument document)
+    public static (GameType GameType, ContentType ContentType) ExtractBreadcrumbCategory(IDocument document)
     {
         var header = document.QuerySelector(CNCLabsConstants.BreadcrumbHeaderSelector);
         if (header == null) return (GameType.Unknown, ContentType.UnknownContentType);
@@ -214,7 +214,7 @@ public static partial class CNCLabsHelper
             "screensavers" => (GameType.Unknown, ContentType.Screensaver),
             "videos (generals and zero hour)" => (GameType.Unknown, ContentType.Video),
             "zero hour replays" => (GameType.ZeroHour, ContentType.Replay),
-            _ => (GameType.Unknown, ContentType.UnknownContentType)
+            _ => (GameType.Unknown, ContentType.UnknownContentType),
         };
     }
 
@@ -292,7 +292,7 @@ public static partial class CNCLabsHelper
             ContentType.Map => CNCLabsConstants.SearchMapsUrlBase,
             ContentType.Mission => CNCLabsConstants.SearchMapsUrlBase,
             ContentType.Mod => CNCLabsConstants.SearchModsUrlBase,
-            _ => CNCLabsConstants.SearchDownloadsUrlBase
+            _ => CNCLabsConstants.SearchDownloadsUrlBase,
         };
     }
 
