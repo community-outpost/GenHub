@@ -277,6 +277,9 @@ public static class GitHubConstants
 
     // Descriptions
 
+    /// <summary>URL for creating a new GitHub PAT with repo scope.</summary>
+    public const string PatCreationUrl = "https://github.com/settings/tokens/new?description=GenHub&scopes=repo";
+
     /// <summary>Description text for GitHub token requirements.</summary>
     public const string GitHubTokenDescription = "Enter your GitHub Personal Access Token to access private repositories and increase rate limits:";
 

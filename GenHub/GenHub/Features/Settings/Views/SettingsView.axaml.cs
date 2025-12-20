@@ -36,6 +36,40 @@ public partial class SettingsView : UserControl
         // This method exists for potential future enhancements
     }
 
+    private void OnOpenPatCreationUrl(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                Core.Constants.GitHubConstants.PatCreationUrl)
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch
+        {
+            // Silently fail if browser cannot be opened
+        }
+    }
+
+    private void OnViewWorkflowRun(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string url && !string.IsNullOrEmpty(url))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+                {
+                    UseShellExecute = true,
+                });
+            }
+            catch
+            {
+                // Silently fail if browser cannot be opened
+            }
+        }
+    }
+
     /// <summary>
     /// Loads and initializes the XAML components for this view.
     /// </summary>

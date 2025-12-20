@@ -189,19 +189,19 @@
                 </StackPanel>
                 <!-- branding and update button - Right side -->
                 <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto" VerticalAlignment="Center">
-                    <!-- Logo and title section -->
-                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
-                        <Image Source="avares://GenHub/Assets/Logos/generalshub-logo.png" Width="90" Height="90" HorizontalAlignment="Center" Margin="0,-10,0,-15" />
-                        <TextBlock Text="C&amp;C Generals Launcher" FontSize="9" Foreground="#A0A0A0" FontWeight="Normal" HorizontalAlignment="Center" VerticalAlignment="Top" TextAlignment="Center" Margin="0,0,0,0" />
-                    </StackPanel>
-                    <!-- Update notification button -->
-                    <Button Grid.Column="1" Classes="update-notification" Command="{Binding ShowUpdateDialogCommand}" IsVisible="{Binding HasUpdateAvailable}" ToolTip.Tip="Update available - click to download" VerticalAlignment="Center">
+                    <!-- Update notification button - Left side -->
+                    <Button Grid.Column="0" Classes="update-notification" Command="{Binding ShowUpdateDialogCommand}" IsVisible="{Binding HasUpdateAvailable}" ToolTip.Tip="Update available - click to download" VerticalAlignment="Center" Margin="0,0,12,0">
                         <Panel>
                             <Ellipse Width="20" Height="20" Fill="#4CAF50" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <PathIcon Data="M7,10L12,15L17,10H7Z" Width="12" Height="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <Ellipse Width="8" Height="8" Fill="#FF4500" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-2,0" />
                         </Panel>
                     </Button>
+                    <!-- Logo and title section - Right side -->
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
+                        <Image Source="avares://GenHub/Assets/Logos/generalshub-logo.png" Width="90" Height="90" HorizontalAlignment="Center" Margin="0,-10,0,-15" />
+                        <TextBlock Text="C&amp;C Generals Launcher" FontSize="9" Foreground="#A0A0A0" FontWeight="Normal" HorizontalAlignment="Center" VerticalAlignment="Top" TextAlignment="Center" Margin="0,0,0,0" />
+                    </StackPanel>
                 </Grid>
             </Grid>
         </Border>
@@ -210,11 +210,11 @@
         <Grid Grid.Row="1" Background="#1A1A1A">
             <ContentControl Content="{Binding CurrentTabViewModel}" />
             <!-- Version label in bottom right corner -->
-            <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}" 
-                       FontSize="9" 
-                       Foreground="#404040" 
-                       HorizontalAlignment="Right" 
-                       VerticalAlignment="Bottom" 
+            <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
+                       FontSize="9"
+                       Foreground="#404040"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Bottom"
                        Margin="0,0,10,5" />
         </Grid>
     </Grid>

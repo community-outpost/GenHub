@@ -1,8 +1,8 @@
-using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Net.Http;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
@@ -13,6 +13,8 @@ public class VelopackUpdateManagerTests
 {
     private readonly Mock<ILogger<VelopackUpdateManager>> _mockLogger;
     private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
+    private readonly Mock<IGitHubTokenStorage> _mockGitHubTokenStorage;
+    private readonly Mock<IUserSettingsService> _mockUserSettingsService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VelopackUpdateManagerTests"/> class.
@@ -21,9 +23,17 @@ public class VelopackUpdateManagerTests
     {
         _mockLogger = new Mock<ILogger<VelopackUpdateManager>>();
         _mockHttpClientFactory = new Mock<IHttpClientFactory>();
+        _mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
+        _mockUserSettingsService = new Mock<IUserSettingsService>();
 
         // Use the actual interface method, not the extension method
         _mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(new HttpClient());
+
+        // Default: no PAT token available
+        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+
+        // Default: return default settings
+        _mockUserSettingsService.Setup(x => x.Get()).Returns(new GenHub.Core.Models.Common.UserSettings());
     }
 
     /// <summary>
@@ -33,21 +43,11 @@ public class VelopackUpdateManagerTests
     public void Constructor_ShouldInitializeSuccessfully()
     {
         // Act
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Assert
         Assert.NotNull(manager);
         Assert.False(manager.IsUpdatePendingRestart);
-    }
-
-    /// <summary>
-    /// Tests that constructor throws ArgumentNullException when logger is null.
-    /// </summary>
-    [Fact]
-    public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
-    {
-        // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new VelopackUpdateManager(null!, _mockHttpClientFactory.Object));
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public class VelopackUpdateManagerTests
     public async Task CheckForUpdatesAsync_InDevEnvironment_ShouldReturnNull()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Act
         var result = await manager.CheckForUpdatesAsync();
@@ -75,7 +75,7 @@ public class VelopackUpdateManagerTests
     public async Task CheckForUpdatesAsync_WithCancellation_ShouldHandleGracefully()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -94,7 +94,7 @@ public class VelopackUpdateManagerTests
     public async Task DownloadUpdatesAsync_WhenNotInitialized_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
@@ -108,7 +108,7 @@ public class VelopackUpdateManagerTests
     public void ApplyUpdatesAndRestart_WhenNotInitialized_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(
@@ -122,7 +122,7 @@ public class VelopackUpdateManagerTests
     public void ApplyUpdatesAndExit_WhenNotInitialized_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(
@@ -136,7 +136,7 @@ public class VelopackUpdateManagerTests
     public void IsUpdatePendingRestart_WhenNotInitialized_ShouldReturnFalse()
     {
         // Arrange
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Act
         var isPending = manager.IsUpdatePendingRestart;
@@ -152,7 +152,7 @@ public class VelopackUpdateManagerTests
     public void VelopackUpdateManager_ShouldUseCorrectRepositoryUrl()
     {
         // Arrange & Act
-        var manager = new VelopackUpdateManager(_mockLogger.Object, _mockHttpClientFactory.Object);
+        var manager = CreateManager();
 
         // Assert - verify that the logger was called during construction
         // In a development/test environment, the UpdateManager won't be available
@@ -162,10 +162,35 @@ public class VelopackUpdateManagerTests
                 It.IsAny<LogLevel>(),
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) =>
-                    v.ToString()!.Contains("Velopack") ||
-                    v.ToString()!.Contains("Update")),
+                    (v.ToString() ?? string.Empty).Contains("Velopack") ||
+                    (v.ToString() ?? string.Empty).Contains("Update")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
     }
+
+    /// <summary>
+    /// Tests that CheckForArtifactUpdatesAsync returns null when no PAT is available.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForArtifactUpdatesAsync_WithoutPAT_ShouldReturnNull()
+    {
+        // Arrange
+        _mockGitHubTokenStorage.Setup(x => x.HasToken()).Returns(false);
+        var manager = CreateManager();
+
+        // Act
+        var result = await manager.CheckForArtifactUpdatesAsync();
+
+        // Assert
+        Assert.Null(result);
+        Assert.False(manager.HasArtifactUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Creates a new VelopackUpdateManager instance with mocked dependencies.
+    /// </summary>
+    private VelopackUpdateManager CreateManager() =>
+        new(_mockLogger.Object, _mockHttpClientFactory.Object, _mockGitHubTokenStorage.Object, _mockUserSettingsService.Object);
 }

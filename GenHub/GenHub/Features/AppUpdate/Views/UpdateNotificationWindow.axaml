@@ -6,6 +6,7 @@
         Width="580" Height="800"
         MinWidth="500" MinHeight="580"
         Title="GenHub Updates"
+        Icon="/Assets/Icons/generalshub-icon.png"
         WindowStartupLocation="CenterScreen"
         SystemDecorations="BorderOnly"
         TransparencyLevelHint="AcrylicBlur"
@@ -28,8 +29,8 @@
         <Border CornerRadius="8" BoxShadow="0 4 20 0 #50000000">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Color="#242938" Offset="0" />
-                    <GradientStop Color="#1e2430" Offset="1" />
+                    <GradientStop Color="#1E1E1E" Offset="0" />
+                    <GradientStop Color="#1A1A1A" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
         </Border>
@@ -42,24 +43,13 @@
                   Classes="TitleBarArea"
                   x:Name="TitleBarGrid"
                   PointerPressed="TitleBar_PointerPressed">
-                  
                 <!-- App icon and title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <!-- App icon  -->
-                    <Border Width="28" Height="28" 
-                            Background="#3399FF" 
-                            CornerRadius="6"
-                            Margin="8,0,0,0">
-                        <Viewbox Width="14" Height="14"
-                                 HorizontalAlignment="Center"
-                                 VerticalAlignment="Center">
-                            <Path Data="M12,8A3,3 0 0,0 9,11A3,3 0 0,0 12,14A3,3 0 0,0 15,11A3,3 0 0,0 12,8M12,2L13.09,8.26L22,9L15,14L17,21L12,18L7,21L9,14L2,9L10.91,8.26L12,2Z" 
-                                  Fill="White" 
-                                  Stretch="Uniform" />
-                        </Viewbox>
-                    </Border>
-                    
-                    <TextBlock Text="GenHub Updates" 
+                    <Image Source="/Assets/Icons/generalshub-icon.png"
+                           Width="28" Height="28"
+                           Margin="8,0,0,0" />
+                    <TextBlock Text="GenHub Updates"
                               VerticalAlignment="Center"
                               FontSize="16" FontWeight="SemiBold"
                               Foreground="White" />

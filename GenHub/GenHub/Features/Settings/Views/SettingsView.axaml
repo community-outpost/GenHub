@@ -56,16 +56,15 @@
     </Style>
     
     <Style Selector="Button.primary-button">
-      <Setter Property="Background" Value="#0078D4" />
+      <Setter Property="Background" Value="#7B1FA2" />
       <Setter Property="Foreground" Value="#FFFFFF" />
-      <Setter Property="BorderBrush" Value="#106EBE" />
+      <Setter Property="BorderBrush" Value="#9C27B0" />
       <Setter Property="Padding" Value="16,8" />
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
-    
     <Style Selector="Button.primary-button:pointerover">
-      <Setter Property="Background" Value="#106EBE" />
+      <Setter Property="Background" Value="#9C27B0" />
     </Style>
     
     <Style Selector="Button.secondary-button">
@@ -445,6 +444,131 @@
             <TextBlock Text="GitHub Repositories (one per line, owner/repo)" Classes="setting-label" />
             <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="e.g. some-author/some-mod" />
             <TextBlock Text="Specify GitHub repositories to scan for releases. One owner/repo per line." Classes="setting-description" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Update Settings -->
+      <Border Classes="settings-card">
+        <StackPanel Spacing="20">
+          <TextBlock Text="🔄 Updates" Classes="section-header" />
+
+          <!-- Current Version -->
+          <StackPanel Spacing="4">
+            <TextBlock Text="Current Version" Classes="setting-label" />
+            <TextBlock Text="{Binding CurrentVersion}" FontSize="14" Foreground="#67B26F" FontWeight="SemiBold" />
+          </StackPanel>
+
+          <!-- Update Channel Selection -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Update Channel" Classes="setting-label" />
+            <ComboBox ItemsSource="{Binding AvailableUpdateChannels}"
+                      SelectedItem="{Binding SelectedUpdateChannel}"
+                      HorizontalAlignment="Left"
+                      MinWidth="200" />
+            <TextBlock Classes="setting-description">
+              <Run Text="Stable: Release builds only • " />
+              <Run Text="Prerelease: Alpha/Beta builds • " />
+              <Run Text="Artifacts: CI builds (requires PAT)" />
+            </TextBlock>
+
+            <!-- Manage Updates & PRs Button -->
+            <Button Content="Manage Updates &amp; PRs"
+                    Command="{Binding OpenUpdateWindowCommand}"
+                    Classes="browse-button"
+                    HorizontalAlignment="Left"
+                    Margin="0,8,0,0"
+                    ToolTip.Tip="Browse available updates and subscribe to Pull Requests" />
+          </StackPanel>
+
+          <!-- GitHub PAT for Artifact Access -->
+          <Border Background="#1E1E1E" CornerRadius="4" Padding="15" BorderBrush="#4E4E4E" BorderThickness="1">
+            <StackPanel Spacing="12">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="🔑" FontSize="16" VerticalAlignment="Center" />
+                <TextBlock Text="GitHub Personal Access Token (for Artifact Updates)"
+                           Classes="setting-label" VerticalAlignment="Center" Margin="0" />
+              </StackPanel>
+
+              <!-- PAT Status -->
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                 <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                          Fill="{Binding PatStatusColor}">
+                 </Ellipse>
+                <TextBlock Text="{Binding PatStatusMessage}" Foreground="#AAAAAA" FontSize="12" />
+              </StackPanel>
+
+              <!-- PAT Input -->
+              <Grid ColumnDefinitions="*,Auto,Auto" IsVisible="{Binding !HasGitHubPat}">
+                <TextBox Grid.Column="0"
+                         Text="{Binding GitHubPatInput}"
+                         PasswordChar="●"
+                         Watermark="ghp_xxxxxxxxxxxxxxxxxxxx"
+                         Margin="0,0,8,0" />
+                <Button Grid.Column="1"
+                        Content="Save &amp; Test"
+                        Command="{Binding TestPatCommand}"
+                        IsEnabled="{Binding !IsTestingPat}"
+                        Classes="browse-button" />
+              </Grid>
+
+              <!-- Delete PAT button (when PAT exists) -->
+              <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding HasGitHubPat}">
+                <Button Content="Remove PAT"
+                        Command="{Binding DeletePatCommand}"
+                        Classes="secondary-button" />
+                <Button Content="Refresh Artifacts"
+                        Command="{Binding LoadArtifactsCommand}"
+                        IsEnabled="{Binding !IsLoadingArtifacts}"
+                        Classes="browse-button" />
+              </StackPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="PAT with 'repo' scope required for CI artifact access."
+                           Classes="setting-description" VerticalAlignment="Center" />
+                <Button Content="Create PAT →"
+                        Click="OnOpenPatCreationUrl"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="0"
+                        Foreground="#7B1FA2"
+                        FontSize="12"
+                        Cursor="Hand"
+                        ToolTip.Tip="Click to open GitHub PAT creation page" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Available Artifacts (for PAT users) -->
+          <StackPanel Spacing="8" IsVisible="{Binding HasGitHubPat}">
+            <TextBlock Text="Available CI Artifacts" Classes="setting-label" />
+            <ItemsControl ItemsSource="{Binding AvailableArtifacts}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="#3D3D3D" CornerRadius="4" Padding="12" Margin="0,4">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{Binding DisplayVersion}" FontWeight="SemiBold" Foreground="#FFFFFF" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                     Foreground="#AAAAAA" FontSize="11" />
+                          <TextBlock Text="{Binding ArtifactName}"
+                                     Foreground="#888888" FontSize="11" />
+                        </StackPanel>
+                      </StackPanel>
+                      <Button Grid.Column="1"
+                              Content="View Run →"
+                              Classes="browse-button"
+                              Click="OnViewWorkflowRun"
+                              Tag="{Binding WorkflowRunUrl}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="No artifacts available"
+                       IsVisible="{Binding !AvailableArtifacts.Count}"
+                       Foreground="#888888" FontStyle="Italic" />
           </StackPanel>
         </StackPanel>
       </Border>

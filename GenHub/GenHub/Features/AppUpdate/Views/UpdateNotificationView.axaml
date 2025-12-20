@@ -4,98 +4,47 @@
     x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
     x:DataType="vm:UpdateNotificationViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="20">
-        <!-- Header section with version -->
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20,12,20,12">
+
+        <!-- Status section with refresh button -->
         <Border Grid.Row="0"
-            Padding="20"
-            Margin="0,0,0,16"
-            Background="#20FFFFFF"
-            CornerRadius="8">
-            <Grid ColumnDefinitions="*,Auto">
-                <Grid Grid.Column="0" ColumnDefinitions="Auto,*">
-                    <Border Grid.Column="0"
-                        Background="#3399FF"
-                        CornerRadius="8"
-                        Width="40" Height="40"
-                        Margin="0,0,16,0"
-                        VerticalAlignment="Center">
-                        <Viewbox Width="20" Height="20">
-                            <Path Data="M9,12L11,14L15,10L13.5,8.5L11,11L9.5,9.5L9,12M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z"
-                                Fill="White" Stretch="Uniform" />
-                        </Viewbox>
-                    </Border>
-
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Current Version" Foreground="#90FFFFFF" FontSize="14" Margin="0,0,0,4" />
-                        <TextBlock Text="{Binding CurrentAppVersion, FallbackValue=1.0.0}" FontWeight="SemiBold" FontSize="22" Foreground="White" />
-                    </StackPanel>
-                </Grid>
-
-                <Button Grid.Column="1"
-                    Command="{Binding CheckForUpdatesCommand}"
-                    IsEnabled="{Binding IsCheckButtonEnabled}"
-                    VerticalAlignment="Center"
-                    Background="#3399FF"
-                    Foreground="White"
-                    Padding="16,10"
-                    CornerRadius="8"
-                    BorderThickness="0">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Viewbox Width="16" Height="16">
-                            <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
-                                Fill="White" Stretch="Uniform" />
-                        </Viewbox>
-                        <TextBlock Text="Check For Updates" VerticalAlignment="Center" FontWeight="Medium" />
-                    </StackPanel>
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#4DB3FF" />
-                        </Style>
-                        <Style Selector="Button:pressed">
-                            <Setter Property="Background" Value="#0080E5" />
-                        </Style>
-                    </Button.Styles>
-                </Button>
-            </Grid>
-        </Border>
-
-        <!-- Status section -->
-        <Border Grid.Row="1"
-            Background="#15FFFFFF"
+            Background="#2D2D30"
             CornerRadius="8"
-            Padding="20"
-            Margin="0,0,0,16">
-            <Grid ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
-                    <Border Background="#3399FF" CornerRadius="6" Width="28" Height="28" VerticalAlignment="Center">
+            Padding="12,10"
+            Margin="0,0,0,12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Border Grid.Column="0" Background="#7B1FA2" CornerRadius="6" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Viewbox Width="16" Height="16">
+                        <Path Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                            Fill="White" Stretch="Uniform" />
+                    </Viewbox>
+                </Border>
+                <TextBlock Grid.Column="1" Text="{Binding StatusMessage, FallbackValue=Ready}" Foreground="White" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding StatusMessage}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    <ProgressBar Width="80" Height="6" Value="{Binding DownloadProgress}" Maximum="100" IsVisible="{Binding IsDownloading}" Foreground="#7B1FA2" Background="#404040" CornerRadius="3" />
+                    <Button Command="{Binding CheckForUpdatesCommand}" IsEnabled="{Binding IsCheckButtonEnabled}" Background="#7B1FA2" Foreground="White" Padding="8" CornerRadius="6" BorderThickness="0" Cursor="Hand" ToolTip.Tip="Check For Updates">
                         <Viewbox Width="16" Height="16">
-                            <Path Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
-                                Fill="White" Stretch="Uniform" />
+                            <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="White" Stretch="Uniform" />
                         </Viewbox>
-                    </Border>
-                    <TextBlock Text="{Binding StatusMessage, FallbackValue=Ready}" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover"><Setter Property="Background" Value="#9C27B0" /></Style>
+                            <Style Selector="Button:pressed"><Setter Property="Background" Value="#6A1B9A" /></Style>
+                        </Button.Styles>
+                    </Button>
                 </StackPanel>
-
-                <ProgressBar Grid.Column="1"
-                    Width="100"
-                    Height="6"
-                    Value="{Binding DownloadProgress}"
-                    Maximum="100"
-                    IsVisible="{Binding IsDownloading}"
-                    Foreground="#3399FF"
-                    Background="#25FFFFFF"
-                    CornerRadius="3" />
             </Grid>
         </Border>
 
-        <!-- Update available section -->
-        <Border Grid.Row="2"
-            Background="#1A4DB3FF"
-            CornerRadius="8"
-            Padding="24"
-            Margin="0,0,0,16"
-            IsVisible="{Binding IsUpdateAvailable}">
-            <StackPanel Spacing="16">
+        <!-- Main Content Area -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,4" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Update available section -->
+                <Border Background="#1A7B1FA2"
+                    CornerRadius="8"
+                    Padding="24"
+                    Margin="0,0,0,16"
+                    IsVisible="{Binding IsUpdateAvailable}">
+                    <StackPanel Spacing="16">
                 <Grid ColumnDefinitions="Auto,*">
                     <Border Grid.Column="0"
                         Background="#3399FF"
@@ -118,12 +67,12 @@
                     </StackPanel>
                 </Grid>
 
-                <Border Background="#15FFFFFF" CornerRadius="6" Padding="16">
+                <Border Background="#3D3D40" CornerRadius="6" Padding="16">
                     <StackPanel Spacing="8">
                         <TextBlock Text="What's new:" FontWeight="SemiBold" Foreground="White" FontSize="14" />
-                        <TextBlock Text="This update includes bug fixes, performance improvements, and new features." 
-                                   Foreground="#B3FFFFFF" 
-                                   FontSize="13" 
+                        <TextBlock Text="This update includes bug fixes, performance improvements, and new features."
+                                   Foreground="#B3FFFFFF"
+                                   FontSize="13"
                                    TextWrapping="Wrap" />
                         <Button Command="{Binding ViewReleaseNotesCommand}"
                                 Content="View Release Notes"
@@ -143,8 +92,8 @@
                 </Border>
 
                 <!-- Installation progress -->
-                <Border Background="#15FFFFFF" 
-                        CornerRadius="6" 
+                <Border Background="#3D3D40"
+                        CornerRadius="6"
                         Padding="16"
                         IsVisible="{Binding IsInstalling}">
                     <StackPanel Spacing="12">
@@ -152,8 +101,8 @@
                         <ProgressBar Value="{Binding InstallationProgress.PercentComplete}"
                                      Maximum="100"
                                      Height="8"
-                                     Foreground="#3399FF"
-                                     Background="#25FFFFFF"
+                                     Foreground="#7B1FA2"
+                                     Background="#505050"
                                      CornerRadius="4" />
                         <TextBlock Foreground="#90FFFFFF" FontSize="12">
                             <Run Text="{Binding InstallationProgress.PercentComplete, StringFormat={}{0:F0}}" />
@@ -164,35 +113,188 @@
             </StackPanel>
         </Border>
 
-        <!-- Error section -->
-        <Border Grid.Row="2"
-            Background="#1AFF4444"
-            BorderBrush="#FF4444"
-            BorderThickness="1"
-            CornerRadius="8"
-            Padding="16"
-            Margin="0,0,0,16"
-            IsVisible="{Binding HasError}">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <Border Background="#FF4444" CornerRadius="6" Width="28" Height="28">
+                <!-- Error section -->
+                <Border Background="#1AFF4444"
+                    BorderBrush="#FF4444"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,0,16"
+                    IsVisible="{Binding HasError}">
+            <Grid ColumnDefinitions="Auto,*">
+                <Border Grid.Column="0" Background="#FF4444" CornerRadius="6" Width="28" Height="28" Margin="0,0,12,0" VerticalAlignment="Top">
                     <Viewbox Width="16" Height="16">
                         <Path Data="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16"
                             Fill="White" Stretch="Uniform" />
                     </Viewbox>
                 </Border>
-                <TextBlock Text="{Binding ErrorMessage}" 
-                           Foreground="#FFB3B3" 
-                           TextWrapping="Wrap" 
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ErrorMessage}"
+                           Foreground="#FFB3B3"
+                           TextWrapping="Wrap"
                            VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+                <!-- PR Merged Warning -->
+                <Border Background="#1AFFAA00"
+                    BorderBrush="#FFAA00"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,0,8"
+                    IsVisible="{Binding ShowPrMergedWarning}">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Background="#FFAA00" CornerRadius="6" Width="28" Height="28">
+                    <Viewbox Width="16" Height="16">
+                        <Path Data="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                            Fill="White" Stretch="Uniform" />
+                    </Viewbox>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Subscribed PR Merged" FontWeight="SemiBold" Foreground="#FFCC00" />
+                    <TextBlock Text="Select a new PR or switch to MAIN branch" Foreground="#B3FFFFFF" FontSize="12" />
+                </StackPanel>
+                <Button Command="{Binding UnsubscribeFromPrCommand}"
+                        Content="Switch to MAIN"
+                        Background="#25FFFFFF"
+                        Foreground="White"
+                        Padding="12,6"
+                        CornerRadius="4"
+                        BorderThickness="0"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Right" />
             </StackPanel>
         </Border>
 
+                <!-- Open PRs section (for PAT users) -->
+                <Border Background="#2D2D30"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,0,8"
+                    IsVisible="{Binding HasPat}">
+                    <!-- Content directly in stack panel, outer scrollviewer handles scrolling -->
+                    <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                            <Viewbox Width="16" Height="16" VerticalAlignment="Center">
+                                <Path Data="M6,3A1,1 0 0,1 7,4V4.88C8.06,4.44 9.5,4 11,4C14,4 14,6 16,6C19,6 20,4 20,4V12C20,12 19,14 16,14C13,14 13,12 11,12C8,12 8,14 6,14V21H4V4A1,1 0 0,1 5,3H6Z"
+                                    Fill="#3399FF" Stretch="Uniform" />
+                            </Viewbox>
+                            <TextBlock Text="Open Pull Requests" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding AvailablePullRequests.Count, StringFormat='({0})'}" Foreground="#90FFFFFF" FontSize="12" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                            Command="{Binding LoadPullRequestsCommand}"
+                            Content="↻ Refresh"
+                            Background="Transparent"
+                            Foreground="#7B1FA2"
+                            BorderThickness="0"
+                            Padding="8,4"
+                            VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Loading indicator -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsLoadingPullRequests}">
+                        <ProgressBar IsIndeterminate="True" Width="100" Height="4" Foreground="#7B1FA2" />
+                        <TextBlock Text="Loading PRs..." Foreground="#90FFFFFF" FontSize="12" />
+                    </StackPanel>
+
+                    <!-- PR List -->
+                    <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#3D3D40" CornerRadius="4" Padding="10" Margin="0,2">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <TextBlock Grid.Column="0" Text="{Binding Number, StringFormat='#{0}'}" FontWeight="SemiBold" Foreground="#9C27B0" Margin="0,0,6,0" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="White" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                                            </Grid>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Author}" Foreground="#90FFFFFF" FontSize="11" />
+                                                <TextBlock Text="{Binding BranchName}" Foreground="#60FFFFFF" FontSize="11" />
+                                                <TextBlock Text="{Binding LatestArtifact.DisplayVersion}" Foreground="#67B26F" FontSize="11" IsVisible="{Binding HasArtifacts}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                            Command="{Binding $parent[ItemsControl].((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
+                                            CommandParameter="{Binding Number}"
+                                            Content="Subscribe"
+                                            Background="#7B1FA2"
+                                            Foreground="White"
+                                            Padding="10,6"
+                                            CornerRadius="4"
+                                            BorderThickness="0"
+                                            FontSize="11"
+                                            FontWeight="Medium"
+                                            Cursor="Hand"
+                                            VerticalAlignment="Center">
+                                            <Button.Styles>
+                                                <Style Selector="Button:pointerover">
+                                                    <Setter Property="Background" Value="#9C27B0" />
+                                                </Style>
+                                            </Button.Styles>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Current subscription -->
+                    <Border Background="#1A67B26F" CornerRadius="4" Padding="12" IsVisible="{Binding SubscribedPr, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <StackPanel Spacing="8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="Currently Subscribed" Foreground="#67B26F" FontWeight="SemiBold" FontSize="12" />
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <TextBlock Grid.Column="0" Text="{Binding SubscribedPr.Number, StringFormat='#{0}'}" Foreground="White" FontWeight="SemiBold" Margin="0,0,6,0" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding SubscribedPr.Title}"
+                                                   Foreground="#B3FFFFFF"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding SubscribedPr.Title}" />
+                                    </Grid>
+                                    <TextBlock Text="{Binding SubscribedPr.DisplayVersion, StringFormat='Version: {0}'}"
+                                               Foreground="#B3FFFFFF" FontSize="11" />
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                    Command="{Binding UnsubscribeFromPrCommand}"
+                                    Content="Unsubscribe"
+                                    Background="Transparent"
+                                    Foreground="#FF6666"
+                                    BorderThickness="0"
+                                    Padding="8,4"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+
+                            <!-- Install PR Build Button -->
+                            <Button Command="{Binding InstallPrArtifactCommand}"
+                                    IsEnabled="{Binding CanInstallPrArtifact}"
+                                    HorizontalAlignment="Stretch"
+                                    Background="#67B26F"
+                                    Foreground="White"
+                                    Padding="12,8"
+                                    CornerRadius="4">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="M13 3L4 14h7l-1 7 9-11h-7l1-7z" Width="14" Height="14" Foreground="White" />
+                                    <TextBlock Text="Install PR Build" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
         <!-- Action buttons -->
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
             <Button Grid.Column="1"
                 Command="{Binding DismissCommand}"
                 Content="Dismiss"
-                Background="#25FFFFFF"
+                Background="#404040"
                 Foreground="White"
                 Padding="20,12"
                 Margin="0,0,12,0"
@@ -200,7 +302,7 @@
                 BorderThickness="0">
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#30FFFFFF" />
+                        <Setter Property="Background" Value="#505050" />
                     </Style>
                 </Button.Styles>
             </Button>
@@ -208,7 +310,7 @@
             <Button Grid.Column="2"
                 Command="{Binding InstallUpdateCommand}"
                 IsEnabled="{Binding CanDownloadUpdate}"
-                Background="#3399FF"
+                Background="#7B1FA2"
                 Foreground="White"
                 Padding="20,12"
                 CornerRadius="8"
@@ -222,13 +324,13 @@
                 </StackPanel>
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#4DB3FF" />
+                        <Setter Property="Background" Value="#9C27B0" />
                     </Style>
                     <Style Selector="Button:pressed">
-                        <Setter Property="Background" Value="#0080E5" />
+                        <Setter Property="Background" Value="#6A1B9A" />
                     </Style>
                     <Style Selector="Button:disabled">
-                        <Setter Property="Background" Value="#40FFFFFF" />
+                        <Setter Property="Background" Value="#505050" />
                         <Setter Property="Foreground" Value="#60FFFFFF" />
                     </Style>
                 </Button.Styles>

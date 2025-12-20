@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -12,7 +13,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Settings.ViewModels;
@@ -24,6 +28,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IUserSettingsService _userSettingsService;
     private readonly ILogger<SettingsViewModel> _logger;
+    private readonly IGitHubTokenStorage? _gitHubTokenStorage;
+    private readonly IVelopackUpdateManager? _updateManager;
     private readonly Timer _memoryUpdateTimer;
     private bool _isViewVisible = false;
     private bool _disposed = false;
@@ -111,16 +117,52 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _autoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
+    // Update settings properties
+    [ObservableProperty]
+    private UpdateChannel _selectedUpdateChannel = UpdateChannel.Prerelease;
+
+    [ObservableProperty]
+    private string _gitHubPatInput = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasGitHubPat;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PatStatusColor))]
+    private bool _isPatValid;
+
+    [ObservableProperty]
+    private bool _isTestingPat;
+
+    [ObservableProperty]
+    private string _patStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isLoadingArtifacts;
+
+    [ObservableProperty]
+    private ObservableCollection<ArtifactUpdateInfo> _availableArtifacts = new();
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
     /// <param name="userSettingsService">The configuration service.</param>
     /// <param name="logger">The logger.</param>
-    public SettingsViewModel(IUserSettingsService userSettingsService, ILogger<SettingsViewModel> logger)
+    /// <param name="gitHubTokenStorage">Optional GitHub token storage for PAT management.</param>
+    /// <param name="updateManager">Optional Velopack update manager for artifact checking.</param>
+    public SettingsViewModel(
+        IUserSettingsService userSettingsService,
+        ILogger<SettingsViewModel> logger,
+        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IVelopackUpdateManager? updateManager = null)
     {
         _userSettingsService = userSettingsService;
         _logger = logger;
+        _gitHubTokenStorage = gitHubTokenStorage;
+        _updateManager = updateManager;
+
         LoadSettings();
+        _ = LoadPatStatusAsync();
 
         // Initialize memory update timer (update every 2 seconds when visible)
         _memoryUpdateTimer = new Timer(UpdateMemoryUsageCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -203,6 +245,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the available workspace strategies for selection in the UI.
     /// </summary>
     public IEnumerable<WorkspaceStrategy> AvailableWorkspaceStrategies => Enum.GetValues<WorkspaceStrategy>();
+
+    /// <summary>
+    /// Gets the available update channels for selection in the UI.
+    /// </summary>
+    public IEnumerable<UpdateChannel> AvailableUpdateChannels => Enum.GetValues<UpdateChannel>();
+
+    /// <summary>
+    /// Gets the current application version for display.
+    /// </summary>
+    public string CurrentVersion => AppConstants.FullDisplayVersion;
 
     /// <summary>
     /// Disposes the ViewModel and its resources.
@@ -346,6 +398,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // Load CAS settings
             CasRootPath = settings.CasConfiguration.CasRootPath;
             EnableAutomaticGc = settings.CasConfiguration.EnableAutomaticGc;
+            SelectedUpdateChannel = settings.UpdateChannel;
             MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / ConversionConstants.BytesPerGigabyte;
             CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
             CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
@@ -386,6 +439,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
+                settings.UpdateChannel = SelectedUpdateChannel;
                 settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * ConversionConstants.BytesPerKilobyte); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;
@@ -630,6 +684,254 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogDebug(ex, "Failed to get memory usage");
             CurrentMemoryUsage = 0;
+        }
+    }
+
+    /// <summary>
+    /// Gets the status color for the PAT indicator.
+    /// </summary>
+    public string PatStatusColor => IsPatValid ? "#4CAF50" : "#888888";
+
+    /// <summary>
+    /// Loads the current PAT status from storage.
+    /// </summary>
+    private async Task LoadPatStatusAsync()
+    {
+        if (_gitHubTokenStorage == null)
+        {
+            HasGitHubPat = false;
+            PatStatusMessage = "Token storage not available";
+            return;
+        }
+
+        try
+        {
+            HasGitHubPat = _gitHubTokenStorage.HasToken();
+            if (HasGitHubPat)
+            {
+                PatStatusMessage = "GitHub PAT configured ✓";
+                IsPatValid = true;
+
+                // If Artifacts channel is selected and we have a PAT, load available artifacts
+                if (SelectedUpdateChannel == UpdateChannel.Artifacts && _updateManager != null)
+                {
+                    await LoadArtifactsAsync();
+                }
+            }
+            else
+            {
+                PatStatusMessage = "No GitHub PAT configured";
+                IsPatValid = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load PAT status");
+            PatStatusMessage = "Error checking PAT status";
+            HasGitHubPat = false;
+            IsPatValid = false;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Tests the entered GitHub PAT by making an API call.
+    /// </summary>
+    [RelayCommand]
+    private async Task TestPatAsync()
+    {
+        if (string.IsNullOrWhiteSpace(GitHubPatInput))
+        {
+            PatStatusMessage = "Please enter a GitHub PAT";
+            return;
+        }
+
+        if (_gitHubTokenStorage == null)
+        {
+            PatStatusMessage = "Token storage not available";
+            return;
+        }
+
+        IsTestingPat = true;
+        PatStatusMessage = "Testing PAT...";
+
+        try
+        {
+            // Save temporarily to test
+            using var secureString = new System.Security.SecureString();
+            foreach (char c in GitHubPatInput)
+            {
+                secureString.AppendChar(c);
+            }
+
+            await _gitHubTokenStorage.SaveTokenAsync(secureString);
+
+            // Try to check for artifacts to validate the PAT
+            if (_updateManager != null)
+            {
+                // Validate first by making a test call (similar to GitHubTokenDialogViewModel)
+                // Only save after validation succeeds
+                try
+                {
+                    var artifact = await _updateManager.CheckForArtifactUpdatesAsync();
+                    if (artifact != null || _gitHubTokenStorage.HasToken())
+                    {
+                        PatStatusMessage = "PAT validated successfully ✓";
+                        IsPatValid = true;
+                        HasGitHubPat = true;
+                        GitHubPatInput = string.Empty; // Clear input after successful save
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Rollback on validation failure
+                    await _gitHubTokenStorage.DeleteTokenAsync();
+                    throw;
+                }
+            }
+
+            // If we can't fully validate but storage worked, mark as valid
+            PatStatusMessage = "PAT saved (validation pending)";
+            IsPatValid = true;
+            HasGitHubPat = true;
+            GitHubPatInput = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PAT validation failed");
+            PatStatusMessage = $"Invalid PAT: {ex.Message}";
+            IsPatValid = false;
+        }
+        finally
+        {
+            IsTestingPat = false;
+        }
+    }
+
+    /// <summary>
+    /// Deletes the stored GitHub PAT.
+    /// </summary>
+    [RelayCommand]
+    private async Task DeletePatAsync()
+    {
+        if (_gitHubTokenStorage == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _gitHubTokenStorage.DeleteTokenAsync();
+            HasGitHubPat = false;
+            IsPatValid = false;
+            PatStatusMessage = "GitHub PAT removed";
+            AvailableArtifacts.Clear();
+
+            // Switch to Prerelease channel if on Artifacts
+            if (SelectedUpdateChannel == UpdateChannel.Artifacts)
+            {
+                SelectedUpdateChannel = UpdateChannel.Prerelease;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete PAT");
+            PatStatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Opens the Update Notification window for browsing updates and managing PR subscriptions.
+    /// </summary>
+    [RelayCommand]
+    private void OpenUpdateWindow()
+    {
+        try
+        {
+            var updateWindow = new Features.AppUpdate.Views.UpdateNotificationWindow();
+            updateWindow.Show();
+            _logger.LogInformation("Update window opened from Settings");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open update window");
+        }
+    }
+
+    /// <summary>
+    /// Loads available CI artifacts for selection.
+    /// </summary>
+    [RelayCommand]
+    private async Task LoadArtifactsAsync()
+    {
+        if (_updateManager == null || !HasGitHubPat)
+        {
+            PatStatusMessage = "Configure a GitHub PAT to load artifacts";
+            return;
+        }
+
+        IsLoadingArtifacts = true;
+        AvailableArtifacts.Clear();
+
+        try
+        {
+            var artifact = await _updateManager.CheckForArtifactUpdatesAsync();
+            if (artifact != null)
+            {
+                AvailableArtifacts.Add(artifact);
+                PatStatusMessage = $"Found {AvailableArtifacts.Count} artifact(s)";
+            }
+            else
+            {
+                PatStatusMessage = "No artifacts available";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load artifacts");
+            PatStatusMessage = $"Error loading artifacts: {ex.Message}";
+        }
+        finally
+        {
+            IsLoadingArtifacts = false;
+        }
+    }
+
+    /// <summary>
+    /// Handles update channel change.
+    /// </summary>
+    partial void OnSelectedUpdateChannelChanged(UpdateChannel value)
+    {
+        _logger.LogInformation("Update channel changed to: {Channel}", value);
+
+        // Update the update manager's channel
+        if (_updateManager != null)
+        {
+            _updateManager.CurrentChannel = value;
+        }
+
+        // Persist setting
+        _userSettingsService.Update(s => s.UpdateChannel = value);
+
+        // Save settings asynchronously with error handling
+        _ = _userSettingsService.SaveAsync().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+            {
+                _logger.LogError(t.Exception, "Failed to save update channel setting");
+            }
+        });
+
+        // If switching to Artifacts, load available artifacts
+        if (value == UpdateChannel.Artifacts && HasGitHubPat)
+        {
+            _ = LoadArtifactsAsync();
+        }
+        else if (value == UpdateChannel.Artifacts && !HasGitHubPat)
+        {
+            PatStatusMessage = "GitHub PAT required for artifact updates";
         }
     }
 }

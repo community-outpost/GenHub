@@ -1,0 +1,170 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.GitHub.ViewModels"
+        xmlns:const="using:GenHub.Core.Constants"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
+        x:Class="GenHub.Features.GitHub.Views.GitHubTokenDialogView"
+        x:DataType="vm:GitHubTokenDialogViewModel"
+        Title="{x:Static const:GitHubConstants.GitHubAuthenticationTitle}"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="500"
+        Height="450"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="BorderOnly">
+
+    <Window.Resources>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style Selector="Button.primary:pointerover">
+            <Setter Property="Background" Value="#106EBE"/>
+        </Style>
+
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="BorderBrush" Value="#606060"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="16,8"/>
+        </Style>
+
+        <Style Selector="Button.secondary:pointerover">
+            <Setter Property="Background" Value="#404040"/>
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#606060"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+    </Window.Styles>
+
+    <Design.DataContext>
+        <vm:GitHubTokenDialogViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="*,Auto" Background="#1A1A1A">
+        <!-- Content -->
+        <Border Grid.Row="0" Padding="32" Background="#2D2D30">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+                <!-- Header with Icon -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" Margin="0,0,0,20">
+                    <TextBlock Text="🔑" FontSize="24" VerticalAlignment="Center"/>
+                    <TextBlock Text="{x:Static const:GitHubConstants.GitHubTokenHeaderLabel}"
+                              FontSize="18"
+                              FontWeight="SemiBold"
+                              Foreground="White"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="1"
+                          Text="{x:Static const:GitHubConstants.GitHubTokenDescription}"
+                          TextWrapping="Wrap"
+                          Foreground="#AAAAAA"
+                          LineHeight="22"
+                          Margin="0,0,0,16" />
+
+                <!-- Token Input -->
+                <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,16">
+                    <TextBlock Text="Personal Access Token:"
+                              FontWeight="Medium"
+                              Foreground="White"
+                              FontSize="13"/>
+                    <TextBox x:Name="TokenPasswordBox"
+                            PasswordChar="*"
+                            TextChanged="OnTokenPasswordChanged"
+                            Watermark="{x:Static const:GitHubConstants.TokenWatermark}"
+                            MinHeight="36"/>
+                </StackPanel>
+
+                <!-- Create PAT Link -->
+                <StackPanel Grid.Row="3" Spacing="8" Margin="0,0,0,16">
+                    <TextBlock Text="Don't have a Personal Access Token?"
+                              Foreground="#AAAAAA"
+                              FontSize="12"/>
+                    <Button Content="Create a GitHub Personal Access Token →"
+                            Command="{Binding OpenPatCreationCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="0"
+                            HorizontalAlignment="Left"
+                            Cursor="Hand"
+                            ToolTip.Tip="Click to open GitHub PAT creation page">
+                        <Button.Styles>
+                            <Style Selector="Button">
+                                <Setter Property="Foreground" Value="#7B1FA2"/>
+                                <Setter Property="FontSize" Value="12"/>
+                            </Style>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Foreground" Value="#9C27B0"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
+                </StackPanel>
+
+                <!-- Validate Button -->
+                <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                    <Button Content="{x:Static const:GitHubConstants.ValidateTokenButtonLabel}"
+                            Command="{Binding ValidateTokenCommand}"
+                            Classes="secondary"
+                            IsEnabled="{Binding !IsValidating}" />
+                </StackPanel>
+
+                <!-- Loading/Progress Indicator -->
+                <StackPanel Grid.Row="5"
+                           Orientation="Horizontal"
+                           Spacing="8"
+                           Margin="0,0,0,8"
+                           IsVisible="{Binding IsValidating}">
+                    <TextBlock Text="🔄" FontSize="14"/>
+                    <TextBlock Text="Validating token..."
+                              Foreground="#AAAAAA"
+                              FontSize="12"/>
+                </StackPanel>
+
+                <!-- Validation Message - Simple text only, no background box -->
+                <TextBlock Grid.Row="6"
+                          Text="{Binding ValidationMessage}"
+                          TextWrapping="Wrap"
+                          FontSize="13"
+                          Foreground="{Binding ValidationMessageColor}"
+                          Margin="0,4,0,20"
+                          IsVisible="{Binding HasValidationMessage}" />
+            </Grid>
+        </Border>
+
+        <!-- Buttons -->
+        <Border Grid.Row="1"
+                Background="#2D2D30"
+                BorderBrush="#3F3F46"
+                BorderThickness="0,1,0,0"
+                Padding="32,16">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Content="{x:Static const:GitHubConstants.CancelButtonLabel}"
+                        Command="{Binding CancelCommand}"
+                        Classes="secondary"
+                        IsEnabled="{Binding !IsValidating}" />
+
+                <Button Content="{x:Static const:GitHubConstants.SaveButtonLabel}"
+                        Command="{Binding SaveCommand}"
+                        Classes="primary"
+                        IsEnabled="{Binding IsTokenValid}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

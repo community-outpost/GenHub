@@ -345,6 +345,58 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
+            // Check if subscribed to a PR - if so, check for PR artifact updates instead
+            var settings = _userSettingsService.Get();
+            if (settings.SubscribedPrNumber.HasValue)
+            {
+                _logger?.LogDebug("User subscribed to PR #{PrNumber}, checking for PR artifact updates", settings.SubscribedPrNumber);
+                _velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
+
+                // Fetch PR list to populate artifact info
+                var prs = await _velopackUpdateManager.GetOpenPullRequestsAsync(cancellationToken);
+                var subscribedPr = prs.FirstOrDefault(p => p.Number == settings.SubscribedPrNumber);
+
+                if (subscribedPr?.LatestArtifact != null)
+                {
+                    // Compare versions (strip build metadata)
+                    var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
+                    var prVersionBase = subscribedPr.LatestArtifact.Version.Split('+')[0];
+
+                    if (!string.Equals(prVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Check if this PR version was dismissed
+                        var dismissedVersionBase = settings.DismissedUpdateVersion?.Split('+')[0];
+
+                        if (string.IsNullOrEmpty(dismissedVersionBase) ||
+                            !string.Equals(prVersionBase, dismissedVersionBase, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger?.LogInformation("PR #{PrNumber} artifact update available: {Version}", subscribedPr.Number, prVersionBase);
+                            HasUpdateAvailable = true;
+                            return;
+                        }
+                        else
+                        {
+                            _logger?.LogDebug("PR #{PrNumber} artifact update {Version} was dismissed", subscribedPr.Number, prVersionBase);
+                            HasUpdateAvailable = false;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        _logger?.LogDebug("Already on latest PR #{PrNumber} artifact version", subscribedPr.Number);
+                        HasUpdateAvailable = false;
+                        return;
+                    }
+                }
+                else
+                {
+                    _logger?.LogDebug("PR #{PrNumber} has no artifacts or PR not found", settings.SubscribedPrNumber);
+
+                    // Fall through to check main branch updates
+                }
+            }
+
+            // Check main branch updates (if not subscribed to PR or PR has no artifacts)
             var updateInfo = await _velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
 
             // Check both UpdateInfo (from installed app) and GitHub API flag (works in debug too)
@@ -352,16 +404,45 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (hasUpdate)
             {
+                string? latestVersion = null;
+
                 if (updateInfo != null)
                 {
-                    _logger?.LogInformation("Update available: {Current} → {Latest}", AppConstants.AppVersion, updateInfo.TargetFullRelease.Version);
+                    latestVersion = updateInfo.TargetFullRelease.Version.ToString();
+                    _logger?.LogInformation("Update available: {Current} → {Latest}", AppConstants.AppVersion, latestVersion);
                 }
                 else if (_velopackUpdateManager.LatestVersionFromGitHub != null)
                 {
-                    _logger?.LogInformation("Update available from GitHub API: {Version}", _velopackUpdateManager.LatestVersionFromGitHub);
+                    latestVersion = _velopackUpdateManager.LatestVersionFromGitHub;
+                    _logger?.LogInformation("Update available from GitHub API: {Version}", latestVersion);
                 }
 
-                HasUpdateAvailable = true;
+                // Strip build metadata for comparison (everything after '+')
+                var latestVersionBase = latestVersion?.Split('+')[0];
+                var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
+
+                // Check if this version was dismissed by the user
+                var settings2 = _userSettingsService.Get();
+                var dismissedVersionBase = settings2.DismissedUpdateVersion?.Split('+')[0];
+
+                if (!string.IsNullOrEmpty(latestVersionBase) &&
+                    string.Equals(latestVersionBase, dismissedVersionBase, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger?.LogDebug("Update {Version} was dismissed by user, hiding notification", latestVersionBase);
+                    HasUpdateAvailable = false;
+                }
+
+                // Also check if we're already on this version (ignoring build metadata)
+                else if (!string.IsNullOrEmpty(latestVersionBase) &&
+                         string.Equals(latestVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger?.LogDebug("Already on version {Version} (ignoring build metadata), hiding notification", latestVersionBase);
+                    HasUpdateAvailable = false;
+                }
+                else
+                {
+                    HasUpdateAvailable = true;
+                }
             }
             else
             {
