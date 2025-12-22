@@ -51,7 +51,7 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
             var encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
 
             // Save to file
-            await File.WriteAllBytesAsync(_tokenFilePath, encryptedBytes);
+            await File.WriteAllBytesAsync(_tokenFilePath, encryptedBytes).ConfigureAwait(false);
         }
         finally
         {
@@ -93,7 +93,7 @@ public class WindowsGitHubTokenStorage : IGitHubTokenStorage
         try
         {
             // Read encrypted bytes
-            var encryptedBytes = await File.ReadAllBytesAsync(_tokenFilePath);
+            var encryptedBytes = await File.ReadAllBytesAsync(_tokenFilePath).ConfigureAwait(false);
 
             // Decrypt using DPAPI
             var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);

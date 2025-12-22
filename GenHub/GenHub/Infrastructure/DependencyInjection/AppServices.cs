@@ -43,6 +43,9 @@ public static class AppServices
         // Register Notification services
         services.AddNotificationModule();
 
+        // Register Generals Online services
+        services.AddGeneralsOnlineServices();
+
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();

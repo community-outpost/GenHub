@@ -14,10 +14,12 @@ public class NavigationTabTests
     public void NavigationTab_AllValuesAreDefined()
     {
         var values = Enum.GetValues<NavigationTab>();
-        Assert.Equal(5, values.Length);
+        Assert.Equal(6, values.Length);
         Assert.Contains(NavigationTab.Home, values);
         Assert.Contains(NavigationTab.GameProfiles, values);
         Assert.Contains(NavigationTab.Downloads, values);
+        Assert.Contains(NavigationTab.Tools, values);
         Assert.Contains(NavigationTab.Settings, values);
+        Assert.Contains(NavigationTab.GeneralsOnline, values);
     }
 }

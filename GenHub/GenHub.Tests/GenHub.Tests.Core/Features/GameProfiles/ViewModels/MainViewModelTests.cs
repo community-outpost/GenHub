@@ -4,8 +4,8 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Tools;
@@ -16,6 +16,8 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GeneralsOnline.Services;
+using GenHub.Features.GeneralsOnline.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
@@ -23,7 +25,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -45,6 +46,8 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockGeneralsOnlineAuthService = CreateGeneralsOnlineAuthServiceMock();
+        var generalsOnlineVm = CreateGeneralsOnlineVm();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -59,11 +62,13 @@ public class MainViewModelTests
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
+            generalsOnlineVm,
             mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
+            mockGeneralsOnlineAuthService.Object,
             mockLogger.Object);
 
         // Assert
@@ -79,6 +84,7 @@ public class MainViewModelTests
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
     [InlineData(NavigationTab.Tools)]
+    [InlineData(NavigationTab.GeneralsOnline)]
     [InlineData(NavigationTab.Settings)]
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
@@ -88,6 +94,8 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockGeneralsOnlineAuthService = CreateGeneralsOnlineAuthServiceMock();
+        var generalsOnlineVm = CreateGeneralsOnlineVm();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -100,11 +108,13 @@ public class MainViewModelTests
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
+            generalsOnlineVm,
             mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
+            mockGeneralsOnlineAuthService.Object,
             mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
@@ -124,6 +134,8 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockGeneralsOnlineAuthService = CreateGeneralsOnlineAuthServiceMock();
+        var generalsOnlineVm = CreateGeneralsOnlineVm();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -136,11 +148,13 @@ public class MainViewModelTests
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
+            generalsOnlineVm,
             mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
+            mockGeneralsOnlineAuthService.Object,
             mockLogger.Object);
 
         // Act & Assert
@@ -164,6 +178,8 @@ public class MainViewModelTests
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
             .ReturnsAsync((Velopack.UpdateInfo?)null);
+        var mockGeneralsOnlineAuthService = CreateGeneralsOnlineAuthServiceMock();
+        var generalsOnlineVm = CreateGeneralsOnlineVm();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -176,11 +192,13 @@ public class MainViewModelTests
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
+            generalsOnlineVm,
             mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
+            mockGeneralsOnlineAuthService.Object,
             mockLogger.Object);
         await vm.InitializeAsync(); // Should not throw
         Assert.True(true);
@@ -194,6 +212,7 @@ public class MainViewModelTests
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
     [InlineData(NavigationTab.Tools)]
+    [InlineData(NavigationTab.GeneralsOnline)]
     [InlineData(NavigationTab.Settings)]
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
@@ -203,6 +222,8 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockGeneralsOnlineAuthService = CreateGeneralsOnlineAuthServiceMock();
+        var generalsOnlineVm = CreateGeneralsOnlineVm();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -215,11 +236,13 @@ public class MainViewModelTests
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
+            generalsOnlineVm,
             mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
             mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
+            mockGeneralsOnlineAuthService.Object,
             mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
         var currentViewModel = vm.CurrentTabViewModel;
@@ -237,6 +260,9 @@ public class MainViewModelTests
                 break;
             case NavigationTab.Settings:
                 Assert.IsType<SettingsViewModel>(currentViewModel);
+                break;
+            case NavigationTab.GeneralsOnline:
+                Assert.IsType<GeneralsOnlineViewModel>(currentViewModel);
                 break;
         }
     }
@@ -262,6 +288,78 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<SettingsViewModel>>();
         var settingsVm = new SettingsViewModel(mockUserSettings.Object, mockLogger.Object);
         return (settingsVm, mockUserSettings);
+    }
+
+    /// <summary>
+    /// Creates a mock IGeneralsOnlineAuthService for testing.
+    /// </summary>
+    private static Mock<IGeneralsOnlineAuthService> CreateGeneralsOnlineAuthServiceMock()
+    {
+        var mock = new Mock<IGeneralsOnlineAuthService>();
+        mock.Setup(x => x.IsAuthenticated).Returns(Observable.Return(false));
+        mock.Setup(x => x.CurrentToken).Returns((string?)null);
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a GeneralsOnlineViewModel with mocked dependencies.
+    /// </summary>
+    private static GeneralsOnlineViewModel CreateGeneralsOnlineVm()
+    {
+        var mockApiClient = new Mock<IGeneralsOnlineApiClient>();
+        var mockAuthService = new Mock<IGeneralsOnlineAuthService>();
+        mockAuthService.Setup(x => x.IsAuthenticated).Returns(Observable.Return(false));
+        var mockLogger = new Mock<ILogger<GeneralsOnlineViewModel>>();
+
+        // Create HTML parsing service with mock logger
+        var htmlParser = new HtmlParsingService(new Mock<ILogger<HtmlParsingService>>().Object);
+
+        var mockExternalLinkService = new Mock<IExternalLinkService>();
+
+        var leaderboardVm = new LeaderboardViewModel(
+            mockApiClient.Object,
+            htmlParser,
+            new Mock<ILogger<LeaderboardViewModel>>().Object);
+
+        var matchHistoryVm = new MatchHistoryViewModel(
+            mockApiClient.Object,
+            htmlParser,
+            mockExternalLinkService.Object,
+            new Mock<ILogger<MatchHistoryViewModel>>().Object);
+
+        var lobbiesVm = new LobbiesViewModel(
+            mockApiClient.Object,
+            htmlParser,
+            new Mock<ILogger<LobbiesViewModel>>().Object);
+
+        var activeMatchesVm = new ActiveMatchesViewModel(
+            mockApiClient.Object,
+            htmlParser,
+            new Mock<ILogger<ActiveMatchesViewModel>>().Object);
+
+        var serviceStatusVm = new ServiceStatusViewModel(
+            mockApiClient.Object,
+            htmlParser,
+            mockExternalLinkService.Object,
+            new Mock<ILogger<ServiceStatusViewModel>>().Object);
+
+        var loginVm = new LoginViewModel(
+            mockApiClient.Object,
+            mockAuthService.Object,
+            mockExternalLinkService.Object,
+            new Mock<ILogger<LoginViewModel>>().Object);
+
+        return new GeneralsOnlineViewModel(
+            mockApiClient.Object,
+            mockAuthService.Object,
+            loginVm,
+            leaderboardVm,
+            matchHistoryVm,
+            lobbiesVm,
+            activeMatchesVm,
+            serviceStatusVm,
+            mockExternalLinkService.Object,
+            mockLogger.Object);
     }
 
     private static IConfigurationProviderService CreateConfigProviderMock()

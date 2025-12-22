@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GeneralsOnline;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GeneralsOnline.Views.LeaderboardView"
+             x:DataType="vm:LeaderboardViewModel">
+
+  <UserControl.Resources>
+    <conv:RankToMedalConverter x:Key="RankToMedalConverter" />
+    <conv:RankToColorConverter x:Key="RankToColorConverter" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Button.period-button">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="Foreground" Value="#888888" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="14,6" />
+      <Setter Property="MinWidth" Value="70" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.period-button:pointerover">
+      <Setter Property="Background" Value="#2A2A3E" />
+    </Style>
+    <Style Selector="Button.period-button.selected">
+      <Setter Property="Background" Value="#3b82f6" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    
+    <Style Selector="Border.leaderboard-row">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Margin" Value="0,2" />
+    </Style>
+    <Style Selector="Border.leaderboard-row:pointerover">
+      <Setter Property="Background" Value="#252535" />
+    </Style>
+    
+    <Style Selector="Border.top-3-row">
+      <Setter Property="Background" Value="#1A2A3E" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <!-- Header with period selector -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="{Binding PeriodDisplayName}" 
+                   FontSize="16" FontWeight="SemiBold" 
+                   Foreground="White" VerticalAlignment="Center" />
+        <Border Background="#1E1E2E" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+          <TextBlock Text="{Binding TotalPlayers, StringFormat='{}{0:N0} players'}" 
+                     FontSize="11" Foreground="#888888"/>
+        </Border>
+      </StackPanel>
+      
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+        <TextBox Text="{Binding SearchText}" Watermark="Search..." 
+                 Width="150" VerticalAlignment="Center"/>
+        <Button Classes="period-button" Content="Daily" 
+                Command="{Binding ChangePeriodCommand}" 
+                CommandParameter="{x:Static models:LeaderboardPeriod.Daily}" />
+        <Button Classes="period-button" Content="Monthly" 
+                Command="{Binding ChangePeriodCommand}" 
+                CommandParameter="{x:Static models:LeaderboardPeriod.Monthly}" />
+        <Button Classes="period-button" Content="Annual" 
+                Command="{Binding ChangePeriodCommand}" 
+                CommandParameter="{x:Static models:LeaderboardPeriod.Annual}" />
+        <Button Content="↻" Command="{Binding RefreshCommand}" 
+                ToolTip.Tip="Refresh leaderboard"
+                Background="#2A2A3E" Foreground="White" 
+                CornerRadius="4" Padding="8,6" Margin="6,0,0,0"/>
+      </StackPanel>
+    </Grid>
+    
+    <!-- Column Headers -->
+    <Border Grid.Row="1" Background="#16161e" CornerRadius="4" Padding="12,6" Margin="0,0,0,4">
+      <Grid ColumnDefinitions="50,*,100,70,70,80">
+        <TextBlock Grid.Column="0" Text="Rank" FontSize="11" Foreground="#666666" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="1" Text="Player" FontSize="11" Foreground="#666666" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="2" Text="Score" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Right" />
+        <TextBlock Grid.Column="3" Text="Wins" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="4" Text="Losses" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock Grid.Column="5" Text="Win %" FontSize="11" Foreground="#666666" FontWeight="SemiBold" HorizontalAlignment="Right" />
+      </Grid>
+    </Border>
+    
+    <!-- Loading Indicator -->
+    <Border Grid.Row="2" IsVisible="{Binding IsLoading}" 
+            Background="#80000000" CornerRadius="8">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Text="Loading leaderboard..." Foreground="White" FontSize="14" />
+      </StackPanel>
+    </Border>
+    
+    <!-- Error Message -->
+    <Border Grid.Row="2" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            Background="#2A1A1A" CornerRadius="6" Padding="12" Margin="0,8">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="#f87171" FontSize="12" TextWrapping="Wrap" />
+    </Border>
+    
+    <!-- Leaderboard List -->
+    <ScrollViewer Grid.Row="2" IsVisible="{Binding !IsLoading}">
+      <ItemsControl ItemsSource="{Binding Entries}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="leaderboard-row">
+              <Grid ColumnDefinitions="50,*,100,70,70,80">
+                <!-- Rank with Medal -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="{Binding Rank, Converter={StaticResource RankToMedalConverter}}" FontSize="12" 
+                             VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Rank, StringFormat='#{0}'}" 
+                             FontWeight="SemiBold" FontSize="12"
+                             Foreground="{Binding Rank, Converter={StaticResource RankToColorConverter}}" VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- Player Name -->
+                <TextBlock Grid.Column="1" Text="{Binding PlayerName}" 
+                           FontWeight="Medium" Foreground="White" FontSize="12"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                
+                <!-- Score -->
+                <TextBlock Grid.Column="2" Text="{Binding Score, StringFormat='{}{0:F2}'}" 
+                           Foreground="#4ade80" FontWeight="SemiBold" FontSize="12"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+                
+                <!-- Wins -->
+                <TextBlock Grid.Column="3" Text="{Binding Wins}" 
+                           Foreground="#60a5fa" FontSize="12" 
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                
+                <!-- Losses -->
+                <TextBlock Grid.Column="4" Text="{Binding Losses}" 
+                           Foreground="#f87171" FontSize="12"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                
+                <!-- Win Rate -->
+                <TextBlock Grid.Column="5" Text="{Binding WinRate, StringFormat='{}{0:F1}%'}" 
+                           Foreground="#888888" FontSize="12"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

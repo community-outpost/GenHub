@@ -1,0 +1,303 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GeneralsOnline;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:asyncImageLoader="using:AsyncImageLoader"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
+             x:Class="GenHub.Features.GeneralsOnline.Views.ActiveMatchesView"
+             x:DataType="vm:ActiveMatchesViewModel">
+
+  <UserControl.Resources>
+    <conv:RegionToColorConverter x:Key="RegionToColorConverter" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <!-- Stat Card Styles -->
+    <Style Selector="Border.stat-card">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+    </Style>
+    
+    <!-- Lobby Card Styles -->
+    <Style Selector="Border.lobby-card">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="4" />
+      <Setter Property="Width" Value="280" />
+    </Style>
+    <Style Selector="Border.lobby-card:pointerover">
+      <Setter Property="Background" Value="#252535" />
+    </Style>
+    
+    <!-- Status Badge Styles -->
+    <Style Selector="Border.status-inprogress">
+      <Setter Property="Background" Value="#22c55e" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,4" />
+    </Style>
+    <Style Selector="Border.status-waiting">
+      <Setter Property="Background" Value="#f59e0b" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,4" />
+    </Style>
+    
+    <!-- Region Badge Styles -->
+    <Style Selector="Border.region-badge">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,2" />
+    </Style>
+    
+    <!-- Player Slot Styles -->
+    <Style Selector="Border.player-slot">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,6" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="Background" Value="#16161E" />
+    </Style>
+    
+    <!-- Settings Tag Styles -->
+    <Style Selector="Border.setting-tag">
+      <Setter Property="Background" Value="#2A2A3E" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="6,3" />
+      <Setter Property="Margin" Value="2" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <!-- Stats Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,*,*,Auto" Margin="0,0,0,12">
+      <Border Grid.Column="0" Classes="stat-card" Margin="0,0,6,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Image Source="/Assets/Logos/generalsonline-logo.png" Width="16" Height="16" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding LobbyCount, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#60a5fa"/>
+            <TextBlock Text="Total Lobbies" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <Border Grid.Column="1" Classes="stat-card" Margin="3,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Image Source="/Assets/Logos/generalsonline-logo.png" Width="16" Height="16" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding WaitingLobbiesCount, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#f59e0b"/>
+            <TextBlock Text="Waiting" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <Border Grid.Column="2" Classes="stat-card" Margin="6,0,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Image Source="/Assets/Logos/generalsonline-logo.png" Width="16" Height="16" VerticalAlignment="Center"/>
+          <StackPanel>
+            <TextBlock Text="{Binding InProgressCount, StringFormat='{}{0:N0}'}" 
+                       FontSize="20" FontWeight="Bold" Foreground="#22c55e"/>
+            <TextBlock Text="In Progress" FontSize="10" Foreground="#888888"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" Margin="12,0,0,0">
+        <!-- Filter Buttons -->
+        <ComboBox SelectedItem="{Binding SelectedStatusFilter}" 
+                  ItemsSource="{Binding StatusFilters}"
+                  Width="120" FontSize="11"/>
+        
+        <Button Content="↻" Command="{Binding RefreshCommand}" 
+                ToolTip.Tip="Refresh"
+                Background="#2A2A3E" Foreground="White" 
+                CornerRadius="4" Padding="10,8"/>
+      </StackPanel>
+    </Grid>
+    
+    <!-- Last Updated Info -->
+    <Border Grid.Row="1" Background="#16161e" CornerRadius="4" Padding="10,6" Margin="0,0,0,8">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Image Source="/Assets/Logos/generalsonline-logo.png" Width="12" Height="12" VerticalAlignment="Center"/>
+          <TextBlock Text="Active lobbies and matches from Generals Online" 
+                     FontSize="11" Foreground="#64748b"/>
+        </StackPanel>
+        <TextBlock Grid.Column="1" 
+                   Text="{Binding LastUpdated, StringFormat='Last updated: {0:HH:mm:ss}'}" 
+                   FontSize="10" Foreground="#4a5568"/>
+      </Grid>
+    </Border>
+    
+    <!-- Loading Indicator -->
+    <Border Grid.Row="2" IsVisible="{Binding IsLoading}" 
+            Background="#80000000" CornerRadius="8">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Image Source="/Assets/Logos/generalsonline-logo.png" Width="48" Height="48" HorizontalAlignment="Center"/>
+        <TextBlock Text="Loading active matches..." Foreground="White" 
+                   HorizontalAlignment="Center" VerticalAlignment="Center" 
+                   FontSize="14" Margin="0,8,0,0" />
+      </StackPanel>
+    </Border>
+    
+    <!-- Error Message -->
+    <Border Grid.Row="2" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            Background="#2A1A1A" CornerRadius="6" Padding="12" Margin="0,8">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="#f87171" FontSize="12" TextWrapping="Wrap" />
+    </Border>
+    
+    <!-- Empty State -->
+    <Border Grid.Row="2" IsVisible="{Binding !HasLobbies}" 
+            Background="#1E1E2E" CornerRadius="8" Padding="24"
+            HorizontalAlignment="Center" VerticalAlignment="Center">
+      <StackPanel HorizontalAlignment="Center" Spacing="8">
+        <Image Source="/Assets/Logos/generalsonline-logo.png" Width="64" Height="64" HorizontalAlignment="Center" Opacity="0.5"/>
+        <TextBlock Text="No active lobbies" FontSize="16" FontWeight="SemiBold" 
+                   Foreground="White" HorizontalAlignment="Center"/>
+        <TextBlock Text="Check back later or start a new game!" 
+                   FontSize="12" Foreground="#64748b" HorizontalAlignment="Center"/>
+      </StackPanel>
+    </Border>
+    
+    <!-- Lobbies Grid -->
+    <ScrollViewer Grid.Row="2" IsVisible="{Binding HasLobbies}">
+      <ItemsControl ItemsSource="{Binding Lobbies}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="models:ActiveLobby">
+            <Border Classes="lobby-card">
+              <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <!-- Header with Map Thumbnail -->
+                <Grid Grid.Row="0">
+                  <!-- Map Thumbnail Background -->
+                  <Border CornerRadius="8,8,0,0" ClipToBounds="True" Height="100">
+                    <Panel>
+                      <Image asyncImageLoader:ImageLoader.Source="{Binding FullMapThumbnailUrl}" 
+                             Stretch="UniformToFill" 
+                             HorizontalAlignment="Center"/>
+                      <!-- Gradient overlay for better text readability -->
+                      <Border>
+                        <Border.Background>
+                          <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                            <GradientStop Color="#00000000" Offset="0"/>
+                            <GradientStop Color="#CC000000" Offset="1"/>
+                          </LinearGradientBrush>
+                        </Border.Background>
+                      </Border>
+                    </Panel>
+                  </Border>
+                  
+                  <!-- Status Badge (top-right) - In Progress -->
+                  <Border Classes="status-inprogress" 
+                          IsVisible="{Binding IsInProgress}"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
+                    <TextBlock Text="⚔️ In Progress" FontSize="10" FontWeight="SemiBold" Foreground="White"/>
+                  </Border>
+                  
+                  <!-- Status Badge (top-right) - Waiting -->
+                  <Border Classes="status-waiting" 
+                          IsVisible="{Binding IsWaiting}"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
+                    <TextBlock Text="⏳ Waiting" FontSize="10" FontWeight="SemiBold" Foreground="#1E1E2E"/>
+                  </Border>
+                  
+                  <!-- Player Count Badge (top-left) -->
+                  <Border Background="#1E1E2E" CornerRadius="4" Padding="6,3"
+                          HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="👥" FontSize="10"/>
+                      <TextBlock Text="{Binding PlayerCountDisplay}" FontSize="11" 
+                                 FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                  </Border>
+                  
+                  <!-- Map Name (bottom) -->
+                  <StackPanel HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,8,6">
+                    <TextBlock Text="{Binding MapName}" FontSize="12" FontWeight="SemiBold" 
+                               Foreground="White" TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+                </Grid>
+                
+                <!-- Lobby Title with Region -->
+                <Border Grid.Row="1" Padding="10,8">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Border Classes="region-badge"
+                            Background="{Binding Region, Converter={StaticResource RegionToColorConverter}}">
+                      <TextBlock Text="{Binding Region}" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                    </Border>
+                    <TextBlock Text="{Binding LobbyName}" FontSize="11" Foreground="#E0E0E0"
+                               TextTrimming="CharacterEllipsis" MaxWidth="180"/>
+                  </StackPanel>
+                </Border>
+                
+                <!-- Player Slots -->
+                <Border Grid.Row="2" Padding="8,0" MaxHeight="150">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Slots}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:LobbySlot">
+                          <Border Classes="player-slot" Margin="0,2">
+                            <Grid ColumnDefinitions="4,Auto,*">
+                              <!-- Team Color Bar -->
+                              <Border Grid.Column="0" Width="4" CornerRadius="2" 
+                                      Margin="0,0,8,0" VerticalAlignment="Stretch"
+                                      Background="{Binding TeamColor}"/>
+                              
+                              <!-- Faction Icon -->
+                              <Image Grid.Column="1" Width="20" Height="20" 
+                                     asyncImageLoader:ImageLoader.Source="{Binding FactionIcon}" 
+                                     Margin="0,0,6,0"
+                                     IsVisible="{Binding FactionIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                              
+                              <!-- Player Name / Slot Status -->
+                              <TextBlock Grid.Column="2" Text="{Binding DisplayName}" 
+                                         FontSize="11" VerticalAlignment="Center"
+                                         Foreground="{Binding SlotForeground}"
+                                         TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+                
+                <!-- Settings Tags -->
+                <Border Grid.Row="3" Padding="8,6" Background="#16161E" 
+                        CornerRadius="0,0,8,8">
+                  <WrapPanel Orientation="Horizontal">
+                    <Border Classes="setting-tag" IsVisible="{Binding Settings.IsCustomMap}">
+                      <TextBlock Text="🗺️ Custom" FontSize="9" Foreground="#a78bfa"/>
+                    </Border>
+                    <Border Classes="setting-tag">
+                      <TextBlock Text="{Binding Settings.StartingCash}" FontSize="9" Foreground="#64748b"/>
+                    </Border>
+                    <Border Classes="setting-tag" IsVisible="{Binding Settings.TrackStats}">
+                      <TextBlock Text="📊 Ranked" FontSize="9" Foreground="#22c55e"/>
+                    </Border>
+                    <Border Classes="setting-tag" IsVisible="{Binding Settings.LimitSuperweapons}">
+                      <TextBlock Text="🚫 SW" FontSize="9" Foreground="#f59e0b"/>
+                    </Border>
+                    <Border Classes="setting-tag" IsVisible="{Binding Settings.IsPassworded}">
+                      <TextBlock Text="🔒 Password" FontSize="9" Foreground="#f87171"/>
+                    </Border>
+                    <Border Classes="setting-tag" IsVisible="{Binding Settings.AllowObservers}">
+                      <TextBlock Text="👁️ Obs" FontSize="9" Foreground="#60a5fa"/>
+                    </Border>
+                  </WrapPanel>
+                </Border>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>
