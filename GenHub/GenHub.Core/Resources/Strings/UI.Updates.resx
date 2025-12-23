@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Update Status Messages - from UpdateNotificationViewModel -->
+  <data name="Status.ReadyToCheck" xml:space="preserve">
+    <value>Ready to check for updates</value>
+    <comment>Initial status message before checking for updates</comment>
+  </data>
+  <data name="Status.CheckingForUpdates" xml:space="preserve">
+    <value>Checking for updates...</value>
+    <comment>Status message while checking for updates</comment>
+  </data>
+  <data name="Status.UpdateAvailable" xml:space="preserve">
+    <value>Update available: {0}</value>
+    <comment>Status message when update is available. {0} is the version number</comment>
+  </data>
+  <data name="Status.NoUpdatesAvailable" xml:space="preserve">
+    <value>No updates available</value>
+    <comment>Status message when no updates are available</comment>
+  </data>
+  <data name="Status.UpdateCheckFailed" xml:space="preserve">
+    <value>Update check failed</value>
+    <comment>Status message when update check fails</comment>
+  </data>
+  
+  <!-- Installation Progress - from UpdateNotificationViewModel -->
+  <data name="Status.PreparingDownload" xml:space="preserve">
+    <value>Preparing to download update...</value>
+    <comment>Status message when preparing to download update</comment>
+  </data>
+  <data name="Progress.PreparingDownload" xml:space="preserve">
+    <value>Preparing download...</value>
+    <comment>Progress message when preparing download</comment>
+  </data>
+  <data name="Status.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>Update prepared successfully! The application will restart automatically.</value>
+    <comment>Status message when update is successfully prepared</comment>
+  </data>
+  <data name="Progress.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>Update prepared successfully! The application will restart automatically.</value>
+    <comment>Progress message when update is successfully prepared</comment>
+  </data>
+  <data name="Status.UpdateInstallationFailed" xml:space="preserve">
+    <value>Update installation failed.</value>
+    <comment>Status message when update installation fails</comment>
+  </data>
+  <data name="Progress.InstallationFailed" xml:space="preserve">
+    <value>Installation failed</value>
+    <comment>Progress message when installation fails</comment>
+  </data>
+  <data name="Status.UpdateFailed" xml:space="preserve">
+    <value>Update failed</value>
+    <comment>Status message when update process fails</comment>
+  </data>
+  <data name="Progress.Ready" xml:space="preserve">
+    <value>Ready</value>
+    <comment>Initial progress message</comment>
+  </data>
+  
+  <!-- Install Button Text - from UpdateNotificationViewModel -->
+  <data name="Button.InstallUpdate" xml:space="preserve">
+    <value>Install Update</value>
+    <comment>Button text for installing update</comment>
+  </data>
+  <data name="Button.Installing" xml:space="preserve">
+    <value>Installing...</value>
+    <comment>Button text shown while installing</comment>
+  </data>
+  
+  <!-- Error Messages - from UpdateNotificationViewModel -->
+  <data name="Error.NoCompatiblePackage" xml:space="preserve">
+    <value>No compatible update package found for your platform.</value>
+    <comment>Error message when no compatible update package is found</comment>
+  </data>
+  <data name="Error.FailedToCheckForUpdates" xml:space="preserve">
+    <value>Failed to check for updates: {0}</value>
+    <comment>Error message when update check fails. {0} is the error details</comment>
+  </data>
+  <data name="Error.UpdateFailed" xml:space="preserve">
+    <value>Update failed: {0}</value>
+    <comment>Error message when update fails. {0} is the error details</comment>
+  </data>
+  
+  <!-- Version Display - from UpdateNotificationViewModel -->
+  <data name="Version.Current" xml:space="preserve">
+    <value>Current Version</value>
+    <comment>Label for current application version</comment>
+  </data>
+  <data name="Version.Latest" xml:space="preserve">
+    <value>Latest Version</value>
+    <comment>Label for latest available version</comment>
+  </data>
+  <data name="Version.Default" xml:space="preserve">
+    <value>v0.0.0</value>
+    <comment>Default version display when no version is available</comment>
+  </data>
+  
+  <!-- Update Dialog Strings -->
+  <data name="Status.UpdateAvailableExclaim" xml:space="preserve">
+    <value>Update Available!</value>
+    <comment>Heading when an update is available (with exclamation)</comment>
+  </data>
+  <data name="Label.WhatsNew" xml:space="preserve">
+    <value>What's new:</value>
+    <comment>Label for release notes section</comment>
+  </data>
+  <data name="Description.DefaultUpdateNotes" xml:space="preserve">
+    <value>This update includes bug fixes, performance improvements, and new features.</value>
+    <comment>Default text for update description when no specific notes</comment>
+  </data>
+  <data name="Status.UpToDate" xml:space="preserve">
+    <value>You're up to date!</value>
+    <comment>Status message when app is already on latest version</comment>
+  </data>
+  <data name="Label.VersionReady" xml:space="preserve">
+    <value>is ready to install</value>
+    <comment>Partial text indicating version is ready</comment>
+  </data>
+  <data name="Progress.PercentComplete" xml:space="preserve">
+    <value>% complete</value>
+    <comment>Partial text for percentage completion</comment>
+  </data>
+</root>

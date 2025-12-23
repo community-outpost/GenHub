@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Settings Validation - from SettingsViewModel -->
+  <data name="InvalidMaxConcurrentDownloads" xml:space="preserve">
+    <value>Invalid MaxConcurrentDownloads value: {0}. Resetting to 3.</value>
+    <comment>Validation error for max concurrent downloads. {0} is the invalid value</comment>
+  </data>
+  <data name="InvalidDownloadBufferSize" xml:space="preserve">
+    <value>Invalid DownloadBufferSizeKB value: {0}. Resetting to 80KB.</value>
+    <comment>Validation error for download buffer size. {0} is the invalid value</comment>
+  </data>
+  <data name="PathDoesNotExist" xml:space="preserve">
+    <value>Preferred game install path does not exist: {0}</value>
+    <comment>Validation warning when specified path doesn't exist. {0} is the path</comment>
+  </data>
+  <data name="SettingsDirectoryDoesNotExist" xml:space="preserve">
+    <value>Settings file directory does not exist: {0}</value>
+    <comment>Validation warning when settings directory doesn't exist. {0} is the directory</comment>
+  </data>
+  
+  <!-- Download Validation Limits -->
+  <data name="ConcurrentDownloadsOutOfRange" xml:space="preserve">
+    <value>Concurrent downloads must be between {0} and {1}</value>
+    <comment>Validation error for concurrent downloads range. {0} is min, {1} is max</comment>
+  </data>
+  <data name="DownloadTimeoutOutOfRange" xml:space="preserve">
+    <value>Download timeout must be between {0} and {1} seconds</value>
+    <comment>Validation error for download timeout range. {0} is min seconds, {1} is max seconds</comment>
+  </data>
+  <data name="BufferSizeOutOfRange" xml:space="preserve">
+    <value>Buffer size must be between {0} and {1} KB</value>
+    <comment>Validation error for buffer size range. {0} is min KB, {1} is max KB</comment>
+  </data>
+  
+  <!-- Field Validation -->
+  <data name="RequiredField" xml:space="preserve">
+    <value>This field is required</value>
+    <comment>Generic required field validation message</comment>
+  </data>
+  <data name="InvalidFormat" xml:space="preserve">
+    <value>Invalid format</value>
+    <comment>Generic invalid format validation message</comment>
+  </data>
+  <data name="InvalidPath" xml:space="preserve">
+    <value>Invalid path</value>
+    <comment>Generic invalid path validation message</comment>
+  </data>
+  <data name="InvalidUrl" xml:space="preserve">
+    <value>Invalid URL</value>
+    <comment>Generic invalid URL validation message</comment>
+  </data>
+  <data name="ValueTooLow" xml:space="preserve">
+    <value>Value is too low (minimum: {0})</value>
+    <comment>Validation error when value is below minimum. {0} is the minimum value</comment>
+  </data>
+  <data name="ValueTooHigh" xml:space="preserve">
+    <value>Value is too high (maximum: {0})</value>
+    <comment>Validation error when value is above maximum. {0} is the maximum value</comment>
+  </data>
+  
+  <!-- Culture Validation - from LocalizationService -->
+  <data name="InvalidCultureName" xml:space="preserve">
+    <value>Invalid culture name: {0}</value>
+    <comment>Error when culture name is invalid. {0} is the culture name</comment>
+  </data>
+  <data name="CultureNotAvailable" xml:space="preserve">
+    <value>Culture '{0}' is not available. Falling back to '{1}'</value>
+    <comment>Warning when culture is not available. {0} is requested culture, {1} is fallback</comment>
+  </data>
+  <data name="CultureNotFound" xml:space="preserve">
+    <value>Culture '{0}' not found. Using invariant culture</value>
+    <comment>Warning when culture is not found. {0} is the culture name</comment>
+  </data>
+  
+  <!-- Profile Validation -->
+  <data name="SelectGameInstallation" xml:space="preserve">
+    <value>Please select a game installation</value>
+    <comment>Validation error when no game installation is selected</comment>
+  </data>
+  <data name="EnterProfileName" xml:space="preserve">
+    <value>Please enter a profile name</value>
+    <comment>Validation error when profile name is empty</comment>
+  </data>
+  <data name="GameInstallationRequired" xml:space="preserve">
+    <value>A Game Installation must be enabled for the profile to be launchable.</value>
+    <comment>Validation error when no game installation is enabled</comment>
+  </data>
+</root>

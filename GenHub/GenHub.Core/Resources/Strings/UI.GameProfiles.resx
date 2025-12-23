@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Profile Loading Status - from GameProfileLauncherViewModel -->
+  <data name="Status.LoadingProfiles" xml:space="preserve">
+    <value>Loading profiles...</value>
+    <comment>Status message shown when loading game profiles</comment>
+  </data>
+  <data name="Status.ProfilesLoaded" xml:space="preserve">
+    <value>Profiles loaded</value>
+    <comment>Status message shown when profiles are successfully loaded</comment>
+  </data>
+  <data name="Status.ErrorLoadingProfiles" xml:space="preserve">
+    <value>Error loading profiles</value>
+    <comment>Status message shown when profile loading fails</comment>
+  </data>
+  
+  <!-- Game Scanning - from GameProfileLauncherViewModel -->
+  <data name="Status.ScanningForGames" xml:space="preserve">
+    <value>Scanning for games...</value>
+    <comment>Status message shown when scanning for game installations</comment>
+  </data>
+  <data name="Status.ScanComplete" xml:space="preserve">
+    <value>Scan complete. Found {0} game installations</value>
+    <comment>Status message shown when scan completes. {0} is the count of installations found</comment>
+  </data>
+  <data name="Status.ScanFailed" xml:space="preserve">
+    <value>Scan failed: {0}</value>
+    <comment>Status message shown when scan fails. {0} is the error message</comment>
+  </data>
+  <data name="Status.ErrorDuringScan" xml:space="preserve">
+    <value>Error during scan</value>
+    <comment>Status message shown when an unexpected error occurs during scan</comment>
+  </data>
+  
+  <!-- Service Availability - from GameProfileLauncherViewModel -->
+  <data name="Error.ServiceNotAvailable" xml:space="preserve">
+    <value>Game installation service not available</value>
+    <comment>Error message shown when required service is not available</comment>
+  </data>
+  <data name="Warning.LoggerNotAvailable" xml:space="preserve">
+    <value>Logger not available - scan may proceed without detailed logging</value>
+    <comment>Warning message shown when logger is not available</comment>
+  </data>
+  
+  <!-- Profile Creation - from MainViewModel -->
+  <data name="Profile.AutoCreated" xml:space="preserve">
+    <value>{0} Profile</value>
+    <comment>Auto-generated profile name. {0} is the installation type</comment>
+  </data>
+  <data name="Profile.AutoCreatedDescription" xml:space="preserve">
+    <value>Auto-created profile for {0} installation at {1}</value>
+    <comment>Auto-generated profile description. {0} is installation type, {1} is path</comment>
+  </data>
+  <data name="Status.CreatingProfiles" xml:space="preserve">
+    <value>Found {0} game installations, creating profiles</value>
+    <comment>Status message during profile creation. {0} is installation count</comment>
+  </data>
+  <data name="Status.ProfileCreated" xml:space="preserve">
+    <value>Created profile '{0}' for installation {1}</value>
+    <comment>Log message for successful profile creation. {0} is profile name, {1} is installation ID</comment>
+  </data>
+  <data name="Status.ProfileCreationFailed" xml:space="preserve">
+    <value>Failed to create profile for installation {0}: {1}</value>
+    <comment>Log message for failed profile creation. {0} is installation ID, {1} is error message</comment>
+  </data>
+  <data name="Status.ProfileCreationComplete" xml:space="preserve">
+    <value>Profile creation complete: {0} created, {1} failed</value>
+    <comment>Summary message after profile creation. {0} is success count, {1} is failure count</comment>
+  </data>
+  <data name="Status.NoInstallationsFound" xml:space="preserve">
+    <value>No game installations found</value>
+    <comment>Message shown when no game installations are detected</comment>
+  </data>
+  <data name="Warning.InstallationScanFailed" xml:space="preserve">
+    <value>Game installation scan failed: {0}</value>
+    <comment>Warning message when installation scan fails. {0} is error details</comment>
+  </data>
+  
+  <!-- Page Titles and Subtitles -->
+  <data name="Title.GameProfiles" xml:space="preserve">
+    <value>Game Profiles</value>
+    <comment>Page title for the Game Profiles section</comment>
+  </data>
+  <data name="Subtitle.GameProfiles" xml:space="preserve">
+    <value>Select a profile to launch or create a new one</value>
+    <comment>Page subtitle for the Game Profiles section</comment>
+  </data>
+  
+  <!-- Buttons -->
+  <data name="Button.AddNewProfile" xml:space="preserve">
+    <value>Add New Profile</value>
+    <comment>Button to create a new game profile</comment>
+  </data>
+  
+  <!-- Profile Operations Status -->
+  <data name="Status.Scanning" xml:space="preserve">
+    <value>Scanning...</value>
+    <comment>Status shown during game scanning</comment>
+  </data>
+  <data name="Status.ProfilesLoadedCount" xml:space="preserve">
+    <value>Loaded {0} profiles</value>
+    <comment>Status showing number of loaded profiles. {0} = count</comment>
+  </data>
+  <data name="Status.LaunchingProfile" xml:space="preserve">
+    <value>Launching {0}...</value>
+    <comment>Status when launching a profile. {0} = profile name</comment>
+  </data>
+  <data name="Status.ProfileLaunchedSuccess" xml:space="preserve">
+    <value>{0} launched successfully (Process ID: {1})</value>
+    <comment>Success message after launching. {0} = profile name, {1} = process ID</comment>
+  </data>
+  <data name="Status.StoppingProfile" xml:space="preserve">
+    <value>Stopping {0}...</value>
+    <comment>Status when stopping a profile. {0} = profile name</comment>
+  </data>
+  <data name="Status.ProfileStoppedSuccess" xml:space="preserve">
+    <value>{0} stopped successfully</value>
+    <comment>Success message after stopping. {0} = profile name</comment>
+  </data>
+  <data name="Status.EditModeEnabled" xml:space="preserve">
+    <value>Edit mode enabled</value>
+    <comment>Status when edit mode is turned on</comment>
+  </data>
+  <data name="Status.EditModeDisabled" xml:space="preserve">
+    <value>Edit mode disabled</value>
+    <comment>Status when edit mode is turned off</comment>
+  </data>
+  <data name="Status.SavingProfiles" xml:space="preserve">
+    <value>Saving profiles...</value>
+    <comment>Status while saving profiles</comment>
+  </data>
+  <data name="Status.ProfilesSaved" xml:space="preserve">
+    <value>Profiles saved successfully</value>
+    <comment>Success message after saving profiles</comment>
+  </data>
+  <data name="Status.DeletingProfile" xml:space="preserve">
+    <value>Deleting {0}...</value>
+    <comment>Status when deleting a profile. {0} = profile name</comment>
+  </data>
+  <data name="Status.ProfileDeletedSuccess" xml:space="preserve">
+    <value>{0} deleted successfully</value>
+    <comment>Success message after deleting. {0} = profile name</comment>
+  </data>
+  <data name="Status.ProfileUpdatedSuccess" xml:space="preserve">
+    <value>Profile updated successfully</value>
+    <comment>Success message after updating a profile</comment>
+  </data>
+  <data name="Status.NewProfileWindowClosed" xml:space="preserve">
+    <value>New profile window closed</value>
+    <comment>Status when new profile window closes</comment>
+  </data>
+  <data name="Status.PreparingWorkspace" xml:space="preserve">
+    <value>Preparing workspace for {0}...</value>
+    <comment>Status when preparing workspace. {0} = profile name</comment>
+  </data>
+  <data name="Status.WorkspacePrepared" xml:space="preserve">
+    <value>Workspace prepared for {0} at {1}</value>
+    <comment>Success message after workspace preparation. {0} = profile name, {1} = path</comment>
+  </data>
+  
+  <!-- Profile Operation Errors -->
+  <data name="Error.ProfileManagerNotAvailable" xml:space="preserve">
+    <value>Profile manager not available</value>
+    <comment>Error when profile manager service is unavailable</comment>
+  </data>
+  <data name="Error.ProfileManagerNotInitialized" xml:space="preserve">
+    <value>Game Profile Manager service is not initialized</value>
+    <comment>Error when profile manager is not initialized</comment>
+  </data>
+  <data name="Error.FailedToLoadProfilesWithReason" xml:space="preserve">
+    <value>Failed to load profiles: {0}</value>
+    <comment>Error loading profiles. {0} = error details</comment>
+  </data>
+  <data name="Error.FailedToLaunchProfile" xml:space="preserve">
+    <value>Failed to launch {0}: {1}</value>
+    <comment>Error launching profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="Error.ErrorLaunchingProfile" xml:space="preserve">
+    <value>Error launching {0}</value>
+    <comment>Generic error launching profile. {0} = profile name</comment>
+  </data>
+  <data name="Error.FailedToStopProfile" xml:space="preserve">
+    <value>Failed to stop {0}: {1}</value>
+    <comment>Error stopping profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="Error.ErrorSavingProfiles" xml:space="preserve">
+    <value>Error saving profiles</value>
+    <comment>Generic error saving profiles</comment>
+  </data>
+  <data name="Error.FailedToDeleteProfile" xml:space="preserve">
+    <value>Failed to delete {0}: {1}</value>
+    <comment>Error deleting profile. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="Error.ErrorDeletingProfile" xml:space="preserve">
+    <value>Error deleting {0}</value>
+    <comment>Generic error deleting profile. {0} = profile name</comment>
+  </data>
+  <data name="Error.ProfileSettingsNotAvailable" xml:space="preserve">
+    <value>Profile settings not available</value>
+    <comment>Error when profile settings are unavailable</comment>
+  </data>
+  <data name="Error.ProfileEditorNotAvailable" xml:space="preserve">
+    <value>Profile editor not available</value>
+    <comment>Error when profile editor is unavailable</comment>
+  </data>
+  <data name="Error.FailedToLoadProfile" xml:space="preserve">
+    <value>Failed to load profile: {0}</value>
+    <comment>Error loading a specific profile. {0} = error details</comment>
+  </data>
+  <data name="Error.MainWindowNotFound" xml:space="preserve">
+    <value>Could not find main window to open settings</value>
+    <comment>Error when main window cannot be found</comment>
+  </data>
+  <data name="Error.ErrorCreatingNewProfile" xml:space="preserve">
+    <value>Error creating new profile</value>
+    <comment>Generic error creating a new profile</comment>
+  </data>
+  <data name="Error.ProfileLauncherNotAvailable" xml:space="preserve">
+    <value>Profile launcher not available</value>
+    <comment>Error when profile launcher is unavailable</comment>
+  </data>
+  <data name="Error.FailedToPrepareWorkspace" xml:space="preserve">
+    <value>Failed to prepare workspace for {0}: {1}</value>
+    <comment>Error preparing workspace. {0} = profile name, {1} = error</comment>
+  </data>
+  <data name="Error.ErrorPreparingWorkspace" xml:space="preserve">
+    <value>Error preparing workspace for {0}</value>
+    <comment>Generic error preparing workspace. {0} = profile name</comment>
+  </data>
+  
+  <!-- Workspace Status -->
+  <data name="WorkspaceStatus.NotPrepared" xml:space="preserve">
+    <value>Not Prepared</value>
+    <comment>Workspace status when not yet prepared</comment>
+  </data>
+  <data name="WorkspaceStatus.Symlinked" xml:space="preserve">
+    <value>Symlinked</value>
+    <comment>Workspace status when using symlinks</comment>
+  </data>
+  <data name="WorkspaceStatus.Copied" xml:space="preserve">
+    <value>Copied</value>
+    <comment>Workspace status when files are copied</comment>
+  </data>
+  <data name="WorkspaceStatus.Hybrid" xml:space="preserve">
+    <value>Hybrid</value>
+    <comment>Workspace status when using hybrid strategy</comment>
+  </data>
+  <data name="WorkspaceStatus.HardLinked" xml:space="preserve">
+    <value>Hard Linked</value>
+    <comment>Workspace status when using hard links</comment>
+  </data>
+  <data name="WorkspaceStatus.Prepared" xml:space="preserve">
+    <value>Prepared</value>
+    <comment>Generic workspace status when prepared</comment>
+  </data>
+  
+  <!-- Installation Types -->
+  <data name="InstallationType.Steam" xml:space="preserve">
+    <value>Steam</value>
+    <comment>Steam installation platform name</comment>
+  </data>
+  <data name="InstallationType.EaApp" xml:space="preserve">
+    <value>EA App</value>
+    <comment>EA App installation platform name</comment>
+  </data>
+  <data name="InstallationType.FirstDecade" xml:space="preserve">
+    <value>The First Decade</value>
+    <comment>The First Decade installation type name</comment>
+  </data>
+  <data name="InstallationType.Wine" xml:space="preserve">
+    <value>Wine</value>
+    <comment>Wine/Linux installation platform name</comment>
+  </data>
+  <data name="InstallationType.Retail" xml:space="preserve">
+    <value>Retail</value>
+    <comment>Retail installation type name</comment>
+  </data>
+  <data name="InstallationType.CdIso" xml:space="preserve">
+    <value>CD/ISO</value>
+    <comment>CD/ISO installation type name</comment>
+  </data>
+  <data name="InstallationType.PcGame" xml:space="preserve">
+    <value>PC Game</value>
+    <comment>Default PC game installation type name</comment>
+  </data>
+  
+  <!-- Game Types -->
+  <data name="GameType.Generals" xml:space="preserve">
+    <value>C&amp;C Generals</value>
+    <comment>Command and Conquer Generals game name</comment>
+  </data>
+  <data name="GameType.ZeroHour" xml:space="preserve">
+    <value>C&amp;C Generals: Zero Hour</value>
+    <comment>Command and Conquer Generals Zero Hour game name</comment>
+  </data>
+  
+  <!-- Badges -->
+  <data name="Badge.Admin" xml:space="preserve">
+    <value>ADMIN</value>
+    <comment>Badge indicating admin privileges required</comment>
+  </data>
+</root>
