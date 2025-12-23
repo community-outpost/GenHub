@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reactive.Linq;
 using GenHub.Core.Interfaces.Localization;
 using GenHub.Core.Models.Localization;
+using GenHub.Core.Resources.Strings;
 using GenHub.Core.Services.Localization;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -232,21 +233,21 @@ public class LocalizationServiceTests : IDisposable
     public void GetString_WithNullKey_ThrowsArgumentException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => _service.GetString(null!));
+        Assert.Throws<ArgumentNullException>(() => _service.GetString(StringResources.UiCommon, null!));
     }
 
     [Fact]
     public void GetString_WithEmptyKey_ThrowsArgumentException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => _service.GetString(string.Empty));
+        Assert.Throws<ArgumentException>(() => _service.GetString(StringResources.UiCommon, string.Empty));
     }
 
     [Fact]
     public void GetString_WithWhitespaceKey_ThrowsArgumentException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => _service.GetString("   "));
+        Assert.Throws<ArgumentException>(() => _service.GetString(StringResources.UiCommon, "   "));
     }
 
     [Fact]
@@ -256,7 +257,7 @@ public class LocalizationServiceTests : IDisposable
         var key = "NonExistentKey";
 
         // Act
-        var result = _service.GetString(key);
+        var result = _service.GetString(StringResources.UiCommon, key);
 
         // Assert - when LogMissingTranslations is true, returns [key]
         Assert.Contains(key, result);
@@ -270,7 +271,7 @@ public class LocalizationServiceTests : IDisposable
         var args = new object[] { "test", 123 };
 
         // Act
-        var result = _service.GetString(key, args);
+        var result = _service.GetString(StringResources.UiCommon, key, args);
 
         // Assert
         Assert.NotNull(result);
@@ -283,7 +284,7 @@ public class LocalizationServiceTests : IDisposable
         var key = "TestKey";
 
         // Act
-        var result = _service.GetString(key, (object[])null!);
+        var result = _service.GetString(StringResources.UiCommon, key, (object[])null!);
 
         // Assert
         Assert.NotNull(result);
@@ -380,7 +381,7 @@ public class LocalizationServiceTests : IDisposable
         var key = "NonExistentKey";
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => service.GetString(key));
+        Assert.Throws<InvalidOperationException>(() => service.GetString(StringResources.UiCommon, key));
     }
 
     [Fact]
@@ -397,7 +398,7 @@ public class LocalizationServiceTests : IDisposable
         var key = "NonExistentKey";
 
         // Act
-        var result = service.GetString(key);
+        var result = service.GetString(StringResources.UiCommon, key);
 
         // Assert
         Assert.Equal(key, result);
