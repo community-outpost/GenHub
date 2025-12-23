@@ -1,65 +1,5 @@
 # GenHub Localization System Architecture Design
 
-## Document Information
-
-**Version:** 2.0 (Revised for .resx)  
-**Date:** 2025-10-09  
-**Status:** Architecture Design Phase  
-**Author:** Architecture Team
-
----
-
-## Executive Summary
-
-### Recommendation: .NET Resource Files (.resx) with Custom Service Layer
-
-After consideration of GenHub's requirements and alignment with Avalonia's official recommendations, **I recommend using .NET Resource Files (.resx)** with a custom service layer for runtime language switching. This approach provides:
-
-- **Official Avalonia Support**: Follows Avalonia's documented localization approach
-- **Strong Tooling**: Visual Studio and Rider provide excellent .resx editing support
-- **Type Safety**: Strongly-typed resource classes with IntelliSense
-- **Native .NET Integration**: Built-in ResourceManager framework
-- **Design-Time XAML Support**: Resource keys available in XAML with IntelliSense
-- **Professional Workflow**: Compatible with professional translation tools (SDL Trados, memoQ)
-
-### Key Architectural Decisions
-
-1. **Technology**: .NET Resource Files (.resx) with satellite assemblies
-2. **Service Pattern**: `ILocalizationService` wrapper around `ResourceManager` for enhanced functionality
-3. **Resource Organization**: Namespace-based .resx files (e.g., `UI.Common.resx`, `Errors.Validation.resx`)
-4. **Fallback Strategy**: Native .NET fallback (Requested → Neutral → Invariant)
-5. **Language Discovery**: Assembly scanning for satellite assemblies
-6. **Runtime Switching**: Custom ResourceManager with culture switching and reactive notifications
-7. **Performance**: Satellite assemblies with lazy loading
-8. **Translator Experience**: ResXManager tool for community contributors
-
-### Addressing .resx Concerns
-
-While .resx files have some challenges, we can mitigate them:
-
-| Concern | Mitigation Strategy |
-|---------|---------------------|
-| **Poor translator UX** | Provide ResXManager tool, detailed contribution guide |
-| **Runtime language switching complexity** | Custom service layer with `CultureInfo` management |
-| **XML verbosity in version control** | Git attributes for better diffs, focus on satellite assemblies in PRs |
-| **Linux tooling limitations** | ResXManager is cross-platform, provide CLI tools |
-| **Community contribution friction** | Streamlined PR workflow, automated validation, clear documentation |
-
-### Why .resx is the Right Choice
-
-| Criteria | .resx Advantage |
-|----------|-----------------|
-| **Avalonia alignment** | ✅ Official recommendation |
-| **Type safety** | ✅ Strongly-typed resource classes |
-| **Design-time support** | ✅ Native XAML IntelliSense |
-| **Professional translation** | ✅ Industry-standard tools support .resx |
-| **Framework integration** | ✅ Built into .NET framework |
-| **Parameter substitution** | ✅ Native `string.Format` support |
-| **Satellite assemblies** | ✅ Clean separation, easy deployment |
-| **Cultural formatting** | ✅ Automatic date/number/currency formatting |
-
----
-
 ## Table of Contents
 
 1. [Technology Evaluation](#1-technology-evaluation)
@@ -514,7 +454,7 @@ namespace GenHub.Core.Resources
 - User selects German (`de-DE`)
 - ResourceManager looks for `UI.Common.de-DE.resx` (doesn't exist)
 - Falls back to `UI.Common.de.resx` (exists, uses this)
-- If `de.resx` missing a key, falls back to `UI.Common.resx` (English)
+- If `de.resx` is missing a key, falls back to `UI.Common.resx` (English)
 
 **No custom fallback logic needed** - .NET handles it automatically!
 
@@ -1275,8 +1215,6 @@ dotnet run --project GenHub/GenHub.Windows
 
 Open an issue or ask in Discord!
 
-```
-
 ---
 
 ## 6. Implementation Phases
@@ -1868,5 +1806,3 @@ This .resx-based localization architecture provides a **production-ready, offici
 4. Install ResXManager and familiarize team
 
 ---
-
-**Document End**

@@ -26,7 +26,7 @@ public static class LocalizationExtensions
         try
         {
             var result = service.GetString(key);
-            
+
             // Check if we got a missing translation marker
             if (result.StartsWith('[') && result.EndsWith(']'))
             {

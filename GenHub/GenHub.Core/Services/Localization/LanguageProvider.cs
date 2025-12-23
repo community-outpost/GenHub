@@ -13,8 +13,8 @@ public class LanguageProvider : ILanguageProvider
 {
     private readonly ILogger<LanguageProvider> _logger;
     private readonly Dictionary<string, ResourceManager> _resourceManagers;
-    private IReadOnlyList<CultureInfo>? _cachedCultures;
     private readonly object _lock = new();
+    private IReadOnlyList<CultureInfo>? _cachedCultures;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LanguageProvider"/> class.
@@ -70,7 +70,7 @@ public class LanguageProvider : ILanguageProvider
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error discovering available languages");
-                    
+
                     // Return at least the default culture
                     _cachedCultures = new List<CultureInfo> { CultureInfo.GetCultureInfo("en") }.AsReadOnly();
                     return _cachedCultures;
@@ -95,10 +95,10 @@ public class LanguageProvider : ILanguageProvider
             {
                 var assembly = Assembly.GetExecutingAssembly();
                 var resourceManager = new ResourceManager(baseName, assembly);
-                
+
                 _resourceManagers[baseName] = resourceManager;
                 _logger.LogDebug("Created ResourceManager for base name: {BaseName}", baseName);
-                
+
                 return resourceManager;
             }
             catch (Exception ex)
@@ -117,7 +117,7 @@ public class LanguageProvider : ILanguageProvider
         try
         {
             var assembly = Assembly.GetExecutingAssembly();
-            
+
             // The invariant/default culture is always valid
             if (culture.Equals(CultureInfo.InvariantCulture) || 
                 culture.TwoLetterISOLanguageName.Equals("en", StringComparison.OrdinalIgnoreCase))
