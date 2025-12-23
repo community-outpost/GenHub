@@ -1,5 +1,6 @@
 using System.Globalization;
 using GenHub.Core.Interfaces.Localization;
+using GenHub.Core.Resources.Strings;
 
 namespace GenHub.Core.Extensions.Localization;
 
@@ -25,7 +26,7 @@ public static class LocalizationExtensions
 
         try
         {
-            var result = service.GetString(key);
+            var result = service.GetString(StringResources.UiCommon, key);
 
             // Check if we got a missing translation marker
             if (result.StartsWith('[') && result.EndsWith(']'))
@@ -257,7 +258,7 @@ public static class LocalizationExtensions
             _ => manyKey
         };
 
-        return service.GetString(key, count);
+        return service.GetString(StringResources.UiCommon, key, count);
     }
 
     /// <summary>

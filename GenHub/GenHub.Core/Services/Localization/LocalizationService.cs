@@ -79,24 +79,6 @@ public class LocalizationService : ILocalizationService, IDisposable
     /// <inheritdoc/>
     public IObservable<CultureInfo> CultureChanged => _cultureChangedSubject;
 
-    /// <inheritdoc/>
-    public string GetString(string key)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
-
-        // Default to UiCommon for backward compatibility
-        return GetString(Resources.Strings.StringResources.UiCommon, key);
-    }
-
-    /// <inheritdoc/>
-    public string GetString(string key, params object[] args)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(key));
-
-        // Default to UiCommon for backward compatibility
-        return GetString(Resources.Strings.StringResources.UiCommon, key, args);
-    }
-
     /// <summary>
     /// Gets a localized string from the specified resource set.
     /// </summary>

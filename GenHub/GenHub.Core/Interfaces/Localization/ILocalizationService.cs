@@ -24,21 +24,6 @@ public interface ILocalizationService
     IObservable<CultureInfo> CultureChanged { get; }
 
     /// <summary>
-    /// Gets a localized string for the specified key.
-    /// </summary>
-    /// <param name="key">The resource key.</param>
-    /// <returns>The localized string, or the key if not found.</returns>
-    string GetString(string key);
-
-    /// <summary>
-    /// Gets a localized string with parameter substitution.
-    /// </summary>
-    /// <param name="key">The resource key.</param>
-    /// <param name="args">Arguments for string.Format.</param>
-    /// <returns>The formatted localized string.</returns>
-    string GetString(string key, params object[] args);
-
-    /// <summary>
     /// Gets a localized string from the specified resource set.
     /// </summary>
     /// <param name="resourceSet">The resource set base name (e.g., from StringResources constants).</param>
