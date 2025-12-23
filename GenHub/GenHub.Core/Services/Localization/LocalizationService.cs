@@ -53,6 +53,7 @@ public class LocalizationService : ILocalizationService, IDisposable
                 return _currentCulture;
             }
         }
+
         set
         {
             SetCulture(value).GetAwaiter().GetResult();
@@ -110,7 +111,7 @@ public class LocalizationService : ILocalizationService, IDisposable
         try
         {
             var resourceManager = _languageProvider.GetResourceManager(resourceSet);
-            
+
             lock (_lock)
             {
                 var value = resourceManager.GetString(key, _currentCulture);
@@ -145,7 +146,7 @@ public class LocalizationService : ILocalizationService, IDisposable
         try
         {
             var format = GetString(resourceSet, key);
-            
+
             if (args == null || args.Length == 0)
             {
                 return format;
@@ -161,7 +162,7 @@ public class LocalizationService : ILocalizationService, IDisposable
                 key,
                 resourceSet,
                 args?.Length ?? 0);
-            
+
             return HandleMissingTranslation(key);
         }
         catch (Exception ex)
@@ -232,12 +233,41 @@ public class LocalizationService : ILocalizationService, IDisposable
     public async Task RefreshAvailableCultures()
     {
         _logger.LogDebug("Refreshing available cultures");
-        
+
         _availableCultures = await _languageProvider.DiscoverAvailableLanguages();
-        
+
         _logger.LogInformation(
             "Available cultures refreshed. Found {Count} cultures",
             _availableCultures.Count);
+    }
+
+    /// <summary>
+    /// Disposes the service and releases resources.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes the service and releases resources.
+    /// </summary>
+    /// <param name="disposing">True if disposing managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            _cultureChangedSubject?.OnCompleted();
+            _cultureChangedSubject?.Dispose();
+        }
+
+        _disposed = true;
     }
 
     /// <summary>
@@ -269,7 +299,7 @@ public class LocalizationService : ILocalizationService, IDisposable
                 ex,
                 "Culture '{Culture}' not found. Using invariant culture",
                 cultureName);
-            
+
             return CultureInfo.InvariantCulture;
         }
     }
@@ -297,34 +327,5 @@ public class LocalizationService : ILocalizationService, IDisposable
 
         // In development, return key with markers; in production, return clean key
         return _options.LogMissingTranslations ? $"[{key}]" : key;
-    }
-
-    /// <summary>
-    /// Disposes the service and releases resources.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Disposes the service and releases resources.
-    /// </summary>
-    /// <param name="disposing">True if disposing managed resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (disposing)
-        {
-            _cultureChangedSubject?.OnCompleted();
-            _cultureChangedSubject?.Dispose();
-        }
-
-        _disposed = true;
     }
 }
