@@ -60,13 +60,6 @@ public partial class ContentItemViewModel : ObservableObject
     public string IconUrl => Model.IconUrl ?? string.Empty;
 
     /// <summary>
-    /// Gets or sets a value indicating whether this content is already installed.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanInstall))]
-    private bool _isInstalled;
-
-    /// <summary>
     /// Gets or sets a value indicating whether this content is downloaded locally.
     /// </summary>
     [ObservableProperty]
@@ -80,17 +73,11 @@ public partial class ContentItemViewModel : ObservableObject
     public bool CanAddToProfile => IsDownloaded;
 
     /// <summary>
-    /// Gets a value indicating whether this content can be installed (not already installed).
-    /// </summary>
-    public bool CanInstall => !IsInstalled && !IsDownloading;
-
-    /// <summary>
     /// Gets a value indicating whether this content can be downloaded.
     /// </summary>
     public bool CanDownload => !IsDownloaded && !IsDownloading;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanInstall))]
     [NotifyPropertyChangedFor(nameof(CanDownload))]
     private bool _isDownloading;
 
@@ -121,7 +108,7 @@ public partial class ContentItemViewModel : ObservableObject
     /// <summary>
     /// Gets the collection of available content variants (e.g., Generals vs Zero Hour, or 30Hz vs 60Hz).
     /// </summary>
-    public ObservableCollection<ContentManifest> AvailableVariants { get; } = new();
+    public ObservableCollection<ContentManifest> AvailableVariants { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether this content has multiple variants to choose from.

@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Manifest;
@@ -15,11 +16,12 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
-/// Factory for creating and updating Generals Online content manifests.
-/// Creates separate manifests for each game client variant (30Hz and 60Hz),
-/// plus a shared QuickMatch MapPack manifest required for multiplayer.
+/// Post-extraction factory for Generals Online content manifests.
+/// Computes file hashes, updates manifest entries, and creates variant manifests (30Hz, 60Hz, MapPack)
+/// from the extracted archive content.
 /// </summary>
-public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory> logger) : IPublisherManifestFactory
+public class GeneralsOnlineManifestFactory(
+    ILogger<GeneralsOnlineManifestFactory> logger) : IPublisherManifestFactory
 {
     /// <summary>
     /// Creates three content manifests from a GeneralsOnline release:
@@ -28,9 +30,9 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
     /// - QuickMatch MapPack (required for multiplayer)
     /// This creates the initial manifests with download URLs.
     /// </summary>
-    /// <param name="release">The GeneralsOnlineRelease to create the manifests from.</param>
+    /// <param name="release">The GeneralsOnlineReleaseModel to create the manifests from.</param>
     /// <returns>A list containing three ContentManifest instances.</returns>
-    public static List<ContentManifest> CreateManifests(GeneralsOnlineRelease release)
+    public static List<ContentManifest> CreateManifests(GeneralsOnlineReleaseModel release)
     {
         List<ContentManifest> manifests = [];
 
@@ -60,7 +62,7 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
             // Case 1: Version with QFE (e.g., "111825_QFE2")
             if (version.Contains(GeneralsOnlineConstants.QfeSeparator))
             {
-                var parts = version.Split(new[] { GeneralsOnlineConstants.QfeSeparator }, StringSplitOptions.RemoveEmptyEntries);
+                var parts = version.Split([GeneralsOnlineConstants.QfeSeparator], StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 2)
                 {
                     var datePart = parts[0];
@@ -87,25 +89,6 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
         {
             return 0;
         }
-    }
-
-    /// <summary>
-    /// Creates a release info object from a content manifest.
-    /// </summary>
-    private static GeneralsOnlineRelease CreateReleaseFromManifest(ContentManifest manifest)
-    {
-        var zipFile = manifest.Files.FirstOrDefault(f =>
-            f.DownloadUrl?.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase) == true);
-
-        return new GeneralsOnlineRelease
-        {
-            Version = manifest.Version ?? "unknown",
-            VersionDate = DateTime.Now,
-            ReleaseDate = manifest.Metadata?.ReleaseDate ?? DateTime.Now,
-            PortableUrl = zipFile?.DownloadUrl ?? string.Empty,
-            PortableSize = zipFile?.Size, // Use actual file size, null if unknown
-            Changelog = manifest.Metadata?.ChangelogUrl,
-        };
     }
 
     /// <summary>
@@ -144,7 +127,7 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
     /// </summary>
     /// <param name="release">The Generals Online release information.</param>
     /// <returns>A content manifest for the QuickMatch MapPack.</returns>
-    private static ContentManifest CreateQuickMatchMapPackManifest(GeneralsOnlineRelease release)
+    private static ContentManifest CreateQuickMatchMapPackManifest(GeneralsOnlineReleaseModel release)
     {
         var userVersion = ParseVersionForManifestId(release.Version);
 
@@ -195,7 +178,7 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
     /// <param name="displayName">The display name for this variant (e.g., "GeneralsOnline 30Hz").</param>
     /// <returns>A content manifest for the specified variant.</returns>
     private static ContentManifest CreateVariantManifest(
-        GeneralsOnlineRelease release,
+        GeneralsOnlineReleaseModel release,
         string variantSuffix,
         string displayName)
     {
@@ -272,8 +255,15 @@ public class GeneralsOnlineManifestFactory(ILogger<GeneralsOnlineManifestFactory
     {
         logger.LogInformation("Creating GeneralsOnline manifests from extracted content in: {Directory}", extractedDirectory);
 
-        // Create release info from original manifest
-        var release = CreateReleaseFromManifest(originalManifest);
+        // Create a GeneralsOnlineRelease from the original manifest
+        var release = new GenHub.Core.Models.GeneralsOnline.GeneralsOnlineReleaseModel
+        {
+            Version = originalManifest.Version ?? "unknown",
+            ReleaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.Now,
+            Changelog = originalManifest.Metadata?.ChangelogUrl,
+            PortableUrl = originalManifest.Files.FirstOrDefault()?.DownloadUrl ?? string.Empty,
+            PortableSize = originalManifest.Files.FirstOrDefault()?.Size,
+        };
 
         // Create all manifests (30Hz, 60Hz, and QuickMatch MapPack)
         var manifests = CreateManifests(release);

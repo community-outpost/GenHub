@@ -163,7 +163,7 @@ public class MainViewModelTests
         var configProvider = CreateConfigProviderMock();
         var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
-        mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+        mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((Velopack.UpdateInfo?)null);
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();

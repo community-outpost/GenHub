@@ -31,13 +31,13 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        
+
         <Style Selector="Button.github-button:pointerover">
             <Setter Property="Background" Value="#444444" />
             <Setter Property="BorderBrush" Value="#666666" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
-        
+
         <Style Selector="Button.github-button:pressed">
             <Setter Property="RenderTransform" Value="scale(0.98)" />
         </Style>
@@ -68,7 +68,7 @@
             <Setter Property="BoxShadow" Value="0 2 8 0 #20000000" />
         </Style>
     </UserControl.Styles>
-    
+
     <ScrollViewer>
         <Grid Margin="20">
             <Grid.RowDefinitions>
@@ -77,11 +77,11 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            
+
             <!-- Header Section -->
             <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,30">
-                <TextBlock Text="{Binding Title}" 
-                           FontSize="28" 
+                <TextBlock Text="{Binding Title}"
+                           FontSize="28"
                            FontWeight="SemiBold"
                            Foreground="White"
                            HorizontalAlignment="Center"
@@ -90,36 +90,36 @@
                            FontSize="16"
                            Foreground="#AAAAAA"
                            HorizontalAlignment="Center" />
-                
-                <!-- Installation Progress -->
-                <StackPanel IsVisible="{Binding IsInstallingGeneralsOnline}"
+          
+                <!-- Download Progress -->
+                <StackPanel IsVisible="{Binding IsDownloadingGeneralsOnline}"
                             Margin="0,20,0,0"
                             HorizontalAlignment="Center"
                             MinWidth="400">
-                    <TextBlock Text="{Binding InstallationStatus}"
+                    <TextBlock Text="{Binding DownloadStatus}"
                                FontSize="14"
                                Foreground="White"
                                HorizontalAlignment="Center"
                                Margin="0,0,0,10" />
-                    <ProgressBar Value="{Binding InstallationProgress}"
+                    <ProgressBar Value="{Binding DownloadProgress}"
                                  Minimum="0"
                                  Maximum="100"
                                  Height="6"
                                  Foreground="#4CAF50"
                                  Background="#333333"
                                  BorderThickness="0" />
-                    <TextBlock Text="{Binding InstallationProgress, StringFormat={}{0:F0}%}"
+                    <TextBlock Text="{Binding DownloadProgress, StringFormat={}{0:F0}%}"
                                FontSize="12"
                                Foreground="#AAAAAA"
                                HorizontalAlignment="Center"
                                Margin="0,5,0,0" />
                 </StackPanel>
             </StackPanel>
-            
+
             <!-- Main Content Area -->
             <ScrollViewer Grid.Row="1">
                 <StackPanel Margin="0,0,0,20">
-                    
+
                     <!-- Unified Publisher Catalog -->
                     <ItemsControl ItemsSource="{Binding PublisherCards}" HorizontalAlignment="Center">
                         <ItemsControl.ItemsPanel>

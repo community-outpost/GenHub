@@ -392,6 +392,7 @@
                                                             </DropDownButton.Flyout>
                                                         </DropDownButton>
                                                     </StackPanel>
+
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

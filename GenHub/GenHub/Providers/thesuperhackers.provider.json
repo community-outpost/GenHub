@@ -1,0 +1,30 @@
+{
+    "providerId": "thesuperhackers",
+    "publisherType": "thesuperhackers",
+    "displayName": "TheSuperHackers",
+    "description": "Weekly releases of Generals and Zero Hour game code from TheSuperHackers",
+    "iconColor": "#FF9800",
+    "providerType": "Static",
+    "catalogFormat": "github-releases",
+    "endpoints": {
+        "websiteUrl": "https://github.com/thesuperhackers",
+        "supportUrl": "https://github.com/thesuperhackers/GeneralsGameCode/issues",
+        "custom": {
+            "githubOwner": "thesuperhackers",
+            "githubRepo": "GeneralsGameCode"
+        }
+    },
+    "mirrorPreference": [],
+    "targetGame": "ZeroHour",
+    "defaultTags": [
+        "weekly",
+        "community",
+        "patch",
+        "game-client"
+    ],
+    "timeouts": {
+        "catalogTimeoutSeconds": 30,
+        "contentTimeoutSeconds": 600
+    },
+    "enabled": true
+}

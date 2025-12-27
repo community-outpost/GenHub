@@ -122,7 +122,7 @@ public class LanguageDetector : ILanguageDetector
 
         foreach (var mapping in zhPatterns)
         {
-            if (mapping.Pattern.Contains("*"))
+            if (mapping.Pattern.Contains('*'))
             {
                 // Handle wildcard
                 var files = Directory.GetFiles(installationPath, mapping.Pattern, SearchOption.AllDirectories);

@@ -58,7 +58,7 @@ public class GenPatcherContentMetadata
     /// <summary>
     /// Gets or sets the list of content codes that conflict with this content.
     /// </summary>
-    public List<string> ConflictsWith { get; set; } = new();
+    public List<string> ConflictsWith { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the target installation location for this content.

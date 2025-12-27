@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,7 +25,6 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
-using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
@@ -475,10 +473,6 @@ public class ProfileLauncherFacade(
                 }
             }
 
-            // Build list of manifests from enabled content IDs only
-            var manifests = new List<ContentManifest>();
-            var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds ?? Enumerable.Empty<string>());
-
             // Resolve dependencies recursively
             var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
             if (!resolutionResult.Success)
@@ -486,7 +480,7 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
             }
 
-            manifests = [.. resolutionResult.ResolvedManifests];
+            List<ContentManifest> manifests = [.. resolutionResult.ResolvedManifests];
 
             // CAS preflight check - verify all CAS content is available before workspace preparation.
             // This prevents late failure and ensures early error detection.

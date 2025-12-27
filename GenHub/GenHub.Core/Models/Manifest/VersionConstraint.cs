@@ -7,8 +7,11 @@ namespace GenHub.Core.Models.Manifest;
 /// Represents a semantic version constraint for dependency resolution.
 /// Supports ranges, exact matches, and constraint expressions.
 /// </summary>
-public class VersionConstraint
+public partial class VersionConstraint
 {
+    private static readonly string[] OrSeparators = ["||"];
+    private static readonly char[] AndSeparators = [' '];
+
     /// <summary>
     /// Gets or sets the minimum version required (inclusive by default).
     /// </summary>
@@ -173,10 +176,13 @@ public class VersionConstraint
         }
 
         // Remove any non-numeric characters except dots
-        var normalized = Regex.Replace(version, @"[^0-9.]", string.Empty);
+        var normalized = VersionRegex().Replace(version, string.Empty);
 
         return string.IsNullOrEmpty(normalized) ? "0" : normalized;
     }
+
+    [GeneratedRegex(@"[^0-9.]")]
+    private static partial Regex VersionRegex();
 
     /// <summary>
     /// Parses a version string to an integer for comparison.
@@ -231,11 +237,11 @@ public class VersionConstraint
     private static bool EvaluateConstraintExpression(string version, string expression)
     {
         // Split by logical operators (space = AND, || = OR)
-        var orParts = expression.Split(new[] { "||" }, StringSplitOptions.RemoveEmptyEntries);
+        var orParts = expression.Split(OrSeparators, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var orPart in orParts)
         {
-            var andParts = orPart.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var andParts = orPart.Trim().Split(AndSeparators, StringSplitOptions.RemoveEmptyEntries);
 
             // Check if all AND constraints in this OR group are satisfied
             if (andParts.All(constraint => EvaluateSingleConstraint(version, constraint.Trim())))
@@ -258,9 +264,9 @@ public class VersionConstraint
         }
 
         // Caret (^) - compatible with version (same major)
-        if (constraint.StartsWith("^", StringComparison.Ordinal))
+        if (constraint.StartsWith('^'))
         {
-            var targetVersion = constraint.Substring(1);
+            var targetVersion = constraint[1..];
             var versionParts = NormalizeVersion(version).Split('.');
             var targetParts = NormalizeVersion(targetVersion).Split('.');
 
@@ -274,9 +280,9 @@ public class VersionConstraint
         }
 
         // Tilde (~) - approximately equivalent (same major.minor)
-        if (constraint.StartsWith("~", StringComparison.Ordinal))
+        if (constraint.StartsWith('~'))
         {
-            var targetVersion = constraint.Substring(1);
+            var targetVersion = constraint[1..];
             var versionParts = NormalizeVersion(version).Split('.');
             var targetParts = NormalizeVersion(targetVersion).Split('.');
 
@@ -293,27 +299,27 @@ public class VersionConstraint
         // Comparison operators
         if (constraint.StartsWith(">=", StringComparison.Ordinal))
         {
-            return ParseVersionToInt(NormalizeVersion(version)) >= ParseVersionToInt(NormalizeVersion(constraint.Substring(2)));
+            return ParseVersionToInt(NormalizeVersion(version)) >= ParseVersionToInt(NormalizeVersion(constraint[2..]));
         }
 
         if (constraint.StartsWith("<=", StringComparison.Ordinal))
         {
-            return ParseVersionToInt(NormalizeVersion(version)) <= ParseVersionToInt(NormalizeVersion(constraint.Substring(2)));
+            return ParseVersionToInt(NormalizeVersion(version)) <= ParseVersionToInt(NormalizeVersion(constraint[2..]));
         }
 
-        if (constraint.StartsWith(">", StringComparison.Ordinal))
+        if (constraint.StartsWith('>'))
         {
-            return ParseVersionToInt(NormalizeVersion(version)) > ParseVersionToInt(NormalizeVersion(constraint.Substring(1)));
+            return ParseVersionToInt(NormalizeVersion(version)) > ParseVersionToInt(NormalizeVersion(constraint[1..]));
         }
 
-        if (constraint.StartsWith("<", StringComparison.Ordinal))
+        if (constraint.StartsWith('<'))
         {
-            return ParseVersionToInt(NormalizeVersion(version)) < ParseVersionToInt(NormalizeVersion(constraint.Substring(1)));
+            return ParseVersionToInt(NormalizeVersion(version)) < ParseVersionToInt(NormalizeVersion(constraint[1..]));
         }
 
-        if (constraint.StartsWith("=", StringComparison.Ordinal))
+        if (constraint.StartsWith('='))
         {
-            return NormalizeVersion(version) == NormalizeVersion(constraint.Substring(1));
+            return NormalizeVersion(version) == NormalizeVersion(constraint[1..]);
         }
 
         // Plain version - exact match

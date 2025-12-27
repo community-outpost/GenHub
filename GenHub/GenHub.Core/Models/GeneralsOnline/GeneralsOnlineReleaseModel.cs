@@ -7,7 +7,7 @@ namespace GenHub.Core.Models.GeneralsOnline;
 /// This model represents release information from the Generals Online CDN.
 /// Currently uses hardcoded patterns and placeholder sizes until manifest.json API is available.
 /// </summary>
-public class GeneralsOnlineRelease
+public class GeneralsOnlineReleaseModel
 {
     /// <summary>
     /// Gets version string in format: MMDDYY_QFE# (e.g., "101525_QFE5").

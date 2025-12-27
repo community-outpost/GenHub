@@ -1,9 +1,11 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
@@ -20,6 +22,7 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Orchestrates discovery, resolution, and delivery through the content pipeline.
 /// </summary>
 public class GeneralsOnlineProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
@@ -28,6 +31,9 @@ public class GeneralsOnlineProvider(
     ILogger<GeneralsOnlineProvider> logger)
     : BaseContentProvider(contentValidator, logger)
 {
+    private readonly IProviderDefinitionLoader _providerDefinitionLoader = providerDefinitionLoader;
+    private ProviderDefinition? _cachedProviderDefinition;
+
     /// <inheritdoc />
     public override string SourceName => GeneralsOnlineConstants.PublisherType;
 
@@ -46,27 +52,6 @@ public class GeneralsOnlineProvider(
     public override ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
-
-    /// <inheritdoc />
-    protected override IContentDiscoverer Discoverer =>
-        discoverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DiscovererSourceName,
-                StringComparison.OrdinalIgnoreCase));
-
-    /// <inheritdoc />
-    protected override IContentResolver Resolver =>
-        resolvers.First(r =>
-            r.ResolverId.Equals(
-                GeneralsOnlineConstants.ResolverId,
-                StringComparison.OrdinalIgnoreCase));
-
-    /// <inheritdoc />
-    protected override IContentDeliverer Deliverer =>
-        deliverers.First(d =>
-            d.SourceName.Equals(
-                GeneralsOnlineConstants.DelivererSourceName,
-                StringComparison.OrdinalIgnoreCase));
 
     /// <inheritdoc />
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
@@ -149,6 +134,60 @@ public class GeneralsOnlineProvider(
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content validation failed: {ex.Message}");
         }
+    }
+
+    /// <inheritdoc />
+    protected override IContentDiscoverer Discoverer =>
+        discoverers.First(d =>
+            d.SourceName.Equals(
+                GeneralsOnlineConstants.DiscovererSourceName,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc />
+    protected override IContentResolver Resolver =>
+        resolvers.First(r =>
+            r.ResolverId.Equals(
+                GeneralsOnlineConstants.ResolverId,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc />
+    protected override IContentDeliverer Deliverer =>
+        deliverers.First(d =>
+            d.SourceName.Equals(
+                GeneralsOnlineConstants.DelivererSourceName,
+                StringComparison.OrdinalIgnoreCase));
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the GeneralsOnline provider definition loaded from JSON configuration.
+    /// The definition contains endpoint URLs, timeouts, and other configuration that can be
+    /// modified without recompiling the application.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        // Use cached definition if available
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        // Try to get from the loader (it should already be loaded at startup)
+        _cachedProviderDefinition = _providerDefinitionLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                GeneralsOnlineConstants.PublisherType);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                GeneralsOnlineConstants.PublisherType);
+        }
+
+        return _cachedProviderDefinition;
     }
 
     /// <inheritdoc />

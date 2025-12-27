@@ -96,15 +96,15 @@ public class PublisherCardViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([cameraManifest]));
 
         // Act
-        await vm.RefreshInstallationStatusAsync();
+        await vm.RefreshDownloadStatusAsync();
 
         // Assert
-        // Camera mod should be installed
-        cameraItem.IsInstalled.Should().BeTrue("Camera mod should be identified as installed");
+        // Camera mod should be downloaded
+        cameraItem.IsDownloaded.Should().BeTrue("Camera mod should be identified as downloaded");
         cameraItem.AvailableVariants.Should().ContainSingle();
 
-        // HUD mod should NOT be installed (previously failing assertion)
-        hudItem.IsInstalled.Should().BeFalse("HUD mod should NOT be identified as installed just because version matches");
+        // HUD mod should NOT be downloaded
+        hudItem.IsDownloaded.Should().BeFalse("HUD mod should NOT be identified as downloaded just because version matches");
         hudItem.AvailableVariants.Should().BeEmpty();
     }
 
@@ -153,10 +153,10 @@ public class PublisherCardViewModelTests
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([clientManifest]));
 
         // Act
-        await vm.RefreshInstallationStatusAsync();
+        await vm.RefreshDownloadStatusAsync();
 
         // Assert
-        clientItem.IsInstalled.Should().BeTrue("GameClient should match based on version even if name differs");
+        clientItem.IsDownloaded.Should().BeTrue("GameClient should match based on version even if name differs");
         clientItem.AvailableVariants.Should().ContainSingle();
     }
 

@@ -5,8 +5,6 @@ using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 

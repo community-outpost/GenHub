@@ -9,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.ViewModels;
@@ -29,16 +30,16 @@ public partial class DownloadsViewModel(
     private string _title = "Downloads";
 
     [ObservableProperty]
-    private string _description = "Manage your downloads and installations";
+    private string _description = "Manage your downloads";
 
     [ObservableProperty]
-    private bool _isInstallingGeneralsOnline;
+    private bool _isDownloadingGeneralsOnline;
 
     [ObservableProperty]
-    private string _installationStatus = string.Empty;
+    private string _downloadStatus = string.Empty;
 
     [ObservableProperty]
-    private double _installationProgress;
+    private double _downloadProgress;
 
     [ObservableProperty]
     private string _generalsOnlineVersion = "Loading...";
@@ -96,7 +97,7 @@ public partial class DownloadsViewModel(
             {
                 if (card.IsExpanded)
                 {
-                    await card.RefreshInstallationStatusAsync();
+                    await card.RefreshDownloadStatusAsync();
                 }
             }
         }
@@ -663,39 +664,39 @@ public partial class DownloadsViewModel(
     }
 
     [RelayCommand]
-    private async Task InstallGeneralsOnlineAsync()
+    private async Task DownloadGeneralsOnlineAsync()
     {
-        IsInstallingGeneralsOnline = true;
-        InstallationStatus = "Starting...";
-        InstallationProgress = 0;
+        IsDownloadingGeneralsOnline = true;
+        DownloadStatus = "Starting...";
+        DownloadProgress = 0;
 
         try
         {
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GeneralsOnlineConstants.PublisherType);
             if (card != null)
             {
-                await card.InstallLatestCommand.ExecuteAsync(null);
+                await card.DownloadLatestCommand.ExecuteAsync(null);
 
                 // Mirror the card's status if possible, or just reset after a delay since we can't easily bind to the card's internal progress from here without more complex binding
                 // For now, we'll assume the card handles the actual installation UI feedback
-                InstallationStatus = "Installation started via card";
+                DownloadStatus = "Download started via card";
             }
             else
             {
-                logger.LogWarning("Generals Online card not found for installation");
-                InstallationStatus = "Card not found";
+                logger.LogWarning("Generals Online card not found for download");
+                DownloadStatus = "Card not found";
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start Generals Online installation");
-            InstallationStatus = "Error";
+            logger.LogError(ex, "Failed to start Generals Online download");
+            DownloadStatus = "Error";
         }
         finally
         {
             await Task.Delay(2000); // Show status for a bit
-            IsInstallingGeneralsOnline = false;
-            InstallationStatus = string.Empty;
+            IsDownloadingGeneralsOnline = false;
+            DownloadStatus = string.Empty;
         }
     }
 
@@ -707,7 +708,7 @@ public partial class DownloadsViewModel(
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card != null)
             {
-                await card.InstallLatestCommand.ExecuteAsync(null);
+                await card.DownloadLatestCommand.ExecuteAsync(null);
             }
             else
             {
@@ -728,7 +729,7 @@ public partial class DownloadsViewModel(
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card != null)
             {
-                await card.InstallLatestCommand.ExecuteAsync(null);
+                await card.DownloadLatestCommand.ExecuteAsync(null);
             }
             else
             {

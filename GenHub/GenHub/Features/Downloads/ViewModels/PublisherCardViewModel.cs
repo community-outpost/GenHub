@@ -260,10 +260,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     }
 
     /// <summary>
-    /// Refreshes the installation status of all content items by checking the manifest pool.
+    /// Refreshes the download status of all content items by checking the manifest pool.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task RefreshInstallationStatusAsync()
+    public async Task RefreshDownloadStatusAsync()
     {
         try
         {
@@ -325,7 +325,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                     var isDownloaded = variants.Count > 0;
                     item.IsDownloaded = isDownloaded;
-                    item.IsInstalled = isDownloaded;
 
                     // If we have a single variant, ensure the Model ID matches it
                     if (variants.Count == 1)
@@ -533,7 +532,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
         if (IsExpanded)
         {
-            await RefreshInstallationStatusAsync();
+            await RefreshDownloadStatusAsync();
         }
     }
 
@@ -580,8 +579,8 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     item.Model.Id = result.Data.Id.Value;
                     _logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
 
-                    // Refresh installation status to populate variants
-                    await RefreshInstallationStatusAsync();
+                    // Refresh download status to populate variants
+                    await RefreshDownloadStatusAsync();
                 }
 
                 _logger.LogInformation("Successfully downloaded {ItemName}", item.Name);
@@ -614,15 +613,15 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     }
 
     /// <summary>
-    /// Installs the latest content item from this publisher.
+    /// Downloads the latest content item from this publisher.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    private async Task InstallLatestAsync()
+    private async Task DownloadLatestAsync()
     {
         var latestItem = ContentTypes
             .SelectMany(g => g.Items)
-            .Where(i => !i.IsInstalled)
+            .Where(i => !i.IsDownloaded)
             .OrderByDescending(i => i.Model.LastUpdated)
             .FirstOrDefault();
 

@@ -6,7 +6,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Services.Providers;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
@@ -88,8 +90,13 @@ public static class ContentPipelineModule
         // Register cache
         services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();
 
-        // Register core orchestrator
-        services.AddSingleton<IContentOrchestrator, ContentOrchestrator>();
+        // Register provider definition loader for data-driven provider configuration
+        services.AddSingleton<IProviderDefinitionLoader, ProviderDefinitionLoader>();
+
+        // Register catalog parser factory and parsers
+        services.AddSingleton<ICatalogParserFactory, CatalogParserFactory>();
+        services.AddSingleton<ICatalogParser, GenPatcherDatCatalogParser>();
+        services.AddSingleton<ICatalogParser, GeneralsOnlineJsonCatalogParser>();
 
         // Register Octokit GitHub client
         services.AddSingleton<Octokit.IGitHubClient>(sp =>
@@ -266,6 +273,8 @@ public static class ContentPipelineModule
         // Register publisher manifest factory resolver
         services.AddTransient<PublisherManifestFactoryResolver>();
 
+        // Register content pipeline factory for provider-based component lookup
+        services.AddSingleton<IContentPipelineFactory, ContentPipelineFactory>();
         services.AddTransient<PublisherCardViewModel>();
 
         // Register content orchestrator and validator
