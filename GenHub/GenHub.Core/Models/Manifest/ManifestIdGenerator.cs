@@ -232,14 +232,19 @@ public static partial class ManifestIdGenerator
         var lower = input.ToLowerInvariant().Trim();
 
         // Remove all non-alphanumeric characters
-        var normalized = AlphanumericRegex().Replace(lower, string.Empty);
+        var normalized = NonAlphaNumericRegex().Replace(lower, string.Empty);
 
-        return string.IsNullOrEmpty(normalized) ? throw new ArgumentException("Input results in empty string after normalization", nameof(input)) : normalized;
+        if (string.IsNullOrEmpty(normalized))
+        {
+            throw new ArgumentException("Input results in empty string after normalization", nameof(input));
+        }
+
+        return normalized;
     }
 
     [GeneratedRegex(@"[^\d]")]
     private static partial Regex DigitsRegex();
 
     [GeneratedRegex("[^a-zA-Z0-9]")]
-    private static partial Regex AlphanumericRegex();
+    private static partial Regex NonAlphaNumericRegex();
 }

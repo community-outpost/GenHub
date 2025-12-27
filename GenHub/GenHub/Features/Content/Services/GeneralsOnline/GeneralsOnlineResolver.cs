@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,8 +20,8 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Creates the initial manifest structure; post-extraction processing is handled by the factory.
 /// </summary>
 public class GeneralsOnlineResolver(
-    IProviderDefinitionLoader providerLoader,
-    ILogger<GeneralsOnlineResolver> logger) : IContentResolver
+    ILogger<GeneralsOnlineResolver> logger,
+    IProviderDefinitionLoader providerLoader) : IContentResolver
 {
     /// <inheritdoc />
     public string ResolverId => GeneralsOnlineConstants.ResolverId;
@@ -40,19 +41,20 @@ public class GeneralsOnlineResolver(
 
         try
         {
-            var release = searchResult.GetData<GeneralsOnlineRelease>();
+            var release = searchResult.GetData<GenHub.Core.Models.GeneralsOnline.GeneralsOnlineReleaseModel>();
             if (release == null)
             {
                 return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
                     "Release information not found in search result"));
             }
 
-            // Create the primary manifest (30Hz variant) directly
-            var primaryManifest = CreateVariantManifest(
-                release,
-                GameClientConstants.GeneralsOnline30HzExecutable,
-                GeneralsOnlineConstants.Variant30HzSuffix,
-                GameClientConstants.GeneralsOnline30HzDisplayName);
+            var manifests = GeneralsOnlineManifestFactory.CreateManifests(release);
+            var primaryManifest = manifests.FirstOrDefault();
+            if (primaryManifest == null)
+            {
+                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
+                    "Factory created no manifests from release"));
+            }
 
             logger.LogInformation(
                 "Successfully resolved Generals Online manifest ({Variant}) with download URL: {Url}",
@@ -81,7 +83,7 @@ public class GeneralsOnlineResolver(
     {
         try
         {
-            var parts = version.Split(new[] { GeneralsOnlineConstants.QfeSeparator }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = version.Split([GeneralsOnlineConstants.QfeSeparator], StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length != 2)
             {
                 return 0;
@@ -109,13 +111,11 @@ public class GeneralsOnlineResolver(
     /// This creates an INITIAL manifest with download URLs - file hashes are added later by the Factory.
     /// </summary>
     /// <param name="release">The Generals Online release information.</param>
-    /// <param name="executableName">The executable filename for this variant.</param>
     /// <param name="variantSuffix">The suffix for the manifest ID (e.g., "30hz").</param>
     /// <param name="displayName">The display name for this variant (e.g., "GeneralsOnline 30Hz").</param>
     /// <returns>A content manifest for the specified variant.</returns>
     private ContentManifest CreateVariantManifest(
-        GeneralsOnlineRelease release,
-        string executableName,
+        GenHub.Core.Models.GeneralsOnline.GeneralsOnlineReleaseModel release,
         string variantSuffix,
         string displayName)
     {
@@ -160,12 +160,12 @@ public class GeneralsOnlineResolver(
                 Description = GeneralsOnlineConstants.ShortDescription,
                 ReleaseDate = release.ReleaseDate,
                 IconUrl = iconUrl,
-                Tags = new List<string>(GeneralsOnlineConstants.Tags),
+                Tags = [.. GeneralsOnlineConstants.Tags],
                 ChangelogUrl = release.Changelog,
             },
-            Files = new List<ManifestFile>
-            {
-                new ManifestFile
+            Files =
+            [
+                new()
                 {
                     RelativePath = Path.GetFileName(release.PortableUrl),
                     DownloadUrl = release.PortableUrl,
@@ -173,7 +173,7 @@ public class GeneralsOnlineResolver(
                     SourceType = ContentSourceType.RemoteDownload,
                     Hash = string.Empty, // Hash will be computed after extraction by Factory
                 },
-            },
+            ],
             Dependencies = variantSuffix == GeneralsOnlineConstants.Variant60HzSuffix
                 ? GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion)
                 : GeneralsOnlineDependencyBuilder.GetDependenciesFor30Hz(userVersion),

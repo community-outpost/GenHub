@@ -77,7 +77,7 @@ public class GeneralsOnlineDeliverer(
 
             logger.LogDebug("Downloading ZIP from {Url} to {Path}", zipFile.DownloadUrl, zipPath);
             var downloadResult = await downloadService.DownloadFileAsync(
-                zipFile.DownloadUrl!,
+                new Uri(zipFile.DownloadUrl!),
                 zipPath,
                 expectedHash: null,
                 progress: null,

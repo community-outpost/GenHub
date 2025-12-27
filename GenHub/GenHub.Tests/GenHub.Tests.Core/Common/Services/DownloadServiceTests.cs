@@ -53,7 +53,7 @@ public class DownloadServiceTests
         {
             var config = new DownloadConfiguration
             {
-                Url = "http://test/file.bin",
+                Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
                 OverwriteExisting = true,
             };
@@ -101,7 +101,7 @@ public class DownloadServiceTests
         {
             var config = new DownloadConfiguration
             {
-                Url = "http://test/file.bin",
+                Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
                 ExpectedHash = "deadbeef",
             };
@@ -148,7 +148,7 @@ public class DownloadServiceTests
         {
             var config = new DownloadConfiguration
             {
-                Url = "http://test/file.bin",
+                Url = new Uri("http://test/file.bin"),
                 DestinationPath = tempFile,
                 MaxRetryAttempts = 2,
                 RetryDelay = TimeSpan.Zero,

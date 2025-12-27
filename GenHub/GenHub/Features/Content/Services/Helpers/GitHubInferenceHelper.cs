@@ -104,7 +104,7 @@ public static class GitHubInferenceHelper
             tags.Add("Draft");
         }
 
-        return tags.Distinct().ToList();
+        return [.. tags.Distinct()];
     }
 
     /// <summary>

@@ -1,20 +1,33 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System.Collections.ObjectModel;
 
 namespace GenHub.Features.Content.ViewModels;
 
 /// <summary>
 /// ViewModel for a single content item in the discovery browser.
 /// </summary>
-/// <param name="model">The underlying content search result model.</param>
-public partial class ContentItemViewModel(ContentSearchResult model) : ObservableObject
+public partial class ContentItemViewModel : ObservableObject
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContentItemViewModel"/> class.
+    /// </summary>
+    /// <param name="model">The underlying content search result model.</param>
+    public ContentItemViewModel(ContentSearchResult model)
+    {
+        Model = model ?? throw new ArgumentNullException(nameof(model));
+
+        // Subscribe to AvailableVariants changes to notify HasVariants
+        AvailableVariants.CollectionChanged += (s, e) => OnPropertyChanged(nameof(HasVariants));
+    }
+
     /// <summary>
     /// Gets the underlying data model for the content item.
     /// </summary>
-    public ContentSearchResult Model { get; } = model ?? throw new ArgumentNullException(nameof(model));
+    public ContentSearchResult Model { get; }
 
     /// <summary>
     /// Gets the source result for installation.
@@ -47,26 +60,32 @@ public partial class ContentItemViewModel(ContentSearchResult model) : Observabl
     public string IconUrl => Model.IconUrl ?? string.Empty;
 
     /// <summary>
-    /// Gets or sets a value indicating whether this content is already installed.
+    /// Gets or sets a value indicating whether this content is downloaded locally.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanInstall))]
-    private bool _isInstalled;
+    [NotifyPropertyChangedFor(nameof(CanAddToProfile))]
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
+    private bool _isDownloaded;
 
     /// <summary>
-    /// Gets a value indicating whether this content can be installed (not already installed).
+    /// Gets a value indicating whether this content can be added to a profile (must be downloaded).
     /// </summary>
-    public bool CanInstall => !IsInstalled && !IsInstalling;
+    public bool CanAddToProfile => IsDownloaded;
+
+    /// <summary>
+    /// Gets a value indicating whether this content can be downloaded.
+    /// </summary>
+    public bool CanDownload => !IsDownloaded && !IsDownloading;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanInstall))]
-    private bool _isInstalling;
+    [NotifyPropertyChangedFor(nameof(CanDownload))]
+    private bool _isDownloading;
 
     [ObservableProperty]
-    private string _installStatus = string.Empty;
+    private string _downloadStatus = string.Empty;
 
     [ObservableProperty]
-    private int _installProgress;
+    private int _downloadProgress;
 
     /// <summary>
     /// Gets or sets a value indicating whether the changelog view is expanded.
@@ -85,4 +104,14 @@ public partial class ContentItemViewModel(ContentSearchResult model) : Observabl
     {
         IsChangelogExpanded = !IsChangelogExpanded;
     }
+
+    /// <summary>
+    /// Gets the collection of available content variants (e.g., Generals vs Zero Hour, or 30Hz vs 60Hz).
+    /// </summary>
+    public ObservableCollection<ContentManifest> AvailableVariants { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether this content has multiple variants to choose from.
+    /// </summary>
+    public bool HasVariants => AvailableVariants.Count > 0;
 }

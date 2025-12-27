@@ -16,12 +16,9 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
-/// Parses Generals Online JSON catalog data into content search results.
-/// Accepts pre-fetched JSON from the Discoverer in wrapper format containing source type and data.
+/// Parser for Generals Online JSON-based catalogs and manifest responses.
 /// </summary>
-public class GeneralsOnlineJsonCatalogParser(
-    ILogger<GeneralsOnlineJsonCatalogParser> logger
-) : ICatalogParser
+public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogParser> logger) : ICatalogParser
 {
     /// <inheritdoc/>
     public string CatalogFormat => "generalsonline-json-api";
@@ -34,30 +31,28 @@ public class GeneralsOnlineJsonCatalogParser(
     {
         try
         {
-            logger.LogInformation("Parsing Generals Online catalog data");
+            logger.LogInformation("Parsing Generals Online catalog");
 
             if (string.IsNullOrWhiteSpace(catalogContent))
             {
                 logger.LogWarning("Catalog content is empty");
-                return Task.FromResult(
-                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        Enumerable.Empty<ContentSearchResult>()));
+                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                        []));
             }
 
             // Parse the wrapper to determine source type
-            using var document = JsonDocument.Parse(catalogContent);
-            var root = document.RootElement;
+            using var doc = JsonDocument.Parse(catalogContent);
+            var root = doc.RootElement;
 
             if (!root.TryGetProperty("source", out var sourceElement))
             {
-                logger.LogError("Invalid catalog format: missing 'source' property");
-                return Task.FromResult(
-                    OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
-                        "Invalid catalog format"));
+                logger.LogError("Missing 'source' property in catalog metadata");
+                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    "Invalid catalog data format: missing source metadata"));
             }
 
             var source = sourceElement.GetString();
-            GeneralsOnlineRelease? release = null;
+            GeneralsOnlineReleaseModel? release = null;
 
             if (source == "manifest")
             {
@@ -99,81 +94,39 @@ public class GeneralsOnlineJsonCatalogParser(
             if (release == null)
             {
                 logger.LogInformation("No Generals Online releases found in catalog");
-                return Task.FromResult(
-                    OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        Enumerable.Empty<ContentSearchResult>()));
+                return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                        []));
             }
 
             // Create search result from release
             var searchResult = CreateSearchResult(release, provider);
 
-            return Task.FromResult(
-                OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                    new[] { searchResult }));
+            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                    [searchResult]));
         }
         catch (JsonException ex)
         {
             logger.LogError(ex, "Failed to parse Generals Online catalog JSON");
-            return Task.FromResult(
-                OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"JSON parsing failed: {ex.Message}"));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse Generals Online catalog");
-            return Task.FromResult(
-                OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+            return Task.FromResult(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"Catalog parsing failed: {ex.Message}"));
         }
     }
 
     /// <summary>
-    /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
-    /// </summary>
-    private GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
-    {
-        var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
-
-        return new GeneralsOnlineRelease
-        {
-            Version = apiResponse.Version,
-            VersionDate = versionDate,
-            ReleaseDate = versionDate,
-            PortableUrl = apiResponse.DownloadUrl,
-            PortableSize = apiResponse.Size,
-            Changelog = apiResponse.ReleaseNotes ?? $"Generals Online {apiResponse.Version}",
-        };
-    }
-
-    /// <summary>
-    /// Creates a GeneralsOnlineRelease from a version string (latest.txt fallback).
-    /// Constructs download URL using provider configuration.
-    /// </summary>
-    private GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
-    {
-        var versionDate = ParseVersionDate(version) ?? DateTime.Now;
-        var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
-
-        return new GeneralsOnlineRelease
-        {
-            Version = version,
-            VersionDate = versionDate,
-            ReleaseDate = versionDate,
-            PortableUrl = $"{releasesUrl}/GeneralsOnline_portable_{version}{GeneralsOnlineConstants.PortableExtension}",
-            PortableSize = null, // Size unknown when using latest.txt fallback
-            Changelog = $"Generals Online {version}",
-        };
-    }
-
-    /// <summary>
     /// Parses a version string (MMDDYY_QFE#) to extract the date.
     /// </summary>
-    private DateTime? ParseVersionDate(string version)
+    private static DateTime? ParseVersionDate(string version)
     {
         try
         {
             var parts = version.Split(
-                new[] { GeneralsOnlineConstants.QfeSeparator },
+                [GeneralsOnlineConstants.QfeSeparator],
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (parts.Length < 1)
@@ -187,9 +140,9 @@ public class GeneralsOnlineJsonCatalogParser(
                 return null;
             }
 
-            var month = int.Parse(datePart.Substring(0, 2));
-            var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart.Substring(4, 2));
+            var month = int.Parse(datePart[..2]);
+            var day = int.Parse(datePart[2..4]);
+            var year = 2000 + int.Parse(datePart[4..6]);
 
             return new DateTime(year, month, day);
         }
@@ -202,8 +155,8 @@ public class GeneralsOnlineJsonCatalogParser(
     /// <summary>
     /// Creates a ContentSearchResult from a release and provider configuration.
     /// </summary>
-    private ContentSearchResult CreateSearchResult(
-        GeneralsOnlineRelease release,
+    private static ContentSearchResult CreateSearchResult(
+        GeneralsOnlineReleaseModel release,
         ProviderDefinition provider)
     {
         var downloadPageUrl = provider.Endpoints.GetEndpoint("downloadPageUrl");
@@ -240,5 +193,43 @@ public class GeneralsOnlineJsonCatalogParser(
         searchResult.SetData(release);
 
         return searchResult;
+    }
+
+    /// <summary>
+    /// Creates a GeneralsOnlineReleaseModel from a full API response (manifest.json).
+    /// </summary>
+    private static GeneralsOnlineReleaseModel CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
+    {
+        var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
+
+        return new GeneralsOnlineReleaseModel
+        {
+            Version = apiResponse.Version,
+            VersionDate = versionDate,
+            ReleaseDate = versionDate,
+            PortableUrl = apiResponse.DownloadUrl,
+            PortableSize = apiResponse.Size,
+            Changelog = apiResponse.ReleaseNotes ?? $"Generals Online {apiResponse.Version}",
+        };
+    }
+
+    /// <summary>
+    /// Creates a GeneralsOnlineReleaseModel from a version string (latest.txt fallback).
+    /// Constructs download URL using provider configuration.
+    /// </summary>
+    private static GeneralsOnlineReleaseModel CreateReleaseFromVersion(string version, ProviderDefinition provider)
+    {
+        var versionDate = ParseVersionDate(version) ?? DateTime.Now;
+        var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
+
+        return new GeneralsOnlineReleaseModel
+        {
+            Version = version,
+            VersionDate = versionDate,
+            ReleaseDate = versionDate,
+            PortableUrl = $"{releasesUrl}/GeneralsOnline_portable_{version}{GeneralsOnlineConstants.PortableExtension}",
+            PortableSize = null, // Size unknown when using latest.txt fallback
+            Changelog = $"Generals Online {version}",
+        };
     }
 }

@@ -59,7 +59,7 @@ public class ContentPipelineIntegrationTests
         var searchResult = await discoverer.DiscoverAsync(query, CancellationToken.None);
 
         Assert.True(searchResult.Success);
-        var release = searchResult.Data.First().GetData<Core.Models.GeneralsOnline.GeneralsOnlineRelease>();
+        var release = searchResult.Data.First().GetData<Core.Models.GeneralsOnline.GeneralsOnlineReleaseModel>();
         Assert.NotNull(release);
 
         // Create manifests using factory

@@ -96,7 +96,7 @@ public class TestFileOperationsService : IFileOperationsService
         => _innerService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
 
     /// <inheritdoc/>
-    public Task DownloadFileAsync(string url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task DownloadFileAsync(Uri url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         => _innerService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
 
     /// <inheritdoc/>

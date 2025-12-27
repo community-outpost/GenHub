@@ -20,7 +20,7 @@ public class DownloadProgress
         long bytesReceived,
         long totalBytes,
         string fileName,
-        string url,
+        Uri url,
         long bytesPerSecond,
         TimeSpan elapsedTime = default)
     {
@@ -42,7 +42,7 @@ public class DownloadProgress
     public string FileName { get; }
 
     /// <summary>Gets the download URL.</summary>
-    public string Url { get; }
+    public Uri Url { get; }
 
     /// <summary>Gets the current download speed in bytes per second.</summary>
     public long BytesPerSecond { get; }

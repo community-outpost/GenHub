@@ -22,6 +22,12 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// </summary>
 public class MixedInstallationIntegrationTests : IDisposable
 {
+    private static async Task CreateTestFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, content);
+    }
+
     private readonly string _tempSteamInstall;
     private readonly string _tempCommunityClient;
     private readonly string _tempModsFolder;
@@ -290,9 +296,9 @@ public class MixedInstallationIntegrationTests : IDisposable
             Version = "2.1.0",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>
-            {
-                new ManifestFile
+            Files =
+            [
+                new()
                 {
                     RelativePath = "generals.exe",
                     SourcePath = Path.Combine(_tempCommunityClient, "generals.exe"),
@@ -301,10 +307,10 @@ public class MixedInstallationIntegrationTests : IDisposable
                     SourceType = ContentSourceType.LocalFile,
                     IsRequired = true,
                 },
-            },
-            Dependencies = new List<ContentDependency>
-            {
-                new ContentDependency
+            ],
+            Dependencies =
+            [
+                new()
                 {
                     Name = "Zero Hour Installation Required",
                     DependencyType = ContentType.GameInstallation,
@@ -312,7 +318,7 @@ public class MixedInstallationIntegrationTests : IDisposable
                     // Note: In real usage, ProfileLauncherFacade validates TargetGame compatibility
                     // This test demonstrates workspace can be created but would fail at launch validation
                 },
-            },
+            ],
         };
 
         var config = new WorkspaceConfiguration
@@ -407,6 +413,8 @@ public class MixedInstallationIntegrationTests : IDisposable
     {
         if (_disposed) return;
 
+        GC.SuppressFinalize(this);
+
         try
         {
             if (Directory.Exists(_tempSteamInstall)) Directory.Delete(_tempSteamInstall, true);
@@ -442,12 +450,6 @@ public class MixedInstallationIntegrationTests : IDisposable
         File.WriteAllText(Path.Combine(_tempModsFolder, "ShockWave", "Data", "Scripts", "CustomScript.scb"), "[ShockWave] Custom script");
     }
 
-    private async Task CreateTestFile(string path, string content)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        await File.WriteAllTextAsync(path, content);
-    }
-
     private ContentManifest CreateManifest(string id, string name, ContentType contentType, (string RelativePath, string SourcePath)[] files)
     {
         var manifest = new ContentManifest
@@ -457,7 +459,7 @@ public class MixedInstallationIntegrationTests : IDisposable
             Version = "1.0.0",
             ContentType = contentType,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         foreach (var (relativePath, sourcePath) in files)

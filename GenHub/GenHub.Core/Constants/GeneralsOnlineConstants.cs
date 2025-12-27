@@ -25,6 +25,15 @@ public static class GeneralsOnlineConstants
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/generalsonline-logo.png";
 
+    /// <summary>Official website URL.</summary>
+    public const string WebsiteUrl = "https://www.playgenerals.online";
+
+    /// <summary>Support URL (Discord).</summary>
+    public const string SupportUrl = "https://discord.gg/generalsonline";
+
+    /// <summary>Download page URL.</summary>
+    public const string DownloadPageUrl = "https://www.playgenerals.online/download";
+
     // ===== Version Parsing =====
 
     /// <summary>Format for parsing version dates (DDMMYY).</summary>

@@ -17,7 +17,7 @@ public class DownloadConfigurationTests
         var config = new DownloadConfiguration();
 
         // Assert
-        Assert.Equal(string.Empty, config.Url);
+        Assert.Null(config.Url);
         Assert.Equal(string.Empty, config.DestinationPath);
         Assert.Null(config.ExpectedHash);
         Assert.True(config.OverwriteExisting);
@@ -55,21 +55,26 @@ public class DownloadConfigurationTests
         var retryDelay = TimeSpan.FromSeconds(2);
 
         // Act
-        config.Url = url;
+        config.Url = new Uri(url);
         config.DestinationPath = destinationPath;
         config.ExpectedHash = expectedHash;
         config.OverwriteExisting = false;
         config.Timeout = timeout;
         config.BufferSize = bufferSize;
         config.ProgressReportingInterval = progressInterval;
-        config.Headers = headers;
+        config.Headers.Clear();
+        foreach (var header in headers)
+        {
+            config.Headers.Add(header.Key, header.Value);
+        }
+
         config.UserAgent = userAgent;
         config.VerifySslCertificate = false;
         config.MaxRetryAttempts = maxRetryAttempts;
         config.RetryDelay = retryDelay;
 
         // Assert
-        Assert.Equal(url, config.Url);
+        Assert.Equal(url, config.Url.ToString());
         Assert.Equal(destinationPath, config.DestinationPath);
         Assert.Equal(expectedHash, config.ExpectedHash);
         Assert.False(config.OverwriteExisting);
@@ -95,10 +100,8 @@ public class DownloadConfigurationTests
     public void BufferSize_AcceptsValidValues(int bufferSize)
     {
         // Arrange
-        var config = new DownloadConfiguration();
-
         // Act
-        config.BufferSize = bufferSize;
+        var config = new DownloadConfiguration { BufferSize = bufferSize };
 
         // Assert
         Assert.Equal(bufferSize, config.BufferSize);
@@ -117,10 +120,8 @@ public class DownloadConfigurationTests
     public void MaxRetryAttempts_AcceptsValidValues(int maxRetryAttempts)
     {
         // Arrange
-        var config = new DownloadConfiguration();
-
         // Act
-        config.MaxRetryAttempts = maxRetryAttempts;
+        var config = new DownloadConfiguration { MaxRetryAttempts = maxRetryAttempts };
 
         // Assert
         Assert.Equal(maxRetryAttempts, config.MaxRetryAttempts);

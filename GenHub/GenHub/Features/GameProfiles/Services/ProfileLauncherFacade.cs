@@ -273,7 +273,7 @@ public class ProfileLauncherFacade(
 
             var profile = profileResult.Data!;
 
-            var errors = new List<string>();
+            List<string> errors = [];
 
             // Basic validation
             if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
@@ -480,7 +480,7 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
             }
 
-            var manifests = resolutionResult.ResolvedManifests.ToList();
+            List<ContentManifest> manifests = [.. resolutionResult.ResolvedManifests];
 
             // CAS preflight check - verify all CAS content is available before workspace preparation.
             // This prevents late failure and ensures early error detection.
@@ -758,7 +758,7 @@ public class ProfileLauncherFacade(
     /// <returns>A list of validation error messages.</returns>
     private List<string> ValidateDependencies(List<ContentManifest> manifests, GameType profileGameType)
     {
-        var errors = new List<string>();
+        List<string> errors = [];
 
         try
         {
@@ -949,7 +949,6 @@ public class ProfileLauncherFacade(
                     */
                 }
 
-                // Check for conflicts
                 if (manifest.Dependencies.Count > 0)
                 {
                     foreach (var dependency in manifest.Dependencies.Where(d => d.ConflictsWith.Count > 0))
@@ -1160,7 +1159,7 @@ public class ProfileLauncherFacade(
     /// <returns>Success if all CAS content is available, failure with missing hash list otherwise.</returns>
     private async Task<OperationResult<bool>> VerifyCasContentAvailabilityAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
-        var missingHashes = new List<string>();
+        List<string> missingHashes = [];
 
         foreach (var manifest in manifests)
         {

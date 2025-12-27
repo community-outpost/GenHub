@@ -201,7 +201,7 @@ public class CasStorage(
                 {
                     if (!Directory.Exists(_objectsDirectory))
                     {
-                        return Array.Empty<string>();
+                        return [];
                     }
 
                     return Directory.GetFiles(_objectsDirectory, "*", SearchOption.AllDirectories)
@@ -320,8 +320,6 @@ public class CasStorage(
             _directoriesEnsured = true;
         }
     }
-
-
 
     private class CasLock(string lockPath, FileStream lockStream) : IAsyncDisposable
     {

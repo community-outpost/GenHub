@@ -486,7 +486,7 @@ public class FileOperationsService(
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous download operation.</returns>
     public async Task DownloadFileAsync(
-        string url,
+        Uri url,
         string destinationPath,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -508,7 +508,7 @@ public class FileOperationsService(
             _logger.LogInformation(
                 "Downloaded {Bytes} bytes from {Url} to {Destination}",
                 result.BytesDownloaded,
-                url,
+                url.ToString(),
                 destinationPath);
         }
         catch (Exception ex)

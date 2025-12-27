@@ -1,0 +1,306 @@
+name: GenHub Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  BUILD_CONFIGURATION: 'Release'
+  CORE_PROJECT: 'GenHub/GenHub.Core/GenHub.Core.csproj'
+  UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
+  WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
+  LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Extract Build Info
+        id: buildinfo
+        shell: pwsh
+        run: |
+          $shortHash = "${{ github.sha }}".Substring(0, 7)
+          $runNumber = "${{ github.run_number }}"
+          $version = "0.0.$runNumber"
+          $channel = "Release"
+
+          Write-Host "Release Build Info:"
+          Write-Host "  Short Hash: $shortHash"
+          Write-Host "  Run Number: $runNumber"
+          Write-Host "  Version: $version"
+          Write-Host "  Channel: $channel"
+
+          echo "SHORT_HASH=$shortHash" >> $env:GITHUB_OUTPUT
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "CHANNEL=$channel" >> $env:GITHUB_OUTPUT
+
+      - name: Build Windows Projects
+        shell: pwsh
+        run: |
+          $buildProps = @(
+            "-p:Version=${{ steps.buildinfo.outputs.VERSION }}"
+            "-p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }}"
+            "-p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+          )
+
+          Write-Host "Building Core project"
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+
+      - name: Publish Windows App
+        shell: pwsh
+        run: |
+          $buildProps = @(
+            "-p:Version=${{ steps.buildinfo.outputs.VERSION }}"
+            "-p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }}"
+            "-p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+          )
+
+          Write-Host "Publishing Windows application"
+          dotnet publish "${{ env.WINDOWS_PROJECT }}" `
+            -c ${{ env.BUILD_CONFIGURATION }} `
+            -r win-x64 `
+            --self-contained true `
+            -o "win-publish" `
+            @buildProps
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Create Velopack Windows Package
+        shell: pwsh
+        run: |
+          Write-Host "Creating Velopack Windows package..."
+          vpk pack `
+            --packId GenHub `
+            --packVersion ${{ steps.buildinfo.outputs.VERSION }} `
+            --packDir win-publish `
+            --mainExe GenHub.Windows.exe `
+            --packTitle "GenHub" `
+            --packAuthors "Community Outpost" `
+            --icon GenHub/GenHub/Assets/Icons/generalshub.ico `
+            --outputDir velopack-release-windows
+
+          Write-Host "Windows artifacts created:"
+          Get-ChildItem -Path "velopack-release-windows" -Recurse | Select-Object Name, Length
+
+      - name: Upload Windows Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-${{ steps.buildinfo.outputs.VERSION }}
+          path: velopack-release-windows/*
+          if-no-files-found: error
+          retention-days: 2
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install Linux Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libx11-dev
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Extract Build Info
+        id: buildinfo
+        run: |
+          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+          RUN_NUMBER="${{ github.run_number }}"
+          VERSION="0.0.${RUN_NUMBER}"
+          CHANNEL="Release"
+
+          echo "Release Build Info:"
+          echo "  Short Hash: $SHORT_HASH"
+          echo "  Run Number: $RUN_NUMBER"
+          echo "  Version: $VERSION"
+          echo "  Channel: $CHANNEL"
+
+          echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_OUTPUT
+
+      - name: Build Linux Projects
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          echo "Building Linux projects"
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.LINUX_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+
+      - name: Publish Linux App
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          echo "Publishing Linux application"
+          dotnet publish "${{ env.LINUX_PROJECT }}" \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -r linux-x64 \
+            --self-contained true \
+            -o "linux-publish" \
+            $BUILD_PROPS
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Create Velopack Linux Package
+        run: |
+          echo "Creating Velopack Linux package..."
+          vpk pack \
+            --packId GenHub \
+            --packVersion ${{ steps.buildinfo.outputs.VERSION }} \
+            --packDir linux-publish \
+            --mainExe GenHub.Linux \
+            --packTitle "GenHub" \
+            --packAuthors "Community Outpost" \
+            --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
+            --outputDir velopack-release-linux
+
+          echo "Linux artifacts created:"
+          ls -lh velopack-release-linux/
+
+      - name: Upload Linux Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-${{ steps.buildinfo.outputs.VERSION }}
+          path: velopack-release-linux/*
+          if-no-files-found: error
+          retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Version
+        id: version
+        # We can reconstruct version from run_number since it's deterministic and identical across jobs
+        run: |
+          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="0.0.${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-release-${{ steps.version.outputs.VERSION }}
+          path: release-assets/windows
+
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release-${{ steps.version.outputs.VERSION }}
+          path: release-assets/linux
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir final-assets
+
+          # Copy Windows assets
+          cp release-assets/windows/*.nupkg final-assets/
+          cp release-assets/windows/RELEASES final-assets/
+          cp release-assets/windows/*-Setup.exe final-assets/
+          cp release-assets/windows/*.json final-assets/ || true
+
+          # Copy Linux assets
+          cp release-assets/linux/*.nupkg final-assets/
+          cp release-assets/linux/*.json final-assets/ || true
+
+          echo "Final release assets:"
+          ls -lh final-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: GenHub Alpha v${{ steps.version.outputs.VERSION }}
+          prerelease: true
+          draft: false
+          body: |
+            ## GenHub Alpha Release v${{ steps.version.outputs.VERSION }}
+
+            ### 📦 Installation
+
+            **First-time users (Windows):**
+            - Download `GenHub-win-Setup.exe` and run it
+
+            **Existing users:**
+            - The app will auto-update using Velopack
+
+            ### 📝 Build Information
+            - **Version:** ${{ steps.version.outputs.VERSION }}
+            - **Commit:** ${{ steps.version.outputs.SHORT_HASH }}
+            - **Channel:** Release
+
+            ### 🔧 Assets Included
+            - `GenHub-win-Setup.exe` - Windows installer
+            - `GenHub-{version}-win-full.nupkg` - Windows update package
+            - `GenHub-{version}-linux-full.nupkg` - Linux update package
+            - `RELEASES` - Windows update metadata
+          files: final-assets/*
+
+      - name: Build Summary
+        run: |
+          echo "### 🚀 GenHub Release v${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Release created successfully" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ steps.version.outputs.SHORT_HASH }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Assets Published" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows Setup Installer" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows Update Package" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux Update Package" >> $GITHUB_STEP_SUMMARY
+          echo "- Update Metadata Files" >> $GITHUB_STEP_SUMMARY

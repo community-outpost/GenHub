@@ -41,7 +41,7 @@ public class DownloadService(
 
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
-        string url,
+        Uri url,
         string destinationPath,
         string? expectedHash = null,
         IProgress<DownloadProgress>? progress = null,

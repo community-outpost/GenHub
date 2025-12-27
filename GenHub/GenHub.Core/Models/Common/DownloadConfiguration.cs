@@ -20,7 +20,7 @@ public sealed class DownloadConfiguration
         UserAgent = ApiConstants.DefaultUserAgent;
         BufferSize = DownloadDefaults.BufferSizeBytes;
         Timeout = DefaultTimeout;
-        Url = string.Empty;
+        Url = null!;
         DestinationPath = string.Empty;
         OverwriteExisting = true;
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
@@ -40,7 +40,7 @@ public sealed class DownloadConfiguration
     public TimeSpan Timeout { get; set; }
 
     /// <summary>Gets or sets the download URL.</summary>
-    public string Url { get; set; }
+    public Uri Url { get; set; }
 
     /// <summary>Gets or sets the destination file path.</summary>
     public string DestinationPath { get; set; }
@@ -54,8 +54,8 @@ public sealed class DownloadConfiguration
     /// <summary>Gets or sets the progress reporting interval.</summary>
     public TimeSpan ProgressReportingInterval { get; set; }
 
-    /// <summary>Gets or sets custom HTTP headers.</summary>
-    public Dictionary<string, string> Headers { get; set; }
+    /// <summary>Gets custom HTTP headers.</summary>
+    public Dictionary<string, string> Headers { get; }
 
     /// <summary>Gets or sets a value indicating whether to verify SSL certificates.</summary>
     public bool VerifySslCertificate { get; set; }

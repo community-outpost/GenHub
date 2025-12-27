@@ -19,32 +19,12 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Discovers Generals Online releases by querying the CDN API.
 /// Fetches catalog data and delegates parsing to <see cref="GeneralsOnlineJsonCatalogParser"/>.
 /// </summary>
-public class GeneralsOnlineDiscoverer : IContentDiscoverer
+public class GeneralsOnlineDiscoverer(
+    ILogger<GeneralsOnlineDiscoverer> logger,
+    IProviderDefinitionLoader providerLoader,
+    ICatalogParserFactory catalogParserFactory,
+    IHttpClientFactory httpClientFactory) : IContentDiscoverer
 {
-    private readonly ILogger<GeneralsOnlineDiscoverer> _logger;
-    private readonly IProviderDefinitionLoader _providerLoader;
-    private readonly ICatalogParserFactory _catalogParserFactory;
-    private readonly IHttpClientFactory _httpClientFactory;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GeneralsOnlineDiscoverer"/> class.
-    /// </summary>
-    /// <param name="logger">The logger for diagnostic information.</param>
-    /// <param name="providerLoader">Provider definition loader.</param>
-    /// <param name="catalogParserFactory">Factory for getting catalog parsers.</param>
-    /// <param name="httpClientFactory">HTTP client factory for fetching catalog data.</param>
-    public GeneralsOnlineDiscoverer(
-        ILogger<GeneralsOnlineDiscoverer> logger,
-        IProviderDefinitionLoader providerLoader,
-        ICatalogParserFactory catalogParserFactory,
-        IHttpClientFactory httpClientFactory)
-    {
-        _logger = logger;
-        _providerLoader = providerLoader;
-        _catalogParserFactory = catalogParserFactory;
-        _httpClientFactory = httpClientFactory;
-    }
-
     /// <inheritdoc />
     public string SourceName => GeneralsOnlineConstants.PublisherType;
 
@@ -54,18 +34,10 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     /// <inheritdoc />
     public bool IsEnabled => true;
 
-    /// <inheritdoc />
+    /// <inheritdoc/>
     public ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
-
-    /// <summary>
-    /// Disposes resources used by the discoverer.
-    /// </summary>
-    public void Dispose()
-    {
-        // No resources to dispose
-    }
 
     /// <summary>
     /// Discovers Generals Online releases from CDN API using provider definition.
@@ -88,18 +60,18 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     {
         try
         {
-            _logger.LogInformation("Discovering Generals Online releases");
+            logger.LogInformation("Discovering Generals Online releases");
 
             // Get provider definition if not provided
-            provider ??= _providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+            provider ??= providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
             if (provider == null)
             {
-                _logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
+                logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"Provider definition '{GeneralsOnlineConstants.PublisherType}' not found. Ensure generalsonline.provider.json exists.");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Using provider configuration - CatalogUrl: {CatalogUrl}, CatalogFormat: {Format}",
                 provider.Endpoints.CatalogUrl,
                 provider.CatalogFormat);
@@ -113,10 +85,10 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
             }
 
             // Step 2: Get the catalog parser for this provider's format
-            var parser = _catalogParserFactory.GetParser(provider.CatalogFormat);
+            var parser = catalogParserFactory.GetParser(provider.CatalogFormat);
             if (parser == null)
             {
-                _logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
+                logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"No catalog parser registered for format '{provider.CatalogFormat}'");
             }
@@ -142,7 +114,7 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover Generals Online releases");
+            logger.LogError(ex, "Failed to discover Generals Online releases");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                 $"Discovery failed: {ex.Message}");
         }
@@ -152,19 +124,14 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
     /// Fetches catalog data from Generals Online CDN.
     /// Tries manifest.json first, falls back to latest.txt.
     /// </summary>
-    /// <param name="provider">The provider configuration.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>
-    /// JSON string containing catalog data, or null if CDN is unreachable.
-    /// Format: JSON object with "source" field indicating which endpoint responded.
-    /// </returns>
+    /// <returns>The catalog content as a string, or null if fetch failed.</returns>
     private async Task<string?> FetchCatalogDataAsync(
         ProviderDefinition provider,
         CancellationToken cancellationToken)
     {
         try
         {
-            using var httpClient = _httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
+            using var httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
             httpClient.Timeout = TimeSpan.FromSeconds(provider.Timeouts.CatalogTimeoutSeconds);
 
             var catalogUrl = provider.Endpoints.CatalogUrl;
@@ -173,7 +140,7 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
             // Try manifest.json first (full API response)
             if (!string.IsNullOrEmpty(catalogUrl))
             {
-                _logger.LogDebug("Fetching catalog from {Url}", catalogUrl);
+                logger.LogDebug("Fetching catalog from {Url}", catalogUrl);
                 try
                 {
                     var response = await httpClient.GetAsync(catalogUrl, cancellationToken);
@@ -182,7 +149,7 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
                         var json = await response.Content.ReadAsStringAsync(cancellationToken);
                         if (!string.IsNullOrWhiteSpace(json))
                         {
-                            _logger.LogInformation("Successfully fetched catalog from manifest.json");
+                            logger.LogInformation("Successfully fetched catalog from manifest.json");
 
                             // Wrap in metadata so parser knows the source
                             return $"{{\"source\":\"manifest\",\"data\":{json}}}";
@@ -191,14 +158,14 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogWarning(ex, "Failed to fetch manifest.json, trying latest.txt");
+                    logger.LogWarning(ex, "Failed to fetch manifest.json, trying latest.txt");
                 }
             }
 
             // Fall back to latest.txt (simple version polling)
             if (!string.IsNullOrEmpty(latestVersionUrl))
             {
-                _logger.LogDebug("Fetching version from {Url}", latestVersionUrl);
+                logger.LogDebug("Fetching version from {Url}", latestVersionUrl);
                 try
                 {
                     var response = await httpClient.GetAsync(latestVersionUrl, cancellationToken);
@@ -208,7 +175,7 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
                         version = version?.Trim();
                         if (!string.IsNullOrWhiteSpace(version))
                         {
-                            _logger.LogInformation("Successfully fetched version from latest.txt: {Version}", version);
+                            logger.LogInformation("Successfully fetched version from latest.txt: {Version}", version);
 
                             // Wrap in metadata so parser knows the source
                             return $"{{\"source\":\"latest\",\"version\":\"{version}\"}}";
@@ -217,16 +184,16 @@ public class GeneralsOnlineDiscoverer : IContentDiscoverer
                 }
                 catch (HttpRequestException ex)
                 {
-                    _logger.LogWarning(ex, "Failed to fetch latest.txt");
+                    logger.LogWarning(ex, "Failed to fetch latest.txt");
                 }
             }
 
-            _logger.LogWarning("Generals Online CDN is unreachable");
+            logger.LogWarning("Generals Online CDN is unreachable");
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch Generals Online catalog");
+            logger.LogError(ex, "Failed to fetch Generals Online catalog");
             return null;
         }
     }

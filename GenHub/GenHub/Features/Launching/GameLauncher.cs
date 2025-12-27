@@ -16,6 +16,7 @@ using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -38,11 +39,13 @@ public class GameLauncher(
     IWorkspaceManager workspaceManager,
     IGameProcessManager processManager,
     IContentManifestPool manifestPool,
+    IDependencyResolver dependencyResolver,
     ILaunchRegistry launchRegistry,
     IGameInstallationService gameInstallationService,
     ICasService casService,
     IStorageLocationService storageLocationService,
-    IGameSettingsService gameSettingsService) : IGameLauncher
+    IGameSettingsService gameSettingsService,
+    IProfileContentLinker profileContentLinker) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
@@ -451,34 +454,34 @@ public class GameLauncher(
             // Report validating profile
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.ValidatingProfile, PercentComplete = 0 });
 
-            // Resolve content manifests
-            logger.LogDebug("[GameLauncher] Resolving {Count} enabled content manifests", profile.EnabledContentIds?.Count ?? 0);
+            // Resolve content manifests WITH dependencies
+            // This ensures that when a GameClient depends on a MapPack, the MapPack is included
+            logger.LogDebug("[GameLauncher] Resolving {Count} enabled content manifests with dependencies", profile.EnabledContentIds?.Count ?? 0);
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
 
-            var manifests = new List<ContentManifest>();
-            foreach (var contentId in profile.EnabledContentIds ?? Enumerable.Empty<string>())
+            var enabledIds = profile.EnabledContentIds ?? Enumerable.Empty<string>();
+            var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(enabledIds, cancellationToken);
+
+            if (!resolutionResult.Success)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                logger.LogDebug("[GameLauncher] Loading manifest: {ContentId}", contentId);
-                var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                if (!manifestResult.Success)
-                {
-                    logger.LogError("[GameLauncher] Failed to resolve manifest {ContentId}: {Error}", contentId, manifestResult.FirstError);
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content '{contentId}': {manifestResult.FirstError}", launchId, profile.Id);
-                }
-
-                if (manifestResult.Data == null)
-                {
-                    logger.LogError("[GameLauncher] Manifest {ContentId} returned null data", contentId);
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Content manifest '{contentId}' not found", launchId, profile.Id);
-                }
-
-                logger.LogDebug("[GameLauncher] Manifest loaded: {Name} (Type: {Type})", manifestResult.Data.Name, manifestResult.Data.ContentType);
-                manifests.Add(manifestResult.Data);
+                logger.LogError("[GameLauncher] Failed to resolve content dependencies: {Error}", resolutionResult.FirstError);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content dependencies: {resolutionResult.FirstError}", launchId, profile.Id);
             }
 
-            logger.LogInformation("[GameLauncher] Resolved {Count} manifests successfully", manifests.Count);
+            if (resolutionResult.Warnings?.Any() == true)
+            {
+                foreach (var warning in resolutionResult.Warnings)
+                {
+                    logger.LogWarning("[GameLauncher] Dependency resolution warning: {Warning}", warning);
+                }
+            }
+
+            var manifests = resolutionResult.ResolvedManifests.ToList();
+            logger.LogInformation(
+                "[GameLauncher] Resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
+                manifests.Count,
+                enabledIds.Count());
+
             foreach (var manifest in manifests)
             {
                 logger.LogDebug(
@@ -616,6 +619,32 @@ public class GameLauncher(
 
             var workspaceInfo = workspaceResult.Data;
             logger.LogInformation("[GameLauncher] Workspace prepared successfully: {WorkspaceId}", workspaceInfo.Id);
+
+            // Prepare user data content (maps, replays, etc.) for this profile
+            // This creates hard links from CAS to user's Documents folder for content with UserMapsDirectory, etc. install targets
+            // Uses SwitchProfileUserDataAsync to deactivate any other profile's user data first (unlinks their maps)
+            progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
+            var previousActiveProfileId = profileContentLinker.GetActiveProfileId();
+            logger.LogDebug(
+                "[GameLauncher] Switching user data from profile {OldProfile} to {NewProfile}",
+                previousActiveProfileId ?? "(none)",
+                profile.Id);
+            var userDataResult = await profileContentLinker.SwitchProfileUserDataAsync(
+                previousActiveProfileId,
+                profile.Id,
+                manifests,
+                profile.GameClient?.GameType ?? GameType.ZeroHour,
+                cancellationToken);
+            if (!userDataResult.Success)
+            {
+                // User data preparation failures are warnings, not fatal errors - the game can still launch
+                // Maps/replays just won't be available until content is fixed
+                logger.LogWarning("[GameLauncher] User data preparation had issues: {Error}", userDataResult.FirstError);
+            }
+            else
+            {
+                logger.LogInformation("[GameLauncher] User data content prepared for profile {ProfileId}", profile.Id);
+            }
 
             // Start the process
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });

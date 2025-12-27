@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Tests.Core.Infrastructure;

@@ -8,7 +8,7 @@ public class GitHubOptions
     /// <summary>
     /// Gets or sets the GitHub API base URL.
     /// </summary>
-    public string ApiBaseUrl { get; set; } = "https://api.github.com";
+    public Uri ApiBaseUrl { get; set; } = new Uri("https://api.github.com");
 
     /// <summary>
     /// Gets or sets the product header value for GitHub API requests.

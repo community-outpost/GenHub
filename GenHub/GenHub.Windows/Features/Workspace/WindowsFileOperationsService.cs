@@ -33,7 +33,7 @@ public class WindowsFileOperationsService(
         => baseService.VerifyFileHashAsync(filePath, expectedHash, cancellationToken);
 
     /// <inheritdoc/>
-    public Task DownloadFileAsync(string url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task DownloadFileAsync(Uri url, string destinationPath, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         => baseService.DownloadFileAsync(url, destinationPath, progress, cancellationToken);
 
     /// <inheritdoc/>

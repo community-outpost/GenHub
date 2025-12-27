@@ -91,24 +91,24 @@
                            Foreground="#AAAAAA"
                            HorizontalAlignment="Center" />
           
-                <!-- Installation Progress -->
-                <StackPanel IsVisible="{Binding IsInstallingGeneralsOnline}"
+                <!-- Download Progress -->
+                <StackPanel IsVisible="{Binding IsDownloadingGeneralsOnline}"
                             Margin="0,20,0,0"
                             HorizontalAlignment="Center"
                             MinWidth="400">
-                    <TextBlock Text="{Binding InstallationStatus}"
+                    <TextBlock Text="{Binding DownloadStatus}"
                                FontSize="14"
                                Foreground="White"
                                HorizontalAlignment="Center"
                                Margin="0,0,0,10" />
-                    <ProgressBar Value="{Binding InstallationProgress}"
+                    <ProgressBar Value="{Binding DownloadProgress}"
                                  Minimum="0"
                                  Maximum="100"
                                  Height="6"
                                  Foreground="#4CAF50"
                                  Background="#333333"
                                  BorderThickness="0" />
-                    <TextBlock Text="{Binding InstallationProgress, StringFormat={}{0:F0}%}"
+                    <TextBlock Text="{Binding DownloadProgress, StringFormat={}{0:F0}%}"
                                FontSize="12"
                                Foreground="#AAAAAA"
                                HorizontalAlignment="Center"

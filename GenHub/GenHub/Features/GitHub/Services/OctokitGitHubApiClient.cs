@@ -266,7 +266,7 @@ public class OctokitGitHubApiClient(
         catch (RateLimitExceededException ex)
         {
             logger.LogWarning("Rate limit exceeded when fetching releases for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
-            return Enumerable.Empty<GitHubRelease>();
+            return [];
         }
         catch (Exception ex)
         {
@@ -298,7 +298,7 @@ public class OctokitGitHubApiClient(
             logger.LogWarning("Authentication required for workflow runs. Returning empty list. Configure token in settings to access workflows.");
             return new GitHubWorkflowRunsResult
             {
-                WorkflowRuns = Enumerable.Empty<GitHubWorkflowRun>(),
+                WorkflowRuns = [],
                 HasMore = false,
             };
         }
@@ -394,7 +394,7 @@ public class OctokitGitHubApiClient(
             logger.LogWarning(ex, "Workflow API call was cancelled for {Owner}/{Repo}", owner, repo);
             return new GitHubWorkflowRunsResult
             {
-                WorkflowRuns = Enumerable.Empty<GitHubWorkflowRun>(),
+                WorkflowRuns = [],
                 HasMore = false,
             };
         }
@@ -403,7 +403,7 @@ public class OctokitGitHubApiClient(
             logger.LogWarning("Rate limit exceeded when fetching workflow runs for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
             return new GitHubWorkflowRunsResult
             {
-                WorkflowRuns = Enumerable.Empty<GitHubWorkflowRun>(),
+                WorkflowRuns = [],
                 HasMore = false,
             };
         }
@@ -413,7 +413,7 @@ public class OctokitGitHubApiClient(
             Console.WriteLine($"[WORKFLOW DEBUG] ERROR: {ex.Message}");
             return new GitHubWorkflowRunsResult
             {
-                WorkflowRuns = Enumerable.Empty<GitHubWorkflowRun>(),
+                WorkflowRuns = [],
                 HasMore = false,
             };
         }
@@ -436,7 +436,7 @@ public class OctokitGitHubApiClient(
         if (!IsAuthenticated)
         {
             logger.LogWarning("Authentication required for artifacts. Returning empty list. Configure token in settings to access artifacts.");
-            return Enumerable.Empty<GitHubArtifact>();
+            return [];
         }
 
         try
@@ -448,12 +448,12 @@ public class OctokitGitHubApiClient(
         catch (RateLimitExceededException ex)
         {
             logger.LogWarning("Rate limit exceeded when fetching artifacts for workflow run {RunId}. Reset at: {ResetTime}", runId, ex.Reset);
-            return Enumerable.Empty<GitHubArtifact>();
+            return [];
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get artifacts for workflow run {RunId}", runId);
-            return Enumerable.Empty<GitHubArtifact>();
+            return [];
         }
     }
 
@@ -533,7 +533,7 @@ public class OctokitGitHubApiClient(
         int page = 1,
         CancellationToken cancellationToken = default)
     {
-        return await SearchRepositoriesByTopicsAsync(new[] { topic }, perPage, page, cancellationToken).ConfigureAwait(false);
+        return await SearchRepositoriesByTopicsAsync([topic], perPage, page, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -553,7 +553,8 @@ public class OctokitGitHubApiClient(
             }
 
             // Build query: topic:genhub topic:generalsonline etc.
-            var topicQuery = string.Join(" ", topicList.Select(t => $"topic:{t}"));
+            // Add fork:true to include forks (we filter them later in the discoverer to ensure they have the relevant topic)
+            var topicQuery = string.Join(" ", topicList.Select(t => $"topic:{t}")) + " fork:true";
             logger.LogDebug("Searching repositories with query: {Query}", topicQuery);
 
             var request = new SearchRepositoriesRequest(topicQuery)
@@ -570,7 +571,7 @@ public class OctokitGitHubApiClient(
             {
                 TotalCount = result.TotalCount,
                 IncompleteResults = result.IncompleteResults,
-                Items = result.Items.Select(MapToSearchItem).ToList(),
+                Items = [.. result.Items.Select(MapToSearchItem)],
             };
 
             logger.LogInformation("Found {Count} repositories for topics: {Topics}", response.TotalCount, string.Join(", ", topicList));
@@ -599,7 +600,7 @@ public class OctokitGitHubApiClient(
                 RepoName = repository.Name,
                 Description = repository.Description,
                 HtmlUrl = repository.HtmlUrl,
-                Topics = repository.Topics?.ToList() ?? new List<string>(),
+                Topics = repository.Topics?.ToList() ?? [],
                 StarCount = repository.StargazersCount,
                 ForkCount = repository.ForksCount,
                 DisplayName = repository.Name,
@@ -651,7 +652,7 @@ public class OctokitGitHubApiClient(
             ForksCount = repo.ForksCount,
             OpenIssuesCount = repo.OpenIssuesCount,
             DefaultBranch = repo.DefaultBranch ?? "main",
-            Topics = repo.Topics?.ToList() ?? new List<string>(),
+            Topics = repo.Topics?.ToList() ?? [],
             IsArchived = repo.Archived,
             Visibility = repo.Visibility?.ToString() ?? "public",
             ReleasesUrl = $"https://api.github.com/repos/{repo.FullName}/releases{{/id}}",
@@ -683,7 +684,7 @@ public class OctokitGitHubApiClient(
             PublishedAt = octokitRelease.PublishedAt,
             IsDraft = octokitRelease.Draft,
             IsPrerelease = octokitRelease.Prerelease,
-            Assets = octokitRelease.Assets.Select(MapToGitHubReleaseAsset).ToList(),
+            Assets = [.. octokitRelease.Assets.Select(MapToGitHubReleaseAsset)],
         };
     }
 
@@ -725,7 +726,7 @@ public class OctokitGitHubApiClient(
             HeadSha = octokitRun.HeadSha ?? string.Empty,
             Event = octokitRun.Event ?? string.Empty,
             Actor = octokitRun.Actor?.Login ?? octokitRun.TriggeringActor?.Login ?? string.Empty,
-            PullRequestNumbers = octokitRun.PullRequests?.Select(pr => pr.Number).ToList() ?? new List<int>(),
+            PullRequestNumbers = octokitRun.PullRequests?.Select(pr => pr.Number).ToList() ?? [],
             Workflow = new GitHubWorkflow
             {
                 Id = octokitRun.WorkflowId,

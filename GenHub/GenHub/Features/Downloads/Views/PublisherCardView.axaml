@@ -12,6 +12,7 @@
     <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
         <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:ProfileSelectionConverter x:Key="ProfileSelectionConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -162,7 +163,7 @@
                                     <ItemsControl ItemsSource="{Binding Items}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4">
+                                                <Grid x:Name="ContentItemRoot" ColumnDefinitions="Auto,*,Auto" Margin="0,4">
                                                     <TextBlock Grid.Column="0" Text="•" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Top" />
                                                     <StackPanel Grid.Column="1" Spacing="4">
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -201,39 +202,197 @@
                                                         </StackPanel>
 
                                                         <!-- Progress Bar - visible during installation -->
-                                                        <ProgressBar Value="{Binding InstallProgress}"
+                                                        <ProgressBar Value="{Binding DownloadProgress}"
                                                                      Maximum="100"
                                                                      Height="4"
-                                                                     IsVisible="{Binding IsInstalling}"
+                                                                     IsVisible="{Binding IsDownloading}"
                                                                      Foreground="#4CAF50"
                                                                      Background="#333333" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
-                                                        <TextBlock Text="{Binding InstallStatus}"
+                                                        <TextBlock Text="{Binding DownloadStatus}"
                                                                    FontSize="10"
                                                                    Foreground="#AAAAAA"
                                                                    TextWrapping="Wrap"
-                                                                   IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                   IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                     </StackPanel>
 
-                                                    <!-- Install button - only shown when not installed and not installing -->
-                                                    <Button Grid.Column="2"
-                                                            Classes="card-action"
-                                                            Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).InstallContentCommand}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="Install"
-                                                            FontSize="12"
-                                                            Padding="8,4"
-                                                            VerticalAlignment="Top"
-                                                            IsVisible="{Binding CanInstall}"
-                                                            IsEnabled="{Binding !IsInstalling}" />
-                                                    <!-- Installed indicator -->
-                                                    <TextBlock Grid.Column="2"
-                                                               Text="✓ Installed"
-                                                               FontSize="12"
-                                                               Foreground="#4CAF50"
-                                                               VerticalAlignment="Top"
-                                                               Padding="8,4"
-                                                               IsVisible="{Binding IsInstalled}" />
+                                                    <!-- StackPanel for Action Buttons and Status -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+
+                                                        <!-- Download button - visible when not downloaded and not installing -->
+                                                        <Button Classes="card-action"
+                                                                Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).DownloadContentCommand}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="Download"
+                                                                FontSize="12"
+                                                                Padding="8,4"
+                                                                IsVisible="{Binding CanDownload}"
+                                                                IsEnabled="{Binding !IsDownloading}">
+                                                            <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
+                                                        </Button>
+
+                                                        <!-- Add to Profile dropdown (NO VARIANTS) -->
+                                                        <DropDownButton Content="Add to Profile"
+                                                                        Classes="card-action"
+                                                                        FontSize="12"
+                                                                        Padding="8,4">
+                                                            <DropDownButton.IsVisible>
+                                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                    <Binding Path="CanAddToProfile" />
+                                                                    <Binding Path="!HasVariants" />
+                                                                </MultiBinding>
+                                                            </DropDownButton.IsVisible>
+                                                            <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                                                            <DropDownButton.Flyout>
+                                                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                                                    <StackPanel Spacing="2" MinWidth="180">
+                                                                        <!-- Existing profiles list -->
+                                                                        <ItemsControl ItemsSource="{Binding #Root.((vm:PublisherCardViewModel)DataContext).AvailableProfiles}">
+                                                                            <ItemsControl.ItemTemplate>
+                                                                                <DataTemplate>
+                                                                                    <Button Classes="flyout-item"
+                                                                                            Background="Transparent"
+                                                                                            HorizontalAlignment="Stretch"
+                                                                                            HorizontalContentAlignment="Left"
+                                                                                            Padding="8,6"
+                                                                                            Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).AddToProfileCommand}">
+                                                                                        <Button.CommandParameter>
+                                                                                            <MultiBinding Converter="{StaticResource ProfileSelectionConverter}">
+                                                                                                <!-- Parent ContentItem context -->
+                                                                                                <Binding Path="DataContext" ElementName="ContentItemRoot" />
+                                                                                                <!-- Current Profile from ItemsControl -->
+                                                                                                <Binding />
+                                                                                            </MultiBinding>
+                                                                                        </Button.CommandParameter>
+                                                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                            <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                                                                                                   Width="16" Height="16"
+                                                                                                   Stretch="Uniform"
+                                                                                                   VerticalAlignment="Center" />
+                                                                                            <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                                                                                        </StackPanel>
+                                                                                    </Button>
+                                                                                </DataTemplate>
+                                                                            </ItemsControl.ItemTemplate>
+                                                                        </ItemsControl>
+                                                                        <!-- Separator if there are profiles -->
+                                                                        <Separator Margin="4,4">
+                                                                            <Separator.IsVisible>
+                                                                                <Binding Path="#Root.((vm:PublisherCardViewModel)DataContext).AvailableProfiles.Count"
+                                                                                         Converter="{x:Static converters:ComparisonConverters.IsPositive}" />
+                                                                            </Separator.IsVisible>
+                                                                        </Separator>
+                                                                        <!-- Create new profile option -->
+                                                                        <Button Classes="flyout-item"
+                                                                                Background="Transparent"
+                                                                                HorizontalAlignment="Stretch"
+                                                                                HorizontalContentAlignment="Left"
+                                                                                Padding="8,6"
+                                                                                Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).CreateProfileWithContentCommand}"
+                                                                                CommandParameter="{Binding #ContentItemRoot.DataContext}">
+                                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="#888888" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="New Profile..." FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </Flyout>
+                                                            </DropDownButton.Flyout>
+                                                        </DropDownButton>
+
+                                                        <!-- Add to Profile dropdown (WITH VARIANTS) -->
+                                                        <DropDownButton Content="Add to Profile..."
+                                                                        Classes="card-action"
+                                                                        FontSize="12"
+                                                                        Padding="8,4">
+                                                            <DropDownButton.IsVisible>
+                                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                                    <Binding Path="CanAddToProfile" />
+                                                                    <Binding Path="HasVariants" />
+                                                                </MultiBinding>
+                                                            </DropDownButton.IsVisible>
+                                                            <ToolTip.Tip>Select a variant to add to a game profile</ToolTip.Tip>
+                                                            <DropDownButton.Flyout>
+                                                                <Flyout Placement="BottomEdgeAlignedLeft">
+                                                                    <ScrollViewer MaxHeight="400">
+                                                                        <StackPanel Spacing="8" MinWidth="220">
+                                                                            <TextBlock Text="Select Version:" FontSize="12" Foreground="#888888" Margin="4,4,4,0"/>
+
+                                                                            <!-- Variants List -->
+                                                                            <ItemsControl ItemsSource="{Binding AvailableVariants}">
+                                                                                <ItemsControl.ItemTemplate>
+                                                                                    <DataTemplate>
+                                                                                        <StackPanel x:Name="VariantItemRoot" Margin="0,0,0,8">
+                                                                                            <Border Background="#333333" CornerRadius="4" Padding="6,4" Margin="0,0,0,4">
+                                                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" Foreground="White" />
+                                                                                            </Border>
+
+                                                                                            <!-- Profiles for this variant -->
+                                                                                            <ItemsControl ItemsSource="{Binding #Root.((vm:PublisherCardViewModel)DataContext).AvailableProfiles}">
+                                                                                                <ItemsControl.ItemTemplate>
+                                                                                                    <DataTemplate>
+                                                                                                        <Button x:Name="ProfileItemRoot"
+                                                                                                                Classes="flyout-item"
+                                                                                                                Background="Transparent"
+                                                                                                                HorizontalAlignment="Stretch"
+                                                                                                                HorizontalContentAlignment="Left"
+                                                                                                                Padding="12,6"
+                                                                                                                Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).AddToProfileCommand}">
+                                                                                                            <Button.CommandParameter>
+                                                                                                                <MultiBinding Converter="{StaticResource ProfileSelectionConverter}">
+                                                                                                                    <!-- Current Variant Manifest from parent StackPanel -->
+                                                                                                                    <Binding Path="DataContext" ElementName="VariantItemRoot" />
+                                                                                                                    <!-- Current Profile from this button's DataContext -->
+                                                                                                                    <Binding Path="DataContext" ElementName="ProfileItemRoot" />
+                                                                                                                </MultiBinding>
+                                                                                                            </Button.CommandParameter>
+                                                                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                                                <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                                                                                                                       Width="16" Height="16"
+                                                                                                                       Stretch="Uniform"
+                                                                                                                       VerticalAlignment="Center" />
+                                                                                                                <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                                                                                                            </StackPanel>
+                                                                                                        </Button>
+                                                                                                    </DataTemplate>
+                                                                                                </ItemsControl.ItemTemplate>
+                                                                                            </ItemsControl>
+
+                                                                                            <!-- Separator if there are profiles -->
+                                                                                            <Separator Margin="4,4">
+                                                                                                <Separator.IsVisible>
+                                                                                                    <Binding Path="#Root.((vm:PublisherCardViewModel)DataContext).AvailableProfiles.Count"
+                                                                                                             Converter="{x:Static converters:ComparisonConverters.IsPositive}" />
+                                                                                                </Separator.IsVisible>
+                                                                                            </Separator>
+
+                                                                                            <!-- Create new profile option -->
+                                                                                            <Button Classes="flyout-item"
+                                                                                                    Background="Transparent"
+                                                                                                    HorizontalAlignment="Stretch"
+                                                                                                    HorizontalContentAlignment="Left"
+                                                                                                    Padding="12,6"
+                                                                                                    Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).CreateProfileWithContentCommand}">
+                                                                                                <Button.CommandParameter>
+                                                                                                    <!-- Pass the variant manifest from parent StackPanel -->
+                                                                                                    <Binding Path="DataContext" ElementName="VariantItemRoot" />
+                                                                                                </Button.CommandParameter>
+                                                                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                                                    <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="#888888" VerticalAlignment="Center"/>
+                                                                                                    <TextBlock Text="New Profile..." FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                                                </StackPanel>
+                                                                                            </Button>
+                                                                                        </StackPanel>
+                                                                                    </DataTemplate>
+                                                                                </ItemsControl.ItemTemplate>
+                                                                            </ItemsControl>
+                                                                        </StackPanel>
+                                                                    </ScrollViewer>
+                                                                </Flyout>
+                                                            </DropDownButton.Flyout>
+                                                        </DropDownButton>
+                                                    </StackPanel>
+
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

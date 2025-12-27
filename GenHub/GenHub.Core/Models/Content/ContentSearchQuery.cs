@@ -1,4 +1,7 @@
+using System.Collections.ObjectModel;
 using GenHub.Core.Models.Enums;
+
+namespace GenHub.Core.Models.Content;
 
 /// <summary>
 /// Represents a query for searching content across providers.
@@ -23,9 +26,9 @@ public class ContentSearchQuery
     public GameType? TargetGame { get; set; }
 
     /// <summary>
-    /// Gets or sets a list of tags to filter by.
+    /// Gets a list of tags to filter by.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public Collection<string> Tags { get; } = new();
 
     /// <summary>
     /// Gets or sets the author's name to filter by.
@@ -45,7 +48,7 @@ public class ContentSearchQuery
     /// <summary>
     /// Gets the number of results to skip for pagination.
     /// </summary>
-    public int Skip { get; init; } = 0;
+    public int Skip { get; init; }
 
     /// <summary>
     /// Gets the number of results to take for pagination.

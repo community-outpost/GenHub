@@ -439,14 +439,18 @@ public class ContentStorageService : IContentStorageService
         {
             try
             {
-                var sourcePath = Path.Combine(sourceDirectory, manifestFile.RelativePath);
+                // Use SourcePath if provided (e.g., for files where RelativePath differs from original location)
+                // Otherwise, compute from sourceDirectory + RelativePath
+                var sourcePath = !string.IsNullOrEmpty(manifestFile.SourcePath) && File.Exists(manifestFile.SourcePath)
+                    ? manifestFile.SourcePath
+                    : Path.Combine(sourceDirectory, manifestFile.RelativePath);
 
                 if (!File.Exists(sourcePath))
                 {
                     _logger.LogWarning(
-                        "File {RelativePath} not found in source directory {SourceDirectory}",
+                        "File {RelativePath} not found at source path {SourcePath} or computed path",
                         manifestFile.RelativePath,
-                        sourceDirectory);
+                        sourcePath);
                     continue;
                 }
 
@@ -506,6 +510,7 @@ public class ContentStorageService : IContentStorageService
                     Size = fileSize,
                     Hash = hash,
                     SourceType = ContentSourceType.ContentAddressable,
+                    InstallTarget = manifestFile.InstallTarget, // Preserve install target (UserMapsDirectory, etc.)
                     IsRequired = manifestFile.IsRequired,
                     IsExecutable = manifestFile.IsExecutable,
                     DownloadUrl = manifestFile.DownloadUrl,

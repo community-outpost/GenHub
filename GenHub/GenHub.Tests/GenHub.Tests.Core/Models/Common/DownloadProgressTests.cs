@@ -18,7 +18,8 @@ public class DownloadProgressTests
         var bytesReceived = 1024L;
         var totalBytes = 2048L;
         var fileName = "test.zip";
-        var url = "https://example.com/test.zip";
+        var urlString = "https://example.com/test.zip";
+        var url = new Uri(urlString);
         var bytesPerSecond = 512L;
         var elapsedTime = TimeSpan.FromSeconds(2);
 
@@ -48,7 +49,7 @@ public class DownloadProgressTests
     public void Percentage_CalculatesCorrectly(long bytesReceived, long totalBytes, double expectedPercentage)
     {
         // Arrange
-        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", "https://example.com/test.zip", 0, TimeSpan.Zero);
+        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", new Uri("https://example.com/test.zip"), 0, TimeSpan.Zero);
 
         // Act
         var percentage = progress.Percentage;
@@ -72,7 +73,7 @@ public class DownloadProgressTests
     public void EstimatedTimeRemaining_CalculatesCorrectly(long bytesReceived, long totalBytes, long bytesPerSecond, double? expectedSeconds)
     {
         // Arrange
-        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", "https://example.com/test.zip", bytesPerSecond, TimeSpan.Zero);
+        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", new Uri("https://example.com/test.zip"), bytesPerSecond, TimeSpan.Zero);
 
         // Act
         var estimatedTime = progress.EstimatedTimeRemaining;
@@ -103,7 +104,7 @@ public class DownloadProgressTests
     public void FormattedSpeed_FormatsCorrectly(long bytesPerSecond, string expected)
     {
         // Arrange
-        var progress = new DownloadProgress(0, 0, "test.zip", "https://example.com/test.zip", bytesPerSecond, TimeSpan.Zero);
+        var progress = new DownloadProgress(0, 0, "test.zip", new Uri("https://example.com/test.zip"), bytesPerSecond, TimeSpan.Zero);
 
         // Act
         var formatted = progress.FormattedSpeed;
@@ -125,7 +126,7 @@ public class DownloadProgressTests
     public void FormattedProgress_FormatsCorrectly(long bytesReceived, long totalBytes, string expected)
     {
         // Arrange
-        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", "https://example.com/test.zip", 0, TimeSpan.Zero);
+        var progress = new DownloadProgress(bytesReceived, totalBytes, "test.zip", new Uri("https://example.com/test.zip"), 0, TimeSpan.Zero);
 
         // Act
         var formatted = progress.FormattedProgress;

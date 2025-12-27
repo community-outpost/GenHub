@@ -274,7 +274,7 @@ public class CommunityOutpostDeliverer(
         // Try primary URL first
         logger.LogDebug("Downloading from primary URL: {Url}", primaryUrl);
         var result = await downloadService.DownloadFileAsync(
-            primaryUrl,
+            new Uri(primaryUrl),
             targetPath,
             expectedHash: null,
             progress: null,

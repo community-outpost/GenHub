@@ -75,7 +75,7 @@ public interface IFileOperationsService
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the asynchronous download operation.</returns>
     Task DownloadFileAsync(
-        string url,
+        Uri url,
         string destinationPath,
         IProgress<DownloadProgress>? progress = null,
         CancellationToken cancellationToken = default);

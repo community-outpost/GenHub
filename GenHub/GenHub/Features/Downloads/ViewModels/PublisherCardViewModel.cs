@@ -2,13 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.ViewModels;
 using Microsoft.Extensions.Logging;
 
@@ -17,11 +23,18 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <summary>
 /// ViewModel for a publisher card displaying content from a single publisher.
 /// </summary>
-public partial class PublisherCardViewModel : ObservableObject
+public partial class PublisherCardViewModel : ObservableObject, IRecipient<ProfileCreatedMessage>, IRecipient<ProfileUpdatedMessage>, IRecipient<ProfileDeletedMessage>, IDisposable
 {
     private readonly ILogger<PublisherCardViewModel> _logger;
     private readonly IContentOrchestrator _contentOrchestrator;
     private readonly IContentManifestPool _manifestPool;
+    private readonly IProfileContentService _profileContentService;
+    private readonly IGameProfileManager _profileManager;
+    private readonly INotificationService _notificationService;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _profileLock = new(1, 1);
+
+    private bool _disposed;
 
     [ObservableProperty]
     private string _publisherId = string.Empty;
@@ -72,19 +85,34 @@ public partial class PublisherCardViewModel : ObservableObject
     private ICommand? _primaryActionCommand;
 
     /// <summary>
+    /// Gets or sets the available profiles for the "Add to Profile" dropdown.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<GameProfile> _availableProfiles = [];
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PublisherCardViewModel"/> class.
     /// </summary>
     /// <param name="logger">The logger.</param>
     /// <param name="contentOrchestrator">The content orchestrator.</param>
-    /// <param name="manifestPool">The manifest pool for checking installed content.</param>
+    /// <param name="manifestPool">The manifest pool.</param>
+    /// <param name="profileContentService">The profile content service.</param>
+    /// <param name="profileManager">The profile manager.</param>
+    /// <param name="notificationService">The notification service.</param>
     public PublisherCardViewModel(
         ILogger<PublisherCardViewModel> logger,
         IContentOrchestrator contentOrchestrator,
-        IContentManifestPool manifestPool)
+        IContentManifestPool manifestPool,
+        IProfileContentService profileContentService,
+        IGameProfileManager profileManager,
+        INotificationService notificationService)
     {
         _logger = logger;
         _contentOrchestrator = contentOrchestrator;
         _manifestPool = manifestPool;
+        _profileContentService = profileContentService;
+        _profileManager = profileManager;
+        _notificationService = notificationService;
 
         // Subscribe to collection changes to update HasContent and ContentSummary
         ContentTypes.CollectionChanged += (s, e) =>
@@ -92,6 +120,115 @@ public partial class PublisherCardViewModel : ObservableObject
             OnPropertyChanged(nameof(HasContent));
             OnPropertyChanged(nameof(ContentSummary));
         };
+
+        // Register for profile creation and deletion messages
+        WeakReferenceMessenger.Default.RegisterAll(this);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _cts.Cancel();
+            _cts.Dispose();
+            _profileLock.Dispose();
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the list of available profiles.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task RefreshAvailableProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
+        var token = linkedCts.Token;
+
+        await _profileLock.WaitAsync(token);
+        try
+        {
+            var profilesResult = await _profileManager.GetAllProfilesAsync(token);
+            if (profilesResult.Success && profilesResult.Data != null)
+            {
+                AvailableProfiles.Clear();
+
+                // Force complete refresh by getting fresh profile instances
+                // This ensures icon changes and other updates are reflected in the UI
+                foreach (var profileId in profilesResult.Data.Select(p => p.Id))
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    var freshProfileResult = await _profileManager.GetProfileAsync(profileId, token);
+                    if (freshProfileResult.Success && freshProfileResult.Data != null)
+                    {
+                        AvailableProfiles.Add(freshProfileResult.Data);
+                    }
+                }
+
+                _logger.LogDebug("Refreshed available profiles: {Count} profiles", AvailableProfiles.Count);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancellation
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to refresh available profiles");
+        }
+        finally
+        {
+            _profileLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Receives profile creation messages and refreshes the available profiles dropdown.
+    /// </summary>
+    /// <param name="message">The profile created message.</param>
+    public void Receive(ProfileCreatedMessage message)
+    {
+        _logger.LogDebug("Profile created: {Name}", message.Profile.Name);
+        RefreshProfilesOnUiThread();
+    }
+
+    /// <summary>
+    /// Receives profile update messages and refreshes the available profiles dropdown.
+    /// </summary>
+    /// <param name="message">The profile updated message.</param>
+    public void Receive(ProfileUpdatedMessage message)
+    {
+        _logger.LogDebug("Profile updated: {Name}", message.Profile.Name);
+        RefreshProfilesOnUiThread();
+    }
+
+    /// <summary>
+    /// Receives profile deletion messages and refreshes the available profiles dropdown.
+    /// </summary>
+    /// <param name="message">The profile deleted message.</param>
+    public void Receive(ProfileDeletedMessage message)
+    {
+        _logger.LogDebug("Profile deleted: {Name}", message.ProfileName);
+        RefreshProfilesOnUiThread();
+    }
+
+    /// <summary>
+    /// Called when IsExpanded changes - refresh profiles for the dropdown.
+    /// </summary>
+    partial void OnIsExpandedChanged(bool value)
+    {
+        if (value)
+        {
+            _ = RefreshAvailableProfilesAsync();
+        }
     }
 
     /// <summary>
@@ -123,10 +260,10 @@ public partial class PublisherCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Refreshes the installation status of all content items by checking the manifest pool.
+    /// Refreshes the download status of all content items by checking the manifest pool.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task RefreshInstallationStatusAsync()
+    public async Task RefreshDownloadStatusAsync()
     {
         try
         {
@@ -161,15 +298,53 @@ public partial class PublisherCardViewModel : ObservableObject
             {
                 foreach (var item in group.Items)
                 {
-                    var wasInstalled = item.IsInstalled;
-                    item.IsInstalled = IsContentInstalledSimple(item, allManifests, PublisherId);
+                    // Find all matching manifests for this item to populate variants
+                    var variants = FindContentVariants(item, allManifests, PublisherId);
 
+                    // Update variants collection
+                    if (variants.Count > 0)
+                    {
+                        // Only update if changed to avoid unnecessary UI updates
+                        // Check if counts differ or if any IDs differ
+                        var currentIds = item.AvailableVariants.Select(v => v.Id.Value).ToHashSet();
+                        var newIds = variants.Select(v => v.Id.Value).ToHashSet();
+
+                        if (!currentIds.SetEquals(newIds))
+                        {
+                            item.AvailableVariants.Clear();
+                            foreach (var variant in variants)
+                            {
+                                item.AvailableVariants.Add(variant);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        item.AvailableVariants.Clear();
+                    }
+
+                    var isDownloaded = variants.Count > 0;
+                    item.IsDownloaded = isDownloaded;
+
+                    // If we have a single variant, ensure the Model ID matches it
+                    if (variants.Count == 1)
+                    {
+                        var variant = variants[0];
+                        if (item.Model.Id != variant.Id.Value)
+                        {
+                            item.Model.Id = variant.Id.Value;
+                        }
+                    }
+
+                    // If we have multiple variants, we don't change the Model.Id arbitrarily
+                    // The UI will force the user to choose one from AvailableVariants
                     _logger.LogDebug(
-                        "Content item: {Name} v{Version} ({ContentType}) - Installed: {IsInstalled}",
+                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}",
                         item.Name,
                         item.Version,
                         item.Model.ContentType,
-                        item.IsInstalled);
+                        item.IsDownloaded,
+                        item.AvailableVariants.Count);
                 }
             }
         }
@@ -238,29 +413,49 @@ public partial class PublisherCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Simple check if content is installed - matches by manifest ID or by ID components with version.
+    /// Finds all installed content manifest variants that match the given content item.
+    /// Used to populate <see cref="ContentItemViewModel.AvailableVariants"/>.
     /// </summary>
-    private static bool IsContentInstalledSimple(
+    private static List<Core.Models.Manifest.ContentManifest> FindContentVariants(
         ContentItemViewModel item,
         List<Core.Models.Manifest.ContentManifest> allManifests,
         string publisherId)
     {
+        var variants = new List<Core.Models.Manifest.ContentManifest>();
         var itemId = item.Model.Id ?? string.Empty;
         var itemVersion = item.Version ?? string.Empty;
         var itemDatePart = ExtractDateFromVersion(itemVersion);
 
         foreach (var manifest in allManifests)
         {
-            // Direct ID match - most reliable
+            // SKIP MAP PACKS if the item is a GameClient
+            // We want to associate MapPacks with GameClients only via dependencies,
+            // not as "variants" of the GameClient itself in this context,
+            // UNLESS the item itself IS a MapPack.
+            if (item.Model.ContentType != manifest.ContentType)
+            {
+                continue;
+            }
+
+            // SKIP detected local game clients (userVersion 0)
+            // Detected clients have ID like: 1.0.generalsonline.gameclient.zerohour30hz
+            // Downloaded content has ID like: 1.1215251.generalsonline.gameclient.30hz
+            // We only want downloaded content as variants for the add-to-profile dropdown
+            var manifestIdParts = manifest.Id.Value.Split('.');
+            if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0")
+            {
+                continue;
+            }
+
+            // Direct ID match
             if (!string.IsNullOrEmpty(itemId) &&
                 manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                variants.Add(manifest);
+                continue;
             }
 
-            // If no direct ID match, try matching by publisher + content type + name
-            // Check publisher match by exact ID prefix or type
-            var manifestIdParts = manifest.Id.Value.Split('.');
+            // Publisher Check
             var hasPublisherInId = manifestIdParts.Length > 2 &&
                 manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
             var publisherMatch = hasPublisherInId ||
@@ -271,52 +466,62 @@ public partial class PublisherCardViewModel : ObservableObject
                 continue;
             }
 
-            // Check content type match
-            if (manifest.ContentType != item.Model.ContentType)
-            {
-                continue;
-            }
-
-            // For manifests from the same publisher with same content type, check name match
-            // This prevents matching all map packs just because they share publisher + type
+            // Name Match check
+            // For variants, the name often contains the variant suffix (e.g. "Generals", "Zero Hour", "30Hz").
+            // But strict name matching might filter out variants if their names differ too much.
+            // For SuperHackers: Item="weekly-2025-12-12", Manifest="TheSuperHackers-GeneralsGameCode - Generals"
+            //   -> Names don't match, but they ARE the same release (same publisher + version).
+            // So we check names, but if names don't match, we still proceed to version check.
+            // If publisher matches AND version matches, that's sufficient for variant detection.
             var itemName = item.Name?.ToLowerInvariant() ?? string.Empty;
             var manifestName = manifest.Name?.ToLowerInvariant() ?? string.Empty;
 
-            // Skip if names don't match and we have name info
+            var nameMatch = false;
             if (!string.IsNullOrEmpty(itemName) && !string.IsNullOrEmpty(manifestName))
             {
-                // Allow for slight variations (e.g., "Far Cry" vs "FarCry")
                 var normalizedItemName = itemName.Replace(" ", string.Empty).Replace("-", string.Empty);
                 var normalizedManifestName = manifestName.Replace(" ", string.Empty).Replace("-", string.Empty);
 
-                if (!normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) &&
-                    !normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase))
+                if (normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) ||
+                    normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    nameMatch = true;
                 }
             }
 
-            // Publisher + content type + name all match - this is enough to consider it installed
-            // Version matching is optional and used for additional confirmation
+            // Version Match check
             var manifestVersion = manifest.Version ?? string.Empty;
             var manifestDatePart = ExtractDateFromVersion(manifestVersion);
 
-            // Direct version match - strongest confirmation
+            var versionMatch = false;
+
+            // Direct version match
             if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                versionMatch = true;
             }
 
-            // Date part match (e.g., "20251121" from "weekly-2025-11-21")
-            if (!string.IsNullOrEmpty(itemDatePart) &&
+            // Date part match (e.g., "weekly-2025-12-12" vs "20251212")
+            else if (!string.IsNullOrEmpty(itemDatePart) &&
                 !string.IsNullOrEmpty(manifestDatePart) &&
                 itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase))
             {
-                return true;
+                versionMatch = true;
+            }
+
+            // If publisher matches AND (names match OR versions match), it's a variant
+            // RESTRICTION: strict version matching without name matching is ONLY allowed for GameClient content.
+            // This prevents "Addon A v1.0" being identified as a variant of "Addon B v1.0".
+            var isGameClient = item.Model.ContentType == ContentType.GameClient;
+
+            if (nameMatch || (versionMatch && isGameClient))
+            {
+                variants.Add(manifest);
             }
         }
 
-        return false;
+        // Sort variants by name for consistent UI display
+        return [.. variants.OrderBy(v => v.Name)];
     }
 
     [RelayCommand]
@@ -327,66 +532,75 @@ public partial class PublisherCardViewModel : ObservableObject
 
         if (IsExpanded)
         {
-            await RefreshInstallationStatusAsync();
+            await RefreshDownloadStatusAsync();
         }
     }
 
     [RelayCommand]
-    private async Task InstallContentAsync(ContentItemViewModel item)
+    private async Task DownloadContentAsync(ContentItemViewModel item)
     {
-        if (item.IsInstalled)
+        if (item.IsDownloaded)
         {
-            _logger.LogDebug("Content {ItemName} is already installed", item.Name);
+            _logger.LogDebug("Content {ItemName} is already downloaded", item.Name);
             return;
         }
 
         if (item.Model == null)
         {
             _logger.LogError("Cannot install item {ItemName}: Model is null", item.Name);
-            item.InstallStatus = "Error: No source available";
+            item.DownloadStatus = "Error: No source available";
             return;
         }
 
         try
         {
-            _logger.LogInformation("Starting installation of {ItemName} v{Version}", item.Name, item.Version);
-            item.IsInstalling = true;
-            item.InstallStatus = "Starting download...";
-            item.InstallProgress = 0;
+            _logger.LogInformation("Starting download of {ItemName} v{Version}", item.Name, item.Version);
+            item.IsDownloading = true;
+            item.DownloadStatus = "Downloading...";
+            item.DownloadProgress = 0;
 
             var progress = new Progress<GenHub.Core.Models.Content.ContentAcquisitionProgress>(p =>
             {
-                item.InstallProgress = (int)p.ProgressPercentage;
-
-                // Format a user-friendly status message based on phase
-                item.InstallStatus = FormatProgressStatus(p);
+                item.DownloadProgress = (int)p.ProgressPercentage;
+                item.DownloadStatus = FormatProgressStatus(p);
             });
 
             var result = await _contentOrchestrator.AcquireContentAsync(item.Model, progress);
 
             if (result.Success)
             {
-                item.InstallStatus = "✓ Installation complete";
-                item.InstallProgress = 100;
-                item.IsInstalled = true;
+                item.DownloadStatus = "✓ Downloaded";
+                item.DownloadProgress = 100;
+                item.IsDownloaded = true;
 
-                _logger.LogInformation("Successfully installed {ItemName}", item.Name);
+                // Update the Model.Id with the resolved manifest ID
+                if (result.Data != null)
+                {
+                    item.Model.Id = result.Data.Id.Value;
+                    _logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
+
+                    // Refresh download status to populate variants
+                    await RefreshDownloadStatusAsync();
+                }
+
+                _logger.LogInformation("Successfully downloaded {ItemName}", item.Name);
+                _notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
             }
             else
             {
                 var errorMsg = result.Errors != null ? string.Join(", ", result.Errors) : "Unknown error";
-                item.InstallStatus = $"✗ Failed: {errorMsg}";
-                _logger.LogError("Failed to install {ItemName}: {Error}", item.Name, errorMsg);
+                item.DownloadStatus = $"✗ Failed: {errorMsg}";
+                _logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             }
         }
         catch (Exception ex)
         {
-            item.InstallStatus = $"✗ Error: {ex.Message}";
-            _logger.LogError(ex, "Exception during installation of {ItemName}", item.Name);
+            item.DownloadStatus = $"✗ Error: {ex.Message}";
+            _logger.LogError(ex, "Exception during download of {ItemName}", item.Name);
         }
         finally
         {
-            item.IsInstalling = false;
+            item.IsDownloading = false;
         }
     }
 
@@ -399,15 +613,15 @@ public partial class PublisherCardViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Installs the latest content item from this publisher.
+    /// Downloads the latest content item from this publisher.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [RelayCommand]
-    private async Task InstallLatestAsync()
+    private async Task DownloadLatestAsync()
     {
         var latestItem = ContentTypes
             .SelectMany(g => g.Items)
-            .Where(i => !i.IsInstalled)
+            .Where(i => !i.IsDownloaded)
             .OrderByDescending(i => i.Model.LastUpdated)
             .FirstOrDefault();
 
@@ -417,6 +631,284 @@ public partial class PublisherCardViewModel : ObservableObject
             return;
         }
 
-        await InstallContentAsync(latestItem);
+        await DownloadContentAsync(latestItem);
+    }
+
+    [RelayCommand]
+    private async Task AddToProfileAsync(object? args)
+    {
+        if (args is not object[] parameters || parameters.Length != 2)
+        {
+            return;
+        }
+
+        if (parameters[1] is not GameProfile profile)
+        {
+            return;
+        }
+
+        string contentId;
+        string contentName;
+        bool isDownloading = false;
+
+        if (parameters[0] is ContentItemViewModel item)
+        {
+            // If item has variants, user MUST select one through the variant dropdown
+            // The UI should call this method with the ContentManifest, not the item
+            if (item.HasVariants && item.AvailableVariants.Count > 0)
+            {
+                // Use first variant as default if called directly with item
+                contentId = item.AvailableVariants[0].Id.Value;
+                contentName = item.AvailableVariants[0].Name ?? item.Name;
+                _logger.LogDebug("Using first variant manifest ID: {ManifestId}", contentId);
+            }
+            else if (item.IsDownloaded && !string.IsNullOrEmpty(item.Model.Id) && item.Model.Id.Count(c => c == '.') >= 4)
+            {
+                // Downloaded single variant - Model.Id should be updated to proper format
+                contentId = item.Model.Id;
+                contentName = item.Name;
+            }
+            else if (!item.IsDownloaded)
+            {
+                item.DownloadStatus = "✗ Download content first";
+                _logger.LogWarning("Cannot add {ItemName} to profile: content not downloaded yet", item.Name);
+                return;
+            }
+            else
+            {
+                // Fallback - try to find the manifest in the pool that matches this item
+                item.DownloadStatus = "✗ Invalid content ID";
+                _logger.LogWarning("Cannot add {ItemName} to profile: invalid manifest ID format {Id}", item.Name, item.Model.Id);
+                return;
+            }
+
+            isDownloading = item.IsDownloading;
+        }
+        else if (parameters[0] is Core.Models.Manifest.ContentManifest manifest)
+        {
+            // Manifest passed directly (from variant selection) - use its ID
+            contentId = manifest.Id.Value;
+            contentName = manifest.Name ?? "Unknown";
+            isDownloading = false;
+        }
+        else
+        {
+            return;
+        }
+
+        if (isDownloading)
+        {
+            return;
+        }
+
+        try
+        {
+            _logger.LogInformation("Adding {ContentName} ({ContentId}) to profile {ProfileName}", contentName, contentId, profile.Name);
+
+            // If we have an item access, update status
+            if (parameters[0] is ContentItemViewModel vmItem)
+            {
+                vmItem.DownloadStatus = "Adding to profile...";
+            }
+
+            var result = await _profileContentService.AddContentToProfileAsync(
+                profile.Id,
+                contentId,
+                CancellationToken.None);
+
+            if (result.Success)
+            {
+                if (parameters[0] is ContentItemViewModel successItem)
+                {
+                    successItem.DownloadStatus = $"✓ Added to {profile.Name}";
+                }
+
+                // Notify other components that a profile was updated
+                try
+                {
+                    var message = new ProfileUpdatedMessage(profile);
+                    WeakReferenceMessenger.Default.Send(message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
+                }
+
+                if (result.WasContentSwapped)
+                {
+                    _notificationService.ShowInfo(
+                        "Content Replaced",
+                        $"Replaced '{result.SwappedContentName}' with '{contentName}' in profile '{profile.Name}'");
+
+                    _logger.LogInformation(
+                        "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
+                        result.SwappedContentName,
+                        contentName,
+                        profile.Name);
+                }
+                else
+                {
+                    _notificationService.ShowSuccess(
+                        "Added to Profile",
+                        $"'{contentName}' added to profile '{profile.Name}'");
+                }
+
+                await RefreshAvailableProfilesAsync();
+            }
+            else
+            {
+                if (parameters[0] is ContentItemViewModel failItem)
+                {
+                    failItem.DownloadStatus = $"✗ Failed: {result.FirstError}";
+                }
+
+                _notificationService.ShowError(
+                    "Failed to Add to Profile",
+                    result.FirstError ?? "Unknown error occurred");
+                _logger.LogError("Failed to add content to profile: {Error}", result.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (parameters[0] is ContentItemViewModel errItem)
+            {
+                errItem.DownloadStatus = $"✗ Error: {ex.Message}";
+            }
+
+            _notificationService.ShowError(
+                "Error Adding to Profile",
+                $"An unexpected error occurred: {ex.Message}");
+            _logger.LogError(ex, "Exception adding content to profile");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CreateProfileWithContentAsync(object? parameter)
+    {
+        if (parameter == null)
+        {
+            return;
+        }
+
+        string contentId;
+        string contentName;
+        ContentItemViewModel? itemForStatus = null;
+
+        if (parameter is ContentItemViewModel item)
+        {
+            // Handle ContentItemViewModel
+            if (item.IsDownloading)
+            {
+                return;
+            }
+
+            itemForStatus = item;
+
+            if (item.HasVariants && item.AvailableVariants.Count > 0)
+            {
+                contentId = item.AvailableVariants[0].Id.Value;
+                contentName = item.AvailableVariants[0].Name ?? item.Name;
+            }
+            else
+            {
+                contentId = item.Model.Id;
+                contentName = item.Name;
+            }
+        }
+        else if (parameter is Core.Models.Manifest.ContentManifest manifest)
+        {
+            // Handle ContentManifest directly from variant selection
+            contentId = manifest.Id.Value;
+            contentName = manifest.Name ?? "Unknown";
+        }
+        else
+        {
+            return;
+        }
+
+        try
+        {
+            var baseName = $"{contentName} Profile";
+            var profileName = baseName;
+            var counter = 1;
+
+            // Ensure unique name
+            while (AvailableProfiles.Any(p => p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase)))
+            {
+                profileName = $"{baseName} ({counter++})";
+            }
+
+            _logger.LogInformation("Creating new profile '{ProfileName}' with {ContentName}", profileName, contentName);
+
+            if (itemForStatus != null)
+            {
+                itemForStatus.DownloadStatus = "Creating profile...";
+            }
+
+            var result = await _profileContentService.CreateProfileWithContentAsync(
+                profileName,
+                contentId,
+                CancellationToken.None);
+
+            if (result.Success && result.Data != null)
+            {
+                if (itemForStatus != null)
+                {
+                    itemForStatus.DownloadStatus = $"✓ Profile created: {result.Data.Name}";
+                }
+
+                // Notify other components that a profile was created
+                try
+                {
+                    var message = new ProfileCreatedMessage(result.Data);
+                    WeakReferenceMessenger.Default.Send(message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send ProfileCreatedMessage");
+                }
+
+                await RefreshAvailableProfilesAsync();
+            }
+            else
+            {
+                if (itemForStatus != null)
+                {
+                    itemForStatus.DownloadStatus = $"✗ Failed: {result.FirstError}";
+                }
+
+                _notificationService.ShowError(
+                    "Failed to Create Profile",
+                    result.FirstError ?? "Unknown error occurred");
+                _logger.LogError("Failed to create profile: {Error}", result.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (itemForStatus != null)
+            {
+                itemForStatus.DownloadStatus = $"✗ Error: {ex.Message}";
+            }
+
+            _notificationService.ShowError(
+                "Error Creating Profile",
+                $"An unexpected error occurred: {ex.Message}");
+            _logger.LogError(ex, "Exception creating profile with content");
+        }
+    }
+
+    private void RefreshProfilesOnUiThread()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            try
+            {
+                await RefreshAvailableProfilesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to refresh profiles dropdown");
+            }
+        });
     }
 }

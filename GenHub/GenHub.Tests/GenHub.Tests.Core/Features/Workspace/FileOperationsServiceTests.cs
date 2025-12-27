@@ -203,16 +203,16 @@ public class FileOperationsServiceTests : IDisposable
 
         _downloadService
             .Setup(x => x.DownloadFileAsync(
-                It.Is<DownloadConfiguration>(cfg => cfg.Url == testUrl && cfg.DestinationPath == destination),
+                It.Is<DownloadConfiguration>(cfg => cfg.Url.ToString() == testUrl && cfg.DestinationPath == destination),
                 progress,
                 default))
             .ReturnsAsync(successResult);
 
-        await _service.DownloadFileAsync(testUrl, destination, progress);
+        await _service.DownloadFileAsync(new Uri(testUrl), destination, progress);
 
         _downloadService.Verify(
             x => x.DownloadFileAsync(
-                It.Is<DownloadConfiguration>(cfg => cfg.Url == testUrl && cfg.DestinationPath == destination),
+                It.Is<DownloadConfiguration>(cfg => cfg.Url.ToString() == testUrl && cfg.DestinationPath == destination),
                 progress,
                 default),
             Times.Once);
@@ -237,7 +237,7 @@ public class FileOperationsServiceTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            fileOps.DownloadFileAsync("http://fail", "fail.zip"));
+            fileOps.DownloadFileAsync(new Uri("http://fail"), "fail.zip"));
     }
 
     /// <summary>

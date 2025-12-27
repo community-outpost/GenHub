@@ -6,6 +6,7 @@
         xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
         xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         mc:Ignorable="d" d:DesignWidth="750" d:DesignHeight="700"
         x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsWindow"
         x:DataType="vm:GameProfileSettingsViewModel"
@@ -773,6 +774,11 @@
                 <Button Content="Close" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
             </StackPanel>
         </Border>
+
+        <!-- Notifications overlay -->
+        <notifications:NotificationContainerView Grid.RowSpan="3" 
+                                               DataContext="{Binding NotificationManager}" 
+                                               ZIndex="2000" />
     </Grid>
     </Border>
 </Window>

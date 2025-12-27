@@ -53,8 +53,8 @@ public class ContentOrchestrator : IContentOrchestrator
         IContentManifestPool manifestPool)
     {
         _logger = logger;
-        _providers = new(providers);
-        _discoverers = new(discoverers);
+        _providers = [.. providers];
+        _discoverers = [.. discoverers];
         _resolvers = new ConcurrentDictionary<string, IContentResolver>();
         foreach (var resolver in resolvers)
         {
@@ -100,8 +100,8 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
         }
 
-        var allResults = new List<ContentSearchResult>();
-        var errors = new List<string>();
+        List<ContentSearchResult> allResults = [];
+        List<string> errors = [];
 
         // Orchestrate search across all enabled providers concurrently
         // Each provider handles its own internal discovery→resolution→delivery pipeline

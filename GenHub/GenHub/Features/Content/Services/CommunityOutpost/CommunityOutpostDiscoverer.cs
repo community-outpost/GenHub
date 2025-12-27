@@ -21,31 +21,16 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// Uses data-driven configuration from provider.json for endpoints, timeouts, and mirrors.
 /// Metadata is sourced from <see cref="Models.GenPatcherContentRegistry"/>.
 /// </summary>
-public class CommunityOutpostDiscoverer : IContentDiscoverer
+public partial class CommunityOutpostDiscoverer(
+    IHttpClientFactory httpClientFactory,
+    IProviderDefinitionLoader providerLoader,
+    ICatalogParserFactory catalogParserFactory,
+    ILogger<CommunityOutpostDiscoverer> logger) : IContentDiscoverer
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IProviderDefinitionLoader _providerLoader;
-    private readonly ICatalogParserFactory _catalogParserFactory;
-    private readonly ILogger<CommunityOutpostDiscoverer> _logger;
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="CommunityOutpostDiscoverer"/> class.
+    /// Gets the provider ID for registration.
     /// </summary>
-    /// <param name="httpClientFactory">HTTP client factory.</param>
-    /// <param name="providerLoader">Provider definition loader.</param>
-    /// <param name="catalogParserFactory">Factory for getting catalog parsers.</param>
-    /// <param name="logger">Logger instance.</param>
-    public CommunityOutpostDiscoverer(
-        IHttpClientFactory httpClientFactory,
-        IProviderDefinitionLoader providerLoader,
-        ICatalogParserFactory catalogParserFactory,
-        ILogger<CommunityOutpostDiscoverer> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _providerLoader = providerLoader;
-        _catalogParserFactory = catalogParserFactory;
-        _logger = logger;
-    }
+    public static string ProviderId => CommunityOutpostConstants.PublisherId;
 
     /// <inheritdoc/>
     public string SourceName => CommunityOutpostConstants.PublisherType;
@@ -60,11 +45,6 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
     public ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
-
-    /// <summary>
-    /// Gets the provider ID for registration.
-    /// </summary>
-    public string ProviderId => CommunityOutpostConstants.PublisherId;
 
     /// <inheritdoc/>
     public Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
@@ -83,13 +63,13 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
     {
         try
         {
-            _logger.LogInformation("Discovering content from Community Outpost...");
+            logger.LogInformation("Discovering content from Community Outpost...");
 
             // Get provider definition if not provided
-            provider ??= _providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
             if (provider == null)
             {
-                _logger.LogError("Provider definition not found for {ProviderId}", CommunityOutpostConstants.PublisherId);
+                logger.LogError("Provider definition not found for {ProviderId}", CommunityOutpostConstants.PublisherId);
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists.");
             }
@@ -111,14 +91,14 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
                     "PatchPageUrl not configured in provider definition.");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Using provider configuration - CatalogUrl: {CatalogUrl}, CatalogFormat: {Format}",
                 catalogUrl,
                 provider.CatalogFormat);
 
             var results = new List<ContentSearchResult>();
 
-            using var client = _httpClientFactory.CreateClient();
+            using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(catalogTimeout);
 
             // First, discover the Community Patch GameClient from legi.cc/patch
@@ -126,7 +106,7 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
             if (communityPatchResult != null && MatchesQuery(communityPatchResult, query))
             {
                 results.Add(communityPatchResult);
-                _logger.LogInformation("Discovered Community Patch: {Version}", communityPatchResult.Version);
+                logger.LogInformation("Discovered Community Patch: {Version}", communityPatchResult.Version);
             }
 
             // Then, fetch and parse the catalog using the appropriate parser
@@ -135,10 +115,10 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
                 var catalogContent = await client.GetStringAsync(catalogUrl, cancellationToken);
 
                 // Get the catalog parser for this provider's format
-                var parser = _catalogParserFactory.GetParser(provider.CatalogFormat);
+                var parser = catalogParserFactory.GetParser(provider.CatalogFormat);
                 if (parser == null)
                 {
-                    _logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
+                    logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
                     return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
                 }
 
@@ -149,22 +129,22 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
                     var catalogResults = parseResult.Data.Where(r => MatchesQuery(r, query)).ToList();
                     results.AddRange(catalogResults);
 
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         "Found {ItemCount} content items from catalog (after filtering: {FilteredCount})",
                         parseResult.Data.Count(),
                         catalogResults.Count);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to parse catalog: {Error}", parseResult.FirstError);
+                    logger.LogWarning("Failed to parse catalog: {Error}", parseResult.FirstError);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
+                logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Returning {ResultCount} content items from Community Outpost",
                 results.Count);
 
@@ -172,9 +152,54 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover Community Outpost content");
+            logger.LogError(ex, "Failed to discover Community Outpost content");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
         }
+    }
+
+    [GeneratedRegex(@"href=[""']([^""']*generalszh-weekly-(\d{4}-\d{2}-\d{2})[^""']*\.zip)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex DownloadUrlRegex();
+
+    /// <summary>
+    /// Checks if a search result matches the query filters.
+    /// </summary>
+    private static bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
+    {
+        // If no filters specified, include all
+        if (string.IsNullOrWhiteSpace(query.SearchTerm) &&
+            !query.ContentType.HasValue &&
+            !query.TargetGame.HasValue)
+        {
+            return true;
+        }
+
+        // Check search term
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            var term = query.SearchTerm.ToLowerInvariant();
+            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
+            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
+            var tagMatches = result.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+            if (!nameMatches && !descMatches && !tagMatches)
+            {
+                return false;
+            }
+        }
+
+        // Check content type filter
+        if (query.ContentType.HasValue && result.ContentType != query.ContentType.Value)
+        {
+            return false;
+        }
+
+        // Check target game filter
+        if (query.TargetGame.HasValue && result.TargetGame != query.TargetGame.Value)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -188,19 +213,16 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
     {
         try
         {
-            _logger.LogDebug("Fetching Community Patch page from {Url}", patchPageUrl);
+            logger.LogDebug("Fetching Community Patch page from {Url}", patchPageUrl);
 
             var pageContent = await client.GetStringAsync(patchPageUrl, cancellationToken);
 
             // Look for the download link pattern: generalszh-weekly-YYYY-MM-DD*.zip
-            var downloadUrlMatch = Regex.Match(
-                pageContent,
-                @"href=[""']([^""']*generalszh-weekly-(\d{4}-\d{2}-\d{2})[^""']*\.zip)[""']",
-                RegexOptions.IgnoreCase);
+            var downloadUrlMatch = DownloadUrlRegex().Match(pageContent);
 
             if (!downloadUrlMatch.Success)
             {
-                _logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
+                logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
                 return null;
             }
 
@@ -214,7 +236,7 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
                 downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
             }
 
-            _logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
+            logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
 
             var providerId = provider?.ProviderId ?? CommunityOutpostConstants.PublisherId;
             var providerName = provider?.PublisherType ?? CommunityOutpostConstants.PublisherType;
@@ -262,50 +284,8 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", patchPageUrl);
+            logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", patchPageUrl);
             return null;
         }
-    }
-
-    /// <summary>
-    /// Checks if a search result matches the query filters.
-    /// </summary>
-    private bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
-    {
-        // If no filters specified, include all
-        if (string.IsNullOrWhiteSpace(query.SearchTerm) &&
-            !query.ContentType.HasValue &&
-            !query.TargetGame.HasValue)
-        {
-            return true;
-        }
-
-        // Check search term
-        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
-        {
-            var term = query.SearchTerm.ToLowerInvariant();
-            var nameMatches = result.Name?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
-            var descMatches = result.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false;
-            var tagMatches = result.Tags.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase));
-
-            if (!nameMatches && !descMatches && !tagMatches)
-            {
-                return false;
-            }
-        }
-
-        // Check content type filter
-        if (query.ContentType.HasValue && result.ContentType != query.ContentType.Value)
-        {
-            return false;
-        }
-
-        // Check target game filter
-        if (query.TargetGame.HasValue && result.TargetGame != query.TargetGame.Value)
-        {
-            return false;
-        }
-
-        return true;
     }
 }

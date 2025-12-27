@@ -13,6 +13,6 @@
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
     <Grid>
         <local:MainView x:Name="MainViewRoot" />
-        <notifications:NotificationContainerView DataContext="{Binding NotificationManager}" />
+        <notifications:NotificationContainerView DataContext="{Binding NotificationManager}" ZIndex="1000" />
     </Grid>
 </Window>

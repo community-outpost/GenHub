@@ -37,6 +37,9 @@ public static class AppServices
         services.AddGameProfileServices();
         services.AddLaunchingServices();
 
+        // Register User Data services (depends on CAS and file operations)
+        services.AddUserDataServices();
+
         // Register Tools services
         services.AddToolsServices();
 
