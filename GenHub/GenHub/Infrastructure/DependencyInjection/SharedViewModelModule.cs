@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,6 +57,9 @@ public static class SharedViewModelModule
 
         // Register PublisherCardViewModel as transient
         services.AddTransient<PublisherCardViewModel>();
+
+        // Register NotificationFeedViewModel
+        services.AddSingleton<NotificationFeedViewModel>();
 
         // Register factory for GameProfileItemViewModel (has required constructor parameters)
         services.AddTransient<Func<string, IGameProfile, string, string, GameProfileItemViewModel>>(sp =>

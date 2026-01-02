@@ -27,7 +27,6 @@ using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -46,33 +45,34 @@ public class MainViewModelTests
     public void Constructor_CreatesValidInstance()
     {
         // Arrange
-        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
-        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
             mockNotificationService.Object,
-            Mock.Of<ILogger<NotificationManagerViewModel>>(),
-            Mock.Of<ILogger<NotificationItemViewModel>>());
+            NullLogger<NotificationManagerViewModel>.Instance,
+            NullLogger<NotificationItemViewModel>.Instance);
 
         // Act
+        var notificationFeedVm = new NotificationFeedViewModel(
+            mockNotificationService.Object,
+            NullLoggerFactory.Instance,
+            NullLogger<NotificationFeedViewModel>.Instance);
+
         var vm = new MainViewModel(
             CreateGameProfileLauncherViewModel(),
             CreateDownloadsViewModel(),
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
-            mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
-            mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
-            CreateProfileResourceService(),
             mockNotificationService.Object,
+            notificationFeedVm,
             mockLogger.Object);
 
         // Assert
@@ -91,31 +91,32 @@ public class MainViewModelTests
     [InlineData(NavigationTab.Settings)]
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
     {
-        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
-        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
             mockNotificationService.Object,
-            Mock.Of<ILogger<NotificationManagerViewModel>>(),
-            Mock.Of<ILogger<NotificationItemViewModel>>());
+            NullLogger<NotificationManagerViewModel>.Instance,
+            NullLogger<NotificationItemViewModel>.Instance);
+        var notificationFeedVm = new NotificationFeedViewModel(
+            mockNotificationService.Object,
+            NullLoggerFactory.Instance,
+            NullLogger<NotificationFeedViewModel>.Instance);
+
         var vm = new MainViewModel(
             CreateGameProfileLauncherViewModel(),
             CreateDownloadsViewModel(),
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
-            mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
-            mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
-            CreateProfileResourceService(),
             mockNotificationService.Object,
+            notificationFeedVm,
             mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
@@ -129,11 +130,9 @@ public class MainViewModelTests
     public async Task InitializeAsync_MultipleCallsAreSafe()
     {
         // Arrange
-        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
-        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
             .ReturnsAsync((Velopack.UpdateInfo?)null);
@@ -143,19 +142,22 @@ public class MainViewModelTests
             mockNotificationService.Object,
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = new NotificationFeedViewModel(
+            mockNotificationService.Object,
+            Mock.Of<ILoggerFactory>(),
+            Mock.Of<ILogger<NotificationFeedViewModel>>());
+
         var vm = new MainViewModel(
             CreateGameProfileLauncherViewModel(),
             CreateDownloadsViewModel(),
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
-            mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
-            mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
-            CreateProfileResourceService(),
             mockNotificationService.Object,
+            notificationFeedVm,
             mockLogger.Object);
         await vm.InitializeAsync(); // Should not throw
         Assert.True(true);
@@ -172,11 +174,9 @@ public class MainViewModelTests
     [InlineData(NavigationTab.Settings)]
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
     {
-        var mockOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
-        var mockProfileEditorFacade = new Mock<IProfileEditorFacade>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
@@ -184,19 +184,22 @@ public class MainViewModelTests
             mockNotificationService.Object,
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = new NotificationFeedViewModel(
+            mockNotificationService.Object,
+            Mock.Of<ILoggerFactory>(),
+            Mock.Of<ILogger<NotificationFeedViewModel>>());
+
         var vm = new MainViewModel(
             CreateGameProfileLauncherViewModel(),
             CreateDownloadsViewModel(),
             toolsVm,
             settingsVm,
             mockNotificationManager.Object,
-            mockOrchestrator.Object,
             configProvider,
             userSettingsMock.Object,
-            mockProfileEditorFacade.Object,
             mockVelopackUpdateManager.Object,
-            CreateProfileResourceService(),
             mockNotificationService.Object,
+            notificationFeedVm,
             mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
         var currentViewModel = vm.CurrentTabViewModel;
@@ -375,6 +378,7 @@ public class MainViewModelTests
     {
         var mock = new Mock<INotificationService>();
         mock.Setup(x => x.Notifications).Returns(Observable.Empty<NotificationMessage>());
+        mock.Setup(x => x.NotificationHistory).Returns(Observable.Empty<NotificationMessage>());
         mock.Setup(x => x.DismissRequests).Returns(Observable.Empty<Guid>());
         mock.Setup(x => x.DismissAllRequests).Returns(Observable.Empty<bool>());
         return mock;

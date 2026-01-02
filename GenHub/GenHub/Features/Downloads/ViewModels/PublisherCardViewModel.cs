@@ -848,10 +848,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                 if (result.WasContentSwapped)
                 {
-                    _notificationService.ShowInfo(
-                        "Content Replaced",
-                        $"Replaced '{result.SwappedContentName}' with '{contentName}' in profile '{profile.Name}'");
-
                     _logger.LogInformation(
                         "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
                         result.SwappedContentName,

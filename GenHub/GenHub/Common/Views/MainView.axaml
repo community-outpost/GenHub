@@ -15,6 +15,7 @@
              xmlns:toolsViews="clr-namespace:GenHub.Features.Tools.Views"
              xmlns:settingsVM="clr-namespace:GenHub.Features.Settings.ViewModels"
              xmlns:settingsViews="clr-namespace:GenHub.Features.Settings.Views"
+             xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:system="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Common.Views.MainView"
@@ -145,6 +146,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+
         <!-- Header -->
         <Border Grid.Row="0" Classes="header-background">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,6,20,6" Height="75">
@@ -181,17 +183,18 @@
                         Content="Settings"
                         Name="Tab3Button" />
                 </StackPanel>
-                <!-- branding and update button - Right side -->
-                <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto" VerticalAlignment="Center">
 
-                    <!-- Logo and title section - Right side -->
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
+                <!-- Logo and title section - Right side -->
+                <Grid Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
                         <Image Source="avares://GenHub/Assets/Logos/generalshub-logo.png" Width="90" Height="90" HorizontalAlignment="Center" Margin="0,-10,0,-15" />
                         <TextBlock Text="C&amp;C Generals Launcher" FontSize="9" Foreground="#A0A0A0" FontWeight="Normal" HorizontalAlignment="Center" VerticalAlignment="Top" TextAlignment="Center" Margin="0,0,0,0" />
                     </StackPanel>
                 </Grid>
             </Grid>
         </Border>
+
+
 
         <!-- Main content area -->
         <Grid Grid.Row="1">

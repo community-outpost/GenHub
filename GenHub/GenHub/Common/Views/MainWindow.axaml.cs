@@ -26,8 +26,39 @@ public partial class MainWindow : Window
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            BeginMoveDrag(e);
+            if (e.ClickCount == 2)
+            {
+                MaximizeButton_Click(sender, new Avalonia.Interactivity.RoutedEventArgs());
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
         }
+    }
+
+    /// <summary>
+    /// Handles the minimize button click.
+    /// </summary>
+    private void MinimizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    /// <summary>
+    /// Handles the maximize/restore button click.
+    /// </summary>
+    private void MaximizeButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    /// <summary>
+    /// Handles the close button click.
+    /// </summary>
+    private void CloseButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        Close();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);

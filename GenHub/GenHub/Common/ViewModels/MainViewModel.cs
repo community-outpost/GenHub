@@ -6,14 +6,11 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
-using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -30,13 +27,11 @@ namespace GenHub.Common.ViewModels;
 /// <param name="toolsViewModel">Tools view model.</param>
 /// <param name="settingsViewModel">Settings view model.</param>
 /// <param name="notificationManager">Notification manager view model.</param>
-/// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
 /// <param name="configurationProvider">Configuration provider service.</param>
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
-/// <param name="profileEditorFacade">Profile editor facade for automatic profile creation.</param>
 /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
-/// <param name="profileResourceService">Service for accessing profile resources.</param>
 /// <param name="notificationService">Service for showing notifications.</param>
+/// <param name="notificationFeedViewModel">Notification feed view model.</param>
 /// <param name="logger">Logger instance.</param>
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
@@ -44,17 +39,19 @@ public partial class MainViewModel(
     ToolsViewModel toolsViewModel,
     SettingsViewModel settingsViewModel,
     NotificationManagerViewModel notificationManager,
-    IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
     IConfigurationProviderService configurationProvider,
     IUserSettingsService userSettingsService,
-    IProfileEditorFacade profileEditorFacade,
     IVelopackUpdateManager velopackUpdateManager,
-    ProfileResourceService profileResourceService,
     INotificationService notificationService,
-    ILogger<MainViewModel>? logger = null) : ObservableObject, IDisposable
+    NotificationFeedViewModel notificationFeedViewModel,
+    ILogger<MainViewModel> logger) : ObservableObject, IDisposable
 {
     private readonly CancellationTokenSource _initializationCts = new();
-    private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
+
+    /// <summary>
+    /// Gets the notification feed view model.
+    /// </summary>
+    public NotificationFeedViewModel NotificationFeed => notificationFeedViewModel;
 
     /// <summary>
     /// Gets the game profiles view model.
@@ -103,19 +100,6 @@ public partial class MainViewModel(
             return NavigationTab.GameProfiles;
         }
     }
-
-    // Static constructor for any static initialization
-    static MainViewModel()
-    {
-    }
-
-    private readonly IProfileEditorFacade _profileEditorFacade = profileEditorFacade ?? throw new ArgumentNullException(nameof(profileEditorFacade));
-    private readonly IVelopackUpdateManager _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
-    private readonly ProfileResourceService _profileResourceService = profileResourceService ?? throw new ArgumentNullException(nameof(profileResourceService));
-    private readonly INotificationService _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
-    private readonly IUserSettingsService _userSettingsService = userSettingsService;
-    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
-    private readonly ILogger<MainViewModel>? _logger = logger;
 
     /// <summary>
     /// Gets the collection of detected game installations.
@@ -177,7 +161,7 @@ public partial class MainViewModel(
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
-        _logger?.LogInformation("MainViewModel initialized");
+        logger?.LogInformation("MainViewModel initialized");
 
         // Start background check with cancellation support
         _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
@@ -198,34 +182,40 @@ public partial class MainViewModel(
     /// </summary>
     private async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
-        _logger?.LogDebug("Starting background update check");
+        logger?.LogDebug("Starting background update check");
 
         try
         {
-            var settings = _userSettingsService.Get();
+            var settings = userSettingsService.Get();
 
             // Push settings to update manager (important context for other components)
             if (settings.SubscribedPrNumber.HasValue)
             {
-                _velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
+                velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
             }
 
             // 1. Check for standard GitHub releases (Default)
             if (string.IsNullOrEmpty(settings.SubscribedBranch))
             {
-                var updateInfo = await _velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
+                var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
                 if (updateInfo != null)
                 {
-                    _logger?.LogInformation("GitHub release update available: {Version}", updateInfo.TargetFullRelease.Version);
+                    logger?.LogInformation("GitHub release update available: {Version}", updateInfo.TargetFullRelease.Version);
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        _notificationService.Show(new NotificationMessage(
+                        notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
                             "Update Available",
                             $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
                             null, // Persistent
-                            "View Updates",
-                            () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); }));
+                            actions:
+                            [
+                                new(
+                                    "View Updates",
+                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ]));
                     });
                     return;
                 }
@@ -233,11 +223,11 @@ public partial class MainViewModel(
             else
             {
                 // 2. Check for Subscribed Branch Artifacts
-                _logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.SubscribedBranch);
-                _velopackUpdateManager.SubscribedBranch = settings.SubscribedBranch;
-                _velopackUpdateManager.SubscribedPrNumber = null; // Clear PR to avoid ambiguity
+                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.SubscribedBranch);
+                velopackUpdateManager.SubscribedBranch = settings.SubscribedBranch;
+                velopackUpdateManager.SubscribedPrNumber = null; // Clear PR to avoid ambiguity
 
-                var artifactUpdate = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
 
                 if (artifactUpdate != null)
                 {
@@ -245,20 +235,26 @@ public partial class MainViewModel(
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        _notificationService.Show(new NotificationMessage(
+                        notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
                             "Branch Update Available",
                             $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
                             null, // Persistent
-                            "View Updates",
-                            () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); }));
+                            actions:
+                            [
+                                new NotificationAction(
+                                    "View Updates",
+                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ]));
                     });
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
+            logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
         }
     }
 
@@ -274,7 +270,7 @@ public partial class MainViewModel(
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Unhandled exception in background update check");
+            logger?.LogError(ex, "Unhandled exception in background update check");
         }
     }
 
@@ -282,17 +278,17 @@ public partial class MainViewModel(
     {
         try
         {
-            _userSettingsService.Update(settings =>
+            userSettingsService.Update(settings =>
             {
                 settings.LastSelectedTab = selectedTab;
             });
 
-            _ = _userSettingsService.SaveAsync();
-            _logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
+            _ = userSettingsService.SaveAsync();
+            logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to update selected tab setting");
+            logger?.LogError(ex, "Failed to update selected tab setting");
         }
     }
 

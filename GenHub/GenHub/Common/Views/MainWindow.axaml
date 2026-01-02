@@ -10,9 +10,183 @@
         x:DataType="vm:MainViewModel"
         Title="GenHub"
         WindowStartupLocation="CenterScreen"
-        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png">
+        Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Window.Styles>
+        <Style Selector="Grid.TitleBarArea">
+            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
+    </Window.Styles>
+
     <Grid>
-        <local:MainView x:Name="MainViewRoot" />
-        <notifications:NotificationContainerView DataContext="{Binding NotificationManager}" ZIndex="1000" />
+        <!-- Main content with title bar -->
+        <Grid RowDefinitions="Auto,*">
+            <!-- Custom title bar -->
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto"
+                  Classes="TitleBarArea"
+                  x:Name="TitleBarGrid"
+                  PointerPressed="OnTitleBarPointerPressed">
+
+                <!-- App icon and title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
+                           Width="24" Height="24" />
+                    <TextBlock Text="GenHub"
+                              VerticalAlignment="Center"
+                              FontSize="14" FontWeight="SemiBold"
+                              Foreground="White" />
+                </StackPanel>
+
+                <!-- Spacer -->
+                <Panel Grid.Column="1" />
+
+                <!-- Notification Bell Icon -->
+                <Button Grid.Column="2"
+                        Command="{Binding NotificationFeed.ToggleFeedCommand}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="8"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center"
+                        Cursor="Hand"
+                        ToolTip.Tip="Notifications">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2A2A2A" />
+                        </Style>
+                    </Button.Styles>
+                    <Grid>
+                        <!-- Bell Icon -->
+                        <Path Fill="#A855F7"
+                              Width="18"
+                              Height="18"
+                              Stretch="Uniform"
+                              Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z" />
+
+                        <!-- Unread Badge -->
+                        <Border Background="#EF4444"
+                                CornerRadius="10"
+                                MinWidth="16"
+                                Height="16"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Margin="-4,-4,-4,0"
+                                IsVisible="{Binding NotificationFeed.HasUnreadNotifications}">
+                            <TextBlock Text="{Binding NotificationFeed.BadgeCount}"
+                                       Foreground="White"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Padding="4,0" />
+                        </Border>
+                    </Grid>
+                </Button>
+
+                <!-- Minimize Button -->
+                <Button Grid.Column="3"
+                        VerticalAlignment="Stretch"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Background="Transparent"
+                        Foreground="#CCCCCC"
+                        BorderThickness="0"
+                        Padding="0"
+                        Width="46" Height="40"
+                        Click="MinimizeButton_Click">
+                    <Path Data="M4,11H20V13H4Z"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center"
+                          Margin="0,8,0,0" />
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2A2A2A"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+
+                <!-- Maximize/Restore Button -->
+                <Button Grid.Column="4"
+                        VerticalAlignment="Stretch"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Background="Transparent"
+                        Foreground="#CCCCCC"
+                        BorderThickness="0"
+                        Padding="0"
+                        Width="46" Height="40"
+                        Click="MaximizeButton_Click">
+                    <Path x:Name="MaximizeIcon"
+                          Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#2A2A2A"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+
+                <!-- Close Button -->
+                <Button Grid.Column="5"
+                        VerticalAlignment="Stretch"
+                        VerticalContentAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Background="Transparent"
+                        Foreground="#CCCCCC"
+                        BorderThickness="0"
+                        Padding="0"
+                        Width="46" Height="40"
+                        Click="CloseButton_Click">
+                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Fill="{Binding $parent[Button].Foreground}"
+                          Width="12" Height="12"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center" />
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#C42B1C"/>
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                        <Style Selector="Button:pressed">
+                            <Setter Property="Background" Value="#AA2010"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </Grid>
+
+            <!-- Main content -->
+            <Grid Grid.Row="1">
+                <local:MainView x:Name="MainViewRoot" />
+            </Grid>
+        </Grid>
+
+        <!-- Notification Feed Overlay -->
+        <notifications:NotificationFeedView DataContext="{Binding NotificationFeed}"
+                                            ZIndex="2000"
+                                            VerticalAlignment="Top"
+                                            HorizontalAlignment="Right"
+                                            Margin="0,45,20,0" />
+
+        <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
+                                                ZIndex="3000"
+                                                VerticalAlignment="Top"
+                                                HorizontalAlignment="Right"
+                                                Margin="0,10,10,0" />
     </Grid>
 </Window>

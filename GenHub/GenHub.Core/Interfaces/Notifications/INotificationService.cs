@@ -1,3 +1,6 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 using GenHub.Core.Models.Notifications;
 
 namespace GenHub.Core.Interfaces.Notifications;
@@ -23,28 +26,36 @@ public interface INotificationService
     IObservable<bool> DismissAllRequests { get; }
 
     /// <summary>
+    /// Gets the observable stream of notification history.
+    /// </summary>
+    IObservable<NotificationMessage> NotificationHistory { get; }
+
+    /// <summary>
     /// Shows an informational notification.
     /// </summary>
     /// <param name="title">The notification title.</param>
     /// <param name="message">The notification message.</param>
-    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds.</param>
-    void ShowInfo(string title, string message, int? autoDismissMs = null);
+    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds (default: 5000ms). If null, the notification will stay until dismissed.</param>
+    /// <param name="showInBadge">Whether this notification should increment the badge count (default: false).</param>
+    void ShowInfo(string title, string message, int? autoDismissMs = null, bool showInBadge = false);
 
     /// <summary>
     /// Shows a success notification.
     /// </summary>
     /// <param name="title">The notification title.</param>
     /// <param name="message">The notification message.</param>
-    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds.</param>
-    void ShowSuccess(string title, string message, int? autoDismissMs = null);
+    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds (default: 5000ms). If null, the notification will stay until dismissed.</param>
+    /// <param name="showInBadge">Whether this notification should increment the badge count (default: false).</param>
+    void ShowSuccess(string title, string message, int? autoDismissMs = null, bool showInBadge = false);
 
     /// <summary>
     /// Shows a warning notification.
     /// </summary>
     /// <param name="title">The notification title.</param>
     /// <param name="message">The notification message.</param>
-    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds.</param>
-    void ShowWarning(string title, string message, int? autoDismissMs = null);
+    /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds (default: 5000ms). If null, the notification will stay until dismissed.</param>
+    /// <param name="showInBadge">Whether this notification should increment the badge count (default: false).</param>
+    void ShowWarning(string title, string message, int? autoDismissMs = null, bool showInBadge = false);
 
     /// <summary>
     /// Shows an error notification.
@@ -52,7 +63,8 @@ public interface INotificationService
     /// <param name="title">The notification title.</param>
     /// <param name="message">The notification message.</param>
     /// <param name="autoDismissMs">Optional auto-dismiss timeout in milliseconds.</param>
-    void ShowError(string title, string message, int? autoDismissMs = null);
+    /// <param name="showInBadge">Whether this notification should increment the badge count (default: false).</param>
+    void ShowError(string title, string message, int? autoDismissMs = null, bool showInBadge = false);
 
     /// <summary>
     /// Shows a custom notification.
@@ -63,11 +75,22 @@ public interface INotificationService
     /// <summary>
     /// Dismisses a specific notification.
     /// </summary>
-    /// <param name="notificationId">The ID of the notification to dismiss.</param>
+    /// <param name="notificationId">The ID of notification to dismiss.</param>
     void Dismiss(Guid notificationId);
 
     /// <summary>
     /// Dismisses all active notifications.
     /// </summary>
     void DismissAll();
+
+    /// <summary>
+    /// Marks a notification as read.
+    /// </summary>
+    /// <param name="notificationId">The ID of notification to mark as read.</param>
+    void MarkAsRead(Guid notificationId);
+
+    /// <summary>
+    /// Clears all notification history.
+    /// </summary>
+    void ClearHistory();
 }

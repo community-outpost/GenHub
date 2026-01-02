@@ -1,0 +1,136 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="100"
+             x:Class="GenHub.Features.Notifications.Views.NotificationFeedItemView"
+             x:DataType="vm:NotificationFeedItemViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.item-container">
+            <Setter Property="Background" Value="#25FFFFFF" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.item-container.unread">
+            <Setter Property="Background" Value="#15A855F7" />
+        </Style>
+
+        <Style Selector="Border.item-container:pointerover">
+            <Setter Property="Background" Value="#25A855F7" />
+        </Style>
+
+        <Style Selector="TextBlock.item-title">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="TextBlock.item-message">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#B0B0B0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="LineHeight" Value="18" />
+        </Style>
+
+        <Style Selector="TextBlock.item-time">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#808080" />
+        </Style>
+
+        <Style Selector="Button.dismiss-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#808080" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.dismiss-button:pointerover">
+            <Setter Property="Foreground" Value="#E0E0E0" />
+        </Style>
+
+        <Style Selector="ItemsControl.actions-panel">
+            <Setter Property="Margin" Value="0,8,0,0" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="item-container" Padding="0">
+        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+            <!-- Main Content Area -->
+            <StackPanel Grid.Column="0" Grid.RowSpan="3" Margin="12">
+                <!-- Icon and Title -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <Path Grid.Column="0"
+                          Data="{Binding IconPath}"
+                          Fill="{Binding BackgroundBrush}"
+                          Width="20"
+                          Height="20"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          Margin="0,0,8,0" />
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" Classes="item-title" />
+                        <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Message -->
+                <TextBlock Text="{Binding Message}"
+                           Classes="item-message"
+                           TextWrapping="Wrap"
+                           Margin="0,8,0,0" />
+
+                <!-- Actions -->
+                <ItemsControl ItemsSource="{Binding Actions}"
+                              Classes="actions-panel"
+                              IsVisible="{Binding Actions.Count}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="action-button"
+                                    Background="{Binding BackgroundBrush}"
+                                    CornerRadius="6">
+                                <Button Command="{Binding ExecuteCommand}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="10,6"
+                                        FontSize="12"
+                                        Cursor="Hand">
+                                    <TextBlock Text="{Binding Text}" Foreground="{Binding ForegroundBrush}" FontWeight="Medium" />
+                                </Button>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Dismiss Button Area -->
+            <Button Grid.Column="1" Grid.Row="0"
+                    Command="{Binding DismissCommand}"
+                    Classes="dismiss-button"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,8,8,0">
+                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Fill="#808080"
+                          Width="12"
+                          Height="12"
+                          Stretch="Uniform" />
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

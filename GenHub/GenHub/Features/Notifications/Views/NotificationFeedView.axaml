@@ -1,0 +1,209 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Notifications.Views"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
+             x:Class="GenHub.Features.Notifications.Views.NotificationFeedView"
+             x:DataType="vm:NotificationFeedViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.feed-container">
+            <Setter Property="Background" Value="#E61A1A1A" />
+            <Setter Property="BorderBrush" Value="#40A855F7" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BoxShadow" Value="0 12 30 0 #80000000" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxWidth" Value="380" />
+            <Setter Property="MaxHeight" Value="520" />
+        </Style>
+
+        <Style Selector="Border.feed-header">
+            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="BorderBrush" Value="#333333" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="CornerRadius" Value="12,12,0,0" />
+        </Style>
+
+        <Style Selector="TextBlock.feed-title">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Button.feed-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#B0B0B0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.feed-button:pointerover">
+            <Setter Property="Foreground" Value="#E0E0E0" />
+        </Style>
+
+        <Style Selector="Button.clear-button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="#40A855F7" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.clear-button:pointerover">
+            <Setter Property="Background" Value="#20A855F7" />
+            <Setter Property="Foreground" Value="#C084FC" />
+        </Style>
+
+        <Style Selector="ScrollViewer.feed-scroll">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style Selector="Border.empty-state">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="40" />
+        </Style>
+
+        <Style Selector="TextBlock.empty-text">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="#60FFFFFF" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Border.notification-item">
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style Selector="Border.notification-item:pointerover">
+            <Setter Property="Background" Value="#2D3737" />
+        </Style>
+
+        <Style Selector="Border.notification-item.unread">
+            <Setter Property="Background" Value="#2A2A2A" />
+        </Style>
+
+        <Style Selector="TextBlock.notification-title">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E0E0E0" />
+        </Style>
+
+        <Style Selector="TextBlock.notification-message">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#B0B0B0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="TextBlock.notification-time">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#808080" />
+        </Style>
+
+        <Style Selector="ItemsControl.actions-panel">
+            <Setter Property="Margin" Value="12,8,0,0" />
+        </Style>
+
+        <Style Selector="Border.action-button">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,12" />
+            <Setter Property="TextElement.FontSize" Value="12" />
+            <Setter Property="TextElement.FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Border.action-button.primary">
+            <Setter Property="Background" Value="#4A9EFF" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Border.action-button.secondary">
+            <Setter Property="Background" Value="#6B7280" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Border.action-button.danger">
+            <Setter Property="Background" Value="#EF4444" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Border.action-button.success">
+            <Setter Property="Background" Value="#10B981" />
+            <Setter Property="TextElement.Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Border.action-button:pointerover">
+            <Setter Property="Opacity" Value="0.8" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="feed-container"
+            IsVisible="{Binding IsFeedOpen}"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Top"
+            Margin="0">
+        <Grid RowDefinitions="Auto,Auto,*">
+            <!-- Header -->
+            <Border Grid.Row="0" Classes="feed-header">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Column="0" Classes="feed-title" Text="Notifications" VerticalAlignment="Center" />
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button Classes="clear-button"
+                                Command="{Binding ClearAllCommand}"
+                                Content="Clear All" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding NotificationHistory}" Margin="12,8">
+                    <ItemsControl.ItemsPanel>
+                       <ItemsPanelTemplate>
+                           <StackPanel Spacing="8" />
+                       </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NotificationFeedItemViewModel">
+                            <views:NotificationFeedItemView />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Empty State -->
+            <Border IsVisible="{Binding !HasNotifications}"
+                   Classes="empty-state"
+                   Grid.Row="1"
+                   Grid.RowSpan="2"
+                   MinHeight="150">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                    <PathIcon Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"
+                              Foreground="#30A855F7" Width="32" Height="32" />
+                    <TextBlock Classes="empty-text" Text="All caught up!" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>
