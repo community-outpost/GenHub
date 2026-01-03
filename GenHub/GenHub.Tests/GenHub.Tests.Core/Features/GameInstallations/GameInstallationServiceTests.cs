@@ -17,6 +17,7 @@ public class GameInstallationServiceTests
 {
     private readonly Mock<IGameInstallationDetectionOrchestrator> _orchestratorMock;
     private readonly Mock<IGameClientDetectionOrchestrator> _clientOrchestratorMock;
+    private readonly Mock<ILogger<GameInstallationService>> _loggerMock;
     private readonly GameInstallationService _service;
 
     /// <summary>
@@ -26,6 +27,7 @@ public class GameInstallationServiceTests
     {
         _orchestratorMock = new Mock<IGameInstallationDetectionOrchestrator>();
         _clientOrchestratorMock = new Mock<IGameClientDetectionOrchestrator>();
+        _loggerMock = new Mock<ILogger<GameInstallationService>>();
 
         // Setup client orchestrator to return empty clients by default
         var clientResult = DetectionResult<GameClient>.CreateSuccess(Enumerable.Empty<GameClient>(), TimeSpan.Zero);
@@ -37,7 +39,7 @@ public class GameInstallationServiceTests
                 return Task.FromResult(clientResult);
             });
 
-        _service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object);
+        _service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object, _loggerMock.Object);
     }
 
     /// <summary>
@@ -214,7 +216,7 @@ public class GameInstallationServiceTests
     public void Dispose_ShouldDisposeResources()
     {
         // Arrange
-        var service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object);
+        var service = new GameInstallationService(_orchestratorMock.Object, _clientOrchestratorMock.Object, _loggerMock.Object);
 
         // Act
         service.Dispose();

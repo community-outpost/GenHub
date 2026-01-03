@@ -1,10 +1,9 @@
-using System;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Features.GameInstallations;
 using GenHub.Features.Workspace;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.Features.Shortcuts;
@@ -12,7 +11,7 @@ using GenHub.Windows.Features.Workspace;
 using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Runtime.Versioning;
+using System;
 
 namespace GenHub.Windows.Infrastructure.DependencyInjection;
 
@@ -32,6 +31,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
+        services.AddSingleton<IManualInstallationStorage, ManualInstallationStorage>();
 
         // Register WindowsFileOperationsService with factory to avoid circular dependency
         services.AddScoped<IFileOperationsService>(serviceProvider =>

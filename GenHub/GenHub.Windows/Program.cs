@@ -41,24 +41,36 @@ public class Program
         // Extract profile ID from args if present (for IPC forwarding)
         var profileId = CommandLineParser.ExtractProfileId(args);
 
-        // Initialize single-instance manager
-        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+        // Check for multi-instance mode (useful for debugging with multiple instances)
+        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
 
-        if (!_singleInstanceManager.IsFirstInstance)
+        if (!multiInstance)
         {
-            // Forward launch command to primary instance if we have a profile ID
-            if (!string.IsNullOrEmpty(profileId))
+            // Initialize single-instance manager
+            _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+
+            if (!_singleInstanceManager.IsFirstInstance)
             {
-                bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                // Forward launch command to primary instance if we have a profile ID
+                if (!string.IsNullOrEmpty(profileId))
+                {
+                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                }
+
+                // Focus the existing instance
+                SingleInstanceManager.FocusPrimaryInstance();
+
+                // Exit this secondary instance
+                _singleInstanceManager.Dispose();
+                return;
             }
-
-            // Focus the existing instance
-            SingleInstanceManager.FocusPrimaryInstance();
-
-            // Exit this secondary instance
-            _singleInstanceManager.Dispose();
-            return;
+        }
+        else
+        {
+            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
         }
 
         try

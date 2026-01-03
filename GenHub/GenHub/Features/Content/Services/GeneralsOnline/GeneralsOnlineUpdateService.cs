@@ -115,10 +115,16 @@ public class GeneralsOnlineUpdateService(
                 return null;
             }
 
-            var latestVersionUrl = provider.Endpoints.GetEndpoint("latestVersionUrl");
+            var latestVersionUrl = provider.Endpoints.GetEndpoint("custom.latestVersionUrl");
             if (string.IsNullOrEmpty(latestVersionUrl))
             {
-                logger.LogError("latestVersionUrl not configured in provider definition");
+                // Fallback to standard endpoint name lookup
+                latestVersionUrl = provider.Endpoints.GetEndpoint("latestVersionUrl");
+            }
+
+            if (string.IsNullOrEmpty(latestVersionUrl))
+            {
+                logger.LogError("latestVersionUrl not configured in provider definition (checked both 'custom.latestVersionUrl' and 'latestVersionUrl')");
                 return null;
             }
 

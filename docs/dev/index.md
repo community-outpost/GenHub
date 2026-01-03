@@ -143,9 +143,13 @@ public class MyService(ILogger<MyService> logger)
 
 GeneralsHub includes comprehensive unit and integration tests:
 
-- **xUnit**: Testing framework  
-- **FluentAssertions**: Readable assertions  
-- **Moq**: Mocking dependencies  
+- **xUnit**: Testing framework
+- **FluentAssertions**: Readable assertions
+- **Moq**: Mocking dependencies
+
+### Debugging
+
+GenHub supports [multi-instance debugging](./debugging.md) for testing multiple workspaces or debugging concurrent operations.
 
 ---
 

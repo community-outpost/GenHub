@@ -12,7 +12,6 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,17 +26,13 @@ namespace GenHub.Features.GameInstallations;
 /// content manifests for detected installations and populate their AvailableClients.
 /// </remarks>
 public class GameInstallationService(
-    IGameInstallationDetectionOrchestrator detectionOrchestrator,
-    IGameClientDetectionOrchestrator clientOrchestrator,
-    IManifestGenerationService? manifestGenerationService = null,
-    IContentManifestPool? contentManifestPool = null,
-    ILogger<GameInstallationService>? logger = null) : IGameInstallationService, IDisposable
+IGameInstallationDetectionOrchestrator detectionOrchestrator,
+IGameClientDetectionOrchestrator clientOrchestrator,
+ILogger<GameInstallationService> logger,
+IManifestGenerationService? manifestGenerationService = null,
+IContentManifestPool? contentManifestPool = null,
+IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallationService, IDisposable
 {
-    private readonly IGameInstallationDetectionOrchestrator _detectionOrchestrator = detectionOrchestrator ?? throw new ArgumentNullException(nameof(detectionOrchestrator));
-    private readonly IGameClientDetectionOrchestrator _clientOrchestrator = clientOrchestrator ?? throw new ArgumentNullException(nameof(clientOrchestrator));
-    private readonly IManifestGenerationService? _manifestGenerationService = manifestGenerationService;
-    private readonly IContentManifestPool? _contentManifestPool = contentManifestPool;
-    private readonly ILogger<GameInstallationService> _logger = logger ?? NullLogger<GameInstallationService>.Instance;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
     private bool _disposed = false;
@@ -88,19 +83,10 @@ public class GameInstallationService(
             var initResult = await TryInitializeCacheAsync(cancellationToken);
             if (!initResult.Success)
             {
-                // Even if detection failing (e.g. no auto-detect), we might have manual installs.
-                // But TryInitializeCacheAsync returns Failure if detect fails?
-                // Looking at TryInitializeCacheAsync, it returns Failure if detection error.
-                // But we should probably allow failure if we have a cache?
-                // For now, let's stick to existing logic but maybe we need to be careful.
-                // If init failed, we might still want to proceed if we manually injected?
-                // But let's assume detection usually succeeds (returns empty list if none found?).
-                // "Failed to detect" usually means exception.
-
-                // If cache is null, we can't do much.
+                // If TryInitializeCacheAsync failed and cache is null, return failure
                 if (_cachedInstallations == null)
                 {
-                     return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
                 }
             }
 
@@ -122,51 +108,98 @@ public class GameInstallationService(
     {
         ArgumentNullException.ThrowIfNull(installation);
 
+        logger!.LogInformation(
+            "[DIAGNOSTIC] RegisterManualInstallationAsync called for installation ID: {InstallationId}, Path: {Path}, Type: {Type}",
+            installation.Id,
+            installation.InstallationPath,
+            installation.InstallationType);
+
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
             // Ensure cache is initialized (or at least exists)
             if (_cachedInstallations == null)
             {
+                logger.LogWarning(
+                    "[DIAGNOSTIC] Cache is null during RegisterManualInstallationAsync, initializing with auto-detection only");
+
                 // Try to initialize standard way first
                 try
                 {
                     // logic from TryInitializeCacheAsync but without the lock since we hold it
-                    var detectionResult = await _detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
+                    var detectionResult = await detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
                     if (detectionResult.Success)
                     {
                         var installations = detectionResult.Items.ToList();
                         await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
                         _cachedInstallations = installations.AsReadOnly();
+                        logger.LogInformation(
+                            "[DIAGNOSTIC] Cache initialized with {Count} auto-detected installations",
+                            _cachedInstallations.Count);
                     }
                     else
                     {
                         // Fallback to empty list
                         _cachedInstallations = new List<GameInstallation>().AsReadOnly();
+                        logger.LogWarning(
+                            "[DIAGNOSTIC] Auto-detection failed, cache initialized as empty list");
                     }
                 }
                 catch
                 {
                      _cachedInstallations = new List<GameInstallation>().AsReadOnly();
+                     logger.LogWarning(
+                        "[DIAGNOSTIC] Exception during cache initialization, cache initialized as empty list");
                 }
             }
 
             var currentList = _cachedInstallations.ToList();
+            var previousCount = currentList.Count;
 
             // Update existing or add new
             var existingIndex = currentList.FindIndex(i => i.Id == installation.Id);
             if (existingIndex >= 0)
             {
                 currentList[existingIndex] = installation;
+                logger.LogInformation(
+                    "[DIAGNOSTIC] Updated existing manual installation: {Id} ({Path})",
+                    installation.Id,
+                    installation.InstallationPath);
             }
             else
             {
                 currentList.Add(installation);
+                logger.LogInformation(
+                    "[DIAGNOSTIC] Added new manual installation: {Id} ({Path})",
+                    installation.Id,
+                    installation.InstallationPath);
             }
 
             _cachedInstallations = currentList.AsReadOnly();
 
-            _logger.LogInformation("Registered manual installation: {Id} ({Path})", installation.Id, installation.InstallationPath);
+            logger.LogInformation(
+                "[DIAGNOSTIC] Cache now contains {Count} installations (was {PreviousCount})",
+                _cachedInstallations.Count,
+                previousCount);
+
+            // Persist manual installation to storage
+            if (manualInstallationStorage != null)
+            {
+                try
+                {
+                    await manualInstallationStorage.SaveManualInstallationAsync(installation, cancellationToken);
+                    logger.LogInformation(
+                        "[DIAGNOSTIC] Persisted manual installation {Id} to storage",
+                        installation.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(
+                        ex,
+                        "[DIAGNOSTIC] Failed to persist manual installation {Id} to storage",
+                        installation.Id);
+                }
+            }
 
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -182,8 +215,28 @@ public class GameInstallationService(
         _cacheLock.Wait();
         try
         {
+            var previousCount = _cachedInstallations?.Count ?? 0;
             _cachedInstallations = null;
-            _logger.LogInformation("Installation cache invalidated");
+            logger!.LogInformation(
+                "[DIAGNOSTIC] Installation cache invalidated (had {PreviousCount} installations, now null)",
+                previousCount);
+
+            // Clear manual installations from storage when cache is invalidated
+            if (manualInstallationStorage != null)
+            {
+                try
+                {
+                    manualInstallationStorage.ClearAllAsync(default).GetAwaiter().GetResult();
+                    logger.LogInformation(
+                        "[DIAGNOSTIC] Cleared manual installations from storage");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(
+                        ex,
+                        "[DIAGNOSTIC] Failed to clear manual installations from storage");
+                }
+            }
         }
         finally
         {
@@ -222,8 +275,14 @@ public class GameInstallationService(
     {
         if (_cachedInstallations != null)
         {
+            logger!.LogInformation(
+                "[DIAGNOSTIC] TryInitializeCacheAsync: Cache already initialized with {Count} installations",
+                _cachedInstallations.Count);
             return OperationResult<bool>.CreateSuccess(true);
         }
+
+        logger!.LogInformation(
+            "[DIAGNOSTIC] TryInitializeCacheAsync: Cache is null, initializing via auto-detection and manual installations");
 
         await _cacheLock.WaitAsync(cancellationToken);
         try
@@ -233,27 +292,91 @@ public class GameInstallationService(
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
-            var detectionResult = await _detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
+            var detectionResult = await detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
+
+            // Start with auto-detected installations if successful, otherwise empty list
+            List<GameInstallation> mergedInstallations;
+            int autoCount = 0;
+            bool detectionHadError = !detectionResult.Success;
             if (detectionResult.Success)
             {
-                var installations = detectionResult.Items.ToList();
-
-                // Generate manifests and populate AvailableVersions for each installation
-                await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
-
-                _cachedInstallations = installations.AsReadOnly();
-
-                _logger.LogInformation(
-                    "Initialized installation cache with {Count} installations",
-                    _cachedInstallations.Count);
-
-                return OperationResult<bool>.CreateSuccess(true);
+                mergedInstallations = detectionResult.Items.ToList();
+                autoCount = mergedInstallations.Count;
+                logger.LogInformation(
+                    "[DIAGNOSTIC] Auto-detection found {Count} installations",
+                    autoCount);
             }
             else
+            {
+                logger.LogWarning(
+                    "[DIAGNOSTIC] Auto-detection failed: {Errors}. Starting with empty list.",
+                    string.Join(", ", detectionResult.Errors));
+                mergedInstallations = new List<GameInstallation>();
+            }
+
+            // Load persisted manual installations and merge with auto-detected ones
+            if (manualInstallationStorage != null)
+            {
+                try
+                {
+                    var manualInstallations = await manualInstallationStorage.LoadManualInstallationsAsync(cancellationToken);
+                    var loadedManualCount = manualInstallations.Count;
+
+                    // Merge manual installations, avoiding duplicates by path
+                    foreach (var manualInstall in manualInstallations)
+                    {
+                        var existingByPath = mergedInstallations.FirstOrDefault(i =>
+                            i.InstallationPath.Equals(manualInstall.InstallationPath, StringComparison.OrdinalIgnoreCase));
+
+                        if (existingByPath != null)
+                        {
+                            logger.LogInformation(
+                                    "[DIAGNOSTIC] Skipping manual installation {Id} - path conflicts with auto-detected installation",
+                                    manualInstall.Id);
+                        }
+                        else
+                        {
+                            mergedInstallations.Add(manualInstall);
+                            logger.LogInformation(
+                                    "[DIAGNOSTIC] Merged manual installation {Id} into cache",
+                                    manualInstall.Id);
+                        }
+                    }
+
+                    logger.LogInformation(
+                            "[DIAGNOSTIC] Loaded {ManualCount} manual installations from storage",
+                            loadedManualCount);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(
+                            ex,
+                            "[DIAGNOSTIC] Failed to load manual installations from storage");
+                }
+            }
+
+            // Generate manifests and populate AvailableVersions for each installation
+            await PopulateGameClientsAndManifestsAsync(mergedInstallations, cancellationToken);
+
+            _cachedInstallations = mergedInstallations.AsReadOnly();
+
+            var totalCount = _cachedInstallations.Count;
+            var manualCount = totalCount - autoCount;
+
+            logger.LogInformation(
+                    "[DIAGNOSTIC] Cache initialized with {Count} total installations ({AutoCount} auto-detected, {ManualCount} manual)",
+                    totalCount,
+                    autoCount,
+                    manualCount);
+
+            // Return failure if detection had an error and we have no installations
+            if (detectionHadError && mergedInstallations.Count == 0)
             {
                 return OperationResult<bool>.CreateFailure(
                     $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
             }
+
+            return OperationResult<bool>.CreateSuccess(true);
         }
         finally
         {
@@ -274,10 +397,10 @@ public class GameInstallationService(
             installation.Fetch();
         }
 
-        var clientResult = await _clientOrchestrator.DetectGameClientsFromInstallationsAsync(installations, cancellationToken);
+        var clientResult = await clientOrchestrator.DetectGameClientsFromInstallationsAsync(installations, cancellationToken);
         if (!clientResult.Success)
         {
-            _logger.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
+            logger!.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
             return;
         }
 
@@ -286,11 +409,11 @@ public class GameInstallationService(
         {
             var installationClients = clientsByInstallation.FirstOrDefault(g => g.Key == installation.Id)?.ToList() ?? Enumerable.Empty<GameClient>();
             installation.PopulateGameClients(installationClients);
-            _logger.LogDebug("Populated {ClientCount} clients for installation {Id}", installationClients.Count(), installation.Id);
+            logger!.LogDebug("Populated {ClientCount} clients for installation {Id}", installationClients.Count(), installation.Id);
         }
 
         // Create and register GameInstallation manifests to the pool
-        if (_manifestGenerationService != null && _contentManifestPool != null)
+        if (manifestGenerationService != null && contentManifestPool != null)
         {
             foreach (var installation in installations)
             {
@@ -299,7 +422,7 @@ public class GameInstallationService(
         }
         else
         {
-            _logger.LogWarning("ManifestGenerationService or ContentManifestPool not available, skipping GameInstallation manifest registration");
+            logger!.LogWarning("ManifestGenerationService or ContentManifestPool not available, skipping GameInstallation manifest registration");
         }
     }
 
@@ -354,7 +477,7 @@ public class GameInstallationService(
 
             if (baseGameClient == null)
             {
-                _logger.LogWarning(
+                logger!.LogWarning(
                     "No base game client found for {GameType} in installation {InstallationId}, skipping GameInstallation manifest creation",
                     gameType,
                     installation.Id);
@@ -374,7 +497,7 @@ public class GameInstallationService(
             }
 
             // Create the GameInstallation manifest
-            var manifestBuilder = await _manifestGenerationService!.CreateGameInstallationManifestAsync(
+            var manifestBuilder = await manifestGenerationService!.CreateGameInstallationManifestAsync(
                 installationPath,
                 gameType,
                 installation.InstallationType,
@@ -383,11 +506,11 @@ public class GameInstallationService(
             var manifest = manifestBuilder.Build();
 
             // Register the manifest to the pool
-            var addResult = await _contentManifestPool!.AddManifestAsync(manifest, installationPath, null, cancellationToken);
+            var addResult = await contentManifestPool!.AddManifestAsync(manifest, installationPath, null, cancellationToken);
 
             if (addResult.Success)
             {
-                _logger.LogInformation(
+                logger!.LogInformation(
                     "Registered GameInstallation manifest {ManifestId} for {GameType} in installation {InstallationId}",
                     manifest.Id,
                     gameType,
@@ -395,7 +518,7 @@ public class GameInstallationService(
             }
             else
             {
-                _logger.LogWarning(
+                logger!.LogWarning(
                     "Failed to register GameInstallation manifest for {GameType} in installation {InstallationId}: {Errors}",
                     gameType,
                     installation.Id,
@@ -404,7 +527,7 @@ public class GameInstallationService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger!.LogError(
                 ex,
                 "Error creating GameInstallation manifest for {GameType} in installation {InstallationId}",
                 gameType,

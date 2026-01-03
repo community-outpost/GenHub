@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -1170,16 +1171,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger.LogWarning("Deleting all workspaces");
+
+            // First, clean up all tracked workspaces
             var workspacesResult = await _workspaceManager.GetAllWorkspacesAsync();
+            int totalDeleted = 0;
+
             if (workspacesResult.Success && workspacesResult.Data != null)
             {
-                var count = workspacesResult.Data.Count();
+                totalDeleted += workspacesResult.Data.Count();
                 foreach (var workspace in workspacesResult.Data)
                 {
                     await _workspaceManager.CleanupWorkspaceAsync(workspace.Id);
                 }
+            }
 
-                _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {count} workspace(s) successfully.", 3000);
+            // Additionally, clean up any orphaned installation-adjacent workspace directories
+            // that might not be tracked (e.g., if installations were deleted first)
+            var orphanedCount = await CleanupOrphanedWorkspaceDirectoriesAsync();
+            totalDeleted += orphanedCount;
+
+            if (totalDeleted > 0)
+            {
+                _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {totalDeleted} workspace(s) successfully.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowInfo("Workspaces Clean", "No workspaces found to delete.", 3000);
             }
 
             await UpdateDangerZoneDataAsync();
@@ -1189,6 +1206,95 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete workspaces");
             _notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
         }
+    }
+
+    /// <summary>
+    /// Cleans up orphaned workspace directories that might not be tracked by the workspace manager.
+    /// This handles cases where installations are deleted first, leaving behind installation-adjacent workspaces.
+    /// </summary>
+    private async Task<int> CleanupOrphanedWorkspaceDirectoriesAsync()
+    {
+        var deletedCount = 0;
+
+        try
+        {
+            // Re-fetch workspaces to check which directories are still referenced
+            var workspacesResult = await _workspaceManager.GetAllWorkspacesAsync();
+            var trackedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (workspacesResult.Success && workspacesResult.Data != null)
+            {
+                foreach (var workspace in workspacesResult.Data)
+                {
+                    trackedPaths.Add(workspace.WorkspacePath);
+                }
+            }
+
+            // Try to get installations to find their adjacent workspace directories
+            var installationsResult = await _installationService.GetAllInstallationsAsync();
+            if (installationsResult.Success && installationsResult.Data != null)
+            {
+                foreach (var installation in installationsResult.Data)
+                {
+                    try
+                    {
+                        var workspacePath = _storageLocationService.GetWorkspacePath(installation);
+                        if (Directory.Exists(workspacePath) && !trackedPaths.Contains(workspacePath))
+                        {
+                            _logger.LogInformation("Deleting orphaned workspace directory: {Path}", workspacePath);
+                            try
+                            {
+                                Directory.Delete(workspacePath, true);
+                                deletedCount++;
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", workspacePath);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to cleanup adjacent workspace for installation {InstallationId}", installation.Id);
+                    }
+                }
+            }
+
+            // Also check the centralized workspace directory for any remaining folders
+            var centralizedPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Workspaces);
+            if (Directory.Exists(centralizedPath))
+            {
+                var subdirectories = Directory.GetDirectories(centralizedPath);
+                foreach (var dir in subdirectories)
+                {
+                    try
+                    {
+                        if (!trackedPaths.Contains(dir))
+                        {
+                            _logger.LogInformation("Deleting orphaned centralized workspace directory: {Path}", dir);
+                            try
+                            {
+                                Directory.Delete(dir, true);
+                                deletedCount++;
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", dir);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to cleanup centralized workspace directory {Path}", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during orphaned workspace cleanup");
+        }
+
+        return deletedCount;
     }
 
     [RelayCommand]
