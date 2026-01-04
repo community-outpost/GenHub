@@ -375,7 +375,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ExtractManifestInfo(gameProfile.GameClient.Id);
 
                 // Fallback: use GameClient.Version directly if we couldn't extract from manifest
-                if (string.IsNullOrEmpty(_gameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
+                if (string.IsNullOrEmpty(GameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
                 {
                     // Normalize version to handle Unknown, Auto-Updated, and Automatically added cases
                     var version = gameProfile.GameClient.Version;
@@ -403,22 +403,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 // Generate user-friendly description with game type and version information as fallback
                 var gameTypeName = GetFriendlyGameTypeName(profile.GameClient?.GameType);
 
-                // Don't show version if it's Unknown, Auto-Updated, or Automatically added
                 var versionInfo = string.Empty;
-                if (!string.IsNullOrEmpty(_gameVersion) &&
-                    !_gameVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
-                    !_gameVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) &&
-                    !_gameVersion.Equals("Automatically added", StringComparison.OrdinalIgnoreCase) &&
-                    !_gameVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(GameVersion) &&
+                    !GameVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
+                    !GameVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) &&
+                    !GameVersion.Equals("Automatically added", StringComparison.OrdinalIgnoreCase) &&
+                    !GameVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
                 {
-                     // If it doesn't start with 'v' (e.g. GeneralsOnline datecode), add it for description context?
-                     // Or better, just use exactly what is in _gameVersion since we formatted it nicely.
-                     // The previous code added 'v' unconditionally.
-                     // Let's rely on _gameVersion having the prefix if standard, or raw if datecode.
-                     versionInfo = _gameVersion;
+                    versionInfo = $"{GameVersion}";
                 }
 
-                var publisherInfo = !string.IsNullOrEmpty(_publisher) ? $" • {_publisher}" : string.Empty;
+                var publisherInfo = !string.IsNullOrEmpty(Publisher) ? $" • {Publisher}" : string.Empty;
                 _description = string.IsNullOrEmpty(versionInfo)
                     ? $"{gameTypeName}{publisherInfo}"
                     : $"{gameTypeName} • {versionInfo}{publisherInfo}";

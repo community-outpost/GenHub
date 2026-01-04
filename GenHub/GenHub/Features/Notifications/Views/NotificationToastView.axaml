@@ -3,120 +3,240 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="120"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="150"
              x:Class="GenHub.Features.Notifications.Views.NotificationToastView"
              x:DataType="vm:NotificationItemViewModel">
 
     <UserControl.Styles>
+        <!-- Base Toast Style with Animation -->
         <Style Selector="Border.toast">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
             <Setter Property="Opacity" Value="0"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" Easing="BackEaseOut"/>
                 </Transitions>
             </Setter>
         </Style>
 
         <Style Selector="Border.toast[IsVisible=True]">
+            <Setter Property="RenderTransform" Value="scale(1)"/>
             <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <!-- TYPE SPECIFIC STYLES -->
+        <!-- Binds to the Tag property which we set to the Type name -->
+
+        <!-- INFO (Default/Purple Accent) -->
+        <Style Selector="Border.toast.Info">
+            <Setter Property="BorderBrush">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#6C5CE7"/>
+                    <GradientStop Offset="1" Color="#00CEC9"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#CC1E1E2E"/>
+                    <GradientStop Offset="1" Color="#CC2D2D44"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <!-- Icon Glow for Info -->
+        <Style Selector="Border.toast.Info Path.icon">
+            <Setter Property="Fill" Value="#A29BFE"/>
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="8" Color="#6C5CE7" Opacity="0.6"/>
+            </Setter>
+        </Style>
+
+        <!-- SUCCESS (Green/Teal Accent) -->
+        <Style Selector="Border.toast.Success">
+            <Setter Property="BorderBrush">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#00B894"/>
+                    <GradientStop Offset="1" Color="#55EFC4"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#CC1E2E1E"/>
+                    <GradientStop Offset="1" Color="#CC2D442D"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <Style Selector="Border.toast.Success Path.icon">
+            <Setter Property="Fill" Value="#55EFC4"/>
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="8" Color="#00B894" Opacity="0.6"/>
+            </Setter>
+        </Style>
+
+        <!-- WARNING (Orange/Yellow Accent) -->
+        <Style Selector="Border.toast.Warning">
+            <Setter Property="BorderBrush">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#FD79A8"/>
+                    <GradientStop Offset="1" Color="#FAB1A0"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#CC2E1E1E"/>
+                    <GradientStop Offset="1" Color="#CC442D2D"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <Style Selector="Border.toast.Warning Path.icon">
+            <Setter Property="Fill" Value="#FAB1A0"/>
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="8" Color="#FD79A8" Opacity="0.6"/>
+            </Setter>
+        </Style>
+
+        <!-- ERROR (Red/Pink Accent) -->
+        <Style Selector="Border.toast.Error">
+            <Setter Property="BorderBrush">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#FF7675"/>
+                    <GradientStop Offset="1" Color="#D63031"/>
+                </LinearGradientBrush>
+            </Setter>
+             <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Offset="0" Color="#CC2E1010"/>
+                    <GradientStop Offset="1" Color="#CC442020"/>
+                </LinearGradientBrush>
+            </Setter>
+        </Style>
+        <Style Selector="Border.toast.Error Path.icon">
+            <Setter Property="Fill" Value="#FF7675"/>
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="8" Color="#D63031" Opacity="0.8"/>
+            </Setter>
+        </Style>
+
+        <!-- Dismiss Button Hover -->
+        <Style Selector="Button.dismiss:pointerover Path">
+            <Setter Property="Fill" Value="#FFFFFFFF"/>
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <!-- Action Button Style -->
+        <Style Selector="Button.action">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+        </Style>
+        <Style Selector="Button.action:pointerover">
+            <Setter Property="Background" Value="#F0F0FF"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
         </Style>
     </UserControl.Styles>
 
     <Border Name="ToastBorder"
             Classes="toast"
+            Classes.Info="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Info}}"
+            Classes.Success="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Success}}"
+            Classes.Warning="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Warning}}"
+            Classes.Error="{Binding Type, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationType.Error}}"
             IsVisible="{Binding IsVisible}"
-            Background="#E61A1A1A"
-            BorderBrush="#40FFFFFF"
-            BorderThickness="1"
+            BorderThickness="1.5"
             CornerRadius="12"
             Padding="0"
-            MaxWidth="380"
+            MaxWidth="400"
             MinWidth="320"
-            Margin="0,0,16,16"
-            Cursor="Hand"
-            ClipToBounds="True">
+            Margin="0,4"
+            BoxShadow="0 8 32 0 #40000000">
 
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="24"
-                               OffsetX="0"
-                               OffsetY="8"
-                               Opacity="0.5"/>
-        </Border.Effect>
-
+        <!-- Glass Effect Backdrop -->
         <Grid>
-            <!-- Background accent based on notification type -->
-            <Border Background="{Binding BackgroundBrush}" Opacity="0.15" />
+             <!-- Subtle Background Texture/Overlay -->
+            <Border CornerRadius="12" IsHitTestVisible="False" Opacity="0.05" Background="White"/>
 
             <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
-                <!-- Header -->
+                <!-- Header: Icon, Title, and Close -->
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                    <Path Grid.Column="0"
-                          Data="{Binding IconPath}"
-                          Fill="{Binding BackgroundBrush}"
-                          Width="20"
-                          Height="20"
-                          Stretch="Uniform"
-                          VerticalAlignment="Center"
-                          Margin="0,0,12,0"/>
 
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding Title}"
-                               FontWeight="Bold"
-                               FontSize="14"
-                               Foreground="White"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"/>
+                    <!-- Icon Container -->
+                    <Border Grid.Column="0"
+                            Width="32" Height="32"
+                            CornerRadius="8"
+                            Background="#20FFFFFF"
+                            Margin="0,0,12,0"
+                            VerticalAlignment="Top">
+                        <Path Classes="icon"
+                              Data="{Binding IconPath}"
+                              Width="18" Height="18"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                    </Border>
 
+                    <!-- Title and Message Wrapper -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}"
+                                   FontWeight="Bold"
+                                   FontSize="15"
+                                   Foreground="White"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <!-- Dismiss Button -->
                     <Button Grid.Column="2"
+                            Classes="dismiss"
                             Command="{Binding DismissCommand}"
                             Background="Transparent"
                             BorderThickness="0"
                             Padding="4"
                             Cursor="Hand"
-                            VerticalAlignment="Top">
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Right"
+                            Margin="4,-4,-4,0">
                         <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                              Fill="#80FFFFFF"
-                              Width="14"
-                              Height="14"
+                              Fill="#AAFFFFFF"
+                              Width="12"
+                              Height="12"
                               Stretch="Uniform"/>
+                        <Button.Transitions>
+                            <Transitions>
+                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                            </Transitions>
+                        </Button.Transitions>
                     </Button>
                 </Grid>
 
-                <!-- Message -->
+                <!-- Message Content -->
                 <TextBlock Grid.Row="1"
                            Text="{Binding Message}"
-                           FontSize="13"
+                           FontSize="13.5"
+                           LineHeight="20"
                            Foreground="#E0E0E0"
                            TextWrapping="Wrap"
-                           Margin="32,8,0,0"
-                           LineHeight="18"/>
+                           Margin="44,4,0,0"/>
 
                 <!-- Action Button -->
                 <Button Grid.Row="2"
+                        Classes="action"
                         IsVisible="{Binding IsActionable}"
                         Command="{Binding ActionCommand}"
                         Content="{Binding ActionText}"
-                        Background="#30FFFFFF"
-                        Foreground="White"
-                        BorderBrush="#40FFFFFF"
-                        BorderThickness="1"
+                        BorderThickness="0"
                         CornerRadius="6"
-                        Padding="16,6"
-                        Margin="32,16,0,0"
+                        Padding="16,8"
+                        Margin="44,12,0,0"
                         HorizontalAlignment="Left"
                         FontWeight="SemiBold"
-                        FontSize="12"
+                        FontSize="13"
                         Cursor="Hand">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#50FFFFFF" />
-                        </Style>
-                    </Button.Styles>
+                    <Button.Transitions>
+                        <Transitions>
+                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                        </Transitions>
+                    </Button.Transitions>
                 </Button>
             </Grid>
-
-            <!-- Bottom color stripe for visual type indicator -->
-            <Border VerticalAlignment="Bottom" Height="3" Background="{Binding BackgroundBrush}" />
         </Grid>
     </Border>
 </UserControl>

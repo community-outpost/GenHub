@@ -210,7 +210,7 @@ public partial class MainViewModel(
                             null, // Persistent
                             actions:
                             [
-                                new(
+                                new NotificationAction(
                                     "View Updates",
                                     () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
                                     NotificationActionStyle.Primary,
@@ -242,7 +242,7 @@ public partial class MainViewModel(
                             null, // Persistent
                             actions:
                             [
-                                new NotificationAction(
+                                new(
                                     "View Updates",
                                     () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
                                     NotificationActionStyle.Primary,

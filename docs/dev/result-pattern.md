@@ -3,7 +3,7 @@ title: Result Pattern
 description: Documentation for the Result pattern used in GenHub
 ---
 
-# Result Pattern
+# Result Pattern Documentation
 
 GenHub uses a consistent Result pattern for handling operations that may succeed or fail. This pattern provides a standardized way to return data and error information from methods.
 
@@ -30,7 +30,7 @@ The Result pattern in GenHub consists of several key components:
 - `Elapsed`: Time taken for the operation
 - `CompletedAt`: Timestamp when the operation completed
 
-### Constructors
+### ResultBase Constructors
 
 ```csharp
 // Success with no errors
@@ -49,7 +49,7 @@ protected ResultBase(bool success, string? error = null, TimeSpan elapsed = defa
 - `Data`: The data returned by the operation (nullable)
 - `FirstError`: The first error message, or null if no errors
 
-### Factory Methods
+### OperationResult Factory Methods
 
 ```csharp
 // Create successful result
@@ -228,14 +228,14 @@ public OperationResult<User> GetUserById(int id)
 public ValidationResult ValidateGameInstallation(string path)
 {
     var issues = new List<ValidationIssue>();
-    
+
     if (!Directory.Exists(path))
     {
         issues.Add(new ValidationIssue("Installation directory does not exist", ValidationSeverity.Error, path));
     }
-    
+
     // More validation logic...
-    
+
     return new ValidationResult(path, issues);
 }
 ```
@@ -249,12 +249,12 @@ public async Task<LaunchResult> LaunchGame(GameProfile profile)
     {
         var startTime = DateTime.UtcNow;
         var process = Process.Start(profile.ExecutablePath);
-        
+
         if (process == null)
         {
             return LaunchResult.CreateFailure("Failed to start process");
         }
-        
+
         var launchDuration = DateTime.UtcNow - startTime;
         return LaunchResult.CreateSuccess(process.Id, startTime, launchDuration);
     }

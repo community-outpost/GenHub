@@ -131,44 +131,92 @@
 
         <!-- Content filter pills -->
         <Style Selector="Button.filter-pill">
-            <Setter Property="Background" Value="#18FFFFFF" />
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#50FFFFFF"/>
+                    <GradientStop Offset="0.5" Color="#20FFFFFF"/>
+                    <GradientStop Offset="1" Color="#05FFFFFF"/>
+                </LinearGradientBrush>
+            </Setter>
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="BorderBrush">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#D0FFFFFF"/>
+                    <GradientStop Offset="1" Color="#40FFFFFF"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="16,10" />
+            <Setter Property="MinWidth" Value="110" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+
+        <Style Selector="Button.filter-pill TextBlock">
+             <Setter Property="Effect">
+                 <DropShadowEffect BlurRadius="4" Color="#000000" Opacity="0.8" OffsetX="1" OffsetY="1" />
+            </Setter>
+        </Style>
+
+        <!-- Hover: Brighten the 'glass' significantly -->
         <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#25FFFFFF" />
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#60FFFFFF"/>
+                    <GradientStop Offset="1" Color="#20FFFFFF"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#FFFFFFFF" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
         </Style>
+
+        <Style Selector="Button.filter-pill:pressed">
+             <Setter Property="RenderTransform" Value="scale(0.96)" />
+        </Style>
+
         <Style Selector="Button.filter-pill.selected /template/ ContentPresenter" x:CompileBindings="False">
             <Setter Property="Background" Value="{Binding $parent[Button].DataContext.ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Setter Property="BorderBrush" Value="White" />
+            <Setter Property="BorderBrush">
+                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Offset="0" Color="#FFFFFFFF"/>
+                    <GradientStop Offset="1" Color="#AAFFFFFF"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="Opacity" Value="1" />
         </Style>
+
         <Style Selector="Button.filter-pill.selected">
             <Setter Property="ZIndex" Value="1" />
+            <Setter Property="BorderThickness" Value="2" />
         </Style>
+
+        <!-- Selected text gets a strong shadow to pop against the colored background -->
         <Style Selector="Button.filter-pill.selected TextBlock">
             <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="Bold" />
+             <Setter Property="Effect">
+                 <DropShadowEffect BlurRadius="4" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="2" />
+            </Setter>
         </Style>
+
         <Style Selector="Button.filter-pill.selected PathIcon">
             <Setter Property="Foreground" Value="White" />
+             <Setter Property="Effect">
+                 <DropShadowEffect BlurRadius="4" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="2" />
+            </Setter>
         </Style>
 
         <!-- Conjoined pills -->
         <Style Selector="Button.filter-pill.left">
-            <Setter Property="CornerRadius" Value="8,0,0,8" />
-            <Setter Property="MinWidth" Value="90" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10,0,0,10" />
+            <Setter Property="MinWidth" Value="100" />
             <Setter Property="Margin" Value="0,0,-1,0" />
         </Style>
         <Style Selector="Button.filter-pill.right">
-            <Setter Property="CornerRadius" Value="0,8,8,0" />
-            <Setter Property="MinWidth" Value="90" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="0,10,10,0" />
+            <Setter Property="MinWidth" Value="100" />
         </Style>
 
         <!-- Tab icon button style -->
@@ -885,7 +933,6 @@
             </ScrollViewer>
 
         </Grid>
-
 
         <!-- Loading overlay -->
         <Border Grid.RowSpan="3"

@@ -65,7 +65,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = logger;
 
-        NotificationHistory = new ObservableCollection<NotificationFeedItemViewModel>();
+        NotificationHistory = [];
         UnreadCount = 0;
 
         // Subscribe to notification history

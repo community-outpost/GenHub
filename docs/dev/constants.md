@@ -19,7 +19,7 @@ API and network related constants.
 ### GitHub
 
 - `GitHubDomain`: GitHub domain name (`"github.com"`)
-- `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs  
+- `GitHubUrlRegexPattern`: Regex pattern for parsing repository URLs
   (`@"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?"`)
 
 ### UriConstants
@@ -49,8 +49,8 @@ Application-wide constants for GenHub.
 | `IsCiBuild`               | bool                | Whether this is a CI/CD build                    |
 | `FullDisplayVersion`      | string              | Full display version with hash                   |
 | `GitHubRepositoryUrl`     | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                            |
-| `GitHubRepositoryOwner`   | `"community-outpost"` | GitHub repository owner                         |
-| `GitHubRepositoryName`    | `"GenHub"`          | GitHub repository name                           |
+| `GitHubRepositoryOwner`   | `"community-outpost"`                           | GitHub repository owner                          |
+| `GitHubRepositoryName`    | `"GenHub"`                                      | GitHub repository name                           |
 | `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
 | `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
 | `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
@@ -159,13 +159,13 @@ Directory names used for organizing content storage.
 
 Default values and limits for download operations.
 
-- `BufferSizeBytes`: 81920  
-- `BufferSizeKB`: 80.0  
-- `MinBufferSizeKB`: 4.0  
-- `MaxBufferSizeKB`: 1024.0  
-- `MaxConcurrentDownloads`: 3  
-- `MaxRetryAttempts`: 3  
-- `TimeoutSeconds`: 600  
+- `BufferSizeBytes`: 81920
+- `BufferSizeKB`: 80.0
+- `MinBufferSizeKB`: 4.0
+- `MaxBufferSizeKB`: 1024.0
+- `MaxConcurrentDownloads`: 3
+- `MaxRetryAttempts`: 3
+- `TimeoutSeconds`: 600
 
 ---
 
@@ -229,6 +229,7 @@ Constants related to manifest ID generation, validation, and file operations.
 | -------------------------------- | ------------------------------- |
 | `PublisherContentRegexPattern`   | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
 
+**Publisher Content Regex Pattern (5-segment format):**
 
 **Publisher Content Regex Pattern (5-segment format):**
 
@@ -312,10 +313,10 @@ using GenHub.Core.Constants;
 
 // Add runtime hash for 3rd party client
 GameClientHashRegistry.AddKnownHash(
-    "abc123...", 
-    GameType.Generals, 
-    "1.09", 
-    "CommunityPatch", 
+    "abc123...",
+    GameType.Generals,
+    "1.09",
+    "CommunityPatch",
     "Community-enhanced Generals executable",
     false);
 
@@ -420,7 +421,6 @@ Constants for provider endpoint names and keys used in JSON serialization and lo
 
 ## PublisherInfoConstants Class
 
-
 Constants for publisher information including display names, websites, and support URLs.
 These constants provide standardized publisher metadata for content attribution and user interface display.
 
@@ -514,11 +514,11 @@ Constants related to game client detection and management.
 
 | Constant                           | Value                                      | Description                                    |
 | ---------------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| `GeneralsDirectoryName`            | `"Command and Conquer Generals"`           | Standard Generals installation directory name  |
-| `ZeroHourDirectoryName`            | `"Command and Conquer Generals Zero Hour"` | Standard Zero Hour installation directory name |
-| `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"` | Zero Hour directory name with ampersand and hyphen (Steam standard) |
-| `ZeroHourDirectoryNameColonVariant` | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant    |
-| `ZeroHourDirectoryNameAbbreviated` | `"C&C Generals Zero Hour"`                 | Zero Hour directory name abbreviated form      |
+| `GeneralsDirectoryName`                | `"Command and Conquer Generals"`            | Standard Generals installation directory name                       |
+| `ZeroHourDirectoryName`                | `"Command and Conquer Generals Zero Hour"`  | Standard Zero Hour installation directory name                      |
+| `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
+| `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant                         |
+| `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form                           |
 
 ### GeneralsOnline Client Detection
 
@@ -581,7 +581,7 @@ Enum for game client display names used in UI formatting and content display.
 
 | Value      | Description                          |
 | ---------- | ------------------------------------ |
-| `Generals` | Command &amp; Conquer: Generals       |
+| `Generals` | Command &amp; Conquer: Generals           |
 | `ZeroHour` | Command &amp; Conquer: Generals Zero Hour |
 
 ### Extension Methods
@@ -634,7 +634,6 @@ This ensures type-safe game name handling and prevents typos in display strings.
 
 Installation source type identifiers for game installations. These constants represent WHERE the game was installed from (Steam, EA App, Retail, etc.).
 
-
 **Content Provider Discovery**:
 
 - Content providers register themselves with `ContentOrchestrator` via dependency injection
@@ -682,7 +681,7 @@ public static string FromInstallationType(GameInstallationType installationType)
 
 ## IoConstants Class
 
-- `DefaultFileBufferSize`: 4096  
+- `DefaultFileBufferSize`: 4096
 
 ---
 
@@ -696,10 +695,10 @@ Process and system constants.
 
 ### Windows API Constants
 
-- `SW_RESTORE`: 9  
-- `SW_SHOW`: 5  
-- `SW_MINIMIZE`: 6  
-- `SW_MAXIMIZE`: 3  
+- `SW_RESTORE`: 9
+- `SW_SHOW`: 5
+- `SW_MINIMIZE`: 6
+- `SW_MAXIMIZE`: 3
 
 ---
 
@@ -724,15 +723,15 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ### CAS Maintenance
 
-- `AutoGcIntervalDays`: 1  
+- `AutoGcIntervalDays`: 1
 
 ---
 
 ## TimeIntervals Class
 
-- `UpdaterTimeout`: 10 minutes  
-- `DownloadTimeout`: 30 minutes  
-- `NotificationHideDelay`: 3000ms  
+- `UpdaterTimeout`: 10 minutes
+- `DownloadTimeout`: 30 minutes
+- `NotificationHideDelay`: 3000ms
 
 ---
 
@@ -743,81 +742,29 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ### ValidationLimits
 
-- `DefaultWindowWidth`: 1200  
-- `DefaultWindowHeight`: 800  
+- `DefaultWindowWidth`: 1200
+- `DefaultWindowHeight`: 800
 
 ---
 
 ## ValidationLimits Class
 
-- `MinConcurrentDownloads`: 1  
-- `MaxConcurrentDownloads`: 10  
-- `MinDownloadTimeoutSeconds`: 30  
-- `MaxDownloadTimeoutSeconds`: 3600  
-- `MinDownloadBufferSizeBytes`: 4096  
-- `MaxDownloadBufferSizeBytes`: 1048576  
+- `MinConcurrentDownloads`: 1
+- `MaxConcurrentDownloads`: 10
+- `MinDownloadTimeoutSeconds`: 30
+- `MaxDownloadTimeoutSeconds`: 3600
+- `MinDownloadBufferSizeBytes`: 4096
+- `MaxDownloadBufferSizeBytes`: 1048576
 
 ---
 
-## GameClientHashRegistry Class
-
-Extensible SHA-256 hash constants and registry for known game executables used for client detection across official and 3rd party distributions. Supports dynamic updates, external hash databases, and plugin extensibility.
-
-### Core Hash Constants
-
-| Constant          | Value                                                                | Description                                               |
-| ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
-| `Generals108Hash` | `"1c96366ff6a99f40863f6bbcfa8bf7622e8df1f80a474201e0e95e37c6416255"` | SHA-256 hash for Generals 1.08 executable (generals.exe)  |
-| `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
-| `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
-
-### Extensibility Configuration Constants
-
-| Constant                            | Value                           | Description                                                    |
-| ----------------------------------- | ------------------------------- | -------------------------------------------------------------- |
-| `ExternalHashDatabaseFileName`      | `"game-executable-hashes.json"` | Default filename for external hash database JSON file          |
-| `MaxExternalHashSources`            | `50`                            | Maximum number of external hash sources that can be registered |
-| `ExternalSourceCacheTimeoutMinutes` | `30`                            | Cache timeout for external hash sources in minutes             |
-
-### Collections and Properties
-
-| Property                  | Type           | Description                                                                       |
-| ------------------------- | -------------- | --------------------------------------------------------------------------------- |
-| `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
-
-### Basic Usage Example
-
-```csharp
-using GenHub.Core.Constants;
-
-// Basic hash detection (backward compatible)
-if (computedHash == GameClientHashRegistry.Generals108Hash)
-{
-    // Detected Generals 1.08
-}
-else if (computedHash == GameClientHashRegistry.ZeroHour104Hash)
-{
-    // Detected Zero Hour 1.04
-}
-
-var info = GameClientHashRegistry.GetGameExecutableInfo(computedHash);
-if (info.HasValue)
-{
-    Console.WriteLine($"Detected: {info.Value.GameType} {info.Value.Version} ({info.Value.Publisher})");
-}
-```
-
-### Extensibility Usage
-
-```csharp
-using GenHub.Core.Constants;
 
 // Add runtime hash for 3rd party client
 GameClientHashRegistry.AddKnownHash(
-    "abc123...", 
-    GameType.Generals, 
-    "1.09", 
-    "CommunityPatch", 
+    "abc123...",
+    GameType.Generals,
+    "1.09",
+    "CommunityPatch",
     "Community-enhanced Generals executable",
     false);
 
@@ -1190,41 +1137,41 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ## MaintenanceWhen adding new constants
 
-1. Choose the appropriate constants file based on functionality  
-2. Follow naming conventions (PascalCase for constants)  
-3. Add comprehensive XML documentation  
-4. Update this documentation  
-5. Add tests for new constants  
-6. Ensure StyleCop compliance  
+1. Choose the appropriate constants file based on functionality
+2. Follow naming conventions (PascalCase for constants)
+3. Add comprehensive XML documentation
+4. Update this documentation
+5. Add tests for new constants
+6. Ensure StyleCop compliance
 
 ### Constants File Organization
 
-- **ApiConstants**: Network and API-related constants  
-- **AppConstants**: Application-wide settings and metadata  
-- **CasDefaults**: Content-Addressable Storage defaults  
-- **ConfigurationKeys**: Configuration file keys and paths  
-- **ConversionConstants**: Unit conversion constants  
-- **DirectoryNames**: Standard directory naming conventions  
-- **DownloadDefaults**: Download operation defaults  
-- **FileTypes**: File extensions and naming patterns  
-- **IoConstants**: Input/output operation constants  
-- **ManifestConstants**: Manifest ID and validation constants  
-- **ProcessConstants**: System process and exit code constants  
-- **PublisherInfoConstants**: Publisher display names, websites, and support URLs  
-- **PublisherTypeConstants**: Publisher type identifiers for content sources  
-- **StorageConstants**: Storage and CAS operation constants  
-- **TimeIntervals**: Time spans and intervals  
-- **UiConstants**: User interface sizing and behavior  
-- **ValidationLimits**: Input validation boundaries  
+- **ApiConstants**: Network and API-related constants
+- **AppConstants**: Application-wide settings and metadata
+- **CasDefaults**: Content-Addressable Storage defaults
+- **ConfigurationKeys**: Configuration file keys and paths
+- **ConversionConstants**: Unit conversion constants
+- **DirectoryNames**: Standard directory naming conventions
+- **DownloadDefaults**: Download operation defaults
+- **FileTypes**: File extensions and naming patterns
+- **IoConstants**: Input/output operation constants
+- **ManifestConstants**: Manifest ID and validation constants
+- **ProcessConstants**: System process and exit code constants
+- **PublisherInfoConstants**: Publisher display names, websites, and support URLs
+- **PublisherTypeConstants**: Publisher type identifiers for content sources
+- **StorageConstants**: Storage and CAS operation constants
+- **TimeIntervals**: Time spans and intervals
+- **UiConstants**: User interface sizing and behavior
+- **ValidationLimits**: Input validation boundaries
 
 ### Best Practices
 
-1. **Centralization**: All constants should be defined in the appropriate constants file  
-2. **Documentation**: Every constant should have XML documentation explaining its purpose  
-3. **Testing**: Constants should be tested for correctness and reasonable values  
-4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase  
-5. **Naming**: Use descriptive names that clearly indicate the constant's purpose  
-6. **Grouping**: Related constants should be grouped together within their respective files  
+1. **Centralization**: All constants should be defined in the appropriate constants file
+2. **Documentation**: Every constant should have XML documentation explaining its purpose
+3. **Testing**: Constants should be tested for correctness and reasonable values
+4. **Consistency**: Use constants instead of magic numbers or strings throughout the codebase
+5. **Naming**: Use descriptive names that clearly indicate the constant's purpose
+6. **Grouping**: Related constants should be grouped together within their respective files
 
 ---
 
@@ -1277,17 +1224,17 @@ Constants for game settings management, including texture quality, resolution, v
 
 Predefined resolution options available in the game settings.
 
-- `"640x480"`  
-- `"800x600"`  
-- `"1024x768"`  
-- `"1024x768"`  
-- `"1280x720"`  
-- `"1280x1024"`  
-- `"1366x768"`  
-- `"1600x900"`  
-- `"1920x1080"`  
-- `"2560x1440"`  
-- `"3840x2160"`  
+- `"640x480"`
+- `"800x600"`
+- `"1024x768"`
+- `"1024x768"`
+- `"1280x720"`
+- `"1280x1024"`
+- `"1366x768"`
+- `"1600x900"`
+- `"1920x1080"`
+- `"2560x1440"`
+- `"3840x2160"`
 
 ---
 
@@ -1350,5 +1297,5 @@ Constants for The Super Hackers content discovery and manifest creation.
 
 ## Related Documentation
 
-- [Manifest ID System](manifest-id-system.md)  
+- [Manifest ID System](manifest-id-system.md)
 - [Complete System Architecture](../architecture.md)

@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Notifications;
@@ -44,7 +41,7 @@ public record NotificationMessage
     /// <summary>
     /// Gets the collection of actions available for this notification.
     /// </summary>
-    public IReadOnlyList<NotificationAction> Actions { get; init; } = new List<NotificationAction>();
+    public IReadOnlyList<NotificationAction> Actions { get; init; } = [];
 
     /// <summary>
     /// Gets a value indicating whether this notification has any actionable buttons.
@@ -77,12 +74,12 @@ public record NotificationMessage
     /// <summary>
     /// Gets the text for the first action button (backward compatibility).
     /// </summary>
-    public string? ActionText => Actions?.FirstOrDefault()?.Text;
+    public string? ActionText => Actions?.Count > 0 ? Actions[0].Text : null;
 
     /// <summary>
     /// Gets the callback for the first action button (backward compatibility).
     /// </summary>
-    public Action? Action => Actions?.FirstOrDefault()?.Callback;
+    public Action? Action => Actions?.Count > 0 ? Actions[0].Callback : null;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationMessage"/> class.
@@ -125,10 +122,10 @@ public record NotificationMessage
         }
         else if (action != null && !string.IsNullOrEmpty(actionText))
         {
-            Actions = new List<NotificationAction>
-            {
+            Actions =
+            [
                 new NotificationAction(actionText, action),
-            };
+            ];
         }
     }
 
