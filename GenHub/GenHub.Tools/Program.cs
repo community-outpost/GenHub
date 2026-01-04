@@ -29,7 +29,13 @@ internal static class Program
     /// <returns>A task representing the asynchronous operation.</returns>
     private static async Task Main(string[] args)
     {
-        var logger = CreateLogger();
+        using var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
+
+        var logger = loggerFactory.CreateLogger("CsvGenerator");
 
         try
         {
@@ -94,16 +100,7 @@ internal static class Program
         }
     }
 
-    private static ILogger CreateLogger()
-    {
-        using var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Information);
-        });
 
-        return loggerFactory.CreateLogger("CsvGenerator");
-    }
 }
 
 /// <summary>
