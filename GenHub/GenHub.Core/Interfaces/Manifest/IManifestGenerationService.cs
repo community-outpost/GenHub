@@ -56,13 +56,15 @@ public interface IManifestGenerationService
     /// <param name="clientName">The name of the game client.</param>
     /// <param name="clientVersion">The version of the game client.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="publisherInfo">Optional publisher info. If provided, overrides detection from name.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string installationPath,
         GameType gameType,
         string clientName,
         string clientVersion,
-        string executablePath);
+        string executablePath,
+        PublisherInfo? publisherInfo = null);
 
     /// <summary>
     /// Saves a manifest to a file.

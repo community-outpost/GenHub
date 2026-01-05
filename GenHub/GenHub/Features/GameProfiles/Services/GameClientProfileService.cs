@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -90,6 +91,7 @@ public class GameClientProfileService(
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
                 IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
                 CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
+                UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
             };
 
             var profileResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
@@ -338,21 +340,12 @@ public class GameClientProfileService(
             gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
             gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
         {
-            var fallbackVersion = gameClient.GameType == GameType.ZeroHour
-                ? ManifestConstants.ZeroHourManifestVersion
-                : ManifestConstants.GeneralsManifestVersion;
-
-            var normalizedFallback = fallbackVersion.Replace(".", string.Empty);
-            return int.TryParse(normalizedFallback, out var v) ? v : 0;
+            // If version is unknown, use the default version for the game type (1.04/1.08)
+            // This ensures we match the ID generated during initial scan for standard installations
+            return GetDefaultVersion(gameClient.GameType);
         }
 
-        if (gameClient.Version.Contains('.'))
-        {
-            var normalized = gameClient.Version.Replace(".", string.Empty);
-            return int.TryParse(normalized, out var v) ? v : GetDefaultVersion(gameClient.GameType);
-        }
-
-        return int.TryParse(gameClient.Version, out var parsed) ? parsed : GetDefaultVersion(gameClient.GameType);
+        return GameVersionHelper.NormalizeVersion(gameClient.Version);
     }
 
     private static int GetDefaultVersion(GameType gameType)
@@ -361,8 +354,7 @@ public class GameClientProfileService(
             ? ManifestConstants.ZeroHourManifestVersion
             : ManifestConstants.GeneralsManifestVersion;
 
-        var normalizedFallback = fallbackVersion.Replace(".", string.Empty);
-        return int.TryParse(normalizedFallback, out var v) ? v : 0;
+        return GameVersionHelper.NormalizeVersion(fallbackVersion);
     }
 
     private static string? GetThemeColorForGameType(GameType gameType, GameClient? gameClient = null)

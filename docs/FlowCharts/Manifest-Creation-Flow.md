@@ -79,9 +79,8 @@ graph TD
 
 **Manifest Creation Workflow:**
 
-1.  **Initiation**: The process starts from a source, like a local folder of a mod, an existing game installation, or a service that needs to construct a manifest dynamically.
-2.  **Service Layer (Optional)**: For common tasks like creating a manifest from a directory, the `IManifestGenerationService` provides high-level methods. This service internally uses the builder.
-3.  **Builder Pattern**: The `IContentManifestBuilder` provides a fluent API to construct the `GameManifest` step-by-step. This allows for fine-grained control over every property of the manifest.
-4.  **File Population**: Methods like `AddFileAsync` and `AddFilesFromDirectoryAsync` are used to populate the `Files` list. These methods calculate hashes and other metadata automatically.
-5.  **Finalization**: The `Build()` method is called to assemble all the provided information into a final, validated `GameManifest` object.
-6.  **Output**: The resulting `GameManifest` object can be used by the system or serialized to a `manifest.json` file for distribution.
+6.  **Finalization**: The `Build()` method is called to assemble all the provided information into a final, validated `GameManifest` object.
+7.  **Output**: The resulting `GameManifest` object can be used by the system or serialized to a `manifest.json` file for distribution.
+
+**Optimization Note**:
+During game installation detection, the system first checks the `IContentManifestPool` for existing manifests matching the installation. If a valid manifest is found, the generation process is skipped entirely to prevent unnecessary directory scanning, ensuring that Steam-integrated and other stable installations do not trigger redundant CAS operations.

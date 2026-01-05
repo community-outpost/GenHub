@@ -79,7 +79,7 @@ public class UserSettings : ICloneable
     public bool UseInstallationAdjacentStorage { get; set; } = true;
 
     /// <summary>Gets or sets the set of property names explicitly set by the user, allowing distinction between user intent and C# defaults.</summary>
-    public HashSet<string> ExplicitlySetProperties { get; set; } = new();
+    public HashSet<string> ExplicitlySetProperties { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the Content-Addressable Storage configuration.
@@ -145,12 +145,12 @@ public class UserSettings : ICloneable
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,
             DismissedUpdateVersion = DismissedUpdateVersion,
-            ContentDirectories = ContentDirectories != null ? new List<string>(ContentDirectories) : null,
-            GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? new List<string>(GitHubDiscoveryRepositories) : null,
-            InstalledToolAssemblyPaths = InstalledToolAssemblyPaths != null ? new List<string>(InstalledToolAssemblyPaths) : null,
+            ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
+            GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? [.. GitHubDiscoveryRepositories] : null,
+            InstalledToolAssemblyPaths = InstalledToolAssemblyPaths != null ? [.. InstalledToolAssemblyPaths] : null,
             PreferredStorageInstallationId = PreferredStorageInstallationId,
             UseInstallationAdjacentStorage = UseInstallationAdjacentStorage,
-            ExplicitlySetProperties = new HashSet<string>(ExplicitlySetProperties),
+            ExplicitlySetProperties = [.. ExplicitlySetProperties],
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
         };
     }

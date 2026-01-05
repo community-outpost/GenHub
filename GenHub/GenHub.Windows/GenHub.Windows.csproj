@@ -32,4 +32,40 @@
         <ProjectReference Include="..\GenHub\GenHub.csproj" />
         <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
     </ItemGroup>
+
+    <!-- Ensure Proxy Launcher is PUBLISHED as SingleFile and copied to build output -->
+    <Target Name="BuildProxyLauncher" BeforeTargets="Build">
+        <Exec Command="dotnet publish &quot;..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f net8.0-windows -r win-x64 --self-contained false -p:PublishSingleFile=true -o &quot;$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)&quot;" />
+    </Target>
+
+    <Target Name="CopyProxyLauncher" AfterTargets="Build">
+        <PropertyGroup>
+            <ProxySourceDir>$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)</ProxySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.exe" />
+            <!-- With SingleFile, we mainly need the exe. But copying pdb/config is safe too if they exist -->
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.pdb" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.pdb')" />
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json')" />
+        </ItemGroup>
+        <Message Importance="High" Text="[CopyProxyLauncher] Copying SingleFile from $(ProxySourceDir) to $(TargetDir)" />
+        <Copy SourceFiles="@(ProxyLauncherFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- Ensure Proxy Launcher is included in Publish output for Velopack -->
+    <Target Name="PublishProxyLauncher" AfterTargets="ComputeFilesToPublish">
+        <PropertyGroup>
+            <ProxySourceDir>$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)</ProxySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ResolvedFileToPublish Include="$(ProxySourceDir)\GenHub.ProxyLauncher.exe">
+                <RelativePath>GenHub.ProxyLauncher.exe</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json')">
+                <RelativePath>GenHub.ProxyLauncher.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
 </Project>

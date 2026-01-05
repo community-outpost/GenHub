@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
@@ -102,6 +107,21 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
     }
 
     /// <inheritdoc/>
+    public void InvalidateCache()
+    {
+        _cacheLock.Wait();
+        try
+        {
+            _cachedInstallations = null;
+            logger!.LogInformation("Installation cache invalidated");
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<OperationResult<bool>> RegisterManualInstallationAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installation);
@@ -145,8 +165,8 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
                 }
                 catch
                 {
-                     _cachedInstallations = new List<GameInstallation>().AsReadOnly();
-                     logger.LogWarning(
+                    _cachedInstallations = new List<GameInstallation>().AsReadOnly();
+                    logger.LogWarning(
                         "[DIAGNOSTIC] Exception during cache initialization, cache initialized as empty list");
                 }
             }
@@ -207,41 +227,6 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
         }
     }
 
-    /// <inheritdoc/>
-    public void InvalidateCache()
-    {
-        _cacheLock.Wait();
-        try
-        {
-            var previousCount = _cachedInstallations?.Count ?? 0;
-            _cachedInstallations = null;
-            logger!.LogInformation(
-                "[DIAGNOSTIC] Installation cache invalidated (had {PreviousCount} installations, now null)",
-                previousCount);
-
-            // Clear manual installations from storage when cache is invalidated
-            if (manualInstallationStorage != null)
-            {
-                try
-                {
-                    manualInstallationStorage.ClearAllAsync(default).GetAwaiter().GetResult();
-                    logger.LogInformation(
-                        "[DIAGNOSTIC] Cleared manual installations from storage");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(
-                        ex,
-                        "[DIAGNOSTIC] Failed to clear manual installations from storage");
-                }
-            }
-        }
-        finally
-        {
-            _cacheLock.Release();
-        }
-    }
-
     /// <summary>
     /// Releases resources used by the <see cref="GameInstallationService"/>.
     /// </summary>
@@ -265,6 +250,293 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
     }
 
     /// <summary>
+    /// Parses a version string into an integer for manifest ID generation.
+    /// Examples: "1.08" -> 108, "1.04" -> 104, "2.0" -> 200, "5" -> 5, null -> 0.
+    /// </summary>
+    /// <param name="version">The version string to parse.</param>
+    /// <returns>The parsed integer version.</returns>
+    private static int ParseVersionStringToInt(string? version) => GameVersionHelper.NormalizeVersion(version);
+
+    /// <summary>
+    /// Attempts to load game clients from existing manifests in the pool.
+    /// </summary>
+    /// <param name="installations">The installations to populate.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A list of installations that need full detection (don't have manifests).</returns>
+    private async Task<List<GameInstallation>> TryLoadGameClientsFromManifestsAsync(
+        List<GameInstallation> installations,
+        CancellationToken cancellationToken)
+    {
+        var installationsNeedingDetection = new List<GameInstallation>();
+
+        foreach (var installation in installations)
+        {
+            var clients = new List<GameClient>();
+            var needsDetection = false;
+
+            // Try to load Generals client from manifest
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            {
+                var generalsClient = await TryLoadGameClientFromManifestAsync(
+                    installation,
+                    GameType.Generals,
+                    installation.GeneralsPath,
+                    cancellationToken);
+
+                if (generalsClient != null)
+                {
+                    clients.Add(generalsClient);
+                    logger!.LogDebug(
+                        "Loaded Generals client from manifest for installation {Id}",
+                        installation.Id);
+                }
+                else
+                {
+                    needsDetection = true;
+                    logger!.LogDebug(
+                        "No manifest found for Generals in installation {Id} - will trigger detection",
+                        installation.Id);
+                }
+            }
+
+            // Try to load Zero Hour client from manifest
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            {
+                var zeroHourClient = await TryLoadGameClientFromManifestAsync(
+                    installation,
+                    GameType.ZeroHour,
+                    installation.ZeroHourPath,
+                    cancellationToken);
+
+                if (zeroHourClient != null)
+                {
+                    clients.Add(zeroHourClient);
+                    logger!.LogDebug(
+                        "Loaded ZeroHour client from manifest for installation {Id}",
+                        installation.Id);
+                }
+                else
+                {
+                    needsDetection = true;
+                    logger!.LogDebug(
+                        "No manifest found for ZeroHour in installation {Id} - will trigger detection",
+                        installation.Id);
+                }
+            }
+
+            if (clients.Count > 0)
+            {
+                installation.PopulateGameClients(clients);
+                logger!.LogInformation(
+                    "Populated {Count} clients from manifests for installation {Id}",
+                    clients.Count,
+                    installation.Id);
+            }
+
+            // Only add to detection list if this installation needs it
+            if (needsDetection)
+            {
+                installationsNeedingDetection.Add(installation);
+            }
+        }
+
+        if (installationsNeedingDetection.Count > 0)
+        {
+            logger!.LogInformation(
+                "{NeedDetectionCount} of {TotalCount} installations need game client detection",
+                installationsNeedingDetection.Count,
+                installations.Count);
+        }
+        else
+        {
+            logger!.LogInformation(
+                "All {TotalCount} installations loaded from existing manifests - no detection needed",
+                installations.Count);
+        }
+
+        return installationsNeedingDetection;
+    }
+
+    /// <summary>
+    /// Attempts to load a game client from an existing manifest.
+    /// </summary>
+    /// <param name="installation">The installation.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <param name="gamePath">The game path.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The game client if manifest exists, null otherwise.</returns>
+    private async Task<GameClient?> TryLoadGameClientFromManifestAsync(
+        GameInstallation installation,
+        GameType gameType,
+        string gamePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Search for ANY GameInstallation manifest matching this installation type and game type
+            // This avoids hardcoded version candidates and works regardless of version number
+            var searchQuery = new ContentSearchQuery
+            {
+                ContentType = ContentType.GameInstallation,
+                TargetGame = gameType,
+                Take = 100, // Get all matching manifests
+            };
+
+            var searchResult = await contentManifestPool!.SearchManifestsAsync(searchQuery, cancellationToken);
+
+            if (!searchResult.Success || searchResult.Data == null)
+            {
+                logger!.LogDebug(
+                    "No manifests found when searching for {GameType} in installation {Id}",
+                    gameType,
+                    installation.Id);
+                return null;
+            }
+
+            // Filter results to match the installation type and ensure ID matches version
+            var installTypeString = installation.InstallationType.ToIdentifierString();
+            var gameTypeString = gameType == GameType.ZeroHour ? "zerohour" : "generals";
+
+            var matchingManifest = searchResult.Data
+                .Where(m => m.Id.Value.Contains($".{installTypeString}.gameinstallation.{gameTypeString}"))
+                .OrderByDescending(m => m.Version) // Prefer higher versions
+                .FirstOrDefault(m =>
+                {
+                    // Verify that the manifest ID is consistent with its version
+                    // This prevents using a "version 0" manifest for a specific version (e.g. 1.04)
+                    var expectedId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameType, m.Version);
+                    return string.Equals(m.Id.Value, expectedId, StringComparison.OrdinalIgnoreCase);
+                });
+
+            if (matchingManifest != null)
+            {
+                // Create a game client from the manifest
+                var gameClient = new GameClient
+                {
+                    Id = matchingManifest.Id.Value,
+                    Name = matchingManifest.Name,
+                    WorkingDirectory = gamePath,
+                    GameType = gameType,
+                    InstallationId = installation.Id,
+                    Version = matchingManifest.Version,
+                };
+
+                logger!.LogInformation(
+                    "Loaded {GameType} client from existing manifest {ManifestId} (version {Version}) - skipping directory scan",
+                    gameType,
+                    matchingManifest.Id,
+                    matchingManifest.Version);
+
+                return gameClient;
+            }
+
+            logger!.LogDebug(
+                "No existing manifest found for {InstallType} {GameType} in installation {Id}",
+                installTypeString,
+                gameType,
+                installation.Id);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger!.LogWarning(
+                ex,
+                "Error loading game client from manifest for {GameType} in installation {Id}",
+                gameType,
+                installation.Id);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Generates and pools a content manifest for a specific game type within an installation.
+    /// </summary>
+    /// <param name="installation">The game installation.</param>
+    /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
+    /// <param name="gamePath">The path to the game directory.</param>
+    /// <param name="gameClient">The detected game client, if available.</param>
+    /// <param name="defaultManifestVersion">The default manifest version if detection fails.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    private async Task GenerateAndPoolManifestForGameTypeAsync(
+        GameInstallation installation,
+        GameType gameType,
+        string gamePath,
+        GameClient? gameClient,
+        string defaultManifestVersion,
+        CancellationToken cancellationToken)
+    {
+        var detectedVersion = gameClient?.Version;
+        int versionForId;
+        string versionForManifest;
+
+        if (string.IsNullOrEmpty(detectedVersion) ||
+            detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            // If version is unknown, use the default version for the game type (1.04/1.08)
+            // This ensures we match the ID generated during dependency resolution
+            versionForManifest = defaultManifestVersion;
+            versionForId = ParseVersionStringToInt(versionForManifest);
+        }
+        else
+        {
+            versionForId = ParseVersionStringToInt(detectedVersion);
+            versionForManifest = detectedVersion;
+        }
+
+        var idResult = ManifestIdGenerator.GenerateGameInstallationId(
+            installation, gameType, versionForId);
+        var manifestId = ManifestId.Create(idResult);
+
+        var existingManifest = await contentManifestPool!.GetManifestAsync(
+            manifestId, cancellationToken);
+
+        if (existingManifest.Success && existingManifest.Data != null)
+        {
+            logger!.LogDebug(
+                "Manifest {Id} already exists in pool, skipping generation",
+                manifestId);
+            return;
+        }
+
+        var manifestBuilder = await manifestGenerationService!
+            .CreateGameInstallationManifestAsync(
+                gamePath,
+                gameType,
+                installation.InstallationType,
+                versionForManifest);
+
+        var manifest = manifestBuilder.Build();
+        manifest.ContentType = ContentType.GameInstallation;
+        manifest.Id = manifestId;
+
+        var addResult = await contentManifestPool!.AddManifestAsync(
+            manifest, gamePath, null, cancellationToken);
+
+        if (addResult.Success)
+        {
+            if (gameClient != null)
+            {
+                gameClient.Id = manifestId.Value;
+            }
+
+            logger!.LogInformation(
+                "Pooled GameInstallation manifest {Id} for {InstallationId} ({GameType})",
+                manifest.Id,
+                installation.Id,
+                gameType);
+        }
+        else
+        {
+            logger!.LogWarning(
+                "Failed to pool {GameType} GameInstallation manifest for {InstallationId}: {Errors}",
+                gameType,
+                installation.Id,
+                string.Join(", ", addResult.Errors));
+        }
+    }
+
+    /// <summary>
     /// Attempts to initialize the installation cache if not already initialized.
     /// </summary>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -276,6 +548,10 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
             logger!.LogInformation(
                 "[DIAGNOSTIC] TryInitializeCacheAsync: Cache already initialized with {Count} installations",
                 _cachedInstallations.Count);
+
+            var cachedList = _cachedInstallations.ToList();
+            await PopulateGameClientsAndManifestsAsync(cachedList, cancellationToken);
+
             return OperationResult<bool>.CreateSuccess(true);
         }
 
@@ -298,7 +574,7 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
             bool detectionHadError = !detectionResult.Success;
             if (detectionResult.Success)
             {
-                mergedInstallations = detectionResult.Items.ToList();
+                mergedInstallations = [.. detectionResult.Items];
                 autoCount = mergedInstallations.Count;
                 logger.LogInformation(
                     "[DIAGNOSTIC] Auto-detection found {Count} installations",
@@ -309,7 +585,7 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
                 logger.LogWarning(
                     "[DIAGNOSTIC] Auto-detection failed: {Errors}. Starting with empty list.",
                     string.Join(", ", detectionResult.Errors));
-                mergedInstallations = new List<GameInstallation>();
+                mergedInstallations = [];
             }
 
             // Load persisted manual installations and merge with auto-detected ones
@@ -383,7 +659,7 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
     }
 
     /// <summary>
-    /// Populates the AvailableGameClients for a detected installation.
+    /// Populates the AvailableGameClients for a detected installation by generating content manifests.
     /// </summary>
     /// <param name="installations">The installations to populate clients for.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -395,61 +671,74 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
             installation.Fetch();
         }
 
-        var clientResult = await clientOrchestrator.DetectGameClientsFromInstallationsAsync(installations, cancellationToken);
-        if (!clientResult.Success)
+        if (manifestGenerationService == null || contentManifestPool == null)
         {
-            logger!.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
+            logger!.LogDebug("Manifest generation skipped: services not available");
             return;
         }
 
-        var clientsByInstallation = clientResult.Items.GroupBy(v => v.InstallationId);
-        foreach (var installation in installations)
-        {
-            var installationClients = clientsByInstallation.FirstOrDefault(g => g.Key == installation.Id)?.ToList() ?? Enumerable.Empty<GameClient>();
-            installation.PopulateGameClients(installationClients);
-            logger!.LogDebug("Populated {ClientCount} clients for installation {Id}", installationClients.Count(), installation.Id);
-        }
+        // Load game clients from existing manifests to avoid expensive directory scanning
+        // Returns only installations that don't have manifests and need detection
+        var installationsNeedingDetection = await TryLoadGameClientsFromManifestsAsync(installations, cancellationToken);
 
-        // Create and register GameInstallation manifests to the pool
-        if (manifestGenerationService != null && contentManifestPool != null)
+        if (installationsNeedingDetection.Count > 0)
         {
+            // Run game client detection ONLY for installations without manifests
+            logger!.LogInformation(
+                "Running game client detection for {Count} installations (out of {Total} total)",
+                installationsNeedingDetection.Count,
+                installations.Count);
+
+            var clientResult = await clientOrchestrator.DetectGameClientsFromInstallationsAsync(
+                installationsNeedingDetection,
+                cancellationToken);
+
+            if (!clientResult.Success)
+            {
+                logger!.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
+                return;
+            }
+
+            var clientsByInstallation = clientResult.Items.GroupBy(v => v.InstallationId);
+            foreach (var installation in installationsNeedingDetection)
+            {
+                var installationClients = clientsByInstallation.FirstOrDefault(g => g.Key == installation.Id)?.ToList() ?? Enumerable.Empty<GameClient>();
+                installation.PopulateGameClients(installationClients);
+                logger!.LogInformation(
+                    "Populated {ClientCount} clients for installation {Id} via detection",
+                    installationClients.Count(),
+                    installation.Id);
+            }
+
+            // Generate GameInstallation manifests for all installations
+            // This ensures base installation manifests exist for profile dependency resolution
             foreach (var installation in installations)
             {
-                await CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken);
+                var gameDir = installation.InstallationPath;
+                if (!Directory.Exists(gameDir)) continue;
+
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && Directory.Exists(installation.GeneralsPath))
+                {
+                    await GenerateAndPoolManifestForGameTypeAsync(
+                        installation,
+                        GameType.Generals,
+                        installation.GeneralsPath,
+                        installation.GeneralsClient,
+                        ManifestConstants.GeneralsManifestVersion,
+                        cancellationToken);
+                }
+
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && Directory.Exists(installation.ZeroHourPath))
+                {
+                    await GenerateAndPoolManifestForGameTypeAsync(
+                        installation,
+                        GameType.ZeroHour,
+                        installation.ZeroHourPath,
+                        installation.ZeroHourClient,
+                        ManifestConstants.ZeroHourManifestVersion,
+                        cancellationToken);
+                }
             }
-        }
-        else
-        {
-            logger!.LogWarning("ManifestGenerationService or ContentManifestPool not available, skipping GameInstallation manifest registration");
-        }
-    }
-
-    /// <summary>
-    /// Creates and registers GameInstallation manifests for an installation.
-    /// </summary>
-    /// <param name="installation">The installation to create manifests for.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken)
-    {
-        // Create manifest for Generals if it exists
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            await CreateAndRegisterSingleInstallationManifestAsync(
-                installation,
-                GameType.Generals,
-                installation.GeneralsPath,
-                cancellationToken);
-        }
-
-        // Create manifest for Zero Hour if it exists
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            await CreateAndRegisterSingleInstallationManifestAsync(
-                installation,
-                GameType.ZeroHour,
-                installation.ZeroHourPath,
-                cancellationToken);
         }
     }
 

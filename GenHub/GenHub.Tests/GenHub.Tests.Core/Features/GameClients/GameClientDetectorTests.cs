@@ -91,7 +91,7 @@ public class GameClientDetectorTests : IDisposable
         manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
 
         _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
-                generalsPath, GameType.Generals, It.IsAny<string>(), It.IsAny<string>(), executablePath))
+                generalsPath, GameType.Generals, It.IsAny<string>(), It.IsAny<string>(), executablePath, It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -141,7 +141,7 @@ public class GameClientDetectorTests : IDisposable
         manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
 
         _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
-                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -183,7 +183,7 @@ public class GameClientDetectorTests : IDisposable
         manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
 
         _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
-                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -286,7 +286,7 @@ public class GameClientDetectorTests : IDisposable
         manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
 
         _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
-                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -379,7 +379,8 @@ public class GameClientDetectorTests : IDisposable
                     GameType.Generals,
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    standardExePath))
+                    standardExePath,
+                    It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(standardGeneralsManifestBuilder.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -395,7 +396,8 @@ public class GameClientDetectorTests : IDisposable
         var generalsOnlineClient = result.Items.FirstOrDefault(c => c.Name.Contains("GeneralsOnline"));
         Assert.NotNull(generalsOnlineClient);
         Assert.Equal(GameType.Generals, generalsOnlineClient.GameType);
-        Assert.Equal(GameClientConstants.UnknownVersion, generalsOnlineClient.Version); // Updated to match implementation
+        Assert.Equal(GameClientConstants.UnknownVersion, generalsOnlineClient.Version); // GeneralsOnline clients auto-update
+
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
 
         Assert.Contains("30Hz", generalsOnlineClient.Name);
@@ -462,7 +464,8 @@ public class GameClientDetectorTests : IDisposable
                     GameType.ZeroHour,
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    standardExePath))
+                    standardExePath,
+                    It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -478,7 +481,8 @@ public class GameClientDetectorTests : IDisposable
         var generalsOnlineClient = result.Items.FirstOrDefault(c => c.Name.Contains("GeneralsOnline"));
         Assert.NotNull(generalsOnlineClient);
         Assert.Equal(GameType.ZeroHour, generalsOnlineClient.GameType);
-        Assert.Equal(GameClientConstants.UnknownVersion, generalsOnlineClient.Version); // Updated to match implementation
+        Assert.Equal(GameClientConstants.UnknownVersion, generalsOnlineClient.Version); // GeneralsOnline clients auto-update
+
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
         Assert.Contains("60Hz", generalsOnlineClient.Name);
     }
@@ -556,7 +560,8 @@ public class GameClientDetectorTests : IDisposable
                     GameType.Generals,
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>()))
+                    It.IsAny<string>(),
+                    It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -607,7 +612,8 @@ public class GameClientDetectorTests : IDisposable
                     GameType.Generals,
                     It.IsAny<string>(),
                     It.IsAny<string>(),
-                    It.IsAny<string>()))
+                    It.IsAny<string>(),
+                    It.IsAny<PublisherInfo?>()))
             .ReturnsAsync(manifestBuilderMock.Object);
 
         _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))

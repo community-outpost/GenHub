@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.GameProfiles.Views;
 
@@ -14,4 +15,6 @@ public partial class GameSettingsView : UserControl
     {
         InitializeComponent();
     }
+
+    private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 }

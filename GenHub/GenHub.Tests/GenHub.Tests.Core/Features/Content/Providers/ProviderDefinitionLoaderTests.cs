@@ -8,8 +8,6 @@ namespace GenHub.Tests.Core.Features.Content.Providers;
 /// <summary>
 /// Unit tests for <see cref="ProviderDefinitionLoader"/>.
 /// </summary>
-#pragma warning disable SA1202 // Elements should be ordered by access
-#pragma warning disable SA1615 // Element return value should be documented
 public class ProviderDefinitionLoaderTests : IDisposable
 {
     private readonly Mock<ILogger<ProviderDefinitionLoader>> _loggerMock;
@@ -34,38 +32,9 @@ public class ProviderDefinitionLoaderTests : IDisposable
     }
 
     /// <summary>
-    /// Releases resources used by the test class.
-    /// </summary>
-    /// <param name="disposing">True if disposing managed resources.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        if (disposing)
-        {
-            // Clean up test directory
-            try
-            {
-                if (Directory.Exists(_testProvidersDirectory))
-                {
-                    Directory.Delete(_testProvidersDirectory, recursive: true);
-                }
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
-        }
-
-        _disposed = true;
-    }
-
-    /// <summary>
     /// Verifies that LoadProvidersAsync loads all valid provider JSON files.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_LoadsValidProviders_Successfully()
     {
@@ -108,6 +77,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetProvider returns the correct provider after loading.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetProvider_ReturnsCorrectProvider_AfterLoading()
     {
@@ -146,6 +116,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetProvider auto-loads providers on first access.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetProvider_AutoLoadsProviders_WhenNotInitialized()
     {
@@ -174,6 +145,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetProvider returns null for non-existent provider.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetProvider_ReturnsNull_ForNonExistentProvider()
     {
@@ -191,6 +163,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetProvider is case-insensitive.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetProvider_IsCaseInsensitive()
     {
@@ -218,6 +191,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that LoadProvidersAsync handles invalid JSON gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_HandlesInvalidJson_Gracefully()
     {
@@ -254,6 +228,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that LoadProvidersAsync handles missing providerId gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_HandlesMissingProviderId_Gracefully()
     {
@@ -294,6 +269,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that ReloadProvidersAsync clears and reloads all providers.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task ReloadProvidersAsync_ClearsAndReloads_Successfully()
     {
@@ -338,6 +314,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that AddCustomProvider adds a provider correctly.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task AddCustomProvider_AddsProvider_Successfully()
     {
@@ -366,6 +343,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that RemoveCustomProvider removes a provider correctly.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task RemoveCustomProvider_RemovesProvider_Successfully()
     {
@@ -395,6 +373,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetAllProviders returns only enabled providers.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetAllProviders_ReturnsOnlyEnabledProviders()
     {
@@ -435,6 +414,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that GetProvidersByType returns correctly filtered providers.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task GetProvidersByType_ReturnsCorrectlyFilteredProviders()
     {
@@ -481,6 +461,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that endpoints with custom values are correctly parsed.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_ParsesCustomEndpoints_Correctly()
     {
@@ -521,6 +502,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that LoadProvidersAsync handles empty directory gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_HandlesEmptyDirectory_Gracefully()
     {
@@ -539,6 +521,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// <summary>
     /// Verifies that LoadProvidersAsync handles non-existent directory gracefully.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task LoadProvidersAsync_HandlesNonExistentDirectory_Gracefully()
     {
@@ -554,6 +537,34 @@ public class ProviderDefinitionLoaderTests : IDisposable
         Assert.NotNull(result.Data);
         Assert.Empty(result.Data);
     }
+
+    /// <summary>
+    /// Releases resources used by the test class.
+    /// </summary>
+    /// <param name="disposing">True if disposing managed resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Clean up test directory
+            try
+            {
+                if (Directory.Exists(_testProvidersDirectory))
+                {
+                    Directory.Delete(_testProvidersDirectory, recursive: true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
+            }
+        }
+
+        _disposed = true;
+    }
 }
-#pragma warning restore SA1615 // Element return value should be documented
-#pragma warning restore SA1202 // Elements should be ordered by access

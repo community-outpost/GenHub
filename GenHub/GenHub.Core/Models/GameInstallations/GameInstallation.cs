@@ -28,7 +28,7 @@ public class GameInstallation : IGameInstallation
         InstallationPath = installationPath;
         InstallationType = installationType;
         DetectedAt = DateTime.UtcNow;
-        AvailableClientsInternal = new List<GameClient>();
+        AvailableClientsInternal = [];
         _logger = logger;
 
         _logger?.LogDebug(
@@ -46,7 +46,7 @@ public class GameInstallation : IGameInstallation
     public GameInstallationType InstallationType { get; set; }
 
     /// <summary>Gets or sets the available game clients for this installation.</summary>
-    public List<GameClient> AvailableGameClients { get; set; } = new List<GameClient>();
+    public List<GameClient> AvailableGameClients { get; set; } = [];
 
     /// <summary>Gets the base installation directory path.</summary>
     public string InstallationPath { get; private set; } = string.Empty;
@@ -220,7 +220,7 @@ public class GameInstallation : IGameInstallation
         return Id?.GetHashCode() ?? 0;
     }
 
-    private bool HasValidExecutable(string path)
+    private static bool HasValidExecutable(string path)
     {
         var possibleExes = new[] { GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
         return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());

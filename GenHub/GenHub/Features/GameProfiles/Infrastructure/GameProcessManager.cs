@@ -24,8 +24,7 @@ public class GameProcessManager(
     IConfigurationProviderService configProvider,
     ILogger<GameProcessManager> logger) : IGameProcessManager, IDisposable
 {
-    private const int ProcessStartDelayMs = 100;
-    private const int CleanupIntervalMs = 300000; // 5 minutes
+    private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
 
     private readonly IConfigurationProviderService _configProvider = configProvider;
     private readonly ILogger<GameProcessManager> _logger = logger;
@@ -195,9 +194,13 @@ public class GameProcessManager(
 
             _logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);
 
+            // Check if process exited immediately (launcher pattern)
+            // Only apply delay if we need to detect a spawned process
             if (!isBatchFile)
             {
-                await Task.Delay(ProcessStartDelayMs, cancellationToken);
+                // Quick check to see if process exited immediately (launcher pattern)
+                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken); // Reduced from 2000ms - only for launcher detection
+
                 if (process.HasExited)
                 {
                     var exitCode = process.ExitCode;
@@ -263,18 +266,22 @@ public class GameProcessManager(
                         }
                     }
 
-                    _logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
+                    _logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode} (User likely closed it)", process.Id, exitCode);
 
-                    var exitCodeMessage = exitCode switch
+                    // Capture info before disposal
+                    var shortLivedProcessInfo = new GameProcessInfo
                     {
-                        -1073741515 => "Missing DLL or dependency (STATUS_DLL_NOT_FOUND)",
-                        -1073741502 => "Bad image format (STATUS_INVALID_IMAGE_FORMAT)",
-                        -1073741790 => "Access denied (STATUS_ACCESS_DENIED)",
-                        -1073741781 => "Application error (STATUS_APPLICATION_ERROR)",
-                        _ => $"Unknown error code {exitCode}",
+                        ProcessId = process.Id,
+                        ProcessName = "ExitedProcess",
+                        StartTime = DateTime.Now,
+                        ExecutablePath = configuration.ExecutablePath,
                     };
+
                     process.Dispose();
-                    return OperationResult<GameProcessInfo>.CreateFailure($"Process exited immediately with code {exitCode}: {exitCodeMessage}");
+
+                    // Return Success instead of Failure to avoid "Process exited immediately" error popup
+                    // The process is not tracked, so UI will correctly revert to "Play" state naturally
+                    return OperationResult<GameProcessInfo>.CreateSuccess(shortLivedProcessInfo);
                 }
             }
 
@@ -518,6 +525,57 @@ public class GameProcessManager(
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("[Discover] Attempting to discover and track process: {Name} in {Directory}", processName, workingDirectory);
+
+        // Poll for up to 45 seconds since Steam might need to start first, then launch the game
+        // If Steam isn't running, steam:// URL will launch Steam (5-10s), then Steam launches the game (5-10s)
+        const int MaxAttempts = ProcessConstants.SteamProcessDiscoveryMaxAttempts;
+        const int DelayMs = ProcessConstants.SteamProcessDiscoveryDelayMs;
+
+        for (int i = 0; i < MaxAttempts; i++)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return OperationResult<GameProcessInfo>.CreateFailure("Discovery cancelled");
+            }
+
+            var process = FindSpawnedGameProcess(processName, workingDirectory);
+            if (process != null)
+            {
+                _logger.LogInformation("[Discover] Successfully discovered and tracked process {ProcessId}", process.Id);
+
+                // Track it
+                _managedProcesses[process.Id] = process;
+
+                try
+                {
+                    process.EnableRaisingEvents = true;
+                    process.Exited += OnProcessExited;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to enable raising events for discovered process {ProcessId}", process.Id);
+                }
+
+                return OperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+                {
+                    ProcessId = process.Id,
+                    ProcessName = process.ProcessName,
+                    StartTime = process.StartTime,
+                    ExecutablePath = GetProcessExecutablePath(process),
+                });
+            }
+
+            await Task.Delay(DelayMs, cancellationToken);
+        }
+
+        _logger.LogWarning("[Discover] Failed to discover process {Name} after {Attempts} attempts", processName, MaxAttempts);
+        return OperationResult<GameProcessInfo>.CreateFailure($"Could not find process {processName} within the timeout period.");
+    }
+
     /// <summary>
     /// Cleans up dead processes from the managed processes dictionary.
     /// This prevents memory leaks from processes that exited without triggering the Exited event.
@@ -662,7 +720,7 @@ public class GameProcessManager(
                     try
                     {
                         // Verify process was started within last 10 seconds
-                        return (DateTime.Now - p.StartTime).TotalSeconds < 10;
+                        return (DateTime.Now - p.StartTime).TotalSeconds < ProcessConstants.EarlyExitThresholdSeconds;
                     }
                     catch
                     {

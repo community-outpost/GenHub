@@ -92,9 +92,19 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            var allFiles = configuration.GetAllUniqueFiles().ToList();
-            var totalFiles = allFiles.Count;
+            // Deduplicate files by RelativePath with priority ordering (GameClient > GameInstallation)
+            // so lower-priority sources cannot overwrite higher-priority files like modded clients.
+            var prioritizedFiles = configuration.Manifests
+                .SelectMany((manifest, index) => (manifest.Files ?? Enumerable.Empty<ManifestFile>())
+                    .Select(file => new { File = file, Manifest = manifest, ManifestIndex = index }))
+                .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g
+                    .OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
+                    .ThenByDescending(x => x.ManifestIndex) // deterministic tie-breaker
+                    .First())
+                .ToList();
+
+            var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
             var hardLinkedFiles = 0;
@@ -124,145 +134,137 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 return workspaceInfo;
             }
 
-            Logger.LogDebug("Processing {TotalFiles} files", totalFiles);
+            Logger.LogDebug("Processing {TotalFiles} files (prioritized by content type)", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            // Process each manifest and its files to maintain manifest context for source path resolution
-            foreach (var manifest in configuration.Manifests)
+            foreach (var prioritized in prioritizedFiles)
             {
-                Logger.LogDebug(
-                    "[HardLink] Processing manifest: {ManifestId} ({ContentType}) with {FileCount} files",
-                    manifest.Id.Value,
-                    manifest.ContentType,
-                    manifest.Files?.Count ?? 0);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+                var manifest = prioritized.Manifest;
+                var file = prioritized.File;
+                var destinationPath = Path.Combine(workspacePath, file.RelativePath);
+
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var destinationPath = Path.Combine(workspacePath, file.RelativePath);
-
-                    try
+                    // Handle different source types
+                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        // Handle different source types
-                        if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                        // Use CAS content
+                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                        if (sameVolume)
                         {
-                            // Use CAS content
-                            await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
-                            if (sameVolume)
+                            hardLinkedFiles++;
+                            totalBytesProcessed += LinkOverheadBytes;
+                        }
+                        else
+                        {
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                        }
+                    }
+                    else
+                    {
+                        // Resolve source path supporting multi-source installations
+                        var sourcePath = ResolveSourcePath(file, manifest, configuration);
+                        Logger.LogDebug(
+                            "[HardLink] File: {RelativePath}, Manifest: {ManifestId} ({ContentType}), Resolved source: {SourcePath}",
+                            file.RelativePath,
+                            manifest.Id.Value,
+                            manifest.ContentType,
+                            sourcePath);
+
+                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        {
+                            continue;
+                        }
+
+                        var verifyHash = !sameVolume; // For different volumes, always copy, so verify
+                        if (sameVolume)
+                        {
+                            try
                             {
+                                await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
                                 hardLinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes;
+                                totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
                             }
-                            else
+                            catch (IOException ioEx)
                             {
-                                copiedFiles++;
-                                totalBytesProcessed += file.Size;
+                                // Check if it's a missing file error - skip it gracefully
+                                if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
+                                    ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
+                                    continue;
+                                }
+
+                                Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+
+                                // Fall back to copy - but first verify source exists
+                                if (!File.Exists(sourcePath))
+                                {
+                                    Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
+                                    continue;
+                                }
+
+                                try
+                                {
+                                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                                    copiedFiles++;
+                                    totalBytesProcessed += file.Size;
+                                    verifyHash = true;
+                                }
+                                catch (IOException copyEx)
+                                {
+                                    Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
+                                    continue;
+                                }
+                            }
+                            catch (Exception hardLinkEx)
+                            {
+                                Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
+                                continue;
                             }
                         }
                         else
                         {
-                            // Resolve source path supporting multi-source installations
-                            var sourcePath = ResolveSourcePath(file, manifest, configuration);
-                            Logger.LogDebug(
-                                "[HardLink] File: {RelativePath}, Manifest: {ManifestId} ({ContentType}), Resolved source: {SourcePath}",
-                                file.RelativePath,
-                                manifest.Id.Value,
-                                manifest.ContentType,
-                                sourcePath);
-
-                            if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                            // Different volumes, must copy - but first verify source exists
+                            if (!File.Exists(sourcePath))
                             {
+                                Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
                                 continue;
                             }
 
-                            var verifyHash = !sameVolume; // For different volumes, always copy, so verify
-                            if (sameVolume)
+                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                            copiedFiles++;
+                            totalBytesProcessed += file.Size;
+                            verifyHash = true; // Copied, verify
+                        }
+
+                        // Verify file integrity if hash is provided and file was copied
+                        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
+                        {
+                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+                            if (!hashValid)
                             {
-                                try
-                                {
-                                    await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
-                                    hardLinkedFiles++;
-                                    totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
-                                }
-                                catch (IOException ioEx)
-                                {
-                                    // Check if it's a missing file error - skip it gracefully
-                                    if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
-                                        ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-                                        continue;
-                                    }
-
-                                    Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
-
-                                    // Fall back to copy - but first verify source exists
-                                    if (!File.Exists(sourcePath))
-                                    {
-                                        Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
-                                        continue;
-                                    }
-
-                                    try
-                                    {
-                                        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                        copiedFiles++;
-                                        totalBytesProcessed += file.Size;
-                                        verifyHash = true;
-                                    }
-                                    catch (IOException copyEx)
-                                    {
-                                        Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
-                                        continue;
-                                    }
-                                }
-                                catch (Exception hardLinkEx)
-                                {
-                                    Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
-                                    continue;
-                                }
-                            }
-                            else
-                            {
-                                // Different volumes, must copy - but first verify source exists
-                                if (!File.Exists(sourcePath))
-                                {
-                                    Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
-                                    continue;
-                                }
-
-                                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                copiedFiles++;
-                                totalBytesProcessed += file.Size;
-                                verifyHash = true; // Copied, verify
-                            }
-
-                            // Verify file integrity if hash is provided and file was copied
-                            if (verifyHash && !string.IsNullOrEmpty(file.Hash))
-                            {
-                                var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                                if (!hashValid)
-                                {
-                                    Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-                                }
+                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError(
-                            ex,
-                            "Failed to process file {RelativePath} to {DestinationPath}",
-                            file.RelativePath,
-                            destinationPath);
-                        throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
-                    }
-
-                    processedFiles++;
-                    var operation = sameVolume ? "Hard linking" : "Copying";
-                    ReportProgress(progress, processedFiles, totalFiles, operation, file.RelativePath);
                 }
+                catch (Exception ex)
+                {
+                    Logger.LogError(
+                        ex,
+                        "Failed to process file {RelativePath} to {DestinationPath}",
+                        file.RelativePath,
+                        destinationPath);
+                    throw new InvalidOperationException($"Failed to process file {file.RelativePath}: {ex.Message}", ex);
+                }
+
+                processedFiles++;
+                var operation = sameVolume ? "Hard linking" : "Copying";
+                ReportProgress(progress, processedFiles, totalFiles, operation, file.RelativePath);
             }
 
             UpdateWorkspaceInfo(workspaceInfo, processedFiles, totalBytesProcessed, configuration);

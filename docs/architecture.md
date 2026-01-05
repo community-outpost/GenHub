@@ -28,7 +28,7 @@ The system employs specialized detectors for each platform and distribution meth
 Detection begins with IGameInstallationDetectionOrchestrator.DetectAllInstallationsAsync, which coordinates multiple IGameInstallationDetector implementations. Each detector returns DetectionResult containing discovered GameInstallation objects. The orchestrator aggregates these results, validates them through IGameInstallationValidator, and maintains a centralized registry of available installations through IGameInstallationService.
 
 **Caching Strategy**:
-GameInstallationService caches detection results with a lightweight in-memory cache guarded by a SemaphoreSlim, using IGameInstallationDetectionOrchestrator as the source of truth to avoid repeated detection runs per app lifetime.
+GameInstallationService caches detection results with a lightweight in-memory cache guarded by a SemaphoreSlim, using IGameInstallationDetectionOrchestrator as the source of truth to avoid repeated detection runs per app lifetime. Additionally, the system implements granular manifest loading, attempting to load clients from existing manifests first to bypass expensive directory scans for established installations.
 
 ### 1.2 GameClient: The Executable Identity Layer
 

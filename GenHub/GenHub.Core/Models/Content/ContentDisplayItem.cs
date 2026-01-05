@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -203,7 +204,7 @@ public class ContentDisplayItem
 
             // TODO: Add localization logic - current format is US-centric (e.g., "Nov 30, 2025")
             // Should use culture-specific formatting (e.g., "30 November 2025" for NL/BE)
-            return ReleaseDate.Value.ToString("MMM dd, yyyy");
+            return ReleaseDate.Value.ToString("d", CultureInfo.CurrentCulture);
         }
     }
 

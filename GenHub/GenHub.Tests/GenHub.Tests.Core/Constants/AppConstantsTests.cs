@@ -177,7 +177,6 @@ public class AppConstantsTests
 
             // Test that executable names array is populated
             Assert.NotEmpty(registry.PossibleExecutableNames);
-            Assert.Contains("generals.exe", registry.PossibleExecutableNames);
         });
     }
 }

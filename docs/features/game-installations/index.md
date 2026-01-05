@@ -27,11 +27,14 @@ This ensures consistency across all installation detectors and makes future upda
 The main **service layer** that exposes the public API and handles in‑memory caching.
 
 - **Caching**:  
-  Results are detected once and cached using a thread‑safe `SemaphoreSlim`.
+-  Results are detected once and cached using a thread‑safe `SemaphoreSlim`.
++  Results are detected once and cached using a thread‑safe `SemaphoreSlim`. The cache persists across sessions via local manifests.
 - **Error Handling**:  
   Validates input parameters and reports descriptive error messages to API consumers.
 - **Lazy Loading**:  
   Detection occurs only on the *first* request, then cached for reuse.
++- **Granular Manifest Loading**:  
++  Attempts to load game clients from existing manifests first. Only installations missing manifests trigger an expensive directory scan, preventing unnecessary rescans of Steam‑integrated and established installations.
 
 ---
 

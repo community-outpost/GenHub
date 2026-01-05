@@ -5,8 +5,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
@@ -24,6 +24,11 @@ public class GeneralsOnlineJsonCatalogParser(
     ILogger<GeneralsOnlineJsonCatalogParser> logger
 ) : ICatalogParser
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     /// <inheritdoc/>
     public string CatalogFormat => "generalsonline-json-api";
 
@@ -66,7 +71,8 @@ public class GeneralsOnlineJsonCatalogParser(
                 if (root.TryGetProperty("data", out var dataElement))
                 {
                     var apiResponse = JsonSerializer.Deserialize<GeneralsOnlineApiResponse>(
-                        dataElement.GetRawText());
+                        dataElement.GetRawText(),
+                        _jsonOptions);
 
                     if (apiResponse != null && !string.IsNullOrEmpty(apiResponse.Version))
                     {
@@ -110,7 +116,7 @@ public class GeneralsOnlineJsonCatalogParser(
 
             return Task.FromResult(
                 OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                    new[] { searchResult }));
+                    [searchResult]));
         }
         catch (JsonException ex)
         {

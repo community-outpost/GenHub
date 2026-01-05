@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -464,6 +464,12 @@ public partial class GameProfileLauncherViewModel(
 
                 bool wizardConfirmed = wizardResult.Confirmed;
 
+                // Check if any patches were selected globally
+                bool anyPatchSelectedGlobally =
+                    (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None) ||
+                    (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None) ||
+                    (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None);
+
                 // 4. Execution Phase: Apply decisions per installation
                 int profilesCreated = 0;
                 foreach (var installation in installationsList)
@@ -518,11 +524,12 @@ public partial class GameProfileLauncherViewModel(
                         }
                     }
 
-                    // Fallback to base game profiles if no patches were handled
-                    if (!anyPatchHandled)
+                    // Fallback to base game profiles if no patches were handled and no patches were selected globally
+                    // If user selected patches globally, we assume they only want those specific patched profiles
+                    if (!anyPatchHandled && !anyPatchSelectedGlobally)
                     {
                         logger.LogInformation("No patches selected or found for {InstallationId}, creating base game profiles", installation.Id);
-                        foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient))
+                        foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())
                         {
                             if (await TryCreateProfileForGameClientAsync(installation, client)) profilesCreated++;
                         }
@@ -656,8 +663,14 @@ public partial class GameProfileLauncherViewModel(
                 gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {
-                // For unknown/auto versions, GameInstallationService uses version 0
-                installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, 0);
+                // For unknown/auto versions, use the default version for the game type (1.04/1.08)
+                // This ensures we match the ID generated during dependency resolution
+                var defaultVersion = gameClient.GameType == GameType.ZeroHour
+                    ? ManifestConstants.ZeroHourManifestVersion
+                    : ManifestConstants.GeneralsManifestVersion;
+
+                var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
+                installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
             }
             else
             {
@@ -668,8 +681,13 @@ public partial class GameProfileLauncherViewModel(
                 }
                 catch (ArgumentException)
                 {
-                    // If normalization fails (invalid format), fallback to 0
-                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, 0);
+                    // If normalization fails (invalid format), fallback to default version
+                    var defaultVersion = gameClient.GameType == GameType.ZeroHour
+                        ? ManifestConstants.ZeroHourManifestVersion
+                        : ManifestConstants.GeneralsManifestVersion;
+
+                    var normalizedVersion = GameVersionHelper.NormalizeVersion(defaultVersion);
+                    installationManifestId = ManifestIdGenerator.GenerateGameInstallationId(installation, gameClient.GameType, normalizedVersion);
                 }
             }
 
@@ -1346,8 +1364,11 @@ public partial class GameProfileLauncherViewModel(
                 };
                 await gameProfileManager.UpdateProfileAsync(profile.ProfileId, updateRequest);
 
-                // Patch the manifest on disk immediately
-                await steamManifestPatcher.PatchManifestAsync(gameProfile.GameClient.Id, profile.UseSteamLaunch);
+                // Patch all enabled manifests on disk immediately
+                foreach (var contentId in gameProfile.EnabledContentIds)
+                {
+                    await steamManifestPatcher.PatchManifestAsync(contentId, profile.UseSteamLaunch);
+                }
 
                 StatusMessage = $"Steam launch {(profile.UseSteamLaunch ? "enabled" : "disabled")} for {profile.Name}";
                 logger.LogInformation("Toggled Steam launch to {UseSteam} for profile {ProfileName}", profile.UseSteamLaunch, profile.Name);

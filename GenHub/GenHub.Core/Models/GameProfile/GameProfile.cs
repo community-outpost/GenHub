@@ -191,7 +191,7 @@ public class GameProfile : IGameProfile
     public bool? GoShowPlayerRanks { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to launch using Steam integration (generals.exe) or standalone (game.dat). Only applicable for Steam installations.</summary>
-    public bool? UseSteamLaunch { get; set; } = true;
+    public bool? UseSteamLaunch { get; set; } = false;
 
     // Camera settings
 

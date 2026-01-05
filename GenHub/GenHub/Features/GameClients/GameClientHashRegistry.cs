@@ -50,13 +50,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
         _possibleExecutableNames =
         [
 
-            // Engine files (Prefer these as they are more reliable for version detection)
-            GameClientConstants.GameExecutable,        // game.exe
             GameClientConstants.SteamGameDatExecutable, // game.dat
-
-            // Launcher stubs
-            GameClientConstants.GeneralsExecutable,
-            GameClientConstants.ZeroHourExecutable,
 
             // Publisher clients
             GameClientConstants.SuperHackersGeneralsExecutable,

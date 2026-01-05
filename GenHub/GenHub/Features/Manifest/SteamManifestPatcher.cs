@@ -32,7 +32,8 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
 
             if (!Directory.Exists(manifestsDir))
             {
-                logger.LogWarning("Manifests directory not found: {Dir}", manifestsDir);
+                logger.LogInformation("Manifests directory not found, creating: {Dir}", manifestsDir);
+                Directory.CreateDirectory(manifestsDir);
                 return;
             }
 
@@ -75,9 +76,9 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
             var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
             var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
 
-            if (generalsExe == null || gameDat == null)
+            if (generalsExe == null && gameDat == null)
             {
-                logger.LogWarning("Manifest {ManifestId} does not contain required files (generals.exe and game.dat)", manifestId);
+                logger.LogDebug("Manifest {ManifestId} does not contain generals.exe or game.dat, skipping patch", manifestId);
                 return;
             }
 
@@ -85,21 +86,40 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
 
             if (useSteamLaunch)
             {
-                // Steam Mode: generals.exe = true, game.dat = false
-                if (!generalsExe.IsExecutable || gameDat.IsExecutable)
+                // Steam Mode: generals.exe = true, game.dat = false (if it exists)
+                if (generalsExe != null && !generalsExe.IsExecutable)
                 {
                     generalsExe.IsExecutable = true;
+                    changed = true;
+                }
+
+                if (gameDat != null && gameDat.IsExecutable)
+                {
                     gameDat.IsExecutable = false;
                     changed = true;
                 }
             }
             else
             {
-                // Standalone Mode: generals.exe = false, game.dat = true
-                if (generalsExe.IsExecutable || !gameDat.IsExecutable)
+                // Standalone Mode: generals.exe = false (if game.dat exists), game.dat = true
+                if (gameDat != null)
                 {
-                    generalsExe.IsExecutable = false;
-                    gameDat.IsExecutable = true;
+                    if (!gameDat.IsExecutable)
+                    {
+                        gameDat.IsExecutable = true;
+                        changed = true;
+                    }
+
+                    if (generalsExe != null && generalsExe.IsExecutable)
+                    {
+                        generalsExe.IsExecutable = false;
+                        changed = true;
+                    }
+                }
+                else if (generalsExe != null && !generalsExe.IsExecutable)
+                {
+                    // If no game.dat, generals.exe must be the executable
+                    generalsExe.IsExecutable = true;
                     changed = true;
                 }
             }

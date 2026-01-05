@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
@@ -209,35 +210,7 @@ public class GeneralsOnlineManifestFactory(
     /// </summary>
     /// <param name="version">The version string (e.g., "111825_QFE2").</param>
     /// <returns>A numeric version suitable for manifest IDs.</returns>
-    private static int ParseVersionForManifestId(string version)
-    {
-        try
-        {
-            var parts = version.Split(GeneralsOnlineConstants.QfeSeparator, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2)
-            {
-                // Try simpler numeric parsing if format differs
-                if (int.TryParse(string.Concat(version.Where(char.IsDigit)), out int simpleVer))
-                    return simpleVer;
-                return 0;
-            }
-
-            var datePart = parts[0]; // "101525"
-            var qfePart = parts[1].Replace(GeneralsOnlineConstants.QfeMarkerPrefix, string.Empty, StringComparison.OrdinalIgnoreCase);
-
-            if (!int.TryParse(datePart, out var dateValue) || !int.TryParse(qfePart, out var qfeValue))
-            {
-                return 0;
-            }
-
-            // Combine: 101525 * 10 + 5 = 1015255
-            return (dateValue * 10) + qfeValue;
-        }
-        catch
-        {
-            return 0;
-        }
-    }
+    private static int ParseVersionForManifestId(string version) => GameVersionHelper.GetGeneralsOnlineSortableVersion(version);
 
     /// <summary>
     /// Creates a ManifestFile for a map file, normalizing the relative path.
@@ -336,7 +309,7 @@ public class GeneralsOnlineManifestFactory(
         var version = originalManifest.Version ?? GeneralsOnlineConstants.UnknownVersion;
         var userVersion = ParseVersionForManifestId(version);
 
-        // Get URLs from provider definition
+        // Get URLs from provider definition (prefer original manifest metadata if available)
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? string.Empty;
         var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? string.Empty;

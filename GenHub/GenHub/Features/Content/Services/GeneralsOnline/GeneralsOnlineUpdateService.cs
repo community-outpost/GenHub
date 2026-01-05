@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results.Content;
@@ -80,6 +81,37 @@ public class GeneralsOnlineUpdateService(
             logger.LogError(ex, "Failed to check for Generals Online updates");
             throw;
         }
+    }
+
+    private static bool IsNewerVersion(string latestVersion, string? currentVersion)
+    {
+        if (string.IsNullOrEmpty(currentVersion))
+        {
+            return true; // Any version is newer than nothing
+        }
+
+        // Parse DDMMYY_QFE# format
+        var latest = GameVersionHelper.ParseGeneralsOnlineVersion(latestVersion);
+        var current = GameVersionHelper.ParseGeneralsOnlineVersion(currentVersion);
+
+        if (latest == null || current == null)
+        {
+            return false;
+        }
+
+        // Compare date first
+        if (latest.Value.Date > current.Value.Date)
+        {
+            return true;
+        }
+
+        if (latest.Value.Date == current.Value.Date)
+        {
+            // Same date, compare QFE number
+            return latest.Value.Qfe > current.Value.Qfe;
+        }
+
+        return false;
     }
 
     private async Task<string?> GetInstalledVersionAsync(CancellationToken cancellationToken)
@@ -170,101 +202,6 @@ public class GeneralsOnlineUpdateService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to get latest version from CDN");
-            return null;
-        }
-    }
-
-    private bool IsNewerVersion(string latestVersion, string? currentVersion)
-    {
-        if (string.IsNullOrEmpty(currentVersion))
-        {
-            return true; // Any version is newer than nothing
-        }
-
-        // Parse MMddyy_QFE# format
-        var latest = ParseVersion(latestVersion);
-        var current = ParseVersion(currentVersion);
-
-        if (latest == null || current == null)
-        {
-            return false;
-        }
-
-        // Compare date first
-        if (latest.Value.Date > current.Value.Date)
-        {
-            return true;
-        }
-
-        if (latest.Value.Date == current.Value.Date)
-        {
-            // Same date, compare QFE number
-            return latest.Value.Qfe > current.Value.Qfe;
-        }
-
-        return false;
-    }
-
-    private (DateTime Date, int Qfe)? ParseVersion(string version)
-    {
-        try
-        {
-            // Format: MMddyy_QFE# or MMddyy (without QFE suffix)
-            // latest.txt returns just MMddyy, manifest.json returns MMddyy_QFE#
-            var parts = version.Split('_');
-
-            string datePart;
-            int qfe;
-
-            if (parts.Length == 1)
-            {
-                // No QFE suffix - default to QFE0 (e.g., "122025" -> "122025_QFE0")
-                datePart = parts[0];
-                qfe = 0;
-                logger.LogDebug("Version {Version} has no QFE suffix, defaulting to QFE0", version);
-            }
-            else if (parts.Length == 2)
-            {
-                // Has QFE suffix (e.g., "122025_QFE1")
-                datePart = parts[0];
-                var qfePart = parts[1].Replace("QFE", string.Empty, StringComparison.OrdinalIgnoreCase);
-
-                if (!int.TryParse(qfePart, out qfe))
-                {
-                    logger.LogWarning("Failed to parse QFE number from: {QFEPart}", parts[1]);
-                    return null;
-                }
-            }
-            else
-            {
-                logger.LogWarning("Invalid version format (too many parts): {Version}", version);
-                return null;
-            }
-
-            // Validate date part is exactly 6 digits
-            if (datePart.Length != 6)
-            {
-                logger.LogWarning("Invalid date part length (expected 6 digits): {DatePart}", datePart);
-                return null;
-            }
-
-            if (!DateTime.TryParseExact(
-                datePart,
-                GeneralsOnlineConstants.VersionDateFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.None,
-                out var date))
-            {
-                logger.LogWarning("Failed to parse version date: {DatePart}", datePart);
-                return null;
-            }
-
-            logger.LogDebug("Parsed version {Version} as Date={Date:yyyy-MM-dd}, QFE={QFE}", version, date, qfe);
-            return (date, qfe);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to parse version: {Version}", version);
             return null;
         }
     }

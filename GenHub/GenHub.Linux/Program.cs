@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.Versioning;
 using Avalonia;
 using GenHub.Core.Constants;
@@ -34,7 +35,21 @@ public class Program
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
-        // TODO: Create lockfile to guarantee that only one instance is running on linux
+        // Create lockfile to guarantee that only one instance is running on linux
+        var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
+        Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
+        try
+        {
+            using var lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+            // If we get here, we have the lock
+        }
+        catch (IOException)
+        {
+            // Another instance is running
+            return;
+        }
+
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
         try

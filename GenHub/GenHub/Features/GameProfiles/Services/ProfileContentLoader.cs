@@ -107,25 +107,7 @@ public class ProfileContentLoader(
 
             var includedManifestIds = new HashSet<string>();
 
-            foreach (var installation in installationsResult.Data)
-            {
-                foreach (var gameClient in installation.AvailableGameClients)
-                {
-                    var item = CreateGameClientDisplayItem(installation, gameClient);
-                    if (item != null)
-                    {
-                        result.Add(item);
-                        includedManifestIds.Add(gameClient.Id);
-
-                        logger.LogDebug(
-                            "Added GameClient: {DisplayName} ({Publisher})",
-                            item.DisplayName,
-                            item.Publisher);
-                    }
-                }
-            }
-
-            await AddCasStoredGameClientsAsync(result, includedManifestIds);
+            await AddCasStoredGameClientsAsync(result, []);
 
             logger.LogInformation("Loaded {Count} game client options", result.Count);
         }
@@ -496,6 +478,15 @@ public class ProfileContentLoader(
         var manifestsResult = await contentManifestPool.GetAllManifestsAsync();
         if (!manifestsResult.Success || manifestsResult.Data is null) return;
 
+        logger.LogInformation(
+            "[DEBUG] AddCasStoredGameClientsAsync: Total manifests in pool={Count}, ExcludeIds={ExcludeCount}",
+            manifestsResult.Data.Count(),
+            excludeIds.Count);
+
+        logger.LogInformation(
+            "[DEBUG] ExcludeIds: {Ids}",
+            string.Join(", ", excludeIds));
+
         var casGameClients = manifestsResult.Data
             .Where(m => m.ContentType == ContentType.GameClient && !excludeIds.Contains(m.Id.Value));
 
@@ -508,6 +499,10 @@ public class ProfileContentLoader(
                 manifest.Name,
                 manifest.Id.Value);
         }
+
+        logger.LogInformation(
+            "[DEBUG] AddCasStoredGameClientsAsync: Added {Count} CAS-stored GameClients",
+            casGameClients.Count());
     }
 
     private async Task<ObservableCollection<ContentDisplayItem>> LoadGameClientsWithEnabledStateAsync(
