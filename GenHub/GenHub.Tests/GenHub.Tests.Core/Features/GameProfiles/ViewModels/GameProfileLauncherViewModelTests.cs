@@ -63,6 +63,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         Assert.NotNull(vm);
@@ -108,6 +109,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.InitializeAsync();
@@ -159,6 +161,7 @@ public class GameProfileLauncherViewModelTests
             setupWizardService.Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -199,6 +202,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -236,6 +240,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
@@ -275,6 +280,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);

@@ -55,6 +55,7 @@ public partial class GameProfileLauncherViewModel(
     ISetupWizardService setupWizardService,
     IManifestGenerationService manifestGenerationService,
     IContentManifestPool contentManifestPool,
+    IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
@@ -282,6 +283,8 @@ public partial class GameProfileLauncherViewModel(
         ResetHeaderState();
     }
 
+    private bool _isHovering;
+
     /// <summary>
     /// Resets the header state to expanded and restarts the auto-collapse timer.
     /// </summary>
@@ -289,7 +292,12 @@ public partial class GameProfileLauncherViewModel(
     {
         IsHeaderExpanded = true;
         _headerCollapseTimer.Stop();
-        _headerCollapseTimer.Start();
+
+        // Only start the auto-collapse timer if the user is NOT currently hovering
+        if (!_isHovering)
+        {
+            _headerCollapseTimer.Start();
+        }
     }
 
     private static Window? GetMainWindow()
@@ -555,6 +563,7 @@ public partial class GameProfileLauncherViewModel(
     private void ExpandHeader()
     {
         IsHeaderExpanded = true;
+        _isHovering = true;
         _headerCollapseTimer.Stop();
     }
 
@@ -564,6 +573,8 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void StartHeaderTimer()
     {
+        _isHovering = false;
+
         if (IsScanning)
         {
             return; // Don't collapse header while scanning
@@ -897,6 +908,7 @@ public partial class GameProfileLauncherViewModel(
             liveProfile.NotifyCanLaunchChanged();
 
             StatusMessage = $"{liveProfile.Name} launched successfully (Process ID: {launchResult.Data.ProcessInfo.ProcessId})";
+            notificationService.ShowSuccess("Game Launched", $"{liveProfile.Name} is now running.");
         }
         else
         {
@@ -1007,6 +1019,7 @@ public partial class GameProfileLauncherViewModel(
 
                 StatusMessage = $"{profile.Name} stopped successfully";
                 logger.LogInformation("Profile {ProfileName} stopped successfully", profile.Name);
+                notificationService.ShowInfo("Game Stopped", $"{profile.Name} has been stopped.");
             }
             else
             {
@@ -1016,12 +1029,14 @@ public partial class GameProfileLauncherViewModel(
                     "Failed to stop profile {ProfileName}: {Errors}",
                     profile.Name,
                     errors);
+                notificationService.ShowError("Stop Failed", $"Failed to stop {profile.Name}: {errors}");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error stopping profile {ProfileName}", profile.Name);
             StatusMessage = $"Error stopping {profile.Name}";
+            notificationService.ShowError("Stop Error", $"An error occurred while stopping {profile.Name}.");
         }
     }
 
@@ -1071,6 +1086,18 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        // Show confirmation dialog
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            "Delete Profile",
+            $"Are you sure you want to delete the profile '{profile.Name}'? This action cannot be undone.",
+            confirmText: "Delete",
+            sessionKey: "DeleteProfileConfirmation");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
         try
         {
             StatusMessage = $"Deleting {profile.Name}...";
@@ -1081,6 +1108,8 @@ public partial class GameProfileLauncherViewModel(
                 Profiles.Remove(profile);
                 StatusMessage = $"{profile.Name} deleted successfully";
                 logger.LogInformation("Deleted profile {ProfileName}", profile.Name);
+
+                notificationService.ShowSuccess("Profile Deleted", $"Successfully deleted profile '{profile.Name}'.");
 
                 try
                 {
@@ -1097,12 +1126,14 @@ public partial class GameProfileLauncherViewModel(
                 var errors = string.Join(", ", deleteResult.Errors);
                 StatusMessage = $"Failed to delete {profile.Name}: {errors}";
                 logger.LogWarning("Failed to delete profile {ProfileName}: {Errors}", profile.Name, errors);
+                notificationService.ShowError("Delete Failed", $"Failed to delete profile '{profile.Name}': {errors}");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error deleting profile {ProfileName}", profile.Name);
             StatusMessage = $"Error deleting {profile.Name}";
+            notificationService.ShowError("Delete Error", $"An error occurred while deleting profile '{profile.Name}'.");
         }
     }
 
@@ -1119,7 +1150,9 @@ public partial class GameProfileLauncherViewModel(
             var loadResult = await profileEditorFacade.GetProfileWithWorkspaceAsync(profile.ProfileId);
             if (!loadResult.Success || loadResult.Data == null)
             {
-                StatusMessage = $"Failed to load profile: {string.Join(", ", loadResult.Errors)}";
+                var errors = string.Join(", ", loadResult.Errors);
+                StatusMessage = $"Failed to load profile: {errors}";
+                notificationService.ShowError("Load Failed", $"Failed to load profile '{profile.Name}': {errors}");
                 return;
             }
 
@@ -1189,6 +1222,7 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Error creating new profile");
             StatusMessage = "Error creating new profile";
+            notificationService.ShowError("Error", "An error occurred while opening the new profile window.");
         }
     }
 
@@ -1228,18 +1262,21 @@ public partial class GameProfileLauncherViewModel(
 
                 StatusMessage = $"Workspace prepared for {profile.Name} at {prepareResult.Data.WorkspacePath}";
                 logger.LogInformation("Prepared workspace for profile {ProfileName} at {Path}", profile.Name, prepareResult.Data.WorkspacePath);
+                notificationService.ShowSuccess("Workspace Ready", $"Workspace prepared for '{profile.Name}'.");
             }
             else
             {
                 var errors = string.Join(", ", prepareResult.Errors);
                 StatusMessage = $"Failed to prepare workspace for {profile.Name}: {errors}";
                 logger.LogWarning("Failed to prepare workspace for profile {ProfileName}: {Errors}", profile.Name, errors);
+                notificationService.ShowError("Workspace Failed", $"Failed to prepare workspace for '{profile.Name}': {errors}");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error preparing workspace for profile {ProfileName}", profile.Name);
             StatusMessage = $"Error preparing workspace for {profile.Name}";
+            notificationService.ShowError("Workspace Error", $"An error occurred while preparing workspace for '{profile.Name}'.");
         }
         finally
         {
@@ -1272,17 +1309,20 @@ public partial class GameProfileLauncherViewModel(
             {
                 StatusMessage = $"Desktop shortcut created for {profile.Name}";
                 logger.LogInformation("Created desktop shortcut for profile {ProfileName} at {Path}", profile.Name, result.Data);
+                notificationService.ShowSuccess("Shortcut Created", $"Desktop shortcut created for '{profile.Name}'.");
             }
             else
             {
                 StatusMessage = $"Failed to create shortcut: {string.Join(", ", result.Errors)}";
                 logger.LogWarning("Failed to create shortcut for profile {ProfileName}: {Errors}", profile.Name, string.Join(", ", result.Errors));
+                notificationService.ShowError("Shortcut Failed", $"Failed to create shortcut for '{profile.Name}': {string.Join(", ", result.Errors)}");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating shortcut for profile {ProfileName}", profile.Name);
             StatusMessage = $"Error creating shortcut for {profile.Name}";
+            notificationService.ShowError("Shortcut Error", $"An error occurred while creating shortcut for '{profile.Name}'.");
         }
     }
 
@@ -1309,14 +1349,16 @@ public partial class GameProfileLauncherViewModel(
                 // Patch the manifest on disk immediately
                 await steamManifestPatcher.PatchManifestAsync(gameProfile.GameClient.Id, profile.UseSteamLaunch);
 
-                StatusMessage = $"Launch mode updated for {profile.Name}";
+                StatusMessage = $"Steam launch {(profile.UseSteamLaunch ? "enabled" : "disabled")} for {profile.Name}";
                 logger.LogInformation("Toggled Steam launch to {UseSteam} for profile {ProfileName}", profile.UseSteamLaunch, profile.Name);
+                notificationService.ShowInfo("Steam Integration", $"Steam launch {(profile.UseSteamLaunch ? "enabled" : "disabled")} for '{profile.Name}'.");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error toggling Steam launch for {ProfileName}", profile.Name);
             StatusMessage = "Error updating launch mode";
+            notificationService.ShowError("Steam Integration Error", $"Failed to update Steam launch for '{profile.Name}'.");
 
             // Revert UI if failed
             profile.UseSteamLaunch = !profile.UseSteamLaunch;

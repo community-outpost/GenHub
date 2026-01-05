@@ -286,7 +286,6 @@ public class MainViewModelTests
         // Create the three required dependencies for the discoverer
         var mockGitHubClient = new Mock<IGitHubApiClient>();
         var mockDiscovererLogger = new Mock<ILogger<GitHubTopicsDiscoverer>>();
-        var mockCache = new Mock<IMemoryCache>();
 
         // Instantiate the real class with the three mocks
         var realGitHubDiscoverer = new GitHubTopicsDiscoverer(
@@ -344,6 +343,7 @@ public class MainViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IManifestGenerationService>().Object,
             new Mock<IContentManifestPool>().Object,
+            new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
     }
 

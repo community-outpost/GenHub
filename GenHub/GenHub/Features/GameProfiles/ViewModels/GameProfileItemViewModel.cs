@@ -411,7 +411,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     !_gameVersion.Equals("Automatically added", StringComparison.OrdinalIgnoreCase) &&
                     !_gameVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
                 {
-                    versionInfo = $"v{_gameVersion}";
+                     // If it doesn't start with 'v' (e.g. GeneralsOnline datecode), add it for description context?
+                     // Or better, just use exactly what is in _gameVersion since we formatted it nicely.
+                     // The previous code added 'v' unconditionally.
+                     // Let's rely on _gameVersion having the prefix if standard, or raw if datecode.
+                     versionInfo = _gameVersion;
                 }
 
                 var publisherInfo = !string.IsNullOrEmpty(_publisher) ? $" • {_publisher}" : string.Empty;
@@ -473,6 +477,40 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     WorkspaceStrategy.HardLink => "Hard Linked",
                     _ => "Prepared",
                 };
+            }
+        }
+
+        // --- Live Fixup Logic for Round 2 Polish ---
+        // Ensure existing profiles get the correct cover images and theme colors if they were missed.
+        if (profile is GameProfile gp3)
+        {
+            var pubType = gp3.GameClient?.PublisherType ?? string.Empty;
+
+            // Fix Covers for existing profiles
+            var isGenericCover = string.IsNullOrEmpty(_coverPath) ||
+                                 _coverPath.Contains("zerohour-cover.png") ||
+                                 _coverPath.Contains("generals-cover.png");
+
+            if (isGenericCover)
+            {
+                if (pubType == PublisherTypeConstants.TheSuperHackers)
+                {
+                    CoverImagePath = $"{UriConstants.CoversBasePath}/china-poster.png";
+                }
+                else if (pubType == PublisherTypeConstants.GeneralsOnline)
+                {
+                    CoverImagePath = $"{UriConstants.CoversBasePath}/usa-poster.png";
+                }
+                else if (pubType == CommunityOutpostConstants.PublisherType)
+                {
+                    CoverImagePath = $"{UriConstants.CoversBasePath}/gla-poster.png";
+                }
+            }
+
+            // Fix Colors for existing profiles (e.g. if they have the old dark blue)
+            if (_colorValue == "#1B3A5F" && pubType == PublisherTypeConstants.GeneralsOnline)
+            {
+                ColorValue = "#00A3FF";
             }
         }
     }
@@ -669,31 +707,42 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
         try
         {
+            // Parse publisher: segment[2] contains the platform/publisher
+            var publisherSegment = segments[2].ToLowerInvariant();
+            Publisher = publisherSegment switch
+            {
+                PublisherTypeConstants.Steam => "Steam",
+                PublisherTypeConstants.EaApp => "EA App",
+                "thefirstdecade" => "The First Decade",
+                PublisherTypeConstants.Retail => "Retail",
+                "cdiso" => "CD/ISO",
+                "wine" => "Wine",
+                PublisherTypeConstants.GeneralsOnline => "Generals Online",
+                _ => segments[2].ToUpperInvariant(),
+            };
+
             // Parse version: segment[1] contains the user version (e.g., 104, 108)
             if (int.TryParse(segments[1], out var versionNumber) && versionNumber > 0)
             {
-                // Convert 104 → "1.04", 108 → "1.08", 105 → "1.05"
-                GameVersion = versionNumber >= 100
-                    ? $"{versionNumber / 100}.{versionNumber % 100:D2}"
-                    : versionNumber.ToString();
+                if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+                {
+                    // For Generals Online, the version is a datecode (MMDDYY).
+                    // Format as 6 digits (e.g., 10326 -> "010326")
+                    GameVersion = versionNumber.ToString("D6");
+                }
+                else
+                {
+                    // Standard version logic: Convert 104 -> "v1.04", 108 -> "v1.08", 105 -> "v1.05"
+                    GameVersion = versionNumber >= 100
+                        ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
+                        : $"v{versionNumber}";
+                }
             }
             else
             {
                 // If version is 0 or invalid, try to extract from GameClient.Version directly
                 GameVersion = string.Empty;
             }
-
-            // Parse publisher: segment[2] contains the platform/publisher
-            Publisher = segments[2] switch
-            {
-                "steam" => "Steam",
-                "eaapp" => "EA App",
-                "thefirstdecade" => "The First Decade",
-                "retail" => "Retail",
-                "cdiso" => "CD/ISO",
-                "wine" => "Wine",
-                _ => segments[2].ToUpperInvariant(),
-            };
 
             // Parse content type from suffix in segment[3]
             var gameTypeSegment = segments[3];

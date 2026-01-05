@@ -89,7 +89,7 @@ public class GameClientProfileService(
                 EnabledContentIds = enabledContentIds,
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
                 IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
-                CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType),
+                CoverPath = !string.IsNullOrEmpty(coverPath) ? coverPath : GetCoverPathForGame(gameClient.GameType, gameClient),
             };
 
             var profileResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
@@ -402,8 +402,26 @@ public class GameClientProfileService(
         return $"{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
-    private static string GetCoverPathForGame(GameType gameType)
+    private static string GetCoverPathForGame(GameType gameType, GameClient? gameClient = null)
     {
+        if (gameClient != null)
+        {
+            if (gameClient.PublisherType == PublisherTypeConstants.TheSuperHackers)
+            {
+                return $"{UriConstants.CoversBasePath}/china-poster.png";
+            }
+
+            if (gameClient.PublisherType == CommunityOutpostConstants.PublisherType)
+            {
+                return $"{UriConstants.CoversBasePath}/gla-poster.png";
+            }
+
+            if (gameClient.PublisherType == PublisherTypeConstants.GeneralsOnline)
+            {
+                return $"{UriConstants.CoversBasePath}/usa-poster.png";
+            }
+        }
+
         var gameCover = gameType == GameType.Generals
             ? UriConstants.GeneralsCoverFilename
             : UriConstants.ZeroHourCoverFilename;

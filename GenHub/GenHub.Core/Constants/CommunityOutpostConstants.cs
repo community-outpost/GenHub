@@ -33,7 +33,7 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "avares://GenHub/Assets/Covers/generals-cover.png";
+    public const string CoverSource = "avares://GenHub/Assets/Images/gla-poster.png";
 
     /// <summary>
     /// Theme color for Community Outpost content.

@@ -1,209 +1,279 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-    x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
-    x:DataType="vm:GameProfileItemViewModel">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
+             x:DataType="vm:GameProfileItemViewModel">
 
     <UserControl.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
-        <conv:ProfileCoverConverter x:Key="ProfileCoverConverter" />
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
-        <conv:NullSafePropertyConverter x:Key="NullSafeConverter"/>
         <conv:BoolToValueConverter x:Key="NotConverter" TrueValue="False" FalseValue="True" />
-        <conv:ProfileColorToOpacityConverter x:Key="ProfileColorToOpacityConverter" />
-        <conv:ColorBrightnessConverter x:Key="ColorBrightnessConverter" />
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <conv:StringToBoolConverter x:Key="StringToBoolConverter" />
-        <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
-        <conv:GameTypeDisplayConverter x:Key="GameTypeDisplayConverter" />
-        <conv:GameTypeShortDisplayConverter x:Key="GameTypeShortDisplayConverter" />
-        <conv:GameTypeToIconConverter x:Key="GameTypeToIconConverter" />
-        <conv:InstallationTypeDisplayConverter x:Key="InstallationTypeDisplayConverter" />
-    </UserControl.Resources>    <UserControl.Styles>
-        <!-- Profile card styles -->
+        <conv:StringToColorConverter x:Key="StringToColorConverter" />
+        <conv:ColorToShadowConverter x:Key="ColorToShadowConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Card Container Style -->
         <Style Selector="Border.profile-card">
-            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, FallbackValue=#2A2A2A}" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="ClipToBounds" Value="True" />
+            <Setter Property="Background" Value="#1A1A1A" />
             <Setter Property="Margin" Value="0 0 16 16" />
             <Setter Property="MinWidth" Value="280" />
-            <Setter Property="MaxWidth" Value="400" />
-            <!-- Width will be determined by available space in the layout -->
-            <Setter Property="MinHeight" Value="320" />
-            <Setter Property="MaxHeight" Value="450" />
+            <Setter Property="MaxWidth" Value="360" />
+            <Setter Property="MinHeight" Value="200" />
+            <Setter Property="Height" Value="220" />
+            <!-- Default shadow -->
             <Setter Property="BoxShadow" Value="0 4 12 0 #40000000" />
-            <Setter Property="ClipToBounds" Value="True" />
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
-                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" />
+                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.25" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.25" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
         </Style>
 
+        <Style Selector="Border.profile-card[Tag=True]">
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
         <Style Selector="Border.profile-card:pointerover">
-            <Setter Property="BoxShadow" Value="0 8 20 0 #50000000" />
-            <Setter Property="RenderTransform" Value="translate(0px, -4px) scale(1.02)" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+            <Setter Property="BoxShadow" Value="0 16 32 4 #80000000" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ZIndex" Value="10" /> <!-- Pop out -->
         </Style>
 
-        <!-- Enhanced badge style for profile cards -->
-        <Style Selector="Border.profile-badge">
-            <Setter Property="Background" Value="#70FFFFFF" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="8,3" />
-            <Setter Property="Margin" Value="0,0,6,4" />
-            <Setter Property="BoxShadow" Value="0 2 4 0 #30000000" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-        </Style>
-
-        <Style Selector="TextBlock.badge-text">
-            <Setter Property="FontSize" Value="10" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}" />
-            <Setter Property="LetterSpacing" Value="0.5" />
-        </Style>
-
-        <!-- Source badge styles -->
-        <Style Selector="Border.source-badge">
-            <Setter Property="Background" Value="#40000000" />
-            <Setter Property="CornerRadius" Value="3" />
-            <Setter Property="Padding" Value="5,1" />
-            <Setter Property="Margin" Value="0,4,5,0" />
-        </Style>
-
-        <!-- Launch button - dynamic colors based on profile theme -->
-        <Style Selector="Button.profile-launch-button">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Background" Value="#50FFFFFF" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="FontSize" Value="15" />
-        </Style>
-
-        <Style Selector="Button.profile-launch-button:pointerover">
-            <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
-
-        <Style Selector="Button.profile-launch-button:pressed">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
-
-        <!-- Action button - dynamic colors based on profile theme -->
-        <Style Selector="Button.action-button">
-            <Setter Property="Width" Value="40" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="CornerRadius" Value="20" />
-            <Setter Property="Padding" Value="8,0" />
-            <Setter Property="Background" Value="#50FFFFFF" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-
-        <Style Selector="Button.action-button:pointerover">
-            <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
-
-        <Style Selector="Button.action-button:pressed">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
-
-        <!-- Steam Toggle Button Style -->
-        <Style Selector="ToggleButton.steam-launch-toggle">
-            <Setter Property="Width" Value="40" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="CornerRadius" Value="20" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          Margin="{TemplateBinding Padding}" />
-                    </Border>
-                </ControlTemplate>
+        <!-- Hover Overlay Animation -->
+        <Style Selector="Grid.hover-overlay">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                </Transitions>
             </Setter>
+        </Style>
+
+        <Style Selector="Border.profile-card:pointerover Grid.hover-overlay">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <!-- Metadata Panel Animation -->
+        <Style Selector="StackPanel.metadata-panel">
+            <Setter Property="RenderTransform" Value="translateY(0)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- Move metadata up slightly on hover to make room/aesthetic -->
+        <Style Selector="Border.profile-card:pointerover StackPanel.metadata-panel">
+            <Setter Property="RenderTransform" Value="translateY(-4px)" />
+        </Style>
+
+        <!-- Launch Button Style -->
+        <Style Selector="Button.launch-button">
+            <Setter Property="Background" Value="#90FFFFFF" /> <!-- Glassy white -->
+            <Setter Property="Foreground" Value="#1A1A1A" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="Padding" Value="24,12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#FFFFFFFF" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="RenderTransform" Value="scale(0.9)" />
+            <Setter Property="Opacity" Value="0.4" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                    <BrushTransition Property="Background" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.profile-card:pointerover Button.launch-button">
+            <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Button.launch-button:pointerover">
+            <Setter Property="Background" Value="#FFFFFFFF" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+
+        <Style Selector="Button.launch-button:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)" />
+        </Style>
+
+        <!-- Tools/Action Button Style -->
+        <Style Selector="Button.tool-button, ToggleButton.tool-button">
+            <Setter Property="Background" Value="#40000000" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="Margin" Value="4" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="Background" Duration="0:0:0.2" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                 </Transitions>
             </Setter>
         </Style>
 
-        <Style Selector="ToggleButton.steam-launch-toggle:pointerover">
-            <Setter Property="Background" Value="#20FFFFFF" />
-            <Setter Property="Cursor" Value="Hand" />
+        <Style Selector="Button.tool-button:pointerover, ToggleButton.tool-button:pointerover">
+            <Setter Property="Background" Value="#80000000" />
+            <Setter Property="BorderBrush" Value="#80FFFFFF" />
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
         </Style>
 
-        <Style Selector="ToggleButton.steam-launch-toggle:checked">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+        <!-- Delete Button Specifics (Red Glassmorphism) -->
+        <Style Selector="Button.delete-btn">
+             <Setter Property="Background" Value="#20D32F2F" /> <!-- Subtle Red Tint -->
+             <Setter Property="BorderBrush" Value="#60D32F2F" />
+             <Setter Property="Foreground" Value="#FFEBEE" />
         </Style>
-
-        <Style Selector="ToggleButton.steam-launch-toggle:pressed">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
-
-        <!-- Prepare button - dynamic colors based on profile theme -->
-        <Style Selector="Button.prepare-button">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Background" Value="#50FFFFFF" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="20" />
-            <Setter Property="MinWidth" Value="100" />
-            <Setter Property="Height" Value="40" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="FontSize" Value="12" />
-        </Style>
-
-        <Style Selector="Button.prepare-button:pointerover">
-            <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
-
-        <Style Selector="Button.prepare-button:pressed">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
-
-        <!-- Delete button specific styling -->
-        <Style Selector="Button.delete-button">
-            <Setter Property="Background" Value="#EF4444" />
+        <Style Selector="Button.delete-btn:pointerover">
+            <Setter Property="Background" Value="#80D32F2F" /> <!-- Stronger Red on Hover -->
+            <Setter Property="BorderBrush" Value="#FFD32F2F" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#B91C1C" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="0" />
         </Style>
 
-        <Style Selector="Button.delete-button:pointerover">
-            <Setter Property="Background" Value="#B91C1C" />
+        <Style Selector="Button.tool-button:pressed, ToggleButton.tool-button:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.9)" />
         </Style>
+
+        <!-- Launch Button Theming -->
+        <Style Selector="Button.launch-button">
+            <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Button.launch-button:pointerover">
+            <Setter Property="Background" Value="#FFFFFFFF" />
+            <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+
+        <!-- Ensure icon inside launch button inherits color on hover -->
+        <Style Selector="Button.launch-button:pointerover PathIcon">
+            <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+        </Style>
+
+        <Style Selector="ToggleButton.tool-button:checked">
+             <Setter Property="Background" Value="#80FFFFFF" /> <!-- Glassy checked state -->
+             <Setter Property="Foreground" Value="#1A1A1A" />
+        </Style>
+
+        <!-- Badge Style -->
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="#40000000" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+        </Style>
+
+        <Style Selector="TextBlock.badge-text">
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#E0E0E0" />
+        </Style>
+
+        <!-- Context Menu Style -->
+        <Style Selector="ContextMenu">
+            <Setter Property="Background" Value="#252525" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+
+        <!-- Running State Animation -->
+        <Style Selector="Border.running-indicator">
+            <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
+        <!-- Hover Glow Animation (Dynamic Shadow) -->
+        <Style Selector="Border.hover-glow">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                   <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.profile-card:pointerover Border.hover-glow">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <!-- Steam Toggle Button Specifics -->
+        <Style Selector="ToggleButton.steam-toggle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
+        <!-- Force transparency on the internal Avalonia presenter for all states -->
+        <Style Selector="ToggleButton.steam-toggle /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
+        <!-- State: OFF (Unchecked) - Image is dimmed/transparent -->
+        <Style Selector="ToggleButton.steam-toggle Image">
+            <Setter Property="Opacity" Value="0.3" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <!-- State: hover -->
+        <Style Selector="ToggleButton.steam-toggle:pointerover Image">
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+
+        <!-- State: on (Checked) -->
+        <Style Selector="ToggleButton.steam-toggle:checked Image">
+            <Setter Property="Opacity" Value="1.0" />
+        </Style>
+
+        <Style Selector="ToggleButton.steam-toggle:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+
     </UserControl.Styles>
-    <Border Classes="profile-card">
+
+    <!-- Main Card Container -->
+    <Border Classes="profile-card"
+            Margin="6"
+            ClipToBounds="False"
+            BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
+            Tag="{Binding IsProcessRunning}">
+
+        <!-- Interactive coloured shadow/border effect on hover/running handled via Styles + local bindings carefully -->
+
+        <!-- Context Menu (Right Click) -->
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="Launch"
@@ -213,7 +283,7 @@
                         <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <Separator />
+                <Separator IsVisible="{Binding CanLaunch}" />
                 <MenuItem Header="Edit Profile"
                           Command="{Binding EditProfileCommand}">
                     <MenuItem.Icon>
@@ -236,405 +306,263 @@
                 </MenuItem>
             </ContextMenu>
         </Border.ContextMenu>
-        <Grid RowDefinitions="Auto,*,Auto">
-            <!-- Cover Image / Background -->
-            <Image Grid.RowSpan="3"
-                Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}"
-                Stretch="UniformToFill"
-                Opacity="0.35" />
 
-            <!-- Top section with icon and title - fixed height -->
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="16,16,16,0">
-                <Border Grid.Column="0" Width="48" Height="48" Background="#30FFFFFF" CornerRadius="24" VerticalAlignment="Top" ClipToBounds="True">
-                    <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="40" Height="40" />
+        <!-- Clipping Container for Internal Content -->
+        <!-- This ensures all children are strictly clipped to the rounded corners, preventing 'hard corners' -->
+        <Border CornerRadius="16" ClipToBounds="True">
+            <Grid>
+                <!-- Background Image (Clipped) -->
+                <!-- Margin 1px to prevent sub-pixel bleeding at edges -->
+                <Border CornerRadius="16" ClipToBounds="True" Margin="1">
+                     <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}"
+                            Stretch="UniformToFill" />
                 </Border>
-                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Top" Spacing="2">
-                    <TextBlock
-                        Text="{Binding Name, FallbackValue='Unknown Profile'}"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        FontWeight="SemiBold"
-                        TextWrapping="Wrap"
-                        MaxLines="2"
-                        TextTrimming="CharacterEllipsis"
-                        FontSize="18" />
-                    <TextBlock
-                        Text="{Binding Description, FallbackValue='Game Profile'}"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}, ConverterParameter=0.8}"
-                        FontSize="12"
-                        TextWrapping="Wrap"
-                        MaxLines="2"
-                        TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-            </Grid>
 
-            <!-- Middle section with metadata badges -->
-            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <StackPanel Spacing="6" Margin="16,0,16,0">
-                    <!-- Game Version, Publisher, Content Type badges (top priority) -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,6">
-                        <!-- Game Version badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding GameVersion, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                            HorizontalAlignment="Left">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                                TextTrimming="CharacterEllipsis"
-                                MaxLines="1">
-                                <Run Text="v" />
-                                <Run Text="{Binding GameVersion, FallbackValue=''}" />
-                            </TextBlock>
+                <!-- Dark Gradient Overlay -->
+                <Border CornerRadius="16" Margin="1">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                            <GradientStop Color="#20000000" Offset="0" />
+                            <GradientStop Color="#80000000" Offset="0.6" /> <!-- Darker bottom for text contrast -->
+                            <GradientStop Color="#F0000000" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <!-- Hover Glow Overlay (Dynamic Color & Strong Border) -->
+                <!-- Margin increased to 0 to align with background, but verify clipping.
+                     Actually, let's use Margin="-2" to make it bleed OUTWARD slightly if ZIndex is high, or 0 if contained.
+                     The user reported missing borders (left/top). This usually means clipping.
+                     Let's ensure the parent container has enough padding or this element has margin. -->
+                <Border Classes="hover-glow" IsVisible="{Binding !IsProcessRunning}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                        BorderThickness="4"
+                        CornerRadius="16"
+                        BoxShadow="{Binding ColorValue, Converter={StaticResource ColorToShadowConverter}}">
+                    <!-- Inner tint for color pop -->
+                     <Border.Background>
+                        <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" Opacity="0.1" />
+                    </Border.Background>
+                </Border>
+
+                <!-- Color Tint Overlay -->
+                <Border Opacity="0.25" IsVisible="{Binding !IsProcessRunning}" CornerRadius="16">
+                    <Border.Background>
+                        <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" />
+                    </Border.Background>
+                </Border>
+
+                <!-- Running State Active Overlay -->
+                <Border IsVisible="{Binding IsProcessRunning}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                        BorderThickness="2"
+                        CornerRadius="16"
+                        BoxShadow="{Binding ColorValue, Converter={StaticResource ColorToShadowConverter}}">
+                    <Border.Background>
+                         <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" Opacity="0.15"/>
+                    </Border.Background>
+                </Border>
+
+                <!-- Metadata Content (Bottom) -->
+                <StackPanel Classes="metadata-panel" VerticalAlignment="Bottom" Margin="16">
+                    <!-- Title and Icon -->
+                    <Grid ColumnDefinitions="Auto, *">
+                        <!-- Icon Container with Profile Color Border -->
+                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" ClipToBounds="True" Margin="0,0,12,0"
+                                Background="#30000000"
+                                BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                                BorderThickness="1.5">
+                            <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                                   Stretch="Uniform" Margin="4"/>
                         </Border>
 
-                        <!-- Publisher/Platform badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                            HorizontalAlignment="Left">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                                TextTrimming="CharacterEllipsis"
-                                MaxLines="1">
-                                <Run Text="{Binding Publisher, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-                    </WrapPanel>
-
-                    <!-- Source type badges -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,6"
-                        IsVisible="{Binding VersionId, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <!-- Source type badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding SourceTypeName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                            HorizontalAlignment="Left">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                                TextTrimming="CharacterEllipsis"
-                                MaxLines="1">
-                                <Run Text="{Binding SourceTypeName, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- Installation Source badge -->
-                        <Border Classes="source-badge" Background="#40FFFFFF">
-                            <TextBlock Classes="badge-text"
-                                FontSize="10"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="{Binding SourceTypeName, FallbackValue='Unknown'}" />
-                            </TextBlock>
-                        </Border>
-                    </WrapPanel>
-
-                    <!-- GitHub workflow info badges -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,4"
-                        IsVisible="{Binding HasWorkflowInfo, FallbackValue=False}">
-                        <!-- Workflow badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding HasWorkflowInfo}">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="WORKFLOW #" />
-                                <Run Text="{Binding WorkflowNumber, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- PR badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding HasWorkflowInfo}">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="PR #" />
-                                <Run Text="{Binding PullRequestNumber, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- Commit badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding CommitSha, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="COMMIT " />
-                                <Run Text="{Binding ShortCommitSha, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-                    </WrapPanel>
-
-                    <!-- Build info badges -->
-                    <WrapPanel Orientation="Horizontal" Margin="0,0,0,4"
-                        IsVisible="{Binding HasBuildInfo}">
-                        <!-- Compiler badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding HasBuildInfo}">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="{Binding DisplayCompiler, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- Configuration badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="{Binding HasBuildInfo}">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="{Binding DisplayConfiguration, FallbackValue=''}" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- T Flag badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="False">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="T FLAG" />
-                            </TextBlock>
-                        </Border>
-
-                        <!-- E Flag badge -->
-                        <Border Classes="profile-badge"
-                            IsVisible="False">
-                            <TextBlock Classes="badge-text"
-                                Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                                <Run Text="E FLAG" />
-                            </TextBlock>
-                        </Border>
-                    </WrapPanel>
-
-                    <!-- BuildPreset badge -->
-                    <Border Classes="profile-badge"
-                        IsVisible="{Binding BuildPreset, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        HorizontalAlignment="Left" Margin="0,0,0,4">
-                        <TextBlock Classes="badge-text"
-                            TextWrapping="Wrap"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                            <Run Text="{Binding BuildPreset, FallbackValue=''}" />
-                        </TextBlock>
-                    </Border>
-
-                    <!-- Admin badge - when RunAsAdmin is true -->
-                    <Border Classes="profile-badge"
-                        IsVisible="{Binding RunAsAdmin}"
-                        HorizontalAlignment="Left" Margin="0,0,0,4">
-                        <TextBlock Classes="badge-text"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}">
-                            <Run Text="ADMIN" />
-                        </TextBlock>
-                    </Border>
-
-                    <!-- Build info badge -->
-                    <Border Classes="profile-badge"
-                        IsVisible="{Binding HasBuildInfo}"
-                        HorizontalAlignment="Left">
-                        <TextBlock Classes="badge-text"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                            TextTrimming="CharacterEllipsis"
-                            MaxLines="1">
-                            <Run Text="BUILD: " />
-                            <Run Text="{Binding BuildInfo, FallbackValue=''}" />
-                        </TextBlock>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- Bottom section with launch & action buttons - fixed height -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="16,8,16,16" VerticalAlignment="Bottom">
-                <!-- Launch button with glass effect - hidden when process is running -->
-                <Button Grid.Column="0"
-                    Classes="profile-launch-button"
-                    Content="Launch"
-                    Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                    Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).LaunchProfileCommand}"
-                    CommandParameter="{Binding}"
-                    IsEnabled="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsPreparingWorkspace, Converter={StaticResource NotConverter}}"
-                    IsVisible="{Binding CanLaunch}"
-                    ToolTip.Tip="Launch this profile"
-                    HorizontalContentAlignment="Center"
-                    VerticalContentAlignment="Center"
-                    Margin="0,0,8,0" />
-
-                <!-- Action buttons container (centered group) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <!-- Stop button - only visible when process is running -->
-                    <Button Classes="action-button"
-                        Content="⏹"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).StopProfileCommand}"
-                        CommandParameter="{Binding}"
-                        IsVisible="{Binding IsProcessRunning}"
-                        ToolTip.Tip="Stop this profile"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
-                        FontSize="16" />
-
-                    <!-- Steam mode toggle - only visible for Steam installations and when not running -->
-                    <ToggleButton Classes="steam-launch-toggle"
-                        IsChecked="{Binding UseSteamLaunch}">
-                        <ToggleButton.IsVisible>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                <Binding Path="IsSteamInstallation" />
-                                <Binding Path="$parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode" />
-                            </MultiBinding>
-                        </ToggleButton.IsVisible>
-                        <ToggleButton.Command>
-                            <Binding Path="$parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ToggleSteamLaunchCommand" />
-                        </ToggleButton.Command>
-                        <ToggleButton.CommandParameter>
-                            <Binding />
-                        </ToggleButton.CommandParameter>
-                        <ToolTip.Tip>Toggle Steam integration (on: use Steam, off: standalone)</ToolTip.Tip>
-                        <ToggleButton.HorizontalContentAlignment>Center</ToggleButton.HorizontalContentAlignment>
-                        <ToggleButton.VerticalContentAlignment>Center</ToggleButton.VerticalContentAlignment>
-                        <ToggleButton.Styles>
-                            <Style Selector="ToggleButton:checked Image">
-                                <Setter Property="Opacity" Value="1.0" />
-                            </Style>
-                            <Style Selector="ToggleButton:unchecked Image">
-                                <Setter Property="Opacity" Value="0.4" />
-                            </Style>
-                        </ToggleButton.Styles>
-                        <Image Source="/Assets/Icons/steam-icon.png"
-                             Width="34" Height="34" />
-                    </ToggleButton>
-
-                    <!-- Shortcut button - only visible in edit mode -->
-                    <Button Classes="action-button"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateShortcutCommand}"
-                        CommandParameter="{Binding}"
-                        ToolTip.Tip="Create desktop shortcut"
-                        IsVisible="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode}"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center">
-                        <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                            Width="16" Height="16" />
-                    </Button>
-
-                    <!-- Edit button - disabled when process is running or workspace being prepared -->
-                    <Button Classes="action-button"
-                        Name="EditButton"
-                        Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        BorderBrush="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).EditProfileCommand}"
-                        CommandParameter="{Binding}"
-                        ToolTip.Tip="Edit this profile"
-                        IsVisible="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode}"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center">
-                        <Button.IsEnabled>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                <Binding Path="CanEdit" />
-                                <Binding Path="$parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsPreparingWorkspace" Converter="{StaticResource NotConverter}" />
-                            </MultiBinding>
-                        </Button.IsEnabled>
-                        <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                            Foreground="{Binding ColorValue, Converter={StaticResource ContrastTextColorConverter}}"
-                            Width="12" Height="12" />
-                    </Button>
-
-                    <!-- Delete button (only visible in edit mode and when not running or preparing) -->
-                    <Button Classes="delete-button"
-                        Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).DeleteProfileCommand}"
-                        CommandParameter="{Binding}"
-                        IsVisible="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsEditMode}"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center">
-                        <Button.IsEnabled>
-                            <MultiBinding Converter="{x:Static BoolConverters.And}">
-                                <Binding Path="CanEdit" />
-                                <Binding Path="$parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).IsPreparingWorkspace" Converter="{StaticResource NotConverter}" />
-                            </MultiBinding>
-                        </Button.IsEnabled>
-                        <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
-                            Foreground="White"
-                            Width="16" Height="16" />
-                    </Button>
-                </StackPanel>
-            </Grid>
-
-            <!-- User Data Confirmation Overlay -->
-            <Grid Grid.Row="0" Grid.RowSpan="3"
-                  IsVisible="{Binding ShowUserDataConfirmation}"
-                  Background="#E0000000" 
-                  RowDefinitions="*,Auto"
-                  ClipToBounds="True">
-                <StackPanel VerticalAlignment="Center" Margin="24" Spacing="16">
-                    <PathIcon Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"
-                              Foreground="White" Width="40" Height="40" HorizontalAlignment="Center" />
-                    
-                    <TextBlock Text="User Data Conflict" 
-                               Foreground="White" 
-                               FontSize="20" 
-                               FontWeight="Bold" 
-                               HorizontalAlignment="Center" />
-                    
-                    <TextBlock Text="{Binding UserDataConfirmationMessage}" 
-                               Foreground="#E0FFFFFF" 
-                               TextWrapping="Wrap" 
-                               TextAlignment="Center" 
-                               FontSize="14" 
-                               LineHeight="20" />
-                    
-                    <!-- Large map count warning -->
-                    <Border Background="#40FF9800" 
-                            BorderBrush="#80FF9800"
-                            BorderThickness="1"
-                            CornerRadius="8" 
-                            Padding="12,10"
-                            IsVisible="{Binding IsLargeMapCount}"
-                            Margin="0,8,0,0">
-                        <Grid ColumnDefinitions="Auto,*">
-                            <PathIcon Grid.Column="0" 
-                                      Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
-                                      Foreground="#FF9800" Width="18" Height="18" VerticalAlignment="Top" Margin="0,2,10,0" />
-                            <TextBlock Grid.Column="1" 
-                                       Text="Adding many maps may take a while to load." 
-                                       Foreground="#FF9800" 
-                                       FontSize="12" 
-                                       FontWeight="Medium"
-                                       TextWrapping="Wrap"
-                                       VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
-                </StackPanel>
-                
-                <StackPanel Grid.Row="1" Margin="20,20,20,48" Spacing="10">
-                    <Button Classes="profile-launch-button" 
-                            Content="Add to Profile (Keep Data)" 
-                            Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ConfirmUserDataKeepCommand}"
-                            CommandParameter="{Binding}"
-                            Background="#22C55E"
-                            Foreground="White"
-                            Height="44" 
-                            VerticalContentAlignment="Center" />
-                    
-                    <Grid ColumnDefinitions="*,*">
-                        <Button Grid.Column="0"
-                                Classes="profile-launch-button" 
-                                Content="Remove Data" 
-                                Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ConfirmUserDataRemoveCommand}"
-                                CommandParameter="{Binding}"
-                                Background="#EF4444"
-                                Foreground="White"
-                                Margin="0,0,5,0"
-                                Height="40"
-                                FontSize="13" 
-                                VerticalContentAlignment="Center" />
-                                
-                        <Button Grid.Column="1"
-                                Classes="profile-launch-button" 
-                                Content="Cancel" 
-                                Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CancelUserDataConfirmationCommand}"
-                                CommandParameter="{Binding}"
-                                Background="#4B5563"
-                                Foreground="White"
-                                Margin="5,0,0,0"
-                                Height="40"
-                                FontSize="13" 
-                                VerticalContentAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}"
+                                       Foreground="White"
+                                       FontWeight="Bold"
+                                       FontSize="16"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Description}"
+                                       Foreground="#B0B0B0"
+                                       FontSize="11"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
                     </Grid>
+
+                    <!-- Badges -->
+                    <WrapPanel Margin="48,8,0,0"> <!-- Indent to align with text -->
+                        <Border Classes="badge" IsVisible="{Binding GameVersion, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <TextBlock Classes="badge-text" Text="{Binding GameVersion}" />
+                        </Border>
+
+                        <Border Classes="badge" IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                            <TextBlock Classes="badge-text" Text="{Binding Publisher}" />
+                        </Border>
+
+                        <Border Classes="badge" IsVisible="{Binding RunAsAdmin}" BorderBrush="#EF4444" Background="#20EF4444">
+                            <TextBlock Classes="badge-text" Text="ADMIN" Foreground="#EF4444" />
+                        </Border>
+                    </WrapPanel>
                 </StackPanel>
+
+
+                <!-- Hover Interaction Overlay -->
+                <Grid Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
+
+                    <!-- Tint Darken on Hover -->
+                    <Border Background="#30000000" CornerRadius="16" />
+
+                    <!-- Launch Button Center -->
+                    <Button Classes="launch-button"
+                            Content="LAUNCH"
+                            Command="{Binding LaunchProfileCommand}"
+                            IsVisible="{Binding CanLaunch}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
+                                <TextBlock Text="LAUNCH" VerticalAlignment="Center" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+
+                    <!-- Top Right Tools (Expanded) -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
+                        <!-- Steam Toggle -->
+                        <ToggleButton Classes="tool-button steam-toggle"
+                                      IsChecked="{Binding UseSteamLaunch}"
+                                      ToolTip.Tip="Toggle Steam Integration"
+                                      IsVisible="{Binding IsSteamInstallation}"
+                                      Background="Transparent"
+                                      Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ToggleSteamLaunchCommand}"
+                                      CommandParameter="{Binding}">
+                            <Image Source="/Assets/Icons/steam-icon.png"
+                                 Width="20" Height="20" />                    </ToggleButton>
+
+                        <!-- Edit Button -->
+                        <Button Classes="tool-button"
+                                Command="{Binding EditProfileCommand}"
+                                ToolTip.Tip="Edit Profile">
+                            <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                      Width="14" Height="14" />
+                        </Button>
+
+                        <!-- Create Shortcut -->
+                        <Button Classes="tool-button"
+                                Command="{Binding CreateShortcutCommand}"
+                                ToolTip.Tip="Create Desktop Shortcut">
+                            <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
+                                      Width="14" Height="14" />
+                        </Button>
+
+                        <!-- Delete Button -->
+                        <Button Classes="tool-button delete-btn"
+                                Command="{Binding DeleteProfileCommand}"
+                                Foreground="#EF4444"
+                                ToolTip.Tip="Delete Profile">
+                            <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                      Width="14" Height="14" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Running State Overlay (Always interactions when running) -->
+                <Grid IsVisible="{Binding IsProcessRunning}">
+                    <!-- Stop Button Center -->
+                    <Button Classes="launch-button"
+                            Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).StopProfileCommand}"
+                            CommandParameter="{Binding}"
+                            Background="#CCEF4444"
+                            BorderBrush="#EF4444"
+                            Foreground="White"
+                            Opacity="1"
+                            RenderTransform="scale(1)">
+                        <Button.Transitions>
+                            <Transitions />
+                        </Button.Transitions>
+                        <Button.Styles>
+                             <Style Selector="Button:pointerover">
+                                 <Setter Property="Background" Value="#EFEF4444" />
+                             </Style>
+                        </Button.Styles>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="M18,18H6V6H18V18Z" Width="14" Height="14" Foreground="White" />
+                            <TextBlock Text="STOP" VerticalAlignment="Center" Foreground="White"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- "Playing" Indicator Top Left -->
+                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
+                            CornerRadius="4" Padding="8,4">
+                         <!-- Note: ConverterParameter doesn't work with StringToColorConverter like that unless we update logic,
+                              but ColorToBrush handles opacity via parameter? ColorToBrush uses parameters for opacity if coded.
+                              Let's assume default opacity for now. -->
+                         <Border.Background>
+                             <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" Opacity="0.9" />
+                         </Border.Background>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                             <Ellipse Width="8" Height="8" Fill="White">
+                                 <Ellipse.Styles>
+                                     <Style Selector="Ellipse">
+                                         <Style.Animations>
+                                             <Animation Duration="0:0:1" IterationCount="Infinite">
+                                                 <KeyFrame Cue="0%">
+                                                     <Setter Property="Opacity" Value="1.0"/>
+                                                 </KeyFrame>
+                                                 <KeyFrame Cue="50%">
+                                                     <Setter Property="Opacity" Value="0.4"/>
+                                                 </KeyFrame>
+                                                 <KeyFrame Cue="100%">
+                                                     <Setter Property="Opacity" Value="1.0"/>
+                                                 </KeyFrame>
+                                             </Animation>
+                                         </Style.Animations>
+                                     </Style>
+                                 </Ellipse.Styles>
+                             </Ellipse>
+                             <TextBlock Text="RUNNING" FontSize="10" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+
+
+                <!-- User Data Confirmation Overlay (Preserved from original) -->
+                <Grid IsVisible="{Binding ShowUserDataConfirmation}"
+                      Background="#E6101010"
+                      ClipToBounds="True">
+                     <!-- Preserved content logic, simplified layout -->
+                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16" Margin="16">
+                         <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17M11,9H13V7H11V9Z"
+                                   Width="32" Height="32" Foreground="#F59E0B" HorizontalAlignment="Center"/>
+
+                         <TextBlock Text="User Data Conflict" FontWeight="Bold" FontSize="16" Foreground="White" HorizontalAlignment="Center"/>
+                         <TextBlock Text="{Binding UserDataConfirmationMessage}"
+                                    TextWrapping="Wrap" TextAlignment="Center" Foreground="#B0B0B0" FontSize="12"/>
+
+                         <StackPanel Spacing="8">
+                             <Button Content="Keep Data" Classes="launch-button"
+                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ConfirmUserDataKeepCommand}"
+                                     CommandParameter="{Binding}"
+                                     Background="#22C55E" BorderBrush="#22C55E" Foreground="White"
+                                     FontSize="12" Padding="16,8" Opacity="1" RenderTransform="scale(1)"/>
+
+                             <Grid ColumnDefinitions="*,*">
+                                <Button Grid.Column="0" Content="Remove" Classes="launch-button"
+                                         Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).ConfirmUserDataRemoveCommand}"
+                                         CommandParameter="{Binding}"
+                                         Background="#EF4444" BorderBrush="#EF4444" Foreground="White"
+                                         FontSize="12" Padding="8,8" Margin="0,0,4,0" Opacity="1" RenderTransform="scale(1)"/>
+
+                                <Button Grid.Column="1" Content="Cancel" Classes="launch-button"
+                                         Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CancelUserDataConfirmationCommand}"
+                                         CommandParameter="{Binding}"
+                                         Background="#4B5563" BorderBrush="#4B5563" Foreground="White"
+                                         FontSize="12" Padding="8,8" Margin="4,0,0,0" Opacity="1" RenderTransform="scale(1)"/>
+                             </Grid>
+                         </StackPanel>
+                     </StackPanel>
+                </Grid>
             </Grid>
-        </Grid>
+        </Border>
     </Border>
 </UserControl>

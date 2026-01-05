@@ -34,12 +34,12 @@ public static class GeneralsOnlineConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "/Assets/Covers/zerohour-cover.png";
+    public const string CoverSource = "/Assets/Images/usa-poster.png";
 
     /// <summary>
     /// Theme color for Generals Online content.
     /// </summary>
-    public const string ThemeColor = "#1B3A5F";
+    public const string ThemeColor = "#00A3FF";
 
     /// <summary>
     /// Publisher logo source path for UI display.

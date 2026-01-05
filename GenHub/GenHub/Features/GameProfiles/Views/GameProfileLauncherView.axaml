@@ -136,26 +136,28 @@
 
         <!-- Plus button style -->
         <Style Selector="Button.add-profile-button">
-            <Setter Property="Background" Value="#333333" />
-            <Setter Property="Width" Value="400" />
-            <Setter Property="Height" Value="300" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="#10FFFFFF" /> <!-- Subtle glass -->
+            <Setter Property="Width" Value="300" />
+            <Setter Property="Height" Value="220" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="BorderBrush" Value="#444444" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="Margin" Value="0 0 20 20" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Margin" Value="6" /> <!-- Margin matches standard cards -->
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" />
+                        <BrushTransition Property="Background" Duration="0:0:0.2" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
         </Style>
         <Style Selector="Button.add-profile-button:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
-            <Setter Property="Background" Value="#383838" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" /> <!-- Matches standard card scale -->
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
         </Style>
 
         <!-- Delete button style - make it use accent red -->
@@ -235,32 +237,17 @@
                             <TextBlock Text="Game Profiles" FontSize="20" FontWeight="SemiBold"
                                 Foreground="White" Margin="0 0 0 4" />
                             <TextBlock Text="Select a profile to launch or create a new one"
-                                Foreground="#AAAAAA" FontSize="13" />
+                               Foreground="#AAAAAA" FontSize="13" />
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       Foreground="#BF40BF" FontSize="12"
+                                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                       Margin="0,4,0,0" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                           <Button Name="EditModeToggle"
-                                Command="{Binding ToggleEditModeCommand, Mode=OneWay}"
-                                Background="{Binding IsEditMode, Converter={StaticResource EditModeToggleBackgroundConverter}, Mode=OneWay}"
-                                ToolTip.Tip="Toggle Edit Mode"
-                                Width="42" Height="42"
-                                CornerRadius="21"
-                                Padding="0">
-                                <Grid>
-                                    <PathIcon
-                                        Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                        Width="18" Height="18"
-                                        Foreground="White"
-                                        IsVisible="{Binding !IsEditMode, Mode=OneWay}" />
-                                    <PathIcon
-                                        Data="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,11V13H7V11H17M13,15V17H7V15H13Z"
-                                        Width="18" Height="18"
-                                        Foreground="White"
-                                        IsVisible="{Binding IsEditMode, Mode=OneWay}" />
-                                </Grid>
-                            </Button>
 
-                        <Panel Grid.Column="2">
+
+                        <Panel>
                             <!-- Scan Button -->
                             <Button Command="{Binding ScanForGamesCommand}"
                                     Content="SCAN"
@@ -305,15 +292,19 @@
                         <DataTemplate DataType="vm:AddProfileItemViewModel">
                             <Button Classes="add-profile-button"
                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateNewProfileCommand}">
-                                <StackPanel>
-                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
-                                        Foreground="#BBBBBB"
-                                        Width="32"
-                                        Height="32" />
+                                <StackPanel Spacing="12">
+                                    <Border Width="48" Height="48" CornerRadius="24" Background="#1A000000" BorderBrush="#30FFFFFF" BorderThickness="1">
+                                        <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                            Foreground="White"
+                                            Opacity="0.7"
+                                            Width="24"
+                                            Height="24" />
+                                    </Border>
                                     <TextBlock Text="Add New Profile"
-                                        Foreground="#BBBBBB"
-                                        Margin="0,10,0,0"
-                                        FontSize="13" />
+                                        Foreground="White"
+                                        Opacity="0.7"
+                                        FontWeight="SemiBold"
+                                        FontSize="14" />
                                 </StackPanel>
                             </Button>
                         </DataTemplate>

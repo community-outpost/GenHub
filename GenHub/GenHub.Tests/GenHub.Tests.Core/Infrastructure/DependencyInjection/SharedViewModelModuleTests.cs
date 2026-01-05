@@ -104,6 +104,10 @@ public class SharedViewModelModuleTests
         var tokenStorageMock = new Mock<GenHub.Core.Interfaces.GitHub.IGitHubTokenStorage>();
         services.AddSingleton<GenHub.Core.Interfaces.GitHub.IGitHubTokenStorage>(tokenStorageMock.Object);
 
+        // Mock IDialogService to avoid dependency issues
+        var dialogServiceMock = new Mock<IDialogService>();
+        services.AddSingleton<IDialogService>(dialogServiceMock.Object);
+
         // Register required modules in correct order
         services.AddLoggingModule();
         services.AddValidationServices();

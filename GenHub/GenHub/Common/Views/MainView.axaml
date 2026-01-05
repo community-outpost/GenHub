@@ -149,7 +149,13 @@
         <Border Grid.Row="0" Classes="header-background">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="20,6,20,6" Height="75">
                 <!-- Tab navigation - Left side -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,6">
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,0,6"
+                            PointerEntered="OnTabsPointerEntered"
+                            PointerExited="OnTabsPointerExited"
+                            Background="Transparent">
                     <Button Classes="modern-tab"
                         Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.GameProfiles}}"
                         Command="{Binding SelectTabCommand}"

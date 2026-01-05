@@ -30,4 +30,22 @@ public partial class MainView : UserControl
 
     private void InitializeComponent() =>
         AvaloniaXamlLoader.Load(this);
+
+    private void OnTabsPointerEntered(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        if (DataContext is MainViewModel { GameProfilesViewModel: { } vm })
+        {
+            // Expand the header when hovering over the tabs (easier access to scan button)
+            vm.ExpandHeaderCommand.Execute(null);
+        }
+    }
+
+    private void OnTabsPointerExited(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        if (DataContext is MainViewModel { GameProfilesViewModel: { } vm })
+        {
+            // Resume timer when leaving the tabs area
+            vm.StartHeaderTimerCommand.Execute(null);
+        }
+    }
 }

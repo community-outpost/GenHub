@@ -10,109 +10,113 @@
     <UserControl.Styles>
         <Style Selector="Border.toast">
             <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
         </Style>
 
         <Style Selector="Border.toast[IsVisible=True]">
-            <Style.Animations>
-                <Animation Duration="0:0:0.3" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="0"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
-
-        <Style Selector="Border.toast[IsVisible=False]">
-            <Style.Animations>
-                <Animation Duration="0:0:0.2" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="1"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <Setter Property="Opacity" Value="1"/>
         </Style>
     </UserControl.Styles>
 
     <Border Name="ToastBorder"
             Classes="toast"
             IsVisible="{Binding IsVisible}"
-            Background="{Binding BackgroundBrush}"
-            CornerRadius="8"
-            Padding="16"
-            MaxWidth="350"
-            MinWidth="300"
-            Cursor="Hand">
+            Background="#E61A1A1A"
+            BorderBrush="#40FFFFFF"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="0"
+            MaxWidth="380"
+            MinWidth="320"
+            Margin="0,0,16,16"
+            Cursor="Hand"
+            ClipToBounds="True">
 
         <Border.Effect>
-            <DropShadowEffect BlurRadius="16"
-                              OffsetX="0"
-                              OffsetY="4"
-                              Opacity="0.3"/>
+            <DropShadowEffect BlurRadius="24"
+                               OffsetX="0"
+                               OffsetY="8"
+                               Opacity="0.5"/>
         </Border.Effect>
 
-        <Grid RowDefinitions="Auto,Auto,Auto">
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                <Path Grid.Column="0"
-                      Data="{Binding IconPath}"
-                      Fill="White"
-                      Width="24"
-                      Height="24"
-                      Stretch="Uniform"
-                      VerticalAlignment="Center"
-                      Margin="0,0,12,0"/>
+        <Grid>
+            <!-- Background accent based on notification type -->
+            <Border Background="{Binding BackgroundBrush}" Opacity="0.15" />
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Title}"
+            <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
+                <!-- Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                    <Path Grid.Column="0"
+                          Data="{Binding IconPath}"
+                          Fill="{Binding BackgroundBrush}"
+                          Width="20"
+                          Height="20"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          Margin="0,0,12,0"/>
+
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Title}"
                                FontWeight="Bold"
                                FontSize="14"
                                Foreground="White"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"/>
 
-                <Button Grid.Column="2"
-                        Command="{Binding DismissCommand}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Padding="4"
-                        Cursor="Hand"
-                        VerticalAlignment="Top">
-                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                          Fill="White"
-                          Width="16"
-                          Height="16"
-                          Stretch="Uniform"
-                          Opacity="0.8"/>
+                    <Button Grid.Column="2"
+                            Command="{Binding DismissCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="4"
+                            Cursor="Hand"
+                            VerticalAlignment="Top">
+                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                              Fill="#80FFFFFF"
+                              Width="14"
+                              Height="14"
+                              Stretch="Uniform"/>
+                    </Button>
+                </Grid>
+
+                <!-- Message -->
+                <TextBlock Grid.Row="1"
+                           Text="{Binding Message}"
+                           FontSize="13"
+                           Foreground="#E0E0E0"
+                           TextWrapping="Wrap"
+                           Margin="32,8,0,0"
+                           LineHeight="18"/>
+
+                <!-- Action Button -->
+                <Button Grid.Row="2"
+                        IsVisible="{Binding IsActionable}"
+                        Command="{Binding ActionCommand}"
+                        Content="{Binding ActionText}"
+                        Background="#30FFFFFF"
+                        Foreground="White"
+                        BorderBrush="#40FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16,6"
+                        Margin="32,16,0,0"
+                        HorizontalAlignment="Left"
+                        FontWeight="SemiBold"
+                        FontSize="12"
+                        Cursor="Hand">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Background" Value="#50FFFFFF" />
+                        </Style>
+                    </Button.Styles>
                 </Button>
             </Grid>
 
-            <TextBlock Grid.Row="1"
-                       Text="{Binding Message}"
-                       FontSize="13"
-                       Foreground="White"
-                       TextWrapping="Wrap"
-                       Opacity="0.95"
-                       Margin="36,8,0,0"/>
-
-            <Button Grid.Row="2"
-                    IsVisible="{Binding IsActionable}"
-                    Command="{Binding ActionCommand}"
-                    Content="{Binding ActionText}"
-                    Background="White"
-                    Foreground="{Binding BackgroundBrush}"
-                    BorderThickness="0"
-                    CornerRadius="4"
-                    Padding="12,6"
-                    Margin="36,12,0,0"
-                    HorizontalAlignment="Left"
-                    FontWeight="SemiBold"
-                    FontSize="13"
-                    Cursor="Hand"/>
+            <!-- Bottom color stripe for visual type indicator -->
+            <Border VerticalAlignment="Bottom" Height="3" Background="{Binding BackgroundBrush}" />
         </Grid>
     </Border>
 </UserControl>
