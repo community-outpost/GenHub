@@ -28,7 +28,7 @@ public static class SteamConstants
     /// <summary>
     /// The extension used for backed up game executables.
     /// </summary>
-    public const string BackupExtension = ".ghbak";
+    public const string BackupExtension = FileTypes.BackupExtension;
 
     /// <summary>
     /// The filename of the proxy launcher executable.

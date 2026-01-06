@@ -13,4 +13,8 @@
 
 
 
+  <ItemGroup>
+    <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
+  </ItemGroup>
+
 </Project>

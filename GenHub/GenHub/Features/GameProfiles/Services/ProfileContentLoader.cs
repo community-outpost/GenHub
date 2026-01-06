@@ -478,13 +478,13 @@ public class ProfileContentLoader(
         var manifestsResult = await contentManifestPool.GetAllManifestsAsync();
         if (!manifestsResult.Success || manifestsResult.Data is null) return;
 
-        logger.LogInformation(
-            "[DEBUG] AddCasStoredGameClientsAsync: Total manifests in pool={Count}, ExcludeIds={ExcludeCount}",
+        logger.LogDebug(
+            "AddCasStoredGameClientsAsync: Total manifests in pool={Count}, ExcludeIds={ExcludeCount}",
             manifestsResult.Data.Count(),
             excludeIds.Count);
 
-        logger.LogInformation(
-            "[DEBUG] ExcludeIds: {Ids}",
+        logger.LogDebug(
+            "ExcludeIds: {Ids}",
             string.Join(", ", excludeIds));
 
         var casGameClients = manifestsResult.Data
@@ -500,8 +500,8 @@ public class ProfileContentLoader(
                 manifest.Id.Value);
         }
 
-        logger.LogInformation(
-            "[DEBUG] AddCasStoredGameClientsAsync: Added {Count} CAS-stored GameClients",
+        logger.LogDebug(
+            "AddCasStoredGameClientsAsync: Added {Count} CAS-stored GameClients",
             casGameClients.Count());
     }
 

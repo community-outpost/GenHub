@@ -7,9 +7,6 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class SteamAppIdResolver
 {
-    private static readonly Regex InstallDirRegex = new("\"installdir\"\\s+\"(?<dir>[^\"]+)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex AppManifestRegex = new("^appmanifest_(?<id>\\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
     /// <summary>
     /// Attempts to resolve the Steam AppID for a game installation by searching for its appmanifest in the Steam library.
     /// </summary>
@@ -70,7 +67,7 @@ public static partial class SteamAppIdResolver
                 continue;
             }
 
-            var match = InstallDirRegex.Match(raw);
+            var match = InstallDirRegex().Match(raw);
             if (!match.Success)
             {
                 continue;
@@ -83,7 +80,7 @@ public static partial class SteamAppIdResolver
             }
 
             var baseName = Path.GetFileNameWithoutExtension(manifestPath);
-            var idMatch = AppManifestRegex.Match(baseName);
+            var idMatch = AppManifestRegex().Match(baseName);
             if (!idMatch.Success)
             {
                 continue;
@@ -95,4 +92,10 @@ public static partial class SteamAppIdResolver
 
         return false;
     }
+
+    [GeneratedRegex("\"installdir\"\\s+\"(?<dir>[^\"]+)\"", RegexOptions.IgnoreCase)]
+    private static partial Regex InstallDirRegex();
+
+    [GeneratedRegex("^appmanifest_(?<id>\\d+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex AppManifestRegex();
 }

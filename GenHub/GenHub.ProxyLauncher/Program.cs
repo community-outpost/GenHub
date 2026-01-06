@@ -16,7 +16,7 @@ internal class Program
     /// </summary>
     /// <param name="args">Command line arguments.</param>
     /// <returns>The exit code of the process.</returns>
-    static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         // Prevent multiple instances from running simultaneously
         // This can happen when Steam triggers the proxy again while it's already running
@@ -82,7 +82,7 @@ internal class Program
                 FileName = config.TargetExecutable,
                 WorkingDirectory = workingDir,
                 UseShellExecute = false,
-                CreateNoWindow = false // Allow the game window to appear
+                CreateNoWindow = false, // Allow the game window to appear
             };
 
             // Detect whether Steam launched us. Some titles do not set the common env flags even when launched by Steam.
@@ -150,6 +150,7 @@ internal class Program
                         LogInfo($"Filtering out Steam %command% executable arg (matches ProcessPath): {arg}");
                         continue;
                     }
+
                     if (string.IsNullOrWhiteSpace(arg))
                     {
                         continue;
@@ -168,7 +169,7 @@ internal class Program
             // Some game launchers (like Community Patch) check their own executable path location.
             // If the target exe is NOT in the working directory, we need to copy it there temporarily.
             string? tempExePath = null;
-            var targetExeDir = Path.GetDirectoryName(config.TargetExecutable) ?? "";
+            var targetExeDir = Path.GetDirectoryName(config.TargetExecutable) ?? string.Empty;
             if (!string.Equals(targetExeDir, workingDir, StringComparison.OrdinalIgnoreCase))
             {
                 // Copy the target exe to a temp file in the working directory
@@ -186,6 +187,7 @@ internal class Program
                 catch (Exception ex)
                 {
                     LogError($"Failed to create temp copy: {ex.Message}");
+
                     // Fall back to original path
                     tempExePath = null;
                 }
@@ -399,10 +401,10 @@ internal class Program
     /// <returns>The exit code of the launched process, or 1 if not found.</returns>
     private static async Task<int> TryLaunchBackupAsync(string baseDir, string[] args)
     {
-        // Try to find generalszh.exe.bak or similar
+        // Try to find generals.exe.ghbak or similar (using standardized extension)
         // This is a naive heuristic, mainly for safety
         var exeName = Path.GetFileName(Environment.ProcessPath);
-        var backupPath = Path.Combine(baseDir, exeName + ".bak");
+        var backupPath = Path.Combine(baseDir, exeName + global::GenHub.Core.Constants.SteamConstants.BackupExtension);
 
         if (File.Exists(backupPath))
         {
@@ -411,7 +413,7 @@ internal class Program
                 FileName = backupPath,
                 WorkingDirectory = baseDir,
                 Arguments = string.Join(" ", args),
-                UseShellExecute = false
+                UseShellExecute = false,
             };
 
             var process = Process.Start(startInfo);
@@ -427,6 +429,7 @@ internal class Program
 
     // Simple helper to show error since we might not have console
     // In a real scenario, we might want to log to a file
+
     /// <summary>
     /// Displays a message box with the specified message and title.
     /// </summary>
@@ -450,7 +453,10 @@ internal class Program
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
             File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] INFO: {message}{Environment.NewLine}");
         }
-        catch { /* Ignore logging errors */ }
+        catch
+        {
+            /* Ignore logging errors */
+        }
     }
 
     /// <summary>
@@ -464,7 +470,10 @@ internal class Program
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
             File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: {message}{Environment.NewLine}");
         }
-        catch { /* Ignore logging errors */ }
+        catch
+        {
+            /* Ignore logging errors */
+        }
     }
 
     private class ProxyConfig

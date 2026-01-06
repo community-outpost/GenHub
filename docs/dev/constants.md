@@ -188,6 +188,8 @@ File and directory name constants to prevent typos and ensure consistency.
 | `ManifestsDirectory`    | `"Manifests"`       | Directory for manifest files      |
 | `ManifestFilePattern`   | `"*.manifest.json"` | File pattern for manifest files   |
 | `ManifestFileExtension` | `".manifest.json"`  | File extension for manifest files |
+| `UserDataManifestExtension` | `".userdata.json"` | File extension for user data manifest files |
+| `BackupExtension`       | `".ghbak"`          | File extension for backup files   |
 
 ### JSON Files
 

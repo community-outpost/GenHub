@@ -449,7 +449,7 @@ public class UserDataTrackerService(
             EnsureDirectoriesExist();
 
             var manifests = new List<UserDataManifest>();
-            var manifestFiles = Directory.GetFiles(_manifestsPath, "*.userdata.json", SearchOption.TopDirectoryOnly);
+            var manifestFiles = Directory.GetFiles(_manifestsPath, "*" + FileTypes.UserDataManifestExtension, SearchOption.TopDirectoryOnly);
 
             foreach (var file in manifestFiles)
             {
@@ -774,7 +774,7 @@ public class UserDataTrackerService(
             var backupDir = Path.Combine(_backupsPath, gameType.ToString(), relativeDirPath);
             Directory.CreateDirectory(backupDir);
 
-            var backupPath = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}{Path.GetExtension(fileName)}.bak");
+            var backupPath = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}{Path.GetExtension(fileName)}{FileTypes.BackupExtension}");
 
             await Task.Run(() => File.Copy(filePath, backupPath, overwrite: true), cancellationToken);
 
@@ -789,7 +789,7 @@ public class UserDataTrackerService(
 
     private string GetManifestFilePath(string installationKey)
     {
-        return Path.Combine(_manifestsPath, $"{installationKey}.userdata.json");
+        return Path.Combine(_manifestsPath, $"{installationKey}{FileTypes.UserDataManifestExtension}");
     }
 
     private async Task SaveUserDataManifestAsync(UserDataManifest manifest, CancellationToken cancellationToken)

@@ -1,9 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +27,6 @@ public class SteamLauncher(
     ILogger<SteamLauncher> logger) : ISteamLauncher
 {
     private const string ProxyConfigFileName = "proxy_config.json";
-    private const string ProxyLauncherBinaryName = "GenHub.ProxyLauncher.exe";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     /// <summary>
@@ -66,11 +63,11 @@ public class SteamLauncher(
                 profileId);
 
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
-            var proxyDeployPath = Path.Combine(gameInstallPath, ProxyLauncherBinaryName);
+            var proxyDeployPath = Path.Combine(gameInstallPath, SteamConstants.ProxyLauncherFileName);
 
             // 1. Ensure we have the ProxyLauncher binary available
             var currentBaseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var proxySourcePath = Path.Combine(currentBaseDir, ProxyLauncherBinaryName);
+            var proxySourcePath = Path.Combine(currentBaseDir, SteamConstants.ProxyLauncherFileName);
 
             if (!File.Exists(proxySourcePath))
             {
@@ -104,7 +101,7 @@ public class SteamLauncher(
             // Steam launches the game executable (e.g., generals.exe), so we replace it with our proxy.
             // The proxy then launches the actual workspace executable.
             // Original game exe is backed up to .ghbak for restoration and version detection.
-            var targetExeName = executableName; // e.g., "generals.exe" or "generalszh.exe"
+            var targetExeName = executableName; // e.g., "generals.exe" or "game.exe" (Zero Hour)
             var targetExePath = Path.Combine(gameInstallPath, targetExeName);
             var backupPath = targetExePath + SteamConstants.BackupExtension;
 
@@ -173,9 +170,6 @@ public class SteamLauncher(
             }
 
             var primaryDeployedPath = targetExePath;
-
-            // Fallback if nothing deployed (should not happen unless permissions issues)
-            primaryDeployedPath ??= proxyDeployPath;
 
             // 3. Create Proxy Config (always points to the workspace executable)
             var effectiveTargetExecutable = targetExecutablePath;

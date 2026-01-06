@@ -90,7 +90,7 @@ public class GeneralsOnlineUpdateService(
             return true; // Any version is newer than nothing
         }
 
-        // Parse DDMMYY_QFE# format
+        // Parse MMddyy_QFE# format
         var latest = GameVersionHelper.ParseGeneralsOnlineVersion(latestVersion);
         var current = GameVersionHelper.ParseGeneralsOnlineVersion(currentVersion);
 

@@ -46,9 +46,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
         {
             await LaunchAction(this);
         }
-        else
-        {
-        }
     }
 
     /// <summary>

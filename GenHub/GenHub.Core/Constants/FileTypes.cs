@@ -34,4 +34,14 @@ public static class FileTypes
     /// Default settings file name.
     /// </summary>
     public const string SettingsFileName = "settings.json";
+
+    /// <summary>
+    /// File extension for backup files.
+    /// </summary>
+    public const string BackupExtension = ".ghbak";
+
+    /// <summary>
+    /// File extension for user data manifest files.
+    /// </summary>
+    public const string UserDataManifestExtension = ".userdata.json";
 }
