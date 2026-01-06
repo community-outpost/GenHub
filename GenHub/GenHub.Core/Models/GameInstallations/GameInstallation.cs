@@ -222,7 +222,7 @@ public class GameInstallation : IGameInstallation
 
     private static bool HasValidExecutable(string path)
     {
-        var possibleExes = new[] { GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
+        var possibleExes = new[] { GameClientConstants.SteamGameDatExecutable, GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
         return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
     }
 }

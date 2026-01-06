@@ -628,8 +628,10 @@ public class GameLauncher(
                 if (!string.IsNullOrEmpty(actualInstallationPath))
                 {
                     logger.LogInformation("[GameLauncher] Performing pre-launch cleanup to ensure original executables are present");
-                    var executableName = Path.GetFileName(gameClient.ExecutablePath);
-                    await steamLauncher.CleanupGameDirectoryAsync(actualInstallationPath, executableName, cancellationToken);
+
+                    // Always use generals.exe for Steam cleanup (the actual Steam executable)
+                    var steamExecutableName = GameClientConstants.GeneralsExecutable;
+                    await steamLauncher.CleanupGameDirectoryAsync(actualInstallationPath, steamExecutableName, cancellationToken);
                 }
             }
 
@@ -799,23 +801,12 @@ public class GameLauncher(
             {
                 logger.LogInformation("[GameLauncher] Steam integration enabled - using in-place file provisioning");
 
-                // Find the executable file from the GAMECLIENT manifest specifically (not GameInstallation)
-                // The GameClient manifest contains the actual executable we want to run (e.g., generalszh.exe for Community Patch)
-                var gameClientManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
-                var executableFile = gameClientManifest?.Files?.FirstOrDefault(f => f.IsExecutable);
-
-                if (executableFile == null)
-                {
-                    // Fallback: use game type to determine executable
-                    var fallbackExeName = gameClient.GameType == GameType.Generals
-                        ? GameClientConstants.GeneralsExecutable
-                        : GameClientConstants.ZeroHourExecutable;
-                    logger.LogWarning("[GameLauncher] No executable found in GameClient manifest, using fallback: {FallbackExe}", fallbackExeName);
-                    executableFile = new ManifestFile { RelativePath = fallbackExeName, IsExecutable = true };
-                }
-
-                var executableName = Path.GetFileName(executableFile.RelativePath);
-                logger.LogInformation("[GameLauncher] Detected executable for Steam integration: {ExecutableName} (from GameClient manifest)", executableName);
+                // CRITICAL: For Steam integration, we must deploy the proxy as the STEAM EXECUTABLE (generals.exe),
+                // NOT the GameClient executable (e.g., GeneralsOnlineZH_60.exe).
+                // Steam launches generals.exe, so the proxy must replace that file.
+                // The proxy will then launch the actual GameClient executable from the workspace.
+                var steamExecutableName = GameClientConstants.GeneralsExecutable; // Always "generals.exe" for Steam
+                logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
 
                 // Resolve Steam AppID from local Steam appmanifest
                 if (SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId))
@@ -838,7 +829,7 @@ public class GameLauncher(
                     actualInstallationPath,
                     profile.Id,
                     manifests,
-                    executableName,
+                    steamExecutableName, // Use Steam executable name (generals.exe), not GameClient executable
                     finalExecutablePath, // Target Workspace Executable
                     workspaceInfo.WorkspacePath,
                     targetArguments,

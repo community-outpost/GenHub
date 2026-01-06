@@ -12,13 +12,13 @@ public static class GameClientConstants
     /// <summary>Generals executable filename.</summary>
     public const string GeneralsExecutable = "generals.exe";
 
-    /// <summary>Zero Hour executable filename.</summary>
+    /// <summary>Zero Hour executable filename (EA App/Retail installations).</summary>
     public const string ZeroHourExecutable = "generals.exe";
 
     /// <summary>Game engine executable filename.</summary>
     public const string GameExecutable = "game.exe";
 
-    /// <summary>Steam game.dat executable (alternative to generals.exe for Steam-free launch).</summary>
+    /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
     // ===== SuperHackers Client Detection =====

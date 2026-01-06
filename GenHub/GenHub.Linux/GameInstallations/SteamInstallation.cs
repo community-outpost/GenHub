@@ -52,7 +52,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     public string ZeroHourPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = new();
+    public List<GameClient> AvailableGameClients { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether Steam is installed successfully.
@@ -94,7 +94,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
         try
         {
             var steamLibraries = GetSteamLibraryPaths();
-            if (!steamLibraries.Any())
+            if (steamLibraries.Count == 0)
             {
                 logger?.LogDebug("No Steam libraries found on Linux");
                 IsSteamInstalled = false;
@@ -102,7 +102,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
             }
 
             IsSteamInstalled = true;
-            logger?.LogDebug("Found {LibraryCount} Steam libraries", steamLibraries.Count());
+            logger?.LogDebug("Found {LibraryCount} Steam libraries", steamLibraries.Count);
 
             foreach (var libraryPath in steamLibraries)
             {
@@ -115,7 +115,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 if (!HasGenerals)
                 {
                     var generalsPath = Path.Combine(libraryPath, GameClientConstants.GeneralsDirectoryName);
-                    if (Directory.Exists(generalsPath) && Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive())
+                    if (Directory.Exists(generalsPath) && (Path.Combine(generalsPath, GameClientConstants.SteamGameDatExecutable).FileExistsCaseInsensitive() || Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable).FileExistsCaseInsensitive()))
                     {
                         HasGenerals = true;
                         GeneralsPath = generalsPath;
@@ -137,7 +137,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
 
                     foreach (var zeroHourPath in possibleZeroHourPaths)
                     {
-                        if (Directory.Exists(zeroHourPath) && Path.Combine(zeroHourPath, GameClientConstants.ZeroHourExecutable).FileExistsCaseInsensitive())
+                        if (Directory.Exists(zeroHourPath) && (Path.Combine(zeroHourPath, GameClientConstants.SteamGameDatExecutable).FileExistsCaseInsensitive() || Path.Combine(zeroHourPath, GameClientConstants.ZeroHourExecutable).FileExistsCaseInsensitive()))
                         {
                             HasZeroHour = true;
                             ZeroHourPath = zeroHourPath;
@@ -168,8 +168,8 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     /// <summary>
     /// Gets Steam library paths on Linux.
     /// </summary>
-    /// <returns>Collection of Steam library paths.</returns>
-    private IEnumerable<string> GetSteamLibraryPaths()
+    /// <returns>List of Steam library paths.</returns>
+    private List<string> GetSteamLibraryPaths()
     {
         var libraryPaths = new List<string>();
 

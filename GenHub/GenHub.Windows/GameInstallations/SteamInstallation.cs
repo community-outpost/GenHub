@@ -53,7 +53,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
     public string ZeroHourPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; } = new();
+    public List<GameClient> AvailableGameClients { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether Steam is installed successfully.
@@ -122,8 +122,9 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                     {
                         var possibleExes = new[]
                         {
-                            GameClientConstants.GeneralsExecutable,
-                            GameClientConstants.SuperHackersGeneralsExecutable,
+                            GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
+                            GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
+                            GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
                         };
                         foreach (var exe in possibleExes)
                         {
@@ -162,8 +163,9 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                             // Case-insensitive file matching provided by FileExistsCaseInsensitive extension method
                             var possibleExes = new[]
                             {
-                                GameClientConstants.ZeroHourExecutable,
-                                GameClientConstants.SuperHackersZeroHourExecutable,
+                                GameClientConstants.SteamGameDatExecutable,      // game.dat - PRIORITY for Steam
+                                GameClientConstants.SuperHackersZeroHourExecutable,  // generalszh.exe
+                                GameClientConstants.SuperHackersGeneralsExecutable,  // generalsv.exe
                             };
                             foreach (var exe in possibleExes)
                             {
@@ -254,7 +256,7 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                 return false;
             }
 
-            steamLibraryPaths = results.ToArray();
+            steamLibraryPaths = [.. results];
             logger?.LogDebug(
                 "Successfully found {Count} Steam libraries",
                 steamLibraryPaths.Length);
