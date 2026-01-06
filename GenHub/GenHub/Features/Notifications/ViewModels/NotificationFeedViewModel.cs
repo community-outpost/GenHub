@@ -184,9 +184,12 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         RunOnUI(() =>
         {
-            NotificationHistory.Clear();
-            UnreadCount = 0;
-            OnPropertyChanged(nameof(HasNotifications));
+            lock (_stateLock)
+            {
+                NotificationHistory.Clear();
+                UnreadCount = 0;
+                OnPropertyChanged(nameof(HasNotifications));
+            }
         });
 
         _logger.LogInformation("Cleared all notifications from feed");
@@ -203,12 +206,15 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         RunOnUI(() =>
         {
-            var item = NotificationHistory.FirstOrDefault(n => n.Id == id);
-            if (item != null)
+            lock (_stateLock)
             {
-                NotificationHistory.Remove(item);
-                UpdateUnreadCount();
-                OnPropertyChanged(nameof(HasNotifications));
+                var item = NotificationHistory.FirstOrDefault(n => n.Id == id);
+                if (item != null)
+                {
+                    NotificationHistory.Remove(item);
+                    UpdateUnreadCount();
+                    OnPropertyChanged(nameof(HasNotifications));
+                }
             }
         });
 
@@ -226,11 +232,14 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         RunOnUI(() =>
         {
-            var item = NotificationHistory.FirstOrDefault(n => n.Id == id);
-            if (item != null)
+            lock (_stateLock)
             {
-                item.IsRead = true;
-                UpdateUnreadCount();
+                var item = NotificationHistory.FirstOrDefault(n => n.Id == id);
+                if (item != null)
+                {
+                    item.IsRead = true;
+                    UpdateUnreadCount();
+                }
             }
         });
 

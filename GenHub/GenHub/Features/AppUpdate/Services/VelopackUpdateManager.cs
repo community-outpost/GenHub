@@ -585,7 +585,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     async () =>
                 {
                     var prNumber = prJson.GetProperty("number").GetInt32();
-                    var title = prJson.GetProperty("title").GetString() ?? "Unknown";
+                    var title = prJson.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
                     var branchName = prJson.TryGetProperty("head", out var head)
                         ? head.GetProperty("ref").GetString() ?? "unknown"
                         : "unknown";

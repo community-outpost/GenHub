@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace GenHub.Tests.Features.Notifications;
+namespace GenHub.Tests.Core.Features.Notifications;
 
 /// <summary>
 /// Contains unit tests for <see cref="NotificationFeedViewModel"/> class.
@@ -204,16 +204,12 @@ public class NotificationFeedViewModelTests
         }
     }
 
-    private class TestNotificationFeedViewModel : NotificationFeedViewModel
+    private class TestNotificationFeedViewModel(
+        INotificationService notificationService,
+        ILoggerFactory loggerFactory,
+        ILogger<NotificationFeedViewModel> logger)
+        : NotificationFeedViewModel(notificationService, loggerFactory, logger)
     {
-        public TestNotificationFeedViewModel(
-            INotificationService notificationService,
-            ILoggerFactory loggerFactory,
-            ILogger<NotificationFeedViewModel> logger)
-            : base(notificationService, loggerFactory, logger)
-        {
-        }
-
         protected override void RunOnUI(Action action)
         {
             // Execute synchronously for tests

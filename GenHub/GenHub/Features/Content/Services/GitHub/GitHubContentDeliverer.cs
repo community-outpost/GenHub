@@ -276,7 +276,7 @@ public class GitHubContentDeliverer(
             if (factory == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"No factory found for manifest {originalManifest.Id} (Publisher: {originalManifest.Publisher?.PublisherType ?? "Unknown"})");
+                    $"No factory found for manifest {originalManifest.Id} (Publisher: {originalManifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion})");
             }
 
             logger.LogInformation(

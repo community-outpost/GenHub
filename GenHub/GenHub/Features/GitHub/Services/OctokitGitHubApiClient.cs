@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
 using Microsoft.Extensions.Caching.Memory;
@@ -778,7 +779,7 @@ public class OctokitGitHubApiClient(
             Workflow = new GitHubWorkflow
             {
                 Id = octokitRun.WorkflowId,
-                Name = octokitRun.Name ?? octokitRun.Path ?? "Unknown",
+                Name = octokitRun.Name ?? octokitRun.Path ?? GameClientConstants.UnknownVersion,
             },
             CreatedAt = octokitRun.CreatedAt,
             UpdatedAt = octokitRun.UpdatedAt,

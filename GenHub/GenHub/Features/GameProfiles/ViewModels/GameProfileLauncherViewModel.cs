@@ -652,7 +652,7 @@ public partial class GameProfileLauncherViewModel(
             // Logic must match GameInstallationService.GenerateAndPoolManifestForGameTypeAsync to ensure ID alignment
             string installationManifestId;
             if (string.IsNullOrEmpty(gameClient.Version) ||
-                gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {
@@ -718,7 +718,7 @@ public partial class GameProfileLauncherViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? "Unknown");
+            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? GameClientConstants.UnknownVersion);
             return false;
         }
     }

@@ -1,11 +1,13 @@
-﻿using System.Net;
-using GenHub.Core.Constants;
+﻿using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Net;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -175,7 +177,7 @@ public class CNCLabsMapDiscovererTests
 
         // Assert
         Assert.True(result.Success);
-        var items = result.Data!.ToList();
+        var items = result.Data!.Items.ToList();
 
         Assert.Single(items);
         var item = items[0];

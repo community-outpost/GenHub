@@ -9,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.GitHub;
@@ -217,9 +218,9 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GeneralsOnlineDiscoverer)) is not GeneralsOnlineDiscoverer discoverer) return;
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
-                var releases = result.Data.ToList();
+                var releases = result.Data.Items.ToList();
 
                 // Group by content type
                 var groupedContent = releases.GroupBy(r => r.ContentType).ToList();
@@ -283,11 +284,11 @@ public partial class DownloadsViewModel(
             var searchQuery = new ContentSearchQuery();
 
             var result = await gitHubDiscoverer.DiscoverAsync(searchQuery);
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
                 // Filter for SuperHackers content if the discoverer returns more (though config should limit it)
                 // And patch the ProviderName to ensure we use the SuperHackersProvider
-                var releases = result.Data.Select(r =>
+                var releases = result.Data.Items.Select(r =>
                 {
                     r.ProviderName = GenHub.Core.Constants.PublisherTypeConstants.TheSuperHackers;
                     return r;
@@ -351,12 +352,12 @@ public partial class DownloadsViewModel(
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card == null) return;
 
-            if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) is not GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer discoverer) return;
+            if (serviceProvider.GetService(typeof(Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) is not Content.Services.CommunityOutpost.CommunityOutpostDiscoverer discoverer) return;
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
-                var releases = result.Data.ToList();
+                var releases = result.Data.Items.ToList();
 
                 // Group by content type
                 var groupedContent = releases.GroupBy(r => r.ContentType).ToList();
@@ -409,9 +410,9 @@ public partial class DownloadsViewModel(
         try
         {
             var result = await gitHubTopicsDiscoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
-                var repositories = result.Data.ToList();
+                var repositories = result.Data.Items.ToList();
 
                 // Group by content type
                 var groupedContent = repositories.GroupBy(r => r.ContentType).ToList();
@@ -475,9 +476,9 @@ public partial class DownloadsViewModel(
             }
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
-                var releases = result.Data.ToList();
+                var releases = result.Data.Items.ToList();
 
                 // Group by content type
                 var groupedContent = releases.GroupBy(r => r.ContentType).ToList();
@@ -541,9 +542,9 @@ public partial class DownloadsViewModel(
             }
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Any() == true)
+            if (result.Success && result.Data?.Items.Any() == true)
             {
-                var releases = result.Data.ToList();
+                var releases = result.Data.Items.ToList();
 
                 // Group by content type
                 var groupedContent = releases.GroupBy(r => r.ContentType).ToList();
@@ -599,9 +600,9 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GeneralsOnlineDiscoverer)) is GeneralsOnlineDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Any() == true)
+                if (result.Success && result.Data?.Items.Any() == true)
                 {
-                    var firstResult = result.Data.First();
+                    var firstResult = result.Data.Items.First();
                     GeneralsOnlineVersion = $"v{firstResult.Version}";
                     logger.LogInformation("Fetched GeneralsOnline version: {Version}", firstResult.Version);
                 }
@@ -621,11 +622,11 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GitHubReleasesDiscoverer)) is GitHubReleasesDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Any() == true)
+                if (result.Success && result.Data?.Items.Any() == true)
                 {
                     // Filter for SuperHackers content if needed, similar to PopulateSuperHackersCardAsync
                     // For now, assuming the discoverer returns relevant releases based on config
-                    var latest = result.Data.OrderByDescending(r => r.LastUpdated).FirstOrDefault();
+                    var latest = result.Data.Items.OrderByDescending(r => r.LastUpdated).FirstOrDefault();
                     if (latest != null)
                     {
                         WeeklyReleaseVersion = latest.Version;
@@ -645,12 +646,12 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) is GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer discoverer)
+            if (serviceProvider.GetService(typeof(CommunityOutpostDiscoverer)) is CommunityOutpostDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Any() == true)
+                if (result.Success && result.Data?.Items.Any() == true)
                 {
-                    var firstResult = result.Data.First();
+                    var firstResult = result.Data.Items.First();
                     CommunityPatchVersion = firstResult.Version;
                 }
             }

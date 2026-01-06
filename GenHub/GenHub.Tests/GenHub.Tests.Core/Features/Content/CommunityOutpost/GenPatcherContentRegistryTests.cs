@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 
@@ -81,7 +82,7 @@ public class GenPatcherContentRegistryTests
         var metadata = GenPatcherContentRegistry.GetMetadata("zzzz");
 
         // Assert
-        Assert.Contains("Unknown", metadata.DisplayName);
+        Assert.Contains(GameClientConstants.UnknownVersion, metadata.DisplayName);
         Assert.Equal(ContentType.UnknownContentType, metadata.ContentType);
         Assert.Equal(GenPatcherContentCategory.Other, metadata.Category);
     }

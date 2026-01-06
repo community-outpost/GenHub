@@ -27,7 +27,9 @@ namespace GenHub.Features.Manifest;
 public class ManifestGenerationService(
     ILogger<ManifestGenerationService> logger,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService) : IManifestGenerationService
+    IManifestIdService manifestIdService,
+    IDownloadService downloadService,
+    IConfigurationProviderService configurationProvider) : IManifestGenerationService
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
@@ -36,6 +38,9 @@ public class ManifestGenerationService(
     };
 
     private static readonly string[] SupportedLanguages = ["EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"];
+
+    private readonly IDownloadService _downloadService = downloadService;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     private int _fileCount = 0;
 
@@ -61,7 +66,7 @@ public class ManifestGenerationService(
                 gameInstallationPath);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
                 .WithBasicInfo(installationType, gameType, manifestVersion)
                 .WithContentType(ContentType.GameInstallation, gameType);
 
@@ -145,7 +150,7 @@ public class ManifestGenerationService(
                 publisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
                 .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
                 .WithContentType(contentType, targetGame);
 
@@ -247,7 +252,7 @@ public class ManifestGenerationService(
                 targetPublisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
 
                 // Note: Publisher referrals are typically game-agnostic, but we default to ZeroHour for compatibility
@@ -294,7 +299,7 @@ public class ManifestGenerationService(
                 targetContentId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
                 .WithContentType(ContentType.ContentReferral, GameType.ZeroHour) // Default to ZeroHour
                 .WithMetadata(description);
@@ -382,7 +387,7 @@ public class ManifestGenerationService(
                                 PublisherInfoConstants.Retail.Name;
             var publisher = new PublisherInfo { Name = publisherName };
             var contentName = gameType.ToString().ToLowerInvariant();
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType);
 
@@ -395,6 +400,78 @@ public class ManifestGenerationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating GameClient manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Creates a manifest builder for a GeneralsOnline game client with special handling.
+    /// </summary>
+    /// <param name="installationPath">Path to the game client installation.</param>
+    /// <param name="gameType">The game type (Generals, ZeroHour).</param>
+    /// <param name="clientName">The name of the GeneralsOnline client.</param>
+    /// <param name="clientVersion">The version of the client (typically "Auto-Updated").</param>
+    /// <param name="executablePath">The full path to the GeneralsOnline executable.</param>
+    /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
+    public async Task<IContentManifestBuilder> CreateGeneralsOnlineClientManifestAsync(
+        string installationPath,
+        GameType gameType,
+        string clientName,
+        string clientVersion,
+        string executablePath)
+    {
+        try
+        {
+            logger.LogDebug("Creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
+
+            // Validate executable exists
+            if (string.IsNullOrWhiteSpace(executablePath))
+            {
+                throw new ArgumentException("Executable path cannot be null or empty", nameof(executablePath));
+            }
+
+            if (!File.Exists(executablePath))
+            {
+                throw new FileNotFoundException($"GeneralsOnline executable not found at: {executablePath}", executablePath);
+            }
+
+            var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
+
+            // GeneralsOnline-specific publisher info
+            var publisher = new PublisherInfo
+            {
+                Name = PublisherInfoConstants.GeneralsOnline.Name,
+                Website = PublisherInfoConstants.GeneralsOnline.Website,
+                SupportUrl = PublisherInfoConstants.GeneralsOnline.SupportUrl,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            };
+
+            // Create unique manifest name based on executable to distinguish variants (30Hz, 60Hz, standard)
+            var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
+            var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableFileName.Replace("-", string.Empty).Replace(".", string.Empty)}";
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, _downloadService, _configurationProvider)
+                .WithBasicInfo(publisher, contentName, clientVersion)
+                .WithContentType(ContentType.GameClient, gameType)
+                .WithMetadata(
+                    "GeneralsOnline community client with auto-updates and enhanced compatibility",
+                    tags: ["community", "enhanced", "multiplayer", "auto-update"]);
+
+            // GeneralsOnline only supports Zero Hour, not vanilla Generals
+            // Add dependency constraints to enforce this at manifest build time
+            // The dependency validation will check CompatibleGameTypes during profile launch
+
+            // Add GeneralsOnline client files to manifest
+            // NOTE: Hash validation is intentionally relaxed for GeneralsOnline clients
+            // because they could be updated by the GeneralsOnline updater at any time.
+            await AddGeneralsOnlineClientFilesToManifest(builder, installationPath, gameType, executablePath);
+
+            logger.LogInformation("Created GeneralsOnline client manifest for {ClientName} (Publisher: Generals Online)", clientName);
+
+            return builder;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating GeneralsOnline client manifest for {ClientName} at {InstallationPath}", clientName, installationPath);
             throw;
         }
     }

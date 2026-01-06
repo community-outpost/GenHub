@@ -47,7 +47,7 @@ public class GameClientDetectorTests : IDisposable
         _hashRegistryMock.Setup(x => x.GetVersionFromHash(GameClientHashRegistry.ZeroHour105HashPublic, GameType.ZeroHour))
             .Returns("1.05");
         _hashRegistryMock.Setup(x => x.GetVersionFromHash(It.IsNotIn(GameClientHashRegistry.Generals108HashPublic, GameClientHashRegistry.ZeroHour105HashPublic), It.IsAny<GameType>()))
-            .Returns("Unknown");
+            .Returns(GameClientConstants.UnknownVersion);
 
         _detector = new GameClientDetector(
             _manifestGenerationServiceMock.Object,
@@ -300,7 +300,7 @@ public class GameClientDetectorTests : IDisposable
         Assert.Single(result.Items);
         var client = result.Items[0];
         Assert.Equal(GameType.Generals, client.GameType); // Default assumption
-        Assert.Equal("Unknown", client.Version);
+        Assert.Equal(GameClientConstants.UnknownVersion, client.Version);
         Assert.Equal(executablePath, client.ExecutablePath);
         Assert.Contains("Unknown Game", client.Name);
     }

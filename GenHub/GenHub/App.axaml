@@ -16,5 +16,6 @@
         <local:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <local:IntToBoolConverter x:Key="IntToBoolConverter" />
+        <local:EqualityConverter x:Key="EqualityConverter" />
     </Application.Resources>
 </Application>

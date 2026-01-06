@@ -41,14 +41,14 @@
         <!-- Main Content Border -->
         <Border BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="0">
             <Grid RowDefinitions="30,Auto,*,Auto" Margin="20,10,20,20">
-                
+
                 <!-- Custom Title Bar Drag Area -->
                 <Grid Grid.Row="0" Background="Transparent" IsHitTestVisible="False">
-                    <TextBlock Text="Add Local Content" 
-                               HorizontalAlignment="Center" 
-                               VerticalAlignment="Center" 
-                               Foreground="#80FFFFFF" 
-                               FontSize="12" 
+                    <TextBlock Text="Add Local Content"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#80FFFFFF"
+                               FontSize="12"
                                IsHitTestVisible="False"/>
                 </Grid>
 
@@ -60,10 +60,10 @@
 
                 <!-- Main Content Area -->
                 <Grid Grid.Row="2" ColumnDefinitions="300,*" Margin="0,0,0,20">
-                    
+
                     <!-- LEFT COLUMN: Form -->
                     <StackPanel Grid.Column="0" Spacing="20" Margin="0,0,25,0">
-                        
+
                         <!-- Content Name -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="NAME" Classes="label"/>
@@ -73,14 +73,14 @@
                         <!-- Content Type -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="TYPE" Classes="label"/>
-                            <ComboBox ItemsSource="{Binding AllowedContentTypes}" 
-                                      SelectedItem="{Binding SelectedContentType}" 
+                            <ComboBox ItemsSource="{Binding AllowedContentTypes}"
+                                      SelectedItem="{Binding SelectedContentType}"
                                       HorizontalAlignment="Stretch"
                                       Classes="glass"/>
                         </StackPanel>
 
                          <!-- Target Game -->
-                        <StackPanel Spacing="8" IsVisible="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=GameClient}">
+                        <StackPanel Spacing="8">
                             <TextBlock Text="TARGET GAME" Classes="label"/>
                             <ComboBox ItemsSource="{Binding AvailableGameTypes}"
                                       SelectedItem="{Binding SelectedGameType}"
@@ -103,7 +103,7 @@
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
-                        
+
                         <!-- Status Message -->
                          <Border Background="#20FFC107" BorderBrush="#40FFC107" BorderThickness="1" CornerRadius="4" Padding="10" IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                             <TextBlock Text="{Binding StatusMessage}" Foreground="#FFC107" TextWrapping="Wrap" FontSize="12"/>
@@ -117,7 +117,7 @@
                             <Border Background="#10FFFFFF" CornerRadius="8,8,0,0" Padding="15,10">
                                 <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF" LetterSpacing="1"/>
                             </Border>
-                            
+
                             <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="#DDDDDD" Margin="5">
                                 <TreeView.Styles>
                                     <Style Selector="TreeViewItem">
@@ -129,18 +129,18 @@
                                     <TreeDataTemplate ItemsSource="{Binding Children}">
                                         <Grid ColumnDefinitions="*,Auto" Background="Transparent">
                                             <DockPanel LastChildFill="True">
-                                                <TextBlock DockPanel.Dock="Left" 
-                                                           Text="{Binding IsFile, Converter={StaticResource BoolToTextConverter}, ConverterParameter='📄|📁'}" 
-                                                           Opacity="0.7" 
+                                                <TextBlock DockPanel.Dock="Left"
+                                                           Text="{Binding IsFile, Converter={StaticResource BoolToTextConverter}, ConverterParameter='📄|📁'}"
+                                                           Opacity="0.7"
                                                            Margin="0,0,8,0"/>
-                                                <TextBlock Text="{Binding Name}" 
-                                                           VerticalAlignment="Center" 
+                                                <TextBlock Text="{Binding Name}"
+                                                           VerticalAlignment="Center"
                                                            TextTrimming="CharacterEllipsis"
                                                            ToolTip.Tip="{Binding Name}"/>
                                             </DockPanel>
-                                            
-                                            <Button Grid.Column="1" 
-                                                    Command="{Binding #RootWindow.((vm:AddLocalContentViewModel)DataContext).DeleteItemCommand}" 
+
+                                            <Button Grid.Column="1"
+                                                    Command="{Binding #RootWindow.((vm:AddLocalContentViewModel)DataContext).DeleteItemCommand}"
                                                     CommandParameter="{Binding}"
                                                     Classes="icon-btn"
                                                     Padding="4,2"
@@ -152,7 +152,7 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            
+
                             <!-- Empty State Overlay -->
                             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" IsVisible="{Binding !FileTree.Count}">
                                 <TextBlock Text="No Content Loaded" Foreground="#40FFFFFF" FontSize="16" HorizontalAlignment="Center"/>
@@ -165,7 +165,7 @@
                 <!-- Footer Actions -->
                 <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto">
                     <Button Grid.Column="0" Content="Cancel" Command="{Binding CancelCommand}" Classes="ghost"/>
-                    
+
                     <Button Grid.Column="2" Command="{Binding AddContentCommand}" Classes="accent" IsEnabled="{Binding CanAdd}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="✓"/>
@@ -184,7 +184,7 @@
                  <TextBlock Text="Processing..." Foreground="White" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
              </StackPanel>
         </Grid>
-        
+
     </Panel>
 
     <Window.Styles>

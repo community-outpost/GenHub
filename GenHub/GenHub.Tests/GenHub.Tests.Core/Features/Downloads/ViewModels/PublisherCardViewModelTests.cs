@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.ViewModels;
 using GenHub.Features.Downloads.ViewModels;
 using Microsoft.Extensions.Logging;

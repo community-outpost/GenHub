@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Events;
@@ -251,7 +252,7 @@ public class GameProcessManager(
                                 spawnedProcessInfo = new GameProcessInfo
                                 {
                                     ProcessId = spawnedProcess.Id,
-                                    ProcessName = "Unknown",
+                                    ProcessName = GameClientConstants.UnknownVersion,
                                     StartTime = DateTime.Now,
                                     ExecutablePath = configuration.ExecutablePath,
                                 };
@@ -312,7 +313,7 @@ public class GameProcessManager(
                 processInfo = new GameProcessInfo
                 {
                     ProcessId = process.Id,
-                    ProcessName = "Unknown",
+                    ProcessName = GameClientConstants.UnknownVersion,
                     StartTime = DateTime.Now,
                     ExecutablePath = configuration.ExecutablePath,
                 };

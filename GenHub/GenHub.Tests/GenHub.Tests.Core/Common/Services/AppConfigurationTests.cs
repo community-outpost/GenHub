@@ -395,7 +395,7 @@ public class AppConfigurationTests
         var result = service.GetDefaultWorkspaceStrategy();
 
         // Assert
-        Assert.Equal(WorkspaceStrategy.SymlinkOnly, result);
+        Assert.Equal(WorkspaceStrategy.HardLink, result);
     }
 
     /// <summary>

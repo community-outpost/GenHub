@@ -235,7 +235,7 @@ public static class GitHubConstants
     public const string WorkflowRunItemType = "Workflow Run";
 
     /// <summary>Text for unknown item types.</summary>
-    public const string UnknownItemType = "Unknown";
+    public const string UnknownItemType = GameClientConstants.UnknownVersion;
 
     /// <summary>Text indicating capability is available.</summary>
     public const string CapabilityYes = "Yes";

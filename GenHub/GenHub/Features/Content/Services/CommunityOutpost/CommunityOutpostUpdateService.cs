@@ -40,13 +40,13 @@ public class CommunityOutpostUpdateService(
             // Discover latest content
             var discoveryResult = await discoverer.DiscoverAsync(new ContentSearchQuery(), cancellationToken);
 
-            if (!discoveryResult.Success || discoveryResult.Data?.Any() != true)
+            if (!discoveryResult.Success || discoveryResult.Data?.Items?.Any() != true)
             {
                 logger.LogWarning("No Community Outpost content discovered");
                 return ContentUpdateCheckResult.CreateNoUpdateAvailable();
             }
 
-            var latestDiscovered = discoveryResult.Data.First();
+            var latestDiscovered = discoveryResult.Data.Items.First();
             var latestVersion = latestDiscovered.Version;
 
             logger.LogInformation("Latest Community Outpost version discovered: {Version}", latestVersion);

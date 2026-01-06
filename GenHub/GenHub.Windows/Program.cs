@@ -41,6 +41,9 @@ public class Program
         // Extract profile ID from args if present (for IPC forwarding)
         var profileId = CommandLineParser.ExtractProfileId(args);
 
+        // Extract subscription URL from args if present (for IPC forwarding)
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+
         // Check for multi-instance mode (useful for debugging with multiple instances)
         bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
                              args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
@@ -58,6 +61,13 @@ public class Program
                 {
                     bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
                     SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                }
+
+                // Forward subscribe command to primary instance if we have a subscription URL
+                if (!string.IsNullOrEmpty(subscriptionUrl))
+                {
+                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
                 }
 
                 // Focus the existing instance

@@ -182,12 +182,12 @@ public class GameClientDetector(
             var zeroHourVersion = hashRegistry.GetVersionFromHash(hash, GameType.ZeroHour);
             GameType detectedGameType;
             string detectedVersion;
-            if (!string.Equals(generalsVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(generalsVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
             {
                 detectedGameType = GameType.Generals;
                 detectedVersion = generalsVersion;
             }
-            else if (!string.Equals(zeroHourVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
+            else if (!string.Equals(zeroHourVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
             {
                 detectedGameType = GameType.ZeroHour;
                 detectedVersion = zeroHourVersion;
@@ -195,10 +195,10 @@ public class GameClientDetector(
             else
             {
                 detectedGameType = GameType.Unknown;
-                detectedVersion = "Unknown";
+                detectedVersion = GameClientConstants.UnknownVersion;
             }
 
-            if (detectedGameType != GameType.Unknown && !string.Equals(detectedVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
+            if (detectedGameType != GameType.Unknown && !string.Equals(detectedVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
             {
                 var gameTypeName = detectedGameType == GameType.Generals ? "Generals" : "Zero Hour";
                 logger.LogDebug("Detected {GameType} {Version} from {ExecutablePath} with hash {Hash}", gameTypeName, detectedVersion, executablePath, hash);
@@ -221,7 +221,7 @@ public class GameClientDetector(
             {
                 Name = $"Unknown Game ({Path.GetFileName(workingDirectory)})",
                 Id = string.Empty, // Will be set by manifest generation
-                Version = "Unknown",
+                Version = GameClientConstants.UnknownVersion,
                 ExecutablePath = executablePath,
                 GameType = GameType.Generals, // Default assumption
                 WorkingDirectory = workingDirectory,
@@ -327,7 +327,7 @@ public class GameClientDetector(
     /// <param name="installationPath">The installation directory path.</param>
     /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A tuple containing the detected version string and the actual executable path found, or ("Unknown", original path) if not recognized.</returns>
+    /// <returns>A tuple containing the detected version string and the actual executable path found, or (GameClientConstants.UnknownVersion, original path) if not recognized.</returns>
     private async Task<(string Version, string ExecutablePath)> DetectVersionFromInstallationAsync(string installationPath, GameType gameType, CancellationToken cancellationToken)
     {
         // Use the possible executable names from the registry
@@ -352,7 +352,7 @@ public class GameClientDetector(
 
                 var version = hashRegistry.GetVersionFromHash(hash, gameType);
 
-                if (!string.Equals(version, "Unknown", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(version, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     logger.LogDebug(
                         "Detected {GameType} version {Version} from {ExecutableName} with hash {Hash}",
@@ -380,7 +380,7 @@ public class GameClientDetector(
         // If no recognized executable found, try to detect version from the default executable's file info
         var defaultExecutableName = gameType == GameType.Generals ? GameClientConstants.GeneralsExecutable : GameClientConstants.ZeroHourExecutable;
         var defaultPath = Path.Combine(installationPath, defaultExecutableName);
-        var fallbackVersion = "Unknown";
+        var fallbackVersion = GameClientConstants.UnknownVersion;
 
         if (File.Exists(defaultPath))
         {

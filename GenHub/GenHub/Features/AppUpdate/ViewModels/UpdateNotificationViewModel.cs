@@ -280,7 +280,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             if (string.IsNullOrEmpty(LatestVersion))
             {
-                return "Unknown";
+                return GameClientConstants.UnknownVersion;
             }
 
             // 1. PR Update takes precedence
@@ -468,7 +468,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 if (!string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     IsUpdateAvailable = true;
-                    LatestVersion = githubVersion ?? "Unknown";
+                    LatestVersion = githubVersion ?? GameClientConstants.UnknownVersion;
                     ReleaseNotesUrl = AppConstants.GitHubRepositoryUrl + "/releases/tag/v" + LatestVersion;
                     StatusMessage = $"Update available: v{LatestVersion}";
                     _logger.LogInformation("Update available from GitHub API: {Version}", LatestVersion);

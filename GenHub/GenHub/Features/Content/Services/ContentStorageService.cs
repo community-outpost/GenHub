@@ -518,6 +518,31 @@ public class ContentStorageService : IContentStorageService
                     ? manifestFile.SourcePath
                     : Path.Combine(sourceDirectory, manifestFile.RelativePath);
 
+                // Special handling for content already in CAS (e.g. pre-downloaded)
+                if (manifestFile.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(manifestFile.Hash))
+                {
+                    // Verify if it actually exists in CAS
+                    var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, cancellationToken);
+                    if (casPathResult.Success && !string.IsNullOrEmpty(casPathResult.Data))
+                    {
+                        _logger.LogDebug(
+                            "File {RelativePath} already exists in CAS (hash: {Hash}), skipping physical storage",
+                            manifestFile.RelativePath,
+                            manifestFile.Hash);
+
+                        // Add directly to updated files
+                        updatedFiles.Add(manifestFile);
+                        processedCount++;
+                        progress?.Report(new ContentStorageProgress
+                        {
+                            ProcessedCount = processedCount,
+                            TotalCount = totalFiles,
+                            CurrentFileName = manifestFile.RelativePath,
+                        });
+                        continue;
+                    }
+                }
+
                 if (!File.Exists(sourcePath))
                 {
                     _logger.LogWarning(

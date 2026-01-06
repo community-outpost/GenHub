@@ -1,6 +1,6 @@
 using GenHub.Core.Models.Enums;
 
-namespace GenHub.Core.Models.Results;
+namespace GenHub.Core.Models.Results.Content;
 
 /// <summary>Represents a single result from a content search operation.</summary>
 public class ContentSearchResult
@@ -38,14 +38,17 @@ public class ContentSearchResult
     /// <summary>Gets or sets the URL for the content's icon (optional).</summary>
     public string? IconUrl { get; set; }
 
+    /// <summary>Gets or sets the URL for the content's banner image (optional).</summary>
+    public string? BannerUrl { get; set; }
+
     /// <summary>Gets a list of screenshot URLs.</summary>
-    public IList<string> ScreenshotUrls { get; } = new List<string>();
+    public IList<string> ScreenshotUrls { get; } = [];
 
     /// <summary>Gets a list of tags associated with the content.</summary>
-    public IList<string> Tags { get; } = new List<string>();
+    public IList<string> Tags { get; } = [];
 
-    /// <summary>Gets or sets the date the content was last updated.</summary>
-    public DateTime LastUpdated { get; set; }
+    /// <summary>Gets or sets the date the content was last updated (optional).</summary>
+    public DateTime? LastUpdated { get; set; }
 
     /// <summary>Gets or sets the download size in bytes.</summary>
     public long DownloadSize { get; set; }
@@ -90,4 +93,13 @@ public class ContentSearchResult
     public void SetData<T>(T data)
         where T : class
         => Data = data;
+
+    /// <summary>
+    /// Updates the content ID. Useful when the ID changes after resolution (e.g. from a partial ID to a full manifest ID).
+    /// </summary>
+    /// <param name="newId">The new identifier.</param>
+    public void UpdateId(string newId)
+    {
+        Id = newId;
+    }
 }

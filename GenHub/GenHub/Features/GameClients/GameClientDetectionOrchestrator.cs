@@ -60,7 +60,7 @@ public sealed class GameClientDetectionOrchestrator(
             }
 
             stopwatch.Stop();
-            var finalResult = errors.Any()
+            var finalResult = errors.Count > 0
                 ? DetectionResult<GameClient>.CreateFailure(string.Join(", ", errors))
                 : DetectionResult<GameClient>.CreateSuccess(allClients, stopwatch.Elapsed);
 
@@ -107,7 +107,7 @@ public sealed class GameClientDetectionOrchestrator(
             }
 
             stopwatch.Stop();
-            var finalResult = errors.Any()
+            var finalResult = errors.Count > 0
                 ? DetectionResult<GameClient>.CreateFailure(string.Join(", ", errors))
                 : DetectionResult<GameClient>.CreateSuccess(allGameClients, stopwatch.Elapsed);
 
@@ -132,6 +132,6 @@ public sealed class GameClientDetectionOrchestrator(
     {
         logger.LogDebug("Getting detected clients");
         var result = await DetectAllClientsAsync(cancellationToken);
-        return result.Success ? result.Items.ToList() : new List<GameClient>();
+        return result.Success ? [.. result.Items] : [];
     }
 }

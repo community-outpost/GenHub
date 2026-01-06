@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using System;
 using System.IO;
@@ -118,7 +119,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = manifestBuilder
-                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameVersionInt)
+                .WithBasicInfo("EA Games", gameClient.Name ?? GameClientConstants.UnknownVersion, gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameClient.Name}")
@@ -237,7 +238,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 .WithPublisher(publisherName, string.Empty)
                 .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
             // to dramatically improve scan performance. This is acceptable because:

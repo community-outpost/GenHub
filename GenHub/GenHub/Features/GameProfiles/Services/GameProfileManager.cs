@@ -121,12 +121,6 @@ public class GameProfileManager(
 
                 // Notify listeners about the new profile
                 WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(profile));
-
-                // Emit success notification for profile creation
-                _notificationService?.ShowSuccess(
-                    "Profile Created",
-                    $"Successfully created profile '{profile.Name}'",
-                    autoDismissMs: NotificationDurations.Medium);
             }
             else
             {

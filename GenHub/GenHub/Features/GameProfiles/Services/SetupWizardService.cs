@@ -241,7 +241,7 @@ public class SetupWizardService(
                 var result = await communityOutpostDiscoverer.DiscoverAsync(new ContentSearchQuery());
                 if (result.Success && result.Data != null)
                 {
-                    var version = result.Data.FirstOrDefault()?.Version;
+                    var version = result.Data.Items.FirstOrDefault()?.Version;
                     if (!string.IsNullOrEmpty(version)) return version;
                 }
             }
@@ -250,7 +250,7 @@ public class SetupWizardService(
                 var result = await generalsOnlineDiscoverer.DiscoverAsync(new ContentSearchQuery());
                 if (result.Success && result.Data != null)
                 {
-                    var version = result.Data.FirstOrDefault()?.Version;
+                    var version = result.Data.Items.FirstOrDefault()?.Version;
                     if (!string.IsNullOrEmpty(version)) return version;
                 }
             }

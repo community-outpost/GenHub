@@ -334,7 +334,7 @@ public class GameClientProfileService(
     private static int CalculateManifestVersion(GameClient gameClient)
     {
         if (string.IsNullOrEmpty(gameClient.Version) ||
-            gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+            gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
             gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
             gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
         {

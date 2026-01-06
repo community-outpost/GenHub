@@ -5,7 +5,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameClients;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace GenHub.Tests.Core.Features.GameClients;
@@ -15,145 +15,79 @@ namespace GenHub.Tests.Core.Features.GameClients;
 /// </summary>
 public class GameClientDetectionOrchestratorTests
 {
+    private readonly Mock<IGameInstallationDetectionOrchestrator> _installationOrchestratorMock;
+    private readonly Mock<IGameClientDetector> _clientDetectorMock;
+    private readonly Mock<ILogger<GameClientDetectionOrchestrator>> _loggerMock;
+    private readonly GameClientDetectionOrchestrator _orchestrator;
+
     /// <summary>
-    /// Verifies that a failed installation detection returns a failed result.
+    /// Initializes a new instance of the <see cref="GameClientDetectionOrchestratorTests"/> class.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task DetectAllClientsAsync_InstallationDetectionFails_ReturnsFailed()
+    public GameClientDetectionOrchestratorTests()
     {
-        var mockInst = new Mock<IGameInstallationDetectionOrchestrator>();
-        mockInst.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("install error"));
+        _installationOrchestratorMock = new Mock<IGameInstallationDetectionOrchestrator>();
+        _clientDetectorMock = new Mock<IGameClientDetector>();
+        _loggerMock = new Mock<ILogger<GameClientDetectionOrchestrator>>();
 
-        var mockVer = new Mock<IGameClientDetector>();
-        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
-        var svc = new GameClientDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
-
-        var result = await svc.DetectAllClientsAsync();
-
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("install error"));
+        _orchestrator = new GameClientDetectionOrchestrator(
+            _installationOrchestratorMock.Object,
+            _clientDetectorMock.Object,
+            _loggerMock.Object);
     }
 
     /// <summary>
-    /// Verifies that client detection returns the expected clients when successful.
+    /// Verifies that <see cref="GameClientDetectionOrchestrator.DetectAllClientsAsync"/> orchestrates detection correctly.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllClientsAsync_ClientDetectionSucceeds_ReturnsClients()
-    {
-        var installations = new List<GameInstallation>
-        {
-            new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam),
-        };
-        var mockInst = new Mock<IGameInstallationDetectionOrchestrator>();
-        mockInst.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(
-                    installations, TimeSpan.Zero));
-
-        var clients = new List<GameClient>
-        {
-            new GameClient
-            {
-                Id = "V1",
-                Name = "Generals (Steam)",
-                ExecutablePath = @"C:\\Games\\Generals\\generals.exe",
-                WorkingDirectory = @"C:\\Games\\Generals",
-                GameType = GameType.Generals,
-                InstallationId = "I1",
-            },
-        };
-        var mockVer = new Mock<IGameClientDetector>();
-        mockVer.Setup(x => x.DetectGameClientsFromInstallationsAsync(
-                    installations, It.IsAny<CancellationToken>()))
-               .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess(
-                    clients, TimeSpan.Zero));
-
-        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
-        var svc = new GameClientDetectionOrchestrator(mockInst.Object, mockVer.Object, logger);
-        var result = await svc.DetectAllClientsAsync();
-
-        Assert.True(result.Success);
-        Assert.Equal(clients, result.Items);
-    }
-
-    /// <summary>
-    /// Verifies DetectAllClientsAsync returns success when installations are found.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task DetectAllClientsAsync_WithInstallations_ReturnsSuccess()
+    public async Task DetectAllClientsAsync_OrchestratesDetection_Successfully()
     {
         // Arrange
-        var mockInstallationOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockClientDetector = new Mock<IGameClientDetector>();
-        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
-
-        var installations = new List<GameInstallation>
+        var installation = new GameInstallation("C:\\Test", GameInstallationType.Retail);
+        var installations = new List<GameInstallation> { installation };
+        var client = new GameClient
         {
-            new GameInstallation("C:\\Games\\Test", GameInstallationType.Steam),
+            Name = "TestGame",
+            Version = "1.0",
+            ExecutablePath = "C:\\Test\\game.exe",
+            InstallationId = installation.Id,
         };
+        var clients = new List<GameClient> { client };
 
-        var installationResult = DetectionResult<GameInstallation>.CreateSuccess(installations, System.TimeSpan.FromSeconds(1));
-        mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
-            .ReturnsAsync(installationResult);
+        _installationOrchestratorMock.Setup(i => i.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess(installations, TimeSpan.Zero));
 
-        var clients = new List<GameClient>
-        {
-            new GameClient
-            {
-                Id = "V1",
-                Name = "Test Client",
-                GameType = GameType.Generals,
-                ExecutablePath = "C:\\Games\\Test\\generals.exe",
-                WorkingDirectory = "C:\\Games\\Test",
-                InstallationId = "I1",
-            },
-        };
-
-        var clientResult = DetectionResult<GameClient>.CreateSuccess(clients, System.TimeSpan.FromSeconds(1));
-        mockClientDetector.Setup(x => x.DetectGameClientsFromInstallationsAsync(installations, default))
-            .ReturnsAsync(clientResult);
-
-        var orchestrator = new GameClientDetectionOrchestrator(
-            mockInstallationOrchestrator.Object,
-            mockClientDetector.Object,
-            logger);
+        _clientDetectorMock.Setup(c => c.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess(clients, TimeSpan.Zero));
 
         // Act
-        var result = await orchestrator.DetectAllClientsAsync();
+        var result = await _orchestrator.DetectAllClientsAsync();
 
         // Assert
         Assert.True(result.Success);
         Assert.Single(result.Items);
+        Assert.Equal(client, result.Items[0]);
+
+        _installationOrchestratorMock.Verify(i => i.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _clientDetectorMock.Verify(c => c.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
-    /// Verifies GetDetectedClientsAsync returns empty list when no installations found.
+    /// Verifies that <see cref="GameClientDetectionOrchestrator.DetectAllClientsAsync"/> returns failure when installation detection fails.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetDetectedClientsAsync_NoInstallations_ReturnsEmptyList()
+    public async Task DetectAllClientsAsync_ReturnsFailure_WhenInstallationDetectionFails()
     {
         // Arrange
-        var mockInstallationOrchestrator = new Mock<IGameInstallationDetectionOrchestrator>();
-        var mockClientDetector = new Mock<IGameClientDetector>();
-        var logger = NullLogger<GameClientDetectionOrchestrator>.Instance;
-
-        var installationResult = DetectionResult<GameInstallation>.CreateFailure("No installations found");
-        mockInstallationOrchestrator.Setup(x => x.DetectAllInstallationsAsync(default))
-            .ReturnsAsync(installationResult);
-
-        var orchestrator = new GameClientDetectionOrchestrator(
-            mockInstallationOrchestrator.Object,
-            mockClientDetector.Object,
-            logger);
+        _installationOrchestratorMock.Setup(i => i.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("Error"));
 
         // Act
-        var result = await orchestrator.GetDetectedClientsAsync();
+        var result = await _orchestrator.DetectAllClientsAsync();
 
         // Assert
-        Assert.Empty(result);
+        Assert.False(result.Success);
+        Assert.Contains("Error", result.Errors);
     }
 }

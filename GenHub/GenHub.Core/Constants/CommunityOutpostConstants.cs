@@ -81,6 +81,11 @@ public static class CommunityOutpostConstants
     public const string DatFileExtension = ".dat";
 
     /// <summary>
+    /// The URL for the patch page (used for relative URL resolution).
+    /// </summary>
+    public const string PatchPageUrl = "https://legi.cc/downloads/genpatcher/";
+
+    /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
     public static readonly string[] PatchTags = ["patch", "community", "weekly", "legionnaire"];

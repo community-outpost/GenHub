@@ -12,6 +12,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;

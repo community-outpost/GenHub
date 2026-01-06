@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -31,7 +32,7 @@ public interface IContentDiscoverer : IContentSource
     /// <param name="query">Search criteria to filter results.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Discovered content items matching the query.</returns>
-    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default);
 
@@ -44,7 +45,7 @@ public interface IContentDiscoverer : IContentSource
     /// <param name="query">Search criteria to filter results.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Discovered content items matching the query.</returns>
-    Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ProviderDefinition? provider,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)

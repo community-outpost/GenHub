@@ -11,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
@@ -109,7 +110,7 @@ public partial class GitHubTopicsDiscoverer(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -200,7 +201,12 @@ public partial class GitHubTopicsDiscoverer(
             }
 
             logger.LogInformation("GitHub Topics discovery found {Count} repositories", results.Count);
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = results,
+                TotalItems = results.Count,
+                HasMoreItems = false,
+            });
         }
         catch (OperationCanceledException)
         {
@@ -210,7 +216,7 @@ public partial class GitHubTopicsDiscoverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "GitHub Topics discovery failed");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
         }
     }
 

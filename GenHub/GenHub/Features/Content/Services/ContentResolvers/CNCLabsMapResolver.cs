@@ -12,6 +12,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
@@ -59,7 +60,7 @@ public class CNCLabsMapResolver(
             // Parse details from HTML
             var mapDetails = await ParseMapDetailPageAsync(html, cancellationToken);
 
-            if (string.IsNullOrEmpty(mapDetails.downloadUrl))
+            if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in map details");
             }
@@ -196,18 +197,18 @@ public class CNCLabsMapResolver(
             .ToList();
 
         return new MapDetails(
-            name: name,
-            description: description,
-            author: author,
-            previewImage: previewImage,
-            screenshots: screenshots,
-            fileSize: fileSize,
-            downloadCount: downloadCount,
-            submissionDate: submissionDate,
-            downloadUrl: downloadUrl,
-            targetGame: gameType,
-            contentType: contentType,
-            fileType: Path.GetExtension(downloadUrl),
-            rating: rating);
+            Name: name,
+            Description: description,
+            Author: author,
+            PreviewImage: previewImage,
+            Screenshots: screenshots,
+            FileSize: fileSize,
+            DownloadCount: downloadCount,
+            SubmissionDate: submissionDate,
+            DownloadUrl: downloadUrl,
+            TargetGame: gameType,
+            ContentType: contentType,
+            FileType: Path.GetExtension(downloadUrl),
+            Rating: rating);
     }
 }

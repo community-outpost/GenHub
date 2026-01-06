@@ -375,12 +375,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 ExtractManifestInfo(gameProfile.GameClient.Id);
 
                 // Fallback: use GameClient.Version directly if we couldn't extract from manifest
-                if (string.IsNullOrEmpty(GameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
+                if (string.IsNullOrEmpty(_gameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
                 {
                     // Normalize version to handle Unknown, Auto-Updated, and Automatically added cases
                     var version = gameProfile.GameClient.Version;
                     if (version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                        version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
                         version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                         version.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
                     {
@@ -404,16 +404,20 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 var gameTypeName = GetFriendlyGameTypeName(profile.GameClient?.GameType);
 
                 var versionInfo = string.Empty;
-                if (!string.IsNullOrEmpty(GameVersion) &&
-                    !GameVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) &&
-                    !GameVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) &&
-                    !GameVersion.Equals("Automatically added", StringComparison.OrdinalIgnoreCase) &&
-                    !GameVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(_gameVersion) &&
+                    !_gameVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) &&
+                    !_gameVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) &&
+                    !_gameVersion.Equals("Automatically added", StringComparison.OrdinalIgnoreCase) &&
+                    !_gameVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
                 {
-                    versionInfo = $"{GameVersion}";
+                     // If it doesn't start with 'v' (e.g. GeneralsOnline datecode), add it for description context?
+                     // Or better, just use exactly what is in _gameVersion since we formatted it nicely.
+                     // The previous code added 'v' unconditionally.
+                     // Let's rely on _gameVersion having the prefix if standard, or raw if datecode.
+                     versionInfo = _gameVersion;
                 }
 
-                var publisherInfo = !string.IsNullOrEmpty(Publisher) ? $" • {Publisher}" : string.Empty;
+                var publisherInfo = !string.IsNullOrEmpty(_publisher) ? $" • {_publisher}" : string.Empty;
                 _description = string.IsNullOrEmpty(versionInfo)
                     ? $"{gameTypeName}{publisherInfo}"
                     : $"{gameTypeName} • {versionInfo}{publisherInfo}";
@@ -568,7 +572,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <param name="updatedProfile">The updated profile to refresh from.</param>
     public void UpdateFromProfile(IGameProfile updatedProfile)
     {
-        //Update basic properties
+        // Update basic properties
         Name = updatedProfile.Name;
         Version = updatedProfile.Version;
         ExecutablePath = updatedProfile.ExecutablePath;
@@ -577,8 +581,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
         if (updatedProfile is GameProfile gameProfile)
         {
             // Reset version info before re-extracting
-            _gameVersion = string.Empty;
-           _publisher = string.Empty;
+            GameVersion = string.Empty;
+            Publisher = string.Empty;
 
             // First try to get info from enabled GameInstallation manifests
             var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
@@ -586,17 +590,18 @@ public partial class GameProfileItemViewModel : ViewModelBase
             {
                 ExtractManifestInfo(installationManifestId);
             }
+
             // Fallback to GameClient manifest
             else if (gameProfile.GameClient != null)
             {
                 ExtractManifestInfo(gameProfile.GameClient.Id);
 
                 // Fallback: use GameClient.Version directly
-                if (string.IsNullOrEmpty(_gameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
+                if (string.IsNullOrEmpty(GameVersion) && !string.IsNullOrEmpty(gameProfile.GameClient.Version))
                 {
                     var version = gameProfile.GameClient.Version;
                     if (version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                        version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
                         version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                         version.Contains("Automatically", StringComparison.OrdinalIgnoreCase))
                     {

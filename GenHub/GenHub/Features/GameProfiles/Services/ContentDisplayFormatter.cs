@@ -83,7 +83,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var trimmedVersion = version.Trim();
 
         // Return empty for special case versions
-        if (trimmedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+        if (trimmedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
             trimmedVersion.Contains("Automatically", StringComparison.OrdinalIgnoreCase))

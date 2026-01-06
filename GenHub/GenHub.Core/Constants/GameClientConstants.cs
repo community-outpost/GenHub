@@ -92,7 +92,7 @@ public static class GameClientConstants
     // ===== Version Strings =====
 
     /// <summary>Version string used for automatically detected clients.</summary>
-    public const string AutoDetectedVersion = "Unknown";
+    public const string AutoDetectedVersion = GameClientConstants.UnknownVersion;
 
     /// <summary>Version string used for unknown/unrecognized clients.</summary>
     public const string UnknownVersion = "Unknown";

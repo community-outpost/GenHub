@@ -125,6 +125,14 @@ Configuration key constants for `appsettings.json` and environment variables.
 
 ---
 
+## WorkspaceConstants Class
+
+Constants related to workspace management and configuration.
+
+- `DefaultWorkspaceStrategy`: The default workspace strategy to use when none is specified (`WorkspaceStrategy.HardLink`)
+
+---
+
 ## ConversionConstants Class
 
 Constants for unit conversions used throughout the application.
@@ -227,9 +235,8 @@ Constants related to manifest ID generation, validation, and file operations.
 
 | Constant                         | Description                     |
 | -------------------------------- | ------------------------------- |
-| `PublisherContentRegexPattern`   | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
-
-**Publisher Content Regex Pattern (5-segment format):**
+| `PublisherContentRegexPattern` | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 
 **Publisher Content Regex Pattern (5-segment format):**
 
@@ -396,6 +403,62 @@ public static string FromInstallationType(GameInstallationType installationType)
 
 **Note**: This method now uses the centralized `ToPublisherTypeString()` extension method from `InstallationExtensions.cs` to eliminate code duplication and ensure consistent mapping behavior across the codebase.
 
+### Publisher Type Usage Examples
+
+```csharp
+using GenHub.Core.Constants;
+
+// Using platform-specific publisher types
+var steamPublisher = PublisherTypeConstants.Steam; // "steam"
+var eaAppPublisher = PublisherTypeConstants.EaApp; // "eaapp"
+
+// Using community publisher types
+var generalsOnlinePublisher = PublisherTypeConstants.GeneralsOnline; // "generalsonline"
+
+// Mapping installation type to publisher
+var installationType = GameInstallationType.Steam;
+var publisherType = PublisherTypeConstants.FromInstallationType(installationType);
+// Result: "steam"
+
+// In manifest generation (GeneralsOnline example)
+var manifest = new ContentManifest
+{
+    Publisher = new PublisherInfo
+    {
+        Name = PublisherTypeConstants.GeneralsOnline,
+        Website = "https://www.playgenerals.online/",
+    }
+};
+
+// Using publisher types for content filtering
+if (manifest.Publisher?.Name == PublisherTypeConstants.GeneralsOnline)
+{
+    // Handle GeneralsOnline-specific content
+}
+
+// Custom publisher type (not a predefined constant)
+var customPublisher = "my-custom-publisher";
+// Custom publishers work just like predefined constants
+```
+
+### GeneralsOnline Publisher Type
+
+The `GeneralsOnline` publisher type is used for the GeneralsOnline community launcher, which provides auto-updated clients for Command & Conquer Generals and Zero Hour.
+
+**Usage in Game Client Detection**:
+
+- When GeneralsOnline executables are detected (generalsonline_30hz.exe, generalsonline_60hz.exe, generalsonline.exe)
+- Manifests are generated with PublisherType = "generalsonline"
+- UI displays these clients with appropriate publisher attribution
+- Users can select GeneralsOnline variants in game profiles
+
+**Manifest ID Examples**:
+
+- `1.0.generalsonline.gameclient.generalsonline_30hz` (GeneralsOnline 30Hz client)
+- `1.0.generalsonline.gameclient.generalsonline_60hz` (GeneralsOnline 60Hz client)
+
+See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details.
+
 ---
 
 ## ProviderEndpointConstants Class
@@ -514,11 +577,11 @@ Constants related to game client detection and management.
 
 | Constant                           | Value                                      | Description                                    |
 | ---------------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| `GeneralsDirectoryName`                | `"Command and Conquer Generals"`            | Standard Generals installation directory name                       |
-| `ZeroHourDirectoryName`                | `"Command and Conquer Generals Zero Hour"`  | Standard Zero Hour installation directory name                      |
+| `GeneralsDirectoryName`                | `"Command and Conquer Generals"`            | Standard Generals installation directory name |
+| `ZeroHourDirectoryName`                | `"Command and Conquer Generals Zero Hour"`  | Standard Zero Hour installation directory name |
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
-| `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant                         |
-| `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form                           |
+| `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
+| `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
 
 ### GeneralsOnline Client Detection
 
@@ -581,8 +644,8 @@ Enum for game client display names used in UI formatting and content display.
 
 | Value      | Description                          |
 | ---------- | ------------------------------------ |
-| `Generals` | Command &amp; Conquer: Generals           |
-| `ZeroHour` | Command &amp; Conquer: Generals Zero Hour |
+| `Generals` | Command & Conquer: Generals           |
+| `ZeroHour` | Command & Conquer: Generals Zero Hour |
 
 ### Extension Methods
 
@@ -757,158 +820,6 @@ Storage and CAS (Content-Addressable Storage) related constants.
 - `MaxDownloadBufferSizeBytes`: 1048576
 
 ---
-
-
-// Add runtime hash for 3rd party client
-GameClientHashRegistry.AddKnownHash(
-    "abc123...",
-    GameType.Generals,
-    "1.09",
-    "CommunityPatch",
-    "Community-enhanced Generals executable",
-    false);
-
-// Add custom executable name
-GameClientHashRegistry.AddPossibleExecutableName("my-modded-generals.exe");
-```
-
----
-
-## PublisherTypeConstants Class
-
-Well-known publisher type identifiers for content sources. Uses lowercase string identifiers for consistency with the ManifestId system.
-
-### Publisher Type Overview
-
-Publisher types are **string-based** (not an enum) for extensibility. Any string value is valid; these constants are just common identifiers for convenience.
-
-### Official Platform Publishers
-
-| Constant         | Value              | Description                       |
-| ---------------- | ------------------ | --------------------------------- |
-| `Steam`          | `"steam"`          | Steam platform                    |
-| `EaApp`          | `"eaapp"`          | EA App (formerly Origin) platform |
-| `Retail`         | `"retail"`         | Retail/physical installation      |
-| `TheFirstDecade` | `"thefirstdecade"` | The First Decade compilation      |
-| `Wine`           | `"wine"`           | Wine/Proton compatibility layer   |
-| `CdIso`          | `"cdiso"`          | CD-ROM/ISO installation           |
-
-### Community Platforms
-
-| Constant           | Value                | Description                                               |
-| ------------------ | -------------------- | --------------------------------------------------------- |
-| `GeneralsOnline`   | `"generalsonline"`   | Generals Online community launcher (auto-updates clients) |
-| `CommunityOutpost` | `"communityoutpost"` | Community Outpost platform                                |
-| `ModDb`            | `"moddb"`            | ModDB hosting platform                                    |
-| `CncLabs`          | `"cnclabs"`          | C&C Labs community site                                   |
-
-### Web/Download Sources
-
-| Constant      | Value      | Description          |
-| ------------- | ---------- | -------------------- |
-| `GitHub`      | `"github"` | GitHub repository    |
-| `WebDownload` | `"web"`    | Generic web download |
-
-### Local/System Sources
-
-| Constant      | Value          | Description               |
-| ------------- | -------------- | ------------------------- |
-| `LocalImport` | `"local"`      | Local file import by user |
-| `FileSystem`  | `"filesystem"` | Imported from file system |
-
-### Generated Content
-
-| Constant         | Value             | Description                                     |
-| ---------------- | ----------------- | ----------------------------------------------- |
-| `AutoGenerated`  | `"autogenerated"` | Auto-generated by ContentOrchestrator           |
-| `GenHubInternal` | `"genhub"`        | GenHub internal system content                  |
-| `CsvGenerated`   | `"csvgenerated"`  | Content generated from CSV authoritative source |
-
-### Special/Unknown
-
-| Constant  | Value       | Description                           |
-| --------- | ----------- | ------------------------------------- |
-| `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
-| `Custom`  | `"custom"`  | Custom user-defined publisher         |
-
-### Helper Methods
-
-#### `FromInstallationType(GameInstallationType)`
-
-Maps GameInstallationType enum to publisher type string:
-
-```csharp
-public static string FromInstallationType(GameInstallationType installationType)
-{
-    return installationType switch
-    {
-        GameInstallationType.Steam => Steam,
-        GameInstallationType.EaApp => EaApp,
-        GameInstallationType.TheFirstDecade => TheFirstDecade,
-        GameInstallationType.Wine => Wine,
-        GameInstallationType.CDISO => CdIso,
-        GameInstallationType.Retail => Retail,
-        GameInstallationType.Unknown => Unknown,
-        _ => Unknown
-    };
-}
-```
-
-### Publisher Type Usage Examples
-
-```csharp
-using GenHub.Core.Constants;
-
-// Using platform-specific publisher types
-var steamPublisher = PublisherTypeConstants.Steam; // "steam"
-var eaAppPublisher = PublisherTypeConstants.EaApp; // "eaapp"
-
-// Using community publisher types
-var generalsOnlinePublisher = PublisherTypeConstants.GeneralsOnline; // "generalsonline"
-
-// Mapping installation type to publisher
-var installationType = GameInstallationType.Steam;
-var publisherType = PublisherTypeConstants.FromInstallationType(installationType);
-// Result: "steam"
-
-// In manifest generation (GeneralsOnline example)
-var manifest = new ContentManifest
-{
-    Publisher = new PublisherInfo
-    {
-        Name = PublisherTypeConstants.GeneralsOnline,
-        Website = "https://www.playgenerals.online/",
-    }
-};
-
-// Using publisher types for content filtering
-if (manifest.Publisher?.Name == PublisherTypeConstants.GeneralsOnline)
-{
-    // Handle GeneralsOnline-specific content
-}
-
-// Custom publisher type (not a predefined constant)
-var customPublisher = "my-custom-publisher";
-// Custom publishers work just like predefined constants
-```
-
-### GeneralsOnline Publisher Type
-
-The `GeneralsOnline` publisher type is used for the GeneralsOnline community launcher, which provides auto-updated clients for Command & Conquer Generals and Zero Hour.
-
-**Usage in Game Client Detection**:
-
-- When GeneralsOnline executables are detected (generalsonline_30hz.exe, generalsonline_60hz.exe, generalsonline.exe)
-- Manifests are generated with PublisherType = "generalsonline"
-- UI displays these clients with appropriate publisher attribution
-- Users can select GeneralsOnline variants in game profiles
-
-**Manifest ID Examples**:
-
-- `1.0.generalsonline.gameclient.generalsonline_30hz` (GeneralsOnline 30Hz client)
-- `1.0.generalsonline.gameclient.generalsonline_60hz` (GeneralsOnline 60Hz client)
-
-See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details.
 
 ---
 

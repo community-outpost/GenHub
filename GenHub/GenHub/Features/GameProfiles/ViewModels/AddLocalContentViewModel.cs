@@ -76,7 +76,7 @@ public partial class AddLocalContentViewModel(
     /// Gets or sets the selected game type.
     /// </summary>
     [ObservableProperty]
-    private GameType _selectedGameType = GameType.Generals;
+    private GameType _selectedGameType = GameType.ZeroHour;
 
     /// <summary>
     /// Gets the file structure tree for preview.
@@ -342,7 +342,7 @@ public partial class AddLocalContentViewModel(
             IsBusy = true;
             StatusMessage = "Processing content...";
 
-            var targetGame = SelectedContentType == ContentType.GameClient ? SelectedGameType : GameType.Generals;
+            var targetGame = SelectedGameType;
 
             var progress = new Progress<Core.Models.Content.ContentStorageProgress>(p =>
             {

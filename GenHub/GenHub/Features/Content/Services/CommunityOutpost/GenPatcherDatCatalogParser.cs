@@ -12,6 +12,7 @@ using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -23,33 +24,11 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// - Content lines: [4-char-code] [9-digit-padded-size] [mirror-name] [url].
 /// Uses <see cref="GenPatcherContentRegistry"/> for metadata resolution.
 /// </summary>
-public class GenPatcherDatCatalogParser : ICatalogParser
+public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogParser> logger) : ICatalogParser
 {
-    /// <summary>
-    /// Regex pattern to match content lines.
-    /// Groups: 1=code, 2=size, 3=mirror, 4=url.
-    /// </summary>
-    private static readonly Regex ContentLinePattern = new(
-        @"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$",
-        RegexOptions.Compiled);
+    private static readonly string[] LineSeparators = ["\r\n", "\n"];
 
-    /// <summary>
-    /// Regex pattern to match the version header line.
-    /// </summary>
-    private static readonly Regex VersionLinePattern = new(
-        @"^([\d\.]+)\s+;;$",
-        RegexOptions.Compiled);
-
-    private readonly ILogger<GenPatcherDatCatalogParser> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GenPatcherDatCatalogParser"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    public GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogParser> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<GenPatcherDatCatalogParser> _logger = logger;
 
     /// <inheritdoc/>
     public string CatalogFormat => CommunityOutpostCatalogConstants.CatalogFormat;
@@ -106,6 +85,12 @@ public class GenPatcherDatCatalogParser : ICatalogParser
         }
     }
 
+    [GeneratedRegex(@"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$")]
+    private static partial Regex ContentLineRegex();
+
+    [GeneratedRegex(@"^([\d\.]+)\s+;;$")]
+    private static partial Regex VersionLineRegex();
+
     /// <summary>
     /// Makes a URL absolute if it's relative.
     /// </summary>
@@ -129,12 +114,60 @@ public class GenPatcherDatCatalogParser : ICatalogParser
     }
 
     /// <summary>
+    /// Gets the preferred download URL based on provider's mirror preference.
+    /// </summary>
+    /// <param name="item">The content item with available mirrors.</param>
+    /// <param name="provider">The provider definition with mirror preferences.</param>
+    /// <returns>The preferred download URL, or null if no mirrors available.</returns>
+    private static string? GetPreferredDownloadUrl(GenPatcherContentItem item, ProviderDefinition provider)
+    {
+        if (item.Mirrors.Count == 0)
+        {
+            return null;
+        }
+
+        // If provider has mirror preference, use that order
+        if (provider.MirrorPreference.Count > 0)
+        {
+            foreach (var preferredMirror in provider.MirrorPreference)
+            {
+                var mirror = item.Mirrors.FirstOrDefault(m =>
+                    m.Name.Contains(preferredMirror, StringComparison.OrdinalIgnoreCase));
+
+                if (mirror != null)
+                {
+                    return mirror.Url;
+                }
+            }
+        }
+
+        // Also check provider endpoint mirrors for priority
+        if (provider.Endpoints.Mirrors.Count > 0)
+        {
+            var orderedMirrors = provider.Endpoints.Mirrors.OrderBy(m => m.Priority).ToList();
+            foreach (var mirrorEndpoint in orderedMirrors)
+            {
+                var mirror = item.Mirrors.FirstOrDefault(m =>
+                    m.Name.Contains(mirrorEndpoint.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (mirror != null)
+                {
+                    return mirror.Url;
+                }
+            }
+        }
+
+        // Fall back to first available mirror
+        return item.Mirrors.First().Url;
+    }
+
+    /// <summary>
     /// Parses the raw dl.dat content into a catalog structure.
     /// </summary>
     private ParsedCatalog ParseDatContent(string content)
     {
         var catalog = new ParsedCatalog();
-        var lines = content.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var lines = content.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries);
         var contentByCode = new Dictionary<string, GenPatcherContentItem>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var line in lines)
@@ -147,7 +180,7 @@ public class GenPatcherDatCatalogParser : ICatalogParser
             }
 
             // Check for version header
-            var versionMatch = VersionLinePattern.Match(trimmedLine);
+            var versionMatch = VersionLineRegex().Match(trimmedLine);
             if (versionMatch.Success)
             {
                 catalog.CatalogVersion = versionMatch.Groups[1].Value;
@@ -156,7 +189,7 @@ public class GenPatcherDatCatalogParser : ICatalogParser
             }
 
             // Try to parse as content line
-            var contentMatch = ContentLinePattern.Match(trimmedLine);
+            var contentMatch = ContentLineRegex().Match(trimmedLine);
             if (!contentMatch.Success)
             {
                 _logger.LogDebug("Skipping unrecognized line: {Line}", trimmedLine.Length > 50 ? trimmedLine[..50] + "..." : trimmedLine);
@@ -193,7 +226,7 @@ public class GenPatcherDatCatalogParser : ICatalogParser
             });
         }
 
-        catalog.Items = contentByCode.Values.ToList();
+        catalog.Items = [.. contentByCode.Values];
 
         _logger.LogDebug(
             "Parsed {ItemCount} content items with {TotalMirrors} total mirrors",
@@ -256,7 +289,7 @@ public class GenPatcherDatCatalogParser : ICatalogParser
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = provider.ProviderId,
-                LastUpdated = DateTime.Now,
+                LastUpdated = null,
             };
 
             // Add default tags from provider
@@ -308,60 +341,12 @@ public class GenPatcherDatCatalogParser : ICatalogParser
     }
 
     /// <summary>
-    /// Gets the preferred download URL based on provider's mirror preference.
-    /// </summary>
-    /// <param name="item">The content item with available mirrors.</param>
-    /// <param name="provider">The provider definition with mirror preferences.</param>
-    /// <returns>The preferred download URL, or null if no mirrors available.</returns>
-    private string? GetPreferredDownloadUrl(GenPatcherContentItem item, ProviderDefinition provider)
-    {
-        if (item.Mirrors.Count == 0)
-        {
-            return null;
-        }
-
-        // If provider has mirror preference, use that order
-        if (provider.MirrorPreference.Count > 0)
-        {
-            foreach (var preferredMirror in provider.MirrorPreference)
-            {
-                var mirror = item.Mirrors.FirstOrDefault(m =>
-                    m.Name.Contains(preferredMirror, StringComparison.OrdinalIgnoreCase));
-
-                if (mirror != null)
-                {
-                    return mirror.Url;
-                }
-            }
-        }
-
-        // Also check provider endpoint mirrors for priority
-        if (provider.Endpoints.Mirrors.Count > 0)
-        {
-            var orderedMirrors = provider.Endpoints.Mirrors.OrderBy(m => m.Priority).ToList();
-            foreach (var mirrorEndpoint in orderedMirrors)
-            {
-                var mirror = item.Mirrors.FirstOrDefault(m =>
-                    m.Name.Contains(mirrorEndpoint.Name, StringComparison.OrdinalIgnoreCase));
-
-                if (mirror != null)
-                {
-                    return mirror.Url;
-                }
-            }
-        }
-
-        // Fall back to first available mirror
-        return item.Mirrors.First().Url;
-    }
-
-    /// <summary>
     /// Represents a parsed catalog.
     /// </summary>
     private class ParsedCatalog
     {
         public string CatalogVersion { get; set; } = CommunityOutpostCatalogConstants.UnknownVersion;
 
-        public List<GenPatcherContentItem> Items { get; set; } = new();
+        public List<GenPatcherContentItem> Items { get; set; } = [];
     }
 }

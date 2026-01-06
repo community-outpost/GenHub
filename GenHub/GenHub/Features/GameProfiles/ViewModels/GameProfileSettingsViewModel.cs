@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -158,7 +159,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
     private bool _loadingError;
 
     [ObservableProperty]
-    private WorkspaceStrategy _selectedWorkspaceStrategy = WorkspaceStrategy.SymlinkOnly;
+    private WorkspaceStrategy _selectedWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
 
     // Track the original workspace strategy when loading a profile to detect changes
     private WorkspaceStrategy? _originalWorkspaceStrategy;
@@ -284,10 +285,108 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         _ = LoadAvailableContentAsync();
     }
 
+    // ===== Local Content Dialog Properties =====
+    [ObservableProperty]
+    private bool _isAddLocalContentDialogOpen;
+
+    [ObservableProperty]
+    private string _localContentName = string.Empty;
+
+    [ObservableProperty]
+    private string _localContentDirectoryPath = string.Empty;
+
+    [ObservableProperty]
+    private ContentType _selectedLocalContentType = ContentType.Addon;
+
+    [ObservableProperty]
+    private Core.Models.Enums.GameType _selectedLocalGameType = Core.Models.Enums.GameType.ZeroHour;
+
+    /// <summary>
+    /// Gets available local game types for selection.
+    /// </summary>
+    public static Core.Models.Enums.GameType[] AvailableLocalGameTypes { get; } =
+    [
+        Core.Models.Enums.GameType.Generals,
+        Core.Models.Enums.GameType.ZeroHour,
+    ];
+
+    /// <summary>
+    /// Gets available content types for local content addition.
+    /// </summary>
+    public static ContentType[] AllowedLocalContentTypes { get; } =
+    [
+        ContentType.Mod,
+        ContentType.MapPack,
+        ContentType.Addon,
+        ContentType.Patch,
+    ];
+
     /// <summary>
     /// Event that is raised when the window should be closed.
     /// </summary>
     public event EventHandler? CloseRequested;
+
+    /// <summary>
+    /// Cancels the add local content dialog.
+    /// </summary>
+    [RelayCommand]
+    private void CancelAddLocalContent()
+    {
+        IsAddLocalContentDialogOpen = false;
+        LocalContentName = string.Empty;
+        LocalContentDirectoryPath = string.Empty;
+        SelectedLocalContentType = ContentType.Addon;
+    }
+
+    /// <summary>
+    /// Confirms the add local content dialog and adds the content.
+    /// </summary>
+    [RelayCommand]
+    private async Task ConfirmAddLocalContent()
+    {
+        if (string.IsNullOrWhiteSpace(LocalContentName))
+        {
+            _localNotificationService.ShowWarning("Validation Error", "Please enter a name for the content.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(LocalContentDirectoryPath))
+        {
+             _localNotificationService.ShowWarning("Validation Error", "Please select a folder for the content.");
+             return;
+        }
+
+        try
+        {
+            IsSaving = true;
+
+            var result = await localContentService!.AddLocalContentAsync(
+                LocalContentName,
+                LocalContentDirectoryPath,
+                SelectedLocalContentType,
+                SelectedLocalGameType);
+
+            if (result.Success)
+            {
+                 IsAddLocalContentDialogOpen = false;
+
+                 // Refresh available content
+                 await LoadAvailableContentAsync();
+            }
+            else
+            {
+                logger?.LogWarning("Failed to add local content: {Errors}", string.Join(", ", result.Errors));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error adding local content");
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
 
     /// <summary>
     /// Gets available content types for selection.
@@ -2118,10 +2217,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             }
 
             // Create and show the new dialog
-
-            // Note: Logger casting might fail if generic type doesn't match, so passing null might be safer or creating a logger manually
-            // Allowing null logger for now
-            var vm = new AddLocalContentViewModel(localContentService, logger as ILogger<AddLocalContentViewModel>); // Simple casting or prefer DI if possible
+            var vm = new AddLocalContentViewModel(localContentService, logger as ILogger<AddLocalContentViewModel>);
             var window = new Views.AddLocalContentWindow
             {
                 DataContext = vm,

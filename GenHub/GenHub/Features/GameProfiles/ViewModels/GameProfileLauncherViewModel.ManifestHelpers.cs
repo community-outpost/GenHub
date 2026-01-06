@@ -92,10 +92,10 @@ public partial class GameProfileLauncherViewModel
 
             // Validate version format:
             // 1. Must not be null/empty
-            // 2. Must not be a placeholder like "Unknown" or "Auto-Updated"
+            // 2. Must not be a placeholder like GameClientConstants.UnknownVersion or "Auto-Updated"
             // 3. Must be numeric (digits and dots only) to satisfy ManifestIdGenerator requirements
             bool isInvalidVersion = string.IsNullOrEmpty(version) ||
-                                  version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                                  version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
                                   version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                                   version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
                                   !version.All(c => char.IsDigit(c) || c == '.');

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -32,7 +33,7 @@ public class GameProfile : IGameProfile
     public List<string> EnabledContentIds { get; set; } = [];
 
     /// <summary>Gets or sets the workspace strategy for this profile.</summary>
-    public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceStrategy.SymlinkOnly;
+    public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;
 
     /// <summary>Gets the preferred workspace strategy for this profile.</summary>
     WorkspaceStrategy IGameProfile.PreferredStrategy => WorkspaceStrategy;

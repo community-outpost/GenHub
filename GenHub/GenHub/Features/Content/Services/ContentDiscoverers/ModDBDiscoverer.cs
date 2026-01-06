@@ -11,6 +11,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -37,7 +38,7 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -61,13 +62,18 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 "Discovered {Count} ModDB items across {Sections} sections",
                 results.Count,
                 sectionsToSearch.Count);
-
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            var list = results.ToList();
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = list,
+                TotalItems = list.Count,
+                HasMoreItems = false,
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover ModDB content");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
 

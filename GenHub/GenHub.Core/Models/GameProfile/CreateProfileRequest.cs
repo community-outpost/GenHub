@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 
@@ -26,7 +27,7 @@ public class CreateProfileRequest
     public GameClient? GameClient { get; set; }
 
     /// <summary>Gets or sets the preferred workspace strategy.</summary>
-    public WorkspaceStrategy PreferredStrategy { get; set; } = WorkspaceStrategy.SymlinkOnly;
+    public WorkspaceStrategy PreferredStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;
 
     /// <summary>Gets or sets the list of enabled content IDs.</summary>
     public List<string>? EnabledContentIds { get; set; }

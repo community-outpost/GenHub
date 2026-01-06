@@ -8,6 +8,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -800,7 +801,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         {
             // Manifest passed directly (from variant selection) - use its ID
             contentId = manifest.Id.Value;
-            contentName = manifest.Name ?? "Unknown";
+            contentName = manifest.Name ?? GameClientConstants.UnknownVersion;
             isDownloading = false;
         }
         else
@@ -927,7 +928,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         {
             // Handle ContentManifest directly from variant selection
             contentId = manifest.Id.Value;
-            contentName = manifest.Name ?? "Unknown";
+            contentName = manifest.Name ?? GameClientConstants.UnknownVersion;
         }
         else
         {

@@ -4,7 +4,8 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Features.Content.Services.GitHub;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -72,7 +73,7 @@ public class GitHubResolverTests : IDisposable
             Author = "Test Author",
             Body = "Release notes.",
             PublishedAt = new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            Assets = new List<GitHubReleaseAsset> { releaseAsset },
+            Assets = [releaseAsset],
         };
 
         _apiClientMock.Setup(c => c.GetReleaseByTagAsync("test-owner", "test-repo", "v1.0", It.IsAny<CancellationToken>()))
@@ -106,15 +107,15 @@ public class GitHubResolverTests : IDisposable
             Version = "v1.0",
             Publisher = new PublisherInfo { Name = "Test Author" },
             Metadata = new ContentMetadata { Description = "Release notes." },
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
                 new ManifestFile
                 {
                     RelativePath = "mod.zip",
                     Size = 1024,
                     DownloadUrl = "http://example.com/mod.zip",
                 },
-            },
+            ],
         });
 
         // Act

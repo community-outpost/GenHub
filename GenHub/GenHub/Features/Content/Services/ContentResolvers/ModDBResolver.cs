@@ -13,6 +13,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
@@ -31,6 +32,73 @@ public class ModDBResolver(
     private readonly HttpClient _httpClient = httpClient;
     private readonly ModDBManifestFactory _manifestFactory = manifestFactory;
     private readonly ILogger<ModDBResolver> _logger = logger;
+
+    /// <summary>
+    /// Extracts submission/release date from the page.
+    /// Critical for manifest ID generation which requires YYYYMMDD format.
+    /// </summary>
+    private static DateTime ExtractSubmissionDate(IDocument document)
+    {
+        // Try various selectors for date
+        // ModDB often uses <time> elements or "Added" / "Posted" labels
+
+        // Try <time datetime="..."> first
+        var timeEl = document.QuerySelector("time[datetime]");
+        if (timeEl != null)
+        {
+            var dateTimeAttr = timeEl.GetAttribute("datetime");
+            if (DateTime.TryParse(dateTimeAttr, out var dt))
+            {
+                return dt;
+            }
+        }
+
+        // Try finding "Added:" or "Posted:" labels
+        var addedText = ExtractMetadataValue(document, "Added:", "Posted:", "Released:");
+        if (!string.IsNullOrEmpty(addedText))
+        {
+            // Try to parse various date formats
+            if (DateTime.TryParse(addedText, out var dt))
+            {
+                return dt;
+            }
+        }
+
+        // Fallback: use current date
+        return DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Extracts a metadata value by searching for labels.
+    /// </summary>
+    private static string? ExtractMetadataValue(IDocument document, params string[] labels)
+    {
+        foreach (var label in labels)
+        {
+            // Try finding in headers/labels
+            var labelEl = document.QuerySelectorAll("strong, label, dt, th, span.label")
+                .FirstOrDefault(el => el.TextContent?.Contains(label, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (labelEl != null)
+            {
+                // Try next sibling
+                var value = labelEl.NextSibling?.TextContent?.Trim();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
+
+                // Try parent -> next sibling
+                value = labelEl.ParentElement?.NextElementSibling?.TextContent?.Trim();
+                if (!string.IsNullOrEmpty(value))
+                {
+                    return value;
+                }
+            }
+        }
+
+        return null;
+    }
 
     /// <inheritdoc />
     public string ResolverId => ModDBConstants.ResolverId;
@@ -56,7 +124,7 @@ public class ModDBResolver(
             // Parse details from HTML
             var mapDetails = await ParseModDetailPageAsync(html, discoveredItem, cancellationToken);
 
-            if (string.IsNullOrEmpty(mapDetails.downloadUrl))
+            if (string.IsNullOrEmpty(mapDetails.DownloadUrl))
             {
                 return OperationResult<ContentManifest>.CreateFailure("No download URL found in mod details");
             }
@@ -172,84 +240,16 @@ public class ModDBResolver(
         var targetGame = discoveredItem.TargetGame;
 
         return new MapDetails(
-            name: name,
-            description: description,
-            author: author,
-            previewImage: previewImage ?? string.Empty,
-            screenshots: screenshots,
-            fileSize: fileSize,
-            downloadCount: downloadCount,
-            submissionDate: submissionDate,
-            downloadUrl: downloadUrl,
-            targetGame: targetGame,
-            contentType: contentType);
-    }
-
-    /// <summary>
-    /// Extracts submission/release date from the page.
-    /// Critical for manifest ID generation which requires YYYYMMDD format.
-    /// </summary>
-    private DateTime ExtractSubmissionDate(IDocument document)
-    {
-        // Try various selectors for date
-        // ModDB often uses <time> elements or "Added" / "Posted" labels
-
-        // Try <time datetime="..."> first
-        var timeEl = document.QuerySelector("time[datetime]");
-        if (timeEl != null)
-        {
-            var dateTimeAttr = timeEl.GetAttribute("datetime");
-            if (DateTime.TryParse(dateTimeAttr, out var dt))
-            {
-                return dt;
-            }
-        }
-
-        // Try finding "Added:" or "Posted:" labels
-        var addedText = ExtractMetadataValue(document, "Added:", "Posted:", "Released:");
-        if (!string.IsNullOrEmpty(addedText))
-        {
-            // Try to parse various date formats
-            if (DateTime.TryParse(addedText, out var dt))
-            {
-                return dt;
-            }
-        }
-
-        // Fallback: use current date
-        _logger.LogWarning("Could not extract submission date, using current date");
-        return DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Extracts a metadata value by searching for labels.
-    /// </summary>
-    private string? ExtractMetadataValue(IDocument document, params string[] labels)
-    {
-        foreach (var label in labels)
-        {
-            // Try finding in headers/labels
-            var labelEl = document.QuerySelectorAll("strong, label, dt, th, span.label")
-                .FirstOrDefault(el => el.TextContent?.Contains(label, StringComparison.OrdinalIgnoreCase) == true);
-
-            if (labelEl != null)
-            {
-                // Try next sibling
-                var value = labelEl.NextSibling?.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(value))
-                {
-                    return value;
-                }
-
-                // Try parent -> next sibling
-                value = labelEl.ParentElement?.NextElementSibling?.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(value))
-                {
-                    return value;
-                }
-            }
-        }
-
-        return null;
+            Name: name,
+            Description: description,
+            Author: author,
+            PreviewImage: previewImage ?? string.Empty,
+            Screenshots: screenshots,
+            FileSize: fileSize,
+            DownloadCount: downloadCount,
+            SubmissionDate: submissionDate,
+            DownloadUrl: downloadUrl,
+            TargetGame: targetGame,
+            ContentType: contentType);
     }
 }

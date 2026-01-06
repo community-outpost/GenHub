@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Features.GameClients;
@@ -64,7 +65,7 @@ public class GameClientHashRegistryTests
 
         // Test unknown hash
         var unknownVersion = _registry.GetVersionFromHash("unknownhash", GameType.Generals);
-        Assert.Equal("Unknown", unknownVersion);
+        Assert.Equal(GameClientConstants.UnknownVersion, unknownVersion);
     }
 
     /// <summary>

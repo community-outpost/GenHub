@@ -149,7 +149,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Default author name used when an author cannot be parsed from the page.
     /// </summary>
-    public const string DefaultAuthorName = "Unknown";
+    public const string DefaultAuthorName = GameClientConstants.UnknownVersion;
 
     /// <summary>
     /// Error message used when <c>ContentSearchQuery.SearchTerm</c> is null, empty, or whitespace.

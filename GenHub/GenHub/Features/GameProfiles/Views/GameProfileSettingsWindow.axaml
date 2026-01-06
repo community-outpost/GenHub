@@ -99,7 +99,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#4FC3F7" />
+            <Setter Property="Foreground" Value="#9575CD" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -107,8 +107,8 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#4FC3F7" />
-            <Setter Property="BorderBrush" Value="#4FC3F7" />
+            <Setter Property="Background" Value="#9575CD" />
+            <Setter Property="BorderBrush" Value="#9575CD" />
             <Setter Property="Foreground" Value="#000000" />
         </Style>
 
@@ -138,6 +138,7 @@
                     <GradientStop Offset="1" Color="#05FFFFFF"/>
                 </LinearGradientBrush>
             </Setter>
+            <Setter Property="Margin" Value="4" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderBrush">
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
@@ -160,16 +161,15 @@
             </Setter>
         </Style>
 
-        <!-- Hover: Brighten the 'glass' significantly -->
+        <!-- Hover: Brighten the 'glass' significantly. RenderTransform moved to Button to avoid clipping -->
         <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
-            <Setter Property="Background">
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Offset="0" Color="#60FFFFFF"/>
-                    <GradientStop Offset="1" Color="#20FFFFFF"/>
-                </LinearGradientBrush>
-            </Setter>
+            <Setter Property="Background" Value="#50000000" />
             <Setter Property="BorderBrush" Value="#FFFFFFFF" />
+        </Style>
+
+        <Style Selector="Button.filter-pill:pointerover">
             <Setter Property="RenderTransform" Value="translateY(-2px)" />
+            <Setter Property="ZIndex" Value="10" />
         </Style>
 
         <Style Selector="Button.filter-pill:pressed">
@@ -212,7 +212,7 @@
         <Style Selector="Button.filter-pill.left">
             <Setter Property="CornerRadius" Value="10,0,0,10" />
             <Setter Property="MinWidth" Value="100" />
-            <Setter Property="Margin" Value="0,0,-1,0" />
+            <Setter Property="Margin" Value="4,4,-1,4" />
         </Style>
         <Style Selector="Button.filter-pill.right">
             <Setter Property="CornerRadius" Value="0,10,10,0" />
@@ -223,23 +223,48 @@
         <Style Selector="Button.tab-icon-btn">
             <Setter Property="Width" Value="64" />
             <Setter Property="Height" Value="64" />
-            <Setter Property="Background" Value="#70FFFFFF" />
-            <Setter Property="BorderBrush" Value="#80FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="#15FFFFFF" />
+            <Setter Property="BorderBrush" Value="#60FFFFFF" />
+            <Setter Property="BorderThickness" Value="2" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Opacity" Value="1" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn PathIcon">
+             <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn Panel > Border">
+             <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn:pointerover /template/ ContentPresenter" x:CompileBindings="False">
+            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Setter Property="Opacity" Value="0.2" />
         </Style>
         <Style Selector="Button.tab-icon-btn:pointerover">
-            <Setter Property="Background" Value="#85FFFFFF" />
-            <Setter Property="BorderBrush" Value="#A0FFFFFF" />
+            <Setter Property="Background" Value="#50000000" />
+            <Setter Property="BorderBrush" Value="White" />
             <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="RenderTransform" Value="translateY(-4px)" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn.selected /template/ ContentPresenter" x:CompileBindings="False">
+            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
         </Style>
         <Style Selector="Button.tab-icon-btn.selected">
-            <Setter Property="Background" Value="#A0FFFFFF" />
-            <Setter Property="BorderBrush" Value="#FFFFFFFF" />
+            <Setter Property="BorderBrush" Value="White" />
             <Setter Property="BorderThickness" Value="3" />
+            <Setter Property="RenderTransform" Value="scale(1.1)" />
+            <Setter Property="ZIndex" Value="5" />
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="12" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="4" />
+            </Setter>
+        </Style>
+        <Style Selector="Button.tab-icon-btn.selected PathIcon">
+             <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn.selected Panel > Border">
+             <Setter Property="Background" Value="White" />
         </Style>
 
         <!-- Scrollbar theming -->
@@ -247,7 +272,7 @@
             <Setter Property="Background" Value="#0F0F0F" />
         </Style>
         <Style Selector="ScrollBar /template/ Thumb">
-            <Setter Property="Background" Value="#1976D2" />
+            <Setter Property="Background" Value="#5E35B1" />
             <Setter Property="Opacity" Value="0.7" />
         </Style>
         <Style Selector="ScrollBar /template/ Thumb:pointerover">
@@ -376,7 +401,7 @@
                     <Button Content="💾 Save"
                             Command="{Binding SaveCommand}"
                             Background="White"
-                            Foreground="#1976D2"
+                            Foreground="#5E35B1"
                             Width="100" Height="38"
                             CornerRadius="19"
                             FontWeight="Bold"
@@ -423,12 +448,9 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=0}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="0"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
                             ToolTip.Tip="Content">
                         <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
-                                  Width="32" Height="32"
-                                  Foreground="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}" />
+                                  Width="32" Height="32" />
                     </Button>
 
                     <!-- Profile Settings Tab Icon -->
@@ -436,12 +458,9 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=1}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="1"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
                             ToolTip.Tip="Profile Settings">
                         <Panel Width="40" Height="40">
-                            <Border Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                                    Width="40" Height="40">
+                            <Border Width="40" Height="40">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/gameprofilesettings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>
@@ -454,12 +473,9 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=2}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="2"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
                             ToolTip.Tip="Game Settings">
                         <Panel Width="40" Height="40">
-                            <Border Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                                    Width="40" Height="40">
+                            <Border Width="40" Height="40">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/settings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>
@@ -559,7 +575,7 @@
                             <WrapPanel Margin="0,0,0,12" HorizontalAlignment="Center">
 
 
-                                <Button Classes="filter-pill" Margin="0,0,8,8"
+                                <Button Classes="filter-pill"
                                         Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.GameClient}}"
                                         Command="{Binding SelectContentTypeFilterCommand}"
                                         CommandParameter="{x:Static models:ContentType.GameClient}">
@@ -569,7 +585,7 @@
                                     </StackPanel>
                                 </Button>
 
-                                <Button Classes="filter-pill" Margin="0,0,8,8"
+                                <Button Classes="filter-pill"
                                         Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.Mod}}"
                                         Command="{Binding SelectContentTypeFilterCommand}"
                                         CommandParameter="{x:Static models:ContentType.Mod}">
@@ -579,7 +595,7 @@
                                     </StackPanel>
                                 </Button>
 
-                                <Button Classes="filter-pill" Margin="0,0,8,8"
+                                <Button Classes="filter-pill"
                                         Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.MapPack}}"
                                         Command="{Binding SelectContentTypeFilterCommand}"
                                         CommandParameter="{x:Static models:ContentType.MapPack}">
@@ -589,7 +605,7 @@
                                     </StackPanel>
                                 </Button>
 
-                                <Button Classes="filter-pill" Margin="0,0,8,8"
+                                <Button Classes="filter-pill"
                                         Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.Patch}}"
                                         Command="{Binding SelectContentTypeFilterCommand}"
                                         CommandParameter="{x:Static models:ContentType.Patch}">
@@ -599,7 +615,7 @@
                                     </StackPanel>
                                 </Button>
 
-                                <Button Classes="filter-pill" Margin="0,0,8,8"
+                                <Button Classes="filter-pill"
                                         Classes.selected="{Binding SelectedContentType, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static models:ContentType.Addon}}"
                                         Command="{Binding SelectContentTypeFilterCommand}"
                                         CommandParameter="{x:Static models:ContentType.Addon}">
@@ -755,8 +771,8 @@
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
                                                     <Border.Styles>
                                                         <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#401976D2" />
-                                                            <Setter Property="BorderBrush" Value="#FF1976D2" />
+                                                            <Setter Property="Background" Value="#405E35B1" />
+                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>
@@ -808,8 +824,8 @@
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
                                                     <Border.Styles>
                                                         <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#401976D2" />
-                                                            <Setter Property="BorderBrush" Value="#FF1976D2" />
+                                                            <Setter Property="Background" Value="#405E35B1" />
+                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>
@@ -890,7 +906,7 @@
                                 <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="Pink" />
                                 <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" ToolTip.Tip="Deep Pink" />
                                 <Button Classes="color-btn" Background="#9C27B0" Command="{Binding SelectThemeColorCommand}" CommandParameter="#9C27B0" ToolTip.Tip="Purple" />
-                                <Button Classes="color-btn" Background="#7B1FA2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#7B1FA2" ToolTip.Tip="Deep Purple" />
+                                <Button Classes="color-btn" Background="#5E35B1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#5E35B1" ToolTip.Tip="Deep Purple" />
                                 <Button Classes="color-btn" Background="#673AB7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#673AB7" ToolTip.Tip="Indigo" />
                                 <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" ToolTip.Tip="Deep Indigo" />
                                 <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="Blue" />
@@ -934,6 +950,103 @@
 
         </Grid>
 
+        <!-- Add Local Content Dialog -->
+        <Border Grid.RowSpan="3"
+                IsVisible="{Binding IsAddLocalContentDialogOpen}"
+                Background="#CC000000"
+                ZIndex="1002">
+            <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
+                    BorderThickness="2"
+                    CornerRadius="16"
+                    Width="420"
+                    Padding="24"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    TextElement.Foreground="White">
+                <StackPanel Spacing="16">
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="📁" FontSize="24" VerticalAlignment="Center" />
+                        <TextBlock Text="Add Local Content" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Selected Folder -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Selected Folder" FontSize="12" Opacity="0.8" />
+                        <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
+                            <TextBlock Text="{Binding LocalContentDirectoryPath}"
+                                       FontSize="11"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding LocalContentDirectoryPath}" />
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Content Name -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Content Name" FontSize="12" Opacity="0.8" />
+                        <TextBox Text="{Binding LocalContentName, Mode=TwoWay}"
+                                 Watermark="Enter a name for this content"
+                                 MinHeight="36" />
+                    </StackPanel>
+
+                    <!-- Content Type -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Content Type" FontSize="12" Opacity="0.8" />
+                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
+                                  SelectedItem="{Binding SelectedLocalContentType}"
+                                  HorizontalAlignment="Stretch"
+                                  MinHeight="36">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="Publisher will be set to 'GenHub (Local)' for local content"
+                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                    </StackPanel>
+
+                    <!-- Game Type Selection - Always visible -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Target Game" FontSize="12" Opacity="0.8" />
+                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
+                                  SelectedItem="{Binding SelectedLocalGameType}"
+                                  HorizontalAlignment="Stretch"
+                                  MinHeight="36">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="Specify which game version this executable belongs to"
+                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                    </StackPanel>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                        <Button Grid.Column="1" Content="Cancel"
+                                Command="{Binding CancelAddLocalContentCommand}"
+                                Background="#25000000"
+                                Foreground="White"
+                                BorderBrush="#40FFFFFF"
+                                BorderThickness="1"
+                                Width="90" Height="36"
+                                CornerRadius="8"
+                                FontWeight="Medium"
+                                Margin="0,0,12,0" />
+                        <Button Grid.Column="2" Content="✓ Add Content"
+                                Command="{Binding ConfirmAddLocalContentCommand}"
+                                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
+                                Foreground="White"
+                                Width="120" Height="36"
+                                CornerRadius="8"
+                                FontWeight="Bold" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
         <!-- Loading overlay -->
         <Border Grid.RowSpan="3"
                 IsVisible="{Binding IsInitializing}"

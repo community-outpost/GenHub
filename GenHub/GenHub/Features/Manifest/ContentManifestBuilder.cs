@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -18,9 +20,15 @@ namespace GenHub.Features.Manifest;
 public partial class ContentManifestBuilder(
     ILogger<ContentManifestBuilder> logger,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService) : IContentManifestBuilder
+    IManifestIdService manifestIdService,
+    IDownloadService downloadService,
+    IConfigurationProviderService configurationProvider) : IContentManifestBuilder
 {
     private readonly ContentManifest _manifest = new();
+    private readonly IFileHashProvider _hashProvider = hashProvider;
+    private readonly IManifestIdService _manifestIdService = manifestIdService;
+    private readonly IDownloadService _downloadService = downloadService;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     // Temporary storage for ID generation
     private string? _publisherId;
@@ -47,7 +55,7 @@ public partial class ContentManifestBuilder(
 
         // Use ManifestIdService for consistent ID generation with ResultBase pattern
         logger.LogDebug("DEBUG: Calling GenerateGameInstallationId with {InstallationType}, {GameType}, {ManifestVersion}", tempInstallation.InstallationType, gameType, manifestVersion ?? "null");
-        var idResult = manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
+        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
         if (idResult.Success)
         {
             _manifest.Id = idResult.Data;
@@ -187,7 +195,7 @@ public partial class ContentManifestBuilder(
                 _contentName,
                 _manifestVersion.Value);
 
-            var idResult = manifestIdService.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value);
+            var idResult = _manifestIdService.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value);
             if (idResult.Success)
             {
                 _manifest.Id = idResult.Data;
@@ -390,7 +398,7 @@ public partial class ContentManifestBuilder(
             string? hash = null;
             if (shouldComputeHash)
             {
-                hash = await hashProvider.ComputeFileHashAsync(filePath);
+                hash = await _hashProvider.ComputeFileHashAsync(filePath);
             }
 
             var installTarget = DetermineInstallTarget(relativePath);
@@ -454,6 +462,29 @@ public partial class ContentManifestBuilder(
         FilePermissions? permissions = null)
     {
         return await AddFileAsync(relativePath, string.Empty, sourceType, downloadUrl, isExecutable, permissions);
+    }
+
+    /// <summary>
+    /// Downloads a file from a remote URL, stores it in CAS, and adds it to the manifest.
+    /// </summary>
+    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
+    /// <param name="downloadUrl">Download URL for the remote file.</param>
+    /// <param name="sourceType">How this file should be handled (typically ContentAddressable).</param>
+    /// <param name="isExecutable">Whether the file is executable.</param>
+    /// <param name="permissions">File permissions.</param>
+    /// <param name="refererUrl">Optional referer URL to use for the download request.</param>
+    /// <param name="userAgent">Optional user agent to use for the download request.</param>
+/// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
+    public Task<IContentManifestBuilder> AddDownloadedFileAsync(
+        string relativePath,
+        string downloadUrl,
+        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
+        bool isExecutable = false,
+        FilePermissions? permissions = null,
+        string? refererUrl = null,
+        string? userAgent = null)
+    {
+        throw new NotImplementedException();
     }
 
     /// <summary>
@@ -556,7 +587,7 @@ public partial class ContentManifestBuilder(
         // Try to compute hash if package file exists
         if (File.Exists(packagePath))
         {
-            manifestFile.Hash = await hashProvider.ComputeFileHashAsync(packagePath);
+            manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(packagePath);
             var fileInfo = new FileInfo(packagePath);
             manifestFile.Size = fileInfo.Length;
         }
@@ -695,7 +726,7 @@ public partial class ContentManifestBuilder(
         // Ensure ID is generated if not already done
         if (string.IsNullOrEmpty(_manifest.Id.Value) && _publisherId != null && _contentName != null && _manifestVersion.HasValue)
         {
-            var idResult = manifestIdService.GeneratePublisherContentId(_publisherId, _manifest.ContentType, _contentName, _manifestVersion.Value);
+            var idResult = _manifestIdService.GeneratePublisherContentId(_publisherId, _manifest.ContentType, _contentName, _manifestVersion.Value);
             if (idResult.Success)
             {
                 _manifest.Id = idResult.Data;
@@ -816,7 +847,7 @@ public partial class ContentManifestBuilder(
             shouldComputeHash = isExecutable || sourceType != ContentSourceType.GameInstallation;
             if (shouldComputeHash)
             {
-                manifestFile.Hash = await hashProvider.ComputeFileHashAsync(sourcePath);
+                manifestFile.Hash = await _hashProvider.ComputeFileHashAsync(sourcePath);
             }
         }
 

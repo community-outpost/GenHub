@@ -34,4 +34,7 @@ public enum Publisher
 
     /// <summary>CNC Labs community.</summary>
     CncLabs = 9,
+
+    /// <summary>AODMaps community.</summary>
+    AODMaps = 10,
 }

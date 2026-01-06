@@ -43,7 +43,9 @@ public class GameClientManifestIntegrationTests : IDisposable
         _manifestService = new ManifestGenerationService(
             NullLogger<ManifestGenerationService>.Instance,
             _hashProvider,
-            _manifestIdService);
+            _manifestIdService,
+            new Mock<IDownloadService>().Object,
+            new Mock<IConfigurationProviderService>().Object);
 
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
@@ -54,7 +56,7 @@ public class GameClientManifestIntegrationTests : IDisposable
             _manifestPoolMock.Object,
             _hashProvider,
             new GameClientHashRegistry(),
-            Enumerable.Empty<IGameClientIdentifier>(),
+            [],
             NullLogger<GameClientDetector>.Instance);
     }
 

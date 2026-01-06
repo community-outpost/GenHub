@@ -5,6 +5,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -42,7 +43,7 @@ public class GeneralsOnlineDiscoverer(
     /// <summary>
     /// Disposes resources used by the discoverer.
     /// </summary>
-    public void Dispose()
+    public static void Dispose()
     {
         // No resources to dispose
     }
@@ -53,7 +54,7 @@ public class GeneralsOnlineDiscoverer(
     /// <param name="query">The search query.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result containing discovered content.</returns>
-    public Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +62,7 @@ public class GeneralsOnlineDiscoverer(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ProviderDefinition? provider,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -75,7 +76,7 @@ public class GeneralsOnlineDiscoverer(
             if (provider == null)
             {
                 logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
                     $"Provider definition '{GeneralsOnlineConstants.PublisherType}' not found. Ensure generalsonline.provider.json exists.");
             }
 
@@ -88,7 +89,7 @@ public class GeneralsOnlineDiscoverer(
             var catalogContent = await FetchCatalogDataAsync(provider, cancellationToken);
             if (catalogContent == null)
             {
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
                     "Generals Online CDN is currently unavailable. Please try again later.");
             }
 
@@ -97,7 +98,7 @@ public class GeneralsOnlineDiscoverer(
             if (parser == null)
             {
                 logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
                     $"No catalog parser registered for format '{provider.CatalogFormat}'");
             }
 
@@ -105,7 +106,7 @@ public class GeneralsOnlineDiscoverer(
             var parseResult = await parser.ParseAsync(catalogContent, provider, cancellationToken);
             if (!parseResult.Success || parseResult.Data == null)
             {
-                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
                     parseResult.FirstError ?? "Failed to parse catalog");
             }
 
@@ -118,12 +119,18 @@ public class GeneralsOnlineDiscoverer(
                     (r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            var list = results.ToList();
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = list,
+                TotalItems = list.Count,
+                HasMoreItems = false,
+            });
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover Generals Online releases");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+            return OperationResult<ContentDiscoveryResult>.CreateFailure(
                 $"Discovery failed: {ex.Message}");
         }
     }

@@ -20,6 +20,8 @@ public class ManifestGenerationServiceTests : IDisposable
 {
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
     private readonly ManifestGenerationService _service;
     private readonly string _tempDirectory;
 
@@ -30,6 +32,8 @@ public class ManifestGenerationServiceTests : IDisposable
     {
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Setup hash provider to return deterministic hashes
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), default))
@@ -58,7 +62,9 @@ public class ManifestGenerationServiceTests : IDisposable
         _service = new ManifestGenerationService(
             NullLogger<ManifestGenerationService>.Instance,
             _hashProviderMock.Object,
-            _manifestIdServiceMock.Object);
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);

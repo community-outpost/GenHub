@@ -104,7 +104,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
             return info.Value.Version;
         }
 
-        return "Unknown";
+        return GameClientConstants.UnknownVersion;
     }
 
     /// <inheritdoc/>
@@ -115,7 +115,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
             return (info.Value.GameType, info.Value.Version);
         }
 
-        return (GameType.Unknown, "Unknown");
+        return (GameType.Unknown, GameClientConstants.UnknownVersion);
     }
 
     /// <inheritdoc/>

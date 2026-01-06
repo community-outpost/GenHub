@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
@@ -157,7 +158,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         IssueType = ValidationIssueType.UnexpectedFile,
                         Severity = ValidationSeverity.Warning,
-                        Message = $"Strategy '{strategy.Name ?? "Unknown"}' works best when source and destination are on the same volume. Source: {sourceRoot}, Destination: {destRoot}",
+                        Message = $"Strategy '{strategy.Name ?? GameClientConstants.UnknownVersion}' works best when source and destination are on the same volume. Source: {sourceRoot}, Destination: {destRoot}",
                         Path = "VolumeCheck",
                     });
                 }

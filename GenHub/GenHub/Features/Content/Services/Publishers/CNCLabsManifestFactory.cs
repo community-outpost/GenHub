@@ -64,10 +64,10 @@ public partial class CNCLabsManifestFactory(
         var tags = new List<string>(CNCLabsConstants.DefaultTags);
 
         // Add game-specific tag
-        tags.Add(details.targetGame == GameType.Generals ? GameClientConstants.GeneralsShortName : GameClientConstants.ZeroHourShortName);
+        tags.Add(details.TargetGame == GameType.Generals ? GameClientConstants.GeneralsShortName : GameClientConstants.ZeroHourShortName);
 
         // Add content type tag
-        tags.Add(details.contentType switch
+        tags.Add(details.ContentType switch
         {
             ContentType.Map => ManifestConstants.MapTag,
             ContentType.Mission => ManifestConstants.MissionTag,
@@ -86,11 +86,11 @@ public partial class CNCLabsManifestFactory(
 
     private static string GetDownloadFilename(MapDetails details)
     {
-        if (!string.IsNullOrWhiteSpace(details.downloadUrl))
+        if (!string.IsNullOrWhiteSpace(details.DownloadUrl))
         {
             try
             {
-                var uri = new Uri(details.downloadUrl);
+                var uri = new Uri(details.DownloadUrl);
                 var filename = Path.GetFileName(uri.LocalPath);
                 if (!string.IsNullOrWhiteSpace(filename) && filename.Contains('.'))
                 {
@@ -157,34 +157,34 @@ public partial class CNCLabsManifestFactory(
         // 1. Load provider metadata to get website/support URLs if possible
         var provider = providerLoader.GetProvider(CNCLabsConstants.PublisherPrefix);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? CNCLabsConstants.PublisherWebsite;
-        var detailPageUrl = details.downloadUrl ?? websiteUrl; // Fallback if source omitted
+        var detailPageUrl = details.DownloadUrl ?? websiteUrl; // Fallback if source omitted
 
         // 2. Prepare manifest information
-        var contentName = SlugifyContentName(details.name);
+        var contentName = SlugifyContentName(details.Name);
         var publisherId = CNCLabsConstants.PublisherId;
 
         // 3. Generate the manifest ID
         var manifestIdResult = manifestIdService.GeneratePublisherContentId(
             publisherId,
-            details.contentType,
+            details.ContentType,
             contentName);
 
         if (!manifestIdResult.Success)
         {
-            logger.LogError("Failed to generate manifest ID for {ContentName}: {Error}", details.name, manifestIdResult.FirstError);
+            logger.LogError("Failed to generate manifest ID for {ContentName}: {Error}", details.Name, manifestIdResult.FirstError);
             throw new InvalidOperationException($"Failed to generate manifest ID: {manifestIdResult.FirstError}");
         }
 
-        logger.LogDebug("Creating CNC Labs manifest for {ContentName} (ID: {ManifestId})", details.name, manifestIdResult.Data);
+        logger.LogDebug("Creating CNC Labs manifest for {ContentName} (ID: {ManifestId})", details.Name, manifestIdResult.Data);
 
         // 4. Construct the manifest directly
         var manifest = new ContentManifest
         {
             ManifestVersion = ManifestConstants.DefaultManifestVersion,
             Id = manifestIdResult.Data,
-            Name = details.name,
+            Name = details.Name,
             Version = ManifestConstants.UnknownVersion,
-            ContentType = details.contentType,
+            ContentType = details.ContentType,
             Publisher = new PublisherInfo
             {
                 PublisherType = CNCLabsConstants.PublisherId,
@@ -194,18 +194,18 @@ public partial class CNCLabsManifestFactory(
             },
             Metadata = new ContentMetadata
             {
-                Description = details.description,
+                Description = details.Description,
                 Tags = [.. GetTags(details)],
-                IconUrl = details.previewImage,
-                ReleaseDate = details.submissionDate,
+                IconUrl = details.PreviewImage,
+                ReleaseDate = details.SubmissionDate,
             },
             Files =
             [
                 new ManifestFile
                 {
                     RelativePath = GetDownloadFilename(details),
-                    Size = details.fileSize,
-                    DownloadUrl = details.downloadUrl,
+                    Size = details.FileSize,
+                    DownloadUrl = details.DownloadUrl,
                     SourceType = ContentSourceType.RemoteDownload,
                 },
             ],

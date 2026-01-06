@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 
@@ -26,7 +27,7 @@ public class CreateProfileRequestTests
         Assert.Equal("Test Profile", request.Name);
         Assert.Equal("install-1", request.GameInstallationId);
         Assert.Equal("client-1", request.GameClientId);
-        Assert.Equal(WorkspaceStrategy.SymlinkOnly, request.PreferredStrategy);
+        Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, request.PreferredStrategy);
     }
 
     /// <summary>
@@ -95,11 +96,11 @@ public class CreateProfileRequestTests
             Name = "Initial Name",
             GameInstallationId = "install-1",
             GameClientId = "client-1",
-        };
 
-        // Act
-        request.Description = "Test Description";
-        request.PreferredStrategy = WorkspaceStrategy.FullCopy;
+            // Act
+            Description = "Test Description",
+            PreferredStrategy = WorkspaceStrategy.FullCopy,
+        };
 
         // Assert
         Assert.Equal("Test Description", request.Description);

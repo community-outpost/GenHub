@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 
 namespace GenHub.Core.Interfaces.Content;
 

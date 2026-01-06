@@ -130,6 +130,17 @@ public class LocalContentService(
         }
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<ContentManifest>> AddLocalContentAsync(
+        string name,
+        string directoryPath,
+        ContentType contentType,
+        GameType targetGame)
+    {
+        // Forward to the main method, swapping name and directoryPath to match expected signature
+        return CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame);
+    }
+
     /// <summary>
     /// Sanitizes a name for use in a manifest ID.
     /// </summary>

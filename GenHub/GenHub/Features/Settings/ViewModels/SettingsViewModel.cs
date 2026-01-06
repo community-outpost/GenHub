@@ -875,7 +875,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                ManifestsInfo = "Unknown";
+                ManifestsInfo = GameClientConstants.UnknownVersion;
             }
 
             // Update Workspaces count
@@ -887,7 +887,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                WorkspacesInfo = "Unknown";
+                WorkspacesInfo = GameClientConstants.UnknownVersion;
             }
 
             // Update Profiles count
@@ -899,7 +899,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                ProfilesInfo = "Unknown";
+                ProfilesInfo = GameClientConstants.UnknownVersion;
             }
         }
         catch (Exception ex)

@@ -4,6 +4,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,9 @@ public class GitHubContentProviderTests
     private readonly Mock<IContentDeliverer> _delivererMock;
     private readonly Mock<IContentValidator> _validatorMock;
     private readonly Mock<ILogger<GitHubContentProvider>> _loggerMock;
+#pragma warning disable IDE0052 // Remove unread private members
     private readonly Mock<IGitHubApiClient> _gitHubApiClientMock = new();
+#pragma warning restore IDE0052 // Remove unread private members
     private readonly GitHubContentProvider _provider;
 
     /// <summary>
@@ -42,14 +45,14 @@ public class GitHubContentProviderTests
 
         // Setup validator to return valid results for all calls
         _validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+            .ReturnsAsync(new ValidationResult("test", []));
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("test", new List<ValidationIssue>()));
+            .ReturnsAsync(new ValidationResult("test", []));
 
         _provider = new GitHubContentProvider(
-            new[] { _discovererMock.Object },
-            new[] { _resolverMock.Object },
-            new[] { _delivererMock.Object },
+            [_discovererMock.Object],
+            [_resolverMock.Object],
+            [_delivererMock.Object],
             _loggerMock.Object,
             _validatorMock.Object);
     }
@@ -70,9 +73,9 @@ public class GitHubContentProviderTests
 
         // Setup both overloads of DiscoverAsync - the new provider-aware overload is now called by BaseContentProvider
         _discovererMock.Setup(d => d.DiscoverAsync(It.IsAny<ProviderDefinition?>(), query, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [discoveredItem] }));
         _discovererMock.Setup(d => d.DiscoverAsync(query, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(new[] { discoveredItem }));
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [discoveredItem] }));
 
         _resolverMock.Setup(r => r.ResolveAsync(It.IsAny<ProviderDefinition?>(), discoveredItem, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
@@ -80,14 +83,14 @@ public class GitHubContentProviderTests
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(resolvedManifest));
 
         _validatorMock.Setup(v => v.ValidateManifestAsync(resolvedManifest, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", [])); // Valid result
 
         // Act
         var result = await _provider.SearchAsync(query);
 
         // Assert
         Assert.True(result.Success);
-        var searchResult = Assert.Single(result.Data ?? Enumerable.Empty<ContentSearchResult>());
+        var searchResult = Assert.Single(result.Data ?? []);
         Assert.Equal("Resolved Test Mod", searchResult.Name);
         Assert.False(searchResult.RequiresResolution); // Should be resolved now
         Assert.NotNull(searchResult.GetData<ContentManifest>()); // Manifest should be embedded
@@ -108,7 +111,7 @@ public class GitHubContentProviderTests
     public async Task PrepareContentAsync_CallsDelivererAndValidator_Successfully()
     {
         // Arrange
-        var manifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = new List<ManifestFile>() };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = [] };
         var deliveredManifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = [new ManifestFile { RelativePath = "file.txt" }] };
         var targetDirectory = Path.GetTempPath();
 
@@ -117,7 +120,7 @@ public class GitHubContentProviderTests
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(deliveredManifest));
 
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", new List<ValidationIssue>())); // Valid result
+            .ReturnsAsync(new ValidationResult("1.0.genhub.mod.ghtestmod", [])); // Valid result
 
         // Act
         var result = await _provider.PrepareContentAsync(manifest, targetDirectory);

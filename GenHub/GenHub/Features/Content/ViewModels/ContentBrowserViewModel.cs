@@ -34,7 +34,7 @@ public partial class ContentBrowserViewModel(IContentOrchestrator contentOrchest
     /// <summary>
     /// Gets the collection of search results to be displayed in the content browser.
     /// </summary>
-    public ObservableCollection<ContentItemViewModel> SearchResults { get; } = new();
+    public ObservableCollection<ContentItemViewModel> SearchResults { get; } = [];
 
     /// <summary>
     /// Searches for content asynchronously based on the current search parameters.

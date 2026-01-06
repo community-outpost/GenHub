@@ -1,16 +1,12 @@
-using System;
 using System.Reactive.Linq;
-using System.Threading.Tasks;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
@@ -22,7 +18,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services.ContentDiscoverers;
-using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -102,7 +97,6 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
 
-
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
             downloadsViewModel: CreateDownloadsViewModel(),
@@ -140,7 +134,6 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
-
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
@@ -180,7 +173,6 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
-
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),

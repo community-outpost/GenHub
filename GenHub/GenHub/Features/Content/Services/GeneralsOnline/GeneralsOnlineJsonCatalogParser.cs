@@ -11,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
@@ -41,7 +42,7 @@ public class GeneralsOnlineJsonCatalogParser(
                 logger.LogWarning("Catalog content is empty");
                 return Task.FromResult(
                     OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        Enumerable.Empty<ContentSearchResult>()));
+                        []));
             }
 
             // Parse the wrapper to determine source type
@@ -101,7 +102,7 @@ public class GeneralsOnlineJsonCatalogParser(
                 logger.LogInformation("No Generals Online releases found in catalog");
                 return Task.FromResult(
                     OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
-                        Enumerable.Empty<ContentSearchResult>()));
+                        []));
             }
 
             // Create search result from release
@@ -130,7 +131,7 @@ public class GeneralsOnlineJsonCatalogParser(
     /// <summary>
     /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
     /// </summary>
-    private GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
+    private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
     {
         var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
 
@@ -149,7 +150,7 @@ public class GeneralsOnlineJsonCatalogParser(
     /// Creates a GeneralsOnlineRelease from a version string (latest.txt fallback).
     /// Constructs download URL using provider configuration.
     /// </summary>
-    private GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
+    private static GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
     {
         var versionDate = ParseVersionDate(version) ?? DateTime.Now;
         var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
@@ -168,12 +169,12 @@ public class GeneralsOnlineJsonCatalogParser(
     /// <summary>
     /// Parses a version string (MMDDYY_QFE#) to extract the date.
     /// </summary>
-    private DateTime? ParseVersionDate(string version)
+    private static DateTime? ParseVersionDate(string version)
     {
         try
         {
             var parts = version.Split(
-                new[] { GeneralsOnlineConstants.QfeSeparator },
+                [GeneralsOnlineConstants.QfeSeparator],
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             if (parts.Length < 1)
@@ -187,9 +188,9 @@ public class GeneralsOnlineJsonCatalogParser(
                 return null;
             }
 
-            var month = int.Parse(datePart.Substring(0, 2));
+            var month = int.Parse(datePart[..2]);
             var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart.Substring(4, 2));
+            var year = 2000 + int.Parse(datePart[4..]);
 
             return new DateTime(year, month, day);
         }
@@ -202,7 +203,7 @@ public class GeneralsOnlineJsonCatalogParser(
     /// <summary>
     /// Creates a ContentSearchResult from a release and provider configuration.
     /// </summary>
-    private ContentSearchResult CreateSearchResult(
+    private static ContentSearchResult CreateSearchResult(
         GeneralsOnlineRelease release,
         ProviderDefinition provider)
     {

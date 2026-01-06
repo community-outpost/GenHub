@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
@@ -57,7 +58,7 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
     /// otherwise, a failure with a message describing the error.
     /// </returns>
     /// <exception cref="OperationCanceledException">Thrown if the operation is canceled.</exception>
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -65,7 +66,7 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
         {
             if (query is null || (string.IsNullOrWhiteSpace(query.SearchTerm) && (!query.TargetGame.HasValue || !query.ContentType.HasValue)))
             {
-                return OperationResult<IEnumerable<ContentSearchResult>>
+                return OperationResult<ContentDiscoveryResult>
                     .CreateFailure(CNCLabsConstants.QueryNullErrorMessage);
             }
 
@@ -93,12 +94,18 @@ public class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDisco
                     [CNCLabsConstants.MapIdMetadataKey] = map.Id.ToString(),
                 },
             });
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            var list = results.ToList();
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = list,
+                TotalItems = list.Count,
+                HasMoreItems = false,
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, CNCLabsConstants.DiscoveryFailureLogMessage);
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(string.Format(CNCLabsConstants.DiscoveryFailedErrorTemplate, ex.Message));
+            return OperationResult<ContentDiscoveryResult>.CreateFailure(string.Format(CNCLabsConstants.DiscoveryFailedErrorTemplate, ex.Message));
         }
     }
 

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -75,8 +76,10 @@ public static class InstallationExtensions
             installationPath = installation.InstallationPath;
         }
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>);
-        gameInstallation.Id = installation.Id;
+        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
+        {
+            Id = installation.Id,
+        };
         gameInstallation.SetPaths(installation.GeneralsPath, installation.ZeroHourPath);
         gameInstallation.PopulateGameClients(installation.AvailableGameClients);
 
@@ -104,7 +107,7 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "CD/ISO",
             GameInstallationType.Wine => "Wine/Proton",
             GameInstallationType.Retail => "Retail",
-            GameInstallationType.Unknown => "Unknown",
+            GameInstallationType.Unknown => GameClientConstants.UnknownVersion,
             _ => installationType.ToString(),
         };
     }

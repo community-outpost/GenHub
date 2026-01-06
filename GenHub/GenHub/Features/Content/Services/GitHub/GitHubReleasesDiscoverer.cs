@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +34,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {
         var results = new List<ContentSearchResult>();
@@ -109,7 +110,12 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         }
 
         return errors.Count > 0 && results.Count == 0
-            ? OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(errors)
-            : OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            ? OperationResult<ContentDiscoveryResult>.CreateFailure(errors)
+            : OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = results,
+                TotalItems = results.Count,
+                HasMoreItems = false,
+            });
     }
 }

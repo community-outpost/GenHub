@@ -485,7 +485,7 @@ IManualInstallationStorage? manualInstallationStorage = null) : IGameInstallatio
             // Determine version for manifest
             var version = baseGameClient.Version;
             if (string.IsNullOrEmpty(version) ||
-                version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+                version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
                 version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {

@@ -51,7 +51,7 @@
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                       Content="{TemplateBinding SelectionBoxItem}"
                                       ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
-                    
+
                     <PathIcon x:Name="DropDownGlyph"
                               Grid.Column="1"
                               Width="10"
@@ -60,7 +60,7 @@
                               HorizontalAlignment="Right"
                               VerticalAlignment="Center"
                               Data="M7,10L12,15L17,10H7Z"
-                              Foreground="#CCCCCC" 
+                              Foreground="#CCCCCC"
                               UseLayoutRounding="False" />
 
                     <Popup x:Name="PART_Popup"
@@ -94,30 +94,30 @@
         <Setter Property="Background" Value="#3E3E42" />
         <Setter Property="BorderBrush" Value="#555555" />
     </Style>
-    
+
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
         <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
     <!-- Focus State -->
     <Style Selector="ComboBox:focus /template/ Border#Background">
-        <Setter Property="BorderBrush" Value="#007ACC" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
     </Style>
-    
+
     <Style Selector="ComboBox:focus /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="#007ACC" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
     </Style>
 
     <!-- Open State -->
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ Border#Background">
-        <Setter Property="BorderBrush" Value="#007ACC" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="Background" Value="#3E3E42" />
     </Style>
-    
+
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="#007ACC" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
         <!-- Simple flip, no animation -->
-        <Setter Property="RenderTransform" Value="rotate(180deg)" /> 
+        <Setter Property="RenderTransform" Value="rotate(180deg)" />
     </Style>
 
     <!-- Disabled State -->
@@ -140,11 +140,11 @@
     </Style>
 
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="#007ACC" />
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
-    
+
     <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="#1C97EA" />
+        <Setter Property="Background" Value="#A07C4DFF" />
     </Style>
 </Styles>

@@ -45,7 +45,14 @@ public class GameInstallationServiceTests : IDisposable
         _manualInstallationStorageMock = new Mock<IManualInstallationStorage>();
 
         // Setup client orchestrator to return empty clients by default
-        var clientResult = DetectionResult<GameClient>.CreateSuccess(Enumerable.Empty<GameClient>(), TimeSpan.Zero);
+        var clientResult = DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero);
+        _clientOrchestratorMock.Setup(x => x.DetectAllClientsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(clientResult);
+        _clientOrchestratorMock.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<IGameInstallation>>(), It.IsAny<CancellationToken>()))
+            .Returns((IEnumerable<IGameInstallation> i, CancellationToken c) =>
+            {
+                Console.WriteLine("Mock called with {0} installations", i.Count());
+                return Task.FromResult(clientResult);
+            });
 
         // Note: The service uses List<GameInstallation>, so the mock matches that concrete type.
         _clientOrchestratorMock.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<List<GameInstallation>>(), It.IsAny<CancellationToken>()))
@@ -70,6 +77,7 @@ public class GameInstallationServiceTests : IDisposable
     public void Dispose()
     {
         _service?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -83,7 +91,7 @@ public class GameInstallationServiceTests : IDisposable
         var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
         var installationId = installation.Id;
 
-        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(new[] { installation }, TimeSpan.Zero);
+        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess([installation], TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
 
@@ -103,7 +111,7 @@ public class GameInstallationServiceTests : IDisposable
     public async Task GetInstallationAsync_WithInvalidId_ShouldReturnFailure()
     {
         // Arrange
-        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(Array.Empty<GameInstallation>(), TimeSpan.Zero);
+        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
 
@@ -129,7 +137,7 @@ public class GameInstallationServiceTests : IDisposable
 
         // Setup manual installation storage to return empty list
         _manualInstallationStorageMock.Setup(x => x.LoadManualInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<GameInstallation>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _service.GetInstallationAsync("test-id");
@@ -206,8 +214,8 @@ public class GameInstallationServiceTests : IDisposable
             .ReturnsAsync(detectionResult);
 
         // Setup manual installation storage to return empty list
-        _manualInstallationStorageMock.Setup(x => x.LoadManualInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<GameInstallation>());
+        _ = _manualInstallationStorageMock.Setup(x => x.LoadManualInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
 
         // Act
         var result = await _service.GetAllInstallationsAsync();
@@ -228,7 +236,7 @@ public class GameInstallationServiceTests : IDisposable
         var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
         var installationId = installation.Id;
 
-        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess(new[] { installation }, TimeSpan.Zero);
+        var detectionResult = DetectionResult<GameInstallation>.CreateSuccess([installation], TimeSpan.Zero);
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
 

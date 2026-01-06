@@ -33,6 +33,16 @@ public class ContentManifestBuilderTests
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
 
     /// <summary>
+    /// Mock for the download service used in the builder.
+    /// </summary>
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+
+    /// <summary>
+    /// Mock for the configuration provider service used in the builder.
+    /// </summary>
+    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -45,6 +55,8 @@ public class ContentManifestBuilderTests
         _loggerMock = new Mock<ILogger<ContentManifestBuilder>>();
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
@@ -62,7 +74,12 @@ public class ContentManifestBuilderTests
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
-        _builder = new ContentManifestBuilder(_loggerMock.Object, _hashProviderMock.Object, _manifestIdServiceMock.Object);
+        _builder = new ContentManifestBuilder(
+            _loggerMock.Object,
+            _hashProviderMock.Object,
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object);
     }
 
     /// <summary>

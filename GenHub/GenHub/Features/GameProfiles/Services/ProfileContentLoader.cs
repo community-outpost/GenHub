@@ -292,7 +292,7 @@ public class ProfileContentLoader(
                 var displayName = !string.IsNullOrEmpty(depManifest.Name)
                     ? depManifest.Name
                     : dependency.Name;
-                var publisher = depManifest.Publisher?.Name ?? depManifest.Publisher?.PublisherType ?? "Unknown";
+                var publisher = depManifest.Publisher?.Name ?? depManifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion;
 
                 var item = new ContentDisplayItem
                 {
@@ -383,15 +383,15 @@ public class ProfileContentLoader(
     private (string ForManifestId, string ForDisplay) GetVersionStrings(string? detectedVersion)
     {
         var isUnknown = string.IsNullOrEmpty(detectedVersion) ||
-            detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
+            detectedVersion.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
             detectedVersion.Equals(
                 GameClientConstants.AutoDetectedVersion,
                 StringComparison.OrdinalIgnoreCase);
 
         if (isUnknown)
         {
-            var defaultVersion = ManifestConstants.DefaultManifestFormatVersion.ToString();
-            return ("0", displayFormatter.NormalizeVersion(defaultVersion));
+            // Show empty string for version 0
+            return ("0", string.Empty);
         }
 
         return (detectedVersion!, displayFormatter.NormalizeVersion(detectedVersion!));
