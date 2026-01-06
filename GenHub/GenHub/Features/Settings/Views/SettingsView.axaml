@@ -22,27 +22,27 @@
       <Setter Property="BorderBrush" Value="#3F3F46" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
-    
+
     <Style Selector="TextBlock.section-header">
       <Setter Property="FontSize" Value="18" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="#FFFFFF" />
       <Setter Property="Margin" Value="0,0,0,10" />
     </Style>
-    
+
     <Style Selector="TextBlock.setting-label">
       <Setter Property="FontSize" Value="14" />
       <Setter Property="Foreground" Value="#E0E0E0" />
       <Setter Property="Margin" Value="0,0,0,5" />
     </Style>
-    
+
     <Style Selector="TextBlock.setting-description">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="Foreground" Value="#AAAAAA" />
       <Setter Property="TextWrapping" Value="Wrap" />
       <Setter Property="Margin" Value="0,2,0,0" />
     </Style>
-    
+
     <Style Selector="Button.browse-button">
       <Setter Property="Background" Value="#404040" />
       <Setter Property="Foreground" Value="#FFFFFF" />
@@ -50,13 +50,13 @@
       <Setter Property="Padding" Value="12,6" />
       <Setter Property="CornerRadius" Value="4" />
     </Style>
-    
+
     <Style Selector="Button.browse-button:pointerover">
       <Setter Property="Background" Value="#505050" />
     </Style>
-    
+
     <Style Selector="Button.primary-button">
-      <Setter Property="Background" Value="#7B1FA2" />
+      <Setter Property="Background" Value="#7C4DFF" />
       <Setter Property="Foreground" Value="#FFFFFF" />
       <Setter Property="BorderBrush" Value="#9C27B0" />
       <Setter Property="Padding" Value="16,8" />
@@ -66,7 +66,7 @@
     <Style Selector="Button.primary-button:pointerover">
       <Setter Property="Background" Value="#9C27B0" />
     </Style>
-    
+
     <Style Selector="Button.secondary-button">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="#E0E0E0" />
@@ -75,11 +75,11 @@
       <Setter Property="Padding" Value="16,8" />
       <Setter Property="CornerRadius" Value="4" />
     </Style>
-    
+
     <Style Selector="Button.secondary-button:pointerover">
       <Setter Property="Background" Value="#404040" />
     </Style>
-    
+
     <Style Selector="TextBox">
       <Setter Property="Background" Value="#1E1E1E" />
       <Setter Property="Foreground" Value="#FFFFFF" />
@@ -87,9 +87,9 @@
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="Padding" Value="8" />
     </Style>
-    
 
-    
+
+
 
     <!-- Custom ComboBox Style Inlined -->
     <Style Selector="ComboBox">
@@ -130,7 +130,7 @@
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                       Content="{TemplateBinding SelectionBoxItem}"
                                       ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
-                    
+
                     <PathIcon x:Name="DropDownGlyph"
                               Grid.Column="1"
                               Width="10"
@@ -139,7 +139,7 @@
                               HorizontalAlignment="Right"
                               VerticalAlignment="Center"
                               Data="M7,10L12,15L17,10H7Z"
-                              Foreground="#CCCCCC" 
+                              Foreground="#CCCCCC"
                               UseLayoutRounding="False" />
 
                     <Popup x:Name="PART_Popup"
@@ -172,26 +172,26 @@
         <Setter Property="Background" Value="#3E3E42" />
         <Setter Property="BorderBrush" Value="#555555" />
     </Style>
-    
+
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
         <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
     <Style Selector="ComboBox:focus /template/ Border#Background">
-        <Setter Property="BorderBrush" Value="#007ACC" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
     </Style>
-    
+
     <Style Selector="ComboBox:focus /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="#007ACC" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
     </Style>
 
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ Border#Background">
-        <Setter Property="BorderBrush" Value="#007ACC" />
+        <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="Background" Value="#3E3E42" />
     </Style>
-    
+
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="#007ACC" />
+        <Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="RenderTransform" Value="rotate(180deg)" />
     </Style>
 
@@ -213,18 +213,18 @@
     </Style>
 
     <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="#007ACC" />
+        <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
         <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
-    
+
     <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="#1C97EA" />
+        <Setter Property="Background" Value="#A07C4DFF" />
     </Style>
-    
+
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="#E0E0E0" />
     </Style>
-    
+
     <Style Selector="Border.notification">
       <Setter Property="Background" Value="#4CAF50" />
       <Setter Property="CornerRadius" Value="4" />
@@ -232,7 +232,7 @@
       <Setter Property="Margin" Value="0,0,0,10" />
       <Setter Property="IsVisible" Value="{Binding ShowSaveNotification}" />
     </Style>
-    
+
     <Style Selector="Border.notification TextBlock">
       <Setter Property="Foreground" Value="#FFFFFF" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -273,11 +273,11 @@
 
   <ScrollViewer Focusable="True">
     <StackPanel Margin="30" Spacing="25" MaxWidth="800">
-      
+
       <!-- Header -->
       <StackPanel Spacing="5" Margin="0,0,0,10">
         <TextBlock Text="Settings" FontSize="32" FontWeight="Bold" Foreground="#FFFFFF" />
-        <TextBlock Text="Configure your GenHub preferences and application behavior" 
+        <TextBlock Text="Configure your GenHub preferences and application behavior"
                    FontSize="16" Foreground="#AAAAAA" />
       </StackPanel>
 
@@ -290,7 +290,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z" 
+                <PathIcon Data="M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Game Configuration" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -304,7 +304,7 @@
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
                         MinWidth="250" />
-              <TextBlock Text="Choose how files are managed in game workspaces" 
+              <TextBlock Text="Choose how files are managed in game workspaces"
                          Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -315,7 +315,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" 
+                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Downloads" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -333,7 +333,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Limit the number of simultaneous downloads to manage bandwidth usage (1-10)" 
+              <TextBlock Text="Limit the number of simultaneous downloads to manage bandwidth usage (1-10)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -348,7 +348,7 @@
                              Width="160"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Buffer size used for file downloads (4KB - 1MB, default: 80KB)" 
+              <TextBlock Text="Buffer size used for file downloads (4KB - 1MB, default: 80KB)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -363,17 +363,17 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Timeout for each download operation  (10-3600 seconds,default: 600 seconds)" 
+              <TextBlock Text="Timeout for each download operation  (10-3600 seconds,default: 600 seconds)"
                          Classes="setting-description" />
             </StackPanel>
 
             <!-- Download User-Agent -->
             <StackPanel Spacing="8">
               <TextBlock Text="Download User-Agent" Classes="setting-label" />
-              <TextBox Text="{Binding DownloadUserAgent}" 
+              <TextBox Text="{Binding DownloadUserAgent}"
                        Width="300"
                        LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="HTTP User-Agent string sent with download requests" 
+              <TextBlock Text="HTTP User-Agent string sent with download requests"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -381,7 +381,7 @@
             <StackPanel Spacing="8">
               <CheckBox Content="Allow background downloads"
                         IsChecked="{Binding AllowBackgroundDownloads}" />
-              <TextBlock Text="Continue downloads when the application is minimized or in the background" 
+              <TextBlock Text="Continue downloads when the application is minimized or in the background"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
           </StackPanel>
@@ -392,7 +392,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" 
+                <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Appearance" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -406,7 +406,7 @@
                         SelectedItem="{Binding Theme}"
                         HorizontalAlignment="Left"
                         MinWidth="200" />
-              <TextBlock Text="Select application color theme (More coming soon)" 
+              <TextBlock Text="Select application color theme (More coming soon)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -414,7 +414,7 @@
             <StackPanel Spacing="8">
               <CheckBox Content="Enable detailed logging"
                         IsChecked="{Binding EnableDetailedLogging}" />
-              <TextBlock Text="Enable verbose logging for troubleshooting. May impact performance." 
+              <TextBlock Text="Enable verbose logging for troubleshooting. May impact performance."
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
@@ -422,7 +422,7 @@
             <StackPanel Spacing="8">
               <CheckBox Content="Check for updates on startup"
                         IsChecked="{Binding AutoCheckForUpdatesOnStartup}" />
-              <TextBlock Text="Automatically check for GenHub updates when the application starts" 
+              <TextBlock Text="Automatically check for GenHub updates when the application starts"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
@@ -450,7 +450,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z" 
+                <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Data Directories" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -458,33 +458,33 @@
         <Border Classes="settings-card">
           <StackPanel Spacing="20">
             <TextBlock Text="Application Data Folders" Classes="setting-label" />
-            
-            <TextBlock Text="Quickly access application data, profiles, and manifests for troubleshooting or manual management." 
+
+            <TextBlock Text="Quickly access application data, profiles, and manifests for troubleshooting or manual management."
                        Classes="setting-description" />
 
             <Grid ColumnDefinitions="*,10,*,10,*" RowDefinitions="Auto,10,Auto" Margin="0,10,0,0">
-                <Button Grid.Row="0" Grid.Column="0" 
-                        Content="Open AppData" 
+                <Button Grid.Row="0" Grid.Column="0"
+                        Content="Open AppData"
                         Command="{Binding OpenAppDataDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                
-                <Button Grid.Row="0" Grid.Column="2" 
-                        Content="Open Profiles" 
+
+                <Button Grid.Row="0" Grid.Column="2"
+                        Content="Open Profiles"
                         Command="{Binding OpenProfilesDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                        
-                <Button Grid.Row="0" Grid.Column="4" 
-                        Content="Open Manifests" 
+
+                <Button Grid.Row="0" Grid.Column="4"
+                        Content="Open Manifests"
                         Command="{Binding OpenManifestsDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                <Button Grid.Row="2" Grid.Column="0" 
-                        Content="Open Workspaces" 
+                <Button Grid.Row="2" Grid.Column="0"
+                        Content="Open Workspaces"
                         Command="{Binding OpenWorkspacesDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                <Button Grid.Row="2" Grid.Column="2" 
-                        Content="Open CAS Pool" 
+                <Button Grid.Row="2" Grid.Column="2"
+                        Content="Open CAS Pool"
                         Command="{Binding OpenCasPoolDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
@@ -496,7 +496,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16.5,16.5L13.5,19.5L12,18L13.5,16.5L12,15L13.5,13.5L12,12L13.5,10.5L15,12L16.5,10.5L18,12L16.5,13.5L18,15L16.5,16.5Z" 
+                <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16.5,16.5L13.5,19.5L12,18L13.5,16.5L12,15L13.5,13.5L12,12L13.5,10.5L15,12L16.5,10.5L18,12L16.5,13.5L18,15L16.5,16.5Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Logs" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -504,23 +504,23 @@
         <Border Classes="settings-card">
           <StackPanel Spacing="20">
             <TextBlock Text="Application Logs" Classes="setting-label" />
-            
-            <TextBlock Text="Access diagnostic logs to help troubleshoot issues or report bugs." 
+
+            <TextBlock Text="Access diagnostic logs to help troubleshoot issues or report bugs."
                        Classes="setting-description" />
 
             <Grid ColumnDefinitions="*,10,*,10,*" Margin="0,10,0,0">
-                <Button Grid.Column="0" 
-                        Content="Open Logs Directory" 
+                <Button Grid.Column="0"
+                        Content="Open Logs Directory"
                         Command="{Binding OpenLogsDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                
-                <Button Grid.Column="2" 
-                        Content="Open Latest Log" 
+
+                <Button Grid.Column="2"
+                        Content="Open Latest Log"
                         Command="{Binding OpenLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
-                        
-                <Button Grid.Column="4" 
-                        Content="Copy Latest Log Content" 
+
+                <Button Grid.Column="4"
+                        Content="Copy Latest Log Content"
                         Command="{Binding CopyLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
@@ -532,7 +532,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M13,3A9,9 0 0,0 4,12H1L4.89,16.89L4.96,17L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z" 
+                <PathIcon Data="M13,3A9,9 0 0,0 4,12H1L4.89,16.89L4.96,17L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Performance" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -542,9 +542,9 @@
             <!-- Memory Usage Info -->
             <StackPanel Spacing="8">
               <TextBlock Text="Memory Usage" Classes="setting-label" />
-              <TextBlock Text="{Binding CurrentMemoryUsage, StringFormat='Current: {0:F1} MB'}" 
+              <TextBlock Text="{Binding CurrentMemoryUsage, StringFormat='Current: {0:F1} MB'}"
                          Foreground="#AAAAAA" FontSize="14" />
-              <TextBlock Text="Monitor application memory consumption" 
+              <TextBlock Text="Monitor application memory consumption"
                          Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -555,7 +555,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M2,6H6V18H2V6M9,6H13V18H9V6M16,6H20V18H16V6Z" 
+                <PathIcon Data="M2,6H6V18H2V6M9,6H13V18H9V6M16,6H20V18H16V6Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Content-Addressable Storage (CAS)" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -566,16 +566,16 @@
             <StackPanel Spacing="8">
               <TextBlock Text="CAS Root Directory" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0" 
+                <TextBox Grid.Column="0"
                          Text="{Binding CasRootPath}"
                          Watermark="Default (%AppData%/GenHub/cas-pool)"
                          LostFocus="OnTextBoxLostFocus" />
-                <Button Grid.Column="1" 
+                <Button Grid.Column="1"
                         Content="Browse"
                         Command="{Binding BrowseCasRootPathCommand}"
                         Classes="browse-button" />
               </Grid>
-              <TextBlock Text="Directory where deduplicated content is stored. All workspaces reference files from here." 
+              <TextBlock Text="Directory where deduplicated content is stored. All workspaces reference files from here."
                          Classes="setting-description" />
             </StackPanel>
 
@@ -590,7 +590,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Maximum size for the CAS pool before garbage collection runs (1-1000 GB)" 
+              <TextBlock Text="Maximum size for the CAS pool before garbage collection runs (1-1000 GB)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -605,7 +605,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="Number of simultaneous CAS operations (1-16, default: 4)" 
+              <TextBlock Text="Number of simultaneous CAS operations (1-16, default: 4)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -613,7 +613,7 @@
             <StackPanel Spacing="8">
               <CheckBox Content="Enable automatic garbage collection"
                         IsChecked="{Binding EnableAutomaticGc}" />
-              <TextBlock Text="Automatically clean up unreferenced content to free disk space" 
+              <TextBlock Text="Automatically clean up unreferenced content to free disk space"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
 
@@ -627,7 +627,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="How long to keep unreferenced content before deletion (1-365 days)" 
+              <TextBlock Text="How long to keep unreferenced content before deletion (1-365 days)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -641,7 +641,7 @@
                              Width="120"
                              FormatString="F0"
                              LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="How often to run automatic garbage collection (1-30 days)" 
+              <TextBlock Text="How often to run automatic garbage collection (1-30 days)"
                          Classes="setting-description" />
             </StackPanel>
 
@@ -649,7 +649,7 @@
             <StackPanel Spacing="8">
               <CheckBox Content="Verify file integrity during operations"
                         IsChecked="{Binding CasVerifyIntegrity}" />
-              <TextBlock Text="Check file hashes to ensure data integrity (recommended, slight performance impact)" 
+              <TextBlock Text="Check file hashes to ensure data integrity (recommended, slight performance impact)"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
           </StackPanel>
@@ -662,7 +662,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H17V2H7V2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z" 
+                <PathIcon Data="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H17V2H7V2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="Local Content Directories" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -682,7 +682,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z" 
+                <PathIcon Data="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"
                           Width="16" Height="16" Foreground="#E0E0E0"/>
                 <TextBlock Text="GitHub Discovery" Classes="section-header" Margin="0"/>
             </StackPanel>
@@ -721,7 +721,7 @@
             <!-- Subscribed Branch -->
             <StackPanel Spacing="8">
               <TextBlock Text="Subscribed Branch" Classes="setting-label" />
-              <TextBlock Text="Manage your branch subscription in the Updates &amp; PRs window." 
+              <TextBlock Text="Manage your branch subscription in the Updates &amp; PRs window."
                          Classes="setting-description" />
             </StackPanel>
 
@@ -784,7 +784,7 @@
                         Background="Transparent"
                         BorderThickness="0"
                         Padding="0"
-                        Foreground="#7B1FA2"
+                        Foreground="#7C4DFF"
                         FontSize="12"
                         Cursor="Hand"
                         ToolTip.Tip="Click to open GitHub PAT creation page" />
@@ -831,7 +831,7 @@
       <Expander IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,20,0,0">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
-                <PathIcon Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" 
+                <PathIcon Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
                           Width="16" Height="16" Foreground="#FF6B6B"/>
                 <TextBlock Text="Danger Zone" Classes="section-header" Margin="0" Foreground="#FF6B6B"/>
             </StackPanel>
@@ -839,62 +839,62 @@
           <Border Classes="settings-card danger-zone-card">
             <StackPanel Spacing="20">
               <TextBlock Text="⚠️ Danger Zone" Classes="section-header danger-header" />
-              
+
               <!-- Real-time Stats -->
               <StackPanel Spacing="10">
                 <TextBlock Text="Current Data Usage:" FontWeight="SemiBold" Foreground="#FF6B6B" />
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="10,0,0,0">
                   <TextBlock Grid.Row="0" Grid.Column="0" Text="CAS Storage:" Width="150" Foreground="#AAAAAA" Margin="0,0,0,5"/>
                   <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CasStorageInfo}" Foreground="#E0E0E0" Margin="0,0,0,5"/>
-                  
+
                   <TextBlock Grid.Row="1" Grid.Column="0" Text="Manifests:" Foreground="#AAAAAA" Margin="0,0,0,5"/>
                   <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ManifestsInfo}" Foreground="#E0E0E0" Margin="0,0,0,5"/>
-                  
+
                   <TextBlock Grid.Row="2" Grid.Column="0" Text="Workspaces:" Foreground="#AAAAAA" Margin="0,0,0,5"/>
                   <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding WorkspacesInfo}" Foreground="#E0E0E0" Margin="0,0,0,5"/>
-                  
+
                   <TextBlock Grid.Row="3" Grid.Column="0" Text="Profiles:" Foreground="#AAAAAA" Margin="0,0,0,5"/>
                   <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ProfilesInfo}" Foreground="#E0E0E0" Margin="0,0,0,5"/>
                 </Grid>
               </StackPanel>
-              
+
               <!-- Deletion Buttons -->
               <StackPanel Spacing="10">
                 <TextBlock Text="Destructive Actions:" FontWeight="SemiBold" Foreground="#FF6B6B" Margin="0,10,0,0" />
                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,10">
-                    <Button Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
+                    <Button Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                             Content="Uninstall GenHub (Keep Data)"
                             Command="{Binding UninstallGenHubCommand}"
                             ToolTip.Tip="Uninstall does not delete data only uninstalls GenHub"
                             Classes="danger-button" Margin="0,0,0,10"/>
 
                     <StackPanel Grid.Row="1" Grid.Column="0" Spacing="10" Margin="0,0,10,0">
-                        <Button Content="Delete CAS Storage" 
+                        <Button Content="Delete CAS Storage"
                                 Command="{Binding DeleteCasStorageCommand}"
                                 ToolTip.Tip="Deletes all cached game files"
                                 Classes="danger-button" />
-                        <Button Content="Delete Manifests" 
+                        <Button Content="Delete Manifests"
                                 Command="{Binding DeleteManifestsCommand}"
                                 ToolTip.Tip="Removes all content metadata"
                                 Classes="danger-button" />
                     </StackPanel>
                     <StackPanel Grid.Row="1" Grid.Column="1" Spacing="10" Margin="10,0,0,0">
-                        <Button Content="Delete Workspaces" 
+                        <Button Content="Delete Workspaces"
                                 Command="{Binding DeleteWorkspacesCommand}"
                                 ToolTip.Tip="Cleans up all temporary game workspaces"
                                 Classes="danger-button" />
-                        <Button Content="Delete Profiles" 
+                        <Button Content="Delete Profiles"
                                 Command="{Binding DeleteProfilesCommand}"
                                 ToolTip.Tip="Permanently removes all user profiles"
                                 Classes="danger-button" />
                     </StackPanel>
                 </Grid>
-                
+
                 <Separator Margin="0,10" Background="#DC143C" Height="1" Opacity="0.3"/>
-                
-                <Button Content="⚠️ DELETE ALL APPLICATION DATA ⚠️" 
+
+                <Button Content="⚠️ DELETE ALL APPLICATION DATA ⚠️"
                         Command="{Binding DeleteAllDataCommand}"
-                        Classes="danger-button" 
+                        Classes="danger-button"
                         HorizontalAlignment="Stretch"
                         FontWeight="Bold"
                         FontSize="14"/>
@@ -921,7 +921,7 @@
       <Border Background="#2D2D30" CornerRadius="4" Padding="15" Margin="0,20,0,0">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <TextBlock Text="💡" FontSize="16" />
-          <TextBlock Text="Settings are automatically saved and will take effect immediately or on next restart as needed." 
+          <TextBlock Text="Settings are automatically saved and will take effect immediately or on next restart as needed."
                      Foreground="#AAAAAA" FontSize="12" TextWrapping="Wrap" />
         </StackPanel>
       </Border>

@@ -45,6 +45,22 @@ public interface IVelopackUpdateManager
     Task<IReadOnlyList<PullRequestInfo>> GetOpenPullRequestsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets a list of all available artifacts for a specific pull request.
+    /// </summary>
+    /// <param name="prNumber">The PR number.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of artifacts for the PR.</returns>
+    Task<IReadOnlyList<ArtifactUpdateInfo>> GetArtifactsForPullRequestAsync(int prNumber, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a list of all available artifacts for a specific branch.
+    /// </summary>
+    /// <param name="branchName">The branch name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of artifacts for the branch.</returns>
+    Task<IReadOnlyList<ArtifactUpdateInfo>> GetArtifactsForBranchAsync(string branchName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Downloads the specified update.
     /// </summary>
     /// <param name="updateInfo">The update information.</param>

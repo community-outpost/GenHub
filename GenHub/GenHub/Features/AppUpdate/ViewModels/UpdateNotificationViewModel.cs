@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
@@ -15,6 +16,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 using Velopack;
+using Velopack.Sources;
 
 namespace GenHub.Features.AppUpdate.ViewModels;
 
@@ -32,13 +34,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the current application version.
     /// </summary>
-    public static string CurrentAppVersion => AppConstants.AppVersion;
+    public static string CurrentAppVersion
+    {
+        get
+        {
+            try
+            {
+                // Get actual installed version from Velopack
+                var updateManager = new UpdateManager(new SimpleWebSource(string.Empty));
+                var currentVersion = updateManager.CurrentVersion;
+                return currentVersion?.ToString() ?? AppConstants.AppVersion;
+            }
+            catch
+            {
+                // Fallback to compile-time version if Velopack fails
+                return AppConstants.AppVersion;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the status message.
     /// </summary>
     [ObservableProperty]
-    private string _statusMessage = "GenHub v0.0.2 - Checking for updates...";
+    private string _statusMessage = $"GenHub {AppConstants.AppVersion} - {AppUpdateConstants.CheckingForUpdatesMessage}";
 
     /// <summary>
     /// Gets or sets a value indicating whether an update check is in progress.
@@ -148,6 +167,32 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private bool _hasPat;
 
     /// <summary>
+    /// Gets or sets the list of available versions (artifacts) for the subscribed item.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<ArtifactUpdateInfo> _availableVersions = [];
+
+    /// <summary>
+    /// Gets or sets the currently selected version (artifact) to install.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    private ArtifactUpdateInfo? _selectedVersion;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether versions are currently loading.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VersionPlaceholderText))]
+    private bool _isLoadingVersions;
+
+    /// <summary>
+    /// Gets the text to display as a placeholder in the version selection combo box.
+    /// </summary>
+    public string VersionPlaceholderText => IsLoadingVersions ? AppUpdateConstants.LoadingVersionsMessage : (AvailableVersions.Count > 0 ? AppUpdateConstants.SelectVersionMessage : AppUpdateConstants.NoVersionsFoundMessage);
+
+    /// <summary>
     /// Gets or sets a value indicating whether a merged/closed PR warning should be shown.
     /// </summary>
     [ObservableProperty]
@@ -161,17 +206,39 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the display string for the subscribed PR number.
     /// </summary>
-    public string SubscribedPrNumberDisplay => SubscribedPr?.Number.ToString() ?? "N/A";
+    public string SubscribedPrNumberDisplay => SubscribedPr?.Number.ToString() ?? AppUpdateConstants.NotAvailable;
 
     /// <summary>
     /// Gets the display string for the subscribed PR title.
     /// </summary>
-    public string SubscribedPrTitleDisplay => SubscribedPr?.Title ?? "N/A";
+    public string SubscribedPrTitleDisplay => SubscribedPr?.Title ?? AppUpdateConstants.NotAvailable;
 
     /// <summary>
     /// Gets the display string for the subscribed PR latest version.
     /// </summary>
-    public string SubscribedPrLatestVersionDisplay => SubscribedPr?.LatestArtifact?.DisplayVersion ?? "N/A";
+    public string SubscribedPrLatestVersionDisplay => SubscribedPr?.LatestArtifact?.DisplayVersion ?? AppUpdateConstants.NotAvailable;
+
+    /// <summary>
+    /// Forces a manual refresh of updates and artifacts.
+    /// </summary>
+    [RelayCommand]
+    private async Task ForceRefresh()
+    {
+        await CheckForUpdatesAsync();
+
+        // Also refresh PRs/Branches if in browse mode
+        if (HasPat)
+        {
+            await LoadPullRequestsAsync();
+            await LoadBranchesAsync();
+        }
+
+        // Refresh artifacts for current subscription
+        if (IsSubscribedToAny)
+        {
+            await LoadArtifactsForSubscribedItemAsync();
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateNotificationViewModel"/> class.
@@ -200,8 +267,64 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack (HasPat={HasPat})", HasPat);
 
+        // Monitor collection changes to update placeholder text
+        AvailableVersions.CollectionChanged += (s, e) => OnPropertyChanged(nameof(VersionPlaceholderText));
+
         // Automatically check for updates and load PRs when dialog opens
         _ = InitializeAsync();
+    }
+
+    private async Task LoadArtifactsForSubscribedItemAsync()
+    {
+        // Cancel any previous loading if possible, or just guard
+        if (IsLoadingVersions) return; // Simple guard, could be improved with cancellation token
+
+        IsLoadingVersions = true;
+        AvailableVersions.Clear();
+        SelectedVersion = null;
+
+        try
+        {
+            IReadOnlyList<ArtifactUpdateInfo> artifacts = [];
+
+            if (SubscribedPr != null)
+            {
+                artifacts = await _velopackUpdateManager.GetArtifactsForPullRequestAsync(SubscribedPr.Number, _cancellationTokenSource.Token);
+            }
+            else if (!string.IsNullOrEmpty(SubscribedBranch))
+            {
+                artifacts = await _velopackUpdateManager.GetArtifactsForBranchAsync(SubscribedBranch, _cancellationTokenSource.Token);
+            }
+
+            _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
+
+            // Use HashSet to prevent duplicates based on artifact ID
+            var addedArtifactIds = new HashSet<long>();
+            foreach (var artifact in artifacts)
+            {
+                if (addedArtifactIds.Add(artifact.ArtifactId))
+                {
+                    AvailableVersions.Add(artifact);
+                    _logger.LogDebug("Added artifact: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+                }
+                else
+                {
+                    _logger.LogWarning("Duplicate artifact detected in ViewModel: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+                }
+            }
+
+            _logger.LogInformation("Loaded {Count} artifacts into AvailableVersions", AvailableVersions.Count);
+
+            // Don't auto-select to avoid duplicate display in ComboBox
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load available versions");
+        }
+        finally
+        {
+            IsLoadingVersions = false;
+        }
     }
 
     /// <summary>
@@ -254,7 +377,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether an update is available and can be downloaded.
     /// </summary>
-    public bool CanDownloadUpdate => IsUpdateAvailable && !IsInstalling;
+    public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling;
 
     /// <summary>
     /// Gets a value indicating whether the check button should be enabled.
@@ -315,6 +438,31 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Extracts the workflow run number from a version string like "0.0.641-pr241".
+    /// </summary>
+    private static int ExtractRunNumber(string version)
+    {
+        // Try to extract the run number before the PR suffix
+        var match = System.Text.RegularExpressions.Regex.Match(version, @"(\d+)(?:-pr\d+|-\w+)?$");
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var runNumber))
+        {
+            return runNumber;
+        }
+
+        // Fallback: try to parse the entire version as a number
+        var parts = version.Split('.', '-', '+');
+        foreach (var part in parts.Reverse())
+        {
+            if (int.TryParse(part, out var number))
+            {
+                return number;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
     /// Checks for updates asynchronously using Velopack.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -343,7 +491,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     var currentVersionBase = CurrentAppVersion.Split('+')[0];
                     var prVersionBase = SubscribedPr.LatestArtifact.Version.Split('+')[0];
 
-                    if (!string.Equals(prVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
+                    // Extract run numbers for numeric comparison
+                    var currentRun = ExtractRunNumber(currentVersionBase);
+                    var prRun = ExtractRunNumber(prVersionBase);
+
+                    _logger.LogDebug("Comparing PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
+
+                    if (prRun > currentRun)
                     {
                         var settings = _userSettingsService.Get();
                         if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
@@ -352,7 +506,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                             LatestVersion = prVersionBase;
                             ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
                             StatusMessage = $"New PR build available: {SubscribedPr.LatestArtifact.DisplayVersion}";
-                            _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: {Version}", SubscribedPr.Number, LatestVersion);
+                            _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
                             return;
                         }
                         else
@@ -378,7 +532,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         var currentVersionBase = CurrentAppVersion.Split('+')[0];
                         var prVersionBase = prArtifact.Version.Split('+')[0];
 
-                        if (!string.Equals(prVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
+                        // Extract run numbers for numeric comparison
+                        var currentRun = ExtractRunNumber(currentVersionBase);
+                        var prRun = ExtractRunNumber(prVersionBase);
+
+                        _logger.LogDebug("Comparing fetched PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
+
+                        if (prRun > currentRun)
                         {
                             var settings = _userSettingsService.Get();
                             if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
@@ -387,7 +547,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                                 LatestVersion = prVersionBase;
                                 ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
                                 StatusMessage = $"New PR build available: {prArtifact.DisplayVersion}";
-                                _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: {Version}", SubscribedPr.Number, LatestVersion);
+                                _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
                                 return;
                             }
                             else
@@ -404,7 +564,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         }
                     }
 
-                    // If no artifact, fall through to branch/main
+                    // If subscribed to PR but no artifact found, don't fall through to main release
+                    _logger.LogInformation("Subscribed to PR #{PrNumber} but no artifact available yet", SubscribedPr.Number);
+                    StatusMessage = $"Waiting for PR #{SubscribedPr.Number} build...";
+                    IsUpdateAvailable = false;
+                    return;
                 }
             }
 
@@ -439,6 +603,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         return;
                     }
                 }
+
+                // If subscribed to branch but no artifact found, don't fall through to main release
+                _logger.LogInformation("Subscribed to branch '{Branch}' but no artifact available yet", SubscribedBranch);
+                StatusMessage = $"Waiting for {SubscribedBranch} build...";
+                IsUpdateAvailable = false;
+                return;
             }
 
             // Check main branch releases
@@ -560,7 +730,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // 1. Handle PR Artifact Update
+        // 0. Handle Explicitly Selected Version
+        if (SelectedVersion != null)
+        {
+            _logger.LogInformation("Installing selected artifact version: {Version}", SelectedVersion.DisplayVersion);
+            await InstallArtifactAsync(SelectedVersion);
+            return;
+        }
+
+        // 1. Handle PR Artifact Update (Auto-latest)
         if (SubscribedPr?.LatestArtifact != null &&
             string.Equals(SubscribedPr.LatestArtifact.Version, LatestVersion, StringComparison.OrdinalIgnoreCase))
         {
@@ -569,7 +747,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // 1.5 Handle Branch Artifact Update
+        // 1.5 Handle Branch Artifact Update (Auto-latest)
         if (!string.IsNullOrEmpty(SubscribedBranch))
         {
             _logger.LogInformation("Installing Branch '{Branch}' artifact update", SubscribedBranch);
@@ -582,14 +760,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         {
             _logger.LogError("Cannot install update - UpdateInfo is null (app not installed via Setup.exe)");
             HasError = true;
-            ErrorMessage = $"Update installation requires the app to be installed.\n\n" +
-                          $"You are running from: {AppDomain.CurrentDomain.BaseDirectory}\n\n" +
-                          $"To enable updates:\n" +
-                          $"1. Download GenHub-win-Setup.exe from GitHub releases\n" +
-                          $"2. Run Setup.exe to install GenHub properly\n" +
-                          $"3. Launch the installed version (will be in %LOCALAPPDATA%\\GenHub)\n\n" +
-                          $"Update available: v{LatestVersion}";
-            StatusMessage = "Cannot install from this location";
+            ErrorMessage = string.Format(AppUpdateConstants.UpdateInstallationRequiresAppInstalledMessage, AppDomain.CurrentDomain.BaseDirectory, LatestVersion);
+            StatusMessage = AppUpdateConstants.CannotInstallFromLocationMessage;
             return;
         }
 
@@ -598,8 +770,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             IsInstalling = true;
             HasError = false;
             ErrorMessage = string.Empty;
-            StatusMessage = "Downloading update...";
-            InstallationProgress = new UpdateProgress { Status = "Downloading...", PercentComplete = 0 };
+            StatusMessage = AppUpdateConstants.DownloadingUpdateMessage;
+            InstallationProgress = new UpdateProgress { Status = AppUpdateConstants.DownloadingUpdateMessage, PercentComplete = 0 };
 
             var progress = new Progress<UpdateProgress>(p =>
             {
@@ -613,10 +785,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             await _velopackUpdateManager.DownloadUpdatesAsync(_currentUpdateInfo, progress, _cancellationTokenSource.Token);
 
-            StatusMessage = "Update downloaded! Restarting application...";
+            StatusMessage = AppUpdateConstants.UpdateDownloadedRestartingMessage;
             InstallationProgress = new UpdateProgress
             {
-                Status = "Update complete! Restarting...",
+                Status = AppUpdateConstants.UpdateCompleteRestartingMessage,
                 PercentComplete = 100,
                 IsCompleted = true,
             };
@@ -630,10 +802,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to install update");
             HasError = true;
             ErrorMessage = $"Update failed: {ex.Message}";
-            StatusMessage = "Update failed";
+            StatusMessage = AppUpdateConstants.UpdateFailedMessage;
             InstallationProgress = new UpdateProgress
             {
-                Status = "Installation failed",
+                Status = AppUpdateConstants.InstallationFailedMessage,
                 HasError = true,
                 ErrorMessage = ex.Message,
             };
@@ -693,7 +865,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     _logger.LogWarning("No artifact found for PR #{Number}", SubscribedPr.Number);
                     HasError = true;
                     ErrorMessage = $"No artifact found for PR #{SubscribedPr.Number}";
-                    StatusMessage = "No artifact available";
+                    StatusMessage = AppUpdateConstants.NoArtifactAvailableMessage;
                     return;
                 }
             }
@@ -781,6 +953,50 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             HasError = true;
             ErrorMessage = $"Branch installation failed: {ex.Message}";
             StatusMessage = "Branch installation failed";
+            InstallationProgress = new UpdateProgress
+            {
+                Status = "Installation failed",
+                HasError = true,
+                ErrorMessage = ex.Message,
+            };
+        }
+        finally
+        {
+            IsInstalling = false;
+        }
+    }
+
+    private async Task InstallArtifactAsync(ArtifactUpdateInfo artifact)
+    {
+        IsInstalling = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
+        DownloadProgress = 0;
+
+        try
+        {
+            _logger.LogInformation("Installing artifact: {Name} ({Version})", artifact.ArtifactName, artifact.Version);
+
+            var progress = new Progress<UpdateProgress>(p =>
+            {
+                Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    InstallationProgress = p;
+                    StatusMessage = p.Status;
+                    DownloadProgress = p.PercentComplete;
+                });
+            });
+
+            await _velopackUpdateManager.InstallArtifactAsync(artifact, progress, _cancellationTokenSource.Token);
+
+            // App will restart
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to install artifact");
+            HasError = true;
+            ErrorMessage = $"Installation failed: {ex.Message}";
+            StatusMessage = "Installation failed";
             InstallationProgress = new UpdateProgress
             {
                 Status = "Installation failed",
@@ -982,12 +1198,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     partial void OnSubscribedBranchChanged(string? value)
     {
+        _ = LoadArtifactsForSubscribedItemAsync();
         OnPropertyChanged(nameof(IsSubscribedToAny));
         UpdateCommandStates();
     }
 
     partial void OnSubscribedPrChanged(PullRequestInfo? value)
     {
+        _ = LoadArtifactsForSubscribedItemAsync();
         OnPropertyChanged(nameof(IsSubscribedToAny));
         OnPropertyChanged(nameof(SubscribedPrNumberDisplay));
         OnPropertyChanged(nameof(SubscribedPrTitleDisplay));

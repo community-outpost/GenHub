@@ -59,6 +59,11 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubApiRunArtifactsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs/{2}/artifacts";
 
+    /// <summary>
+    /// Format string for GitHub API Workflow Runs endpoint (owner, repo).
+    /// </summary>
+    public const string GitHubApiWorkflowRunsAllFormat = "https://api.github.com/repos/{0}/{1}/actions/runs?status=success&per_page=20";
+
     // User agents
 
     /// <summary>

@@ -3,8 +3,8 @@
         xmlns:views="using:GenHub.Features.AppUpdate.Views"
         xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
         x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationWindow"
-        Width="900" Height="800"
-        MinWidth="750" MinHeight="580"
+        Width="1200" Height="800"
+        MinWidth="700" MinHeight="520"
         Title="GenHub Updates"
         Icon="/Assets/Icons/generalshub-icon.png"
         WindowStartupLocation="CenterScreen"
@@ -16,25 +16,30 @@
         ExtendClientAreaTitleBarHeightHint="-1"
         CanResize="True"
         x:DataType="vm:UpdateNotificationViewModel">
-    
+
     <Window.Styles>
         <Style Selector="Grid.TitleBarArea">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Height" Value="40"/>
         </Style>
     </Window.Styles>
-    
+
     <Grid>
         <!-- Background with corner radius -->
-        <Border CornerRadius="8" BoxShadow="0 4 20 0 #50000000">
-            <Border.Background>
+        <Border CornerRadius="12"
+                BorderThickness="1"
+                BoxShadow="0 8 32 0 #60000000">
+            <Border.BorderBrush>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Color="#1E1E1E" Offset="0" />
-                    <GradientStop Color="#1A1A1A" Offset="1" />
+                    <GradientStop Color="#7C4DFF" Offset="0" />
+                    <GradientStop Color="#E040FB" Offset="1" />
                 </LinearGradientBrush>
+            </Border.BorderBrush>
+            <Border.Background>
+                <SolidColorBrush Color="#101010" Opacity="0.85" />
             </Border.Background>
         </Border>
-        
+
         <!-- Main content -->
         <Grid RowDefinitions="Auto,*,Auto">
             <!-- Custom title bar -->
@@ -54,7 +59,7 @@
                               FontSize="16" FontWeight="SemiBold"
                               Foreground="White" />
                 </StackPanel>
-                
+
                 <!-- Window Controls-->
                 <Button Grid.Column="2"
                         VerticalAlignment="Center"
@@ -91,15 +96,6 @@
                 <views:UpdateNotificationView DataContext="{Binding}" />
             </Border>
 
-            <!-- Bottom bar with app info -->
-            <Grid Grid.Row="2" Height="40" Margin="12">
-                <TextBlock Text="{Binding CurrentAppVersion, StringFormat={}GenHub v{0}}"
-                          Opacity="0.7"
-                          FontSize="12"
-                          Foreground="White"
-                          HorizontalAlignment="Right"
-                          VerticalAlignment="Center" />
-            </Grid>
         </Grid>
     </Grid>
 </Window>
