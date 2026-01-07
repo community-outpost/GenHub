@@ -41,7 +41,7 @@ internal static class Program
         {
             if (args.Length < 2 || args.Contains("--help"))
             {
-                logger.LogInformation("Usage: GenHub.Tools --installDir <path> --gameType <Generals|ZeroHour> --version <v> --output <file> [--language <code/All>]");
+                logger.LogInformation("Usage: GenHub.Tools --installDir <path> --gameType <Generals|ZeroHour> --version <v> --output <file> [--language <code>]");
                 return;
             }
 
@@ -221,11 +221,59 @@ internal class CsvGenerator
             return true;
         }
 
-        // Check for language specific files by name patterns
-        var languageNames = new[] { "English", "German", "French", "Spanish", "Italian", "Korean", "Polish", "Portuguese", "Chinese" };
-        foreach (var lang in languageNames)
+        // Check for language-specific directory patterns
+        var languageDirectories = new[]
         {
-            if (relativePath.Contains(lang, StringComparison.OrdinalIgnoreCase))
+            "Data/english", "Data/English",
+            "Data/german", "Data/deutsch",
+            "Data/french",
+            "Data/spanish",
+            "Data/italian",
+            "Data/korean",
+            "Data/polish",
+            "Data/portuguese",
+            "Data/chinese",
+            "Data/chinese-traditional",
+        };
+
+        foreach (var dir in languageDirectories)
+        {
+            if (relativePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        // Check for language-specific .big file patterns
+        // Format: {Language}.big, Audio{Language}.big, Speech{Language}.big
+        // Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW
+        var languageFilePatterns = new[]
+        {
+            // English
+            "English.big", "AudioEnglish.big", "SpeechEnglish.big", "EnglishZH.big",
+            // German
+            "German.big", "AudioGerman.big", "GermanZH.big",
+            // French
+            "French.big", "AudioFrench.big", "FrenchZH.big",
+            // Spanish
+            "Spanish.big", "AudioSpanish.big", "SpanishZH.big",
+            // Italian
+            "Italian.big", "AudioItalian.big", "ItalianZH.big",
+            // Korean
+            "Korean.big", "AudioKorean.big", "KoreanZH.big",
+            // Polish
+            "Polish.big", "AudioPolish.big", "PolishZH.big",
+            // Portuguese-Brazil (PT-BR)
+            "PortugueseBrazil.big", "AudioPortugueseBrazil.big", "PortugueseZH.big",
+            // Chinese Simplified (ZH-CN)
+            "Chinese.big", "AudioChinese.big", "ChineseZH.big",
+            // Chinese Traditional (ZH-TW)
+            "ChineseTraditional.big", "AudioChineseTraditional.big",
+        };
+
+        foreach (var pattern in languageFilePatterns)
+        {
+            if (relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -259,16 +307,48 @@ internal class CsvGenerator
 
     private bool IsRequiredFile(string relativePath)
     {
-        var requiredFiles = new[]
+        // Language-agnostic required files - core game files
+        var coreRequiredFiles = new[]
         {
-                "game.exe",
-                "game.dat",
-                "Data/INI/GameData.ini",
-                "Data/INI/English.ini", // This might be considered required if language is English
-                "Data/Lang/English/game.str",
+            "game.exe",
+            "game.dat",
+            "Data/INI/GameData.ini",
         };
 
-        return requiredFiles.Any(rf => relativePath.EndsWith(rf, StringComparison.OrdinalIgnoreCase));
+        if (coreRequiredFiles.Any(rf => relativePath.EndsWith(rf, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // Language-specific INI files (e.g., English.ini, German.ini, French.ini, etc.)
+        // Pattern: Data/INI/{Language}.ini
+        if (relativePath.StartsWith("Data/INI/", StringComparison.OrdinalIgnoreCase) &&
+            relativePath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+        {
+            var fileName = Path.GetFileName(relativePath);
+            var languageNames = new[]
+            {
+                "English.ini", "German.ini", "French.ini", "Spanish.ini",
+                "Italian.ini", "Korean.ini", "Polish.ini",
+                "PortugueseBrazil.ini", "Portuguese.ini",
+                "Chinese.ini", "ChineseTraditional.ini"
+            };
+
+            if (languageNames.Any(ln => fileName.Equals(ln, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
+        // Language-specific string files (e.g., Data/Lang/English/game.str, Data/Lang/German/game.str)
+        // Pattern: Data/Lang/{Language}/game.str
+        if (relativePath.StartsWith("Data/Lang/", StringComparison.OrdinalIgnoreCase) &&
+            relativePath.EndsWith("/game.str", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private string GetFileMetadata(string relativePath)
