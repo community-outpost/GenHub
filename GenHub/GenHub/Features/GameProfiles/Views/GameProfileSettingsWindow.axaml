@@ -356,7 +356,9 @@
                 CornerRadius="0,0,16,16"
                 Height="70"
                 Opacity="0.7"
-                PointerPressed="OnHeaderPointerPressed">
+                PointerPressed="OnHeaderPointerPressed"
+                PointerMoved="OnHeaderPointerMoved"
+                PointerReleased="OnHeaderPointerReleased">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0">
                 <!-- Profile Icon -->
                 <Border Grid.Column="0"
