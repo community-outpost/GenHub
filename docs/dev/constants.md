@@ -253,7 +253,7 @@ Constants related to manifest ID generation, validation, and file operations.
 **Publisher Content Regex Pattern (5-segment format):**
 
 ```regex
-^\d+\.\d+\.[a-z0-9]+\.(gameinstallation|gameclient|mod|patch|addon|mappack|languagepack|contentbundle|publisherreferral|contentreferral|mission|map|unknown)\.[a-z0-9-]+$
+^\d+\.\d+\.[a-z0-9]+\.(gameinstallation|gameclient|mod|patch|addon|mappack|languagepack|contentbundle|publisherreferral|contentreferral|mission|map|moddingtool|unknown)\.[a-z0-9-]+$
 ```
 
 **Pattern Explanation:**
@@ -262,7 +262,7 @@ Constants related to manifest ID generation, validation, and file operations.
   - Segment 1: Schema version (digits only)
   - Segment 2: User version (digits only)
   - Segment 3: Publisher (lowercase alphanumeric)
-  - Segment 4: Content type (enumerated values like gameinstallation, mod, etc.)
+  - Segment 4: Content type (enumerated values like gameinstallation, mod, moddingtool, etc.)
   - Segment 5: Content name (lowercase alphanumeric with dashes)
 
 **Note**: The SimpleIdRegex pattern has been removed. All manifest IDs must now use the strict 5-segment format. The `MinManifestSegments` constant is now set to 5 (previously 1).

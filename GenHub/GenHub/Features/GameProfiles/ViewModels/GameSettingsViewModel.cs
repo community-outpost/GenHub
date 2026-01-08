@@ -279,6 +279,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             // Auto-select game type from profile
             if (profile != null)
             {
+                if (profile.IsToolProfile)
+                {
+                    StatusMessage = "Settings are not applicable for Tool profiles";
+                    _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
+                    return;
+                }
+
                 SelectedGameType = profile.GameClient.GameType;
                 _logger.LogInformation(
                     "Auto-selected game type {GameType} for profile {ProfileId}",

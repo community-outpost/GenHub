@@ -56,6 +56,7 @@ The content system follows a layered architecture with clear separation of conce
 - LanguagePack: Translation files
 - Mission: Campaign missions
 - Map: Individual maps
+- ModdingTool: Standalone modding utilities and tools
 - ContentBundle: Meta-packages
 
 ## Content Pipeline
@@ -107,10 +108,10 @@ Factories self-identify via `CanHandle(manifest)`:
 
 ### Benefits
 
-✅ Add new publishers without modifying core code  
-✅ Support complex release structures (multi-game, multi-variant)  
-✅ Isolate publisher-specific logic  
-✅ Easy testing with mock factories  
+✅ Add new publishers without modifying core code
+✅ Support complex release structures (multi-game, multi-variant)
+✅ Isolate publisher-specific logic
+✅ Easy testing with mock factories
 
 See [Publisher Manifest Factories](./publisher-manifest-factories.md) for detailed documentation.
 

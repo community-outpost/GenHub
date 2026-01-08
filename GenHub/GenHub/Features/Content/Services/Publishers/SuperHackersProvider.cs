@@ -92,7 +92,7 @@ public class SuperHackersProvider(
                     var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
                         SuperHackersConstants.GeneralsGameCodeOwner,
                         SuperHackersConstants.GeneralsGameCodeRepo,
-                        ContentType.GameClient, // Assume GameClient for SuperHackers
+                        ContentType.ModdingTool, // Changed to ModdingTool to allow standalone launch
                         latestRelease.TagName);
 
                     var result = new ContentSearchResult
@@ -102,7 +102,7 @@ public class SuperHackersProvider(
                         Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
                         Version = latestRelease.TagName ?? "latest",
                         AuthorName = SuperHackersConstants.GeneralsGameCodeOwner,
-                        ContentType = ContentType.GameClient,
+                        ContentType = ContentType.ModdingTool,
                         TargetGame = GameType.Generals, // Simplification, could infer
                         IsInferred = false,
                         ProviderName = SourceName,

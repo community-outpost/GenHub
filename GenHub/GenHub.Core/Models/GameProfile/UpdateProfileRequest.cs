@@ -73,6 +73,11 @@ public class UpdateProfileRequest
     public string? GameInstallationId { get; set; }
 
     /// <summary>
+    /// Gets or sets the tool content ID for Tool profiles.
+    /// </summary>
+    public string? ToolContentId { get; set; }
+
+    /// <summary>
     /// Gets or sets the command line arguments to pass to the game executable.
     /// </summary>
     public string? CommandLineArguments { get; set; }

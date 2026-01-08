@@ -4,7 +4,10 @@ using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.GameProfile;
 
-/// <summary>Represents a request to create a new game profile.</summary>
+/// <summary>
+/// Represents a request to create a new game profile.
+/// For Tool profiles (ModdingTool content type), GameInstallationId and GameClientId are not required.
+/// </summary>
 public class CreateProfileRequest
 {
     /// <summary>Gets or sets the profile name.</summary>
@@ -13,7 +16,10 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the profile description.</summary>
     public string? Description { get; set; }
 
-    /// <summary>Gets or sets the game installation ID.</summary>
+    /// <summary>
+    /// Gets or sets the game installation ID.
+    /// Not required for Tool profiles (ModdingTool content type).
+    /// </summary>
     public string? GameInstallationId { get; set; }
 
     /// <summary>Gets or sets the game version ID.</summary>

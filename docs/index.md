@@ -42,6 +42,9 @@ features:
   - title: Maintenance Tools
     details: Built-in "Danger Zone" for deep cleaning of CAS storage, workspaces, and metadata.
     icon: 🛡️
+  - title: Tool Support
+    details: Create profiles for standalone executables like WorldBuilder or modding utilities, with specialized direct-launch logic.
+    icon: 🛠️
   - title: Developer Friendly
     details: Clean architecture, comprehensive testing, and extensive documentation for contributors.
     icon: 👥

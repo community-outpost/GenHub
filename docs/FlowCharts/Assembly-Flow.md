@@ -74,29 +74,29 @@ graph TB
 
     A -->|Input| B
     B -->|Configure| C
-    
+
     C -->|Select| D1
     C -->|Select| D2
     C -->|Select| D3
     C -->|Select| D4
-    
+
     D1 -->|Execute| E1
     D2 -->|Execute| E1
     D3 -->|Execute| E1
     D4 -->|Execute| E1
-    
+
     E1 -->|Process| E2
-    
+
     E2 -->|Copy Type| F1
     E2 -->|Symlink Type| F2
     E2 -->|Remote Type| F3
     E2 -->|Patch Type| F4
-    
+
     F1 -->|Complete| G
     F2 -->|Complete| G
     F3 -->|Complete| G
     F4 -->|Complete| G
-    
+
     G -->|All Done| H
     H -->|Generate| I
     I -->|Finalize| J
@@ -113,6 +113,9 @@ graph TB
     class F1,F2,F3,F4 operations
     class G,H,I,J result
 ```
+
+> [!NOTE]
+> **Tool Profile Bypass**: For profiles identified as `IsToolProfile` (containing exactly one `ModdingTool` content), the entire Workspace Assembly layer is bypassed. The system instead launches the tool executable directly from the content storage directory.
 
 **Strategy Comparison Matrix:**
 

@@ -5,7 +5,10 @@ using GenHub.Core.Models.GameClients;
 
 namespace GenHub.Core.Models.GameProfile;
 
-/// <summary>Represents a user-defined game configuration combining game installation with selected content.</summary>
+/// <summary>
+/// Represents a user-defined game configuration combining game installation with selected content,
+/// or a Tool profile for standalone executables (ModdingTool content type).
+/// </summary>
 public class GameProfile : IGameProfile
 {
     /// <summary>Gets or sets the unique identifier for this profile.</summary>
@@ -26,11 +29,26 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets the path to the executable for this profile.</summary>
     public string ExecutablePath { get; set; } = string.Empty;
 
-    /// <summary>Gets or sets the game installation ID for this profile.</summary>
+    /// <summary>
+    /// Gets or sets the game installation ID for this profile.
+    /// Not required for Tool profiles (profiles with ToolContentId set).
+    /// </summary>
     public string GameInstallationId { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the list of enabled content manifest IDs for this profile.</summary>
     public List<string> EnabledContentIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the tool content ID for Tool profiles.
+    /// Tool profiles have exactly one ModdingTool content and bypass GameInstallation requirements.
+    /// </summary>
+    public string? ToolContentId { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether this is a Tool profile (standalone executable without game installation).
+    /// Tool profiles have a ToolContentId and no GameInstallationId.
+    /// </summary>
+    public bool IsToolProfile => !string.IsNullOrWhiteSpace(ToolContentId);
 
     /// <summary>Gets or sets the workspace strategy for this profile.</summary>
     public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;

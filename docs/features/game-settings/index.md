@@ -7,6 +7,9 @@ description: Comprehensive game configuration management for Options.ini setting
 
 GenHub provides comprehensive management of game settings through the `Options.ini` file, supporting all configuration options for Command & Conquer Generals and Zero Hour. Settings are profile-specific, allowing each game profile to have its own custom configuration.
 
+> [!NOTE]
+> **Tool Profiles**: For profiles identified as `IsToolProfile`, game settings (`Options.ini`) are neither loaded nor applied, as these profiles launch standalone tools that do not rely on the base game configuration.
+
 ## Overview
 
 The game settings system handles:
@@ -154,12 +157,12 @@ public class NetworkSettings
   - Used for LAN and online multiplayer
   - Format: IPv4 address (e.g., `192.168.1.100`)
   - Default: `null` (auto-detect)
-  
+
   **Use Cases**:
   - **LAN Play**: Set to local IP address for LAN games
   - **Online Play**: Set to server IP for custom online services
   - **GenPatcher Integration**: Used by community patches for online functionality
-  
+
   **Example**:
   ```csharp
   profile.GameSpyIPAddress = "192.168.1.100"; // LAN IP
@@ -215,15 +218,15 @@ public interface IGameSettingsService
 {
     // Load settings from Options.ini
     Task<OperationResult<IniOptions>> LoadSettingsAsync(
-        GameType gameType, 
+        GameType gameType,
         CancellationToken cancellationToken = default);
-    
+
     // Save settings to Options.ini
     Task<OperationResult> SaveSettingsAsync(
-        IniOptions options, 
-        GameType gameType, 
+        IniOptions options,
+        GameType gameType,
         CancellationToken cancellationToken = default);
-    
+
     // Get default settings
     IniOptions GetDefaultSettings();
 }
@@ -363,8 +366,8 @@ Provides UI controls for editing game settings:
 **Example XAML** (Network Settings):
 
 ```xml
-<TextBox 
-    Text="{Binding GameSpyIPAddress}" 
+<TextBox
+    Text="{Binding GameSpyIPAddress}"
     Watermark="192.168.1.100 or server.example.com"
     ToolTip.Tip="IP address for GameSpy/networking services (LAN or online play)" />
 ```
@@ -421,7 +424,7 @@ if (!string.IsNullOrEmpty(GameSpyIPAddress) && !IsValidIPAddress(GameSpyIPAddres
 
 4. **Log Setting Changes**: Track when settings are modified for debugging
    ```csharp
-   logger.LogInformation("Updated GameSpyIPAddress from {Old} to {New}", 
+   logger.LogInformation("Updated GameSpyIPAddress from {Old} to {New}",
        oldValue, newValue);
    ```
 
