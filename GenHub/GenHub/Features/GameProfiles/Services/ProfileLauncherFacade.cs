@@ -151,7 +151,7 @@ public class ProfileLauncherFacade(
 
                     // Define a base path for the workspace - for tools we can use a temp dir or app data
                     // WorkspaceManager requires a BaseInstallationPath, even if empty for tools
-                    var appDataBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+                    var appDataBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
                     if (!Directory.Exists(appDataBase)) Directory.CreateDirectory(appDataBase);
 
                     var baseDetails = appDataBase;
@@ -165,7 +165,7 @@ public class ProfileLauncherFacade(
                         ForceRecreate = false,
                         ValidateAfterPreparation = true,
                         BaseInstallationPath = baseDetails, // Dummy base
-                        WorkspaceRootPath = Path.Combine(appDataBase, "ToolWorkspaces"),
+                        WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
                         SkipCleanup = false,
                     };
 
@@ -235,7 +235,7 @@ public class ProfileLauncherFacade(
                     {
                         LaunchId = launchId,
                         ProfileId = profile.Id,
-                        WorkspaceId = "tool-profile", // Tool profiles don't use workspaces
+                        WorkspaceId = ProfileConstants.ToolProfileWorkspaceId, // Tool profiles don't use workspaces
                         ProcessInfo = new GameProcessInfo
                         {
                             ProcessId = process.Id,

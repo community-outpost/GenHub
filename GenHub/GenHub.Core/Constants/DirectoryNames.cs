@@ -54,4 +54,9 @@ public static class DirectoryNames
     /// Directory for storing workspaces.
     /// </summary>
     public const string Workspaces = "Workspaces";
+
+    /// <summary>
+    /// Directory for storing tool workspaces.
+    /// </summary>
+    public const string ToolWorkspaces = "ToolWorkspaces";
 }

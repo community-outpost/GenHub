@@ -281,7 +281,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             {
                 if (profile.IsToolProfile)
                 {
-                    StatusMessage = "Settings are not applicable for Tool profiles";
+                    StatusMessage = ProfileValidationConstants.ToolProfileSettingsNotApplicable;
                     _logger.LogInformation("Skipping settings load for Tool profile {ProfileId}", profileId);
                     return;
                 }

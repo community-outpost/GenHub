@@ -39,4 +39,9 @@ public static class ProfileValidationConstants
     /// The maximum total content items allowed for a Tool profile.
     /// </summary>
     public const int ToolProfileMaxContentItems = 1;
+
+    /// <summary>
+    /// Message shown when settings are accessed for a Tool profile.
+    /// </summary>
+    public const string ToolProfileSettingsNotApplicable = "Settings are not applicable for Tool profiles";
 }
