@@ -7,10 +7,10 @@ namespace GenHub.Tools;
 using System.Security.Cryptography;
 using CsvHelper;
 using CsvHelper.Configuration;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
+
 using Newtonsoft.Json;
 
 // StyleCop suppressions for utility classes in single file
@@ -85,6 +85,12 @@ internal static class Program
             arguments["language"] = "EN";
         }
 
+        // make sure language code is uppercase
+        else
+        {
+            arguments["language"] = arguments["language"].ToUpperInvariant();
+        }
+
         return arguments;
     }
 
@@ -99,8 +105,6 @@ internal static class Program
             }
         }
     }
-
-
 }
 
 /// <summary>
@@ -224,16 +228,16 @@ internal class CsvGenerator
         // Check for language-specific directory patterns
         var languageDirectories = new[]
         {
-            "Data/english", "Data/English",
-            "Data/german", "Data/deutsch",
-            "Data/french",
-            "Data/spanish",
-            "Data/italian",
-            "Data/korean",
-            "Data/polish",
-            "Data/portuguese",
-            "Data/chinese",
-            "Data/chinese-traditional",
+            LanguageDirectoryNames.DataEnglish, LanguageDirectoryNames.DataEnglishUppercase,
+            LanguageDirectoryNames.DataGerman, LanguageDirectoryNames.DataDeutsch,
+            LanguageDirectoryNames.DataFrench,
+            LanguageDirectoryNames.DataSpanish,
+            LanguageDirectoryNames.DataItalian,
+            LanguageDirectoryNames.DataKorean,
+            LanguageDirectoryNames.DataPolish,
+            LanguageDirectoryNames.DataPortuguese,
+            LanguageDirectoryNames.DataChinese,
+            LanguageDirectoryNames.DataChineseTraditional,
         };
 
         foreach (var dir in languageDirectories)
@@ -249,26 +253,25 @@ internal class CsvGenerator
         // Supported: EN, DE, FR, ES, IT, KO, PL, PT-BR, ZH-CN, ZH-TW
         var languageFilePatterns = new[]
         {
-            // English
-            "English.big", "AudioEnglish.big", "SpeechEnglish.big", "EnglishZH.big",
-            // German
-            "German.big", "AudioGerman.big", "GermanZH.big",
-            // French
-            "French.big", "AudioFrench.big", "FrenchZH.big",
-            // Spanish
-            "Spanish.big", "AudioSpanish.big", "SpanishZH.big",
-            // Italian
-            "Italian.big", "AudioItalian.big", "ItalianZH.big",
-            // Korean
-            "Korean.big", "AudioKorean.big", "KoreanZH.big",
-            // Polish
-            "Polish.big", "AudioPolish.big", "PolishZH.big",
-            // Portuguese-Brazil (PT-BR)
-            "PortugueseBrazil.big", "AudioPortugueseBrazil.big", "PortugueseZH.big",
-            // Chinese Simplified (ZH-CN)
-            "Chinese.big", "AudioChinese.big", "ChineseZH.big",
-            // Chinese Traditional (ZH-TW)
-            "ChineseTraditional.big", "AudioChineseTraditional.big",
+            LanguageFilePatterns.EnglishBig, LanguageFilePatterns.AudioEnglishBig, LanguageFilePatterns.SpeechEnglishBig, LanguageFilePatterns.EnglishZHBig,
+
+            LanguageFilePatterns.GermanBig, LanguageFilePatterns.AudioGermanBig, LanguageFilePatterns.GermanZHBig,
+
+            LanguageFilePatterns.FrenchBig, LanguageFilePatterns.AudioFrenchBig, LanguageFilePatterns.FrenchZHBig,
+
+            LanguageFilePatterns.SpanishBig, LanguageFilePatterns.AudioSpanishBig, LanguageFilePatterns.SpanishZHBig,
+
+            LanguageFilePatterns.ItalianBig, LanguageFilePatterns.AudioItalianBig, LanguageFilePatterns.ItalianZHBig,
+
+            LanguageFilePatterns.KoreanBig, LanguageFilePatterns.AudioKoreanBig, LanguageFilePatterns.KoreanZHBig,
+
+            LanguageFilePatterns.PolishBig, LanguageFilePatterns.AudioPolishBig, LanguageFilePatterns.PolishZHBig,
+
+            LanguageFilePatterns.PortugueseBrazilBig, LanguageFilePatterns.AudioPortugueseBrazilBig, LanguageFilePatterns.PortugueseZHBig,
+
+            LanguageFilePatterns.ChineseBig, LanguageFilePatterns.AudioChineseBig, LanguageFilePatterns.ChineseZHBig,
+
+            LanguageFilePatterns.ChineseTraditionalBig, LanguageFilePatterns.AudioChineseTraditionalBig,
         };
 
         foreach (var pattern in languageFilePatterns)
@@ -288,7 +291,7 @@ internal class CsvGenerator
         using var md5 = MD5.Create();
         using var sha256 = SHA256.Create();
 
-        var buffer = new byte[8192];
+        var buffer = new byte[IoConstants.DefaultFileBufferSize];
         int bytesRead;
 
         while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
@@ -328,10 +331,10 @@ internal class CsvGenerator
             var fileName = Path.GetFileName(relativePath);
             var languageNames = new[]
             {
-                "English.ini", "German.ini", "French.ini", "Spanish.ini",
-                "Italian.ini", "Korean.ini", "Polish.ini",
-                "PortugueseBrazil.ini", "Portuguese.ini",
-                "Chinese.ini", "ChineseTraditional.ini"
+                LanguageFilePatterns.EnglishIni, LanguageFilePatterns.GermanIni, LanguageFilePatterns.FrenchIni, LanguageFilePatterns.SpanishIni,
+                LanguageFilePatterns.ItalianIni, LanguageFilePatterns.KoreanIni, LanguageFilePatterns.PolishIni,
+                LanguageFilePatterns.PortugueseBrazilIni, LanguageFilePatterns.PortugueseIni,
+                LanguageFilePatterns.ChineseIni, LanguageFilePatterns.ChineseTraditionalIni,
             };
 
             if (languageNames.Any(ln => fileName.Equals(ln, StringComparison.OrdinalIgnoreCase)))
