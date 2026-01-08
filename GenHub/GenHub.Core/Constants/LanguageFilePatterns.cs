@@ -209,4 +209,9 @@ public static class LanguageFilePatterns
     /// File pattern for Traditional Chinese INI files: "ChineseTraditional.ini".
     /// </summary>
     public const string ChineseTraditionalIni = "ChineseTraditional.ini";
+
+    /// <summary>
+    /// File pattern for game string files: "game.str".
+    /// </summary>
+    public const string GameStr = "game.str";
 }

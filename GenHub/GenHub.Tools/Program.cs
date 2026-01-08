@@ -220,7 +220,7 @@ internal class CsvGenerator
     private bool IsLanguageSpecific(string relativePath)
     {
         // Check for Language folder
-        if (relativePath.StartsWith("Data/Lang/", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith(LanguageDirectoryNames.DataLang, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -313,9 +313,8 @@ internal class CsvGenerator
         // Language-agnostic required files - core game files
         var coreRequiredFiles = new[]
         {
-            "game.exe",
-            "game.dat",
-            "Data/INI/GameData.ini",
+            GameClientConstants.GameExecutable,
+            GameClientConstants.SteamGameDatExecutable,
         };
 
         if (coreRequiredFiles.Any(rf => relativePath.EndsWith(rf, StringComparison.OrdinalIgnoreCase)))
@@ -325,7 +324,7 @@ internal class CsvGenerator
 
         // Language-specific INI files (e.g., English.ini, German.ini, French.ini, etc.)
         // Pattern: Data/INI/{Language}.ini
-        if (relativePath.StartsWith("Data/INI/", StringComparison.OrdinalIgnoreCase) &&
+        if (relativePath.StartsWith(LanguageDirectoryNames.DataIni, StringComparison.OrdinalIgnoreCase) &&
             relativePath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
         {
             var fileName = Path.GetFileName(relativePath);
@@ -345,8 +344,8 @@ internal class CsvGenerator
 
         // Language-specific string files (e.g., Data/Lang/English/game.str, Data/Lang/German/game.str)
         // Pattern: Data/Lang/{Language}/game.str
-        if (relativePath.StartsWith("Data/Lang/", StringComparison.OrdinalIgnoreCase) &&
-            relativePath.EndsWith("/game.str", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith(LanguageDirectoryNames.DataLang, StringComparison.OrdinalIgnoreCase) &&
+            relativePath.EndsWith(LanguageFilePatterns.GameStr, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -360,29 +359,29 @@ internal class CsvGenerator
 
         if (relativePath.StartsWith("Data/INI/", StringComparison.OrdinalIgnoreCase))
         {
-            metadata["category"] = "config";
+            metadata["category"] = FileCategoryConstants.Config;
         }
         else if (relativePath.StartsWith("Data/Lang/", StringComparison.OrdinalIgnoreCase))
         {
-            metadata["category"] = "language";
+            metadata["category"] = FileCategoryConstants.Language;
         }
-        else if (relativePath.StartsWith("Data/Maps/", StringComparison.OrdinalIgnoreCase))
+        else if (relativePath.StartsWith(LanguageDirectoryNames.DataMap, StringComparison.OrdinalIgnoreCase))
         {
-            metadata["category"] = "maps";
+            metadata["category"] = FileCategoryConstants.Maps;
         }
         else if (relativePath.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) ||
                  relativePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
         {
-            metadata["category"] = "audio";
+            metadata["category"] = FileCategoryConstants.Audio;
         }
         else if (relativePath.EndsWith(".w3d", StringComparison.OrdinalIgnoreCase) ||
                  relativePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
         {
-            metadata["category"] = "graphics";
+            metadata["category"] = FileCategoryConstants.Graphics;
         }
         else
         {
-            metadata["category"] = "other";
+            metadata["category"] = FileCategoryConstants.Other;
         }
 
         return JsonConvert.SerializeObject(metadata);
