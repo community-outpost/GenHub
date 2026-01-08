@@ -11,6 +11,16 @@ public static class LanguageDirectoryNames
     public const string DataEnglish = "Data/english";
 
     /// <summary>
+    /// Directory path for language data: "Data/lang".
+    /// </summary>
+    public const string DataLang = "Data/lang";
+
+    /// <summary>
+    /// Directory path for INI data: "Data/INI/".
+    /// </summary>
+    public const string DataIni = "Data/INI/";
+
+    /// <summary>
     /// Directory path for capitalized English data: "Data/English".
     /// </summary>
     public const string DataEnglishUppercase = "Data/English";
@@ -64,4 +74,9 @@ public static class LanguageDirectoryNames
     /// Directory path for Traditional Chinese data: "Data/chinese-traditional".
     /// </summary>
     public const string DataChineseTraditional = "Data/chinese-traditional";
+
+    /// <summary>
+    /// Directory path for map data: "Data/map".
+    /// </summary>
+    public const string DataMap = "Data/map";
 }
