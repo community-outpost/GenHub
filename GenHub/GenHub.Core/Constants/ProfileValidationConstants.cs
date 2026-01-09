@@ -44,4 +44,9 @@ public static class ProfileValidationConstants
     /// Message shown when settings are accessed for a Tool profile.
     /// </summary>
     public const string ToolProfileSettingsNotApplicable = "Settings are not applicable for Tool profiles";
+
+    /// <summary>
+    /// Message shown when invalid parameters are passed to tool profile validation.
+    /// </summary>
+    public const string InvalidToolProfileParameters = "Invalid parameters for Tool Profile validation";
 }

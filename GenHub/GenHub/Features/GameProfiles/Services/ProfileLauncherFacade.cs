@@ -107,7 +107,7 @@ public class ProfileLauncherFacade(
                 // Get the tool manifest
                 if (string.IsNullOrWhiteSpace(profile.ToolContentId))
                 {
-                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Tool profile has no ToolContentId set");
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProfileMissingContentId);
                 }
 
                 var toolManifestResult = await manifestPool.GetManifestAsync(
@@ -533,7 +533,7 @@ public class ProfileLauncherFacade(
                 // Tool profiles only need to have the ToolContentId set
                 if (string.IsNullOrWhiteSpace(profile.ToolContentId))
                 {
-                    errors.Add("Tool profile must have ToolContentId set");
+                    errors.Add(ProfileValidationConstants.ToolProfileMissingContentId);
                 }
 
                 if (errors.Count > 0)

@@ -63,7 +63,7 @@ public static class ToolProfileHelper
     {
         if (manifestPool == null || enabledContentIds == null)
         {
-            return "Invalid parameters for Tool Profile validation";
+            return ProfileValidationConstants.InvalidToolProfileParameters;
         }
 
         var contentIdsList = enabledContentIds.ToList();
