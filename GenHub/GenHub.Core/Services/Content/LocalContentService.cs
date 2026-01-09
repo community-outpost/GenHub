@@ -36,6 +36,8 @@ public class LocalContentService(
         ContentType.Mission,
         ContentType.Mod,
         ContentType.ModdingTool,
+        ContentType.Executable,
+        ContentType.Patch,
     ];
 
     /// <inheritdoc />

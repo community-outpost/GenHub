@@ -39,11 +39,16 @@ GenHub's content system supports:
 - **Community Patches**: Bug fixes and improvements
 - **Balance Patches**: Gameplay modifications
 
-### Tools
+### Tools & Executables
 
 - **WorldBuilder**: Official map creation tool
 - **Modding Utilities**: Custom executables for game modification and management
-- **ModdingTool Content Type**: Dedicated content type for standalone executables
+- **Tool**: (formerly ModdingTool) Dedicated content type for modding tools
+- **Executable**: Generic standalone executable support
+
+### Games
+
+- **Game**: (formerly GameClient) Support for game installations (e.g. generals.exe) imported as content
 
 ## Content Discovery
 

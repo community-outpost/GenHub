@@ -76,17 +76,38 @@ public class ProfileLauncherFacade(
 
             // Perform auto-detection for Tool Profiles if not already explicitly set
             // This handles cases where a profile has a ModdingTool content but ToolContentId wasn't set (legacy or UI issue)
-            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count == 1)
+            // Perform auto-detection for Tool Profiles
+            // Allow mixed content (Tool + Dependencies)
+            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count > 0)
             {
                 logger.LogDebug("[Launch] Checking for implicit Tool Profile configuration");
-                var isImplicitTool = await ToolProfileHelper.IsToolProfileAsync(profile.EnabledContentIds, manifestPool, cancellationToken);
 
-                if (isImplicitTool)
+                // Check if we have any Executable/ModdingTool content
+                // We need to resolve manifests to check types, or we can use a helper if available.
+                // Since we don't have manifests loaded yet, we'll try to guess or rely on ToolProfileHelper if it supports it.
+                // If ToolProfileHelper is strict (Count == 1), we might need to do manual check here.
+
+                // Let's iterate content IDs and check if we can find a Tool using manifestPool (cached)
+                string? foundToolId = null;
+                foreach(var idString in profile.EnabledContentIds)
                 {
-                    logger.LogInformation("[Launch] Detected implicit Tool Profile - converting profile mode");
-                    profile.ToolContentId = profile.EnabledContentIds.First();
+                    var id = ManifestId.Create(idString);
+                    var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
+                    if (manifestResult.Success &&
+                        (manifestResult.Data.ContentType == ContentType.ModdingTool ||
+                         manifestResult.Data.ContentType == ContentType.Executable))
+                    {
+                        foundToolId = idString;
+                        break;
+                    }
+                }
 
-                    // Ideally we should persist this fix
+                if (foundToolId != null)
+                {
+                    logger.LogInformation("[Launch] Detected implicit Tool Profile (mixed content) - converting profile mode");
+                    profile.ToolContentId = foundToolId;
+
+                    // Persist this fix
                     try
                     {
                         await profileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { ToolContentId = profile.ToolContentId }, cancellationToken);
@@ -156,10 +177,14 @@ public class ProfileLauncherFacade(
 
                     var baseDetails = appDataBase;
 
+                    // Resolve all enabled content (Tool + Dependencies)
+                    var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
+                    var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
+
                     var workspaceConfig = new WorkspaceConfiguration
                     {
                         Id = $"tool-{profile.Id}", // Unique ID for tool workspace
-                        Manifests = [toolManifest],
+                        Manifests = [.. allManifests],
                         GameClient = dummyGameClient,
                         Strategy = profile.WorkspaceStrategy, // Respect profile setting
                         ForceRecreate = false,
@@ -224,10 +249,26 @@ public class ProfileLauncherFacade(
                         }
                     }
 
-                    var process = Process.Start(processStartInfo);
+                    Process? process = null;
+                    try
+                    {
+                        process = Process.Start(processStartInfo);
+                    }
+                    catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
+                    {
+                        logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
+
+                        // Reconfigure for elevation
+                        processStartInfo.UseShellExecute = true;
+                        processStartInfo.Verb = "runas";
+
+                        // Retry launch
+                        process = Process.Start(processStartInfo);
+                    }
+
                     if (process == null)
                     {
-                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Failed to start tool process");
+                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Failed to start tool process (Process.Start returned null)");
                     }
 
                     var launchId = Guid.NewGuid().ToString("N");
@@ -515,13 +556,27 @@ public class ProfileLauncherFacade(
             List<string> errors = [];
 
             // Perform auto-detection for Tool Profiles in validation
-            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count == 1)
+            // Perform auto-detection for Tool Profiles in validation
+            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count > 0)
             {
-                var isImplicitTool = await ToolProfileHelper.IsToolProfileAsync(profile.EnabledContentIds, manifestPool, cancellationToken);
-                if (isImplicitTool)
+                 string? foundToolId = null;
+                foreach(var idString in profile.EnabledContentIds)
                 {
-                    logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile");
-                    profile.ToolContentId = profile.EnabledContentIds.First();
+                    var id = ManifestId.Create(idString);
+                    var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
+                    if (manifestResult.Success &&
+                        (manifestResult.Data.ContentType == ContentType.ModdingTool ||
+                         manifestResult.Data.ContentType == ContentType.Executable))
+                    {
+                        foundToolId = idString;
+                        break;
+                    }
+                }
+
+                if (foundToolId != null)
+                {
+                    logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
+                    profile.ToolContentId = foundToolId;
                 }
             }
 
@@ -585,10 +640,10 @@ public class ProfileLauncherFacade(
                         {
                             hasGameClientManifest = true;
                         }
-                        else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.ModdingTool)
+                        else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.ModdingTool ||
+                                 manifestResult.Data.ContentType == Core.Models.Enums.ContentType.Executable)
                         {
-                            // ModdingTools cannot be part of a regular game profile - they must be standalone
-                            errors.Add("Tools must be launched as a standalone Tool Profile (only one tool, no other content)");
+                             // Allow modding tools in regular validation flow if treating as mixed profile
                         }
                     }
                 }
@@ -604,8 +659,9 @@ public class ProfileLauncherFacade(
                 errors.Add(Core.Constants.ProfileValidationConstants.MissingGameInstallation);
             }
 
-            if (!hasGameClientManifest)
+            if (!hasGameClientManifest && string.IsNullOrWhiteSpace(profile.ToolContentId))
             {
+                // Only require GameClient if we are NOT a tool profile (explicit or implicit)
                 errors.Add(Core.Constants.ProfileValidationConstants.MissingGameClient);
             }
 

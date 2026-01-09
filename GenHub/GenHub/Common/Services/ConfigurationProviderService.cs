@@ -134,7 +134,7 @@ public class ConfigurationProviderService(
         var settings = _userSettings.Get();
         return settings.IsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy))
             ? settings.DefaultWorkspaceStrategy
-            : _appConfig.GetDefaultWorkspaceStrategy();
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <inheritdoc />
