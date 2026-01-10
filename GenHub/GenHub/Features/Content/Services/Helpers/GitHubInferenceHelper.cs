@@ -57,9 +57,6 @@ public static class GitHubInferenceHelper
             return (Type: GameType.ZeroHour, IsInferred: true);
 
         // Check for Generals indicators
-        if (searchText.Contains("generals", StringComparison.OrdinalIgnoreCase))
-            return (Type: GameType.Generals, IsInferred: true);
-
         return (Type: GameType.ZeroHour, IsInferred: true);
     }
 

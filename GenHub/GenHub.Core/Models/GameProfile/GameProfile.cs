@@ -138,6 +138,12 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets the number of sounds for this profile (typically 2-32).</summary>
     public int? AudioNumSounds { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether alternate mouse setup is enabled.</summary>
+    public bool? VideoAlternateMouseSetup { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether heat effects are enabled.</summary>
+    public bool? VideoHeatEffects { get; set; }
+
     // ===== TheSuperHackers Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to archive replays automatically (TSH).</summary>

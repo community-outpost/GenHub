@@ -85,6 +85,12 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the gamma correction value.</summary>
     public int? VideoGamma { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether alternate mouse setup is enabled.</summary>
+    public bool? VideoAlternateMouseSetup { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether heat effects are enabled.</summary>
+    public bool? VideoHeatEffects { get; set; }
+
     // ===== Audio Settings =====
 
     /// <summary>Gets or sets the sound volume.</summary>

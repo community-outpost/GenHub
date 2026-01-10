@@ -103,6 +103,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 _logger.LogInformation("Created directory {Directory}", directory);
             }
 
+            // Safety check: Don't overwrite existing non-empty file with empty options
+            // This prevents data loss if a load failed but Save was called with defaults
+            if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+            {
+                bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
+                if (isDefault)
+                {
+                    _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
+                    return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                }
+            }
+
             _logger.LogDebug("Serializing options");
             var lines = SerializeOptionsIni(options);
             _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
@@ -328,7 +340,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
-            "IdealStaticGameLOD", "StaticGameLOD",
+            "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -339,16 +351,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ArchiveReplays", "BuildingOcclusion", "CursorCaptureEnabledInFullscreenGame",
-            "CursorCaptureEnabledInFullscreenMenu", "CursorCaptureEnabledInWindowedGame",
-            "CursorCaptureEnabledInWindowedMenu", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", "HeatEffects", "LanguageFilter", "MaxParticleCount",
+            "CursorCaptureEnabledInWindowedMenu", "CursorCaptureEnabledInWindowedGame", "DrawScrollAnchor", "DynamicLOD",
+            "GameTimeFontSize", "LanguageFilter", "MaxParticleCount",
             "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
             "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
             "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
             "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
             "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseAlternateMouse", "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
         };
 
         Dictionary<string, string> audioDict = [];
@@ -476,6 +486,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
+            "AlternateMouseSetup", "HeatEffects",
         };
 
         foreach (var kvp in values)
@@ -520,6 +531,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     break;
                 case "Gamma" when int.TryParse(kvp.Value, out var g):
                     video.Gamma = g;
+                    break;
+                case "AlternateMouseSetup":
+                    video.AlternateMouseSetup = ParseBool(kvp.Value);
+                    break;
+                case "HeatEffects":
+                    video.HeatEffects = ParseBool(kvp.Value);
                     break;
             }
         }
@@ -577,6 +594,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"UseShadowDecals={BoolToString(options.Video.UseShadowDecals)}");
         lines.Add($"ExtraAnimations={BoolToString(options.Video.ExtraAnimations)}");
         lines.Add($"Gamma={options.Video.Gamma}");
+        lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
+        lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
 
         // Add additional video properties
         foreach (var kvp in options.Video.AdditionalProperties)

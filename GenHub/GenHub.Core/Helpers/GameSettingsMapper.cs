@@ -31,8 +31,17 @@ public static class GameSettingsMapper
         }
 
         profile.EnableVideoShadows = options.Video.UseShadowVolumes;
+
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba))
+            profile.VideoBuildingAnimations = ParseBool(ba);
+
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var pe))
+            profile.VideoParticleEffects = ParseBool(pe);
+
         profile.VideoExtraAnimations = options.Video.ExtraAnimations;
         profile.VideoGamma = options.Video.Gamma;
+        profile.VideoAlternateMouseSetup = options.Video.AlternateMouseSetup;
+        profile.VideoHeatEffects = options.Video.HeatEffects;
 
         // Audio settings
         profile.AudioSoundVolume = options.Audio.SFXVolume;
@@ -141,6 +150,16 @@ public static class GameSettingsMapper
                     GameSettingsConstants.Gamma.Min,
                     GameSettingsConstants.Gamma.Max);
             }
+        }
+
+        if (profile.VideoAlternateMouseSetup.HasValue)
+        {
+            options.Video.AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
+        }
+
+        if (profile.VideoHeatEffects.HasValue)
+        {
+            options.Video.HeatEffects = profile.VideoHeatEffects.Value;
         }
 
         // Audio settings with validation
@@ -257,6 +276,8 @@ public static class GameSettingsMapper
         profile.VideoExtraAnimations = request.VideoExtraAnimations;
         profile.VideoBuildingAnimations = request.VideoBuildingAnimations;
         profile.VideoGamma = request.VideoGamma;
+        profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup;
+        profile.VideoHeatEffects = request.VideoHeatEffects;
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -338,6 +359,8 @@ public static class GameSettingsMapper
         profile.VideoExtraAnimations = request.VideoExtraAnimations;
         profile.VideoBuildingAnimations = request.VideoBuildingAnimations;
         profile.VideoGamma = request.VideoGamma;
+        profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup;
+        profile.VideoHeatEffects = request.VideoHeatEffects;
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -418,6 +441,8 @@ public static class GameSettingsMapper
         profile.VideoExtraAnimations = request.VideoExtraAnimations ?? profile.VideoExtraAnimations;
         profile.VideoBuildingAnimations = request.VideoBuildingAnimations ?? profile.VideoBuildingAnimations;
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
+        profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
+        profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
 
         profile.AudioSoundVolume = request.AudioSoundVolume ?? profile.AudioSoundVolume;
         profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume ?? profile.AudioThreeDSoundVolume;
@@ -490,6 +515,8 @@ public static class GameSettingsMapper
         profile.VideoExtraAnimations = request.VideoExtraAnimations ?? profile.VideoExtraAnimations;
         profile.VideoBuildingAnimations = request.VideoBuildingAnimations ?? profile.VideoBuildingAnimations;
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
+        profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
+        profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
 
         profile.AudioSoundVolume = request.AudioSoundVolume ?? profile.AudioSoundVolume;
         profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume ?? profile.AudioThreeDSoundVolume;
@@ -565,6 +592,8 @@ public static class GameSettingsMapper
         target.VideoExtraAnimations = source.VideoExtraAnimations;
         target.VideoBuildingAnimations = source.VideoBuildingAnimations;
         target.VideoGamma = source.VideoGamma;
+        target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
+        target.VideoHeatEffects = source.VideoHeatEffects;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
@@ -637,6 +666,8 @@ public static class GameSettingsMapper
         target.VideoExtraAnimations = source.VideoExtraAnimations;
         target.VideoBuildingAnimations = source.VideoBuildingAnimations;
         target.VideoGamma = source.VideoGamma;
+        target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
+        target.VideoHeatEffects = source.VideoHeatEffects;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
@@ -693,4 +724,9 @@ public static class GameSettingsMapper
         target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
     }
+
+    private static bool ParseBool(string value) =>
+        value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+        value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+        value == "1";
 }

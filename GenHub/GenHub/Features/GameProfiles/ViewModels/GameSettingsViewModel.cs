@@ -129,6 +129,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private int _gamma = 50;
 
     [ObservableProperty]
+    private bool _alternateMouseSetup;
+
+    [ObservableProperty]
+    private bool _heatEffects = true;
+
+    [ObservableProperty]
     private string _colorValue = "#8E44AD";
 
     [ObservableProperty]
@@ -336,6 +342,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             VideoExtraAnimations = ExtraAnimations,
             VideoBuildingAnimations = BuildingAnimations,
             VideoGamma = Gamma,
+            VideoAlternateMouseSetup = AlternateMouseSetup,
+            VideoHeatEffects = HeatEffects,
             AudioSoundVolume = SoundVolume,
             AudioThreeDSoundVolume = ThreeDSoundVolume,
             AudioSpeechVolume = SpeechVolume,
@@ -507,6 +515,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoExtraAnimations.HasValue) ExtraAnimations = profile.VideoExtraAnimations.Value;
         if (profile.VideoBuildingAnimations.HasValue) BuildingAnimations = profile.VideoBuildingAnimations.Value;
         if (profile.VideoGamma.HasValue) Gamma = profile.VideoGamma.Value;
+        if (profile.VideoAlternateMouseSetup.HasValue) AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
+        if (profile.VideoHeatEffects.HasValue) HeatEffects = profile.VideoHeatEffects.Value;
 
         if (profile.AudioSoundVolume.HasValue) SoundVolume = profile.AudioSoundVolume.Value;
         if (profile.AudioThreeDSoundVolume.HasValue) ThreeDSoundVolume = profile.AudioThreeDSoundVolume.Value;
@@ -733,6 +743,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba)) BuildingAnimations = ParseBool(ba);
         Gamma = options.Video.Gamma;
+        AlternateMouseSetup = options.Video.AlternateMouseSetup;
+        HeatEffects = options.Video.HeatEffects;
 
         GameSpyIPAddress = options.Network.GameSpyIPAddress;
 
@@ -787,7 +799,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GenHubBuildingAnimations"] = BoolToString(BuildingAnimations);
 
         options.Video.ExtraAnimations = ExtraAnimations;
+        options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
+        options.Video.AlternateMouseSetup = AlternateMouseSetup;
+        options.Video.HeatEffects = HeatEffects;
 
         options.Network.GameSpyIPAddress = GameSpyIPAddress;
 
