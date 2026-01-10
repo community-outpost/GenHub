@@ -242,7 +242,7 @@ public class ProfileLauncherFacade(
 
                     if (process == null)
                     {
-                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Failed to start tool process (Process.Start returned null)");
+                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProcessStartFailed);
                     }
 
                     var launchId = Guid.NewGuid().ToString("N");
@@ -269,7 +269,7 @@ public class ProfileLauncherFacade(
                     logger.LogDebug("[Launch] Registered tool launch {LaunchId} with LaunchRegistry", launchId);
 
                     notificationService.ShowSuccess(
-                        "Tool Launched",
+                        ProfileValidationConstants.ToolLaunchSuccessTitle,
                         $"Successfully launched '{profile.Name}'",
                         NotificationDurations.Medium);
 
@@ -279,7 +279,7 @@ public class ProfileLauncherFacade(
                 {
                     logger.LogError(ex, "[Launch] Tool launch failed");
                     notificationService.ShowError(
-                        "Tool Launch Failed",
+                        ProfileValidationConstants.ToolLaunchFailedTitle,
                         $"Failed to launch '{profile.Name}': {ex.Message}",
                         NotificationDurations.VeryLong);
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Tool launch failed: {ex.Message}");

@@ -69,4 +69,19 @@ public static class ProfileValidationConstants
     /// Error message when tool executable is not found on disk.
     /// </summary>
     public const string ToolExecutableNotFound = "Tool executable not found";
+
+    /// <summary>
+    /// Error message when tool process fails to start.
+    /// </summary>
+    public const string ToolProcessStartFailed = "Failed to start tool process (Process.Start returned null)";
+
+    /// <summary>
+    /// Notification title when tool launches successfully.
+    /// </summary>
+    public const string ToolLaunchSuccessTitle = "Tool Launched";
+
+    /// <summary>
+    /// Notification title when tool launch fails.
+    /// </summary>
+    public const string ToolLaunchFailedTitle = "Tool Launch Failed";
 }
