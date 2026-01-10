@@ -257,7 +257,31 @@ public static class GameSettingsMapper
                     GameSettingsConstants.Audio.MaxNumSounds);
             }
         }
+
+        // TheSuperHackers settings
+        var tshDict = new Dictionary<string, string>();
+        if (profile.TshArchiveReplays.HasValue) tshDict["ArchiveReplays"] = BoolToString(profile.TshArchiveReplays.Value);
+        if (profile.TshShowMoneyPerMinute.HasValue) tshDict["ShowMoneyPerMinute"] = BoolToString(profile.TshShowMoneyPerMinute.Value);
+        if (profile.TshPlayerObserverEnabled.HasValue) tshDict["PlayerObserverEnabled"] = BoolToString(profile.TshPlayerObserverEnabled.Value);
+        if (profile.TshSystemTimeFontSize.HasValue) tshDict["SystemTimeFontSize"] = profile.TshSystemTimeFontSize.Value.ToString();
+        if (profile.TshNetworkLatencyFontSize.HasValue) tshDict["NetworkLatencyFontSize"] = profile.TshNetworkLatencyFontSize.Value.ToString();
+        if (profile.TshRenderFpsFontSize.HasValue) tshDict["RenderFpsFontSize"] = profile.TshRenderFpsFontSize.Value.ToString();
+        if (profile.TshResolutionFontAdjustment.HasValue) tshDict["ResolutionFontAdjustment"] = profile.TshResolutionFontAdjustment.Value.ToString();
+        if (profile.TshCursorCaptureEnabledInFullscreenGame.HasValue) tshDict["CursorCaptureEnabledInFullscreenGame"] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenGame.Value);
+        if (profile.TshCursorCaptureEnabledInFullscreenMenu.HasValue) tshDict["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(profile.TshCursorCaptureEnabledInFullscreenMenu.Value);
+        if (profile.TshCursorCaptureEnabledInWindowedGame.HasValue) tshDict["CursorCaptureEnabledInWindowedGame"] = BoolToString(profile.TshCursorCaptureEnabledInWindowedGame.Value);
+        if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) tshDict["CursorCaptureEnabledInWindowedMenu"] = BoolToString(profile.TshCursorCaptureEnabledInWindowedMenu.Value);
+        if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
+        if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
+        if (profile.TshMoneyTransactionVolume.HasValue) tshDict["MoneyTransactionVolume"] = profile.TshMoneyTransactionVolume.Value.ToString();
+
+        if (tshDict.Count > 0)
+        {
+            options.AdditionalSections["TheSuperHackers"] = tshDict;
+        }
     }
+
+    private static string BoolToString(bool value) => value ? "yes" : "no";
 
     /// <summary>
     /// Populates settings from a CreateProfileRequest into a GameProfile.

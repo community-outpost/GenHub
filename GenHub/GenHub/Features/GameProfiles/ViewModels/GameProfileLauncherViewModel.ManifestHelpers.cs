@@ -120,6 +120,11 @@ public partial class GameProfileLauncherViewModel
                 version);
 
             var manifest = manifestBuilder.Build();
+            manifest.ContentType = ContentType.GameInstallation;
+
+            // Store the installation path in metadata for persistence across sessions
+            // This allows the GameInstallationService to reconstruct the installation on next startup
+            manifest.Metadata.SourcePath = installationPath;
 
             // Register the manifest to the pool
             var addResult = await contentManifestPool.AddManifestAsync(manifest, installationPath, null, cancellationToken);

@@ -29,7 +29,7 @@ public class GameInstallationServiceTests : IDisposable
     private readonly Mock<ILogger<GameInstallationService>> _loggerMock;
     private readonly Mock<IManifestGenerationService> _manifestServiceMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
-    private readonly Mock<IManualInstallationStorage> _manualInstallationStorageMock;
+    private readonly Mock<IInstallationPathResolver> _pathResolverMock;
     private readonly GameInstallationService _service;
 
     /// <summary>
@@ -42,7 +42,7 @@ public class GameInstallationServiceTests : IDisposable
         _loggerMock = new Mock<ILogger<GameInstallationService>>();
         _manifestServiceMock = new Mock<IManifestGenerationService>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
-        _manualInstallationStorageMock = new Mock<IManualInstallationStorage>();
+        _pathResolverMock = new Mock<IInstallationPathResolver>();
 
         // Setup client orchestrator to return empty clients by default
         var clientResult = DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero);
@@ -58,17 +58,13 @@ public class GameInstallationServiceTests : IDisposable
         _clientOrchestratorMock.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<List<GameInstallation>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(clientResult);
 
-        // Setup ClearAllAsync for InvalidateCache
-        _manualInstallationStorageMock.Setup(x => x.ClearAllAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
         _service = new GameInstallationService(
             _orchestratorMock.Object,
             _clientOrchestratorMock.Object,
             _loggerMock.Object,
             _manifestServiceMock.Object,
             _manifestPoolMock.Object,
-            _manualInstallationStorageMock.Object);
+            _pathResolverMock.Object);
     }
 
     /// <summary>
@@ -134,10 +130,6 @@ public class GameInstallationServiceTests : IDisposable
         var detectionResult = DetectionResult<GameInstallation>.CreateFailure("Detection failed");
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
-
-        // Setup manual installation storage to return empty list
-        _manualInstallationStorageMock.Setup(x => x.LoadManualInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
 
         // Act
         var result = await _service.GetInstallationAsync("test-id");
@@ -212,10 +204,6 @@ public class GameInstallationServiceTests : IDisposable
         var detectionResult = DetectionResult<GameInstallation>.CreateFailure("Detection failed");
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
-
-        // Setup manual installation storage to return empty list
-        _ = _manualInstallationStorageMock.Setup(x => x.LoadManualInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
 
         // Act
         var result = await _service.GetAllInstallationsAsync();

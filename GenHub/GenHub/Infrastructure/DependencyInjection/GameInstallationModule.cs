@@ -18,6 +18,7 @@ public static class GameInstallationModule
     {
         services.AddSingleton<IGameInstallationService, GameInstallationService>();
         services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
+        services.AddScoped<IInstallationPathResolver, InstallationPathResolver>();
 
         return services;
     }

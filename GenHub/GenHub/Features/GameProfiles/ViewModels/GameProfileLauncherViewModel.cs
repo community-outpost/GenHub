@@ -446,8 +446,12 @@ public partial class GameProfileLauncherViewModel(
                         // Create and register GameInstallation manifests to the pool
                         await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation);
 
-                        // Register the manual installation with the service so it's available globally (e.g. for profile creation)
-                        await installationService.RegisterManualInstallationAsync(manualInstallation);
+                        // Register the installation with the service cache
+                        var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation);
+                        if (!addResult.Success)
+                        {
+                            logger.LogWarning("Failed to add manual installation to cache: {Error}", addResult.FirstError);
+                        }
 
                         // Add the manually selected installation to the list
                         installationsList.Add(manualInstallation);
