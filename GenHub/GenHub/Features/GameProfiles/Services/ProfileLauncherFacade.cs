@@ -76,46 +76,20 @@ public class ProfileLauncherFacade(
 
             // Perform auto-detection for Tool Profiles if not already explicitly set
             // This handles cases where a profile has a ModdingTool content but ToolContentId wasn't set (legacy or UI issue)
-            // Perform auto-detection for Tool Profiles
-            // Allow mixed content (Tool + Dependencies)
-            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count > 0)
+            string? detectedToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
+            if (detectedToolId != null)
             {
-                logger.LogDebug("[Launch] Checking for implicit Tool Profile configuration");
+                logger.LogInformation("[Launch] Detected implicit Tool Profile (mixed content) - converting profile mode");
+                profile.ToolContentId = detectedToolId;
 
-                // Check if we have any Executable/ModdingTool content
-                // We need to resolve manifests to check types, or we can use a helper if available.
-                // Since we don't have manifests loaded yet, we'll try to guess or rely on ToolProfileHelper if it supports it.
-                // If ToolProfileHelper is strict (Count == 1), we might need to do manual check here.
-
-                // Let's iterate content IDs and check if we can find a Tool using manifestPool (cached)
-                string? foundToolId = null;
-                foreach(var idString in profile.EnabledContentIds)
+                // Persist this fix
+                try
                 {
-                    var id = ManifestId.Create(idString);
-                    var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-                    if (manifestResult.Success &&
-                        (manifestResult.Data.ContentType == ContentType.ModdingTool ||
-                         manifestResult.Data.ContentType == ContentType.Executable))
-                    {
-                        foundToolId = idString;
-                        break;
-                    }
+                    await profileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { ToolContentId = profile.ToolContentId }, cancellationToken);
                 }
-
-                if (foundToolId != null)
+                catch (Exception ex)
                 {
-                    logger.LogInformation("[Launch] Detected implicit Tool Profile (mixed content) - converting profile mode");
-                    profile.ToolContentId = foundToolId;
-
-                    // Persist this fix
-                    try
-                    {
-                        await profileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { ToolContentId = profile.ToolContentId }, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "[Launch] Failed to persist implicit Tool Profile fix (non-critical)");
-                    }
+                    logger.LogError(ex, "[Launch] Failed to persist implicit Tool Profile fix (non-critical)");
                 }
             }
 
@@ -138,7 +112,7 @@ public class ProfileLauncherFacade(
                 if (toolManifestResult.Failed || toolManifestResult.Data == null)
                 {
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                        $"Failed to load tool manifest: {toolManifestResult.FirstError}");
+                        $"{ProfileValidationConstants.FailedToLoadToolManifest}: {toolManifestResult.FirstError}");
                 }
 
                 var toolManifest = toolManifestResult.Data;
@@ -183,7 +157,7 @@ public class ProfileLauncherFacade(
 
                     var workspaceConfig = new WorkspaceConfiguration
                     {
-                        Id = $"tool-{profile.Id}", // Unique ID for tool workspace
+                        Id = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}", // Unique ID for tool workspace
                         Manifests = [.. allManifests],
                         GameClient = dummyGameClient,
                         Strategy = profile.WorkspaceStrategy, // Respect profile setting
@@ -199,7 +173,7 @@ public class ProfileLauncherFacade(
                     if (prepareResult.Failed)
                     {
                          return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                            $"Failed to prepare tool workspace: {prepareResult.FirstError}");
+                            $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
                     }
 
                     toolWorkspacePath = prepareResult.Data!.WorkspacePath;
@@ -217,14 +191,14 @@ public class ProfileLauncherFacade(
                 if (toolExecutable == null)
                 {
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                        "Tool manifest does not contain an executable file");
+                        ProfileValidationConstants.ToolManifestMissingExecutable);
                 }
 
                 var toolExecutablePath = Path.Combine(toolDirectoryPath, toolExecutable.RelativePath);
                 if (!File.Exists(toolExecutablePath))
                 {
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                        $"Tool executable not found: {toolExecutablePath}");
+                        $"{ProfileValidationConstants.ToolExecutableNotFound}: {toolExecutablePath}");
                 }
 
                 logger.LogInformation("[Launch] Launching tool: {ToolPath}", toolExecutablePath);
@@ -556,28 +530,11 @@ public class ProfileLauncherFacade(
             List<string> errors = [];
 
             // Perform auto-detection for Tool Profiles in validation
-            // Perform auto-detection for Tool Profiles in validation
-            if (!profile.IsToolProfile && profile.EnabledContentIds?.Count > 0)
+            string? validationToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
+            if (validationToolId != null)
             {
-                 string? foundToolId = null;
-                foreach(var idString in profile.EnabledContentIds)
-                {
-                    var id = ManifestId.Create(idString);
-                    var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-                    if (manifestResult.Success &&
-                        (manifestResult.Data.ContentType == ContentType.ModdingTool ||
-                         manifestResult.Data.ContentType == ContentType.Executable))
-                    {
-                        foundToolId = idString;
-                        break;
-                    }
-                }
-
-                if (foundToolId != null)
-                {
-                    logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
-                    profile.ToolContentId = foundToolId;
-                }
+                logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
+                profile.ToolContentId = validationToolId;
             }
 
             // Tool profiles have different validation requirements
@@ -1593,5 +1550,30 @@ public class ProfileLauncherFacade(
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    /// <summary>
+    /// Detects if a profile is implicitly a tool profile and returns the tool content ID.
+    /// </summary>
+    private async Task<string?> DetectAndSetToolContentIdAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (profile.IsToolProfile || profile.EnabledContentIds?.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var idString in profile.EnabledContentIds!)
+        {
+            var id = ManifestId.Create(idString);
+            var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
+            if (manifestResult.Success &&
+                (manifestResult.Data!.ContentType == ContentType.ModdingTool ||
+                 manifestResult.Data.ContentType == ContentType.Executable))
+            {
+                return idString;
+            }
+        }
+
+        return null;
     }
 }

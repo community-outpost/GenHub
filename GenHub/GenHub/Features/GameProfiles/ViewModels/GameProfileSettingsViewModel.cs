@@ -1886,7 +1886,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                 // Auto-enable logic removed to respect user selection.
                 // Validation (ValidateAllDependenciesAsync) performed earlier handles ensuring required content is present.
                 // If a Tool/Executable is selected without GameInstallation, it will now pass if valid.
-
                 var createRequest = new CreateProfileRequest
                 {
                     Name = Name,

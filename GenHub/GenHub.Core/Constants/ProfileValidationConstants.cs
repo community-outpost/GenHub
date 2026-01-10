@@ -49,4 +49,24 @@ public static class ProfileValidationConstants
     /// Message shown when invalid parameters are passed to tool profile validation.
     /// </summary>
     public const string InvalidToolProfileParameters = "Invalid parameters for Tool Profile validation";
+
+    /// <summary>
+    /// Error message when tool manifest fails to load.
+    /// </summary>
+    public const string FailedToLoadToolManifest = "Failed to load tool manifest";
+
+    /// <summary>
+    /// Error message when tool workspace preparation fails.
+    /// </summary>
+    public const string FailedToPrepareToolWorkspace = "Failed to prepare tool workspace";
+
+    /// <summary>
+    /// Error message when tool manifest is missing an executable.
+    /// </summary>
+    public const string ToolManifestMissingExecutable = "Tool manifest does not contain an executable file";
+
+    /// <summary>
+    /// Error message when tool executable is not found on disk.
+    /// </summary>
+    public const string ToolExecutableNotFound = "Tool executable not found";
 }

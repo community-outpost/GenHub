@@ -141,6 +141,7 @@ public partial class GameProfileLauncherViewModel(
                 {
                     IsHeaderExpanded = true;
                     _isHovering = true;
+
                     // Stop collapse timer just in case
                     _headerCollapseTimer.Stop();
                 });
