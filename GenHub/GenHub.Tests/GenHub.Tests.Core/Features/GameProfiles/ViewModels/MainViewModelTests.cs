@@ -331,8 +331,6 @@ public class MainViewModelTests
             new Mock<GenHub.Core.Interfaces.GameClients.IGameClientDetector>().Object,
             notificationService.Object,
             new Mock<ISetupWizardService>().Object,
-            new Mock<IManifestGenerationService>().Object,
-            new Mock<IContentManifestPool>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
     }

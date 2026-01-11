@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
@@ -15,7 +8,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameInstallations;
 
@@ -43,6 +35,12 @@ public class GameInstallationServiceTests : IDisposable
         _manifestServiceMock = new Mock<IManifestGenerationService>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _pathResolverMock = new Mock<IInstallationPathResolver>();
+
+        // Setup path resolver to return success by default (path is valid)
+        _pathResolverMock.Setup(x => x.ValidateInstallationPathAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _pathResolverMock.Setup(x => x.ResolveInstallationPathAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateFailure("Resolution not needed"));
 
         // Setup client orchestrator to return empty clients by default
         var clientResult = DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero);
