@@ -53,8 +53,6 @@ public partial class GameProfileLauncherViewModel(
     IGameClientDetector gameClientDetector,
     INotificationService notificationService,
     ISetupWizardService setupWizardService,
-    IManifestGenerationService manifestGenerationService,
-    IContentManifestPool contentManifestPool,
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,

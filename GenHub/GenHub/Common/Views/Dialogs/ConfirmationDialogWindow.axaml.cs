@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
 
 namespace GenHub.Common.Views.Dialogs;
@@ -24,5 +25,13 @@ public partial class ConfirmationDialogWindow : Window
         {
             vm.CloseAction = Close;
         }
+    }
+
+    /// <summary>
+    /// Loads and initializes the XAML components for this window.
+    /// </summary>
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }

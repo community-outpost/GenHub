@@ -281,8 +281,6 @@ public static class GameSettingsMapper
         }
     }
 
-    private static string BoolToString(bool value) => value ? "yes" : "no";
-
     /// <summary>
     /// Populates settings from a CreateProfileRequest into a GameProfile.
     /// </summary>
@@ -753,4 +751,6 @@ public static class GameSettingsMapper
         value.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
         value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
         value == "1";
+
+    private static string BoolToString(bool value) => value ? "yes" : "no";
 }

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.Tools.Views;
 
@@ -13,6 +14,14 @@ public partial class ToolsView : UserControl
     public ToolsView()
     {
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// Loads and initializes the XAML components for this view.
+    /// </summary>
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 
     private void OnTriggerZonePointerEntered(object? sender, Avalonia.Input.PointerEventArgs e)

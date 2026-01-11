@@ -242,6 +242,13 @@ public class InstallationPathResolver(
         return paths;
     }
 
+    private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
+    {
+        using var stream = File.OpenRead(filePath);
+        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+    }
+
     private async Task<string?> SearchDirectoryForInstallationAsync(
         string searchPath,
         GameInstallation installation,
@@ -333,12 +340,5 @@ public class InstallationPathResolver(
             _logger.LogDebug(ex, "Error checking directory: {Directory}", directory);
             return false;
         }
-    }
-
-    private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
-    {
-        using var stream = File.OpenRead(filePath);
-        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
-        return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
     }
 }

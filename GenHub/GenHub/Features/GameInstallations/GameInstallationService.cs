@@ -139,9 +139,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             try
             {
                 // Convert ReadOnlyCollection to List for modification
-                var installationsList = _cachedInstallations != null
-                    ? new List<GameInstallation>(_cachedInstallations)
-                    : new List<GameInstallation>();
+                var installationsList = _cachedInstallations?.ToList() ?? [];
 
                 // Check if installation already exists (by ID or path)
                 var existing = installationsList.FirstOrDefault(i =>
@@ -180,6 +178,81 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             logger!.LogError(ex, "Error adding installation to cache");
             return OperationResult<bool>.CreateFailure($"Failed to add installation to cache: {ex.Message}");
         }
+    }
+
+    /// <inheritdoc/>
+    public async Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    {
+        logger!.LogInformation(
+            "[MANIFEST-GEN] CreateAndRegisterInstallationManifestsAsync called for {InstallationType} at {Path}",
+            installation.InstallationType,
+            installation.InstallationPath);
+
+        var gameDir = installation.InstallationPath;
+        if (!Directory.Exists(gameDir))
+        {
+            logger!.LogWarning(
+                "[MANIFEST-GEN] Installation directory does not exist: {Path}",
+                gameDir);
+            return;
+        }
+
+        logger!.LogInformation(
+            "[MANIFEST-GEN] Installation check: HasGenerals={HasGenerals}, GeneralsPath={GeneralsPath}, HasZeroHour={HasZeroHour}, ZeroHourPath={ZeroHourPath}",
+            installation.HasGenerals,
+            installation.GeneralsPath ?? "null",
+            installation.HasZeroHour,
+            installation.ZeroHourPath ?? "null");
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && Directory.Exists(installation.GeneralsPath))
+        {
+            logger!.LogInformation(
+                "[MANIFEST-GEN] Creating Generals manifest for {Path}",
+                installation.GeneralsPath);
+
+            await GenerateAndPoolManifestForGameTypeAsync(
+                installation,
+                GameType.Generals,
+                installation.GeneralsPath,
+                installation.GeneralsClient,
+                ManifestConstants.GeneralsManifestVersion,
+                cancellationToken);
+        }
+        else
+        {
+            logger!.LogWarning(
+                "[MANIFEST-GEN] Skipping Generals manifest: HasGenerals={HasGenerals}, PathEmpty={PathEmpty}, PathExists={PathExists}",
+                installation.HasGenerals,
+                string.IsNullOrEmpty(installation.GeneralsPath),
+                installation.GeneralsPath != null && Directory.Exists(installation.GeneralsPath));
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && Directory.Exists(installation.ZeroHourPath))
+        {
+            logger!.LogInformation(
+                "[MANIFEST-GEN] Creating ZeroHour manifest for {Path}",
+                installation.ZeroHourPath);
+
+            await GenerateAndPoolManifestForGameTypeAsync(
+                installation,
+                GameType.ZeroHour,
+                installation.ZeroHourPath,
+                installation.ZeroHourClient,
+                ManifestConstants.ZeroHourManifestVersion,
+                cancellationToken);
+        }
+        else
+        {
+            logger!.LogWarning(
+                "[MANIFEST-GEN] Skipping ZeroHour manifest: HasZeroHour={HasZeroHour}, PathEmpty={PathEmpty}, PathExists={PathExists}",
+                installation.HasZeroHour,
+                string.IsNullOrEmpty(installation.ZeroHourPath),
+                installation.ZeroHourPath != null && Directory.Exists(installation.ZeroHourPath));
+        }
+
+        logger!.LogInformation(
+            "[MANIFEST-GEN] Completed manifest generation for {InstallationType}",
+            installation.InstallationType);
     }
 
     /// <summary>
@@ -392,10 +465,20 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
             if (matchingManifest != null)
             {
+                // Generate the expected GameClient ID for this client
+                // This MUST match what GameClientDetector generates (schema.version.publisher.gameclient.game)
+                var installType = installation.InstallationType.ToIdentifierString();
+                var normalizedVersion = ParseVersionStringToInt(matchingManifest.Version);
+                var clientId = ManifestIdGenerator.GeneratePublisherContentId(
+                    installType,
+                    ContentType.GameClient,
+                    gameType == GameType.ZeroHour ? "zerohour" : "generals",
+                    normalizedVersion);
+
                 // Create a game client from the manifest
                 var gameClient = new GameClient
                 {
-                    Id = matchingManifest.Id.Value,
+                    Id = clientId, // Use the proper gameclient ID format
                     Name = matchingManifest.Name,
                     WorkingDirectory = gamePath,
                     GameType = gameType,
@@ -404,9 +487,10 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 };
 
                 logger!.LogInformation(
-                    "Loaded {GameType} client from existing manifest {ManifestId} (version {Version}) - skipping directory scan",
+                    "Loaded {GameType} client from existing manifest {ManifestId} using ClientId {ClientId} (version {Version})",
                     gameType,
                     matchingManifest.Id,
+                    clientId,
                     matchingManifest.Version);
 
                 return gameClient;
@@ -502,12 +586,20 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         {
             if (gameClient != null)
             {
-                gameClient.Id = manifestId.Value;
+                // Fix: Always use the gameclient formatted ID for the GameClient object
+                // to match what the wizard and profile system expect.
+                var installType = installation.InstallationType.ToIdentifierString();
+                var normalizedVersion = ParseVersionStringToInt(versionForManifest);
+                gameClient.Id = ManifestIdGenerator.GeneratePublisherContentId(
+                    installType,
+                    ContentType.GameClient,
+                    gameType == GameType.ZeroHour ? "zerohour" : "generals",
+                    normalizedVersion);
             }
 
             logger!.LogInformation(
                 "Pooled GameInstallation manifest {Id} for {InstallationId} ({GameType})",
-                manifest.Id,
+                manifestId,
                 installation.Id,
                 gameType);
         }
@@ -557,7 +649,16 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
             // Group manifests by installation path (multiple manifests per installation: Generals + Zero Hour)
             var manifestsByPath = searchResult.Data
-                .Where(m => !string.IsNullOrEmpty(m.Metadata.SourcePath))
+                .Where(m =>
+                {
+                    var hasPath = !string.IsNullOrEmpty(m.Metadata.SourcePath);
+                    if (!hasPath)
+                    {
+                        logger!.LogDebug("Skipping manifest {Id} - no SourcePath in metadata", m.Id);
+                    }
+
+                    return hasPath;
+                })
                 .GroupBy(m => m.Metadata.SourcePath!, StringComparer.OrdinalIgnoreCase);
 
             foreach (var group in manifestsByPath)
@@ -810,30 +911,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             // This ensures base installation manifests exist for profile dependency resolution
             foreach (var installation in installations)
             {
-                var gameDir = installation.InstallationPath;
-                if (!Directory.Exists(gameDir)) continue;
-
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && Directory.Exists(installation.GeneralsPath))
-                {
-                    await GenerateAndPoolManifestForGameTypeAsync(
-                        installation,
-                        GameType.Generals,
-                        installation.GeneralsPath,
-                        installation.GeneralsClient,
-                        ManifestConstants.GeneralsManifestVersion,
-                        cancellationToken);
-                }
-
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && Directory.Exists(installation.ZeroHourPath))
-                {
-                    await GenerateAndPoolManifestForGameTypeAsync(
-                        installation,
-                        GameType.ZeroHour,
-                        installation.ZeroHourPath,
-                        installation.ZeroHourClient,
-                        ManifestConstants.ZeroHourManifestVersion,
-                        cancellationToken);
-                }
+                await CreateAndRegisterInstallationManifestsAsync(installation, cancellationToken);
             }
         }
     }
