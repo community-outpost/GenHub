@@ -98,6 +98,16 @@ public static class AppConstants
     public const string GitHubRepositoryOwner = "community-outpost";
 
     /// <summary>
+    /// The default branch name for the GitHub repository.
+    /// </summary>
+    public const string GitHubDefaultBranch = "main";
+
+    /// <summary>
+    /// The folder path where the csv registry files are stored.
+    /// </summary>
+    public const string RegistryFolderPath = "GenHub\\docs\\GameInstallationFilesRegistry";
+
+    /// <summary>
     /// The GitHub repository name.
     /// </summary>
     public const string GitHubRepositoryName = "GenHub";

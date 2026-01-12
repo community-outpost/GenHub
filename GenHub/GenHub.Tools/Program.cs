@@ -112,6 +112,7 @@ internal static class Program
 /// </summary>
 internal class CsvGenerator
 {
+    private const string RegistryFolderPath = AppConstants.RegistryFolderPath;
     private readonly Dictionary<string, string> arguments;
     private readonly ILogger logger;
 
@@ -156,6 +157,8 @@ internal class CsvGenerator
 
         await this.WriteCsvFileAsync(entries, output);
         this.logger.LogInformation("Generated CSV file: {Path} with {Count} entries", output, entries.Count);
+        await this.WriteToRegistryAsync(entries);
+        this.logger.LogInformation("Updated registry CSV file in: {Path}", RegistryFolderPath);
     }
 
     private async Task<List<CsvCatalogEntry>> ScanInstallationAsync(string installationPath, string gameType, string languageCode)
@@ -399,5 +402,54 @@ internal class CsvGenerator
         await using var writer = new StreamWriter(csvPath);
         await using var csv = new CsvWriter(writer, config);
         await csv.WriteRecordsAsync(entries);
+    }
+
+    /// <summary>
+    /// Writes the CSV file to the GameInstallationFilesRegistry directory with proper naming.
+    /// </summary>
+    /// <param name="entries">The catalog entries to write.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task WriteToRegistryAsync(List<CsvCatalogEntry> entries)
+    {
+        var gameType = this.arguments["gameType"];
+        var version = this.arguments["version"];
+
+        // Generate filename in format: {GameType}-{version}.csv
+        // Examples: Generals-1.08.csv, ZeroHour-1.04.csv
+        var fileName = $"{gameType}-{version}.csv";
+
+        // Determine the registry directory path
+        // The registry path is relative to the project root: docs/GameInstallationFilesRegistry/
+        var registryPath = Path.Combine(RegistryFolderPath, fileName);
+
+        // Ensure the registry directory exists
+        var registryDir = Path.GetDirectoryName(registryPath);
+        if (!string.IsNullOrEmpty(registryDir) && !Directory.Exists(registryDir))
+        {
+            Directory.CreateDirectory(registryDir);
+            this.logger.LogInformation("Created registry directory: {Path}", registryDir);
+        }
+
+        // Populate DownloadUrl for each entry to ensure GitHub usercontent API accessibility
+        // https://raw.githubusercontent.com/{owner}/{repo}/main/GenHub/docs/GameInstallationFilesRegistry/{fileName}
+        // This allows the files to be accessible via GitHub raw content URLs 
+        var owner = AppConstants.GitHubRepositoryOwner;
+        var repo = AppConstants.GitHubRepositoryName;
+        var branch = AppConstants.GitHubDefaultBranch; // Using main branch
+        var baseUrl = $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{RegistryFolderPath.Replace('\\', '/')}/{fileName}";
+
+        foreach (var entry in entries)
+        {
+            entry.DownloadUrl = baseUrl;
+        }
+
+        // Write the CSV file using the existing method
+        await this.WriteCsvFileAsync(entries, registryPath);
+        this.logger.LogInformation(
+            "Generated registry CSV file with GitHub accessibility URLs: {Path} with {Count} entries for {GameType} version {Version}",
+            registryPath,
+            entries.Count,
+            gameType,
+            version);
     }
 }
