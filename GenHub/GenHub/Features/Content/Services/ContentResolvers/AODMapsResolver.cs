@@ -66,7 +66,6 @@ public class AODMapsResolver(
                 string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
 
-
             if (section == null)
             {
                  logger.LogWarning("Could not find content section for {Name} in parsed page {Url}", discoveredItem.Name, discoveredItem.SourceUrl);

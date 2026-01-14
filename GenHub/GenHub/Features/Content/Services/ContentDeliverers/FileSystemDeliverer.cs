@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -21,36 +20,16 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
-public class FileSystemDeliverer : IContentDeliverer
+/// <param name="logger">The logger instance.</param>
+/// <param name="configProvider">The configuration provider service.</param>
+/// <param name="hashProvider">The file hash provider.</param>
+/// <param name="downloadService">The download service.</param>
+public class FileSystemDeliverer(
+    ILogger<FileSystemDeliverer> logger,
+    IConfigurationProviderService configProvider,
+    IFileHashProvider hashProvider,
+    IDownloadService downloadService) : IContentDeliverer
 {
-    private readonly ILogger<FileSystemDeliverer> _logger;
-    private readonly IConfigurationProviderService _configProvider;
-    private readonly IFileHashProvider _hashProvider;
-    private readonly IDownloadService _downloadService;
-    private readonly IPlaywrightService _playwrightService;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FileSystemDeliverer"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="configProvider">The configuration provider service.</param>
-    /// <param name="hashProvider">The file hash provider.</param>
-    /// <param name="downloadService">The download service.</param>
-    /// <param name="playwrightService">The Playwright service.</param>
-    public FileSystemDeliverer(
-        ILogger<FileSystemDeliverer> logger,
-        IConfigurationProviderService configProvider,
-        IFileHashProvider hashProvider,
-        IDownloadService downloadService,
-        IPlaywrightService playwrightService)
-    {
-        _logger = logger;
-        _configProvider = configProvider;
-        _hashProvider = hashProvider;
-        _downloadService = downloadService;
-        _playwrightService = playwrightService;
-    }
-
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
 
@@ -125,14 +104,14 @@ public class FileSystemDeliverer : IContentDeliverer
 
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                _hashProvider,
+                hashProvider,
                 null!,
-                _downloadService,
-                _configProvider);
+                downloadService,
+                configProvider);
 
             if (!int.TryParse(packageManifest.Version, out var manifestVersionInt))
             {
-                _logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
+                logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
                 return OperationResult<ContentManifest>.CreateFailure("Invalid manifest version format");
             }
 
@@ -203,7 +182,7 @@ public class FileSystemDeliverer : IContentDeliverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deliver local content for manifest {ManifestId}", packageManifest.Id);
+            logger.LogError(ex, "Failed to deliver local content for manifest {ManifestId}", packageManifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -227,7 +206,7 @@ public class FileSystemDeliverer : IContentDeliverer
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
+            logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
@@ -244,7 +223,7 @@ public class FileSystemDeliverer : IContentDeliverer
     private string ResolveLocalPath(ManifestFile file, string manifestId)
     {
         // Priority: SourcePath > DownloadUrl > RelativePath
-        var basePath = _configProvider.GetWorkspacePath();
+        var basePath = configProvider.GetWorkspacePath();
         var localPath = file.SourcePath ?? file.DownloadUrl ?? file.RelativePath;
 
         if (string.IsNullOrEmpty(localPath))

@@ -28,6 +28,11 @@ public class FileSystemDiscoverer : IContentDiscoverer
     private readonly ManifestDiscoveryService _manifestDiscoveryService;
     private readonly IConfigurationProviderService _configurationProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FileSystemDiscoverer"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="manifestDiscoveryService">The manifest discovery service.</param>
     /// <param name="configurationProvider">The unified configuration provider.</param>
     public FileSystemDiscoverer(
         ILogger<FileSystemDiscoverer> logger,

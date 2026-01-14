@@ -21,10 +21,6 @@ public class FileOperationsService(
 {
     private const int BufferSize = 1024 * 1024; // 1MB buffer
 
-    private readonly ILogger<FileOperationsService> _logger = logger;
-    private readonly IDownloadService _downloadService = downloadService;
-    private readonly ICasService _casService = casService;
-
     /// <summary>
     /// Ensures that the directory for the specified file path exists, creating it if necessary.
     /// </summary>
@@ -168,7 +164,7 @@ public class FileOperationsService(
                     var destInfo = new FileInfo(destinationPath);
                     if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
                     {
-                        _logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
+                        logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
                         destInfo.Delete();
                     }
                 }
@@ -208,10 +204,10 @@ public class FileOperationsService(
                 }
                 catch (Exception attrEx)
                 {
-                    _logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
+                    logger.LogDebug(attrEx, "Non-fatal: failed to copy timestamps/attributes from {Source} to {Destination}", sourcePath, destinationPath);
                 }
 
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Copied file from {Source} to {Destination}",
                     sourcePath,
                     destinationPath);
@@ -221,7 +217,7 @@ public class FileOperationsService(
             catch (IOException ioEx) when (attempt < MaxRetries && IsFileLockException(ioEx))
             {
                 var delay = InitialDelayMs * (int)Math.Pow(2, attempt);
-                _logger.LogDebug(
+                logger.LogDebug(
                     "File copy attempt {Attempt}/{MaxRetries} failed due to file lock, retrying in {Delay}ms: {Message}",
                     attempt + 1,
                     MaxRetries + 1,
@@ -231,7 +227,7 @@ public class FileOperationsService(
             }
             catch (Exception ex)
             {
-                _logger.LogError(
+                logger.LogError(
                     ex,
                     "Failed to copy file from {Source} to {Destination}",
                     sourcePath,
@@ -299,7 +295,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back to copy if symlink creation requires elevation or Developer Mode
-                            _logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(uaex, "Symlink creation not permitted on Windows. Falling back to file copy for {LinkPath}", linkPath);
                             FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
                         }
                         else
@@ -312,7 +308,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back to copy if symlink creation fails due to privilege or filesystem issues
-                            _logger.LogWarning(ioex, "Symlink creation failed on Windows. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(ioex, "Symlink creation failed on Windows. Falling back to file copy for {LinkPath}", linkPath);
                             FallbackToCopyIfPossible(absoluteTargetPath, linkPath);
                         }
                         else
@@ -325,7 +321,7 @@ public class FileOperationsService(
                         if (allowFallback)
                         {
                             // Fall back if platform lacks symlink support
-                            _logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
+                            logger.LogWarning(pnsex, "Symlink creation not supported on this platform. Falling back to file copy for {LinkPath}", linkPath);
 
                             if (File.Exists(absoluteTargetPath))
                             {
@@ -344,14 +340,14 @@ public class FileOperationsService(
                 },
                 cancellationToken);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created symlink or copied file from {Link} to {Target}",
                 linkPath,
                 absoluteTargetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to create symlink from {Link} to {Target}",
                 linkPath,
@@ -388,21 +384,21 @@ public class FileOperationsService(
                     else
                     {
                         File.Copy(targetPath, linkPath, true);
-                        _logger.LogWarning(
+                        logger.LogWarning(
                             "Hard links not supported on this platform, fell back to copy for {Link}",
                             linkPath);
                     }
                 },
                 cancellationToken);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Created hard link from {Link} to {Target}",
                 linkPath,
                 targetPath);
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to create hard link from {Link} to {Target}",
                 linkPath,
@@ -430,7 +426,7 @@ public class FileOperationsService(
                 return false;
             }
 
-            var actualHash = await _downloadService.ComputeFileHashAsync(
+            var actualHash = await downloadService.ComputeFileHashAsync(
                 filePath,
                 cancellationToken);
             var result = string.Equals(
@@ -438,7 +434,7 @@ public class FileOperationsService(
                 expectedHash,
                 StringComparison.OrdinalIgnoreCase);
 
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Hash verification for {File}: {Result}",
                 filePath,
                 result);
@@ -446,7 +442,7 @@ public class FileOperationsService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to verify hash for {File}", filePath);
+            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
             return false;
         }
     }
@@ -457,7 +453,7 @@ public class FileOperationsService(
         // TODO: This is a placeholder for a real patch implementation.
         // A real implementation would read the patch file and apply transformations
         // to the target file. For example, using a library for diff/patch or JSON Patch.
-        _logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);
+        logger.LogInformation("Applying patch {PatchPath} to {TargetPath}", patchPath, targetPath);
 
         if (!File.Exists(targetPath))
         {
@@ -474,7 +470,7 @@ public class FileOperationsService(
         var patchContent = await File.ReadAllTextAsync(patchPath, cancellationToken);
         await File.AppendAllTextAsync(targetPath, patchContent, cancellationToken);
 
-        _logger.LogDebug("Successfully applied patch to {TargetPath}", targetPath);
+        logger.LogDebug("Successfully applied patch to {TargetPath}", targetPath);
     }
 
     /// <summary>
@@ -495,7 +491,7 @@ public class FileOperationsService(
         {
             EnsureDirectoryExists(destinationPath);
 
-            var result = await _downloadService.DownloadFileAsync(
+            var result = await downloadService.DownloadFileAsync(
                 new DownloadConfiguration { Url = url, DestinationPath = destinationPath },
                 progress,
                 cancellationToken);
@@ -505,7 +501,7 @@ public class FileOperationsService(
                     $"Download failed: {result.FirstError}");
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Downloaded {Bytes} bytes from {Url} to {Destination}",
                 result.BytesDownloaded,
                 url.ToString(),
@@ -513,7 +509,7 @@ public class FileOperationsService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(
+            logger.LogError(
                 ex,
                 "Failed to download file from {Url} to {Destination}",
                 url,
@@ -536,19 +532,19 @@ public class FileOperationsService(
     {
         try
         {
-            var result = await _casService.StoreContentAsync(sourcePath, expectedHash, cancellationToken).ConfigureAwait(false);
+            var result = await casService.StoreContentAsync(sourcePath, expectedHash, cancellationToken).ConfigureAwait(false);
             if (result.Success)
             {
-                _logger.LogDebug("Stored file {SourcePath} in CAS with hash {Hash}", sourcePath, result.Data);
+                logger.LogDebug("Stored file {SourcePath} in CAS with hash {Hash}", sourcePath, result.Data);
                 return result.Data;
             }
 
-            _logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
+            logger.LogError("Failed to store file {SourcePath} in CAS: {Error}", sourcePath, result.FirstError);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
+            logger.LogError(ex, "Exception storing file {SourcePath} in CAS", sourcePath);
             return null;
         }
     }
@@ -568,10 +564,10 @@ public class FileOperationsService(
     {
         try
         {
-            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}", hash);
+                logger.LogError("CAS content not found for hash {Hash}", hash);
                 return false;
             }
 
@@ -579,12 +575,12 @@ public class FileOperationsService(
 
             await CopyFileAsync(pathResult.Data, destinationPath, cancellationToken).ConfigureAwait(false);
 
-            _logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return false;
         }
     }
@@ -606,17 +602,17 @@ public class FileOperationsService(
     {
         try
         {
-            var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
-                _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
+                logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
                 return false;
             }
 
             // Verify the CAS file actually exists before trying to link
             if (!File.Exists(pathResult.Data))
             {
-                _logger.LogError("CAS file does not exist at path {Path} for hash {Hash}", pathResult.Data, hash);
+                logger.LogError("CAS file does not exist at path {Path} for hash {Hash}", pathResult.Data, hash);
                 return false;
             }
 
@@ -631,12 +627,12 @@ public class FileOperationsService(
                 await CreateSymlinkAsync(destinationPath, pathResult.Data, !useHardLink, cancellationToken).ConfigureAwait(false);
             }
 
-            _logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
+            logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;
         }
     }
@@ -653,18 +649,18 @@ public class FileOperationsService(
     {
         try
         {
-            var streamResult = await _casService.OpenContentStreamAsync(hash, cancellationToken).ConfigureAwait(false);
+            var streamResult = await casService.OpenContentStreamAsync(hash, cancellationToken).ConfigureAwait(false);
             if (streamResult.Success)
             {
                 return streamResult.Data;
             }
 
-            _logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
+            logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
+            logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
         }
     }

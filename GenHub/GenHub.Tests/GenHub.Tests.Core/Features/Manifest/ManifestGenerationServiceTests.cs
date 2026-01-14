@@ -1,11 +1,11 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
-using GenHub.Core.Interfaces.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
