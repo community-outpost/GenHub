@@ -617,7 +617,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         {
             // Logging failure to parse file size, though it's acceptable to return null
             // and fallback to the display string.
-            Console.WriteLine($"Failed to parse file size '{size}': {ex.Message}");
+            _logger.LogWarning("Failed to parse file size '{Size}': {Error}", size, ex.Message);
         }
 
         return null;
