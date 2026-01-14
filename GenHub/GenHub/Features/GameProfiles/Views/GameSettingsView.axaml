@@ -192,7 +192,6 @@
 
                             <!-- Graphics Options -->
                             <TextBlock Classes="subsection-header" Text="Graphics Effects" />
-                            <TextBlock Classes="subsection-header" Text="Graphics Effects" />
                             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                 <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" />
                                 <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" />
@@ -236,6 +235,7 @@
                                 <CheckBox Grid.Column="0" Grid.Row="2" Content="Draw Scroll Anchor" IsChecked="{Binding DrawScrollAnchor}" />
                                 <CheckBox Grid.Column="1" Grid.Row="2" Content="Move Scroll Anchor" IsChecked="{Binding MoveScrollAnchor}" />
                                 <CheckBox Grid.Column="0" Grid.Row="3" Content="Language Filter" IsChecked="{Binding LanguageFilter}" />
+                                <CheckBox Grid.Column="1" Grid.Row="3" Content="Skip EA Logo" IsChecked="{Binding SkipEALogo}" ToolTip.Tip="Skips the EA logo movie when launching the game." />
                             </Grid>
 
                             <!-- Game Time Font Size -->

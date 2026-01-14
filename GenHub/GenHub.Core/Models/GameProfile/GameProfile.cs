@@ -195,6 +195,9 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets the anti-aliasing mode (0-4).</summary>
     public int? VideoAntiAliasing { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to skip the EA logo movie.</summary>
+    public bool? VideoSkipEALogo { get; set; }
+
     // ===== TheSuperHackers Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to archive replays automatically (TSH).</summary>

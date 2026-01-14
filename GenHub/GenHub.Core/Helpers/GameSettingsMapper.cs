@@ -49,8 +49,10 @@ public static class GameSettingsMapper
         if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
             profile.VideoIdealStaticGameLOD = idealLOD;
 
-        if (profile.VideoAntiAliasing == null)
-            profile.VideoAntiAliasing = options.Video.AntiAliasing;
+        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel))
+            profile.VideoSkipEALogo = ParseBool(sel);
+
+        profile.VideoAntiAliasing ??= options.Video.AntiAliasing;
 
         // TSH settings from root (Flat format support)
         if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
@@ -338,6 +340,7 @@ public static class GameSettingsMapper
             options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
             options.Video.AdditionalProperties["UseDoubleClick"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
         }
+
         if (profile.VideoScrollFactor.HasValue)
             options.Video.AdditionalProperties["ScrollFactor"] = profile.VideoScrollFactor.Value.ToString();
         if (profile.VideoRetaliation.HasValue)
@@ -346,6 +349,8 @@ public static class GameSettingsMapper
             options.Video.AdditionalProperties["DynamicLOD"] = profile.VideoDynamicLOD.Value ? "yes" : "no";
         if (profile.VideoMaxParticleCount.HasValue)
             options.Video.AdditionalProperties["MaxParticleCount"] = profile.VideoMaxParticleCount.Value.ToString();
+        if (profile.VideoSkipEALogo.HasValue)
+            options.Video.AdditionalProperties["SkipEALogo"] = profile.VideoSkipEALogo.Value ? "yes" : "no";
 
         // Mirror Alternate Mouse
         if (profile.VideoAlternateMouseSetup.HasValue)
@@ -551,6 +556,7 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -581,24 +587,8 @@ public static class GameSettingsMapper
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
         profile.VideoAntiAliasing = request.VideoAntiAliasing;
-        profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor;
-        profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor;
-        profile.VideoGameTimeFontSize = request.VideoGameTimeFontSize;
-        profile.GameLanguageFilter = request.GameLanguageFilter;
-        profile.NetworkSendDelay = request.NetworkSendDelay;
-        profile.VideoShowSoftWaterEdge = request.VideoShowSoftWaterEdge;
-        profile.VideoShowTrees = request.VideoShowTrees;
-        profile.VideoUseCloudMap = request.VideoUseCloudMap;
         profile.VideoUseLightMap = request.VideoUseLightMap;
-        profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor;
-        profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor;
-        profile.VideoGameTimeFontSize = request.VideoGameTimeFontSize;
-        profile.GameLanguageFilter = request.GameLanguageFilter;
-        profile.NetworkSendDelay = request.NetworkSendDelay;
-        profile.VideoShowSoftWaterEdge = request.VideoShowSoftWaterEdge;
-        profile.VideoShowTrees = request.VideoShowTrees;
-        profile.VideoUseCloudMap = request.VideoUseCloudMap;
-        profile.VideoUseLightMap = request.VideoUseLightMap;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo;
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -661,6 +651,7 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -735,6 +726,7 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus ?? profile.GoSocialNotificationPlayerSendsRequestMenus;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -820,6 +812,7 @@ public static class GameSettingsMapper
             profile.UseSteamLaunch = request.UseSteamLaunch.Value;
 
         profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -857,6 +850,7 @@ public static class GameSettingsMapper
         target.VideoShowTrees = source.VideoShowTrees;
         target.VideoUseCloudMap = source.VideoUseCloudMap;
         target.VideoUseLightMap = source.VideoUseLightMap;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
@@ -948,6 +942,7 @@ public static class GameSettingsMapper
         target.VideoShowTrees = source.VideoShowTrees;
         target.VideoUseCloudMap = source.VideoUseCloudMap;
         target.VideoUseLightMap = source.VideoUseLightMap;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
@@ -1003,6 +998,7 @@ public static class GameSettingsMapper
 
         target.UseSteamLaunch = source.UseSteamLaunch;
         target.GameSpyIPAddress = source.GameSpyIPAddress;
+        target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
     private static bool ParseBool(string value) =>

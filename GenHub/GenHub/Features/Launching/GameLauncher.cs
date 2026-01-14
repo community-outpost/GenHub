@@ -657,6 +657,49 @@ public class GameLauncher(
             var workspaceInfo = workspaceResult.Data;
             logger.LogInformation("[GameLauncher] Workspace prepared successfully: {WorkspaceId}", workspaceInfo.Id);
 
+            // Handle skipping EA logo if enabled
+            if (profile.VideoSkipEALogo == true)
+            {
+                // TODO: Correct way to handle this would be to integrate with the reconciler
+                // but for now we'll just delete the file from the workspace if it exists.
+
+                // Try multiple possible paths for the EA logo
+                // Note: Steam version uses Data\English\Movies\EA_LOGO.BIK
+                var possiblePaths = new[]
+                {
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "data", "movies", "EA_LOGO.BIK"),
+                };
+
+                logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspaceInfo.WorkspacePath);
+
+                var deleted = false;
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        try
+                        {
+                            File.Delete(logoPath);
+                            logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
+                            deleted = true;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+                        }
+                    }
+                }
+
+                if (!deleted)
+                {
+                    logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
+                }
+            }
+
             // Prepare user data content (maps, replays, etc.) for this profile
             // This creates hard links from CAS to user's Documents folder for content with UserMapsDirectory, etc. install targets
             // Uses SwitchProfileUserDataAsync to deactivate any other profile's user data first (unlinks their maps)

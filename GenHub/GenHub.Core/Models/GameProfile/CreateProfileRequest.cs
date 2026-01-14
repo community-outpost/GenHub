@@ -115,6 +115,9 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the anti-aliasing mode.</summary>
     public int? VideoAntiAliasing { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to skip the EA logo movie.</summary>
+    public bool? VideoSkipEALogo { get; set; }
+
     /// <summary>Gets or sets a value indicating whether to draw the scroll anchor (yes/no).</summary>
     public bool? VideoDrawScrollAnchor { get; set; }
 

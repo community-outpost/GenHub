@@ -192,6 +192,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _useLightMap = true;
 
     [ObservableProperty]
+    private bool _skipEALogo = false;
+
+    [ObservableProperty]
     private string _colorValue = "#8E44AD";
 
     [ObservableProperty]
@@ -430,6 +433,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             AudioMusicVolume = MusicVolume,
             AudioEnabled = AudioEnabled,
             AudioNumSounds = NumSounds,
+            VideoSkipEALogo = SkipEALogo,
 
             // TheSuperHackers settings
             TshArchiveReplays = TshArchiveReplays,
@@ -614,6 +618,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoShowTrees.HasValue) ShowTrees = profile.VideoShowTrees.Value;
         if (profile.VideoUseCloudMap.HasValue) UseCloudMap = profile.VideoUseCloudMap.Value;
         if (profile.VideoUseLightMap.HasValue) UseLightMap = profile.VideoUseLightMap.Value;
+        if (profile.VideoSkipEALogo.HasValue) SkipEALogo = profile.VideoSkipEALogo.Value;
 
         if (profile.AudioSoundVolume.HasValue) SoundVolume = profile.AudioSoundVolume.Value;
         if (profile.AudioThreeDSoundVolume.HasValue) ThreeDSoundVolume = profile.AudioThreeDSoundVolume.Value;
@@ -637,16 +642,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) TshScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) TshScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
         if (profile.TshMoneyTransactionVolume.HasValue) TshMoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
-
-        if (profile.VideoDrawScrollAnchor.HasValue) DrawScrollAnchor = profile.VideoDrawScrollAnchor.Value;
-        if (profile.VideoMoveScrollAnchor.HasValue) MoveScrollAnchor = profile.VideoMoveScrollAnchor.Value;
-        if (profile.VideoGameTimeFontSize.HasValue) GameTimeFontSize = profile.VideoGameTimeFontSize.Value;
-        if (profile.GameLanguageFilter.HasValue) LanguageFilter = profile.GameLanguageFilter.Value;
-        if (profile.NetworkSendDelay.HasValue) SendDelay = profile.NetworkSendDelay.Value;
-        if (profile.VideoShowSoftWaterEdge.HasValue) ShowSoftWaterEdge = profile.VideoShowSoftWaterEdge.Value;
-        if (profile.VideoShowTrees.HasValue) ShowTrees = profile.VideoShowTrees.Value;
-        if (profile.VideoUseCloudMap.HasValue) UseCloudMap = profile.VideoUseCloudMap.Value;
-        if (profile.VideoUseLightMap.HasValue) UseLightMap = profile.VideoUseLightMap.Value;
 
         // GeneralsOnline settings
         if (profile.GoShowFps.HasValue) GoShowFps = profile.GoShowFps.Value;
@@ -867,6 +862,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (options.Video.AdditionalProperties.TryGetValue("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, out var gtfsVal)) GameTimeFontSize = gtfsVal;
         if (options.Video.AdditionalProperties.TryGetValue("LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
         if (options.Video.AdditionalProperties.TryGetValue("SendDelay", out var sd)) SendDelay = ParseBool(sd);
+        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
 
         AntiAliasing = options.Video.AntiAliasing;
 
@@ -939,20 +935,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GenHubParticleEffects"] = BoolToString(ParticleEffects);
         options.Video.AdditionalProperties["GenHubBuildingAnimations"] = BoolToString(BuildingAnimations);
 
-        // Graphics Settings
         options.Video.AdditionalProperties["ShowSoftWaterEdge"] = BoolToString(ShowSoftWaterEdge);
         options.Video.AdditionalProperties["ShowTrees"] = BoolToString(ShowTrees);
         options.Video.AdditionalProperties["UseCloudMap"] = BoolToString(UseCloudMap);
         options.Video.AdditionalProperties["UseLightMap"] = BoolToString(UseLightMap);
-
-        // Additional video settings that go to AdditionalProperties (Standard root)
         options.Video.AdditionalProperties["StaticGameLOD"] = StaticGameLOD;
         options.Video.AdditionalProperties["IdealStaticGameLOD"] = IdealStaticGameLOD;
-
-        options.Video.AdditionalProperties["ShowSoftWaterEdge"] = BoolToString(ShowSoftWaterEdge);
-        options.Video.AdditionalProperties["ShowTrees"] = BoolToString(ShowTrees);
-        options.Video.AdditionalProperties["UseCloudMap"] = BoolToString(UseCloudMap);
-        options.Video.AdditionalProperties["UseLightMap"] = BoolToString(UseLightMap);
+        options.Video.AdditionalProperties["SkipEALogo"] = BoolToString(SkipEALogo);
 
         // TSH settings (writing to root for maximum compatibility as some clients prefer flat Options.ini)
         options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = BoolToString(UseDoubleClickAttackMove);
@@ -965,10 +954,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
         options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
         options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
-        options.Video.AdditionalProperties["DrawScrollAnchor"] = BoolToString(DrawScrollAnchor);
-        options.Video.AdditionalProperties["MoveScrollAnchor"] = BoolToString(MoveScrollAnchor);
-        options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
-        options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
+        options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
 
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
