@@ -1,19 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
-using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.ViewModels;
-using GenHub.Features.Notifications.ViewModels;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -69,7 +59,7 @@ public class GameProfileSettingsViewModelTests
 
         mockConfigProvider
             .Setup(x => x.GetDefaultWorkspaceStrategy())
-            .Returns(WorkspaceStrategy.SymlinkOnly);
+            .Returns(WorkspaceStrategy.HardLink);
 
         var nullLogger = NullLogger<GameProfileSettingsViewModel>.Instance;
         var gameSettingsLogger = NullLogger<GameSettingsViewModel>.Instance;
@@ -94,7 +84,7 @@ public class GameProfileSettingsViewModelTests
         Assert.Equal("New Profile", vm.Name);
         Assert.Equal("A new game profile", vm.Description);
         Assert.Equal("#1976D2", vm.ColorValue);
-        Assert.Equal(WorkspaceStrategy.SymlinkOnly, vm.SelectedWorkspaceStrategy);
+        Assert.Equal(WorkspaceStrategy.HardLink, vm.SelectedWorkspaceStrategy);
         Assert.NotEmpty(vm.AvailableGameInstallations);
         Assert.Equal(2, vm.AvailableGameInstallations.Count);
         Assert.Equal("Command & Conquer: Generals", vm.SelectedGameInstallation?.DisplayName);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -19,7 +20,11 @@ namespace GenHub.Features.GameSettings;
 /// </summary>
 public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider? pathProvider = null) : IGameSettingsService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 
     /// <summary>
     /// Static semaphore to serialize Options.ini writes across all game launches.
@@ -603,12 +608,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
-        // TheSuperHackers/GeneralsOnline settings (flat, no section header)
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings))
+        // TheSuperHackers settings
+        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings) && tshSettings.Count > 0)
         {
+            lines.Add(string.Empty);
+            lines.Add("[TheSuperHackers]");
             foreach (var kvp in tshSettings)
             {
-                lines.Add($"{kvp.Key}={kvp.Value}");
+                lines.Add($"{kvp.Key} = {kvp.Value}");
             }
         }
 
@@ -625,12 +632,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections)
+        foreach (var section in options.AdditionalSections.Where(s => s.Key != "TheSuperHackers"))
         {
-            // Skip TheSuperHackers - already written flat above
-            if (section.Key.Equals("TheSuperHackers", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
             foreach (var kvp in section.Value)

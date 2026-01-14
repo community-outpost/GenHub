@@ -163,7 +163,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private int _tshRenderFpsFontSize = 12;
 
     [ObservableProperty]
-    private int _tshResolutionFontAdjustment = 0;
+    private int _tshResolutionFontAdjustment = -100;
 
     [ObservableProperty]
     private bool _tshCursorCaptureEnabledInFullscreenGame;

@@ -6,7 +6,7 @@ namespace GenHub.Core.Models.Enums;
 public enum WorkspaceStrategy
 {
     /// <summary>
-    /// Symlink only strategy - creates symbolic links to all files. Minimal disk usage, requires admin rights. DEFAULT.
+    /// Symlink only strategy - creates symbolic links to all files. Minimal disk usage, requires admin rights.
     /// </summary>
     SymlinkOnly,
 

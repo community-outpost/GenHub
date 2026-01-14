@@ -85,5 +85,60 @@ Follow this checklist to add a new setting (e.g., `NewFeature`).
 Sometimes we need to save settings that **don't exist** in the standard `Options.ini` (e.g., `BuildingAnimations`).
 
 - We store these in `AdditionalProperties` with a `GenHub` prefix (e.g., `GenHubBuildingAnimations`).
-- In `GameSettingsMapper`, use `AdditionalProperties.TryGetValue` to read and write these manually.
-- This ensures they persist in the `Options.ini` without crashing the game, as the game typically ignores unknown keys.
+
+## Technical Implementation Reference
+
+This section documents the specific classes and files involved in the GeneralsOnline settings pipeline.
+
+### Core Files & Responsibilities
+
+There are 7 key files that handle the lifecycle of a GeneralsOnline setting.
+
+| Component | File Path | Class Name | Responsibility |
+| :--- | :--- | :--- | :--- |
+| **DTO (Request)** | `GenHub.Core\Models\GameProfile\UpdateProfileRequest.cs` | `UpdateProfileRequest` | Carries user input from UI. Has nullable fields (e.g., `GoShowFps`, `TshArchiveReplays`). |
+| **Mapper** | `GenHub.Core\Helpers\GameSettingsMapper.cs` | `GameSettingsMapper` | Moves data from DTO -> Profile, and Profile -> INI/JSON Models. |
+| **Model (DB)** | `GenHub.Core\Models\GameProfile\GameProfile.cs` | `GameProfile` | Stores the "Source of Truth". Contains persistent properties for all settings. |
+| **Model (JSON)** | `GenHub.Core\Models\GameSettings\GeneralsOnlineSettings.cs` | `GeneralsOnlineSettings` | The exact structure serialized to `settings.json`. Inherits `TheSuperHackersSettings`. |
+| **Model (INI)** | `GenHub.Core\Models\GameSettings\IniOptions.cs` | `IniOptions` | The structure serialized to `Options.ini`. Stores TSH settings in `AdditionalSections`. |
+| **IO Service** | `GenHub\Features\GameSettings\GameSettingsService.cs` | `GameSettingsService` | Handles physical file writes. Methods: `SaveOptionsAsync` and `SaveGeneralsOnlineSettingsAsync`. |
+| **Orchestrator** | `GenHub\Features\Launching\GameLauncher.cs` | `GameLauncher` | Triggers the write operation immediately before game start. |
+
+### Data Flow Pipeline
+
+Tracing a setting change (e.g., "Show FPS") from User to Disk:
+
+1. **UI Request**: The frontend sends an `UpdateProfileRequest` containing `GoShowFps = true`.
+2. **Mapping to Profile**:
+    - `GameProfileManager` calls `GameSettingsMapper.PopulateGameProfile(profile, request)`.
+    - Code: `profile.GoShowFps = request.GoShowFps ?? profile.GoShowFps;`
+    - Result: database now stores the user's preference.
+
+3. **Launch Sequence**:
+    - User clicks "Launch".
+    - `GameLauncher.cs` executes two parallel operations:
+
+    **Path A: To Options.ini (Legacy/TSH)**
+    - Calls `ApplyProfileSettingsToIniOptionsAsync`.
+    - `GameSettingsMapper.ApplyToOptions` maps `profile.Tsh...` properties into `IniOptions.AdditionalSections["TheSuperHackers"]`.
+    - `GameSettingsService` writes `Options.ini`. *Note: It manually adds the `[TheSuperHackers]` header.*
+
+    **Path B: To settings.json (GeneralsOnline)**
+    - Calls `ApplyGeneralsOnlineSettingsAsync`.
+    - Instantiates new `GeneralsOnlineSettings`.
+    - Manually maps properties: `settings.ShowFps = profile.GoShowFps.Value;`
+    - `GameSettingsService` writes `settings.json` using `System.Text.Json`.
+
+### Inheritance Detail
+
+`GeneralsOnlineSettings.cs` inherits from `TheSuperHackersSettings.cs`.
+
+```csharp
+public class GeneralsOnlineSettings : TheSuperHackersSettings
+{
+    public bool ShowFps { get; set; }
+    // ... other GO settings
+}
+```
+
+This inheritance explains why `settings.json` contains keys like `ArchiveReplays` (a TSH setting). The `GameLauncher` maps TSH properties from the profile into the `GeneralsOnlineSettings` object before saving, effectively duplicating them for the GO client.

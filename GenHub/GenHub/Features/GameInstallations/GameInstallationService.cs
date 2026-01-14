@@ -210,11 +210,20 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 "[MANIFEST-GEN] Creating Generals manifest for {Path}",
                 installation.GeneralsPath);
 
+            // Select the best client for the installation manifest
+            // Prioritize clients that match the installation publisher (e.g. Steam) and avoid third-party clients (GeneralsOnline)
+            // so that the installation manifest version reflects the base game, not a mod/tool.
+            var bestGeneralsClient = installation.AvailableGameClients
+                .Where(c => c.GameType == GameType.Generals)
+                .OrderByDescending(c => string.Equals(c.PublisherType, installation.InstallationType.ToIdentifierString(), StringComparison.OrdinalIgnoreCase))
+                .ThenBy(c => string.Equals(c.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault();
+
             await GenerateAndPoolManifestForGameTypeAsync(
                 installation,
                 GameType.Generals,
                 installation.GeneralsPath,
-                installation.GeneralsClient,
+                bestGeneralsClient,
                 ManifestConstants.GeneralsManifestVersion,
                 cancellationToken);
         }
@@ -233,11 +242,18 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 "[MANIFEST-GEN] Creating ZeroHour manifest for {Path}",
                 installation.ZeroHourPath);
 
+            // Select the best client for the installation manifest
+            var bestZeroHourClient = installation.AvailableGameClients
+                .Where(c => c.GameType == GameType.ZeroHour)
+                .OrderByDescending(c => string.Equals(c.PublisherType, installation.InstallationType.ToIdentifierString(), StringComparison.OrdinalIgnoreCase))
+                .ThenBy(c => string.Equals(c.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault();
+
             await GenerateAndPoolManifestForGameTypeAsync(
                 installation,
                 GameType.ZeroHour,
                 installation.ZeroHourPath,
-                installation.ZeroHourClient,
+                bestZeroHourClient,
                 ManifestConstants.ZeroHourManifestVersion,
                 cancellationToken);
         }

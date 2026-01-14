@@ -135,7 +135,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _enableDetailedLogging = false;
 
     [ObservableProperty]
-    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceStrategy.SymlinkOnly;
+    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
 
     [ObservableProperty]
     private bool _isSaving = false;

@@ -557,6 +557,47 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             // Initialize game settings with defaults for new profile
             GameSettingsViewModel.ColorValue = ColorValue;
 
+            // pre-load existing settings.json if available
+            // This ensures users creating their first profile don't lose their current configuration
+            if (gameSettingsService != null)
+            {
+                try
+                {
+                    var existingGoSettings = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                    if (existingGoSettings.Success && existingGoSettings.Data != null)
+                    {
+                        logger?.LogInformation("Pre-loading existing GeneralsOnline settings for new profile");
+                        var data = existingGoSettings.Data;
+
+                        // Map existing settings to global DTO structure if needed, or directly pass to GameSettingsViewModel
+                        // Since GameSettingsViewModel initializes with defaults (nulls), we need to inject these values.
+                        // We'll create a temporary Profile object with these settings to initialize the VM.
+                        var tempProfile = new GameProfile { Id = "temp_new" };
+
+                        // Use the Mapper to populate the profile from the settings object
+                        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(data, tempProfile);
+
+                        // Initialize VM with these pre-loaded settings
+                        await GameSettingsViewModel.InitializeForProfileAsync(null, tempProfile);
+                    }
+                else
+                {
+                    // Fallback to standard defaults
+                    await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+                }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to pre-load existing settings for new profile, using defaults");
+                    await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+                }
+            }
+            else
+            {
+                // No settings service available, use defaults
+                await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+            }
+
             // Ensure the correct game type is selected so we load the correct Options.ini defaults
             if (SelectedGameInstallation != null)
             {
@@ -565,8 +606,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                     "Set GameSettingsViewModel.SelectedGameType to {GameType} before initialization",
                     SelectedGameInstallation.GameType);
             }
-
-            await GameSettingsViewModel.InitializeForProfileAsync(null, null);
 
             StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
             logger?.LogInformation(

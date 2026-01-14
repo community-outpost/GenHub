@@ -448,7 +448,7 @@ public class GameClientDetector(
         }
 
         // Apply smart defaults for generic/unknown versions
-        if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00")
+        if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0")
         {
             var oldVersion = fallbackVersion;
             fallbackVersion = gameType == GameType.Generals ? "1.08" : "1.04";
