@@ -416,6 +416,11 @@ public static class CNCLabsConstants
     public const string TagCoopMission = "Coop Mission";
 
     /// <summary>
+    /// Format for parsing release dates for CNC Labs (M/d/yyyy).
+    /// </summary>
+    public const string ReleaseDateFormat = "M/d/yyyy";
+
+    /// <summary>
     /// Default tags for CNC Labs manifests.
     /// </summary>
     public static readonly string[] DefaultTags = ["cnclabs"];

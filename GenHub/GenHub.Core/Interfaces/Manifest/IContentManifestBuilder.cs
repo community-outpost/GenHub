@@ -153,28 +153,6 @@ public interface IContentManifestBuilder
     Task<IContentManifestBuilder> AddRemoteFileAsync(string relativePath, string downloadUrl, ContentSourceType sourceType = ContentSourceType.ContentAddressable, bool isExecutable = false, FilePermissions? permissions = null);
 
     /// <summary>
-    /// Downloads a file from a remote URL, stores it in CAS, and adds it to the manifest.
-    /// This method actually downloads the file, computes its hash, stores it in Content-Addressable Storage,
-    /// and adds a proper file entry with CAS reference to the manifest.
-    /// </summary>
-    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="downloadUrl">Download URL for the remote file.</param>
-    /// <param name="sourceType">How this file should be handled (typically ContentAddressable).</param>
-    /// <param name="isExecutable">Whether the file is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <param name="refererUrl">Optional referer URL to use for the download request.</param>
-    /// <param name="userAgent">The User-Agent string to use for the download (optional).</param>
-    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    Task<IContentManifestBuilder> AddDownloadedFileAsync(
-        string relativePath,
-        string downloadUrl,
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        bool isExecutable = false,
-        FilePermissions? permissions = null,
-        string? refererUrl = null,
-        string? userAgent = null);
-
-    /// <summary>
     /// Adds a game installation file from the detected game installation.
     /// </summary>
     /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>

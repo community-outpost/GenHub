@@ -251,7 +251,7 @@ public static class PublisherInfoConstants
         public const string Name = "All Publishers";
 
         /// <summary>Logo source for All Publishers view.</summary>
-        public const string LogoSource = "avares://GenHub/Assets/Logos/generalsonline-logo.png";
+        public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
     }
 
     /// <summary>

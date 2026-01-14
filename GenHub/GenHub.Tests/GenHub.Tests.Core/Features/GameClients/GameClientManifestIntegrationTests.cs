@@ -46,8 +46,7 @@ public class GameClientManifestIntegrationTests : IDisposable
             _hashProvider,
             _manifestIdService,
             new Mock<IDownloadService>().Object,
-            new Mock<IConfigurationProviderService>().Object,
-            new Mock<IPlaywrightService>().Object);
+            new Mock<IConfigurationProviderService>().Object);
 
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))

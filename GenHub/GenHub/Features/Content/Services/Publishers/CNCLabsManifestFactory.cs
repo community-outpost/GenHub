@@ -9,6 +9,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
@@ -25,10 +28,18 @@ namespace GenHub.Features.Content.Services.Publishers;
 public partial class CNCLabsManifestFactory(
     IContentManifestBuilder manifestBuilder,
     IProviderDefinitionLoader providerLoader,
+    IDownloadService downloadService,
+    ICasService casService,
+    IPlaywrightService playwrightService,
+    IConfigurationProviderService configurationProvider,
     ILogger<CNCLabsManifestFactory> logger) : IPublisherManifestFactory
 {
     private readonly ILogger<CNCLabsManifestFactory> _logger = logger;
     private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+    private readonly IDownloadService _downloadService = downloadService;
+    private readonly ICasService _casService = casService;
+    private readonly IPlaywrightService _playwrightService = playwrightService;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     [GeneratedRegex(@"[^a-z0-9]", RegexOptions.IgnoreCase)]
     private static partial Regex AuthorRegex();
@@ -166,8 +177,8 @@ public partial class CNCLabsManifestFactory(
         var contentName = SlugifyContentName(details.Name);
         var publisherId = CNCLabsConstants.PublisherId;
 
-        // 3. Format submission date as YYYYMMDD for version (same as ModDB)
-        var releaseDate = details.SubmissionDate.ToString(ModDBConstants.ReleaseDateFormat);
+        // 3. Format submission date as YYYYMMDD for version
+        var releaseDate = details.SubmissionDate.ToString(CNCLabsConstants.ReleaseDateFormat);
 
         // 4. Use injected builder
         // Note: Since the builder is stateful and injected as Transient (likely), we can use it directly.
@@ -196,10 +207,11 @@ public partial class CNCLabsManifestFactory(
 
         if (!string.IsNullOrEmpty(details.DownloadUrl))
         {
-            await builder.AddDownloadedFileAsync(
+            await DownloadAndAddFileAsync(
+                builder,
                 fileName,
                 details.DownloadUrl,
-                ContentSourceType.ContentAddressable);
+                details.RefererUrl);
         }
         else
         {
@@ -207,5 +219,52 @@ public partial class CNCLabsManifestFactory(
         }
 
         return builder.Build();
+    }
+
+    private async Task DownloadAndAddFileAsync(
+        IContentManifestBuilder builder,
+        string relativePath,
+        string downloadUrl,
+        string? refererUrl)
+    {
+        var tempDir = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
+        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+
+        var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
+
+        var downloadConfig = new DownloadConfiguration
+        {
+            Url = new Uri(downloadUrl),
+            DestinationPath = tempFilePath,
+            OverwriteExisting = true,
+        };
+
+        if (!string.IsNullOrEmpty(refererUrl))
+        {
+            downloadConfig.Headers.Add("Referer", refererUrl);
+        }
+
+        // Standard download for CNC Labs
+        var downloadResult = await _downloadService.DownloadFileAsync(downloadConfig);
+        if (!downloadResult.Success)
+        {
+            throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
+        }
+
+        // Store in CAS
+        var storeResult = await _casService.StoreContentAsync(tempFilePath, ContentType.Map);
+        if (!storeResult.Success)
+        {
+            if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
+            throw new InvalidOperationException($"Failed to store content in CAS: {storeResult.FirstError}");
+        }
+
+        var hash = storeResult.Data;
+        var fileSize = new FileInfo(tempFilePath).Length;
+
+        // Cleanup temp file after successful store (ICasService might move it, but keeping it safe)
+        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
+
+        await builder.AddContentAddressableFileAsync(relativePath, hash, fileSize);
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using AngleSharp.Dom;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Features.Content.Services.Helpers;
@@ -53,8 +54,31 @@ public static partial class AODMapsHelper
     /// <returns>A tuple containing the game type and content type.</returns>
     public static (GameType GameType, ContentType ContentType) ExtractBreadcrumbCategory(IDocument document)
     {
-        // Simple default implementation
-        return (GameType.ZeroHour, ContentType.Map);
+        var breadcrumbs = document.QuerySelector(AODMapsConstants.BreadcrumbHeaderSelector);
+        if (breadcrumbs == null)
+        {
+            return (GameType.ZeroHour, ContentType.Map);
+        }
+
+        var text = breadcrumbs.TextContent;
+
+        var gameType = GameType.ZeroHour;
+        if (text.Contains("Generals", StringComparison.OrdinalIgnoreCase) && !text.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
+        {
+            gameType = GameType.Generals;
+        }
+
+        var contentType = ContentType.Map;
+        if (text.Contains("Mission", StringComparison.OrdinalIgnoreCase))
+        {
+            contentType = ContentType.Mission;
+        }
+        else if (text.Contains("Pack", StringComparison.OrdinalIgnoreCase))
+        {
+            contentType = ContentType.Map; // Or another type if appropriate for packs
+        }
+
+        return (gameType, contentType);
     }
 
     /// <summary>

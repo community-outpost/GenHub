@@ -22,15 +22,13 @@ public partial class ContentManifestBuilder(
     IFileHashProvider hashProvider,
     IManifestIdService manifestIdService,
     IDownloadService downloadService,
-    IConfigurationProviderService configurationProvider,
-    IPlaywrightService playwrightService) : IContentManifestBuilder
+    IConfigurationProviderService configurationProvider) : IContentManifestBuilder
 {
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
     private readonly IManifestIdService _manifestIdService = manifestIdService;
     private readonly IDownloadService _downloadService = downloadService;
     private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
-    private readonly IPlaywrightService _playwrightService = playwrightService;
 
     // Temporary storage for ID generation
     private string? _publisherId;
@@ -464,139 +462,6 @@ public partial class ContentManifestBuilder(
         FilePermissions? permissions = null)
     {
         return await AddFileAsync(relativePath, string.Empty, sourceType, downloadUrl, isExecutable, permissions);
-    }
-
-    /// <summary>
-    /// Downloads a file from a remote URL, stores it in CAS, and adds it to the manifest.
-    /// </summary>
-    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="downloadUrl">Download URL for the remote file.</param>
-    /// <param name="sourceType">How this file should be handled (typically ContentAddressable).</param>
-    /// <param name="isExecutable">Whether the file is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <param name="refererUrl">Optional referer URL to use for the download request.</param>
-    /// <param name="userAgent">Optional user agent to use for the download request.</param>
-    /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public async Task<IContentManifestBuilder> AddDownloadedFileAsync(
-        string relativePath,
-        string downloadUrl,
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        bool isExecutable = false,
-        FilePermissions? permissions = null,
-        string? refererUrl = null,
-        string? userAgent = null)
-    {
-        if (string.IsNullOrEmpty(downloadUrl))
-        {
-            throw new ArgumentException("Download URL cannot be null or empty", nameof(downloadUrl));
-        }
-
-        try
-        {
-            // Get CAS configuration
-            var casConfig = _configurationProvider.GetCasConfiguration();
-            var appDataPath = _configurationProvider.GetApplicationDataPath();
-
-            // Ensure CAS directory exists
-            var casPoolPath = Path.Combine(appDataPath, DirectoryNames.Data, DirectoryNames.CasPool);
-            if (!Directory.Exists(casPoolPath))
-            {
-                Directory.CreateDirectory(casPoolPath);
-            }
-
-            // Create temp directory for download
-            var tempDir = Path.Combine(appDataPath, DirectoryNames.Temp);
-            if (!Directory.Exists(tempDir))
-            {
-                Directory.CreateDirectory(tempDir);
-            }
-
-            // Download to temp location first
-            var tempFileName = $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}";
-            var tempFilePath = Path.Combine(tempDir, tempFileName);
-
-            var downloadConfig = new GenHub.Core.Models.Common.DownloadConfiguration
-            {
-                Url = new Uri(downloadUrl),
-                DestinationPath = tempFilePath,
-                OverwriteExisting = true,
-            };
-
-            if (!string.IsNullOrEmpty(userAgent))
-            {
-                downloadConfig.UserAgent = userAgent;
-            }
-
-            if (!string.IsNullOrEmpty(refererUrl))
-            {
-                downloadConfig.Headers.Add("Referer", refererUrl);
-            }
-
-            GenHub.Core.Models.Results.DownloadResult downloadResult;
-
-            // If a custom User-Agent is provided, we assume it's to bypass anti-bot and use Playwright
-            if (!string.IsNullOrEmpty(userAgent))
-            {
-                downloadResult = await _playwrightService.DownloadFileAsync(downloadConfig, default);
-            }
-            else
-            {
-                downloadResult = await _downloadService.DownloadFileAsync(downloadConfig);
-            }
-
-            if (!downloadResult.Success)
-            {
-                throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
-            }
-
-            // Compute hash
-            var hash = await _downloadService.ComputeFileHashAsync(tempFilePath);
-
-            // Move file to CAS storage (hash-based filename)
-            var casFilePath = Path.Combine(casPoolPath, hash);
-
-            // Only move if not already in CAS
-            if (!File.Exists(casFilePath))
-            {
-                File.Move(tempFilePath, casFilePath, overwrite: false);
-            }
-            else
-            {
-                // File already exists in CAS, just delete temp
-                File.Delete(tempFilePath);
-            }
-
-            // Get file size
-            var fileInfo = new FileInfo(casFilePath);
-            var fileSize = fileInfo.Length;
-
-            // Add file entry with CAS reference
-            var manifestFile = new ManifestFile
-            {
-                RelativePath = relativePath,
-                SourceType = ContentSourceType.ContentAddressable,
-                Hash = hash,
-                Size = fileSize,
-                IsExecutable = isExecutable,
-                InstallTarget = DetermineInstallTarget(relativePath),
-                Permissions = permissions ?? new FilePermissions { UnixPermissions = isExecutable ? "755" : "644" },
-                DownloadUrl = downloadUrl, // Keep original URL for reference
-            };
-
-            // Check for duplicates
-            if (_manifest.Files.Any(f => f.RelativePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase)))
-            {
-                return this;
-            }
-
-            _manifest.Files.Add(manifestFile);
-
-            return this;
-        }
-        catch (Exception)
-        {
-            throw;
-        }
     }
 
     /// <summary>

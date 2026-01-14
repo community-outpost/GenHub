@@ -128,8 +128,7 @@ public class FileSystemDeliverer : IContentDeliverer
                 _hashProvider,
                 null!,
                 _downloadService,
-                _configProvider,
-                _playwrightService);
+                _configProvider);
 
             if (!int.TryParse(packageManifest.Version, out var manifestVersionInt))
             {

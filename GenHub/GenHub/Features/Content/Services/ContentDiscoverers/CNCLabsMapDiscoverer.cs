@@ -605,16 +605,19 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                 var unit = parts.Length > 1 ? parts[1].Trim().ToUpperInvariant() : "B";
                 long multiplier = unit switch
                 {
-                    "GB" => 1024 * 1024 * 1024,
-                    "MB" => 1024 * 1024,
-                    "KB" => 1024,
+                    "GB" => ConversionConstants.BytesPerGigabyte,
+                    "MB" => ConversionConstants.BytesPerMegabyte,
+                    "KB" => ConversionConstants.BytesPerKilobyte,
                     _ => 1,
                 };
                 return (long)(val * multiplier);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            // Logging failure to parse file size, though it's acceptable to return null
+            // and fallback to the display string.
+            Console.WriteLine($"Failed to parse file size '{size}': {ex.Message}");
         }
 
         return null;

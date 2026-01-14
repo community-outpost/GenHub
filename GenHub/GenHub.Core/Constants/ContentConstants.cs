@@ -89,4 +89,9 @@ public static class ContentConstants
     /// Progress percentage for completion (100%).
     /// </summary>
     public const int ProgressStepCompleted = 100;
+
+    /// <summary>
+    /// Maximum allowed size for the content catalog in bytes (10 MB).
+    /// </summary>
+    public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;
 }

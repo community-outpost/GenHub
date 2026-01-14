@@ -67,8 +67,7 @@ public class ManifestGenerationServiceTests : IDisposable
             _hashProviderMock.Object,
             _manifestIdServiceMock.Object,
             _downloadServiceMock.Object,
-            _configProviderServiceMock.Object,
-            _playwrightServiceMock.Object);
+            _configProviderServiceMock.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);

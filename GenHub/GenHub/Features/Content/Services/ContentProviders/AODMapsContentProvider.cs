@@ -27,11 +27,11 @@ public class AODMapsContentProvider(
         string.Equals(d.SourceName, AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("AODMaps discoverer not found");
 
-    private readonly IContentResolver _aodMapsResolver = resolvers!.FirstOrDefault(r =>
+    private readonly IContentResolver _aodMapsResolver = resolvers.FirstOrDefault(r =>
         string.Equals(r.ResolverId, AODMapsConstants.ResolverId, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("AODMaps resolver not found");
 
-    private readonly IContentDeliverer _httpDeliverer = deliverers!.FirstOrDefault(d =>
+    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d =>
         string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
@@ -68,7 +68,7 @@ public class AODMapsContentProvider(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
         }
 
-        var result = searchResult.Data!.First();
+        var result = searchResult.Data.First();
         var manifest = result.GetData<ContentManifest>();
 
         return manifest != null
