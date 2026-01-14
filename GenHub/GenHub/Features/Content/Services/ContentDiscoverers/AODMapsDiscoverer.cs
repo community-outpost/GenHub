@@ -1,10 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
@@ -14,6 +7,15 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
@@ -76,7 +78,7 @@ public partial class AODMapsDiscoverer(
         // Simply store it in metadata if needed for sorting?
         // We really need it for the Manifest, but Discoverer just finds.
         string safeDownloadUrl = downloadUrl ?? string.Empty;
-        string safeHashCode = safeDownloadUrl.GetHashCode().ToString();
+        string safeHashCode = ComputeStableHash(safeDownloadUrl);
 
         return new ContentSearchResult
         {
@@ -135,7 +137,7 @@ public partial class AODMapsDiscoverer(
 
         // p1 contains "- Type: Survival - Difficultly: Hard ..."
         string safeDownloadUrl = downloadUrl ?? string.Empty;
-        string safeHashCode = safeDownloadUrl.GetHashCode().ToString();
+        string safeHashCode = ComputeStableHash(safeDownloadUrl);
 
         return new ContentSearchResult
         {
@@ -159,6 +161,23 @@ public partial class AODMapsDiscoverer(
                 { AODMapsConstants.IconUrlMetadataKey, thumbnailUrl ?? string.Empty },
             },
         };
+    }
+
+    private static string ComputeStableHash(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return "0";
+        }
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+        var builder = new StringBuilder();
+        foreach (var b in bytes)
+        {
+            builder.Append(b.ToString("x2"));
+        }
+
+        return builder.ToString();
     }
 
     /// <inheritdoc />
@@ -338,8 +357,9 @@ public partial class AODMapsDiscoverer(
         bool hasMoreItems = false;
 
         // AODMaps uses a ul at the bottom with page numbers and a 'Next' link
-        var nextLink = document.QuerySelector("ul li a:contains('Next')") ??
-                       document.QuerySelector("a[href*='new']")?.ParentElement?.QuerySelectorAll("a").LastOrDefault(a => a.TextContent.Contains("Next"));
+        // AODMaps uses a ul at the bottom with page numbers and a 'Next' link
+        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase)) ??
+                       document.QuerySelector("a[href*='new']")?.ParentElement?.QuerySelectorAll("a").LastOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase));
 
         nextLink ??= document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent.Contains("Next", StringComparison.OrdinalIgnoreCase));
 
