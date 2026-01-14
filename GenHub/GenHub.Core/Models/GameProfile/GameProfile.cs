@@ -144,6 +144,30 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets a value indicating whether heat effects are enabled.</summary>
     public bool? VideoHeatEffects { get; set; }
 
+    /// <summary>Gets or sets the static game LOD (Level of Detail) setting (Low/High/VeryHigh).</summary>
+    public string? VideoStaticGameLOD { get; set; }
+
+    /// <summary>Gets or sets the ideal static game LOD setting (Low/High/VeryHigh).</summary>
+    public string? VideoIdealStaticGameLOD { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether double-click attack move is enabled.</summary>
+    public bool? VideoUseDoubleClickAttackMove { get; set; }
+
+    /// <summary>Gets or sets the scroll speed factor (0-255, default ~50).</summary>
+    public int? VideoScrollFactor { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether retaliation is enabled.</summary>
+    public bool? VideoRetaliation { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether dynamic LOD is enabled.</summary>
+    public bool? VideoDynamicLOD { get; set; }
+
+    /// <summary>Gets or sets the maximum particle count.</summary>
+    public int? VideoMaxParticleCount { get; set; }
+
+    /// <summary>Gets or sets the anti-aliasing mode (0-4).</summary>
+    public int? VideoAntiAliasing { get; set; }
+
     // ===== TheSuperHackers Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to archive replays automatically (TSH).</summary>

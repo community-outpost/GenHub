@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -133,6 +132,30 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     [ObservableProperty]
     private bool _heatEffects = true;
+
+    [ObservableProperty]
+    private string _staticGameLOD = "High";
+
+    [ObservableProperty]
+    private string _idealStaticGameLOD = "VeryHigh";
+
+    [ObservableProperty]
+    private bool _useDoubleClickAttackMove = true;
+
+    [ObservableProperty]
+    private int _scrollFactor = 50;
+
+    [ObservableProperty]
+    private bool _retaliation = true;
+
+    [ObservableProperty]
+    private bool _dynamicLOD = false;
+
+    [ObservableProperty]
+    private int _maxParticleCount = 5000;
+
+    [ObservableProperty]
+    private int _antiAliasing = 1;
 
     [ObservableProperty]
     private string _colorValue = "#8E44AD";
@@ -344,6 +367,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             VideoGamma = Gamma,
             VideoAlternateMouseSetup = AlternateMouseSetup,
             VideoHeatEffects = HeatEffects,
+            VideoStaticGameLOD = StaticGameLOD,
+            VideoIdealStaticGameLOD = IdealStaticGameLOD,
+            VideoUseDoubleClickAttackMove = UseDoubleClickAttackMove,
+            VideoScrollFactor = ScrollFactor,
+            VideoRetaliation = Retaliation,
+            VideoDynamicLOD = DynamicLOD,
+            VideoMaxParticleCount = MaxParticleCount,
+            VideoAntiAliasing = AntiAliasing,
             AudioSoundVolume = SoundVolume,
             AudioThreeDSoundVolume = ThreeDSoundVolume,
             AudioSpeechVolume = SpeechVolume,
@@ -467,7 +498,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
             else
             {
-                var errors = result?.Errors ?? new List<string> { "LoadOptions result was null" };
+                var errors = result?.Errors ?? ["LoadOptions result was null"];
                 StatusMessage = $"Failed to load settings: {string.Join(", ", errors)}";
                 _logger.LogWarning("Failed to load settings for {GameType}: {Errors}", gameType, string.Join(", ", errors));
             }
@@ -481,7 +512,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
             else
             {
-                var goErrors = goResult?.Errors ?? new List<string> { "LoadGeneralsOnlineSettings result was null" };
+                var goErrors = goResult?.Errors ?? ["LoadGeneralsOnlineSettings result was null"];
                 _logger.LogWarning("Failed to load GeneralsOnline settings: {Errors}", string.Join(", ", goErrors));
             }
         }
@@ -517,6 +548,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoGamma.HasValue) Gamma = profile.VideoGamma.Value;
         if (profile.VideoAlternateMouseSetup.HasValue) AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
         if (profile.VideoHeatEffects.HasValue) HeatEffects = profile.VideoHeatEffects.Value;
+        if (profile.VideoStaticGameLOD != null) StaticGameLOD = profile.VideoStaticGameLOD;
+        if (profile.VideoIdealStaticGameLOD != null) IdealStaticGameLOD = profile.VideoIdealStaticGameLOD;
+        if (profile.VideoUseDoubleClickAttackMove.HasValue) UseDoubleClickAttackMove = profile.VideoUseDoubleClickAttackMove.Value;
+        if (profile.VideoScrollFactor.HasValue) ScrollFactor = profile.VideoScrollFactor.Value;
+        if (profile.VideoRetaliation.HasValue) Retaliation = profile.VideoRetaliation.Value;
+        if (profile.VideoDynamicLOD.HasValue) DynamicLOD = profile.VideoDynamicLOD.Value;
+        if (profile.VideoMaxParticleCount.HasValue) MaxParticleCount = profile.VideoMaxParticleCount.Value;
+        if (profile.VideoAntiAliasing.HasValue) AntiAliasing = profile.VideoAntiAliasing.Value;
 
         if (profile.AudioSoundVolume.HasValue) SoundVolume = profile.AudioSoundVolume.Value;
         if (profile.AudioThreeDSoundVolume.HasValue) ThreeDSoundVolume = profile.AudioThreeDSoundVolume.Value;
@@ -736,12 +775,30 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         TextureQuality = calculatedQuality;
         Shadows = options.Video.UseShadowVolumes;
 
-        // Retrieve custom ParticleEffects and BuildingAnimations settings
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var pe)) ParticleEffects = ParseBool(pe);
+        // Load GenHub custom properties
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
+            ParticleEffects = ParseBool(particleEffects);
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var buildingAnimations))
+            BuildingAnimations = ParseBool(buildingAnimations);
+
+        // Load additional video settings
+        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
+            StaticGameLOD = staticLOD;
+        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
+            IdealStaticGameLOD = idealLOD;
+        if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+            UseDoubleClickAttackMove = ParseBool(doubleClick);
+        if (options.Video.AdditionalProperties.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+            ScrollFactor = scrollVal;
+        if (options.Video.AdditionalProperties.TryGetValue("Retaliation", out var retaliation))
+            Retaliation = ParseBool(retaliation);
+        if (options.Video.AdditionalProperties.TryGetValue("DynamicLOD", out var dynLOD))
+            DynamicLOD = ParseBool(dynLOD);
+        if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+            MaxParticleCount = particleVal;
+        AntiAliasing = options.Video.AntiAliasing;
 
         ExtraAnimations = options.Video.ExtraAnimations;
-
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba)) BuildingAnimations = ParseBool(ba);
         Gamma = options.Video.Gamma;
         AlternateMouseSetup = options.Video.AlternateMouseSetup;
         HeatEffects = options.Video.HeatEffects;
@@ -798,6 +855,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GenHubParticleEffects"] = BoolToString(ParticleEffects);
         options.Video.AdditionalProperties["GenHubBuildingAnimations"] = BoolToString(BuildingAnimations);
 
+        // Additional video settings that go to AdditionalProperties
+        options.Video.AdditionalProperties["StaticGameLOD"] = StaticGameLOD;
+        options.Video.AdditionalProperties["IdealStaticGameLOD"] = IdealStaticGameLOD;
+        options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = BoolToString(UseDoubleClickAttackMove);
+        options.Video.AdditionalProperties["ScrollFactor"] = ScrollFactor.ToString();
+        options.Video.AdditionalProperties["Retaliation"] = BoolToString(Retaliation);
+        options.Video.AdditionalProperties["DynamicLOD"] = BoolToString(DynamicLOD);
+        options.Video.AdditionalProperties["MaxParticleCount"] = MaxParticleCount.ToString();
+        options.Video.AntiAliasing = AntiAliasing;
+
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
@@ -806,25 +873,29 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         options.Network.GameSpyIPAddress = GameSpyIPAddress;
 
-        // TheSuperHackers settings
-        var tshDict = new Dictionary<string, string>
+        // TheSuperHackers settings - preserve existing settings, only update the ones we manage
+        // This ensures game-specific settings like UseDoubleClickAttackMove, ScrollFactor, Retaliation, etc. are not lost
+        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict))
         {
-            ["ArchiveReplays"] = BoolToString(TshArchiveReplays),
-            ["ShowMoneyPerMinute"] = BoolToString(TshShowMoneyPerMinute),
-            ["PlayerObserverEnabled"] = BoolToString(TshPlayerObserverEnabled),
-            ["SystemTimeFontSize"] = TshSystemTimeFontSize.ToString(),
-            ["NetworkLatencyFontSize"] = TshNetworkLatencyFontSize.ToString(),
-            ["RenderFpsFontSize"] = TshRenderFpsFontSize.ToString(),
-            ["ResolutionFontAdjustment"] = TshResolutionFontAdjustment.ToString(),
-            ["CursorCaptureEnabledInFullscreenGame"] = BoolToString(TshCursorCaptureEnabledInFullscreenGame),
-            ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu),
-            ["CursorCaptureEnabledInWindowedGame"] = BoolToString(TshCursorCaptureEnabledInWindowedGame),
-            ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(TshCursorCaptureEnabledInWindowedMenu),
-            ["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp),
-            ["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp),
-            ["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString(),
-        };
-        options.AdditionalSections["TheSuperHackers"] = tshDict;
+            tshDict = [];
+            options.AdditionalSections["TheSuperHackers"] = tshDict;
+        }
+
+        // Update only the settings we know about in the ViewModel, preserve all others
+        tshDict["ArchiveReplays"] = BoolToString(TshArchiveReplays);
+        tshDict["ShowMoneyPerMinute"] = BoolToString(TshShowMoneyPerMinute);
+        tshDict["PlayerObserverEnabled"] = BoolToString(TshPlayerObserverEnabled);
+        tshDict["SystemTimeFontSize"] = TshSystemTimeFontSize.ToString();
+        tshDict["NetworkLatencyFontSize"] = TshNetworkLatencyFontSize.ToString();
+        tshDict["RenderFpsFontSize"] = TshRenderFpsFontSize.ToString();
+        tshDict["ResolutionFontAdjustment"] = TshResolutionFontAdjustment.ToString();
+        tshDict["CursorCaptureEnabledInFullscreenGame"] = BoolToString(TshCursorCaptureEnabledInFullscreenGame);
+        tshDict["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(TshCursorCaptureEnabledInFullscreenMenu);
+        tshDict["CursorCaptureEnabledInWindowedGame"] = BoolToString(TshCursorCaptureEnabledInWindowedGame);
+        tshDict["CursorCaptureEnabledInWindowedMenu"] = BoolToString(TshCursorCaptureEnabledInWindowedMenu);
+        tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
+        tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
+        tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
 
         return options;
     }

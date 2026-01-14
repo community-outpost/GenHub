@@ -285,6 +285,24 @@ public static class GameSettingsMapper
             options.Video.HeatEffects = profile.VideoHeatEffects.Value;
         }
 
+        // Additional video settings to AdditionalProperties
+        if (profile.VideoStaticGameLOD != null)
+            options.Video.AdditionalProperties["StaticGameLOD"] = profile.VideoStaticGameLOD;
+        if (profile.VideoIdealStaticGameLOD != null)
+            options.Video.AdditionalProperties["IdealStaticGameLOD"] = profile.VideoIdealStaticGameLOD;
+        if (profile.VideoUseDoubleClickAttackMove.HasValue)
+            options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
+        if (profile.VideoScrollFactor.HasValue)
+            options.Video.AdditionalProperties["ScrollFactor"] = profile.VideoScrollFactor.Value.ToString();
+        if (profile.VideoRetaliation.HasValue)
+            options.Video.AdditionalProperties["Retaliation"] = profile.VideoRetaliation.Value ? "yes" : "no";
+        if (profile.VideoDynamicLOD.HasValue)
+            options.Video.AdditionalProperties["DynamicLOD"] = profile.VideoDynamicLOD.Value ? "yes" : "no";
+        if (profile.VideoMaxParticleCount.HasValue)
+            options.Video.AdditionalProperties["MaxParticleCount"] = profile.VideoMaxParticleCount.Value.ToString();
+        if (profile.VideoAntiAliasing.HasValue)
+            options.Video.AntiAliasing = profile.VideoAntiAliasing.Value;
+
         // Audio settings with validation
         if (profile.AudioSoundVolume.HasValue)
         {
@@ -506,6 +524,14 @@ public static class GameSettingsMapper
         profile.VideoGamma = request.VideoGamma;
         profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup;
         profile.VideoHeatEffects = request.VideoHeatEffects;
+        profile.VideoStaticGameLOD = request.VideoStaticGameLOD;
+        profile.VideoIdealStaticGameLOD = request.VideoIdealStaticGameLOD;
+        profile.VideoUseDoubleClickAttackMove = request.VideoUseDoubleClickAttackMove;
+        profile.VideoScrollFactor = request.VideoScrollFactor;
+        profile.VideoRetaliation = request.VideoRetaliation;
+        profile.VideoDynamicLOD = request.VideoDynamicLOD;
+        profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
+        profile.VideoAntiAliasing = request.VideoAntiAliasing;
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -662,6 +688,14 @@ public static class GameSettingsMapper
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
         profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
         profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
+        profile.VideoStaticGameLOD = request.VideoStaticGameLOD ?? profile.VideoStaticGameLOD;
+        profile.VideoIdealStaticGameLOD = request.VideoIdealStaticGameLOD ?? profile.VideoIdealStaticGameLOD;
+        profile.VideoUseDoubleClickAttackMove = request.VideoUseDoubleClickAttackMove ?? profile.VideoUseDoubleClickAttackMove;
+        profile.VideoScrollFactor = request.VideoScrollFactor ?? profile.VideoScrollFactor;
+        profile.VideoRetaliation = request.VideoRetaliation ?? profile.VideoRetaliation;
+        profile.VideoDynamicLOD = request.VideoDynamicLOD ?? profile.VideoDynamicLOD;
+        profile.VideoMaxParticleCount = request.VideoMaxParticleCount ?? profile.VideoMaxParticleCount;
+        profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
 
         profile.AudioSoundVolume = request.AudioSoundVolume ?? profile.AudioSoundVolume;
         profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume ?? profile.AudioThreeDSoundVolume;

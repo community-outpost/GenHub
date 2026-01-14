@@ -2,6 +2,80 @@
 
 This document explains the architecture behind game settings in GenHub, detailing why multiple layers exist and providing a step-by-step guide for adding new settings.
 
+## Settings Persistence Strategy
+
+### Profile as Single Source of Truth
+
+When a profile is launched, GenHub applies the profile's settings to `Options.ini` and `settings.json`. The profile is the **single source of truth** for that launch session.
+
+**Key Principle**: Settings changed in-game are preserved in `Options.ini` AdditionalProperties and will persist across launches as long as GenHub doesn't overwrite them.
+
+### AdditionalProperties Preservation (Critical Fix)
+
+Many game settings (like `UseDoubleClickAttackMove`, `ScrollFactor`, `Retaliation`, `StaticGameLOD`) are not explicitly modeled in GenHub but are stored in `Video.AdditionalProperties` or `AdditionalSections["TheSuperHackers"]`.
+
+**The Fix**: When GenHub saves settings via `CreateOptionsFromViewModel()`, it now **updates** existing dictionaries instead of **replacing** them:
+
+```csharp
+// BEFORE (WRONG):
+var tshDict = new Dictionary<string, string> { ... };
+options.AdditionalSections["TheSuperHackers"] = tshDict;  // REPLACES entire section!
+
+// AFTER (CORRECT):
+if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict))
+{
+    tshDict = new Dictionary<string, string>();
+    options.AdditionalSections["TheSuperHackers"] = tshDict;
+}
+// Update only managed settings, preserve all others
+tshDict["ArchiveReplays"] = BoolToString(TshArchiveReplays);
+```
+
+This ensures that settings not in GenHub's UI are preserved when the user saves profile settings.
+
+## Additional Video Settings
+
+The following settings are stored in `Video.AdditionalProperties` and are fully integrated into GenHub:
+
+| Setting | Property Name | Type | Default | Options.ini Key |
+|---------|--------------|------|---------|----------------|
+| Detail Level | `VideoStaticGameLOD` | string | "High" | `StaticGameLOD` |
+| Ideal Detail | `VideoIdealStaticGameLOD` | string | "VeryHigh" | `IdealStaticGameLOD` |
+| Double Click Guard | `VideoUseDoubleClickAttackMove` | bool | true | `UseDoubleClickAttackMove` |
+| Scroll Speed | `VideoScrollFactor` | int | 50 | `ScrollFactor` |
+| Retaliation | `VideoRetaliation` | bool | true | `Retaliation` |
+| Dynamic LOD | `VideoDynamicLOD` | bool | false | `DynamicLOD` |
+| Max Particles | `VideoMaxParticleCount` | int | 5000 | `MaxParticleCount` |
+| Anti-Aliasing | `VideoAntiAliasing` | int | 1 | `AntiAliasing` |
+
+These settings are:
+- Stored in `GameProfile` as nullable properties
+- Mapped through `UpdateProfileRequest` and `CreateProfileRequest`
+- Handled by `GameSettingsViewModel` with appropriate defaults
+- Written to `Options.ini` via `AdditionalProperties` by `GameSettingsMapper.ApplyToOptions()`
+- Preserved when GenHub saves settings via `CreateOptionsFromViewModel()`
+
+## Troubleshooting
+
+### Settings Reset After Saving Profile
+
+**Symptom**: Settings like Double Click Guard or Scroll Speed reset when you save profile settings in GenHub.
+
+**Cause**: The `CreateOptionsFromViewModel()` method was replacing entire dictionaries instead of updating them.
+
+**Fix**: Implemented in `GameSettingsViewModel.CreateOptionsFromViewModel()` - now preserves existing `AdditionalProperties` and `AdditionalSections`.
+
+### Settings Not Applying from Profile
+
+**Symptom**: Profile settings don't apply when launching the game.
+
+**Cause**: The `ApplyToGeneralsOnlineSettings()` mapper was using `if (HasValue)` checks, skipping null values and leaving constructor defaults.
+
+**Fix**: Changed to use null-coalescing operators with explicit defaults:
+```csharp
+settings.ShowFps = profile.GoShowFps ?? false;  // Always sets a value
+```
+
 ## Overview
 
 Adding a single game setting in GenHub involves modifying approximately 7-8 files. While this may seem complex, it adheres to a strict **Separation of Concerns** to ensure robustness, testability, and clear boundaries between data persistence, API contracts, and user interface.
