@@ -43,6 +43,45 @@ public static class GameSettingsMapper
         profile.VideoAlternateMouseSetup = options.Video.AlternateMouseSetup;
         profile.VideoHeatEffects = options.Video.HeatEffects;
 
+        // Load additional video settings from root (Flat format support)
+        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
+            profile.VideoStaticGameLOD = staticLOD;
+        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
+            profile.VideoIdealStaticGameLOD = idealLOD;
+
+        if (profile.VideoAntiAliasing == null)
+            profile.VideoAntiAliasing = options.Video.AntiAliasing;
+
+        // TSH settings from root (Flat format support)
+        if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+            profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClick);
+        else if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClick", out var dbl))
+            profile.VideoUseDoubleClickAttackMove = ParseBool(dbl);
+
+        if (options.Video.AdditionalProperties.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+            profile.VideoScrollFactor = scrollVal;
+        if (options.Video.AdditionalProperties.TryGetValue("Retaliation", out var retaliation))
+            profile.VideoRetaliation = ParseBool(retaliation);
+        if (options.Video.AdditionalProperties.TryGetValue("DynamicLOD", out var dynLOD))
+            profile.VideoDynamicLOD = ParseBool(dynLOD);
+        if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+            profile.VideoMaxParticleCount = particleVal;
+
+        // TSH-specific settings from the [TheSuperHackers] section (Hierarchical format support)
+        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
+        {
+            if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClickTsh))
+                profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClickTsh);
+            if (tsh.TryGetValue("ScrollFactor", out var scrollTsh) && int.TryParse(scrollTsh, out var scrollTshVal))
+                profile.VideoScrollFactor = scrollTshVal;
+            if (tsh.TryGetValue("Retaliation", out var retaliationTsh))
+                profile.VideoRetaliation = ParseBool(retaliationTsh);
+            if (tsh.TryGetValue("DynamicLOD", out var dynLODTsh))
+                profile.VideoDynamicLOD = ParseBool(dynLODTsh);
+            if (tsh.TryGetValue("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, out var particlesTshVal))
+                profile.VideoMaxParticleCount = particlesTshVal;
+        }
+
         // Audio settings
         profile.AudioSoundVolume = options.Audio.SFXVolume;
         profile.AudioThreeDSoundVolume = options.Audio.SFX3DVolume;
@@ -285,13 +324,20 @@ public static class GameSettingsMapper
             options.Video.HeatEffects = profile.VideoHeatEffects.Value;
         }
 
-        // Additional video settings to AdditionalProperties
+        // Additional video settings to AdditionalProperties (Standard root)
         if (profile.VideoStaticGameLOD != null)
             options.Video.AdditionalProperties["StaticGameLOD"] = profile.VideoStaticGameLOD;
         if (profile.VideoIdealStaticGameLOD != null)
             options.Video.AdditionalProperties["IdealStaticGameLOD"] = profile.VideoIdealStaticGameLOD;
+        if (profile.VideoAntiAliasing.HasValue)
+            options.Video.AntiAliasing = profile.VideoAntiAliasing.Value;
+
+        // TSH settings (writing to root for maximum compatibility as some clients prefer flat Options.ini)
         if (profile.VideoUseDoubleClickAttackMove.HasValue)
+        {
             options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
+            options.Video.AdditionalProperties["UseDoubleClick"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
+        }
         if (profile.VideoScrollFactor.HasValue)
             options.Video.AdditionalProperties["ScrollFactor"] = profile.VideoScrollFactor.Value.ToString();
         if (profile.VideoRetaliation.HasValue)
@@ -300,8 +346,10 @@ public static class GameSettingsMapper
             options.Video.AdditionalProperties["DynamicLOD"] = profile.VideoDynamicLOD.Value ? "yes" : "no";
         if (profile.VideoMaxParticleCount.HasValue)
             options.Video.AdditionalProperties["MaxParticleCount"] = profile.VideoMaxParticleCount.Value.ToString();
-        if (profile.VideoAntiAliasing.HasValue)
-            options.Video.AntiAliasing = profile.VideoAntiAliasing.Value;
+
+        // Mirror Alternate Mouse
+        if (profile.VideoAlternateMouseSetup.HasValue)
+            options.Video.AdditionalProperties["UseAlternateMouse"] = profile.VideoAlternateMouseSetup.Value ? "yes" : "no";
 
         // Audio settings with validation
         if (profile.AudioSoundVolume.HasValue)
@@ -531,7 +579,26 @@ public static class GameSettingsMapper
         profile.VideoRetaliation = request.VideoRetaliation;
         profile.VideoDynamicLOD = request.VideoDynamicLOD;
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
+        profile.VideoMaxParticleCount = request.VideoMaxParticleCount;
         profile.VideoAntiAliasing = request.VideoAntiAliasing;
+        profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor;
+        profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor;
+        profile.VideoGameTimeFontSize = request.VideoGameTimeFontSize;
+        profile.GameLanguageFilter = request.GameLanguageFilter;
+        profile.NetworkSendDelay = request.NetworkSendDelay;
+        profile.VideoShowSoftWaterEdge = request.VideoShowSoftWaterEdge;
+        profile.VideoShowTrees = request.VideoShowTrees;
+        profile.VideoUseCloudMap = request.VideoUseCloudMap;
+        profile.VideoUseLightMap = request.VideoUseLightMap;
+        profile.VideoDrawScrollAnchor = request.VideoDrawScrollAnchor;
+        profile.VideoMoveScrollAnchor = request.VideoMoveScrollAnchor;
+        profile.VideoGameTimeFontSize = request.VideoGameTimeFontSize;
+        profile.GameLanguageFilter = request.GameLanguageFilter;
+        profile.NetworkSendDelay = request.NetworkSendDelay;
+        profile.VideoShowSoftWaterEdge = request.VideoShowSoftWaterEdge;
+        profile.VideoShowTrees = request.VideoShowTrees;
+        profile.VideoUseCloudMap = request.VideoUseCloudMap;
+        profile.VideoUseLightMap = request.VideoUseLightMap;
 
         // Audio settings
         profile.AudioSoundVolume = request.AudioSoundVolume;
@@ -773,6 +840,23 @@ public static class GameSettingsMapper
         target.VideoGamma = source.VideoGamma;
         target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
         target.VideoHeatEffects = source.VideoHeatEffects;
+        target.VideoStaticGameLOD = source.VideoStaticGameLOD;
+        target.VideoIdealStaticGameLOD = source.VideoIdealStaticGameLOD;
+        target.VideoUseDoubleClickAttackMove = source.VideoUseDoubleClickAttackMove;
+        target.VideoScrollFactor = source.VideoScrollFactor;
+        target.VideoRetaliation = source.VideoRetaliation;
+        target.VideoDynamicLOD = source.VideoDynamicLOD;
+        target.VideoMaxParticleCount = source.VideoMaxParticleCount;
+        target.VideoAntiAliasing = source.VideoAntiAliasing;
+        target.VideoDrawScrollAnchor = source.VideoDrawScrollAnchor;
+        target.VideoMoveScrollAnchor = source.VideoMoveScrollAnchor;
+        target.VideoGameTimeFontSize = source.VideoGameTimeFontSize;
+        target.GameLanguageFilter = source.GameLanguageFilter;
+        target.NetworkSendDelay = source.NetworkSendDelay;
+        target.VideoShowSoftWaterEdge = source.VideoShowSoftWaterEdge;
+        target.VideoShowTrees = source.VideoShowTrees;
+        target.VideoUseCloudMap = source.VideoUseCloudMap;
+        target.VideoUseLightMap = source.VideoUseLightMap;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;
@@ -847,6 +931,23 @@ public static class GameSettingsMapper
         target.VideoGamma = source.VideoGamma;
         target.VideoAlternateMouseSetup = source.VideoAlternateMouseSetup;
         target.VideoHeatEffects = source.VideoHeatEffects;
+        target.VideoStaticGameLOD = source.VideoStaticGameLOD;
+        target.VideoIdealStaticGameLOD = source.VideoIdealStaticGameLOD;
+        target.VideoUseDoubleClickAttackMove = source.VideoUseDoubleClickAttackMove;
+        target.VideoScrollFactor = source.VideoScrollFactor;
+        target.VideoRetaliation = source.VideoRetaliation;
+        target.VideoDynamicLOD = source.VideoDynamicLOD;
+        target.VideoMaxParticleCount = source.VideoMaxParticleCount;
+        target.VideoAntiAliasing = source.VideoAntiAliasing;
+        target.VideoDrawScrollAnchor = source.VideoDrawScrollAnchor;
+        target.VideoMoveScrollAnchor = source.VideoMoveScrollAnchor;
+        target.VideoGameTimeFontSize = source.VideoGameTimeFontSize;
+        target.GameLanguageFilter = source.GameLanguageFilter;
+        target.NetworkSendDelay = source.NetworkSendDelay;
+        target.VideoShowSoftWaterEdge = source.VideoShowSoftWaterEdge;
+        target.VideoShowTrees = source.VideoShowTrees;
+        target.VideoUseCloudMap = source.VideoUseCloudMap;
+        target.VideoUseLightMap = source.VideoUseLightMap;
 
         target.AudioSoundVolume = source.AudioSoundVolume;
         target.AudioThreeDSoundVolume = source.AudioThreeDSoundVolume;

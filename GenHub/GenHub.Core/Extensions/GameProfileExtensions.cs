@@ -23,6 +23,15 @@ public static class GameProfileExtensions
                profile.VideoExtraAnimations.HasValue ||
                profile.VideoBuildingAnimations.HasValue ||
                profile.VideoGamma.HasValue ||
+               profile.VideoAlternateMouseSetup.HasValue ||
+               profile.VideoStaticGameLOD != null ||
+               profile.VideoIdealStaticGameLOD != null ||
+               profile.VideoUseDoubleClickAttackMove.HasValue ||
+               profile.VideoScrollFactor.HasValue ||
+               profile.VideoRetaliation.HasValue ||
+               profile.VideoDynamicLOD.HasValue ||
+               profile.VideoMaxParticleCount.HasValue ||
+               profile.VideoAntiAliasing.HasValue ||
                profile.AudioSoundVolume.HasValue ||
                profile.AudioThreeDSoundVolume.HasValue ||
                profile.AudioSpeechVolume.HasValue ||

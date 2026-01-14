@@ -144,7 +144,34 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets a value indicating whether heat effects are enabled.</summary>
     public bool? VideoHeatEffects { get; set; }
 
-    /// <summary>Gets or sets the static game LOD (Level of Detail) setting (Low/High/VeryHigh).</summary>
+    /// <summary>Gets or sets a value indicating whether to draw the scroll anchor.</summary>
+    public bool? VideoDrawScrollAnchor { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to move the scroll anchor.</summary>
+    public bool? VideoMoveScrollAnchor { get; set; }
+
+    /// <summary>Gets or sets the font size for the game time display.</summary>
+    public int? VideoGameTimeFontSize { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the language filter is enabled.</summary>
+    public bool? GameLanguageFilter { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use send delay (network optimization).</summary>
+    public bool? NetworkSendDelay { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show soft water edges.</summary>
+    public bool? VideoShowSoftWaterEdge { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show trees.</summary>
+    public bool? VideoShowTrees { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use cloud maps.</summary>
+    public bool? VideoUseCloudMap { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use light maps.</summary>
+    public bool? VideoUseLightMap { get; set; }
+
+    /// <summary>Gets or sets the static game LOD (Level of Detail) setting (Low/High/VeryHigh/Custom).</summary>
     public string? VideoStaticGameLOD { get; set; }
 
     /// <summary>Gets or sets the ideal static game LOD setting (Low/High/VeryHigh).</summary>

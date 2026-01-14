@@ -149,53 +149,107 @@
                 <!-- VIDEO SETTINGS CARD -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
+                <Expander IsExpanded="True">
                     <Expander.Header>
-                        <TextBlock Text="🎬 Video Settings" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="🎬 Video &amp; Controls" FontWeight="SemiBold" FontSize="14" />
                     </Expander.Header>
 
                     <Border Classes="settings-card"
                             Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
                             BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel>
+                        <StackPanel Spacing="12">
                             <!-- Resolution -->
                             <Grid ColumnDefinitions="110,*" Classes="setting-row">
                                 <TextBlock Grid.Column="0" Text="Resolution" VerticalAlignment="Center" />
                                 <ComboBox Grid.Column="1"
                                           ItemsSource="{Binding ResolutionPresets}"
                                           SelectedItem="{Binding SelectedResolutionPreset}"
-                                          PlaceholderText="Select Resolution"
                                           HorizontalAlignment="Stretch"
-                                          Height="34">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                                          Height="34" />
                             </Grid>
 
-                            <!-- Windowed Mode -->
-                            <CheckBox Content="Run in Windowed Mode" IsChecked="{Binding Windowed}" Margin="0,4,0,8" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                                <!-- Detail Level -->
+                                <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,8,0" ToolTip.Tip="Controls geometric complexity of 3D models. Low makes units look 'blocky'. Very High keeps maximum detail.">
+                                    <TextBlock Text="Detail Level" FontSize="11" Opacity="0.7" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding LodOptions}"
+                                              SelectedItem="{Binding StaticGameLOD}"
+                                              HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                                <!-- Anti-Aliasing -->
+                                <StackPanel Grid.Column="1" Grid.Row="0">
+                                    <TextBlock Text="Anti-Aliasing" FontSize="11" Opacity="0.7" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AaOptions}"
+                                              SelectedItem="{Binding AntiAliasing}"
+                                              HorizontalAlignment="Stretch" />
+                                </StackPanel>
+
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Windowed" IsChecked="{Binding Windowed}" Margin="0,8,0,0" />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Enable Dynamic LOD" IsChecked="{Binding DynamicLOD}" Margin="0,8,0,0" ToolTip.Tip="Automatically adjusts detail level to maintain performance. Turn off to keep high detail at all times." />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
 
                             <!-- Graphics Options -->
-                            <TextBlock Classes="subsection-header" Text="Graphics Options" Margin="0,8,0,8" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,6" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,6" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,6" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" Margin="0,0,0,6" />
-                                <CheckBox Grid.Column="0" Grid.Row="2" Content="Heat Effects" IsChecked="{Binding HeatEffects}" Margin="0,0,8,0" />
-                                <CheckBox Grid.Column="1" Grid.Row="2" Content="Alt Mouse" IsChecked="{Binding AlternateMouseSetup}" />
+                            <TextBlock Classes="subsection-header" Text="Graphics Effects" />
+                            <TextBlock Classes="subsection-header" Text="Graphics Effects" />
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" />
+                                <CheckBox Grid.Column="0" Grid.Row="2" Content="Heat Effects" IsChecked="{Binding HeatEffects}" />
+                                <CheckBox Grid.Column="1" Grid.Row="2" Content="Show Trees" IsChecked="{Binding ShowTrees}" />
+                                <CheckBox Grid.Column="0" Grid.Row="3" Content="Cloud Map" IsChecked="{Binding UseCloudMap}" />
+                                <CheckBox Grid.Column="1" Grid.Row="3" Content="Light Map" IsChecked="{Binding UseLightMap}" />
+                                <CheckBox Grid.Column="0" Grid.Row="4" Content="Soft Water" IsChecked="{Binding ShowSoftWaterEdge}" />
+                            </Grid>
+
+                            <!-- Max Particle Count -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Particle Cap" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding MaxParticleCount}" Minimum="500" Maximum="10000" TickFrequency="500" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding MaxParticleCount, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=5000}" Minimum="500" Maximum="10000" Increment="500" ClipValueToMinMax="True" FormatString="0" />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
+
+                            <!-- Scroll Speed Slider -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Scroll Speed" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding ScrollFactor}" Minimum="0" Maximum="145" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding ScrollFactor, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=50}" Minimum="0" Maximum="150" Increment="5" ClipValueToMinMax="True" FormatString="0" />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
+
+                            <!-- Control Options (Aligning with game menu) -->
+                            <TextBlock Classes="subsection-header" Text="Control Options" />
+
+
+                            <!-- Additional Control/Misc Options -->
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Alt Mouse" IsChecked="{Binding AlternateMouseSetup}" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="DBL Click Guard" IsChecked="{Binding UseDoubleClickAttackMove}" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Auto Retaliation" IsChecked="{Binding Retaliation}" ToolTip.Tip="Units automatically engage nearby enemies." />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Send Delay" IsChecked="{Binding SendDelay}" ToolTip.Tip="Reduces network latency by delaying packets." />
+                                <CheckBox Grid.Column="0" Grid.Row="2" Content="Draw Scroll Anchor" IsChecked="{Binding DrawScrollAnchor}" />
+                                <CheckBox Grid.Column="1" Grid.Row="2" Content="Move Scroll Anchor" IsChecked="{Binding MoveScrollAnchor}" />
+                                <CheckBox Grid.Column="0" Grid.Row="3" Content="Language Filter" IsChecked="{Binding LanguageFilter}" />
+                            </Grid>
+
+                            <!-- Game Time Font Size -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Time Font Size" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding GameTimeFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=10}" Minimum="8" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
 
                             <!-- Gamma Slider -->
-                            <Grid ColumnDefinitions="110,*,60" Margin="0,12,0,0">
-                                <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100"
-                                        TickFrequency="10" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding Gamma, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="100"
-                                               Increment="10" ClipValueToMinMax="True" FormatString="0" />
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Brightness" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding Gamma, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=50}" Minimum="0" Maximum="100" Increment="5" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
                         </StackPanel>
                     </Border>
