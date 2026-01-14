@@ -25,6 +25,16 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDiscoverer> logger) : IContentDiscoverer
 {
     private static readonly char[] TagSeparator = [',', ';', ' '];
+
+    [GeneratedRegex(@"(?:Date submitted|Date reviewed|Date added|Date updated|Added|Updated|reviewed):\s*(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase)]
+    private static partial Regex DateRegex();
+
+    [GeneratedRegex(@"(?:File Size|Size):\s*([\d\.]+\s*[KMGT]?B)", RegexOptions.IgnoreCase)]
+    private static partial Regex FileSizeRegex();
+
+    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex DownloadCountRegex();
+
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<CNCLabsMapDiscoverer> _logger = logger;
 
@@ -586,7 +596,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         string? IconUrl,
         IEnumerable<string> Tags);
 
-    private static long? ParseFileSize(string size)
+    private long? ParseFileSize(string size)
     {
         // Simple parser for "7.2 MB" etc if needed, or return generic
         // For now just return null as the UI uses the formatted string usually,
@@ -622,13 +632,4 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
         return null;
     }
-
-    [GeneratedRegex(@"(?:Date submitted|Date reviewed|Date added|Date updated|Added|Updated|reviewed):\s*(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase)]
-    private static partial Regex DateRegex();
-
-    [GeneratedRegex(@"(?:File Size|Size):\s*([\d\.]+\s*[KMGT]?B)", RegexOptions.IgnoreCase)]
-    private static partial Regex FileSizeRegex();
-
-    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
-    private static partial Regex DownloadCountRegex();
 }
