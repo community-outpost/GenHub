@@ -50,6 +50,6 @@ public class TrustLevelToColorConverter : IValueConverter
     /// <returns>Nothing.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

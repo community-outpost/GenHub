@@ -121,14 +121,6 @@ public partial class AODMapsManifestFactory(
         return manifest.Build();
     }
 
-    private static string NormalizeAuthorForPublisherId(string author)
-    {
-        if (string.IsNullOrWhiteSpace(author)) return "unknown";
-        var slugHelper = new SlugHelper();
-        var normalized = slugHelper.GenerateSlug(author).Replace("-", string.Empty);
-        return string.IsNullOrEmpty(normalized) ? "unknown" : normalized;
-    }
-
     private static string SlugifyTitle(string title)
     {
         if (string.IsNullOrWhiteSpace(title)) return "content";

@@ -81,6 +81,10 @@ public class ContentSearchQuery
     public int? Page { get; set; }
 
     /// <summary>
+    /// Maximum catalog size in bytes (10 MB).
+    /// </summary>
+    public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
+    /// <summary>
     /// Gets or sets a value indicating whether to include older versions of content in results.
     /// Default is false (show only latest stable version).
     /// </summary>
@@ -123,7 +127,7 @@ public class ContentSearchQuery
     /// <summary>
     /// Gets or sets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
     /// </summary>
-    public Collection<string> CNCLabsMapTags { get; set; } = [];
+    public Collection<string> CNCLabsMapTags { get; } = [];
 
     // ===== GitHub-specific filters =====
 

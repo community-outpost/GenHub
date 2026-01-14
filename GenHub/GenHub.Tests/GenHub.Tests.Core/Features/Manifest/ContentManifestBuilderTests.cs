@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -43,6 +44,11 @@ public class ContentManifestBuilderTests
     private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
 
     /// <summary>
+    /// Mock for the playwright service used in the builder.
+    /// </summary>
+    private readonly Mock<IPlaywrightService> _playwrightServiceMock;
+
+    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
@@ -57,6 +63,7 @@ public class ContentManifestBuilderTests
         _manifestIdServiceMock = new Mock<IManifestIdService>();
         _downloadServiceMock = new Mock<IDownloadService>();
         _configProviderServiceMock = new Mock<IConfigurationProviderService>();
+        _playwrightServiceMock = new Mock<IPlaywrightService>();
 
         // Set up mock to return success for ValidateAndCreateManifestId
         _manifestIdServiceMock.Setup(x => x.ValidateAndCreateManifestId(It.IsAny<string>()))
@@ -79,7 +86,8 @@ public class ContentManifestBuilderTests
             _hashProviderMock.Object,
             _manifestIdServiceMock.Object,
             _downloadServiceMock.Object,
-            _configProviderServiceMock.Object);
+            _configProviderServiceMock.Object,
+            _playwrightServiceMock.Object);
     }
 
     /// <summary>

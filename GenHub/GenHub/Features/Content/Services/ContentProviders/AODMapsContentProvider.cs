@@ -23,7 +23,7 @@ public class AODMapsContentProvider(
     ILogger<AODMapsContentProvider> logger,
     IContentValidator contentValidator) : BaseContentProvider(contentValidator, logger)
 {
-    private readonly IContentDiscoverer _aodMapsDiscoverer = discoverers!.FirstOrDefault(d =>
+    private readonly IContentDiscoverer _aodMapsDiscoverer = discoverers.FirstOrDefault(d =>
         string.Equals(d.SourceName, AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))
         ?? throw new InvalidOperationException("AODMaps discoverer not found");
 
@@ -62,7 +62,7 @@ public class AODMapsContentProvider(
         var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
         var searchResult = await SearchAsync(query, cancellationToken);
 
-        if (!searchResult.Success || !searchResult.Data!.Any())
+        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");

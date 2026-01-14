@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -107,6 +108,9 @@ public class SharedViewModelModuleTests
         // Mock IDialogService to avoid dependency issues
         var dialogServiceMock = new Mock<IDialogService>();
         services.AddSingleton<IDialogService>(dialogServiceMock.Object);
+
+        var playwrightServiceMock = new Mock<IPlaywrightService>();
+        services.AddSingleton<IPlaywrightService>(playwrightServiceMock.Object);
 
         // Register required modules in correct order
         services.AddLoggingModule();

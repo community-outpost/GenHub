@@ -5,6 +5,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
 using GenHub.Features.Workspace;
+using GenHub.Core.Interfaces.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -22,6 +23,7 @@ public class ManifestGenerationServiceTests : IDisposable
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
     private readonly Mock<IDownloadService> _downloadServiceMock;
     private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
+    private readonly Mock<IPlaywrightService> _playwrightServiceMock;
     private readonly ManifestGenerationService _service;
     private readonly string _tempDirectory;
 
@@ -34,6 +36,7 @@ public class ManifestGenerationServiceTests : IDisposable
         _manifestIdServiceMock = new Mock<IManifestIdService>();
         _downloadServiceMock = new Mock<IDownloadService>();
         _configProviderServiceMock = new Mock<IConfigurationProviderService>();
+        _playwrightServiceMock = new Mock<IPlaywrightService>();
 
         // Setup hash provider to return deterministic hashes
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), default))
@@ -64,7 +67,8 @@ public class ManifestGenerationServiceTests : IDisposable
             _hashProviderMock.Object,
             _manifestIdServiceMock.Object,
             _downloadServiceMock.Object,
-            _configProviderServiceMock.Object);
+            _configProviderServiceMock.Object,
+            _playwrightServiceMock.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);

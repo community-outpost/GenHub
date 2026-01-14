@@ -184,7 +184,7 @@ public class CNCLabsMapDiscovererTests
 
         Assert.Equal(string.Format(CNCLabsConstants.MapIdFormat, 3239), item.Id);
         Assert.Equal("COOP GLA vs CHI - Call of Dragon", item.Name);
-        Assert.Equal(CNCLabsConstants.MapDescriptionTemplate, item.Description);
+        Assert.Equal("This is another custom scripted co-op mission map. 1 or 2 humans players as GLA against 1 China…", item.Description);
         Assert.Equal("El_Chapo", item.AuthorName);
         Assert.Equal(GenHub.Core.Models.Enums.ContentType.Map, item.ContentType);
         Assert.Equal(GameType.Generals, item.TargetGame);

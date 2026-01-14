@@ -236,11 +236,11 @@ public partial class AODMapsPageParser(
     }
 
     /// <inheritdoc />
-    public Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
+    public async Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
     {
         var browsingContext = BrowsingContext.New(Configuration.Default);
-        var document = browsingContext.OpenAsync(req => req.Content(html), cancellationToken).GetAwaiter().GetResult();
-        return Task.FromResult(ParseInternal(url, document));
+        var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+        return ParseInternal(url, document);
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public partial class AODMapsPageParser(
             sections.Count);
 
         return new ParsedWebPage(
-            Url: url,
+            Url: new Uri(url),
             Context: context,
             Sections: sections,
             PageType: pageType);

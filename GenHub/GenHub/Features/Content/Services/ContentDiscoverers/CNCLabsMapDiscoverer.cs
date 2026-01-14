@@ -284,18 +284,21 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                     var value = CNCLabsHelper.GetNextNonEmptyTextSibling(s);
                     if (string.IsNullOrEmpty(value)) continue;
 
-                    if (label.Contains("Updated:") || label.Contains("Added:") || label.Contains("Date:") || label.Contains("reviewed:"))
+                    if (label.StartsWith("Updated:", StringComparison.OrdinalIgnoreCase) ||
+                        label.StartsWith("Added:", StringComparison.OrdinalIgnoreCase) ||
+                        label.StartsWith("Date:", StringComparison.OrdinalIgnoreCase) ||
+                        label.StartsWith("reviewed:", StringComparison.OrdinalIgnoreCase))
                     {
                         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
                         {
                             lastUpdated = parsed;
                         }
                     }
-                    else if (label.Contains("Size:"))
+                    else if (label.StartsWith("Size:", StringComparison.OrdinalIgnoreCase))
                     {
                         fSize = value;
                     }
-                    else if (label.Contains("Downloads:"))
+                    else if (label.StartsWith("Downloads:", StringComparison.OrdinalIgnoreCase))
                     {
                         if (long.TryParse(value.Replace(",", string.Empty), out var count))
                         {
@@ -351,7 +354,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                     _logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
                     hasMoreItems = true;
 
-                    // Dont break, keep logging for debug
+                    // Don't break, keep logging for debug
                 }
 
                 // Check for page numbers greater than current
@@ -586,7 +589,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     private static long? ParseFileSize(string size)
     {
         // Simple parser for "7.2 MB" etc if needed, or return generic
-        // For now just return null as the UI uses the formatted string string usually,
+        // For now just return null as the UI uses the formatted string usually,
         // but ContentSearchResult.DownloadSize is Nullable<long> (bytes).
         // Let's try to parse simple cases.
         if (string.IsNullOrEmpty(size))

@@ -11,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Features.GameClients;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -45,7 +46,8 @@ public class GameClientManifestIntegrationTests : IDisposable
             _hashProvider,
             _manifestIdService,
             new Mock<IDownloadService>().Object,
-            new Mock<IConfigurationProviderService>().Object);
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IPlaywrightService>().Object);
 
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
