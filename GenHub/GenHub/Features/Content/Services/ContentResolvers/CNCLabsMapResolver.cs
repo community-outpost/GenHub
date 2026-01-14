@@ -16,7 +16,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
-using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
+using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
 
@@ -44,11 +44,6 @@ public class CNCLabsMapResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        if (discoveredItem?.SourceUrl == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
-        }
-
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -143,8 +138,8 @@ public class CNCLabsMapResolver(
     /// </summary>
     /// <param name="html">The HTML content of the map detail page.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="MapDetails"/> record containing parsed details.</returns>
-    private async Task<MapDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
+    /// <returns>A <see cref="ParsedContentDetails"/> record containing parsed details.</returns>
+    private async Task<ParsedContentDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
     {
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
@@ -241,7 +236,7 @@ public class CNCLabsMapResolver(
                 : $"https://www.cnclabs.com{src}")
             .ToList();
 
-        return new MapDetails(
+        return new ParsedContentDetails(
             Name: name,
             Description: description,
             Author: author,

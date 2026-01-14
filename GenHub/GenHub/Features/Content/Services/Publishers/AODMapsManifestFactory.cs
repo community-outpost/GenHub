@@ -11,7 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
-using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
+using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -54,7 +54,7 @@ public partial class AODMapsManifestFactory(
     /// </summary>
     /// <param name="details">The map details to create the manifest from.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task<ContentManifest> CreateManifestAsync(MapDetails details)
+    public async Task<ContentManifest> CreateManifestAsync(ParsedContentDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);
 
@@ -129,7 +129,7 @@ public partial class AODMapsManifestFactory(
         return string.IsNullOrEmpty(slug) ? "content" : slug;
     }
 
-    private static List<string> GetTags(MapDetails details)
+    private static List<string> GetTags(ParsedContentDetails details)
     {
         var tags = new List<string> { "aodmaps" };
         if (details.TargetGame == GameType.Generals) tags.Add("generals");

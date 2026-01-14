@@ -1,7 +1,13 @@
 using AngleSharp.Dom;
-using Microsoft.Playwright;
-using GenHub.Core.Models.Results;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Results;
+using Microsoft.Playwright;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Core.Interfaces.Tools;
 

@@ -28,7 +28,6 @@ public class FileSystemDeliverer : IContentDeliverer
     private readonly IFileHashProvider _hashProvider;
     private readonly IDownloadService _downloadService;
     private readonly IPlaywrightService _playwrightService;
-    private readonly ICasService _casService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FileSystemDeliverer"/> class.
@@ -38,21 +37,18 @@ public class FileSystemDeliverer : IContentDeliverer
     /// <param name="hashProvider">The file hash provider.</param>
     /// <param name="downloadService">The download service.</param>
     /// <param name="playwrightService">The Playwright service.</param>
-    /// <param name="casService">The Content Addressable Storage service.</param>
     public FileSystemDeliverer(
         ILogger<FileSystemDeliverer> logger,
         IConfigurationProviderService configProvider,
         IFileHashProvider hashProvider,
         IDownloadService downloadService,
-        IPlaywrightService playwrightService,
-        ICasService casService)
+        IPlaywrightService playwrightService)
     {
         _logger = logger;
         _configProvider = configProvider;
         _hashProvider = hashProvider;
         _downloadService = downloadService;
         _playwrightService = playwrightService;
-        _casService = casService;
     }
 
     /// <inheritdoc />

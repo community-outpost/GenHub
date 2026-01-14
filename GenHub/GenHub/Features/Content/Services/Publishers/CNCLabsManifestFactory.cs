@@ -14,7 +14,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
-using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
+using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -65,7 +65,7 @@ public partial class CNCLabsManifestFactory(
         }
     }
 
-    private static List<string> GetTags(MapDetails details)
+    private static List<string> GetTags(ParsedContentDetails details)
     {
         List<string> tags = [.. CNCLabsConstants.DefaultTags];
 
@@ -90,7 +90,7 @@ public partial class CNCLabsManifestFactory(
         return tags;
     }
 
-    private static string GetDownloadFilename(MapDetails details)
+    private static string GetDownloadFilename(ParsedContentDetails details)
     {
         if (!string.IsNullOrWhiteSpace(details.DownloadUrl))
         {
@@ -146,16 +146,16 @@ public partial class CNCLabsManifestFactory(
     public async Task<ContentManifest> CreateManifestAsync(
         object details)
     {
-        if (details is not MapDetails mapDetails)
+        if (details is not ParsedContentDetails mapDetails)
         {
-            throw new ArgumentException($"Details must be of type {nameof(MapDetails)}", nameof(details));
+            throw new ArgumentException($"Details must be of type {nameof(ParsedContentDetails)}", nameof(details));
         }
 
         return await CreateManifestInternalAsync(mapDetails);
     }
 
     private async Task<ContentManifest> CreateManifestInternalAsync(
-        MapDetails details)
+        ParsedContentDetails details)
     {
         // 1. Load provider metadata to get website/support URLs if possible
         var provider = providerLoader.GetProvider(CNCLabsConstants.PublisherPrefix);
@@ -196,17 +196,10 @@ public partial class CNCLabsManifestFactory(
 
         if (!string.IsNullOrEmpty(details.DownloadUrl))
         {
-            _logger.LogInformation(
-                "[TEMP] CNCLabsManifestFactory - Adding file: {FileName} from URL: {Url}",
-                fileName,
-                details.DownloadUrl);
-
             await builder.AddDownloadedFileAsync(
                 fileName,
                 details.DownloadUrl,
                 ContentSourceType.ContentAddressable);
-
-            _logger.LogInformation("[TEMP] CNCLabsManifestFactory - File added to manifest with CAS storage");
         }
         else
         {

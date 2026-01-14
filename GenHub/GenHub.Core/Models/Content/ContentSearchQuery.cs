@@ -84,6 +84,7 @@ public class ContentSearchQuery
     /// Maximum catalog size in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
+
     /// <summary>
     /// Gets or sets a value indicating whether to include older versions of content in results.
     /// Default is false (show only latest stable version).
@@ -91,7 +92,7 @@ public class ContentSearchQuery
     public bool IncludeOlderVersions { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets sort value.
+    /// Gets or sets the sort order.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
 
@@ -125,7 +126,7 @@ public class ContentSearchQuery
     // ===== CNCLabs-specific filters =====
 
     /// <summary>
-    /// Gets or sets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
+    /// Gets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
     /// </summary>
     public Collection<string> CNCLabsMapTags { get; } = [];
 

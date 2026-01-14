@@ -13,7 +13,7 @@ using GenHub.Features.Content.Services.Parsers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using File = GenHub.Core.Models.Parsers.File;
-using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
+using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
 
@@ -41,12 +41,6 @@ public class AODMapsResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        // [TEMP] DEBUG: ResolveAsync entry point
-        logger.LogInformation(
-            "[TEMP] AODMapsResolver.ResolveAsync called - Item: {Name}, SourceUrl: {Url}",
-            discoveredItem?.Name,
-            discoveredItem?.SourceUrl);
-
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -61,7 +55,6 @@ public class AODMapsResolver(
 
             // Find the specific file section that corresponds to our discovered item
             // We use the DownloadURL from metadata to identify it
-            logger.LogInformation("[TEMP] Attempting to find matching section for DownloadUrl key: {Key}", AODMapsConstants.DownloadUrlMetadataKey);
             if (!discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.DownloadUrlMetadataKey, out var targetDownloadUrl))
             {
                 logger.LogWarning("No download URL found in metadata for {Name}", discoveredItem.Name);
@@ -73,20 +66,6 @@ public class AODMapsResolver(
                 string.Equals(f.DownloadUrl, targetDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(f.Name, discoveredItem.Name, StringComparison.OrdinalIgnoreCase));
 
-            logger.LogInformation(
-                "[TEMP] Found section match: {MatchFound}, Name: {SectionName}, Url: {SectionUrl}",
-                section != null,
-                section?.Name,
-                section?.DownloadUrl);
-
-            if (section == null)
-            {
-                logger.LogWarning("[TEMP] Available sections on page:");
-                foreach(var s in parsedPage.Sections.OfType<File>())
-                {
-                    logger.LogWarning("[TEMP] - Name: {Name}, Url: {Url}", s.Name, s.DownloadUrl);
-                }
-            }
 
             if (section == null)
             {
@@ -114,7 +93,7 @@ public class AODMapsResolver(
         }
     }
 
-    private static MapDetails ConvertToMapDetails(File file, GenHub.Core.Models.Parsers.GlobalContext context, ContentSearchResult item)
+    private static ParsedContentDetails ConvertToMapDetails(File file, GenHub.Core.Models.Parsers.GlobalContext context, ContentSearchResult item)
     {
         // Determine GameType and ContentType
         // AODMaps are mostly Zero Hour or Generals.
@@ -134,7 +113,7 @@ public class AODMapsResolver(
         // Use Author as request
         var author = file.Uploader ?? context.Developer ?? AODMapsConstants.DefaultAuthorName;
 
-        return new MapDetails(
+        return new ParsedContentDetails(
             Name: file.Name,
             Description: file.SizeDisplay ?? context.Title, // Use SizeDisplay (where we stored info) or Title
             Author: author,
