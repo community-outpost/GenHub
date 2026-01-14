@@ -14,7 +14,6 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
-using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
 using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
@@ -30,32 +29,9 @@ public partial class CNCLabsManifestFactory(
     IProviderDefinitionLoader providerLoader,
     IDownloadService downloadService,
     ICasService casService,
-    IPlaywrightService playwrightService,
     IConfigurationProviderService configurationProvider,
     ILogger<CNCLabsManifestFactory> logger) : IPublisherManifestFactory
 {
-    private readonly ILogger<CNCLabsManifestFactory> _logger = logger;
-    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
-    private readonly IDownloadService _downloadService = downloadService;
-    private readonly ICasService _casService = casService;
-    private readonly IPlaywrightService _playwrightService = playwrightService;
-    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
-
-    [GeneratedRegex(@"[^a-z0-9]", RegexOptions.IgnoreCase)]
-    private static partial Regex AuthorRegex();
-
-    private static string SlugifyAuthor(string? author)
-    {
-        if (string.IsNullOrWhiteSpace(author))
-        {
-            return ManifestConstants.UnknownAuthor;
-        }
-
-        // Remove all non-alphanumeric characters and convert to lowercase
-        var slug = AuthorRegex().Replace(author, string.Empty).ToLowerInvariant();
-        return string.IsNullOrWhiteSpace(slug) ? ManifestConstants.UnknownAuthor : slug;
-    }
-
     private static string SlugifyContentName(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -183,7 +159,7 @@ public partial class CNCLabsManifestFactory(
         // 4. Use injected builder
         // Note: Since the builder is stateful and injected as Transient (likely), we can use it directly.
         // If it's Scoped/Singleton, we might need a factory. Assuming proper DI setup.
-        var builder = _manifestBuilder;
+        var builder = manifestBuilder;
 
         // 5. Configure manifest
         builder
@@ -215,7 +191,7 @@ public partial class CNCLabsManifestFactory(
         }
         else
         {
-            _logger.LogWarning("Download URL is missing for {ContentName}", details.Name);
+            logger.LogWarning("Download URL is missing for {ContentName}", details.Name);
         }
 
         return builder.Build();
@@ -227,7 +203,7 @@ public partial class CNCLabsManifestFactory(
         string downloadUrl,
         string? refererUrl)
     {
-        var tempDir = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
+        var tempDir = Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
         if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
 
         var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
@@ -245,14 +221,14 @@ public partial class CNCLabsManifestFactory(
         }
 
         // Standard download for CNC Labs
-        var downloadResult = await _downloadService.DownloadFileAsync(downloadConfig);
+        var downloadResult = await downloadService.DownloadFileAsync(downloadConfig);
         if (!downloadResult.Success)
         {
             throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
         }
 
         // Store in CAS
-        var storeResult = await _casService.StoreContentAsync(tempFilePath, ContentType.Map);
+        var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Map);
         if (!storeResult.Success)
         {
             if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
