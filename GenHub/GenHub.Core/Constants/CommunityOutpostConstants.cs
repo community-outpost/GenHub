@@ -85,6 +85,18 @@ public static class CommunityOutpostConstants
     /// </summary>
     public const string PatchPageUrl = "https://legi.cc/downloads/genpatcher/";
 
+    /// <summary>Display name for Game Clients content type.</summary>
+    public const string ContentTypeGameClients = "Game Clients";
+
+    /// <summary>Display name for Addons content type.</summary>
+    public const string ContentTypeAddons = "Addons";
+
+    /// <summary>Display name for Tools content type.</summary>
+    public const string ContentTypeTools = "Tools";
+
+    /// <summary>Display name for Maps content type.</summary>
+    public const string ContentTypeMaps = "Maps";
+
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>

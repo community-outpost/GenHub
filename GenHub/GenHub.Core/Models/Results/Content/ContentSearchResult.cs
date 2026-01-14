@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Parsers;
 
 namespace GenHub.Core.Models.Results.Content;
 
@@ -79,6 +80,9 @@ public class ContentSearchResult
 
     /// <summary>Gets additional metadata for resolvers.</summary>
     public IDictionary<string, string> ResolverMetadata { get; } = new Dictionary<string, string>();
+
+    /// <summary>Gets or sets parsed web page data with rich metadata (files, images, videos, comments, etc.).</summary>
+    public ParsedWebPage? ParsedPageData { get; set; }
 
     /// <summary>Returns the data payload cast to type T, or null if unavailable or of wrong type.</summary>
     /// <typeparam name="T">Expected type of the data payload.</typeparam>

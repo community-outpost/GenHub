@@ -6,7 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -24,9 +25,11 @@ public class FileSystemDeliverer(
     ILogger<FileSystemDeliverer> logger,
     IConfigurationProviderService configProvider,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService,
-    IDownloadService downloadService) : IContentDeliverer
+    IDownloadService downloadService,
+    IPlaywrightService playwrightService,
+    ICasService casService) : IContentDeliverer
 {
+
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
 
@@ -103,9 +106,10 @@ public class FileSystemDeliverer(
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
                 hashProvider,
-                manifestIdService,
+                null!,
                 downloadService,
-                configProvider);
+                configProvider,
+                playwrightService);
 
             if (!int.TryParse(packageManifest.Version, out var manifestVersionInt))
             {

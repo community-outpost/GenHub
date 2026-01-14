@@ -20,6 +20,9 @@ namespace GenHub.Core.Constants;
 /// </remarks>
 public static class PublisherTypeConstants
 {
+    /// <summary>Combined view of all publishers.</summary>
+    public const string All = "all";
+
     /// <summary>Unknown or unspecified publisher.</summary>
     public const string Unknown = "unknown";
 
@@ -46,6 +49,15 @@ public static class PublisherTypeConstants
 
     /// <summary>The Super Hackers community publisher.</summary>
     public const string TheSuperHackers = "thesuperhackers";
+
+    /// <summary>CNC Labs community site.</summary>
+    public const string CncLabs = "cnclabs";
+
+    /// <summary>Community Outpost platform.</summary>
+    public const string CommunityOutpost = "communityoutpost";
+
+    /// <summary>Art of Defense Maps community site.</summary>
+    public const string AODMaps = "aodmaps";
 
     /// <summary>
     /// Maps GameInstallationType enum to publisher type string.
