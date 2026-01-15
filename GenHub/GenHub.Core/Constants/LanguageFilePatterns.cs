@@ -128,7 +128,7 @@ public static class LanguageFilePatterns
     /// <summary>
     /// File pattern for Portuguese ZH BIG files: "PortugueseZH.big".
     /// </summary>
-    public const string PortugueseZHBig = "PortugueseZH.big";
+    public const string PortugueseBrazilZH = "PortugueseZH.big";
 
     /// <summary>
     /// File pattern for Chinese BIG files: "Chinese.big".

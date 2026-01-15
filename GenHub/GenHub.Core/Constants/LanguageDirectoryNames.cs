@@ -18,7 +18,7 @@ public static class LanguageDirectoryNames
     /// <summary>
     /// Directory path for INI data: "Data/INI/".
     /// </summary>
-    public const string DataIni = "Data/INI/";
+    public const string DataIni = "Data/INI";
 
     /// <summary>
     /// Directory path for capitalized English data: "Data/English".
