@@ -15,12 +15,4 @@ public partial class GameSettingsView : UserControl
     {
         InitializeComponent();
     }
-
-    /// <summary>
-    /// Loads and initializes the XAML components for this view.
-    /// </summary>
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
 }

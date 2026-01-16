@@ -980,7 +980,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
         options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
         options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
-        options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
 
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
