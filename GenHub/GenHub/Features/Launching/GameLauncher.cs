@@ -944,13 +944,29 @@ public class GameLauncher(
                 }
 
                 // Get the executable name from the GameClient manifest for process monitoring
-                // The proxy launches generalszh.exe from workspace, so we monitor for that
+                // For CAS symlinked files, the process name is the SHA hash, not the original filename
+                // For hardlinked files, even if sourced from CAS, the process name is the executable name
                 var gameClientManifestForMonitor = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
                 var executableFileForMonitor = gameClientManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
-                var gameProcessName = executableFileForMonitor != null
-                    ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-                    : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
-                logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
+
+                string gameProcessName;
+                if (executableFileForMonitor != null &&
+                    executableFileForMonitor.SourceType == ContentSourceType.ContentAddressable &&
+                    profile.WorkspaceStrategy == WorkspaceStrategy.SymlinkOnly)
+                {
+                    // For CAS symlinked executables, the process name IS the hash
+                    // This is because Windows reports the symlink target hash as the process name
+                    gameProcessName = executableFileForMonitor.Hash;
+                    logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
+                }
+                else
+                {
+                    // For regular files or hardlinked CAS files, use the executable name
+                    gameProcessName = executableFileForMonitor != null
+                        ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
+                        : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+                    logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
+                }
 
                 // Discover and track the game process that Steam->proxy launches
                 processResult = await processManager.DiscoverAndTrackProcessAsync(
