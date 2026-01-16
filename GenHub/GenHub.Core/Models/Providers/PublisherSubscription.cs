@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Enums;
@@ -76,4 +77,22 @@ public class PublisherSubscription : ObservableObject
     /// </summary>
     [JsonPropertyName("avatarUrl")]
     public string? AvatarUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the URL to the provider definition JSON (if applicable).
+    /// </summary>
+    [JsonPropertyName("definitionUrl")]
+    public string? DefinitionUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the type of subscription (CatalogOnly or ProviderDefinition).
+    /// </summary>
+    [JsonPropertyName("subscriptionType")]
+    public SubscriptionType SubscriptionType { get; set; } = SubscriptionType.CatalogOnly;
+
+    /// <summary>
+    /// Gets or sets the catalog entries for multi-catalog subscriptions.
+    /// </summary>
+    [JsonPropertyName("catalogEntries")]
+    public List<SubscribedCatalogEntry> CatalogEntries { get; set; } = [];
 }

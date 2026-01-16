@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
@@ -20,11 +22,6 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// </summary>
 public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogParser> logger) : ICatalogParser
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-    };
-
     /// <inheritdoc/>
     public string CatalogFormat => "generalsonline-json-api";
 
@@ -66,8 +63,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
                 if (root.TryGetProperty("data", out var dataElement))
                 {
                     var apiResponse = JsonSerializer.Deserialize<GeneralsOnlineApiResponse>(
-                        dataElement.GetRawText(),
-                        _jsonOptions);
+                        dataElement.GetRawText());
 
                     if (apiResponse != null && !string.IsNullOrEmpty(apiResponse.Version))
                     {
@@ -130,7 +126,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
     /// <summary>
     /// Creates a GeneralsOnlineRelease from a full API response (manifest.json).
     /// </summary>
-    private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
+    private GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
     {
         var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
 
@@ -149,7 +145,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
     /// Creates a GeneralsOnlineRelease from a version string (latest.txt fallback).
     /// Constructs download URL using provider configuration.
     /// </summary>
-    private static GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
+    private GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
     {
         var versionDate = ParseVersionDate(version) ?? DateTime.Now;
         var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
@@ -168,7 +164,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
     /// <summary>
     /// Parses a version string (MMDDYY_QFE#) to extract the date.
     /// </summary>
-    private static DateTime? ParseVersionDate(string version)
+    private DateTime? ParseVersionDate(string version)
     {
         try
         {
@@ -187,9 +183,9 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
                 return null;
             }
 
-            var month = int.Parse(datePart[..2]);
+            var month = int.Parse(datePart.Substring(0, 2));
             var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart[4..]);
+            var year = 2000 + int.Parse(datePart.Substring(4, 2));
 
             return new DateTime(year, month, day);
         }
@@ -202,7 +198,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
     /// <summary>
     /// Creates a ContentSearchResult from a release and provider configuration.
     /// </summary>
-    private static ContentSearchResult CreateSearchResult(
+    private ContentSearchResult CreateSearchResult(
         GeneralsOnlineRelease release,
         ProviderDefinition provider)
     {

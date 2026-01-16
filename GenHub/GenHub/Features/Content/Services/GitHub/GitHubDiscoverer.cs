@@ -44,6 +44,7 @@ public class GitHubDiscoverer : IContentDiscoverer
             .Select(r =>
             {
                 var parts = r.Split('/');
+
                 return parts.Length == ContentConstants.GitHubRepoPartsCount ? (Owner: parts[0], Repo: parts[1]) : (Owner: string.Empty, Repo: string.Empty);
             })
             .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))];
@@ -129,8 +130,7 @@ public class GitHubDiscoverer : IContentDiscoverer
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
             Items = discoveredItems,
-            TotalItems = discoveredItems.Count,
-            HasMoreItems = false,
+            HasMoreItems = false, // Fetches only latest releases
         });
     }
 

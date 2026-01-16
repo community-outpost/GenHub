@@ -33,6 +33,12 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
     /// <inheritdoc/>
     public string CatalogFormat => CommunityOutpostCatalogConstants.CatalogFormat;
 
+    [GeneratedRegex(@"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$")]
+    private static partial Regex ContentLineRegex();
+
+    [GeneratedRegex(@"^([\d\.]+)\s+;;$")]
+    private static partial Regex VersionLineRegex();
+
     /// <inheritdoc/>
     public Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
         string catalogContent,
@@ -85,12 +91,6 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
         }
     }
 
-    [GeneratedRegex(@"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$")]
-    private static partial Regex ContentLineRegex();
-
-    [GeneratedRegex(@"^([\d\.]+)\s+;;$")]
-    private static partial Regex VersionLineRegex();
-
     /// <summary>
     /// Makes a URL absolute if it's relative.
     /// </summary>
@@ -111,54 +111,6 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
     private static string? GetMetadataValue(Dictionary<string, string> metadata, string key)
     {
         return metadata.TryGetValue(key, out var value) ? value : null;
-    }
-
-    /// <summary>
-    /// Gets the preferred download URL based on provider's mirror preference.
-    /// </summary>
-    /// <param name="item">The content item with available mirrors.</param>
-    /// <param name="provider">The provider definition with mirror preferences.</param>
-    /// <returns>The preferred download URL, or null if no mirrors available.</returns>
-    private static string? GetPreferredDownloadUrl(GenPatcherContentItem item, ProviderDefinition provider)
-    {
-        if (item.Mirrors.Count == 0)
-        {
-            return null;
-        }
-
-        // If provider has mirror preference, use that order
-        if (provider.MirrorPreference.Count > 0)
-        {
-            foreach (var preferredMirror in provider.MirrorPreference)
-            {
-                var mirror = item.Mirrors.FirstOrDefault(m =>
-                    m.Name.Contains(preferredMirror, StringComparison.OrdinalIgnoreCase));
-
-                if (mirror != null)
-                {
-                    return mirror.Url;
-                }
-            }
-        }
-
-        // Also check provider endpoint mirrors for priority
-        if (provider.Endpoints.Mirrors.Count > 0)
-        {
-            var orderedMirrors = provider.Endpoints.Mirrors.OrderBy(m => m.Priority).ToList();
-            foreach (var mirrorEndpoint in orderedMirrors)
-            {
-                var mirror = item.Mirrors.FirstOrDefault(m =>
-                    m.Name.Contains(mirrorEndpoint.Name, StringComparison.OrdinalIgnoreCase));
-
-                if (mirror != null)
-                {
-                    return mirror.Url;
-                }
-            }
-        }
-
-        // Fall back to first available mirror
-        return item.Mirrors.First().Url;
     }
 
     /// <summary>
@@ -338,6 +290,54 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             _logger.LogWarning(ex, "Failed to convert content item {Code} to search result", item.ContentCode);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Gets the preferred download URL based on provider's mirror preference.
+    /// </summary>
+    /// <param name="item">The content item with available mirrors.</param>
+    /// <param name="provider">The provider definition with mirror preferences.</param>
+    /// <returns>The preferred download URL, or null if no mirrors available.</returns>
+    private static string? GetPreferredDownloadUrl(GenPatcherContentItem item, ProviderDefinition provider)
+    {
+        if (item.Mirrors.Count == 0)
+        {
+            return null;
+        }
+
+        // If provider has mirror preference, use that order
+        if (provider.MirrorPreference.Count > 0)
+        {
+            foreach (var preferredMirror in provider.MirrorPreference)
+            {
+                var mirror = item.Mirrors.FirstOrDefault(m =>
+                    m.Name.Contains(preferredMirror, StringComparison.OrdinalIgnoreCase));
+
+                if (mirror != null)
+                {
+                    return mirror.Url;
+                }
+            }
+        }
+
+        // Also check provider endpoint mirrors for priority
+        if (provider.Endpoints.Mirrors.Count > 0)
+        {
+            var orderedMirrors = provider.Endpoints.Mirrors.OrderBy(m => m.Priority).ToList();
+            foreach (var mirrorEndpoint in orderedMirrors)
+            {
+                var mirror = item.Mirrors.FirstOrDefault(m =>
+                    m.Name.Contains(mirrorEndpoint.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (mirror != null)
+                {
+                    return mirror.Url;
+                }
+            }
+        }
+
+        // Fall back to first available mirror
+        return item.Mirrors.First().Url;
     }
 
     /// <summary>

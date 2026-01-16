@@ -1,18 +1,23 @@
+// Copyright (c) GenHub. All rights reserved.
+// Licensed under the MIT license.
+
+namespace GenHub.Features.Content.Services.Catalog;
+
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
-
-namespace GenHub.Features.Content.Services.Catalog;
 
 /// <summary>
 /// Resolves content from generic publisher catalogs into ContentManifest objects.
@@ -73,7 +78,7 @@ public class GenericCatalogResolver(
             var builder = _manifestBuilder
                 .WithBasicInfo(publisher.Id, contentItem.Name, release.Version)
                 .WithContentType(contentItem.ContentType, contentItem.TargetGame)
-                .WithPublisher(publisher.Name, publisher.Website ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty, publisher.Id)
+                .WithPublisher(publisher.Name, publisher.WebsiteUrl ?? string.Empty, publisher.SupportUrl ?? string.Empty, publisher.ContactEmail ?? string.Empty, publisher.Id)
                 .WithMetadata(
                     description: contentItem.Description,
                     tags: [.. contentItem.Tags],
@@ -83,7 +88,7 @@ public class GenericCatalogResolver(
             // Add primary artifact for download
             var primaryArtifact = release.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? release.Artifacts.First();
 
-            // ContentManifestBuilder.AddDownloadedFileAsync will:
+            // ContentManifestBuilder.AddRemoteFileAsync will:
             // 1. Download the file
             // 2. Auto-detect if it's an archive (ZIP/RAR/7z)
             // 3. Extract all files if archive

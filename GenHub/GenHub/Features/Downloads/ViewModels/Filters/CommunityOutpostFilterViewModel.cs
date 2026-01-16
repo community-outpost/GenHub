@@ -14,8 +14,16 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// Filter view model for Community Outpost publisher.
 /// Limits options to valid content types (no Mods/Maps filters if confusing, although they act as categories).
 /// </summary>
-public partial class CommunityOutpostFilterViewModel() : FilterPanelViewModelBase
+public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommunityOutpostFilterViewModel"/> class.
+    /// </summary>
+    public CommunityOutpostFilterViewModel()
+    {
+        InitializeContentTypeFilters();
+    }
+
     [ObservableProperty]
     private ContentType? _selectedContentType;
 

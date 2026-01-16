@@ -57,12 +57,12 @@ public interface IGameSettingsService
     /// Loads GeneralsOnline-specific settings from settings.json.
     /// </summary>
     /// <returns>An operation result containing the loaded GeneralsOnline settings or errors.</returns>
-    Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync();
+    Task<OperationResult<GenHub.Core.Models.GameSettings.GameSettings>> LoadGameSettingsAsync();
 
     /// <summary>
     /// Saves GeneralsOnline-specific settings to settings.json.
     /// </summary>
     /// <param name="settings">The GeneralsOnline settings to save.</param>
     /// <returns>An operation result indicating success or failure.</returns>
-    Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings);
+    Task<OperationResult<bool>> SaveGameSettingsAsync(GenHub.Core.Models.GameSettings.GameSettings settings);
 }

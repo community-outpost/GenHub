@@ -96,7 +96,7 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
             _playwright = null;
         }
 
-        _browserLock.Dispose();
+        // Note: _browserLock is static and lives for app lifetime; not disposed here
         GC.SuppressFinalize(this);
     }
 

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
@@ -166,7 +167,6 @@ public class CommunityOutpostResolver(
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
-            builtManifest.ManifestVersion = manifestVersion;
 
             // Store the install target from content metadata
             builtManifest.InstallationInstructions ??= new InstallationInstructions();

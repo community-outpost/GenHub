@@ -4,17 +4,14 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
-using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
+using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -25,9 +22,6 @@ public partial class AODMapsManifestFactory(
     IContentManifestBuilder manifestBuilder,
     IManifestIdService manifestIdService,
     IProviderDefinitionLoader providerLoader,
-    IDownloadService downloadService,
-    ICasService casService,
-    IConfigurationProviderService configurationProvider,
     ILogger<AODMapsManifestFactory> logger) : IPublisherManifestFactory
 {
     /// <inheritdoc />
@@ -60,7 +54,7 @@ public partial class AODMapsManifestFactory(
     /// </summary>
     /// <param name="details">The map details to create the manifest from.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public async Task<ContentManifest> CreateManifestAsync(ParsedContentDetails details)
+    public async Task<ContentManifest> CreateManifestAsync(MapDetails details)
     {
         ArgumentNullException.ThrowIfNull(details);
 
@@ -113,16 +107,26 @@ public partial class AODMapsManifestFactory(
 
         // 6. Add download file - Download and store in CAS
         var fileName = ExtractFileNameFromUrl(details.DownloadUrl);
-        await DownloadAndAddFileAsync(
-            manifestBuilder,
+
+        manifest = await manifest.AddRemoteFileAsync(
             fileName,
             details.DownloadUrl,
-            details.RefererUrl);
+            ContentSourceType.ContentAddressable,
+            isExecutable: false,
+            permissions: null);
 
         // 7. Add dependencies
         manifest = AddGameDependencies(manifest, details.TargetGame);
 
         return manifest.Build();
+    }
+
+    private static string NormalizeAuthorForPublisherId(string author)
+    {
+        if (string.IsNullOrWhiteSpace(author)) return "unknown";
+        var slugHelper = new SlugHelper();
+        var normalized = slugHelper.GenerateSlug(author).Replace("-", string.Empty);
+        return string.IsNullOrEmpty(normalized) ? "unknown" : normalized;
     }
 
     private static string SlugifyTitle(string title)
@@ -133,7 +137,7 @@ public partial class AODMapsManifestFactory(
         return string.IsNullOrEmpty(slug) ? "content" : slug;
     }
 
-    private static List<string> GetTags(ParsedContentDetails details)
+    private static List<string> GetTags(MapDetails details)
     {
         var tags = new List<string> { "aodmaps" };
         if (details.TargetGame == GameType.Generals) tags.Add("generals");
@@ -174,52 +178,5 @@ public partial class AODMapsManifestFactory(
         }
 
         return "download.zip";
-    }
-
-    private async Task DownloadAndAddFileAsync(
-        IContentManifestBuilder builder,
-        string relativePath,
-        string downloadUrl,
-        string? refererUrl)
-    {
-        var tempDir = Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
-        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-
-        var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
-
-        var downloadConfig = new DownloadConfiguration
-        {
-            Url = new Uri(downloadUrl),
-            DestinationPath = tempFilePath,
-            OverwriteExisting = true,
-        };
-
-        if (!string.IsNullOrEmpty(refererUrl))
-        {
-            downloadConfig.Headers.Add("Referer", refererUrl);
-        }
-
-        // Standard download for AODMaps
-        var downloadResult = await downloadService.DownloadFileAsync(downloadConfig);
-        if (!downloadResult.Success)
-        {
-            throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
-        }
-
-        // Store in CAS
-        var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Map);
-        if (!storeResult.Success)
-        {
-            if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-            throw new InvalidOperationException($"Failed to store content in CAS: {storeResult.FirstError}");
-        }
-
-        var hash = storeResult.Data;
-        var fileSize = new FileInfo(tempFilePath).Length;
-
-        // Cleanup
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        await builder.AddContentAddressableFileAsync(relativePath, hash, fileSize);
     }
 }

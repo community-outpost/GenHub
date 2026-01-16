@@ -32,6 +32,7 @@ and additional project-specific preferences.
   - Use `//` for single-line comments.
   - Avoid the use of `/**/` block comments.
   - Place comments on their own line above the code they describe, not at the end of a line.
+
 ---
 
 ## 3. Naming Conventions
@@ -51,6 +52,7 @@ and additional project-specific preferences.
 ## 4. Ordering
 
 - **Class Member Order** (strict, as per Google/CoreFX/StyleCop):
+
 1. Nested types
 2. Static fields
 3. Instance fields
@@ -60,6 +62,7 @@ and additional project-specific preferences.
 7. Indexers
 8. Events
 9. Methods
+
     1. Static methods go first, then instance methods.
     2. Methods should be ordered by visibility: `public`, `protected`, `internal`, `private`.
 

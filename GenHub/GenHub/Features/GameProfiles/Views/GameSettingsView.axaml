@@ -149,51 +149,120 @@
                 <!-- VIDEO SETTINGS CARD -->
                 <!-- ═══════════════════════════════════════════════════════════ -->
                 <StackPanel VerticalAlignment="Top">
-                <Expander IsExpanded="False">
+                <Expander IsExpanded="True">
                     <Expander.Header>
-                        <TextBlock Text="🎬 Video Settings" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="🎬 Video &amp; Controls" FontWeight="SemiBold" FontSize="14" />
                     </Expander.Header>
 
                     <Border Classes="settings-card"
                             Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
                             BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
-                        <StackPanel>
+                        <StackPanel Spacing="12">
                             <!-- Resolution -->
                             <Grid ColumnDefinitions="110,*" Classes="setting-row">
                                 <TextBlock Grid.Column="0" Text="Resolution" VerticalAlignment="Center" />
                                 <ComboBox Grid.Column="1"
                                           ItemsSource="{Binding ResolutionPresets}"
                                           SelectedItem="{Binding SelectedResolutionPreset}"
-                                          PlaceholderText="Select Resolution"
                                           HorizontalAlignment="Stretch"
-                                          Height="34">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                                          Height="34" />
                             </Grid>
 
-                            <!-- Windowed Mode -->
-                            <CheckBox Content="Run in Windowed Mode" IsChecked="{Binding Windowed}" Margin="0,4,0,8" />
-
-                            <!-- Graphics Options -->
-                            <TextBlock Classes="subsection-header" Text="Graphics Options" Margin="0,8,0,8" />
                             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" Margin="0,0,8,6" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" Margin="0,0,0,6" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" Margin="0,0,8,0" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" />
+                                <!-- Detail Level -->
+                                <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,8,0" ToolTip.Tip="Controls geometric complexity of 3D models. Low makes units look 'blocky'. Very High keeps maximum detail.">
+                                    <TextBlock Text="Detail Level" FontSize="11" Opacity="0.7" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding LodOptions}"
+                                              SelectedItem="{Binding StaticGameLOD}"
+                                              HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                                <!-- Anti-Aliasing -->
+                                <StackPanel Grid.Column="1" Grid.Row="0">
+                                    <TextBlock Text="Anti-Aliasing" FontSize="11" Opacity="0.7" Margin="0,0,0,4" />
+                                    <ComboBox ItemsSource="{Binding AaOptions}"
+                                              SelectedItem="{Binding AntiAliasing}"
+                                              HorizontalAlignment="Stretch" />
+                                </StackPanel>
+
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Windowed" IsChecked="{Binding Windowed}" Margin="0,8,0,0" />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Enable Dynamic LOD" IsChecked="{Binding DynamicLOD}" Margin="0,8,0,0" ToolTip.Tip="Automatically adjusts detail level to maintain performance. Turn off to keep high detail at all times." />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
+
+                            <!-- Graphics Options (Visible only when Custom Detail Level is selected) -->
+                            <StackPanel IsVisible="{Binding IsCustomLodSelected}">
+                                <TextBlock Classes="subsection-header" Text="Advanced Display Options" />
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                    <!-- Row 0 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="0" Content="3D Shadows" IsChecked="{Binding Shadows}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="0" Content="Behind Buildings" IsChecked="{Binding BuildingOcclusion}" />
+
+                                    <!-- Row 1 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Content="2D Shadows" IsChecked="{Binding UseShadowDecals}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="1" Content="Show Props" IsChecked="{Binding ShowProps}" />
+
+                                    <!-- Row 2 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="2" Content="Cloud Shadows" IsChecked="{Binding UseCloudMap}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="2" Content="Extra Animations" IsChecked="{Binding ExtraAnimations}" />
+
+                                    <!-- Row 3 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="3" Content="Extra Ground Lighting" IsChecked="{Binding UseLightMap}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="3" Content="Enable Dynamic LOD" IsChecked="{Binding DynamicLOD}" ToolTip.Tip="Uncheck to disable dynamic detail adjustment (Force High Detail)." />
+
+                                    <!-- Row 4 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="4" Content="Smooth Water Borders" IsChecked="{Binding ShowSoftWaterEdge}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="4" Content="Heat Effects" IsChecked="{Binding HeatEffects}" />
+                                </Grid>
+                                <Separator Background="#20FFFFFF" Height="1" Margin="0,8" />
+                            </StackPanel>
+
+                            <!-- Max Particle Count -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Particle Cap" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding MaxParticleCount}" Minimum="500" Maximum="10000" TickFrequency="500" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding MaxParticleCount, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=5000}" Minimum="500" Maximum="10000" Increment="500" ClipValueToMinMax="True" FormatString="0" />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
+
+                            <!-- Scroll Speed Slider -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Scroll Speed" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding ScrollFactor}" Minimum="0" Maximum="145" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding ScrollFactor, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=50}" Minimum="0" Maximum="150" Increment="5" ClipValueToMinMax="True" FormatString="0" />
+                            </Grid>
+
+                            <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
+
+                            <!-- Control Options (Aligning with game menu) -->
+                            <TextBlock Classes="subsection-header" Text="Control Options" />
+
+
+                            <!-- Additional Control/Misc Options -->
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Alt Mouse" IsChecked="{Binding AlternateMouseSetup}" />
+                                <CheckBox Grid.Column="1" Grid.Row="0" Content="DBL Click Guard" IsChecked="{Binding UseDoubleClickAttackMove}" />
+                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Auto Retaliation" IsChecked="{Binding Retaliation}" ToolTip.Tip="Units automatically engage nearby enemies." />
+                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Send Delay" IsChecked="{Binding SendDelay}" ToolTip.Tip="Reduces network latency by delaying packets." />
+                                <CheckBox Grid.Column="0" Grid.Row="2" Content="Draw Scroll Anchor" IsChecked="{Binding DrawScrollAnchor}" />
+                                <CheckBox Grid.Column="1" Grid.Row="2" Content="Move Scroll Anchor" IsChecked="{Binding MoveScrollAnchor}" />
+                                <CheckBox Grid.Column="0" Grid.Row="3" Content="Language Filter" IsChecked="{Binding LanguageFilter}" />
+                                <CheckBox Grid.Column="1" Grid.Row="3" Content="Skip EA Logo" IsChecked="{Binding SkipEALogo}" ToolTip.Tip="Skips the EA logo movie when launching the game." />
+                            </Grid>
+
+                            <!-- Game Time Font Size -->
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Time Font Size" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding GameTimeFontSize}" Minimum="8" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding GameTimeFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=10}" Minimum="8" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
 
                             <!-- Gamma Slider -->
-                            <Grid ColumnDefinitions="110,*,60" Margin="0,12,0,0">
-                                <TextBlock Grid.Column="0" Text="Gamma" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100"
-                                        TickFrequency="10" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding Gamma, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="100"
-                                               Increment="10" ClipValueToMinMax="True" FormatString="0" />
+                            <Grid ColumnDefinitions="110,*,60">
+                                <TextBlock Grid.Column="0" Text="Brightness" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Value="{Binding Gamma}" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding Gamma, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=50}" Minimum="0" Maximum="100" Increment="5" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -329,19 +398,19 @@
                             <Grid ColumnDefinitions="110,*,60" RowDefinitions="Auto,Auto,Auto,Auto">
                                 <TextBlock Grid.Column="0" Grid.Row="0" Text="System Time" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="0" Value="{Binding TshSystemTimeFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding TshSystemTimeFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding TshSystemTimeFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="1" Text="Latency" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="1" Value="{Binding TshNetworkLatencyFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding TshNetworkLatencyFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding TshNetworkLatencyFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="2" Text="FPS" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="2" Value="{Binding TshRenderFpsFontSize}" Minimum="0" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="2" Classes="phantom" Value="{Binding TshRenderFpsFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="2" Classes="phantom" Value="{Binding TshRenderFpsFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0}" Minimum="0" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="3" Text="Adjustment" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Grid.Row="3" Value="{Binding TshResolutionFontAdjustment}" Minimum="-100" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="True" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="3" Classes="phantom" Value="{Binding TshResolutionFontAdjustment, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=-100, UpdateSourceTrigger=LostFocus}" Minimum="-100" Maximum="100" Increment="10" ClipValueToMinMax="True" FormatString="0" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="3" Classes="phantom" Value="{Binding TshResolutionFontAdjustment, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=-100}" Minimum="-100" Maximum="100" Increment="10" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
 
                             <!-- Cursor Capture -->
@@ -364,7 +433,7 @@
                             <Grid ColumnDefinitions="110,*,60" Margin="0,12,0,0">
                                 <TextBlock Grid.Column="0" Text="Money Alert" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding TshMoneyTransactionVolume}" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" />
-                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding TshMoneyTransactionVolume, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0, UpdateSourceTrigger=LostFocus}" Minimum="0" Maximum="100" Increment="5" ClipValueToMinMax="True" FormatString="0" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding TshMoneyTransactionVolume, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0}" Minimum="0" Maximum="100" Increment="5" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -407,7 +476,7 @@
                                 <TextBlock Grid.Column="0" Text="FPS Limit" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Value="{Binding GoRenderFpsLimit}" Minimum="30" Maximum="240" TickFrequency="10" IsSnapToTickEnabled="True"
                                         IsEnabled="{Binding GoRenderLimitFramerate}" />
-                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding GoRenderFpsLimit, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=30, UpdateSourceTrigger=LostFocus}" Minimum="30" Maximum="240" Increment="10" ClipValueToMinMax="True" FormatString="0" IsEnabled="{Binding GoRenderLimitFramerate}" />
+                                <NumericUpDown Grid.Column="2" Classes="phantom" Value="{Binding GoRenderFpsLimit, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=30}" Minimum="30" Maximum="240" Increment="10" ClipValueToMinMax="True" FormatString="0" IsEnabled="{Binding GoRenderLimitFramerate}" />
                             </Grid>
 
                             <!-- Camera Settings -->
@@ -415,15 +484,15 @@
                             <Grid ColumnDefinitions="110,*,60" RowDefinitions="Auto,Auto,Auto">
                                 <TextBlock Grid.Column="0" Grid.Row="0" Text="Max Height" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="0" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost}" Minimum="100" Maximum="500" TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=100, UpdateSourceTrigger=LostFocus}" Minimum="100" Maximum="500" Increment="10" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding GoCameraMaxHeightOnlyWhenLobbyHost, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=100}" Minimum="100" Maximum="500" Increment="10" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="1" Text="Min Height" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="1" Value="{Binding GoCameraMinHeight}" Minimum="100" Maximum="500" TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding GoCameraMinHeight, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=100, UpdateSourceTrigger=LostFocus}" Minimum="100" Maximum="500" Increment="10" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding GoCameraMinHeight, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=100}" Minimum="100" Maximum="500" Increment="10" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="2" Text="Move Speed" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Grid.Row="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="3.0" TickFrequency="0.1" IsSnapToTickEnabled="True" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="2" Classes="phantom" Value="{Binding GoCameraMoveSpeedRatio, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0.5, UpdateSourceTrigger=LostFocus}" Minimum="0.5" Maximum="3.0" Increment="0.1" ClipValueToMinMax="True" FormatString="F1" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="2" Classes="phantom" Value="{Binding GoCameraMoveSpeedRatio, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=0.5}" Minimum="0.5" Maximum="3.0" Increment="0.1" ClipValueToMinMax="True" FormatString="F1" />
                             </Grid>
 
                             <!-- Account Options -->
@@ -438,11 +507,11 @@
                             <Grid ColumnDefinitions="110,*,60" RowDefinitions="Auto,Auto">
                                 <TextBlock Grid.Column="0" Grid.Row="0" Text="Font Size" VerticalAlignment="Center" Margin="0,0,0,8" />
                                 <Slider Grid.Column="1" Grid.Row="0" Value="{Binding GoChatFontSize}" Minimum="8" Maximum="24" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,8" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding GoChatFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=8, UpdateSourceTrigger=LostFocus}" Minimum="8" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="0" Classes="phantom" Value="{Binding GoChatFontSize, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=8}" Minimum="8" Maximum="24" Increment="1" ClipValueToMinMax="True" FormatString="0" Margin="0,0,0,8" />
 
                                 <TextBlock Grid.Column="0" Grid.Row="1" Text="Fade Out (s)" VerticalAlignment="Center" />
                                 <Slider Grid.Column="1" Grid.Row="1" Value="{Binding GoChatDurationSecondsUntilFadeOut}" Minimum="5" Maximum="120" TickFrequency="5" IsSnapToTickEnabled="True" />
-                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding GoChatDurationSecondsUntilFadeOut, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=5, UpdateSourceTrigger=LostFocus}" Minimum="5" Maximum="120" Increment="5" ClipValueToMinMax="True" FormatString="0" />
+                                <NumericUpDown Grid.Column="2" Grid.Row="1" Classes="phantom" Value="{Binding GoChatDurationSecondsUntilFadeOut, Converter={StaticResource NullableDecimalToIntConverter}, ConverterParameter=5}" Minimum="5" Maximum="120" Increment="5" ClipValueToMinMax="True" FormatString="0" />
                             </Grid>
 
                             <!-- Notifications -->

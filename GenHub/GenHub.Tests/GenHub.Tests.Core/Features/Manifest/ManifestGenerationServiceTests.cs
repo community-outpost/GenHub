@@ -24,7 +24,6 @@ public class ManifestGenerationServiceTests : IDisposable
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
     private readonly Mock<IDownloadService> _downloadServiceMock;
     private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
-
     private readonly ManifestGenerationService _service;
     private readonly string _tempDirectory;
 

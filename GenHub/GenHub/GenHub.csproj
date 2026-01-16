@@ -21,6 +21,10 @@
         </PackageReference>
 
         <PackageReference Include="CommunityToolkit.Mvvm" />
+
+        <PackageReference Include="Google.Apis.Auth" />
+
+        <PackageReference Include="Google.Apis.Drive.v3" />
         <PackageReference Include="Material.Icons.Avalonia" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

@@ -53,37 +53,76 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Profile name cannot be empty");
             }
 
-            if (string.IsNullOrWhiteSpace(request.GameInstallationId))
+            // Detect if this is a Tool profile using centralized helper
+            bool isToolProfile = await Core.Helpers.ToolProfileHelper.IsToolProfileAsync(
+                request.EnabledContentIds ?? [],
+                _manifestPool,
+                cancellationToken);
+
+            string? toolContentId = null;
+
+            if (isToolProfile)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required");
+                // Validate Tool profile content configuration
+                var validationError = await Core.Helpers.ToolProfileHelper.ValidateToolProfileContentAsync(
+                    request.EnabledContentIds!,
+                    _manifestPool,
+                    cancellationToken);
+
+                if (validationError != null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(validationError);
+                }
+
+                // Set toolContentId to the single ModdingTool content ID
+                toolContentId = request.EnabledContentIds!.First();
+
+                _logger.LogInformation(
+                    "Detected Tool profile creation for tool: {ToolContentId}",
+                    toolContentId);
             }
 
-            var installationResult = await _installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
-            if (installationResult.Failed)
+            // Validate based on profile type
+            GameClient? gameClient = null;
+            if (isToolProfile)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to find game installation with ID: {request.GameInstallationId}");
-            }
-
-            var gameInstallation = installationResult.Data!;
-
-            // Use GameClient from request if provided (for provider-based clients like GeneralsOnline/SuperHackers)
-            // Otherwise, look it up from AvailableGameClients (for standard installation-detected clients)
-            GameClient? gameClient;
-            if (request.GameClient != null)
-            {
-                // Provider-based client: use the resolved game client directly
-                gameClient = request.GameClient;
-                _logger.LogDebug(
-                    "Using provided GameClient for profile creation: {GameClientId}",
-                    gameClient.Id);
+                // Tool profile: No GameInstallation or GameClient required
+                _logger.LogDebug("Creating Tool profile, bypassing GameInstallation/GameClient validation");
             }
             else
             {
-                // Standard client: look up from AvailableGameClients
-                gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
-                if (gameClient == null)
+                // Regular profile: Require GameInstallation and GameClient
+                if (string.IsNullOrWhiteSpace(request.GameInstallationId))
                 {
-                    return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required for game profiles");
+                }
+
+                var installationResult = await _installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
+                if (installationResult.Failed)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to find game installation with ID: {request.GameInstallationId}");
+                }
+
+                var gameInstallation = installationResult.Data!;
+
+                // Use GameClient from request if provided (for provider-based clients like GeneralsOnline/SuperHackers)
+                // Otherwise, look it up from AvailableGameClients (for standard installation-detected clients)
+                if (request.GameClient != null)
+                {
+                    // Provider-based client: use the resolved game client directly
+                    gameClient = request.GameClient;
+                    _logger.LogDebug(
+                        "Using provided GameClient for profile creation: {GameClientId}",
+                        gameClient.Id);
+                }
+                else
+                {
+                    // Standard client: look up from AvailableGameClients
+                    gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
+                    if (gameClient == null)
+                    {
+                        return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                    }
                 }
             }
 
@@ -92,10 +131,11 @@ public class GameProfileManager(
                 Id = Guid.NewGuid().ToString("N"),
                 Name = request.Name,
                 Description = request.Description ?? string.Empty,
-                GameInstallationId = request.GameInstallationId,
-                GameClient = gameClient,
+                GameInstallationId = request.GameInstallationId ?? string.Empty,
+                GameClient = gameClient ?? new(),
                 WorkspaceStrategy = request.PreferredStrategy,
                 EnabledContentIds = request.EnabledContentIds ?? [],
+                ToolContentId = toolContentId, // Set for Tool profiles
                 ThemeColor = request.ThemeColor,
                 IconPath = request.IconPath,
                 CoverPath = request.CoverPath,
@@ -103,15 +143,19 @@ public class GameProfileManager(
                 GameSpyIPAddress = request.GameSpyIPAddress,
             };
 
-            // Populate settings into new profile
-            GameSettingsMapper.PopulateGameProfile(profile, request);
+            // Load settings only for regular game profiles (Tool profiles don't have game settings)
+            if (!isToolProfile && gameClient != null)
+            {
+                // Populate settings into new profile
+                GameSettingsMapper.PopulateGameProfile(profile, request);
 
-            // Load existing Options.ini settings only if they weren't explicitly provided in the request
-            // This ensures we still have a baseline for unset fields but respect wizard selections.
-            await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType);
+                // Load existing Options.ini settings only if they weren't explicitly provided in the request
+                // This ensures we still have a baseline for unset fields but respect wizard selections.
+                await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType);
 
-            // Re-apply request settings over the loaded ones (in case LoadExistingSettingsIntoProfileAsync overwrote them)
-            GameSettingsMapper.PatchGameProfile(profile, request);
+                // Re-apply request settings over the loaded ones (in case LoadExistingSettingsIntoProfileAsync overwrote them)
+                GameSettingsMapper.PatchGameProfile(profile, request);
+            }
 
             var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
 
@@ -174,6 +218,7 @@ public class GameProfileManager(
             profile.CoverPath = request.CoverPath ?? profile.CoverPath;
             profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
             profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
+            profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
             profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
 
             // Only update ActiveWorkspaceId if explicitly provided (not null or empty)

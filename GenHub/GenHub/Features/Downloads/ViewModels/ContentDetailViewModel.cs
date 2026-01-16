@@ -24,9 +24,9 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <summary>
 /// ViewModel for the detailed content view.
 /// </summary>
-public partial class ContentDetailViewModel : ObservableObject
+public partial class ContentDetailViewModel : ObservableObject, IDisposable
 {
-    private static readonly System.Net.Http.HttpClient _imageClient = new()
+    private readonly System.Net.Http.HttpClient _imageClient = new()
     {
         Timeout = TimeSpan.FromSeconds(10),
     };
@@ -115,6 +115,13 @@ public partial class ContentDetailViewModel : ObservableObject
         }
 
         _ = LoadIconAsync();
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _imageClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -495,9 +502,6 @@ public partial class ContentDetailViewModel : ObservableObject
             IsDownloaded = true;
 
             _logger.LogInformation("Successfully downloaded and stored content: {ManifestId}", manifest.Id.Value);
-
-            // TODO: Trigger actual file download if needed
-            // This would involve using IDownloadService to download files from manifest.Files[]
         }
         catch (OperationCanceledException)
         {
@@ -532,10 +536,6 @@ public partial class ContentDetailViewModel : ObservableObject
         try
         {
             _logger.LogInformation("Downloading individual file: {FileName} from {Url}", file.Name, file.DownloadUrl);
-
-            // TODO: Implement individual file download
-            // This would use IDownloadService to download the specific file
-            // For now, we'll just trigger the main download
             await DownloadAsync(cancellationToken);
         }
         catch (Exception ex)

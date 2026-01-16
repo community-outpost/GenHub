@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
-             mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="250" d:DesignHeight="600"
              x:Class="GenHub.Features.Downloads.Views.PublisherSidebarView"
              x:DataType="vm:DownloadsBrowserViewModel">
 
@@ -22,84 +22,175 @@
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="0,2" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.1"/>
+                </Transitions>
+            </Setter>
         </Style>
 
         <Style Selector="Button.publisher-item:pointerover">
-            <Setter Property="Background" Value="#333333" />
+            <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
         <Style Selector="Button.publisher-item:pressed">
-            <Setter Property="Background" Value="#3A3A3A" />
+            <Setter Property="Background" Value="#25FFFFFF" />
         </Style>
 
         <Style Selector="Button.publisher-item.selected">
-            <Setter Property="Background" Value="#404040" />
+            <Setter Property="Background" Value="#30FFFFFF" />
             <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Selection Marker -->
+        <Style Selector="Button.publisher-item.selected Border#SelectionMarker">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
+
+        <Style Selector="TextBlock.section-header">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Margin" Value="16,16,0,8"/>
+            <Setter Property="LetterSpacing" Value="1"/>
         </Style>
     </UserControl.Styles>
 
-    <StackPanel>
-        <!-- Header -->
-        <TextBlock Text="Publishers"
-                   FontSize="14"
-                   FontWeight="SemiBold"
-                   Foreground="#888888"
-                   Margin="12,0,0,12" />
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,0,8,0">
+            <!-- Sidebar Header / Title -->
+             <Border Padding="16,20,16,12" BorderThickness="0,0,0,1" BorderBrush="#10FFFFFF" Margin="0,0,0,10">
+                 <StackPanel Orientation="Horizontal" Spacing="8">
+                     <PathIcon Data="{StaticResource CloudIcon}" Width="16" Height="16" Foreground="#CCCCCC"/>
+                     <TextBlock Text="Content Sources" FontWeight="Bold" Foreground="White" FontSize="14"/>
+                 </StackPanel>
+             </Border>
 
-        <!-- Publisher List -->
-        <ItemsControl ItemsSource="{Binding Publishers}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <Button Classes="publisher-item"
-                            Classes.selected="{Binding IsSelected}"
-                            Command="{Binding $parent[ItemsControl].((vm:DownloadsBrowserViewModel)DataContext).SelectPublisherCommand}"
-                            CommandParameter="{Binding}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <!-- Publisher Logo -->
-                            <Panel Width="20" Height="20" VerticalAlignment="Center">
-                                <Image Source="{Binding LogoSource, Converter={StaticResource StringToImageConverter}}"
-                                       Width="20" Height="20"
-                                       Stretch="UniformToFill"
-                                       IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <Image.Clip>
-                                        <EllipseGeometry Center="10,10" RadiusX="10" RadiusY="10" />
-                                    </Image.Clip>
-                                </Image>
-                                <!-- Fallback icon -->
-                                <Border Width="20" Height="20"
-                                        CornerRadius="10"
-                                        Background="#555555"
-                                        IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
-                                    <TextBlock Text="●"
-                                               FontSize="10"
-                                               Foreground="White"
-                                               HorizontalAlignment="Center"
+            <!-- Core Publishers -->
+            <TextBlock Text="Core Providers" Classes="section-header" />
+
+            <ItemsControl ItemsSource="{Binding CorePublishers}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Classes="publisher-item"
+                                Classes.selected="{Binding IsSelected}"
+                                Command="{Binding $parent[ItemsControl].((vm:DownloadsBrowserViewModel)DataContext).SelectPublisherCommand}"
+                                CommandParameter="{Binding}">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <!-- Publisher Logo -->
+                                    <Panel Width="22" Height="22" VerticalAlignment="Center">
+                                        <Image Source="{Binding LogoSource, Converter={StaticResource StringToImageConverter}}"
+                                               Width="22" Height="22"
+                                               Stretch="UniformToFill"
+                                               IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <Image.Clip>
+                                                <EllipseGeometry Center="11,11" RadiusX="11" RadiusY="11" />
+                                            </Image.Clip>
+                                        </Image>
+                                        <!-- Fallback icon -->
+                                        <Border Width="22" Height="22"
+                                                CornerRadius="11"
+                                                Background="#25FFFFFF"
+                                                IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       FontSize="10"
+                                                       Foreground="White"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </Panel>
+
+                                    <!-- Publisher Name -->
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontSize="13"
                                                VerticalAlignment="Center" />
-                                </Border>
-                            </Panel>
+                                </StackPanel>
 
-                            <!-- Publisher Name -->
-                            <TextBlock Text="{Binding DisplayName}"
-                                       FontSize="13"
-                                       VerticalAlignment="Center" />
+                                <Border Name="SelectionMarker"
+                                        Grid.Column="0"
+                                        Width="3"
+                                        Height="16"
+                                        HorizontalAlignment="Left"
+                                        Background="#D56AFF"
+                                        CornerRadius="1.5"
+                                        Margin="-12,0,0,0"
+                                        IsVisible="False"/>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-                            <!-- Content count badge -->
-                            <Border Background="#505050"
-                                    CornerRadius="8"
-                                    Padding="6,2"
-                                    IsVisible="{Binding ContentCount, Converter={x:Static converters:ComparisonConverters.IsPositive}}"
-                                    VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ContentCount}"
-                                           FontSize="10"
-                                           Foreground="#AAAAAA" />
-                            </Border>
-                        </StackPanel>
-                    </Button>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </StackPanel>
+            <!-- Subscribed Publishers -->
+            <StackPanel IsVisible="{Binding SubscribedPublishers.Count}">
+                <TextBlock Text="Subscriptions" Classes="section-header" />
+
+                <ItemsControl ItemsSource="{Binding SubscribedPublishers}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                             <Button Classes="publisher-item"
+                                     Classes.selected="{Binding IsSelected}"
+                                     Command="{Binding $parent[ItemsControl].((vm:DownloadsBrowserViewModel)DataContext).SelectPublisherCommand}"
+                                     CommandParameter="{Binding}">
+                                 <Grid ColumnDefinitions="Auto,*,Auto">
+                                     <StackPanel Orientation="Horizontal" Spacing="12">
+                                         <!-- Publisher Logo -->
+                                         <Panel Width="22" Height="22" VerticalAlignment="Center">
+                                             <!-- Glowing Border for Subscriptions -->
+                                             <Border Width="26" Height="26" CornerRadius="13"
+                                                     BorderBrush="#D56AFF" BorderThickness="1"
+                                                     Margin="-2">
+                                                 <Border.Effect>
+                                                     <DropShadowEffect Color="#D56AFF" BlurRadius="6" Opacity="0.5"/>
+                                                 </Border.Effect>
+                                             </Border>
+
+                                             <Image Source="{Binding LogoSource, Converter={StaticResource StringToImageConverter}}"
+                                                    Width="22" Height="22"
+                                                    Stretch="UniformToFill"
+                                                    IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                 <Image.Clip>
+                                                     <EllipseGeometry Center="11,11" RadiusX="11" RadiusY="11" />
+                                                 </Image.Clip>
+                                             </Image>
+                                             <!-- Fallback -->
+                                             <Border Width="22" Height="22"
+                                                     CornerRadius="11"
+                                                     Background="#25FFFFFF"
+                                                     IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                                 <TextBlock Text="S"
+                                                            FontSize="10"
+                                                            Foreground="White"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center" />
+                                             </Border>
+                                         </Panel>
+
+                                         <!-- Publisher Name -->
+                                         <TextBlock Text="{Binding DisplayName}"
+                                                    FontSize="13"
+                                                    VerticalAlignment="Center" />
+                                     </StackPanel>
+
+                                     <Border Name="SelectionMarker"
+                                             Grid.Column="0"
+                                             Width="3"
+                                             Height="16"
+                                             HorizontalAlignment="Left"
+                                             Background="#7838F5"
+                                             CornerRadius="1.5"
+                                             Margin="-12,0,0,0"
+                                             IsVisible="False"/>
+                                 </Grid>
+                             </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

@@ -93,4 +93,9 @@ public static class UiConstants
     /// Display name for Content Bundle content type.
     /// </summary>
     public const string ContentBundleDisplayName = "Bundles";
+
+    /// <summary>
+    /// Display name for Modding Tool content type.
+    /// </summary>
+    public const string ModdingToolDisplayName = "Tools";
 }

@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -115,7 +114,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
                     ContentType = manifest.ContentType,
                     TargetGame = manifest.TargetGame,
                     ProviderName = SourceName,
-                    AuthorName = manifest.Publisher?.Name ?? GameClientConstants.UnknownVersion,
+                    AuthorName = manifest.Publisher?.Name ?? "Unknown",
                     IconUrl = manifest.Metadata?.IconUrl ?? string.Empty,
                     LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.Now,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,

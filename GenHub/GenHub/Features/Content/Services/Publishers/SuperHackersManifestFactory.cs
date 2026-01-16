@@ -48,10 +48,10 @@ public class SuperHackersManifestFactory(
         // Only handle manifests with explicit thesuperhackers publisher type
         var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
-        // Only handle GameClient content type
-        var isGameClient = manifest.ContentType == ContentType.GameClient;
+        // Only handle ModdingTool content type (reclassified from GameClient)
+        var isModdingTool = manifest.ContentType == ContentType.ModdingTool;
 
-        return publisherMatches && isGameClient;
+        return publisherMatches && isModdingTool;
     }
 
     /// <inheritdoc />
@@ -147,7 +147,7 @@ public class SuperHackersManifestFactory(
             ManifestVersion = ManifestConstants.DefaultManifestVersion,
             Name = SuperHackersConstants.LocalInstallDisplayName,
             Version = GameClientConstants.UnknownVersion,
-            ContentType = ContentType.GameClient,
+            ContentType = ContentType.ModdingTool,
             Publisher = new()
             {
                 Name = SuperHackersConstants.PublisherDisplayName,
@@ -265,15 +265,36 @@ public class SuperHackersManifestFactory(
                     continue;
                 }
 
-                // For GameClient manifests, only include the main executable and its PDB
-                // Exclude all development tools and other executables
-                if (originalManifest.ContentType == ContentType.GameClient)
+                // For ModdingTool manifests, we need to include:
+                // 1. The main game executable (already checked)
+                // 2. Its PDB file (debug info)
+                // 3. Critical DLL dependencies (dbghlp.dll, d3d8.dll, etc.)
+                // 4. Game data files (.big) that might be part of the patch
+                // 5. Configuration files (.ini)
+                if (originalManifest.ContentType == ContentType.ModdingTool)
                 {
-                    // Only include the main game executable and its PDB file
-                    if (fileName != executableFileName && fileName != Path.ChangeExtension(executableFileName, ".pdb"))
+                    // Always include the main executable and its PDB
+                    if (fileName == executableFileName || fileName == Path.ChangeExtension(executableFileName, ".pdb"))
                     {
-                        logger.LogDebug("Excluding development tool {FileName} from GameClient manifest", fileName);
-                        continue;
+                        // Keep it
+                    }
+                    else
+                    {
+                        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
+                        // Define allowed extensions for patch dependencies
+                        // .dll: required libraries (dbghlp.dll, etc.)
+                        // .big: game data archives (Comanche.big, etc.)
+                        // .bg:  background resources
+                        // .ini: configuration
+                        // .manifest: side-by-side manifests
+                        var allowedExtensions = new[] { ".dll", ".big", ".bg", ".ini", ".manifest" };
+
+                        if (!allowedExtensions.Contains(extension))
+                        {
+                            logger.LogDebug("Excluding irrelevant file {FileName} from ModdingTool manifest", fileName);
+                            continue;
+                        }
                     }
                 }
 
@@ -281,6 +302,7 @@ public class SuperHackersManifestFactory(
                 var fileInfo = new FileInfo(filePath);
 
                 // Check if this is the game executable by comparing normalized full paths
+                // For ModdingTools, we also need to ensure the executable is at the root or correctly located
                 var normalizedFilePath = Path.GetFullPath(filePath);
                 bool isExecutable = string.Equals(normalizedFilePath, normalizedExecutablePath, StringComparison.OrdinalIgnoreCase);
 
@@ -328,7 +350,7 @@ public class SuperHackersManifestFactory(
 
         var manifestId = ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.TheSuperHackers,
-            ContentType.GameClient,
+            ContentType.ModdingTool,
             gameTypeSuffix,
             userVersion: userVersion);
 
@@ -348,7 +370,7 @@ public class SuperHackersManifestFactory(
             Id = ManifestId.Create(manifestId),
             Name = $"SuperHackers - {gameTypeName}",
             Version = originalManifest.Version,
-            ContentType = ContentType.GameClient,
+            ContentType = ContentType.ModdingTool,
             TargetGame = gameType,
             Publisher = originalManifest.Publisher,
             Metadata = new ContentMetadata

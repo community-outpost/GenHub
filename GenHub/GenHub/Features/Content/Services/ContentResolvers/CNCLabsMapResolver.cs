@@ -16,8 +16,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
-using File = GenHub.Core.Models.Parsers.File;
-using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
+using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
 
 namespace GenHub.Features.Content.Services.ContentResolvers;
 
@@ -45,12 +44,6 @@ public class CNCLabsMapResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        // [TEMP] DEBUG: ResolveAsync entry point
-        logger.LogInformation(
-            "[TEMP] CNCLabsMapResolver.ResolveAsync called - Item: {Name}, SourceUrl: {Url}",
-            discoveredItem?.Name,
-            discoveredItem?.SourceUrl);
-
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -105,7 +98,7 @@ public class CNCLabsMapResolver(
             }
 
             // Use factory to create manifest
-            var manifest = await manifestFactory.CreateManifestAsync(mapDetails);
+            var manifest = await manifestFactory.CreateManifestAsync(mapDetails, cancellationToken);
 
             logger.LogInformation(
                 "Successfully resolved CNC Labs content: {ManifestId} - {Name}",
@@ -145,8 +138,8 @@ public class CNCLabsMapResolver(
     /// </summary>
     /// <param name="html">The HTML content of the map detail page.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A <see cref="ParsedContentDetails"/> record containing parsed details.</returns>
-    private async Task<ParsedContentDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
+    /// <returns>A <see cref="MapDetails"/> record containing parsed details.</returns>
+    private async Task<MapDetails> ParseMapDetailPageAsync(string html, CancellationToken cancellationToken)
     {
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
@@ -199,7 +192,7 @@ public class CNCLabsMapResolver(
         {
             if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                downloadUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{downloadUrl.TrimStart('/')}";
+                 downloadUrl = $"{CNCLabsConstants.PublisherWebsite.TrimEnd('/')}/{downloadUrl.TrimStart('/')}";
             }
         }
 
@@ -243,7 +236,7 @@ public class CNCLabsMapResolver(
                 : $"https://www.cnclabs.com{src}")
             .ToList();
 
-        return new ParsedContentDetails(
+        return new MapDetails(
             Name: name,
             Description: description,
             Author: author,

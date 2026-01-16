@@ -138,7 +138,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -169,7 +169,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -201,7 +201,7 @@ public class ContentDisplayFormatterTests
             Version = "1.0",
             ContentType = ContentType.GameInstallation,
             TargetGame = GameType.ZeroHour,
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -226,7 +226,7 @@ public class ContentDisplayFormatterTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { Name = "Test Publisher" },
-            Files = new List<ManifestFile>(),
+            Files = [],
         };
 
         // Act
@@ -311,7 +311,9 @@ public class ContentDisplayFormatterTests
     /// <param name="expected">The expected display name.</param>
     [Theory]
     [InlineData(ContentType.GameInstallation, "Game Installation")]
-    [InlineData(ContentType.GameClient, "Executable")]
+    [InlineData(ContentType.GameClient, "Game")]
+    [InlineData(ContentType.Executable, "Executable")]
+    [InlineData(ContentType.ModdingTool, "Tool")]
     [InlineData(ContentType.Mod, "Mods")]
     [InlineData(ContentType.MapPack, "Maps")]
     [InlineData(ContentType.Patch, "Patch")]

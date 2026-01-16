@@ -1,0 +1,220 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddReleaseDialogView"
+             x:DataType="vm:AddReleaseDialogViewModel"
+             x:Name="Root">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#AA00FF"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="#05FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="ListBoxItem">
+             <Setter Property="CornerRadius" Value="4"/>
+             <Setter Property="Padding" Value="8"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+             <Setter Property="Background" Value="#10FFFFFF"/>
+        </Style>
+         <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="Add New Release"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#15FFFFFF"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Info -->
+                <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="White"/>
+
+                <!-- Version -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Version" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,8,Auto">
+                         <TextBox Text="{Binding Version}" Watermark="e.g. 1.0.0"/>
+                         <Button Grid.Column="2" Content="Suggest"
+                                 Command="{Binding ApplySuggestedVersionCommand}"
+                                 Classes="small-glass-btn"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Date & Options -->
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                    <DatePicker Grid.Column="0" SelectedDate="{Binding ReleaseDate}" Foreground="White" Background="#15FFFFFF" BorderBrush="#25FFFFFF" CornerRadius="6"/>
+                    <CheckBox Grid.Column="1" Content="Latest" IsChecked="{Binding IsLatest}" Margin="8,0"/>
+                    <CheckBox Grid.Column="2" Content="Pre-release" IsChecked="{Binding IsPrerelease}" Margin="8,0"/>
+                    <CheckBox Grid.Column="3" Content="Featured" IsChecked="{Binding IsFeatured}" Margin="8,0"/>
+                </Grid>
+
+                <!-- Changelog -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Changelog" Classes="label"/>
+                    <TextBox Text="{Binding Changelog}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="80"/>
+                </StackPanel>
+
+                <!-- Artifacts Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Artifacts (Files)" Classes="label"/>
+                            <TextBlock Text="*" Foreground="#FF5555"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="+ Add Artifact"
+                                Command="{Binding AddArtifactCommand}"
+                                Classes="small-glass-btn"/>
+                    </Grid>
+
+                    <ListBox ItemsSource="{Binding Artifacts}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding Filename}" FontWeight="SemiBold" Foreground="White"/>
+                                         <TextBlock Text="{Binding Size}" FontSize="11" Foreground="#AAAAAA"/>
+                                     </StackPanel>
+                                     <Button Grid.Column="1" Content="✕"
+                                             Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
+                                             CommandParameter="{Binding}"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             Foreground="#FF5555"
+                                             Padding="8"/>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="At least one artifact is required." FontSize="11" Foreground="#FF5555" IsVisible="{Binding !Artifacts.Count}"/>
+                </StackPanel>
+
+                <!-- Dependencies Section -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="Dependencies" Classes="label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="+ Add Dependency"
+                                Command="{Binding AddDependencyCommand}"
+                                Classes="small-glass-btn"/>
+                    </Grid>
+
+                    <ListBox ItemsSource="{Binding Dependencies}" MinHeight="60">
+                         <ListBox.ItemTemplate>
+                             <DataTemplate>
+                                 <Grid ColumnDefinitions="*,Auto">
+                                     <StackPanel>
+                                         <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="White"/>
+                                         <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="#AAAAAA"/>
+                                     </StackPanel>
+                                      <Button Grid.Column="1" Content="✕"
+                                              Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
+                                              CommandParameter="{Binding}"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              Foreground="#FF5555"
+                                              Padding="8"/>
+                                 </Grid>
+                             </DataTemplate>
+                         </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="#FF5555"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"/>
+
+             <Button Content="Create Release"
+                     Command="{Binding CreateReleaseCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="White"
+                     CornerRadius="8"
+                     Padding="40,14"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

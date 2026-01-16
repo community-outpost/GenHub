@@ -54,7 +54,7 @@ The orchestrator is the system-wide coordinator for all content operations.
 ### Responsibilities
 
 | Operation | Method | Description |
-|-----------|--------|-------------|
+| :--- | :--- | :--- |
 | **Search** | `SearchAsync()` | Broadcasts query to all providers, aggregates results |
 | **Acquire** | `AcquireContentAsync()` | Downloads, extracts, stores, and registers content |
 | **Cache** | `IDynamicContentCache` | System-wide caching for performance |
@@ -96,12 +96,12 @@ public abstract class BaseContentProvider : IContentProvider
         return await Discoverer.DiscoverAsync(providerDefinition, query, cancellationToken);
     }
 }
-```
 
 ### Registered Providers
 
 | Provider | Discoverer | Parser | Notes |
-|----------|------------|--------|-------|
+| :--- | :--- | :--- | :--- |
+| **Generic Catalog** | `GenericCatalogDiscoverer` | `JsonPublisherCatalogParser` | **Publisher Studio catalogs** - Decentralized creator content |
 | **ModDB** | `ModDBDiscoverer` | `ModDBPageParser` (AngleSharp) | Uses Playwright for WAF bypass |
 | **CNC Labs** | `CNCLabsMapDiscoverer` | AngleSharp HTML | Direct HTTP scraping |
 | **AOD Maps** | `AODMapsDiscoverer` | `AODMapsPageParser` | Pagination support |
@@ -147,7 +147,7 @@ public interface IContentDiscoverer : IContentSource
 Parsers transform raw data (HTML, JSON, `.dat` files) into `ContentSearchResult` objects.
 
 | Parser | Format | Source |
-|--------|--------|--------|
+| :--- | :--- | :--- |
 | `GenPatcherDatCatalogParser` | `.dat` pipe-delimited | Community Outpost |
 | `ModDBPageParser` | HTML | ModDB |
 | `AODMapsPageParser` | HTML | AOD Maps |
@@ -193,14 +193,15 @@ public interface IContentDeliverer : IContentSource
 }
 ```
 
-### Manifest Factories (`IContentManifestFactory`)
+### Manifest Factories (`IPublisherManifestFactory`)
 
-**Location**: `GenHub.Core/Interfaces/Manifest/IContentManifestFactory.cs`
+**Location**: `GenHub.Core/Interfaces/Content/IPublisherManifestFactory.cs`
 
 Factories create proper `ContentManifest` objects after downloading, handling publisher-specific logic.
 
 | Factory | Publisher | Features |
-|---------|-----------|----------|
+| :--- | :--- | :--- |
+| `GenericCatalogManifestFactory` | **Publisher Studio Catalogs** | **Decentralized creator content** - Computes SHA256 hashes, configures WorkspaceStrategy |
 | `ModDBManifestFactory` | ModDB | ID format: `1.YYYYMMDD.moddb-{author}.{type}.{name}` |
 | `CNCLabsManifestFactory` | CNC Labs | Map-specific metadata |
 | `AODMapsManifestFactory` | AOD Maps | Referer header handling |
@@ -263,7 +264,7 @@ await manifest.AddDownloadedFileAsync(
 ### Key Methods
 
 | Method | Purpose |
-|--------|---------|
+| :--- | :--- |
 | `AddDownloadedFileAsync()` | Downloads, extracts archives, stores in CAS |
 | `AddFilesFromDirectoryAsync()` | Scans directory, hashes files, adds to manifest |
 | `AddLocalFileAsync()` | Adds existing local file |
@@ -407,9 +408,268 @@ services.AddTransient<IContentManifestFactory, MyPublisherManifestFactory>();
 
 ---
 
+## Publisher Studio Catalog Pipeline
+
+**NEW**: GenHub now supports **decentralized creator content** via the Publisher Studio tool and generic catalog system.
+
+### Overview
+
+The Publisher Studio enables creators to build, manage, and publish their own content catalogs without manual JSON editing. Users subscribe to these catalogs via `genhub://subscribe?url=...` links, and GenHub automatically discovers, downloads, and integrates the content.
+
+```mermaid
+flowchart TB
+    subgraph Creator["Publisher Studio (Creator)"]
+        PS[Publisher Studio UI]
+        PC[PublisherCatalog JSON]
+        HP[Hosting Provider]
+    end
+
+    subgraph Hosting["Decentralized Hosting"]
+        GH[GitHub Gist/Releases]
+        MH[Manual URL]
+        GD[Google Drive]
+        DB[Dropbox]
+    end
+
+    subgraph GenHub["GenHub (User)"]
+        SUB[genhub://subscribe?url=...]
+        STORE[PublisherSubscriptionStore]
+        DISC[GenericCatalogDiscoverer]
+        RES[GenericCatalogResolver]
+        FAC[GenericCatalogManifestFactory]
+        MAN[ContentManifest]
+        GP[GameProfile]
+    end
+
+    PS --> PC
+    PC --> HP
+    HP --> GH
+    HP --> MH
+    HP --> GD
+    HP --> DB
+    GH --> SUB
+    MH --> SUB
+    GD --> SUB
+    DB --> SUB
+    SUB --> STORE
+    STORE --> DISC
+    DISC --> RES
+    RES --> FAC
+    FAC --> MAN
+    MAN --> GP
+```
+
+### Catalog Schema
+
+**Location**: `GenHub.Core/Models/Providers/PublisherCatalog.cs`
+
+Publishers create a JSON catalog following this schema:
+
+```json
+{
+  "$schemaVersion": 1,
+  "publisher": {
+    "id": "my-awesome-mods",
+    "name": "My Awesome Mods",
+    "website": "https://example.com",
+    "avatarUrl": "https://example.com/avatar.png"
+  },
+  "content": [
+    {
+      "id": "super-mod",
+      "name": "Super Mod",
+      "description": "An amazing mod for Zero Hour",
+      "contentType": "Mod",
+      "targetGame": "ZeroHour",
+      "tags": ["gameplay", "units"],
+      "releases": [
+        {
+          "version": "1.0.0",
+          "releaseDate": "2024-01-15T00:00:00Z",
+          "artifacts": [
+            {
+              "filename": "super-mod-v1.0.0.zip",
+              "downloadUrl": "https://github.com/.../releases/download/v1.0.0/super-mod.zip",
+              "sha256": "abc123...",
+              "size": 104857600,
+              "isPrimary": true
+            }
+          ],
+          "dependencies": [
+            {
+              "publisherId": "thesuperhackers",
+              "contentId": "gentool",
+              "versionConstraint": ">=2.0.0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Pipeline Components
+
+#### 1. GenericCatalogDiscoverer
+
+**Location**: `GenHub/Features/Content/Services/Catalog/GenericCatalogDiscoverer.cs`
+
+- Fetches catalog JSON from subscribed URL
+- Parses via `IPublisherCatalogParser`
+- Applies version filtering (latest stable by default)
+- Returns `ContentSearchResult[]` with embedded catalog metadata
+
+**Key Features**:
+- Size limit enforcement (max 10MB catalogs)
+- Timeout handling (30s)
+- Caching for performance
+- Version selection policies (LatestStableOnly, AllVersions, etc.)
+
+#### 2. GenericCatalogResolver
+
+**Location**: `GenHub/Features/Content/Services/Catalog/GenericCatalogResolver.cs`
+
+- Extracts catalog metadata from `ContentSearchResult.ResolverMetadata`
+- Builds initial `ContentManifest` using `IContentManifestBuilder`
+- Adds download URLs for artifacts
+- Converts catalog dependencies to manifest dependencies
+
+**Manifest ID Format**:
+```
+{schema}.{version}.{publisherId}.{contentType}.{contentName}
+```
+Example: `1.100.my-awesome-mods.mod.super-mod`
+
+#### 3. GenericCatalogManifestFactory
+
+**Location**: `GenHub/Features/Content/Services/Catalog/GenericCatalogManifestFactory.cs`
+
+Post-extraction enrichment:
+- Scans extracted directory for all files
+- Computes SHA256 hash for each file
+- Adds `ManifestFile` entries with CAS references
+- Configures `WorkspaceStrategy` based on content type:
+  - **Mods/Maps/Addons**: `HybridCopySymlink` (efficient disk usage)
+  - **Game Clients**: `FullCopy` (allows file patching)
+
+### Subscription Flow
+
+```mermaid
+sequenceDiagram
+    actor Creator
+    actor User
+    participant PS as Publisher Studio
+    participant GH as GitHub
+    participant GenHub
+    participant Store as SubscriptionStore
+    participant Disc as Discoverer
+
+    Creator->>PS: Create catalog
+    PS->>GH: Upload to Gist
+    GH-->>Creator: genhub://subscribe?url=...
+    Creator->>User: Share link
+    User->>GenHub: Click subscription link
+    GenHub->>Store: Save subscription
+    Store->>Disc: Trigger discovery
+    Disc->>GH: Fetch catalog.json
+    GH-->>Disc: PublisherCatalog
+    Disc-->>GenHub: ContentSearchResult[]
+    GenHub->>User: Show available content
+```
+
+### Cross-Publisher Dependencies
+
+Catalogs can declare dependencies on content from other publishers:
+
+```json
+{
+  "dependencies": [
+    {
+      "publisherId": "thesuperhackers",
+      "contentId": "gentool",
+      "versionConstraint": ">=2.0.0",
+      "catalogUrl": "https://gist.github.com/...",
+      "isOptional": false
+    }
+  ]
+}
+```
+
+**Resolution**:
+- `CrossPublisherDependencyResolver` checks if dependency is already subscribed
+- If not, prompts user to subscribe to dependency's catalog
+- Validates version constraints
+- Ensured dependency is installed before dependent content.
+
+### Hosting Providers
+
+**Location**: `GenHub/Features/Tools/Services/Hosting/`
+
+Publishers can use various hosting services:
+
+| Provider | Implementation | Features |
+| :--- | :--- | :--- |
+| **GitHub** | `GitHubHostingProvider` | Artifacts → Releases, Catalogs → Gists |
+| **Manual** | `ManualHostingProvider` | Custom URLs (Google Drive, Dropbox, personal servers) |
+| **Google Drive** | *(Planned)* | OAuth2, direct uploads |
+| **Dropbox** | *(Planned)* | OAuth2, direct uploads |
+
+### Publisher Studio Integration
+
+**Location**: `GenHub/Features/Tools/`
+
+The Publisher Studio tool provides:
+
+1. **Publisher Profile** - Identity, branding, contact info
+2. **Content Library** - Manage content items, releases, artifacts
+3. **Publish & Share** - Validate, export, upload, generate subscription links
+
+**Workflow**:
+
+```
+Create Content → Add Releases → Upload Artifacts → Validate Catalog →
+Upload to Hosting → Generate Subscription Link → Share with Users
+```
+
+### Manifest ID Generation
+
+**Helper**: `ManifestIdGenerator.GeneratePublisherContentId()`
+
+```csharp
+var manifestId = ManifestIdGenerator.GeneratePublisherContentId(
+    publisherId: "my-awesome-mods",
+    contentType: ContentType.Mod,
+    contentName: "super-mod",
+    version: 100
+);
+// Result: "1.100.my-awesome-mods.mod.super-mod"
+```
+
+### CAS Storage Integration
+
+All files from catalog content are stored in CAS:
+
+1. **Download** - Artifact downloaded to temp directory
+2. **Extract** - If archive, extract all files
+3. **Hash** - Compute SHA256 for each file
+4. **Store** - Copy to `CAS/{first2}/{hash}` directory
+5. **Manifest** - Add `ManifestFile` entry with hash reference
+
+**Benefits**:
+- Deduplication across content
+- Integrity verification
+- Efficient updates (only changed files)
+- Shared storage for multi-variant content
+
+---
+
 ## Related Documentation
 
 - [Provider Configuration](./provider-configuration.md) - Data-driven provider settings
 - [Discovery Flow](../FlowCharts/Discovery-Flow.md) - Visual discovery workflow
 - [Manifest ID System](../dev/manifest-id-system.md) - ID generation rules
 - [Manifest Factories](./publisher-manifest-factories.md) - Factory pattern details
+- [Publisher Studio](../../publisher_studio_plan.md) - Complete Publisher Studio specification
+- [Provider Infrastructure](./provider-infrastructure.md) - Decentralized architecture overview
+

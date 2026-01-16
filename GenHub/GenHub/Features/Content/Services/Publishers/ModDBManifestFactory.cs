@@ -153,7 +153,6 @@ public partial class ModDBManifestFactory(
 
         // Add primary file
         var primaryFileName = ExtractFileNameFromUrl(details.DownloadUrl);
-        logger.LogInformation("[TEMP] ModDBManifestFactory - Adding primary file: {FileName} from URL: {Url}", primaryFileName, details.DownloadUrl);
 
         manifest = await manifest.AddRemoteFileAsync(
             primaryFileName,
@@ -174,8 +173,6 @@ public partial class ModDBManifestFactory(
 
                 var fileName = !string.IsNullOrEmpty(file.Name) ? file.Name : ExtractFileNameFromUrl(file.DownloadUrl);
 
-                logger.LogInformation("[TEMP] ModDBManifestFactory - Adding additional file: {FileName} from URL: {Url}", fileName, file.DownloadUrl);
-
                 manifest = await manifest.AddRemoteFileAsync(
                     fileName,
                     file.DownloadUrl,
@@ -186,8 +183,6 @@ public partial class ModDBManifestFactory(
                 addedUrls.Add(file.DownloadUrl);
             }
         }
-
-        logger.LogInformation("[TEMP] ModDBManifestFactory - {Count} total files added to manifest with CAS storage", addedUrls.Count);
 
         // 8. Add dependencies based on target game
         manifest = AddGameDependencies(manifest, details.TargetGame);

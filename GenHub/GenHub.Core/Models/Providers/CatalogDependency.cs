@@ -36,4 +36,17 @@ public class CatalogDependency
     /// </summary>
     [JsonPropertyName("catalogUrl")]
     public string? CatalogUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the URL to the provider definition for this dependency.
+    /// Recommended over CatalogUrl for robust discovery.
+    /// </summary>
+    [JsonPropertyName("definitionUrl")]
+    public string? DefinitionUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets a list of manifest IDs that conflict with this dependency.
+    /// </summary>
+    [JsonPropertyName("conflictsWith")]
+    public List<string> ConflictsWith { get; set; } = [];
 }

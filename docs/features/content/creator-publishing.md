@@ -92,14 +92,24 @@ Create a `catalog.json` file following this schema:
 }
 ```
 
-### Step 2: Host Your Catalog
+### Step 2: Host Your Catalog (Google Drive Recommended)
+
+**Option A: Use Publisher Studio with Google Drive (Recommended)**
+
+1. Open Publisher Studio in GenHub
+2. Create your project and add content
+3. Go to "Publish & Share" tab
+4. Click "Connect Google Drive"
+5. Click "Publish" - GenHub handles everything automatically
+6. Your catalog URL is permanent and never changes
+
+**Option B: Manual Hosting**
 
 Host `catalog.json` on any HTTP endpoint:
 
-- **GitHub Releases**: `https://github.com/user/repo/releases/latest/download/catalog.json`
 - **GitHub Pages**: `https://user.github.io/repo/catalog.json`
+- **Google Drive**: `https://drive.google.com/uc?export=download&id=FILE_ID`
 - **Personal CDN**: `https://mycdn.com/genhub/catalog.json`
-- **Google Drive**: Public share link (must be direct download)
 
 ### Step 3: Share Subscription Link
 
@@ -137,6 +147,26 @@ Settings → Subscriptions → Add Publisher → Paste catalog URL
 | [VersionSelector](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/VersionSelector.cs) | Filters versions (Latest Stable Only by default) |
 | [GenericCatalogDiscoverer](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogDiscoverer.cs) | Fetches catalog, applies filters, returns search results |
 | [GenericCatalogResolver](file:///z:/GenHub/GenHub/GenHub/Features/Content/Services/Catalog/GenericCatalogResolver.cs) | Converts catalog entry → ContentManifest |
+
+### Multi-Catalog Support
+
+Publishers can have multiple catalogs within a single definition:
+
+```json
+{
+  "$schemaVersion": 1,
+  "publisher": { "id": "my-mods", "name": "My Mods" },
+  "catalogs": [
+    { "id": "zh-mods", "name": "ZH Mods", "url": "https://..." },
+    { "id": "maps", "name": "Maps", "url": "https://..." }
+  ]
+}
+```
+
+Users subscribing to multi-catalog publishers see:
+- Catalog selection in subscription confirmation
+- Catalog tabs in the Downloads browser
+- Ability to enable/disable individual catalogs
 
 ### Integration Points
 
@@ -184,12 +214,15 @@ This automatically:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `$schemaVersion` | int | Yes | Schema version (currently `1`) |
+| `$schemaVersion` | int | Yes | Schema version (`1` for multi-catalog support) |
 | `publisher` | PublisherProfile | Yes | Publisher identity |
-| `content` | CatalogContentItem[] | Yes | Content items |
+| `content` | CatalogContentItem[] | Yes* | Content items (for single catalog) |
+| `catalogs` | NamedCatalog[] | Yes* | Multiple catalogs (for multi-catalog publishers) |
 | `lastUpdated` | DateTime | Yes | Catalog last modified date |
 | `signature` | string | No | SHA256 signature (future) |
 | `referrals` | PublisherReferral[] | No | Links to other publishers |
+
+*Either `content` or `catalogs` is required. Use `content` for single-catalog definitions, `catalogs` for multi-catalog publishers.
 
 ### PublisherProfile
 
@@ -236,6 +269,15 @@ This automatically:
 | `size` | long | Yes | File size in bytes |
 | `sha256` | string | Yes | SHA256 hash for verification |
 | `isPrimary` | bool | No | Primary artifact (default: true) |
+
+### NamedCatalog
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Unique catalog ID within publisher |
+| `name` | string | Yes | Display name for the catalog |
+| `url` | string | Yes | URL to the catalog JSON file |
+| `description` | string | No | Optional catalog description |
 
 ---
 

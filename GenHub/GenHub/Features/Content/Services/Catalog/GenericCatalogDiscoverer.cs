@@ -1,3 +1,8 @@
+// Copyright (c) GenHub. All rights reserved.
+// Licensed under the MIT license.
+
+namespace GenHub.Features.Content.Services.Catalog;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,8 +19,6 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
-
-namespace GenHub.Features.Content.Services.Catalog;
 
 /// <summary>
 /// Generic discoverer for publisher catalogs following the GenHub schema.
@@ -34,11 +37,6 @@ public class GenericCatalogDiscoverer(
 
     private PublisherSubscription? _subscription;
     private PublisherCatalog? _cachedCatalog;
-
-    /// <summary>
-    /// Gets the unique identifier of the resolver used by this discoverer.
-    /// </summary>
-    public static string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
     private static bool MatchesQuery(CatalogContentItem content, ContentSearchQuery query)
     {
@@ -92,6 +90,11 @@ public class GenericCatalogDiscoverer(
 
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery | ContentSourceCapabilities.SupportsManifestGeneration;
+
+    /// <summary>
+    /// Gets the unique identifier of the resolver used by this discoverer.
+    /// </summary>
+    public static string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
     /// <summary>
     /// Configures this discoverer for a specific publisher subscription.

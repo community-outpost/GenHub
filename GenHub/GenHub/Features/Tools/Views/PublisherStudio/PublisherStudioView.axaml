@@ -1,0 +1,332 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:views="using:GenHub.Features.Tools.Views.PublisherStudio"
+             mc:Ignorable="d"
+             d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherStudioView"
+             x:DataType="vm:PublisherStudioViewModel"
+             x:Name="RootView">
+
+    <UserControl.Styles>
+        <!-- ==================== GLASSMORPHIC PANEL STYLES ==================== -->
+        <Style Selector="Border.glass-panel">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="BoxShadow" Value="0 8 32 0 #40000000"/>
+        </Style>
+
+        <!-- ==================== TAB CONTROL STYLES ==================== -->
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="TabItem:pointerover">
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
+        </Style>
+
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+
+        <!-- ==================== BUTTON STYLES ==================== -->
+        <Style Selector="Button.glass-btn-icon">
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.glass-btn-icon:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="RenderTransform" Value="scale(1.05)"/>
+        </Style>
+
+        <Style Selector="Button.glass-btn-icon:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="24,12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.03)"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)"/>
+        </Style>
+
+        <!-- ==================== STATUS BADGE STYLES ==================== -->
+        <Style Selector="Border.status-badge-warning">
+            <Setter Property="Background" Value="#20F59E0B"/>
+            <Setter Property="BorderBrush" Value="#40F59E0B"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,5"/>
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Main Container with Deep Purple Background -->
+    <Grid Background="#0A0A1A">
+        <!-- ==================== AMBIENT BACKGROUND EFFECTS ==================== -->
+        <Canvas IsHitTestVisible="False" ClipToBounds="True">
+            <!-- Primary purple glow - top left -->
+            <Ellipse Width="800" Height="800" Canvas.Left="-200" Canvas.Top="-300">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#208B5CF6" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <!-- Navy blue glow - bottom right -->
+            <Ellipse Width="700" Height="700" Canvas.Right="-150" Canvas.Bottom="-200">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#153B82F6" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <!-- Cyan accent glow - center -->
+            <Ellipse Width="500" Height="500" Canvas.Left="400" Canvas.Top="200">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#0806B6D4" Offset="0"/>
+                        <GradientStop Color="#00000000" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+        </Canvas>
+
+        <!-- ==================== MAIN CONTENT GRID ==================== -->
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24,16,24,0">
+
+            <!-- ==================== TOP HEADER BAR ==================== -->
+            <Border Grid.Row="0" Classes="glass-panel" Padding="20,12" Margin="0,0,0,16">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Logo / Title -->
+                    <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                        <Border Width="44" Height="44"
+                                CornerRadius="12"
+                                Background="{DynamicResource PSPrimaryGradient}"
+                                BoxShadow="0 4 16 0 #408B5CF6">
+                            <PathIcon Data="{StaticResource PublishIcon}"
+                                      Width="22" Height="22"
+                                      Foreground="White"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="Publisher Studio"
+                                       FontSize="18"
+                                       FontWeight="Bold"
+                                       Foreground="White"/>
+                            <TextBlock Text="{Binding CurrentProject.ProjectName, FallbackValue='Create and manage your content catalog'}"
+                                       FontSize="12"
+                                       Foreground="#9CA3AF"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Right: Action Buttons -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <!-- Unsaved Changes Badge -->
+                        <Border IsVisible="{Binding HasUnsavedChanges}"
+                                Classes="status-badge-warning"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Ellipse Width="6" Height="6" Fill="#F59E0B"/>
+                                <TextBlock Text="Unsaved"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="#F59E0B"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- New Project Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding CreateNewProjectCommand}"
+                                ToolTip.Tip="Create New Project">
+                            <PathIcon Data="{StaticResource AddIcon}"
+                                      Width="18" Height="18"
+                                      Foreground="#9CA3AF"/>
+                        </Button>
+
+                        <!-- Save Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding SaveProjectCommand}"
+                                IsEnabled="{Binding HasUnsavedChanges}"
+                                ToolTip.Tip="Save Project">
+                            <PathIcon Data="{StaticResource SaveIcon}"
+                                      Width="18" Height="18"
+                                      Foreground="#9CA3AF"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== MAIN CONTENT AREA ==================== -->
+            <Grid Grid.Row="1">
+                <!-- Tab Control -->
+                <TabControl SelectedIndex="{Binding SelectedTabIndex}"
+                            Padding="0"
+                            Margin="0">
+                    <TabItem Header="Publisher Profile">
+                        <views:PublisherProfileView DataContext="{Binding PublisherProfileViewModel}" Margin="0,16,0,0"/>
+                    </TabItem>
+                    <TabItem Header="Referrals" IsEnabled="{Binding IsSetupComplete}">
+                        <views:ReferralsView DataContext="{Binding ReferralsViewModel}" Margin="0,16,0,0"/>
+                    </TabItem>
+                    <TabItem Header="Content Library" IsEnabled="{Binding IsSetupComplete}">
+                        <views:ContentLibraryView DataContext="{Binding ContentLibraryViewModel}" Margin="0,16,0,0"/>
+                    </TabItem>
+                    <TabItem Header="Publish &amp; Share" IsEnabled="{Binding IsSetupComplete}">
+                        <views:PublishShareView DataContext="{Binding PublishShareViewModel}" Margin="0,16,0,0"/>
+                    </TabItem>
+                </TabControl>
+
+                <!-- Setup Required Overlay -->
+                <Border IsVisible="{Binding ShouldShowSetupOverlay}"
+                        Background="#F00A0A1A"
+                        IsHitTestVisible="{Binding ShouldShowSetupOverlay}">
+                    <Border Classes="glass-panel"
+                            Padding="48"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            MaxWidth="500">
+                        <StackPanel Spacing="24" HorizontalAlignment="Center">
+                            <!-- Icon with glow -->
+                            <Border Width="80" Height="80"
+                                    CornerRadius="20"
+                                    Background="{DynamicResource PSPrimaryGradient}"
+                                    BoxShadow="0 8 32 0 #608B5CF6"
+                                    HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource PersonIcon}"
+                                          Width="40" Height="40"
+                                          Foreground="White"/>
+                            </Border>
+
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="Publisher Setup Required"
+                                           FontSize="22"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="Configure your Publisher ID and Name in the Profile tab to unlock all features."
+                                           FontSize="14"
+                                           Foreground="#9CA3AF"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           MaxWidth="350"/>
+                            </StackPanel>
+
+                            <Button Classes="primary-btn"
+                                    HorizontalAlignment="Center"
+                                    Command="{Binding CreateNewProjectCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <PathIcon Data="{StaticResource AddIcon}"
+                                              Width="16" Height="16"
+                                              Foreground="White"/>
+                                    <TextBlock Text="Start Setup Wizard" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </Grid>
+
+            <!-- ==================== BOTTOM STATUS BAR ==================== -->
+            <Border Grid.Row="2"
+                    Background="#0CFFFFFF"
+                    CornerRadius="12,12,0,0"
+                    Padding="24,12"
+                    Margin="0,16,0,0"
+                    BorderThickness="1,1,1,0"
+                    BorderBrush="#15FFFFFF">
+                <Grid ColumnDefinitions="*,Auto,*">
+                    <!-- Left: Project Info -->
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Border Width="8" Height="8"
+                                CornerRadius="4"
+                                Background="{Binding HasUnsavedChanges, Converter={StaticResource BoolToBrushConverter}, ConverterParameter=#F59E0B|#22C55E}">
+                            <Border.Effect>
+                                <BlurEffect Radius="4"/>
+                            </Border.Effect>
+                        </Border>
+                        <TextBlock Text="{Binding CurrentProject.ProjectName, FallbackValue='No project loaded'}"
+                                   FontSize="12"
+                                   FontWeight="Medium"
+                                   Foreground="#D1D5DB"/>
+                    </StackPanel>
+
+                    <!-- Center: Catalog Summary -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <PathIcon Data="{StaticResource ContentIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="#6B7280"/>
+                            <TextBlock Text="{Binding Catalogs.Count, StringFormat='{}{0} catalogs'}"
+                                       FontSize="12"
+                                       Foreground="#9CA3AF"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Right: Status Message -->
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#6B7280"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

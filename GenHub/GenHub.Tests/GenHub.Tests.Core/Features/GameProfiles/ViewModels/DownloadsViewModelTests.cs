@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -27,7 +28,8 @@ public class DownloadsViewModelTests
         // Create a real instance of the discoverer with mocked dependencies to avoid Moq proxy issues
         var discoverer = new GitHubTopicsDiscoverer(
             new Mock<IGitHubApiClient>().Object,
-            new Mock<ILogger<GitHubTopicsDiscoverer>>().Object);
+            new Mock<ILogger<GitHubTopicsDiscoverer>>().Object,
+            new Mock<IMemoryCache>().Object);
 
         var vm = new DownloadsViewModel(
             mockServiceProvider.Object,

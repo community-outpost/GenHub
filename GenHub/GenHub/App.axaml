@@ -18,5 +18,8 @@
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <local:IntToBoolConverter x:Key="IntToBoolConverter" />
         <local:EqualityConverter x:Key="EqualityConverter" />
+        <local:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+        <local:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <local:StringEqualityMultiConverter x:Key="StringEqualityMultiConverter" />
     </Application.Resources>
 </Application>

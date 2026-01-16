@@ -359,8 +359,8 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         {
             try
             {
-                newValue.OnActivated(_serviceProvider);
                 CurrentToolControl = newValue.CreateControl();
+                newValue.OnActivated(_serviceProvider);
                 _logger.LogDebug("Activated tool: {ToolName}", newValue.Metadata.Name);
             }
             catch (Exception ex)

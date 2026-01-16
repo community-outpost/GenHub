@@ -20,6 +20,9 @@ namespace GenHub.Features.Content.Services.Parsers;
 /// </summary>
 public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDBPageParser> logger) : IWebPageParser
 {
+    private readonly IPlaywrightService _playwrightService = playwrightService;
+    private readonly ILogger<ModDBPageParser> _logger = logger;
+
     /// <summary>
     /// Detects the page type based on URL patterns and DOM structure.
     /// </summary>
@@ -616,9 +619,9 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// <inheritdoc />
     public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Parsing ModDB page: {Url}", url);
+        _logger.LogInformation("Parsing ModDB page: {Url}", url);
 
-        var document = await playwrightService.FetchAndParseAsync(url, cancellationToken);
+        var document = await _playwrightService.FetchAndParseAsync(url, cancellationToken);
         return ParseInternal(url, document);
     }
 
@@ -638,7 +641,7 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         var context = ExtractGlobalContext(document);
         var pageType = DetectPageType(url, document);
 
-        logger.LogDebug("Detected page type: {PageType}", pageType);
+        _logger.LogDebug("Detected page type: {PageType}", pageType);
 
         var sections = new List<ContentSection>();
 
@@ -661,11 +664,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
                 break;
 
             default:
-                logger.LogWarning("Unknown page type for URL: {Url}", url);
+                _logger.LogWarning("Unknown page type for URL: {Url}", url);
                 break;
         }
 
-        logger.LogInformation(
+        _logger.LogInformation(
             "Parsed ModDB page: {Url}, Type={PageType}, Sections={SectionCount}",
             url,
             pageType,
@@ -750,7 +753,7 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         var gameNameEl = document.QuerySelector(ModDBParserConstants.GameNameSelector);
         var gameName = gameNameEl?.TextContent?.Trim();
 
-        logger.LogDebug(
+        _logger.LogDebug(
             "Extracted context: Title={Title}, Developer={Developer}, IconUrl={Icon}, DescriptionLength={DescLen}",
             title,
             developer,
@@ -811,7 +814,7 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
                 }
             }
 
-            logger.LogDebug("Parsed {Count} metadata rows from table", metadata.Count);
+            _logger.LogDebug("Parsed {Count} metadata rows from table", metadata.Count);
         }
 
         // 2. Extract values from metadata dictionary
@@ -874,7 +877,7 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
             }
         }
 
-        logger.LogInformation(
+        _logger.LogInformation(
             "Extracted file: Name={Name}, Size={Size}, Uploader={Uploader}, DownloadUrl={Url}",
             name,
             sizeDisplay,

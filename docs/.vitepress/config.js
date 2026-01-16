@@ -77,7 +77,8 @@ export default withMermaid(
                         { text: 'Constants', link: '/dev/constants' },
                         { text: 'Models', link: '/dev/models' },
                         { text: 'Content Manifest', link: '/dev/content-manifest' },
-                        { text: 'Manifest ID System', link: '/dev/manifest-id-system' }
+                        { text: 'Manifest ID System', link: '/dev/manifest-id-system' },
+                        { text: 'Publisher Architecture', link: '/dev/publisher-architecture' }
                     ]
                 },
                 {
@@ -96,7 +97,8 @@ export default withMermaid(
                 {
                     text: 'Tools',
                     items: [
-                        { text: 'Replay Manager', link: '/tools/replay-manager' }
+                        { text: 'Replay Manager', link: '/tools/replay-manager' },
+                        { text: 'Publisher Studio', link: '/features/tools/publisher-studio' }
                     ]
                 }
             ],

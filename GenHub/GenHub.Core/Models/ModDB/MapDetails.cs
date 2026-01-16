@@ -1,5 +1,4 @@
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Parsers;
 
 namespace GenHub.Core.Models.ModDB;
 

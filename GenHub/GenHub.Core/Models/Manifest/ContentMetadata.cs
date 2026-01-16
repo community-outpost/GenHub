@@ -44,4 +44,10 @@ public class ContentMetadata
     /// Gets or sets the theme color.
     /// </summary>
     public string? ThemeColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets the original source path where this content was installed or located.
+    /// Used for GameInstallation manifests to persist installation paths across sessions.
+    /// </summary>
+    public string? SourcePath { get; set; }
 }

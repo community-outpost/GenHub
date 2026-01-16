@@ -85,6 +85,8 @@ public class GameProfile
     public string BaseContentId { get; set; }
     public List<string> EnabledMods { get; set; }
     public Dictionary<string, string> LaunchArguments { get; set; }
+    public string? ToolContentId { get; set; }
+    public bool IsToolProfile => !string.IsNullOrWhiteSpace(ToolContentId);
 }
 ```
 

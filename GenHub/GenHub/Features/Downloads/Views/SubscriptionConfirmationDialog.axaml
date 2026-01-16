@@ -9,24 +9,33 @@
         Title="Subscription Confirmation"
         Width="450" Height="550"
         WindowStartupLocation="CenterOwner"
-        Background="Transparent"
-        TransparencyLevelHint="AcrylicBlur"
+        CanResize="False"
+        SystemDecorations="Full"
+        Background="{DynamicResource WindowBackgroundDark}"
         ExtendClientAreaToDecorationsHint="True"
-        SystemDecorations="Full">
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1">
 
-    <Panel>
-        <!-- Background Overlay for Glassmorphism -->
-        <ExperimentalAcrylicBorder IsHitTestVisible="False">
-            <ExperimentalAcrylicBorder.Material>
-                <ExperimentalAcrylicMaterial
-                    BackgroundSource="Digger"
-                    TintColor="Black"
-                    TintOpacity="0.8"
-                    MaterialOpacity="0.65" />
-            </ExperimentalAcrylicBorder.Material>
-        </ExperimentalAcrylicBorder>
+    <Window.Resources>
+        <!-- Deep Purple Nebula Background -->
+        <LinearGradientBrush x:Key="PurpleNebulaBackground" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#0F0B1A" Offset="0" />
+            <GradientStop Color="#1A122E" Offset="0.5" />
+            <GradientStop Color="#0F0B1A" Offset="1" />
+        </LinearGradientBrush>
 
-        <Border BorderBrush="#444444" BorderThickness="1" CornerRadius="12" Margin="10">
+        <!-- Accent Gradient for Buttons -->
+        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#D56AFF" Offset="0" />
+            <GradientStop Color="#7838F5" Offset="1" />
+        </LinearGradientBrush>
+    </Window.Resources>
+
+    <Panel Background="{StaticResource PurpleNebulaBackground}">
+        <!-- Window Drag Region -->
+        <Panel Height="30" VerticalAlignment="Top" Background="Transparent" IsHitTestVisible="False"/>
+
+        <Border BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Margin="10">
             <Grid RowDefinitions="Auto, *, Auto" Margin="20">
                 <!-- Header -->
                 <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,10,0,20">
@@ -37,7 +46,7 @@
                                HorizontalAlignment="Center" />
                     <TextBlock Text="Do you want to add this publisher to your library?"
                                FontSize="14"
-                               Foreground="#AAAAAA"
+                               Foreground="#D0D0E0"
                                HorizontalAlignment="Center"
                                Margin="0,5,0,0" />
                 </StackPanel>
@@ -47,7 +56,7 @@
                     <!-- Loading State -->
                     <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center">
                         <ProgressBar IsIndeterminate="True"
-                                     Foreground="#9C27B0"
+                                     Foreground="#D56AFF"
                                      Width="200"
                                      Height="4"
                                      HorizontalAlignment="Center" />
@@ -62,12 +71,12 @@
                                 VerticalAlignment="Center"
                                 Margin="10">
                         <TextBlock Text="⚠ Error"
-                                   Foreground="#FF5252"
+                                   Foreground="#FF5555"
                                    FontWeight="Bold"
                                    FontSize="18"
                                    HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding ErrorMessage}"
-                                   Foreground="#EEAAAA"
+                                   Foreground="#FF9999"
                                    TextWrapping="Wrap"
                                    TextAlignment="Center"
                                    Margin="0,10,0,0" />
@@ -79,11 +88,11 @@
                             <!-- Avatar/Logo -->
                             <Border Width="120" Height="120"
                                     CornerRadius="60"
-                                    BorderBrush="#9C27B0"
+                                    BorderBrush="#D56AFF"
                                     BorderThickness="2"
                                     ClipToBounds="True"
                                     HorizontalAlignment="Center"
-                                    Background="#333333">
+                                    Background="#1A122E">
                                 <Image Source="{Binding PublisherAvatarUrl, TargetNullValue={x:Null}}"
                                        Stretch="UniformToFill" />
                             </Border>
@@ -97,24 +106,24 @@
                                            HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding PublisherWebsite}"
                                            FontSize="13"
-                                           Foreground="#9C27B0"
+                                           Foreground="#D56AFF"
                                            HorizontalAlignment="Center" />
                             </StackPanel>
 
-                            <Separator Background="#333333" Margin="0,10" />
+                            <Separator Background="#25FFFFFF" Margin="0,10" />
 
                             <StackPanel Spacing="5">
                                 <TextBlock Text="Catalog URL"
                                            FontSize="12"
                                            FontWeight="Bold"
                                            Foreground="#888888" />
-                                <TextBlock Text="{Binding CatalogUrlDisplay}"
+                                <TextBlock Text="{Binding UrlDisplay}"
                                            FontSize="12"
-                                           Foreground="#AAAAAA"
+                                           Foreground="#CCCCCC"
                                            TextWrapping="Wrap" />
                             </StackPanel>
 
-                            <Border Background="#332211" BorderBrush="#664422" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
+                            <Border Background="#20FFB74D" BorderBrush="#80FFB74D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <TextBlock Text="⚠" Foreground="#FFB74D" FontSize="20" VerticalAlignment="Center" />
                                     <TextBlock Text="Trust notice: Only subscribe to publishers you trust. Catalogs can contain external download links."
@@ -133,7 +142,9 @@
                 <UniformGrid Grid.Row="2" Columns="2" Margin="0,20,0,0">
                     <Button Content="Cancel"
                             Command="{Binding CancelCommand}"
-                            Background="#404040"
+                            Background="#15FFFFFF"
+                            BorderBrush="#25FFFFFF"
+                            BorderThickness="1"
                             Foreground="White"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
@@ -143,13 +154,15 @@
                     <Button Content="Subscribe"
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
-                            Background="#9C27B0"
+                            Background="{StaticResource AccentGradient}"
                             Foreground="White"
                             HorizontalAlignment="Stretch"
                             HorizontalContentAlignment="Center"
                             Margin="5,0,0,0"
                             Padding="12"
-                            CornerRadius="8" />
+                            CornerRadius="8"
+                            FontWeight="SemiBold"
+                            BorderThickness="0" />
                 </UniformGrid>
             </Grid>
         </Border>

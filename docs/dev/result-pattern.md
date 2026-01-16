@@ -19,7 +19,7 @@ The Result pattern in GenHub consists of several key components:
 
 `ResultBase` is the foundation of the result pattern. It provides common properties for success/failure status, errors, and timing information.
 
-### Properties
+### ResultBase Properties
 
 - `Success`: Indicates if the operation was successful
 - `Failed`: Indicates if the operation failed (opposite of Success)
@@ -44,7 +44,7 @@ protected ResultBase(bool success, string? error = null, TimeSpan elapsed = defa
 
 `OperationResult&lt;T&gt;` extends `ResultBase` and adds support for returning data from operations.
 
-### Properties
+### OperationResult Properties
 
 - `Data`: The data returned by the operation (nullable)
 - `FirstError`: The first error message, or null if no errors
@@ -73,14 +73,15 @@ GenHub includes several specialized result types for different domains:
 
 Result of a game launch operation.
 
-**Properties:**
+### LaunchResult Properties
+
 - `ProcessId`: The launched process ID
 - `Exception`: Exception that occurred during launch
 - `StartTime`: When the launch started
 - `LaunchDuration`: How long the launch took
-- `FirstError`: First error message
+- `FirstError`: First error message of the launch operation
 
-**Factory Methods:**
+### LaunchResult Factory Methods
 ```csharp
 LaunchResult CreateSuccess(int processId, DateTime startTime, TimeSpan launchDuration)
 LaunchResult CreateFailure(string errorMessage, Exception? exception = null)
@@ -90,19 +91,21 @@ LaunchResult CreateFailure(string errorMessage, Exception? exception = null)
 
 Result of a validation operation.
 
-**Properties:**
+### ValidationResult Properties
+
 - `ValidatedTargetId`: ID of the validated target
 - `Issues`: List of validation issues
 - `IsValid`: Whether validation passed
 - `CriticalIssueCount`: Number of critical issues
 - `WarningIssueCount`: Number of warning issues
-- `InfoIssueCount`: Number of informational issues
+- `InfoIssueCount`: Number of informational issues in validation
 
 ### UpdateCheckResult
 
 Result of an update check operation.
 
-**Properties:**
+### UpdateCheckResult Properties
+
 - `IsUpdateAvailable`: Whether an update is available
 - `CurrentVersion`: Current application version
 - `LatestVersion`: Latest available version
@@ -111,9 +114,9 @@ Result of an update check operation.
 - `ReleaseTitle`: Release title
 - `ErrorMessages`: List of error messages
 - `Assets`: Release assets
-- `HasErrors`: Whether there are errors
+- `HasErrors`: Whether there are errors in update check
 
-**Factory Methods:**
+### UpdateCheckResult Factory Methods
 ```csharp
 UpdateCheckResult NoUpdateAvailable()
 UpdateCheckResult UpdateAvailable(GitHubRelease release)
@@ -124,10 +127,11 @@ UpdateCheckResult Error(string errorMessage)
 
 Generic result for detection operations.
 
-**Properties:**
+### DetectionResult Properties
+
 - `Items`: Detected items
 
-**Factory Methods:**
+### DetectionResult Factory Methods
 ```csharp
 DetectionResult<T> Succeeded(IEnumerable<T> items, TimeSpan elapsed)
 DetectionResult<T> Failed(string error)
@@ -137,16 +141,17 @@ DetectionResult<T> Failed(string error)
 
 Result of a file download operation.
 
-**Properties:**
+### DownloadResult Properties
+
 - `FilePath`: Path to the downloaded file
 - `BytesDownloaded`: Number of bytes downloaded
 - `HashVerified`: Whether hash verification passed
 - `AverageSpeedBytesPerSecond`: Download speed
 - `FormattedBytesDownloaded`: Formatted bytes (e.g., "1.2 MB")
 - `FormattedSpeed`: Formatted speed (e.g., "1.2 MB/s")
-- `FirstError`: First error message
+- `FirstError`: First error message of the download
 
-**Factory Methods:**
+### DownloadResult Factory Methods
 ```csharp
 DownloadResult CreateSuccess(string filePath, long bytesDownloaded, TimeSpan elapsed, bool hashVerified = false)
 ```
@@ -155,45 +160,50 @@ DownloadResult CreateSuccess(string filePath, long bytesDownloaded, TimeSpan ela
 
 Result of parsing GitHub repository URLs.
 
-**Properties:**
+### GitHubUrlParseResult Properties
+
 - `Owner`: Repository owner
 - `Repo`: Repository name
 - `Tag`: Release tag
 
-**Factory Methods:**
+### GitHubUrlParseResult Factory Methods
+
 ```csharp
 GitHubUrlParseResult CreateSuccess(string owner, string repo, string? tag)
 GitHubUrlParseResult CreateFailure(params string[] errors)
 ```
 
-### CAS Results
+## CAS Results
 
-#### CasGarbageCollectionResult
+### CasGarbageCollectionResult
 
 Result of CAS garbage collection.
 
-**Properties:**
+### CasGarbageCollectionResult Properties
+
 - `ObjectsDeleted`: Number of objects deleted
 - `BytesFreed`: Bytes freed
 - `ObjectsScanned`: Objects scanned
 - `ObjectsReferenced`: Objects kept
 - `PercentageFreed`: Percentage of storage freed
 
-#### CasValidationResult
+### CasValidationResult
 
 Result of CAS integrity validation.
 
-**Properties:**
+### CasValidationResult Properties
+
 - `Issues`: Validation issues
 - `IsValid`: Whether validation passed
 - `ObjectsValidated`: Objects validated
 - `ObjectsWithIssues`: Objects with issues
 
-#### CasStats
+### CasStats
 
 Summary of CAS system state.
 
-**Properties:**
+### CasStats Properties
+
 - `TotalObjects`: Number of objects in CAS
 - `TotalBytes`: Total disk space consumed
 - `LastGcTimestamp`: When garbage collection was last run
@@ -266,23 +276,15 @@ public async Task<LaunchResult> LaunchGame(GameProfile profile)
 ```
 
 ## Best Practices
-
 1. **Always check Success/Failed**: Before accessing Data or other properties, check if the operation succeeded.
-
 2. **Use appropriate result types**: Choose the most specific result type for your operation.
-
 3. **Provide meaningful errors**: Include descriptive error messages that help users understand what went wrong.
-
 4. **Include timing information**: Pass elapsed time when available for performance monitoring.
-
 5. **Handle exceptions**: Convert exceptions to appropriate result failures.
-
 6. **Test thoroughly**: Ensure all success and failure paths are tested.
 
 ## Testing
-
 All result types include comprehensive unit tests covering:
-
 - Constructor behavior
 - Property access
 - Factory method functionality

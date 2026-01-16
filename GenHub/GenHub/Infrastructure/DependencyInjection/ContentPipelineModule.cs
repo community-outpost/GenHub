@@ -1,5 +1,3 @@
-using System;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -8,6 +6,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Content;
@@ -29,6 +28,8 @@ using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -126,6 +127,19 @@ public static class ContentPipelineModule
         // Register publisher subscription store for creator catalog management
         services.AddSingleton<IPublisherSubscriptionStore, GenHub.Features.Content.Services.Catalog.PublisherSubscriptionStore>();
 
+        // Register publisher definition service and named HTTP clients
+        services.AddHttpClient("PublisherDefinition", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+        });
+        services.AddHttpClient("PublisherCatalog", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+        });
+        services.AddSingleton<IPublisherDefinitionService, GenHub.Core.Services.Publishers.PublisherDefinitionService>();
+
         // Register catalog parser and version selector
         services.AddSingleton<IPublisherCatalogParser, GenHub.Features.Content.Services.Catalog.JsonPublisherCatalogParser>();
         services.AddSingleton<IVersionSelector, GenHub.Features.Content.Services.Catalog.VersionSelector>();
@@ -135,6 +149,14 @@ public static class ContentPipelineModule
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogDiscoverer>();
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>());
+
+        // Register cross-publisher dependency resolver
+        services.AddSingleton<ICrossPublisherDependencyResolver, GenHub.Features.Content.Services.Catalog.CrossPublisherDependencyResolver>();
+
+        // Register generic catalog manifest factory for catalog-based publishers
+        // This handles all publishers created via Publisher Studio (not built-in like Steam, EA, etc.)
+        services.AddSingleton<GenHub.Features.Content.Services.Catalog.GenericCatalogManifestFactory>();
+        services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<GenHub.Features.Content.Services.Catalog.GenericCatalogManifestFactory>());
 
         // Register ViewModels for catalog management
         services.AddTransient<GenHub.Features.Content.ViewModels.Catalog.SubscriptionConfirmationViewModel>(sp =>

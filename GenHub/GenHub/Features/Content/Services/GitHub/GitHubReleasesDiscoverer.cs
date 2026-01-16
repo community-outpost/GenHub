@@ -64,7 +64,10 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
 
                 if (releases != null)
                 {
-                    foreach (var release in releases)
+                    // Apply pagination: Skip and Take
+                    var paginatedReleases = releases.Skip(query.Skip).Take(query.Take);
+
+                    foreach (var release in paginatedReleases)
                     {
                         if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                             release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
@@ -110,13 +113,16 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             logger.LogWarning("Encountered {ErrorCount} errors during discovery: {Errors}", errors.Count, string.Join("; ", errors));
         }
 
+        // Calculate if there are more items available
+        var hasMoreItems = results.Count >= query.Take;
+
         return errors.Count > 0 && results.Count == 0
             ? OperationResult<ContentDiscoveryResult>.CreateFailure(errors)
             : OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = results,
                 TotalItems = results.Count,
-                HasMoreItems = false,
+                HasMoreItems = hasMoreItems,
             });
     }
 }

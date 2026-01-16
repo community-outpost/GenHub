@@ -27,6 +27,21 @@
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="Watermark" Value="Search..." />
         </Style>
+
+        <!-- Catalog tab styles -->
+        <Style Selector="Button.catalog-tab">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.catalog-tab:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+        </Style>
+        <Style Selector="Button.catalog-tab.selected">
+            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+        </Style>
     </UserControl.Styles>
 
     <Grid>
@@ -56,6 +71,8 @@
                     <!-- Search Bar -->
                     <RowDefinition Height="Auto" />
                     <!-- Filter Panel -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Catalog Tabs -->
                     <RowDefinition Height="Auto" />
                     <!-- Content Grid -->
                     <RowDefinition Height="*" />
@@ -142,8 +159,40 @@
                     <views:FilterPanelView DataContext="{Binding CurrentFilterViewModel}" />
                 </Border>
 
+                <!-- Catalog Tabs for multi-catalog publishers -->
+                <Border Grid.Row="2"
+                        IsVisible="{Binding ShowCatalogTabs}"
+                        Background="#10FFFFFF"
+                        CornerRadius="8"
+                        Padding="8"
+                        Margin="0,0,0,16">
+                    <ItemsControl ItemsSource="{Binding CatalogTabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="8"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Classes="catalog-tab"
+                                        Classes.selected="{Binding IsSelected}"
+                                        Command="{Binding $parent[ItemsControl].((vm:DownloadsBrowserViewModel)DataContext).SelectCatalogTabCommand}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding CatalogName}" FontSize="13"/>
+                                        <TextBlock Text="{Binding ContentCount, StringFormat='({0})'}"
+                                                   FontSize="11"
+                                                   Foreground="#888888"
+                                                   IsVisible="{Binding ContentCount}"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
                 <!-- Content Grid with Load More -->
-                <ScrollViewer Grid.Row="2">
+                <ScrollViewer Grid.Row="3">
                     <StackPanel>
                         <ItemsControl ItemsSource="{Binding ContentItems}" HorizontalAlignment="Center">
                             <ItemsControl.ItemsPanel>
@@ -166,26 +215,46 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <!-- Load More Button -->
-                        <Button Content="Load More"
-                                Command="{Binding LoadMoreCommand}"
-                                IsVisible="{Binding CanLoadMore}"
-                                IsEnabled="{Binding !IsLoading}"
-                                HorizontalAlignment="Center"
-                                Margin="0,20,0,40"
-                                Padding="30,10"
-                                Background="#333333"
-                                Foreground="White"
-                                FontSize="16"
-                                CornerRadius="8"
-                                BorderBrush="#555555"
-                                BorderThickness="1">
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#444444" />
-                                </Style>
-                            </Button.Styles>
-                        </Button>
+                        <!-- Load More Buttons Stack -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,40" Spacing="10">
+                            <!-- Load Older Releases Button (TheSuperHackers only) -->
+                            <Button Content="Load Older Releases"
+                                    Command="{Binding LoadOlderReleasesCommand}"
+                                    IsVisible="{Binding CanLoadOlderReleases}"
+                                    IsEnabled="{Binding !IsLoading}"
+                                    Padding="30,10"
+                                    Background="#9C27B0"
+                                    Foreground="White"
+                                    FontSize="16"
+                                    CornerRadius="8"
+                                    BorderBrush="#B388FF"
+                                    BorderThickness="1">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Background" Value="#BA68C8" />
+                                    </Style>
+                                </Button.Styles>
+                            </Button>
+
+                            <!-- Load More Button (standard pagination) -->
+                            <Button Content="Load More"
+                                    Command="{Binding LoadMoreCommand}"
+                                    IsVisible="{Binding CanLoadMore}"
+                                    IsEnabled="{Binding !IsLoading}"
+                                    Padding="30,10"
+                                    Background="#333333"
+                                    Foreground="White"
+                                    FontSize="16"
+                                    CornerRadius="8"
+                                    BorderBrush="#555555"
+                                    BorderThickness="1">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Background" Value="#444444" />
+                                    </Style>
+                                </Button.Styles>
+                            </Button>
+                        </StackPanel>
 
                         <!-- Loading Indicator (Bottom) -->
                         <StackPanel Orientation="Horizontal"

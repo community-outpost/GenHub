@@ -44,4 +44,10 @@ public class ReleaseArtifact
     /// </summary>
     [JsonPropertyName("isPrimary")]
     public bool IsPrimary { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the local file path for upload (not serialized).
+    /// </summary>
+    [JsonIgnore]
+    public string? LocalFilePath { get; set; }
 }

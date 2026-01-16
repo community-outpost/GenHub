@@ -41,6 +41,11 @@ public class ToolMetadata
     public bool IsBundled { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the tool should be displayed in full screen mode (hiding default headers/margins).
+    /// </summary>
+    public bool IsFullScreen { get; set; }
+
+    /// <summary>
     /// Gets or sets the tags/categories for the tool.
     /// </summary>
     public List<string> Tags { get; set; } = [];

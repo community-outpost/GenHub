@@ -34,6 +34,12 @@ public class ContentRelease
     public bool IsLatest { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether this release should be featured/highlighted in the UI.
+    /// </summary>
+    [JsonPropertyName("isFeatured")]
+    public bool IsFeatured { get; set; }
+
+    /// <summary>
     /// Gets or sets the changelog/release notes.
     /// Supports markdown formatting.
     /// </summary>

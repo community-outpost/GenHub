@@ -1,0 +1,172 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="550"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
+             x:DataType="vm:AddContentDialogViewModel">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#AA00FF"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="Add New Content"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#15FFFFFF"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Name -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Content Name" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding ContentName}" Watermark="e.g. Modern Wars Mod"/>
+                    <Button Content="Use Suggested ID"
+                            Command="{Binding ApplySuggestedIdCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="#AA00FF"
+                            HorizontalAlignment="Right"
+                            FontSize="12"
+                            Cursor="Hand"
+                            IsVisible="{Binding !!ContentName.Length}"/>
+                </StackPanel>
+
+                <!-- ID -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Content ID" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding ContentId}" Watermark="e.g. modern-wars"/>
+                    <TextBlock Text="Unique identifier for this content (lowercase, alphanumeric, hyphens)."
+                               Classes="hint"/>
+                </StackPanel>
+
+                <!-- Type & Target -->
+                <Grid ColumnDefinitions="*,16,*">
+                    <StackPanel Grid.Column="0" Spacing="8">
+                        <TextBlock Text="Content Type" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                                  SelectedItem="{Binding SelectedContentType}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="8">
+                        <TextBlock Text="Target Game" Classes="label"/>
+                        <ComboBox ItemsSource="{Binding AvailableTargetGames}"
+                                  SelectedItem="{Binding SelectedTargetGame}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Description -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="Description" Classes="label"/>
+                        <TextBlock Text="*" Foreground="#FF5555"/>
+                    </StackPanel>
+                    <TextBox Text="{Binding Description}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="100"
+                             Watermark="Describe your content..."/>
+                </StackPanel>
+
+                <!-- Tags -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Tags (Comma Separated)" Classes="label"/>
+                    <TextBox Text="{Binding TagsInput}" Watermark="strategy, overhaul, 2025"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+            <TextBlock Text="{Binding ValidationError}"
+                       Foreground="#FF5555"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       MaxWidth="300"/>
+
+            <Button Content="Add Content"
+                    Command="{Binding CreateContentCommand}"
+                    Background="{DynamicResource PrimaryGradientBrush}"
+                    Foreground="White"
+                    CornerRadius="8"
+                    Padding="40,14"
+                    FontWeight="Bold"
+                    BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

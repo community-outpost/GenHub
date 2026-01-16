@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
 using GenHub.Core.Models.Enums;
 
@@ -44,7 +45,7 @@ public class CatalogContentItem
     /// Gets or sets the list of releases (versions) for this content.
     /// </summary>
     [JsonPropertyName("releases")]
-    public List<ContentRelease> Releases { get; set; } = [];
+    public ObservableCollection<ContentRelease> Releases { get; set; } = [];
 
     /// <summary>
     /// Gets or sets rich presentation metadata (banners, screenshots, videos).
@@ -56,5 +57,11 @@ public class CatalogContentItem
     /// Gets or sets tags for categorization and search.
     /// </summary>
     [JsonPropertyName("tags")]
-    public List<string> Tags { get; set; } = [];
+    public ObservableCollection<string> Tags { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the list of items bundled in this content (for ContentBundle type).
+    /// </summary>
+    [JsonPropertyName("bundledItems")]
+    public ObservableCollection<CatalogDependency> BundledItems { get; set; } = [];
 }

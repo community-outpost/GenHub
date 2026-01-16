@@ -9,13 +9,12 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Interfaces.Storage;
-using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Slugify;
-using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
+using MapDetails = GenHub.Core.Models.ModDB.MapDetails;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -26,11 +25,26 @@ namespace GenHub.Features.Content.Services.Publishers;
 public partial class CNCLabsManifestFactory(
     IContentManifestBuilder manifestBuilder,
     IProviderDefinitionLoader providerLoader,
-    IDownloadService downloadService,
-    ICasService casService,
-    IConfigurationProviderService configurationProvider,
     ILogger<CNCLabsManifestFactory> logger) : IPublisherManifestFactory
 {
+    private readonly ILogger<CNCLabsManifestFactory> _logger = logger;
+    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
+
+    [GeneratedRegex(@"[^a-z0-9]", RegexOptions.IgnoreCase)]
+    private static partial Regex AuthorRegex();
+
+    private static string SlugifyAuthor(string? author)
+    {
+        if (string.IsNullOrWhiteSpace(author))
+        {
+            return ManifestConstants.UnknownAuthor;
+        }
+
+        // Remove all non-alphanumeric characters and convert to lowercase
+        var slug = AuthorRegex().Replace(author, string.Empty).ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(slug) ? ManifestConstants.UnknownAuthor : slug;
+    }
+
     private static string SlugifyContentName(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -51,7 +65,7 @@ public partial class CNCLabsManifestFactory(
         }
     }
 
-    private static List<string> GetTags(ParsedContentDetails details)
+    private static List<string> GetTags(MapDetails details)
     {
         List<string> tags = [.. CNCLabsConstants.DefaultTags];
 
@@ -76,7 +90,7 @@ public partial class CNCLabsManifestFactory(
         return tags;
     }
 
-    private static string GetDownloadFilename(ParsedContentDetails details)
+    private static string GetDownloadFilename(MapDetails details)
     {
         if (!string.IsNullOrWhiteSpace(details.DownloadUrl))
         {
@@ -128,20 +142,22 @@ public partial class CNCLabsManifestFactory(
     /// Creates a manifest from map details.
     /// </summary>
     /// <param name="details">The map details.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task that represents the asynchronous operation, containing the created manifest.</returns>
     public async Task<ContentManifest> CreateManifestAsync(
-        object details)
+        object details,
+        CancellationToken cancellationToken = default)
     {
-        if (details is not ParsedContentDetails mapDetails)
+        if (details is not MapDetails mapDetails)
         {
-            throw new ArgumentException($"Details must be of type {nameof(ParsedContentDetails)}", nameof(details));
+            throw new ArgumentException($"Details must be of type {nameof(MapDetails)}", nameof(details));
         }
 
         return await CreateManifestInternalAsync(mapDetails);
     }
 
     private async Task<ContentManifest> CreateManifestInternalAsync(
-        ParsedContentDetails details)
+        MapDetails details)
     {
         // 1. Load provider metadata to get website/support URLs if possible
         var provider = providerLoader.GetProvider(CNCLabsConstants.PublisherPrefix);
@@ -152,13 +168,13 @@ public partial class CNCLabsManifestFactory(
         var contentName = SlugifyContentName(details.Name);
         var publisherId = CNCLabsConstants.PublisherId;
 
-        // 3. Format submission date as YYYYMMDD for version
-        var releaseDate = details.SubmissionDate.ToString(CNCLabsConstants.ReleaseDateFormat);
+        // 3. Format submission date as YYYYMMDD for version (same as ModDB)
+        var releaseDate = details.SubmissionDate.ToString(ModDBConstants.ReleaseDateFormat);
 
         // 4. Use injected builder
         // Note: Since the builder is stateful and injected as Transient (likely), we can use it directly.
         // If it's Scoped/Singleton, we might need a factory. Assuming proper DI setup.
-        var builder = manifestBuilder;
+        var builder = _manifestBuilder;
 
         // 5. Configure manifest
         builder
@@ -182,64 +198,16 @@ public partial class CNCLabsManifestFactory(
 
         if (!string.IsNullOrEmpty(details.DownloadUrl))
         {
-            await DownloadAndAddFileAsync(
-                builder,
+            await builder.AddRemoteFileAsync(
                 fileName,
                 details.DownloadUrl,
-                details.RefererUrl);
+                ContentSourceType.ContentAddressable);
         }
         else
         {
-            logger.LogWarning("Download URL is missing for {ContentName}", details.Name);
+            _logger.LogWarning("Download URL is missing for {ContentName}", details.Name);
         }
 
         return builder.Build();
-    }
-
-    private async Task DownloadAndAddFileAsync(
-        IContentManifestBuilder builder,
-        string relativePath,
-        string downloadUrl,
-        string? refererUrl)
-    {
-        var tempDir = Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.Temp);
-        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-
-        var tempFilePath = Path.Combine(tempDir, $"{Guid.NewGuid()}{Path.GetExtension(relativePath)}");
-
-        var downloadConfig = new DownloadConfiguration
-        {
-            Url = new Uri(downloadUrl),
-            DestinationPath = tempFilePath,
-            OverwriteExisting = true,
-        };
-
-        if (!string.IsNullOrEmpty(refererUrl))
-        {
-            downloadConfig.Headers.Add("Referer", refererUrl);
-        }
-
-        // Standard download for CNC Labs
-        var downloadResult = await downloadService.DownloadFileAsync(downloadConfig);
-        if (!downloadResult.Success)
-        {
-            throw new InvalidOperationException($"Failed to download file from {downloadUrl}: {downloadResult.FirstError}");
-        }
-
-        // Store in CAS
-        var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Map);
-        if (!storeResult.Success)
-        {
-            if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-            throw new InvalidOperationException($"Failed to store content in CAS: {storeResult.FirstError}");
-        }
-
-        var hash = storeResult.Data;
-        var fileSize = new FileInfo(tempFilePath).Length;
-
-        // Cleanup temp file after successful store (ICasService might move it, but keeping it safe)
-        if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
-
-        await builder.AddContentAddressableFileAsync(relativePath, hash, fileSize);
     }
 }

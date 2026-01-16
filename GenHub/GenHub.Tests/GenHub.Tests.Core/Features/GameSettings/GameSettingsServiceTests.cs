@@ -4,6 +4,7 @@ using GenHub.Core.Models.GameSettings;
 using GenHub.Features.GameSettings;
 using Microsoft.Extensions.Logging;
 using Moq;
+using GameSettingsRecord = GenHub.Core.Models.GameSettings.GameSettings;
 
 namespace GenHub.Tests.Core.Features.GameSettings;
 
@@ -384,5 +385,118 @@ Resolution=1024 768
         Assert.Contains("[CUSTOM_SECTION]", savedContent);
         Assert.Contains("CustomKey=CustomValue", savedContent);
         Assert.Contains("AnotherKey=AnotherValue", savedContent);
+    }
+
+    /// <summary>
+    /// Should return success with defaults when GameSettings file does not exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadGameSettingsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExist()
+    {
+        // Arrange
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetGameSettingsFilePath()).Returns("nonexistent_settings.json");
+
+        // Act
+        var result = await mockService.Object.LoadGameSettingsAsync();
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        // Verify default values
+        Assert.True(result.Data.ShowPing);
+        Assert.False(result.Data.ShowFps);
+        Assert.Equal(12, result.Data.ChatFontSize);
+    }
+
+    /// <summary>
+    /// Should save GameSettings to file correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveGameSettingsAsync_Should_SaveGameSettingsToFile()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var settings = new GameSettingsRecord
+        {
+            ShowFps = true,
+            ShowPing = false,
+            ChatFontSize = 14,
+            CameraMoveSpeedRatio = 2.0f,
+            DebugVerboseLogging = true,
+        };
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetGameSettingsFilePath()).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.SaveGameSettingsAsync(settings);
+
+            // Assert
+            Assert.True(result.Success);
+
+            var savedContent = await File.ReadAllTextAsync(tempFile);
+            Assert.Contains("\"showFps\": true", savedContent);
+            Assert.Contains("\"showPing\": false", savedContent);
+            Assert.Contains("\"chatFontSize\": 14", savedContent);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Should load GameSettings from file correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadGameSettingsAsync_Should_LoadFromFile()
+    {
+        // Arrange
+        var jsonContent = @"{
+            ""ShowFps"": true,
+            ""ShowPing"": false,
+            ""ChatFontSize"": 16,
+            ""RenderFpsLimit"": 60
+        }";
+
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, jsonContent);
+
+        try
+        {
+            var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+            {
+                CallBase = true,
+            };
+            mockService.Setup(x => x.GetGameSettingsFilePath()).Returns(tempFile);
+
+            // Act
+            var result = await mockService.Object.LoadGameSettingsAsync();
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.True(result.Data.ShowFps);
+            Assert.False(result.Data.ShowPing);
+            Assert.Equal(16, result.Data.ChatFontSize);
+            Assert.Equal(60, result.Data.RenderFpsLimit);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 }

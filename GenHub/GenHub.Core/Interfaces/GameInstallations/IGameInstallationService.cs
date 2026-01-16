@@ -24,15 +24,24 @@ public interface IGameInstallationService
     Task<OperationResult<IReadOnlyList<GameInstallation>>> GetAllInstallationsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Registers a manually selected game installation.
-    /// </summary>
-    /// <param name="installation">The installation to register.</param>
-    /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>An operation result indicating success.</returns>
-    Task<OperationResult<bool>> RegisterManualInstallationAsync(GameInstallation installation, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Invalidates the installation cache, forcing re-detection on next access.
     /// </summary>
     void InvalidateCache();
+
+    /// <summary>
+    /// Adds a manually selected installation to the cache.
+    /// </summary>
+    /// <param name="installation">The installation to add.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result indicating success or failure.</returns>
+    Task<OperationResult<bool>> AddInstallationToCacheAsync(GameInstallation installation, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates and registers GameInstallation manifests for the specified installation.
+    /// This ensures the installation is persisted across sessions.
+    /// </summary>
+    /// <param name="installation">The installation to persist.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default);
 }

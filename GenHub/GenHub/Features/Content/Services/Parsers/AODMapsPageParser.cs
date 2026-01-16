@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,7 +83,7 @@ public partial class AODMapsPageParser(
         // Fix for PashaCNC links - they are dead, replace with current domain
         if (url.Contains("pashacnc.com", StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogWarning("Detected dead pashacnc.com link, replacing with aodmaps.com: {Url}", url);
+            logger.LogDebug("Detected dead pashacnc.com link, replacing with aodmaps.com: {Url}", url);
             url = url.Replace("pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
             url = url.Replace("www.pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
         }
@@ -91,7 +93,8 @@ public partial class AODMapsPageParser(
             return url;
         }
 
-        return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+        var absUrl = $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+        return absUrl;
     }
 
     /// <summary>
@@ -230,11 +233,11 @@ public partial class AODMapsPageParser(
     }
 
     /// <inheritdoc />
-    public async Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
+    public Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
     {
         var browsingContext = BrowsingContext.New(Configuration.Default);
-        var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
-        return ParseInternal(url, document);
+        var document = browsingContext.OpenAsync(req => req.Content(html), cancellationToken).GetAwaiter().GetResult();
+        return Task.FromResult(ParseInternal(url, document));
     }
 
     /// <summary>

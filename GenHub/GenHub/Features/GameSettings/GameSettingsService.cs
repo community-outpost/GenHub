@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -11,6 +12,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using GameSettingsRecord = GenHub.Core.Models.GameSettings.GameSettings;
 
 namespace GenHub.Features.GameSettings;
 
@@ -19,7 +21,12 @@ namespace GenHub.Features.GameSettings;
 /// </summary>
 public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider? pathProvider = null) : IGameSettingsService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+    };
 
     /// <summary>
     /// Static semaphore to serialize Options.ini writes across all game launches.
@@ -103,6 +110,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 _logger.LogInformation("Created directory {Directory}", directory);
             }
 
+            // Safety check: Don't overwrite existing non-empty file with empty options
+            // This prevents data loss if a load failed but Save was called with defaults
+            if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+            {
+                bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
+                if (isDefault)
+                {
+                    _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
+                    return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                }
+            }
+
             _logger.LogDebug("Serializing options");
             var lines = SerializeOptionsIni(options);
             _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
@@ -182,48 +201,53 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    public async Task<OperationResult<GameSettingsRecord>> LoadGameSettingsAsync()
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GameSettings" });
 
         try
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
-            _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
+            var settingsPath = GetGameSettingsFilePath();
+            _logger.LogDebug("Loading Game settings from: {SettingsPath}", settingsPath);
 
             if (!File.Exists(settingsPath))
             {
-                _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                _logger.LogWarning("GameSettings file not found at {SettingsPath}, returning defaults", settingsPath);
+                var defaultSettings = new GameSettingsRecord();
+
+                // Ensure defaults are saved if file is missing
+                await SaveGameSettingsAsync(defaultSettings);
+
+                return OperationResult<GameSettingsRecord>.CreateSuccess(defaultSettings);
             }
 
             var json = await File.ReadAllTextAsync(settingsPath);
-            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json);
+            var settings = JsonSerializer.Deserialize<GameSettingsRecord>(json, _jsonSerializerOptions);
 
             if (settings == null)
             {
-                _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                _logger.LogWarning("Failed to deserialize GameSettings, returning defaults");
+                return OperationResult<GameSettingsRecord>.CreateSuccess(new GameSettingsRecord());
             }
 
-            _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
-            return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
+            _logger.LogInformation("Loaded GameSettings from {SettingsPath}", settingsPath);
+            return OperationResult<GameSettingsRecord>.CreateSuccess(settings);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load GeneralsOnline settings");
-            return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
+            _logger.LogError(ex, "Failed to load GameSettings");
+            return OperationResult<GameSettingsRecord>.CreateFailure($"Failed to load GameSettings: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    public async Task<OperationResult<bool>> SaveGameSettingsAsync(GameSettingsRecord settings)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GameSettings" });
 
         try
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
+            var settingsPath = GetGameSettingsFilePath();
             var directory = Path.GetDirectoryName(settingsPath);
 
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -232,17 +256,33 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 Directory.CreateDirectory(directory);
             }
 
+            // Create a copy of the settings to possibly merge with existing file if needed,
+            // but for now we overwrite as the record is the source of truth.
+            // If we needed to preserve unknown JSON properties, we would need a more complex merge strategy.
+            // Assuming GameSettings record covers all known properties.
             var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
             await File.WriteAllTextAsync(settingsPath, json, Encoding.UTF8);
 
-            _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
+            _logger.LogInformation("Saved GameSettings to {SettingsPath}", settingsPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save GeneralsOnline settings");
-            return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
+            _logger.LogError(ex, "Failed to save GameSettings");
+            return OperationResult<bool>.CreateFailure($"Failed to save GameSettings: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Gets the path to the game settings file.
+    /// </summary>
+    /// <returns>The full path to the game settings JSON file.</returns>
+    public virtual string GetGameSettingsFilePath()
+    {
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
+        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
+        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
     }
 
     private static IniOptions ParseOptionsIni(string[] lines)
@@ -328,7 +368,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
-            "IdealStaticGameLOD", "StaticGameLOD",
+            "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
+            "BuildingOcclusion", "ShowProps",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -339,16 +380,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ArchiveReplays", "BuildingOcclusion", "CursorCaptureEnabledInFullscreenGame",
-            "CursorCaptureEnabledInFullscreenMenu", "CursorCaptureEnabledInWindowedGame",
-            "CursorCaptureEnabledInWindowedMenu", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", "HeatEffects", "LanguageFilter", "MaxParticleCount",
+            "CursorCaptureEnabledInWindowedMenu", "CursorCaptureEnabledInWindowedGame", "DrawScrollAnchor", "DynamicLOD",
+            "GameTimeFontSize", "LanguageFilter", "MaxParticleCount",
             "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
             "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
             "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
             "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
             "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseAlternateMouse", "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
         };
 
         Dictionary<string, string> audioDict = [];
@@ -476,6 +515,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
+            "AlternateMouseSetup", "HeatEffects", "BuildingOcclusion", "ShowProps",
         };
 
         foreach (var kvp in values)
@@ -520,6 +560,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     break;
                 case "Gamma" when int.TryParse(kvp.Value, out var g):
                     video.Gamma = g;
+                    break;
+                case "AlternateMouseSetup":
+                    video.AlternateMouseSetup = ParseBool(kvp.Value);
+                    break;
+                case "HeatEffects":
+                    video.HeatEffects = ParseBool(kvp.Value);
+                    break;
+                case "BuildingOcclusion":
+                    video.BuildingOcclusion = ParseBool(kvp.Value);
+                    break;
+                case "ShowProps":
+                    video.ShowProps = ParseBool(kvp.Value);
                     break;
             }
         }
@@ -577,6 +629,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"UseShadowDecals={BoolToString(options.Video.UseShadowDecals)}");
         lines.Add($"ExtraAnimations={BoolToString(options.Video.ExtraAnimations)}");
         lines.Add($"Gamma={options.Video.Gamma}");
+        lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
+        lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
+        lines.Add($"BuildingOcclusion={BoolToString(options.Video.BuildingOcclusion)}");
+        lines.Add($"ShowProps={BoolToString(options.Video.ShowProps)}");
 
         // Add additional video properties
         foreach (var kvp in options.Video.AdditionalProperties)
@@ -584,12 +640,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
-        // TheSuperHackers/GeneralsOnline settings (flat, no section header)
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings))
+        // TheSuperHackers settings
+        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings) && tshSettings.Count > 0)
         {
+            lines.Add(string.Empty);
+            lines.Add("[TheSuperHackers]");
             foreach (var kvp in tshSettings)
             {
-                lines.Add($"{kvp.Key}={kvp.Value}");
+                lines.Add($"{kvp.Key} = {kvp.Value}");
             }
         }
 
@@ -606,12 +664,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections)
+        foreach (var section in options.AdditionalSections.Where(s => s.Key != "TheSuperHackers"))
         {
-            // Skip TheSuperHackers - already written flat above
-            if (section.Key.Equals("TheSuperHackers", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
             foreach (var kvp in section.Value)
@@ -689,14 +743,6 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             ["ShowMoneyPerMinute"] = BoolToString(settings.ShowMoneyPerMinute),
             ["SystemTimeFontSize"] = settings.SystemTimeFontSize.ToString(),
         };
-    }
-
-    private static string GetGeneralsOnlineSettingsPath()
-    {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
-        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
-        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
     }
 
     private static string SanitizeKey(string key)

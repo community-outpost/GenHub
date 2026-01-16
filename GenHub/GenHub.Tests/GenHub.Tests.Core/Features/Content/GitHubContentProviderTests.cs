@@ -6,6 +6,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services.ContentProviders;
 using GenHub.Features.Content.Services.GitHub;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -22,9 +23,7 @@ public class GitHubContentProviderTests
     private readonly Mock<IContentDeliverer> _delivererMock;
     private readonly Mock<IContentValidator> _validatorMock;
     private readonly Mock<ILogger<GitHubContentProvider>> _loggerMock;
-#pragma warning disable IDE0052 // Remove unread private members
     private readonly Mock<IGitHubApiClient> _gitHubApiClientMock = new();
-#pragma warning restore IDE0052 // Remove unread private members
     private readonly GitHubContentProvider _provider;
 
     /// <summary>

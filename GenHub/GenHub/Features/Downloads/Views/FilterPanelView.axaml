@@ -4,9 +4,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:filters="clr-namespace:GenHub.Features.Downloads.ViewModels.Filters"
              xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="100"
              x:Class="GenHub.Features.Downloads.Views.FilterPanelView"
              x:DataType="filters:IFilterPanelViewModel">
+
+    <UserControl.Resources>
+        <converters:EqualityConverter x:Key="EqualityConverter" />
+    </UserControl.Resources>
 
     <UserControl.Styles>
         <!-- Filter toggle button style -->
@@ -71,10 +76,10 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <ToggleButton Classes="filter-toggle"
-                                              Content="{Binding DisplayName}"
-                                              IsChecked="{Binding IsSelected}"
-                                              Command="{Binding $parent[ItemsControl].((filters:StaticPublisherFilterViewModel)DataContext).ToggleContentTypeCommand}"
-                                              CommandParameter="{Binding}" />
+                                               Content="{Binding DisplayName}"
+                                               IsChecked="{Binding IsSelected}"
+                                               Command="{Binding $parent[ItemsControl].((filters:StaticPublisherFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                               CommandParameter="{Binding}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -178,10 +183,10 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <ToggleButton Classes="filter-toggle"
-                                              Content="{Binding DisplayName}"
-                                              IsChecked="{Binding IsSelected}"
-                                              Command="{Binding $parent[ItemsControl].((filters:CommunityOutpostFilterViewModel)DataContext).ToggleContentTypeCommand}"
-                                              CommandParameter="{Binding}" />
+                                               Content="{Binding DisplayName}"
+                                               IsChecked="{Binding IsSelected}"
+                                               Command="{Binding $parent[ItemsControl].((filters:CommunityOutpostFilterViewModel)DataContext).ToggleContentTypeCommand}"
+                                               CommandParameter="{Binding}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

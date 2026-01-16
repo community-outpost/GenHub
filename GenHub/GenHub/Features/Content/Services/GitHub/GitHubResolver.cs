@@ -17,28 +17,22 @@ using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.GitHub;
-
 /// <summary>
 /// Resolves a discovered GitHub release into a full ContentManifest.
 /// </summary>
-public partial class GitHubResolver(
+public class GitHubResolver(
     IGitHubApiClient gitHubApiClient,
     IServiceProvider serviceProvider,
-    ILogger<GitHubResolver> logger)
-    : IContentResolver
+    ILogger<GitHubResolver> logger) : IContentResolver
 {
-    private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient ?? throw new ArgumentNullException(nameof(gitHubApiClient));
-    private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-    private readonly ILogger<GitHubResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     // Regex breakdown:
     // ^https://github\.com/
     //   (?<owner>[^/]+) -> owner
     //   /(?<repo>[^/]+) -> repo
     //   (?:/releases/tag/(?<tag>[^/]+))? -> optional tag
-    [GeneratedRegex(ApiConstants.GitHubUrlRegexPattern, RegexOptions.Compiled)]
-    private static partial Regex GitHubUrlRegex();
+    private static readonly Regex GitHubUrlRegex = new(
+        ApiConstants.GitHubUrlRegexPattern,
+        RegexOptions.Compiled);
 
     /// <summary>
     /// Gets the unique identifier for the GitHub release content resolver.
@@ -69,7 +63,7 @@ public partial class GitHubResolver(
             // Check if this is a SINGLE ASSET selection (from multi-asset split)
             if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName))
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Resolving single asset: {AssetName} from {Owner}/{Repo}:{Tag}",
                     assetName,
                     owner,
@@ -87,7 +81,7 @@ public partial class GitHubResolver(
             // Check if this is a SINGLE RELEASE ASSET selection (legacy path)
             if (discoveredItem.Data is GitHubArtifact singleAsset && singleAsset.IsRelease)
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Resolving single release asset: {AssetName} from {Owner}/{Repo}:{Tag}",
                     singleAsset.Name,
                     owner,
@@ -98,14 +92,14 @@ public partial class GitHubResolver(
             }
 
             // Otherwise, fetch the full release and include all assets
-            _logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
+            logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
 
             var release = string.IsNullOrEmpty(tag)
-                ? await _gitHubApiClient.GetLatestReleaseAsync(
+                ? await gitHubApiClient.GetLatestReleaseAsync(
                     owner,
                     repo,
                     cancellationToken)
-                : await _gitHubApiClient.GetReleaseByTagAsync(
+                : await gitHubApiClient.GetReleaseByTagAsync(
                     owner,
                     repo,
                     tag,
@@ -130,10 +124,10 @@ public partial class GitHubResolver(
 
             // Determine publisher type for factory resolution
             // This allows SuperHackersManifestFactory to handle TheSuperHackers releases
-            var publisherType = DeterminePublisherType(owner);
+            var publisherType = DeterminePublisherType(owner, repo);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
@@ -152,14 +146,14 @@ public partial class GitHubResolver(
                 .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
 
             // Validate assets collection
-            if (release.Assets == null || release.Assets.Count == 0)
+            if (release.Assets == null || !release.Assets.Any())
             {
-                _logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
+                logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
                 return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
 
             // Add files from GitHub assets
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Adding {AssetCount} assets from release {Owner}/{Repo}:{Tag}",
                 release.Assets.Count,
                 owner,
@@ -168,7 +162,7 @@ public partial class GitHubResolver(
 
             foreach (var asset in release.Assets)
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Adding asset: {AssetName} ({AssetUrl})",
                     asset.Name,
                     asset.BrowserDownloadUrl);
@@ -181,12 +175,12 @@ public partial class GitHubResolver(
             }
 
             var builtManifest = manifest.Build();
-            _logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
+            logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
+            logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
     }
@@ -196,14 +190,19 @@ public partial class GitHubResolver(
     /// This allows dynamic routing to publisher-specific manifest factories.
     /// </summary>
     /// <param name="owner">The repository owner (e.g., "thesuperhackers").</param>
+    /// <param name="repo">The repository name.</param>
     /// <returns>Publisher type identifier for factory resolution.</returns>
-    private static string DeterminePublisherType(string owner)
+    private static string DeterminePublisherType(string owner, string repo)
     {
         // Check for known publishers that have custom manifest factories
         if (owner.Equals("thesuperhackers", StringComparison.OrdinalIgnoreCase))
         {
             return "thesuperhackers";
         }
+
+        // Future: Add more publisher detection logic
+        // if (repo.Contains("generalsonline", StringComparison.OrdinalIgnoreCase))
+        //     return "generalsonline";
 
         // Default to generic GitHub publisher
         return "github";
@@ -222,20 +221,17 @@ public partial class GitHubResolver(
         var cleaned = tag.TrimStart('v', 'V', 'r', 'R');
 
         // Extract all digits and concatenate
-        var digits = DigitsOnlyRegex().Replace(cleaned, string.Empty);
+        var digits = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[^\d]", string.Empty);
 
         if (string.IsNullOrEmpty(digits))
             return 0;
 
         // Take first 9 digits to avoid overflow
         if (digits.Length > 9)
-            digits = digits[..9];
+            digits = digits.Substring(0, 9);
 
         return int.TryParse(digits, out var version) ? version : 0;
     }
-
-    [GeneratedRegex(@"[^\d]")]
-    private static partial Regex DigitsOnlyRegex();
 
     /// <summary>
     /// Extracts a variant name from an asset filename.
@@ -269,11 +265,6 @@ public partial class GitHubResolver(
         return nameWithoutExt.Replace("_", " ").Replace("-", " ").Trim();
     }
 
-    private static (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName)
-    {
-        return GitHubInferenceHelper.InferContentType(repo, releaseName);
-    }
-
     private static GitHubUrlParseResult ParseGitHubUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -291,7 +282,7 @@ public partial class GitHubResolver(
             return GitHubUrlParseResult.CreateFailure("URL must be from github.com.");
         }
 
-        var match = GitHubUrlRegex().Match(url);
+        var match = GitHubUrlRegex.Match(url);
         if (!match.Success)
         {
             return GitHubUrlParseResult.CreateFailure("Invalid GitHub repository URL format. Expected: https://github.com/owner/repo or https://github.com/owner/repo/releases/tag/version");
@@ -336,10 +327,10 @@ public partial class GitHubResolver(
             var contentName = $"{repo}{variant}";
 
             // Determine publisher type for factory resolution
-            var publisherType = DeterminePublisherType(owner);
+            var publisherType = DeterminePublisherType(owner, repo);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
@@ -364,16 +355,21 @@ public partial class GitHubResolver(
                 ContentSourceType.RemoteDownload,
                 isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
 
-            _logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
+            logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
 
             var builtManifest = manifest.Build();
-            _logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);
+            logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to resolve single release asset: {AssetName}", asset.Name);
+            logger.LogError(ex, "Failed to resolve single release asset: {AssetName}", asset.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve asset: {ex.Message}");
         }
+    }
+
+    private (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName, string? description)
+    {
+        return GitHubInferenceHelper.InferContentType(repo, releaseName);
     }
 }

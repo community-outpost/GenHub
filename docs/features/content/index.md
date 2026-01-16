@@ -61,6 +61,7 @@ The content system follows a layered architecture with clear separation of conce
 - LanguagePack: Translation files
 - Mission: Campaign missions
 - Map: Individual maps
+- ModdingTool: Standalone modding utilities and tools
 - ContentBundle: Meta-packages
 
 ## Content Pipeline

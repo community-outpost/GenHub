@@ -106,4 +106,16 @@ public static class ConfigurationKeys
     /// Configuration key for application data path.
     /// </summary>
     public const string AppDataPath = "GenHub:AppDataPath";
+
+    // Hosting configuration keys
+
+    /// <summary>
+    /// Configuration key for Google Drive Client ID.
+    /// </summary>
+    public const string GoogleDriveClientId = "GenHub:Hosting:GoogleDrive:ClientId";
+
+    /// <summary>
+    /// Configuration key for Google Drive Client Secret.
+    /// </summary>
+    public const string GoogleDriveClientSecret = "GenHub:Hosting:GoogleDrive:ClientSecret";
 }

@@ -12,9 +12,12 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using Microsoft.Extensions.Logging;
@@ -28,9 +31,13 @@ public partial class DownloadsBrowserViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsBrowserViewModel> logger,
     IEnumerable<IContentDiscoverer> contentDiscoverers,
-    IDownloadService downloadService) : ObservableObject
+    IDownloadService downloadService,
+    IPublisherSubscriptionStore subscriptionStore,
+    ICrossPublisherDependencyResolver dependencyResolver) : ObservableObject
 {
     private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
+    private readonly ICrossPublisherDependencyResolver _dependencyResolver = dependencyResolver;
+    private readonly HashSet<string> _loadedPublishers = [];
 
     [ObservableProperty]
     private string _searchTerm = string.Empty;
@@ -48,7 +55,25 @@ public partial class DownloadsBrowserViewModel(
     private ObservableCollection<PublisherItemViewModel> _publishers = [];
 
     [ObservableProperty]
+    private ObservableCollection<PublisherItemViewModel> _corePublishers = [];
+
+    [ObservableProperty]
+    private ObservableCollection<PublisherItemViewModel> _subscribedPublishers = [];
+
+    [ObservableProperty]
     private PublisherItemViewModel? _selectedPublisher;
+
+    /// <summary>
+    /// Gets the catalog tabs for the currently selected multi-catalog publisher.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<CatalogTabViewModel> _catalogTabs = [];
+
+    /// <summary>
+    /// Gets or sets the selected catalog tab (null means show all).
+    /// </summary>
+    [ObservableProperty]
+    private CatalogTabViewModel? _selectedCatalogTab;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanShowFilters))]
@@ -58,6 +83,11 @@ public partial class DownloadsBrowserViewModel(
     /// Gets a value indicating whether filters are available for the current publisher.
     /// </summary>
     public bool CanShowFilters => CurrentFilterViewModel != null;
+
+    /// <summary>
+    /// Gets a value indicating whether catalog tabs should be shown.
+    /// </summary>
+    public bool ShowCatalogTabs => CatalogTabs.Count > 1;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDetailViewVisible))]
@@ -72,7 +102,12 @@ public partial class DownloadsBrowserViewModel(
     [ObservableProperty]
     private bool _canLoadMore;
 
+    [ObservableProperty]
+    private bool _canLoadOlderReleases;
+
     private CancellationTokenSource? _lastSearchCts;
+
+    private int _superHackersLoadedCount;
 
     /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
@@ -86,11 +121,10 @@ public partial class DownloadsBrowserViewModel(
     /// Performs asynchronous initialization.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        InitializePublishers();
+        await InitializePublishersAsync();
         InitializeFilterViewModels();
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -139,14 +173,28 @@ public partial class DownloadsBrowserViewModel(
             CurrentFilterViewModel = null;
         }
 
-        // Trigger content refresh
+        // Reset pagination state
         CurrentPage = 1;
         CanLoadMore = false;
+        CanLoadOlderReleases = false;
+        _superHackersLoadedCount = 0;
+
+        // Clear content items when switching publishers
+        ContentItems.Clear();
 
         // Close detail view
         SelectedContent = null;
 
-        _ = RefreshContentAsync();
+        // Clear catalog tabs when switching publishers (will be repopulated if needed)
+        CatalogTabs.Clear();
+        SelectedCatalogTab = null;
+        OnPropertyChanged(nameof(ShowCatalogTabs));
+
+        // Only load content if this publisher hasn't been loaded yet
+        if (value != null && !_loadedPublishers.Contains(value.PublisherId))
+        {
+            _ = RefreshContentAsync();
+        }
     }
 
     private void OnFiltersCleared(object? sender, EventArgs e)
@@ -162,10 +210,63 @@ public partial class DownloadsBrowserViewModel(
         _ = RefreshContentAsync();
     }
 
+    private void PopulateCatalogTabs(PublisherSubscription subscription)
+    {
+        CatalogTabs.Clear();
+        SelectedCatalogTab = null;
+
+        if (subscription.CatalogEntries.Count > 1)
+        {
+            // Add "All" tab first
+            CatalogTabs.Add(new CatalogTabViewModel
+            {
+                CatalogId = "_all",
+                CatalogName = "All",
+                CatalogUrl = string.Empty,
+                IsSelected = true,
+            });
+
+            // Add individual catalog tabs
+            foreach (var entry in subscription.CatalogEntries.Where(e => e.IsEnabled))
+            {
+                CatalogTabs.Add(new CatalogTabViewModel
+                {
+                    CatalogId = entry.CatalogId,
+                    CatalogName = entry.CatalogName,
+                    CatalogUrl = entry.CatalogUrl,
+                });
+            }
+        }
+
+        OnPropertyChanged(nameof(ShowCatalogTabs));
+    }
+
     [RelayCommand]
     private void SelectPublisher(PublisherItemViewModel publisher)
     {
         SelectedPublisher = publisher;
+    }
+
+    /// <summary>
+    /// Command to select a catalog tab.
+    /// </summary>
+    [RelayCommand]
+    private async Task SelectCatalogTabAsync(CatalogTabViewModel? tab)
+    {
+        if (tab == null) return;
+
+        // Deselect all tabs
+        foreach (var t in CatalogTabs)
+        {
+            t.IsSelected = false;
+        }
+
+        // Select the clicked tab
+        tab.IsSelected = true;
+        SelectedCatalogTab = tab.CatalogId == "_all" ? null : tab;
+
+        // Refresh content with the new filter
+        await RefreshContentAsync();
     }
 
     [RelayCommand]
@@ -185,6 +286,19 @@ public partial class DownloadsBrowserViewModel(
                 "Loading more content for {Publisher}, page {Page}",
                 SelectedPublisher?.PublisherId ?? "Unknown",
                 CurrentPage);
+            await RefreshContentAsync(append: true);
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadOlderReleasesAsync()
+    {
+        if (SelectedPublisher?.PublisherId == PublisherTypeConstants.TheSuperHackers && !IsLoading)
+        {
+            _superHackersLoadedCount++;
+            logger.LogInformation(
+                "Loading older releases for TheSuperHackers, batch {Batch}",
+                _superHackersLoadedCount + 1);
             await RefreshContentAsync(append: true);
         }
     }
@@ -226,13 +340,68 @@ public partial class DownloadsBrowserViewModel(
                 baseQuery = CurrentFilterViewModel.ApplyFilters(baseQuery);
             }
 
-            if (SelectedPublisher.PublisherId == PublisherTypeConstants.All)
+            // Special handling for TheSuperHackers - load only 1 release initially
+            if (SelectedPublisher.PublisherId == PublisherTypeConstants.TheSuperHackers)
             {
-                await RefreshAllPublishersAsync(baseQuery, ct);
+                // Load in batches: 1 initially, then 10 at a time for older releases
+                var theSuperHackersQuery = new ContentSearchQuery
+                {
+                    SearchTerm = baseQuery.SearchTerm,
+                    ContentType = baseQuery.ContentType,
+                    ProviderName = baseQuery.ProviderName,
+                    TargetGame = baseQuery.TargetGame,
+                    AuthorName = baseQuery.AuthorName,
+                    MinDate = baseQuery.MinDate,
+                    MaxDate = baseQuery.MaxDate,
+                    Take = _superHackersLoadedCount == 0 ? 1 : 10,
+                    Skip = _superHackersLoadedCount == 0 ? 0 : 1 + ((_superHackersLoadedCount - 1) * 10),
+                    SortOrder = baseQuery.SortOrder,
+                    IncludeInstalled = baseQuery.IncludeInstalled,
+                    NumberOfPlayers = baseQuery.NumberOfPlayers,
+                    Page = baseQuery.Page,
+                    IncludeOlderVersions = baseQuery.IncludeOlderVersions,
+                    Sort = baseQuery.Sort,
+                    ModDBCategory = baseQuery.ModDBCategory,
+                    ModDBAddonCategory = baseQuery.ModDBAddonCategory,
+                    ModDBLicense = baseQuery.ModDBLicense,
+                    ModDBTimeframe = baseQuery.ModDBTimeframe,
+                    ModDBSection = baseQuery.ModDBSection,
+                    GitHubTopic = baseQuery.GitHubTopic,
+                    GitHubAuthor = baseQuery.GitHubAuthor,
+                    Language = baseQuery.Language,
+                };
+
+                // Copy Tags and CNCLabsMapTags manually
+                foreach (var tag in baseQuery.Tags)
+                {
+                    theSuperHackersQuery.Tags.Add(tag);
+                }
+
+                foreach (var tag in baseQuery.CNCLabsMapTags)
+                {
+                    theSuperHackersQuery.CNCLabsMapTags.Add(tag);
+                }
+
+                await RefreshSinglePublisherAsync(SelectedPublisher.PublisherId, theSuperHackersQuery, ct);
+
+                // Mark as loaded and enable "Load Older Releases" if we got at least 1 item
+                if (!append)
+                {
+                    _loadedPublishers.Add(SelectedPublisher.PublisherId);
+                }
+
+                // Enable "Load More" button if we got items
+                CanLoadOlderReleases = ContentItems.Count > 0;
             }
             else
             {
                 await RefreshSinglePublisherAsync(SelectedPublisher.PublisherId, baseQuery, ct);
+
+                // Mark as loaded after successful fetch
+                if (!append && !ct.IsCancellationRequested)
+                {
+                    _loadedPublishers.Add(SelectedPublisher.PublisherId);
+                }
             }
         }
         catch (OperationCanceledException)
@@ -255,7 +424,7 @@ public partial class DownloadsBrowserViewModel(
 
     private async Task RefreshSinglePublisherAsync(string publisherId, ContentSearchQuery query, CancellationToken ct)
     {
-        var discoverer = GetDiscovererForPublisher(publisherId);
+        var discoverer = await GetDiscovererForPublisherAsync(publisherId, ct);
         if (discoverer == null)
         {
             logger.LogWarning("No discoverer found for publisher {Publisher}", publisherId);
@@ -310,80 +479,45 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
-    private async Task RefreshAllPublishersAsync(ContentSearchQuery query, CancellationToken ct)
-    {
-        // In "All" mode, we search multiple sources in parallel
-        // We'll track if ANY provider has more items
-        var anyProviderHasMore = false;
-        var lockObj = new object();
-
-        var tasks = contentDiscoverers
-            .Where(d => d.IsEnabled && d.SourceName != PublisherTypeConstants.All)
-            .Select(async d =>
-            {
-                try
-                {
-                    var result = await d.DiscoverAsync(query, ct);
-                    if (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    if (result.Success && result.Data != null)
-                    {
-                        var vmItems = result.Data.Items.Select(item =>
-                        {
-                            return new ContentGridItemViewModel(item)
-                            {
-                                ViewCommand = ViewContentCommand,
-                                DownloadCommand = DownloadContentCommand,
-                            };
-                        }).ToList();
-
-                        if (result.Data.HasMoreItems)
-                        {
-                            lock (lockObj)
-                            {
-                                anyProviderHasMore = true;
-                            }
-                        }
-
-                        // Add to collection on main thread
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            foreach (var vm in vmItems)
-                            {
-                                ContentItems.Add(vm);
-                            }
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Discoverer {Source} failed in 'All' mode", d.SourceName);
-                }
-            });
-
-        await Task.WhenAll(tasks);
-
-        // Enable Load More if at least one provider has more content
-        CanLoadMore = !ct.IsCancellationRequested && anyProviderHasMore;
-    }
-
     /// <returns>The discoverer for the specified publisher, or null if not found.</returns>
-    private IContentDiscoverer? GetDiscovererForPublisher(string publisherId)
+    private async Task<IContentDiscoverer?> GetDiscovererForPublisherAsync(string publisherId, CancellationToken cancellationToken = default)
     {
-        return publisherId switch
+        // Check static publishers first
+        var staticDiscoverer = publisherId switch
         {
-            PublisherTypeConstants.GeneralsOnline => contentDiscoverers.OfType<GeneralsOnlineDiscoverer>().FirstOrDefault(),
-            PublisherTypeConstants.TheSuperHackers => contentDiscoverers.OfType<GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer>().FirstOrDefault(),
-            CommunityOutpostConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer>().FirstOrDefault(),
-            ModDBConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer>().FirstOrDefault(),
-            CNCLabsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer>().FirstOrDefault(),
-            GitHubTopicsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer>().FirstOrDefault(),
-            AODMapsConstants.PublisherType => contentDiscoverers.OfType<GenHub.Features.Content.Services.ContentDiscoverers.AODMapsDiscoverer>().FirstOrDefault(),
+            PublisherTypeConstants.GeneralsOnline => contentDiscoverers.FirstOrDefault(x => x is GeneralsOnlineDiscoverer),
+            PublisherTypeConstants.TheSuperHackers => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.GitHub.GitHubReleasesDiscoverer),
+            CommunityOutpostConstants.PublisherType => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer),
+            ModDBConstants.PublisherType => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer),
+            CNCLabsConstants.PublisherType => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer),
+            GitHubTopicsConstants.PublisherType => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.ContentDiscoverers.GitHubTopicsDiscoverer),
+            AODMapsConstants.PublisherType => contentDiscoverers.FirstOrDefault(x => x is GenHub.Features.Content.Services.ContentDiscoverers.AODMapsDiscoverer),
             _ => null,
         };
+
+        if (staticDiscoverer != null)
+        {
+            return staticDiscoverer;
+        }
+
+        // Check if it's a subscribed publisher
+        var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+        if (subscriptionResult.Success && subscriptionResult.Data != null)
+        {
+            // Populate catalog tabs for multi-catalog publishers
+            PopulateCatalogTabs(subscriptionResult.Data);
+
+            // Get GenericCatalogDiscoverer and configure it with the subscription
+            var genericDiscoverer = contentDiscoverers.OfType<GenericCatalogDiscoverer>().FirstOrDefault();
+            if (genericDiscoverer != null)
+            {
+                // Get the selected catalog entry if filtering
+                genericDiscoverer.Configure(subscriptionResult.Data);
+                return genericDiscoverer;
+            }
+        }
+
+        return null;
     }
 
     [RelayCommand]
@@ -409,51 +543,47 @@ public partial class DownloadsBrowserViewModel(
         SelectedContent = null;
     }
 
-    private void InitializePublishers()
+    private async Task InitializePublishersAsync()
     {
-        Publishers =
-        [
-            new PublisherItemViewModel(
-                PublisherTypeConstants.All,
-                "All Publishers",
-                "avares://GenHub/Assets/Logos/generalsonline-logo.png", // Use a generic logo for now
-                "merged"),
-            new PublisherItemViewModel(
-                PublisherTypeConstants.GeneralsOnline,
-                "Generals Online",
-                "avares://GenHub/Assets/Logos/generalsonline-logo.png",
-                "static"),
-            new PublisherItemViewModel(
-                PublisherTypeConstants.TheSuperHackers,
-                "TheSuperHackers",
-                "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
-                "static"),
-            new PublisherItemViewModel(
-                CommunityOutpostConstants.PublisherType,
-                "CommunityOutpost",
-                "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
-                "static"),
-            new PublisherItemViewModel(
-                ModDBConstants.PublisherType,
-                "ModDB",
-                "avares://GenHub/Assets/Logos/moddb-logo.png",
-                "dynamic"),
-            new PublisherItemViewModel(
-                CNCLabsConstants.PublisherType,
-                "CNC Labs",
-                "avares://GenHub/Assets/Logos/cnclabs-logo.png",
-                "dynamic"),
-            new PublisherItemViewModel(
-                GitHubTopicsConstants.PublisherType,
-                "GitHub",
-                "avares://GenHub/Assets/Logos/github-logo.png",
-                "dynamic"),
-            new PublisherItemViewModel(
-                AODMapsConstants.PublisherType,
-                "AOD Maps",
-                "avares://GenHub/Assets/Logos/aodmaps-logo.png",
-                "dynamic"),
-        ];
+        var coreList = new List<PublisherItemViewModel>
+        {
+            new(PublisherTypeConstants.GeneralsOnline, "Generals Online", "avares://GenHub/Assets/Logos/generalsonline-logo.png", "static"),
+            new(PublisherTypeConstants.TheSuperHackers, "TheSuperHackers", "avares://GenHub/Assets/Logos/thesuperhackers-logo.png", "static"),
+            new(CommunityOutpostConstants.PublisherType, "CommunityOutpost", "avares://GenHub/Assets/Logos/communityoutpost-logo.png", "static"),
+            new(ModDBConstants.PublisherType, "ModDB", "avares://GenHub/Assets/Logos/moddb-logo.png", "dynamic"),
+            new(CNCLabsConstants.PublisherType, "CNC Labs", "avares://GenHub/Assets/Logos/cnclabs-logo.png", "dynamic"),
+            new(GitHubTopicsConstants.PublisherType, "GitHub", "avares://GenHub/Assets/Logos/github-logo.png", "dynamic"),
+            new(AODMapsConstants.PublisherType, "AOD Maps", "avares://GenHub/Assets/Logos/aodmaps-logo.png", "dynamic"),
+        };
+
+        CorePublishers = new ObservableCollection<PublisherItemViewModel>(coreList);
+        Publishers = new ObservableCollection<PublisherItemViewModel>(coreList);
+
+        // Load subscribed publishers
+        try
+        {
+            var subscriptionsResult = await subscriptionStore.GetSubscriptionsAsync();
+            if (subscriptionsResult.Success && subscriptionsResult.Data != null)
+            {
+                foreach (var subscription in subscriptionsResult.Data)
+                {
+                    var vm = new PublisherItemViewModel(
+                        subscription.PublisherId,
+                        subscription.PublisherName,
+                        subscription.AvatarUrl ?? "avares://GenHub/Assets/Logos/generic-publisher.png",
+                        "subscribed");
+
+                    Publishers.Add(vm);
+                    SubscribedPublishers.Add(vm);
+                }
+
+                logger.LogInformation("Loaded {Count} subscribed publishers", subscriptionsResult.Data.Count());
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load subscribed publishers");
+        }
 
         // Select first publisher by default
         if (Publishers.Count > 0)
@@ -531,6 +661,59 @@ public partial class DownloadsBrowserViewModel(
 
             var manifest = manifestResult.Data;
             logger.LogInformation("Manifest created: {ManifestId}", manifest.Id.Value);
+
+            // Check for missing dependencies
+            var missingDepsResult = await _dependencyResolver.CheckMissingDependenciesAsync(manifest, cancellationToken);
+            if (missingDepsResult.Success && missingDepsResult.Data != null && missingDepsResult.Data.Any())
+            {
+                var missingDeps = missingDepsResult.Data.ToList();
+                logger.LogInformation("Found {Count} missing dependencies for {ContentName}", missingDeps.Count, item.Name);
+
+                // Show dependency prompt dialog
+                var decision = await ShowDependencyPromptAsync(item, manifest, missingDeps);
+
+                switch (decision)
+                {
+                    case DependencyDecision.Cancel:
+                        logger.LogInformation("User cancelled download due to missing dependencies");
+                        item.DownloadStatus = "Cancelled";
+                        return;
+
+                    case DependencyDecision.InstallAll:
+                        logger.LogInformation("User chose to install all dependencies");
+
+                        // Install dependencies that can be auto-installed
+                        foreach (var dep in missingDeps.Where(d => d.CanAutoInstall))
+                        {
+                            if (dep.ResolvableContent != null)
+                            {
+                                // Recursively download dependency
+                                var depItem = new ContentGridItemViewModel(dep.ResolvableContent)
+                                {
+                                    ViewCommand = ViewContentCommand,
+                                    DownloadCommand = DownloadContentCommand,
+                                };
+
+                                logger.LogInformation("Auto-installing dependency: {DepName}", dep.Dependency.Name);
+                                await DownloadContentAsync(depItem);
+
+                                // Check if dependency download succeeded
+                                if (!depItem.IsDownloaded)
+                                {
+                                    logger.LogWarning("Failed to download dependency: {DepName}", dep.Dependency.Name);
+                                    item.DownloadStatus = $"Error: Failed to download dependency '{dep.Dependency.Name}'";
+                                    return;
+                                }
+                            }
+                        }
+
+                        break;
+
+                    case DependencyDecision.SkipDependencies:
+                        logger.LogInformation("User chose to skip dependencies");
+                        break;
+                }
+            }
 
             // 2. Prepare Temp Directory
             var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "GenHub", "Downloads", manifest.Id.Value);

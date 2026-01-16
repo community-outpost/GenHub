@@ -14,7 +14,7 @@ using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.GitHub;
+namespace GenHub.Features.Content.Services.ContentResolvers;
 
 /// <summary>
 /// Resolves GitHub workflow artifacts into ContentManifest objects.

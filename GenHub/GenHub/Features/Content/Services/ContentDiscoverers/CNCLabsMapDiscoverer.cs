@@ -25,16 +25,6 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabsMapDiscoverer> logger) : IContentDiscoverer
 {
     private static readonly char[] TagSeparator = [',', ';', ' '];
-
-    [GeneratedRegex(@"(?:Date submitted|Date reviewed|Date added|Date updated|Added|Updated|reviewed):\s*(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase)]
-    private static partial Regex DateRegex();
-
-    [GeneratedRegex(@"(?:File Size|Size):\s*([\d\.]+\s*[KMGT]?B)", RegexOptions.IgnoreCase)]
-    private static partial Regex FileSizeRegex();
-
-    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
-    private static partial Regex DownloadCountRegex();
-
     private readonly HttpClient _httpClient = httpClient;
     private readonly ILogger<CNCLabsMapDiscoverer> _logger = logger;
 
@@ -71,6 +61,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     /// otherwise, a failure with a message describing the error.
     /// </returns>
     /// <exception cref="OperationCanceledException">Thrown if the operation is canceled.</exception>
+    /// <inheritdoc />
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -294,21 +285,18 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                     var value = CNCLabsHelper.GetNextNonEmptyTextSibling(s);
                     if (string.IsNullOrEmpty(value)) continue;
 
-                    if (label.StartsWith("Updated:", StringComparison.OrdinalIgnoreCase) ||
-                        label.StartsWith("Added:", StringComparison.OrdinalIgnoreCase) ||
-                        label.StartsWith("Date:", StringComparison.OrdinalIgnoreCase) ||
-                        label.StartsWith("reviewed:", StringComparison.OrdinalIgnoreCase))
+                    if (label.Contains("Updated:") || label.Contains("Added:") || label.Contains("Date:") || label.Contains("reviewed:"))
                     {
                         if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
                         {
                             lastUpdated = parsed;
                         }
                     }
-                    else if (label.StartsWith("Size:", StringComparison.OrdinalIgnoreCase))
+                    else if (label.Contains("Size:"))
                     {
                         fSize = value;
                     }
-                    else if (label.StartsWith("Downloads:", StringComparison.OrdinalIgnoreCase))
+                    else if (label.Contains("Downloads:"))
                     {
                         if (long.TryParse(value.Replace(",", string.Empty), out var count))
                         {
@@ -364,7 +352,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                     _logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
                     hasMoreItems = true;
 
-                    // Don't break, keep logging for debug
+                    // Dont break, keep logging for debug
                 }
 
                 // Check for page numbers greater than current
@@ -596,10 +584,10 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         string? IconUrl,
         IEnumerable<string> Tags);
 
-    private long? ParseFileSize(string size)
+    private static long? ParseFileSize(string size)
     {
         // Simple parser for "7.2 MB" etc if needed, or return generic
-        // For now just return null as the UI uses the formatted string usually,
+        // For now just return null as the UI uses the formatted string string usually,
         // but ContentSearchResult.DownloadSize is Nullable<long> (bytes).
         // Let's try to parse simple cases.
         if (string.IsNullOrEmpty(size))
@@ -615,21 +603,27 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                 var unit = parts.Length > 1 ? parts[1].Trim().ToUpperInvariant() : "B";
                 long multiplier = unit switch
                 {
-                    "GB" => ConversionConstants.BytesPerGigabyte,
-                    "MB" => ConversionConstants.BytesPerMegabyte,
-                    "KB" => ConversionConstants.BytesPerKilobyte,
+                    "GB" => 1024 * 1024 * 1024,
+                    "MB" => 1024 * 1024,
+                    "KB" => 1024,
                     _ => 1,
                 };
                 return (long)(val * multiplier);
             }
         }
-        catch (Exception ex)
+        catch
         {
-            // Logging failure to parse file size, though it's acceptable to return null
-            // and fallback to the display string.
-            _logger.LogWarning("Failed to parse file size '{Size}': {Error}", size, ex.Message);
         }
 
         return null;
     }
+
+    [GeneratedRegex(@"(?:Date submitted|Date reviewed|Date added|Date updated|Added|Updated|reviewed):\s*(\d{1,2}/\d{1,2}/\d{4})", RegexOptions.IgnoreCase)]
+    private static partial Regex DateRegex();
+
+    [GeneratedRegex(@"(?:File Size|Size):\s*([\d\.]+\s*[KMGT]?B)", RegexOptions.IgnoreCase)]
+    private static partial Regex FileSizeRegex();
+
+    [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex DownloadCountRegex();
 }

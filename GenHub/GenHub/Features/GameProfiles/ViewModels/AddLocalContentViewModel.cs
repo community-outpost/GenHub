@@ -38,12 +38,45 @@ public partial class AddLocalContentViewModel(
     [
         ContentType.Mod,
         ContentType.GameClient,
+        ContentType.Executable,
+        ContentType.ModdingTool,
+        ContentType.Patch,
         ContentType.Addon,
         ContentType.Map,
         ContentType.MapPack,
         ContentType.Mission,
-        ContentType.ModdingTool,
     ];
+
+    private static FileTreeItem? FindFirstExecutable(IEnumerable<FileTreeItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item.IsExecutable)
+            {
+                return item;
+            }
+
+            var childExe = FindFirstExecutable(item.Children);
+            if (childExe != null)
+            {
+                return childExe;
+            }
+        }
+
+        return null;
+    }
+
+    private static int CountExecutables(IEnumerable<FileTreeItem> items)
+    {
+        int count = 0;
+        foreach (var item in items)
+        {
+            if (item.IsExecutable) count++;
+            count += CountExecutables(item.Children);
+        }
+
+        return count;
+    }
 
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
@@ -101,6 +134,41 @@ public partial class AddLocalContentViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _canAdd;
+
+    /// <summary>
+    /// Gets or sets the selected executable item (for Executable/ModdingTool content type).
+    /// </summary>
+    [ObservableProperty]
+    private FileTreeItem? _selectedExecutableItem;
+
+    /// <summary>
+    /// Gets or sets the number of executables found in the staging area.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowExecutableSelection))]
+    private int _executableCount;
+
+    /// <summary>
+    /// Gets a value indicating whether the executable selection should be shown.
+    /// </summary>
+    public bool ShowExecutableSelection => (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable) && ExecutableCount > 1;
+
+    /// <summary>
+    /// Gets the text to display in the preview area when no content is loaded.
+    /// </summary>
+    public string PreviewIdleText => SelectedContentType switch
+    {
+        ContentType.Mod => "Import mod content (e.g. .big, .zip)",
+        ContentType.GameClient => "Import GameClient",
+        ContentType.Executable => "Import executable",
+        ContentType.ModdingTool => "Import tool executable",
+        ContentType.Patch => "Import patch",
+        ContentType.Addon => "Import addon content",
+        ContentType.Map => "Import map files",
+        ContentType.MapPack => "Import map pack files",
+        ContentType.Mission => "Import mission content",
+        _ => "Drag and drop content to begin",
+    };
 
     /// <summary>
     /// Event triggered when the window should be closed.
@@ -475,6 +543,7 @@ public partial class AddLocalContentViewModel(
             if (!wasBusy) IsBusy = true;
 
             FileTree.Clear();
+            SelectedExecutableItem = null; // Clear previous selection on refresh
             if (Directory.Exists(_stagingPath))
             {
                 var dirInfo = new DirectoryInfo(_stagingPath);
@@ -483,6 +552,14 @@ public partial class AddLocalContentViewModel(
                 {
                     FileTree.Add(item);
                 }
+            }
+
+            ExecutableCount = CountExecutables(FileTree);
+
+            // Auto-select first executable if content type requires it
+            if (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable)
+            {
+                AutoSelectFirstExecutable();
             }
 
             Validate();
@@ -504,19 +581,75 @@ public partial class AddLocalContentViewModel(
         var stagingExists = Directory.Exists(_stagingPath);
         var stagingHasEntries = stagingExists && Directory.EnumerateFileSystemEntries(_stagingPath).Any();
 
-        CanAdd = hasName && (hasFiles || stagingHasEntries);
+        // For ModdingTool (Tool) and Executable, we also need an executable selected
+        var requiresExecutable = SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable;
+        var hasExecutableIfNeeded = !requiresExecutable || SelectedExecutableItem != null;
+
+        CanAdd = hasName && (hasFiles || stagingHasEntries) && hasExecutableIfNeeded;
 
         logger?.LogDebug(
-            "Validate: CanAdd={CanAdd} (HasName={HasName}, HasFiles={HasFiles}, StagingExists={StagingExists}, StagingHasEntries={StagingHasEntries})", CanAdd, hasName, hasFiles, stagingExists, stagingHasEntries);
+            "Validate: CanAdd={CanAdd} (HasName={HasName}, HasFiles={HasFiles}, StagingExists={StagingExists}, StagingHasEntries={StagingHasEntries}, HasExecutableIfNeeded={HasExecutableIfNeeded})", CanAdd, hasName, hasFiles, stagingExists, stagingHasEntries, hasExecutableIfNeeded);
 
         if (!CanAdd)
         {
             if (!hasName) logger?.LogDebug("Validate failed: ContentName is empty.");
             if (!hasFiles && !stagingHasEntries) logger?.LogDebug("Validate failed: No files in tree or staging directory.");
+            if (!hasExecutableIfNeeded) logger?.LogDebug("Validate failed: Executable content type requires an executable to be selected.");
         }
     }
 
     partial void OnContentNameChanged(string value) => Validate();
 
     partial void OnFileTreeChanged(ObservableCollection<FileTreeItem> value) => Validate();
+
+    partial void OnSelectedContentTypeChanged(ContentType value)
+    {
+        OnPropertyChanged(nameof(ShowExecutableSelection));
+        OnPropertyChanged(nameof(PreviewIdleText));
+
+        // Auto-select first executable if switching to ModdingTool or Executable
+        if ((value == ContentType.ModdingTool || value == ContentType.Executable) && SelectedExecutableItem == null)
+        {
+            AutoSelectFirstExecutable();
+        }
+
+        Validate();
+    }
+
+    partial void OnSelectedExecutableItemChanged(FileTreeItem? oldValue, FileTreeItem? newValue)
+    {
+        // Clear old selection
+        if (oldValue != null)
+        {
+            oldValue.IsSelectedExecutable = false;
+        }
+
+        // Set new selection
+        if (newValue != null)
+        {
+            newValue.IsSelectedExecutable = true;
+        }
+
+        Validate();
+    }
+
+    [RelayCommand]
+    private void SelectExecutable(FileTreeItem item)
+    {
+        if (item?.IsExecutable == true)
+        {
+            SelectedExecutableItem = item;
+            logger?.LogInformation("Selected executable: {Name}", item.Name);
+        }
+    }
+
+    private void AutoSelectFirstExecutable()
+    {
+        var firstExe = FindFirstExecutable(FileTree);
+        if (firstExe != null)
+        {
+            SelectedExecutableItem = firstExe;
+            logger?.LogInformation("Auto-selected first executable: {Name}", firstExe.Name);
+        }
+    }
 }

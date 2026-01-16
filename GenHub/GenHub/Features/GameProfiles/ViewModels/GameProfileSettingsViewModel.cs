@@ -349,6 +349,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         ContentType.Addon,
         ContentType.Patch,
         ContentType.ModdingTool,
+        ContentType.Executable,
+        ContentType.GameClient,
     ];
 
     /// <summary>
@@ -429,6 +431,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         ContentType.Addon,
         ContentType.Patch,
         ContentType.ModdingTool,
+        ContentType.Executable,
     ];
 
     /// <summary>
@@ -554,6 +557,47 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             // Initialize game settings with defaults for new profile
             GameSettingsViewModel.ColorValue = ColorValue;
 
+            // pre-load existing settings.json if available
+            // This ensures users creating their first profile don't lose their current configuration
+            if (gameSettingsService != null)
+            {
+                try
+                {
+                    var existingGoSettings = await gameSettingsService.LoadGameSettingsAsync();
+                    if (existingGoSettings.Success && existingGoSettings.Data != null)
+                    {
+                        logger?.LogInformation("Pre-loading existing GameSettings for new profile");
+                        var data = existingGoSettings.Data;
+
+                        // Map existing settings to global DTO structure if needed, or directly pass to GameSettingsViewModel
+                        // Since GameSettingsViewModel initializes with defaults (nulls), we need to inject these values.
+                        // We'll create a temporary Profile object with these settings to initialize the VM.
+                        var tempProfile = new GameProfile { Id = "temp_new" };
+
+                        // Use the Mapper to populate the profile from the settings object
+                        GameSettingsMapper.ApplyFromGameSettings(data, tempProfile);
+
+                        // Initialize VM with these pre-loaded settings
+                        await GameSettingsViewModel.InitializeForProfileAsync(null, tempProfile);
+                    }
+                else
+                {
+                    // Fallback to standard defaults
+                    await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+                }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to pre-load existing settings for new profile, using defaults");
+                    await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+                }
+            }
+            else
+            {
+                // No settings service available, use defaults
+                await GameSettingsViewModel.InitializeForProfileAsync(null, null);
+            }
+
             // Ensure the correct game type is selected so we load the correct Options.ini defaults
             if (SelectedGameInstallation != null)
             {
@@ -562,8 +606,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                     "Set GameSettingsViewModel.SelectedGameType to {GameType} before initialization",
                     SelectedGameInstallation.GameType);
             }
-
-            await GameSettingsViewModel.InitializeForProfileAsync(null, null);
 
             StatusMessage = $"Found {AvailableGameInstallations.Count} installations and {AvailableContent.Count} content items";
             logger?.LogInformation(
@@ -1834,15 +1876,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                 return;
             }
 
-            // Validate that GameInstallation content is enabled
-            var hasGameInstallation = EnabledContent.Any(c => c.ContentType == ContentType.GameInstallation && c.IsEnabled);
-            if (!hasGameInstallation)
+            // Validate that some launchable content is enabled (GameInstallation, GameClient, Executable, or Tool)
+            var hasLaunchableContent = EnabledContent.Any(c =>
+                c.IsEnabled &&
+                (c.ContentType == ContentType.GameInstallation ||
+                 c.ContentType == ContentType.GameClient ||
+                 c.ContentType == ContentType.Executable ||
+                 c.ContentType == ContentType.ModdingTool));
+
+            if (!hasLaunchableContent)
             {
-                StatusMessage = "Error: A Game Installation must be enabled for the profile to be launchable.";
+                StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
                 _localNotificationService.ShowError(
-                    "Missing Game Installation",
-                    "Please enable a Game Installation before saving the profile. The profile cannot be launched without one.");
-                logger?.LogWarning("Profile save blocked: No GameInstallation content enabled");
+                    "Missing Launchable Content",
+                    "Please enable a Game, Executable, or Tool before saving.");
+                logger?.LogWarning("Profile save blocked: No launchable content enabled");
                 return;
             }
 
@@ -1874,29 +1922,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             {
                 // Create new profile
 
-                // Ensure SelectedGameInstallation manifest is added if not already present
-                if (!enabledContentIds.Contains(SelectedGameInstallation.ManifestId.Value, StringComparer.OrdinalIgnoreCase))
-                {
-                    enabledContentIds.Insert(0, SelectedGameInstallation.ManifestId.Value);
-                    logger?.LogInformation("Auto-enabled SelectedGameInstallation: {ManifestId}", SelectedGameInstallation.ManifestId.Value);
-                }
-
-                // Auto-enable GameClient ONLY if no GameClient content is already enabled
-                var hasGameClientEnabled = EnabledContent.Any(c => c.IsEnabled && c.ContentType == ContentType.GameClient);
-                if (!hasGameClientEnabled &&
-                    !string.IsNullOrEmpty(SelectedGameInstallation.GameClientId) &&
-                    !enabledContentIds.Contains(SelectedGameInstallation.GameClientId, StringComparer.OrdinalIgnoreCase))
-                {
-                    // Add after GameInstallation (index 1) if we just added it, or anywhere if already present
-                    var insertIndex = enabledContentIds.IndexOf(SelectedGameInstallation.ManifestId.Value) + 1;
-                    enabledContentIds.Insert(Math.Min(insertIndex, enabledContentIds.Count), SelectedGameInstallation.GameClientId);
-                    logger?.LogInformation("Auto-enabled default GameClient content: {GameClientId}", SelectedGameInstallation.GameClientId);
-                }
-                else if (hasGameClientEnabled)
-                {
-                    logger?.LogInformation("Skipping auto-enable GameClient - user has already selected a GameClient");
-                }
-
+                // Auto-enable logic removed to respect user selection.
+                // Validation (ValidateAllDependenciesAsync) performed earlier handles ensuring required content is present.
+                // If a Tool/Executable is selected without GameInstallation, it will now pass if valid.
                 var createRequest = new CreateProfileRequest
                 {
                     Name = Name,

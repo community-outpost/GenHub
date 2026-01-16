@@ -23,6 +23,12 @@
 
     <Style Selector="Border.tool-content-card">
       <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Margin" Value="10" />
+    </Style>
+
+    <Style Selector="Border.tool-content-card.fullscreen">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
     </Style>
 
     <Style Selector="ListBoxItem">
@@ -157,7 +163,7 @@
                   IsVisible="{Binding IsPaneOpen}"
                   PointerPressed="OnContentPointerPressed" />
            <!-- Header / Status Area -->
-           <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" >
+           <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" IsVisible="{Binding !SelectedTool.Metadata.IsFullScreen}">
              <TextBlock Text="{Binding SelectedTool.Metadata.Name, FallbackValue='Tools'}" Classes="header" />
 
              <!-- Status Messages -->
@@ -172,7 +178,7 @@
            </Grid>
 
            <!-- Content Area -->
-           <Border Grid.Row="1" Classes="tool-content-card" Margin="10">
+           <Border Grid.Row="1" Classes="tool-content-card" Classes.fullscreen="{Binding SelectedTool.Metadata.IsFullScreen}">
               <ContentControl Content="{Binding CurrentToolControl}" />
            </Border>
          </Grid>

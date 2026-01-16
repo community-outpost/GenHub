@@ -39,6 +39,13 @@ public class PublisherCatalog
     public string? Signature { get; set; }
 
     /// <summary>
+    /// Gets or sets alternate catalog URLs for redundancy and migration.
+    /// When the primary URL fails, GenHub will try mirrors in order.
+    /// </summary>
+    [JsonPropertyName("catalogMirrors")]
+    public List<string> CatalogMirrors { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets referrals to other publishers (cross-publisher discovery).
     /// </summary>
     [JsonPropertyName("referrals")]

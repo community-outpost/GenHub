@@ -1,0 +1,242 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="550"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddDependencyDialogView"
+             x:DataType="vm:AddDependencyDialogViewModel"
+             x:Name="Root">
+
+
+    <UserControl.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="SelectionBrush" Value="#D56AFF"/>
+            <Setter Property="SelectionForegroundBrush" Value="White"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#AA00FF"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,10"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn">
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.small-glass-btn:pointerover">
+            <Setter Property="Background" Value="#25FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#D0D0E0"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+            <TextBlock Text="Add Dependency"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="White"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    Background="Transparent"
+                    Padding="8"
+                    CornerRadius="8"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Width="12" Height="12"
+                          Foreground="#888888"/>
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#15FFFFFF"/>
+                    </Style>
+                    <Style Selector="Button:pointerover PathIcon">
+                        <Setter Property="Foreground" Value="White"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="16">
+                <!-- Source Selection -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Dependency Source" Classes="label"/>
+                    <RadioButton Content="From My Catalog" IsChecked="{Binding IsFromMyCatalog}" GroupName="Source"/>
+                    <RadioButton Content="External Publisher" IsChecked="{Binding !IsFromMyCatalog}" GroupName="Source"/>
+                </StackPanel>
+
+                <Separator Background="#20FFFFFF" Height="1"/>
+
+                <!-- Internal -->
+                <StackPanel Spacing="16" IsVisible="{Binding IsFromMyCatalog}">
+                     <StackPanel Spacing="8">
+                         <TextBlock Text="Select Content Item" Classes="label"/>
+                         <ComboBox ItemsSource="{Binding AvailableContent}"
+                                   SelectedItem="{Binding SelectedContent}"
+                                   HorizontalAlignment="Stretch"
+                                   PlaceholderText="Select content...">
+                             <ComboBox.ItemTemplate>
+                                 <DataTemplate>
+                                     <TextBlock Text="{Binding Name}"/>
+                                 </DataTemplate>
+                             </ComboBox.ItemTemplate>
+                         </ComboBox>
+                         <TextBlock Text="No other content items available." IsVisible="{Binding !AvailableContent.Count}" Foreground="#FF5555"/>
+                     </StackPanel>
+                </StackPanel>
+
+                <!-- External -->
+                <StackPanel Spacing="16" IsVisible="{Binding !IsFromMyCatalog}">
+                     <StackPanel Spacing="8">
+                         <StackPanel Orientation="Horizontal" Spacing="4">
+                             <TextBlock Text="Publisher ID" Classes="label"/>
+                             <TextBlock Text="*" Foreground="#FF5555"/>
+                         </StackPanel>
+                         <TextBox Text="{Binding ExternalPublisherId}" Watermark="e.g. cnclabs"/>
+                     </StackPanel>
+                     <StackPanel Spacing="8">
+                         <StackPanel Orientation="Horizontal" Spacing="4">
+                             <TextBlock Text="Content ID" Classes="label"/>
+                             <TextBlock Text="*" Foreground="#FF5555"/>
+                         </StackPanel>
+                         <TextBox Text="{Binding ExternalContentId}" Watermark="e.g. worldbuilder-tool"/>
+                     </StackPanel>
+                     <StackPanel Spacing="8">
+                         <TextBlock Text="Catalog / Definition URL (Recommended)" Classes="label"/>
+                         <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
+                            <TextBox Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
+                                     Watermark="https://example.com/publisher.json"/>
+                            <Button Grid.Column="1" Content="Discover"
+                                    Command="{Binding DiscoverContentCommand}"
+                                    Margin="8,0,0,0"
+                                    Classes="small-glass-btn"
+                                    IsEnabled="{Binding !IsBusy}"/>
+
+                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
+                                         IsIndeterminate="True"
+                                         IsVisible="{Binding IsBusy}"
+                                         Margin="0,4,0,0"/>
+                         </Grid>
+                         <TextBlock Text="Providing a URL allows discovering content IDs automatically." Classes="hint"/>
+                     </StackPanel>
+
+                     <!-- Discovery Results -->
+                     <StackPanel Spacing="8" IsVisible="{Binding DiscoveredContent.Count}">
+                         <TextBlock Text="Discovered Content" Classes="label"/>
+                         <ListBox ItemsSource="{Binding DiscoveredContent}"
+                                  Height="120"
+                                  Background="#10000000"
+                                  BorderBrush="#15FFFFFF"
+                                  BorderThickness="1"
+                                  CornerRadius="6">
+                             <ListBox.ItemTemplate>
+                                 <DataTemplate>
+                                     <Grid ColumnDefinitions="*, Auto">
+                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                         <Button Grid.Column="1" Content="Select"
+                                                 Command="{Binding $parent[UserControl].((vm:AddDependencyDialogViewModel)DataContext).SelectDiscoveredContentCommand}"
+                                                 CommandParameter="{Binding}"
+                                                 Classes="small-glass-btn"/>
+                                     </Grid>
+                                 </DataTemplate>
+                             </ListBox.ItemTemplate>
+                         </ListBox>
+                     </StackPanel>
+                </StackPanel>
+
+                <Separator Background="#20FFFFFF" Height="1"/>
+
+                <!-- Version Constraints -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Version Constraint (SemVer)" Classes="label"/>
+                    <TextBox Text="{Binding VersionConstraint}" Watermark="e.g. >=1.0.0"/>
+                    <TextBlock Text="Examples:" Classes="hint"/>
+                    <ItemsControl ItemsSource="{Binding VersionConstraintExamples}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}"
+                                        Command="{ReflectionBinding DataContext.ApplyVersionConstraintExampleCommand, ElementName=Root}"
+                                        CommandParameter="{Binding}"
+                                        Classes="small-glass-btn" Margin="0,0,8,8"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <CheckBox Content="Optional Dependency" IsChecked="{Binding IsOptional}"/>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Conflicts With (Optional)" Classes="label"/>
+                    <TextBox Text="{Binding ConflictsWithIds}" Watermark="e.g. 1.0.other.mod.id, 1.0.another.mod"/>
+                    <TextBlock Text="Comma-separated Manifest IDs this dependency conflicts with." Classes="hint"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+             <TextBlock Text="{Binding ValidationError}"
+                        Foreground="#FF5555"
+                        VerticalAlignment="Center"
+                        TextWrapping="Wrap"
+                        MaxWidth="300"/>
+
+             <Button Content="Add Dependency"
+                     Command="{Binding CreateDependencyCommand}"
+                     Background="{DynamicResource PrimaryGradientBrush}"
+                     Foreground="White"
+                     CornerRadius="8"
+                     Padding="40,14"
+                     FontWeight="Bold"
+                     BorderThickness="0">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
+                        <Setter Property="Opacity" Value="0.85"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</UserControl>

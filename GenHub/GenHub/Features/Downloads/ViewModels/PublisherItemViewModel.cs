@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 
@@ -26,6 +27,18 @@ public partial class PublisherItemViewModel(
     private bool _isLoading;
 
     /// <summary>
+    /// Gets the catalog tabs for multi-catalog publishers.
+    /// </summary>
+    [ObservableProperty]
+    private ObservableCollection<CatalogTabViewModel> _catalogTabs = new();
+
+    /// <summary>
+    /// Gets or sets the currently selected catalog tab (null means show all).
+    /// </summary>
+    [ObservableProperty]
+    private CatalogTabViewModel? _selectedCatalogTab;
+
+    /// <summary>
     /// Gets the publisher ID.
     /// </summary>
     public string PublisherId { get; } = publisherId;
@@ -50,4 +63,9 @@ public partial class PublisherItemViewModel(
     /// </summary>
     public bool IsStaticPublisher =>
         PublisherType.Equals("static", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets whether this publisher has multiple catalogs.
+    /// </summary>
+    public bool HasMultipleCatalogs => CatalogTabs.Count > 1;
 }
