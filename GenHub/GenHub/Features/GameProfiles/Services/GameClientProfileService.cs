@@ -391,7 +391,7 @@ public class GameClientProfileService(
             ? UriConstants.GeneralsIconFilename
             : UriConstants.ZeroHourIconFilename;
 
-        return $"{UriConstants.IconsBasePath}/{gameIcon}";
+        return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
     private static string GetCoverPathForGame(GameType gameType, GameClient? gameClient = null)
@@ -400,17 +400,17 @@ public class GameClientProfileService(
         {
             if (gameClient.PublisherType == PublisherTypeConstants.TheSuperHackers)
             {
-                return $"{UriConstants.CoversBasePath}/china-poster.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/china-cover.png";
             }
 
             if (gameClient.PublisherType == CommunityOutpostConstants.PublisherType)
             {
-                return $"{UriConstants.CoversBasePath}/gla-poster.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/gla-cover.png";
             }
 
             if (gameClient.PublisherType == PublisherTypeConstants.GeneralsOnline)
             {
-                return $"{UriConstants.CoversBasePath}/usa-poster.png";
+                return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/usa-cover.png";
             }
         }
 
@@ -418,7 +418,7 @@ public class GameClientProfileService(
             ? UriConstants.GeneralsCoverFilename
             : UriConstants.ZeroHourCoverFilename;
 
-        return $"{UriConstants.CoversBasePath}/{gameCover}";
+        return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversBasePath}/{gameCover}";
     }
 
     /// <summary>

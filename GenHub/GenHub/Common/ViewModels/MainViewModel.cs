@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Common.ViewModels;
 
 /// <summary>
-/// Initializes a new instance of the <see cref="MainViewModel"/> class.
+/// Initializes a new instance of <see cref="MainViewModel"/> class.
 /// </summary>
 /// <param name="gameProfilesViewModel">Game profiles view model.</param>
 /// <param name="downloadsViewModel">Downloads view model.</param>
@@ -145,12 +145,6 @@ public partial class MainViewModel(
         _ => tab.ToString(),
     };
 
-    // Register for messages
-    private void RegisterMessages()
-    {
-        WeakReferenceMessenger.Default.Register(this);
-    }
-
     /// <inheritdoc/>
     public void Receive(NavigationMessage message)
     {
@@ -166,6 +160,7 @@ public partial class MainViewModel(
     {
         SelectedTab = tab;
     }
+
     /// <summary>
     /// Performs asynchronous initialization for the shell and all tabs.
     /// </summary>
@@ -181,6 +176,16 @@ public partial class MainViewModel(
 
         // Start background check with cancellation support
         _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
+    }
+
+    /// <summary>
+    /// Disposes of managed resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _initializationCts?.Cancel();
+        _initializationCts?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private static NavigationTab LoadInitialTab(IConfigurationProviderService configurationProvider, ILogger<MainViewModel>? logger)
@@ -203,14 +208,10 @@ public partial class MainViewModel(
         }
     }
 
-    /// <summary>
-    /// Disposes of managed resources.
-    /// </summary>
-    public void Dispose()
+    // Register for messages
+    private void RegisterMessages()
     {
-        _initializationCts?.Cancel();
-        _initializationCts?.Dispose();
-        GC.SuppressFinalize(this);
+        WeakReferenceMessenger.Default.Register(this);
     }
 
     /// <summary>
@@ -278,7 +279,7 @@ public partial class MainViewModel(
                             null, // Persistent
                             actions:
                             [
-                                new(
+                                new NotificationAction(
                                     "View Updates",
                                     () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
                                     NotificationActionStyle.Primary,

@@ -21,5 +21,6 @@
         <local:IntToBoolConverter x:Key="IntToBoolConverter" />
         <local:EqualityConverter x:Key="EqualityConverter" />
         <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
+        <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
     </Application.Resources>
 </Application>

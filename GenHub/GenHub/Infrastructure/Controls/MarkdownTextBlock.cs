@@ -36,14 +36,13 @@ public class MarkdownTextBlock : UserControl
         MarkdownProperty.Changed.AddClassHandler<MarkdownTextBlock>((control, _) => control.UpdateContent());
     }
 
-    private static Border RenderCodeBlock(CodeBlock code)
+    private static Control RenderCodeBlock(CodeBlock code)
     {
         var border = new Border
         {
             Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(12),
-            Margin = new Thickness(0, 8, 0, 8),
         };
 
         var textBlock = new TextBlock
@@ -56,7 +55,13 @@ public class MarkdownTextBlock : UserControl
         };
 
         border.Child = textBlock;
-        return border;
+
+        return new ScrollViewer
+        {
+            Content = border,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Margin = new Thickness(0, 8, 0, 8),
+        };
     }
 
     private static string GetInlineText(ContainerInline? inline)
@@ -197,6 +202,11 @@ public class MarkdownTextBlock : UserControl
 
     private static Control RenderBlock(Block block)
     {
+        if (block is LinkReferenceDefinitionGroup)
+        {
+            return new Control { IsVisible = false };
+        }
+
         return block switch
         {
             HeadingBlock heading => RenderHeading(heading),
@@ -215,6 +225,7 @@ public class MarkdownTextBlock : UserControl
             Foreground = new SolidColorBrush(Color.Parse("#DDDDDD")),
             FontSize = 14,
             LineHeight = 22,
+            Margin = new Thickness(0, 0, 0, 8),
         };
 
         if (textBlock.Inlines != null)

@@ -18,8 +18,8 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
     private const string ImagesPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Images";
 
     private readonly object _initLock = new();
-    private readonly List<ProfileResourceItem> _icons = new();
-    private readonly List<ProfileResourceItem> _covers = new();
+    private readonly List<ProfileResourceItem> _icons = new List<ProfileResourceItem>();
+    private readonly List<ProfileResourceItem> _covers = new List<ProfileResourceItem>();
     private bool _initialized = false;
 
     /// <summary>
@@ -181,20 +181,20 @@ public class ProfileResourceService(ILogger<ProfileResourceService> logger)
             });
         }
 
-        // Load faction posters as covers
-        var posterFiles = new (string, string, string?)[]
+        // Load faction covers
+        var factionCoverFiles = new (string, string, string?)[]
         {
-            ("china-poster.png", "China Poster", null),
-            ("gla-poster.png", "GLA Poster", null),
-            ("usa-poster.png", "USA Poster", null),
+            ("china-cover.png", "China Cover", null),
+            ("gla-cover.png", "GLA Cover", null),
+            ("usa-cover.png", "USA Cover", null),
         };
 
-        foreach (var (fileName, displayName, gameType) in posterFiles)
+        foreach (var (fileName, displayName, gameType) in factionCoverFiles)
         {
             _covers.Add(new ProfileResourceItem
             {
                 Id = Path.GetFileNameWithoutExtension(fileName),
-                Path = $"{ImagesPath}/{fileName}",
+                Path = $"{CoversPath}/{fileName}",
                 DisplayName = displayName,
                 IsBuiltIn = true,
                 GameType = gameType,

@@ -162,14 +162,6 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
         }
     }
 
-    partial void OnSelectedSectionChanged(IInfoSectionViewModel? value)
-    {
-        if (value != null)
-        {
-            _ = value.InitializeAsync();
-        }
-    }
-
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -180,5 +172,13 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    partial void OnSelectedSectionChanged(IInfoSectionViewModel? value)
+    {
+        if (value != null)
+        {
+            _ = value.InitializeAsync();
+        }
     }
 }

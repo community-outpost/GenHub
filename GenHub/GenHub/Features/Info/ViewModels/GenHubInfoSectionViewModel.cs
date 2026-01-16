@@ -11,8 +11,11 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Info;
+using GenHub.Features.Info.Services;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ReplayManager.ViewModels;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -28,7 +31,40 @@ public partial class GenHubInfoSectionViewModel(
     INotificationService? notificationService = null) : ObservableObject, IInfoSectionViewModel
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
     private InfoSectionViewModel? _selectedSection;
+
+    // Tools section expandable state
+    [ObservableProperty]
+    private bool _replayFeaturesExpanded = false;
+    [ObservableProperty]
+    private bool _replayInterfaceExpanded = false;
+    [ObservableProperty]
+    private bool _replayImportingExpanded = false;
+    [ObservableProperty]
+    private bool _replayManagingExpanded = false;
+    [ObservableProperty]
+    private bool _replayExportingExpanded = false;
+    [ObservableProperty]
+    private bool _mapFeaturesExpanded = false;
+    [ObservableProperty]
+    private bool _mapInterfaceExpanded = false;
+    [ObservableProperty]
+    private bool _mapImportingExpanded = false;
+    [ObservableProperty]
+    private bool _mapManagingExpanded = false;
+    [ObservableProperty]
+    private bool _mapExportingExpanded = false;
+    [ObservableProperty]
+    private bool _mapPacksExpanded = false;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -51,9 +87,19 @@ public partial class GenHubInfoSectionViewModel(
     public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
 
     /// <summary>
-    /// Gets the demo profile card for interactive demonstrations.
+    /// Gets the demo profile card for interactive demonstrations (General/Shortcuts).
     /// </summary>
     public GameProfileItemViewModel? DemoProfileCard { get; private set; }
+
+    /// <summary>
+    /// Gets the demo profile card specifically for the Steam integration demo.
+    /// </summary>
+    public GameProfileItemViewModel? DemoSteamProfile { get; private set; }
+
+    /// <summary>
+    /// Gets the demo profile card specifically for the Shortcut demo.
+    /// </summary>
+    public GameProfileItemViewModel? DemoShortcutProfile { get; private set; }
 
     /// <summary>
     /// Gets the demo update notification for interactive demonstrations.
@@ -61,19 +107,140 @@ public partial class GenHubInfoSectionViewModel(
     public UpdateNotificationViewModel? DemoUpdateNotification { get; private set; }
 
     /// <summary>
+    /// Gets the demo game settings for the Content Editor demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_ContentTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+
+    /// <summary>
+    /// Gets the demo game settings for the Game Settings demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_SettingsTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+
+    /// <summary>
+    /// Gets the demo game settings view model for the standalone Settings view.
+    /// </summary>
+    public GameSettingsViewModel? DemoGameSettingsVM { get; private set; } = new GameSettingsViewModel(new MockGameSettingsService(), new Microsoft.Extensions.Logging.Abstractions.NullLogger<GameSettingsViewModel>());
+
+    /// <summary>
+    /// Gets the demo replay manager for interactive demonstrations.
+    /// </summary>
+    public ReplayManagerViewModel? DemoReplayManager { get; private set; }
+
+    /// <summary>
+    /// Gets the demo map manager for interactive demonstrations.
+    /// </summary>
+    public MapManagerViewModel? DemoMapManager { get; private set; }
+
+    /// <summary>
+    /// Gets the demo add local content view model.
+    /// </summary>
+    public AddLocalContentViewModel? DemoAddLocalContent { get; private set; }
+
+    /// <summary>
+    /// Toggles the expanded state of the replay features section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayFeaturesExpanded() => ReplayFeaturesExpanded = !ReplayFeaturesExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay interface section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayInterfaceExpanded() => ReplayInterfaceExpanded = !ReplayInterfaceExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay importing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayImportingExpanded() => ReplayImportingExpanded = !ReplayImportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay managing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayManagingExpanded() => ReplayManagingExpanded = !ReplayManagingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay exporting section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayExportingExpanded() => ReplayExportingExpanded = !ReplayExportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map features section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapFeaturesExpanded() => MapFeaturesExpanded = !MapFeaturesExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map interface section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapInterfaceExpanded() => MapInterfaceExpanded = !MapInterfaceExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map importing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapImportingExpanded() => MapImportingExpanded = !MapImportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map managing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapManagingExpanded() => MapManagingExpanded = !MapManagingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map exporting section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapExportingExpanded() => MapExportingExpanded = !MapExportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map packs section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapPacksExpanded() => MapPacksExpanded = !MapPacksExpanded;
+
+    /// <summary>
     /// Gets the changelogs view model.
     /// </summary>
     public ChangelogsViewModel Changelogs => changelogsViewModel;
 
     /// <summary>
-    /// Gets the demo game settings for interactive demonstrations.
-    /// </summary>
-    public GameSettingsViewModel? DemoGameSettings { get; private set; }
-
-    /// <summary>
     /// Gets a value indicating whether the Game Profiles section is selected.
     /// </summary>
     public bool IsGameProfilesSelected => SelectedSection?.Id == "game-profiles";
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Settings section is selected.
+    /// </summary>
+    public bool IsGameSettingsSelected => SelectedSection?.Id == "game-settings";
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Content section is selected.
+    /// </summary>
+    public bool IsGameProfileContentSelected => SelectedSection?.Id == "game-profile-content";
+
+    /// <summary>
+    /// Gets a value indicating whether the Shortcuts section is selected.
+    /// </summary>
+    public bool IsShortcutsSelected => SelectedSection?.Id == "shortcuts";
+
+    /// <summary>
+    /// Gets a value indicating whether the Tools section is selected.
+    /// </summary>
+    public bool IsToolsSelected => SelectedSection?.Id == "tools";
+
+    /// <summary>
+    /// Gets a value indicating whether the Local Content section is selected.
+    /// </summary>
+    public bool IsLocalContentSelected => SelectedSection?.Id == "local-content";
+
+    /// <summary>
+    /// Gets a value indicating whether the Scan for Games section is selected.
+    /// </summary>
+    public bool IsScanForGamesSelected => SelectedSection?.Id == "scan-games";
 
     /// <summary>
     /// Gets a value indicating whether the App Updates section is selected.
@@ -85,45 +252,94 @@ public partial class GenHubInfoSectionViewModel(
     /// </summary>
     public bool IsChangelogsSelected => SelectedSection?.Id == "changelogs";
 
-    /// <summary>
-    /// Gets a value indicating whether the Profile Settings section is selected.
-    /// </summary>
-    public bool IsProfileSettingsSelected => SelectedSection?.Id == "profile-settings";
-
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
-        if (Sections.Any())
+        // Load sections if not already loaded
+        if (!Sections.Any())
+        {
+            var sections = await contentProvider.GetAllSectionsAsync();
+
+            foreach (var section in sections)
+            {
+                Sections.Add(MapToViewModel(section));
+            }
+
+            SelectedSection = Sections.FirstOrDefault();
+
+            // Load changelogs automatically
+            await Changelogs.LoadChangelogsAsync();
+        }
+        else
         {
             // Already initialized, but load changelogs if not loaded
             if (Changelogs.Releases.Count == 0)
             {
-                await Changelogs.LoadChangelogsAsync();
+                 await Changelogs.LoadChangelogsAsync();
             }
-
-            return;
         }
 
-        var sections = await contentProvider.GetAllSectionsAsync();
-
-        foreach (var section in sections)
+        // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
+        // Check each property individually to be robust against partial initialization failures
+        if (DemoProfileCard == null)
         {
-            Sections.Add(MapToViewModel(section));
+            DemoProfileCard = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoProfileCard));
         }
 
-        SelectedSection = Sections.FirstOrDefault();
+        if (DemoSteamProfile == null)
+        {
+            DemoSteamProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: true, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoSteamProfile));
+        }
 
-        // Load changelogs automatically
-        await Changelogs.LoadChangelogsAsync();
+        if (DemoShortcutProfile == null)
+        {
+            DemoShortcutProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: true);
+            OnPropertyChanged(nameof(DemoShortcutProfile));
+        }
 
-        // Initialize demo ViewModels
-        DemoProfileCard = DemoViewModelFactory.CreateDemoProfileCard(notificationService);
-        DemoUpdateNotification = DemoViewModelFactory.CreateDemoUpdateViewModel();
-        DemoGameSettings = DemoViewModelFactory.CreateDemoGameSettingsViewModel();
+        if (DemoUpdateNotification == null)
+        {
+            DemoUpdateNotification = DemoViewModelFactory.CreateDemoUpdateViewModel();
+            OnPropertyChanged(nameof(DemoUpdateNotification));
+        }
 
-        OnPropertyChanged(nameof(DemoProfileCard));
-        OnPropertyChanged(nameof(DemoUpdateNotification));
-        OnPropertyChanged(nameof(DemoGameSettings));
+        if (DemoGameSettings_ContentTab == null)
+        {
+            DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
+        }
+
+        if (DemoGameSettings_SettingsTab == null)
+        {
+            DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+            OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
+        }
+
+        if (DemoGameSettingsVM == null)
+        {
+            DemoGameSettingsVM = DemoViewModelFactory.CreateDemoGameSettingsViewModel();
+            OnPropertyChanged(nameof(DemoGameSettingsVM));
+        }
+
+        if (DemoReplayManager == null)
+        {
+            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService);
+            OnPropertyChanged(nameof(DemoReplayManager));
+        }
+
+        if (DemoMapManager == null)
+        {
+            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService);
+            OnPropertyChanged(nameof(DemoMapManager));
+        }
+
+        if (DemoAddLocalContent == null)
+        {
+            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent();
+            OnPropertyChanged(nameof(DemoAddLocalContent));
+        }
     }
 
     private static InfoSectionViewModel MapToViewModel(InfoSection section)
@@ -179,8 +395,13 @@ public partial class GenHubInfoSectionViewModel(
     partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
     {
         OnPropertyChanged(nameof(IsGameProfilesSelected));
+        OnPropertyChanged(nameof(IsGameSettingsSelected));
+        OnPropertyChanged(nameof(IsGameProfileContentSelected));
+        OnPropertyChanged(nameof(IsShortcutsSelected));
+        OnPropertyChanged(nameof(IsToolsSelected));
+        OnPropertyChanged(nameof(IsLocalContentSelected));
+        OnPropertyChanged(nameof(IsScanForGamesSelected));
         OnPropertyChanged(nameof(IsAppUpdatesSelected));
-        OnPropertyChanged(nameof(IsProfileSettingsSelected));
         OnPropertyChanged(nameof(IsChangelogsSelected));
 
         if (IsChangelogsSelected && !Changelogs.Releases.Any() && !Changelogs.IsLoading)

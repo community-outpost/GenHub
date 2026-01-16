@@ -166,9 +166,6 @@ public partial class GameProfileLauncherViewModel(
                         CreateShortcutAction = CreateShortcut,
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
-                        ConfirmKeepUserDataAction = ConfirmUserDataKeepAsync,
-                        ConfirmRemoveUserDataAction = ConfirmUserDataRemoveAsync,
-                        CancelUserDataConfirmationAction = CancelUserDataConfirmation,
                     };
 
                     // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -837,9 +834,6 @@ public partial class GameProfileLauncherViewModel(
                 CreateShortcutAction = CreateShortcut,
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
-                ConfirmKeepUserDataAction = ConfirmUserDataKeepAsync,
-                ConfirmRemoveUserDataAction = ConfirmUserDataRemoveAsync,
-                CancelUserDataConfirmationAction = CancelUserDataConfirmation,
             };
 
             // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -887,7 +881,7 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogDebug("[Launch] Launching profile {ProfileName} (ID: {ProfileId})", profile.Name, profile.ProfileId);
 
                 // Normal launch
-                await ExecuteLaunchAsync(profile, skipUserDataCleanup: false);
+                await ExecuteLaunchAsync(profile);
             }
             catch (Exception ex)
             {
@@ -910,18 +904,12 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Executes the actual launch operation.
     /// </summary>
-    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile, bool skipUserDataCleanup)
+    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
     {
         StatusMessage = $"Launching {profile.Name}...";
 
-        // Show "taking a while" message if many maps are being linked
-        if (skipUserDataCleanup && profile.IsLargeMapCount)
-        {
-            StatusMessage = "Adding maps to profile (this might take a while)...";
-            notificationService.ShowInfo("Loading Maps", "Adding many maps to this profile. This may take a moment...", NotificationDurations.Long);
-        }
-
-        var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup);
+        // With CAS hardlinks, profile switching is instant - maps are just symlinks
+        var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
 
         if (launchResult.Success && launchResult.Data != null)
         {
@@ -930,7 +918,6 @@ public partial class GameProfileLauncherViewModel(
 
             liveProfile.IsProcessRunning = true;
             liveProfile.ProcessId = launchResult.Data.ProcessInfo.ProcessId;
-            liveProfile.ShowUserDataConfirmation = false; // Hide confirmation if it was shown
 
             // Ensure notifications are sent for binding updates
             liveProfile.NotifyCanLaunchChanged();
@@ -945,83 +932,6 @@ public partial class GameProfileLauncherViewModel(
             ErrorMessage = errors;
             notificationService.ShowError("Launch Failed", $"Failed to launch {profile.Name}: {errors}");
         }
-    }
-
-    /// <summary>
-    /// Confirms that user data should be kept and added to the new profile.
-    /// </summary>
-    [RelayCommand]
-    private async Task ConfirmUserDataKeepAsync(GameProfileItemViewModel profile)
-    {
-        profile.ShowUserDataConfirmation = false;
-
-        if (!await _launchSemaphore.WaitAsync(0))
-        {
-            StatusMessage = "A profile is already launching...";
-            return;
-        }
-
-        try
-        {
-            IsLaunching = true;
-            await ExecuteLaunchAsync(profile, skipUserDataCleanup: true);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during confirmed launch (Keep) for {ProfileName}", profile.Name);
-            StatusMessage = $"Error launching {profile.Name}";
-            ErrorMessage = ex.Message;
-            notificationService.ShowError("Launch Error", $"Error launching {profile.Name}: {ex.Message}");
-        }
-        finally
-        {
-            IsLaunching = false;
-            _launchSemaphore.Release();
-        }
-    }
-
-    /// <summary>
-    /// Confirms that user data should be removed (normal switch).
-    /// </summary>
-    [RelayCommand]
-    private async Task ConfirmUserDataRemoveAsync(GameProfileItemViewModel profile)
-    {
-        profile.ShowUserDataConfirmation = false;
-
-        if (!await _launchSemaphore.WaitAsync(0))
-        {
-            StatusMessage = "A profile is already launching...";
-            return;
-        }
-
-        try
-        {
-            IsLaunching = true;
-            await ExecuteLaunchAsync(profile, skipUserDataCleanup: false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during confirmed launch (Remove) for {ProfileName}", profile.Name);
-            StatusMessage = $"Error launching {profile.Name}";
-            ErrorMessage = ex.Message;
-            notificationService.ShowError("Launch Error", $"Error launching {profile.Name}: {ex.Message}");
-        }
-        finally
-        {
-            IsLaunching = false;
-            _launchSemaphore.Release();
-        }
-    }
-
-    /// <summary>
-    /// Cancels the user data confirmation and stops the launch.
-    /// </summary>
-    [RelayCommand]
-    private void CancelUserDataConfirmation(GameProfileItemViewModel profile)
-    {
-        profile.ShowUserDataConfirmation = false;
-        profile.UserDataSwitchInfo = null;
-        StatusMessage = "Launch cancelled";
     }
 
     /// <summary>

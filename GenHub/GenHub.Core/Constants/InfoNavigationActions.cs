@@ -3,7 +3,7 @@ namespace GenHub.Core.Constants;
 /// <summary>
 /// Constants for info navigation actions.
 /// </summary>
-public static class InfoActionConstants
+public static class InfoNavigationActions
 {
     /// <summary>
     /// Navigation to game profiles.
@@ -19,4 +19,19 @@ public static class InfoActionConstants
     /// Navigation to settings.
     /// </summary>
     public const string NavigateToSettings = "NAV_SETTINGS";
+
+    /// <summary>
+    /// Navigation to mods and maps.
+    /// </summary>
+    public const string NavigateToModsMaps = "NAV_MODSMAPS";
+
+    /// <summary>
+    /// Navigation to tools.
+    /// </summary>
+    public const string NavigateToTools = "NAV_TOOLS";
+
+    /// <summary>
+    /// Navigation to local content.
+    /// </summary>
+    public const string NavigateToLocalContent = "NAV_LOCALCONTENT";
 }

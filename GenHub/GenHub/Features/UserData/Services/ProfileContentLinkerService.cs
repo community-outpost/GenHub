@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
-using GenHub.Core.Models.UserData;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.UserData.Services;
@@ -20,7 +20,6 @@ namespace GenHub.Features.UserData.Services;
 /// </summary>
 public class ProfileContentLinkerService(
     IUserDataTracker userDataTracker,
-    GenHub.Core.Interfaces.Manifest.IContentManifestPool manifestPool,
     ILogger<ProfileContentLinkerService> logger) : IProfileContentLinker
 {
     private readonly object _activeProfileLock = new();
@@ -119,6 +118,7 @@ public class ProfileContentLinkerService(
     }
 
     /// <inheritdoc />
+    /// <returns>A task representing the result of the operation.</returns>
     public async Task<OperationResult<bool>> SwitchProfileUserDataAsync(
         string? oldProfileId,
         string newProfileId,
@@ -199,6 +199,7 @@ public class ProfileContentLinkerService(
     }
 
     /// <inheritdoc />
+    /// <returns>A task representing the result of the operation.</returns>
     public async Task<OperationResult<bool>> CleanupDeletedProfileAsync(
         string profileId,
         CancellationToken cancellationToken = default)
@@ -227,6 +228,7 @@ public class ProfileContentLinkerService(
     }
 
     /// <inheritdoc />
+    /// <returns>A task representing the result of the operation.</returns>
     public async Task<OperationResult<bool>> UpdateProfileUserDataAsync(
         string profileId,
         IEnumerable<ContentManifest> newManifests,
@@ -300,6 +302,7 @@ public class ProfileContentLinkerService(
     }
 
     /// <inheritdoc />
+    /// <returns>The active profile ID, or null if no profile is active.</returns>
     public string? GetActiveProfileId()
     {
         lock (_activeProfileLock)
@@ -309,6 +312,7 @@ public class ProfileContentLinkerService(
     }
 
     /// <inheritdoc />
+    /// <returns>True if the specified profile is currently active; otherwise, false.</returns>
     public bool IsProfileActive(string profileId)
     {
         lock (_activeProfileLock)
@@ -317,115 +321,10 @@ public class ProfileContentLinkerService(
         }
     }
 
-    /// <inheritdoc />
-    public async Task<OperationResult<UserDataSwitchInfo>> AnalyzeUserDataSwitchAsync(
-        string? oldProfileId,
-        string newProfileId,
-        IEnumerable<string> targetNativeManifestIds,
-        IEnumerable<string> sourceNativeManifestIds,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var switchInfo = new UserDataSwitchInfo
-            {
-                OldProfileId = oldProfileId ?? string.Empty,
-            };
-
-            // If no old profile or same profile, nothing to remove
-            if (string.IsNullOrEmpty(oldProfileId) || oldProfileId == newProfileId)
-            {
-                logger.LogDebug("[ProfileContentLinker] No user data switch needed (same profile or no old profile)");
-                return OperationResult<UserDataSwitchInfo>.CreateSuccess(switchInfo);
-            }
-
-            // Get old profile's user data
-            var oldUserDataResult = await userDataTracker.GetProfileUserDataAsync(oldProfileId, cancellationToken);
-            if (!oldUserDataResult.Success || oldUserDataResult.Data == null || oldUserDataResult.Data.Count == 0)
-            {
-                logger.LogDebug("[ProfileContentLinker] Old profile has no user data to analyze");
-                return OperationResult<UserDataSwitchInfo>.CreateSuccess(switchInfo);
-            }
-
-            // Create a set of native manifests to ignore (they are part of the new profile)
-            var targetNativeManifests = targetNativeManifestIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var sourceNativeManifests = sourceNativeManifestIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            // Calculate files and size that would be removed
-            foreach (var manifest in oldUserDataResult.Data)
-            {
-                // If this manifest is natively part of the new profile, it's not a conflict/addition.
-                // It will be handled by the profile preparation process.
-                if (targetNativeManifests.Contains(manifest.ManifestId))
-                {
-                    continue;
-                }
-
-                switchInfo.ManifestIds.Add(manifest.ManifestId);
-                var displayName = manifest.ManifestName;
-
-                if (string.IsNullOrEmpty(displayName))
-                {
-                    // Fallback: try to look up in manifest pool
-                    try
-                    {
-                        if (GenHub.Core.Models.Manifest.ManifestId.TryCreate(manifest.ManifestId, out var manifestIdObj))
-                        {
-                            var poolResult = await manifestPool.GetManifestAsync(manifestIdObj, cancellationToken);
-                            if (poolResult.Success && poolResult.Data != null)
-                            {
-                                displayName = poolResult.Data.Name;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore lookup errors
-                    }
-                }
-
-                displayName ??= manifest.ManifestId;
-                switchInfo.ManifestNames.Add(displayName);
-
-                foreach (var file in manifest.InstalledFiles)
-                {
-                    // Only count files that exist and aren't hard links (copies take space)
-                    if (File.Exists(file.AbsolutePath))
-                    {
-                        switchInfo.FileCount++;
-
-                        try
-                        {
-                            var fileInfo = new FileInfo(file.AbsolutePath);
-                            switchInfo.TotalBytes += fileInfo.Length;
-                        }
-                        catch
-                        {
-                            // Ignore file access errors
-                        }
-                    }
-                }
-            }
-
-            logger.LogInformation(
-                "[ProfileContentLinker] User data switch analysis: {FileCount} files ({Size:N0} bytes) from {ManifestCount} manifests (filtered out {NativeCount} native manifests)",
-                switchInfo.FileCount,
-                switchInfo.TotalBytes,
-                switchInfo.ManifestIds.Count,
-                oldUserDataResult.Data.Count - switchInfo.ManifestIds.Count);
-
-            return OperationResult<UserDataSwitchInfo>.CreateSuccess(switchInfo);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "[ProfileContentLinker] Failed to analyze user data switch");
-            return OperationResult<UserDataSwitchInfo>.CreateFailure($"Failed to analyze user data switch: {ex.Message}");
-        }
-    }
-
     /// <summary>
     /// Installs user data files from a manifest for a specific profile.
     /// </summary>
+    /// <returns>A task representing the asynchronous installation operation.</returns>
     private async Task InstallManifestUserDataAsync(
         ContentManifest manifest,
         string profileId,

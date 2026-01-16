@@ -340,7 +340,7 @@ public class FileOperationsService(
                 },
                 cancellationToken);
 
-                logger.LogDebug(
+            logger.LogDebug(
                 "Created symlink or copied file from {Link} to {Target}",
                 linkPath,
                 absoluteTargetPath);
@@ -391,7 +391,7 @@ public class FileOperationsService(
                 },
                 cancellationToken);
 
-                logger.LogDebug(
+            logger.LogDebug(
                 "Created hard link from {Link} to {Target}",
                 linkPath,
                 targetPath);
@@ -655,7 +655,7 @@ public class FileOperationsService(
                 return streamResult.Data;
             }
 
-                logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
+            logger.LogError("Failed to open CAS content stream for hash {Hash}: {Error}", hash, streamResult.FirstError);
             return null;
         }
         catch (Exception ex)

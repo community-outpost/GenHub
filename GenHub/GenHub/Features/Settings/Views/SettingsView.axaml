@@ -789,6 +789,15 @@
                         Cursor="Hand"
                         ToolTip.Tip="Click to open GitHub PAT creation page" />
               </StackPanel>
+
+              <!-- Prominent Warning/Note -->
+              <Border Background="#332200" CornerRadius="4" Padding="12" Margin="0,8,0,0" BorderBrush="#664400" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="⚠️" VerticalAlignment="Center" FontSize="16"/>
+                    <TextBlock Text="To subscribe to Pull Requests or test specific Branches, you MUST configure a GitHub PAT above. This allows GenHub to download builds directly from GitHub CI."
+                               FontSize="12" Foreground="#FFD700" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Border>
             </StackPanel>
           </Border>
 

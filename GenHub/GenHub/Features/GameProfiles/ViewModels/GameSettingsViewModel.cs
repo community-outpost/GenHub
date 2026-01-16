@@ -261,6 +261,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     [ObservableProperty]
     private string? _gameSpyIPAddress;
 
+    // PAT Settings (Demo/UI)
+    [ObservableProperty]
+    private string _patStatusMessage = "Not Configured";
+
+    [ObservableProperty]
+    private string _patStatusColor = "#777777";
+
+    [ObservableProperty]
+    private string _gitHubPatInput = string.Empty;
+
     /// <summary>
     /// Initializes the ViewModel and loads settings for a specific profile.
     /// </summary>
@@ -408,6 +418,40 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         ResolutionWidth = width;
         ResolutionHeight = height;
         StatusMessage = $"Resolution set to {width}x{height}";
+    }
+
+    /// <summary>
+    /// Test the PAT (Demo functionality).
+    /// </summary>
+    [RelayCommand]
+    private async Task TestPat()
+    {
+        if (string.IsNullOrWhiteSpace(GitHubPatInput))
+        {
+            PatStatusMessage = "Please enter a token";
+            PatStatusColor = "#FF5252"; // Red
+            return;
+        }
+
+        IsLoading = true;
+        PatStatusMessage = "Verifying token...";
+        PatStatusColor = "#FFC107"; // Amber
+
+        // Simulate network delay
+        await Task.Delay(1500);
+
+        if (GitHubPatInput.StartsWith("ghp_"))
+        {
+            PatStatusMessage = "Valid (Repo Scope)";
+            PatStatusColor = "#4CAF50"; // Green
+        }
+        else
+        {
+             PatStatusMessage = "Invalid Token";
+             PatStatusColor = "#FF5252"; // Red
+        }
+
+        IsLoading = false;
     }
 
     private IniOptions? _currentOptions;

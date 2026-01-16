@@ -1,8 +1,8 @@
 using System;
-using System.Threading;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -107,17 +107,20 @@ public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewMod
             var result = await _faqService.GetFaqAsync(SelectedLanguageOption.Code, token);
             if (result.Success)
             {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    Categories.Clear();
-                    foreach (var category in result.Data)
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                    async () =>
                     {
-                        Categories.Add(new FaqCategoryViewModel(category));
-                    }
+                        Categories.Clear();
+                        foreach (var category in result.Data)
+                        {
+                            Categories.Add(new FaqCategoryViewModel(category));
+                        }
 
-                    SelectedCategory = Categories.FirstOrDefault();
-                    await Task.CompletedTask;
-                }, Avalonia.Threading.DispatcherPriority.Normal, token);
+                        SelectedCategory = Categories.FirstOrDefault();
+                        await Task.CompletedTask;
+                    },
+                    Avalonia.Threading.DispatcherPriority.Normal,
+                    token);
             }
             else
             {
