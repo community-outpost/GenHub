@@ -346,6 +346,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
             "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
+            "BuildingOcclusion", "ShowProps",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -491,7 +492,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
-            "AlternateMouseSetup", "HeatEffects",
+            "AlternateMouseSetup", "HeatEffects", "BuildingOcclusion", "ShowProps",
         };
 
         foreach (var kvp in values)
@@ -542,6 +543,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     break;
                 case "HeatEffects":
                     video.HeatEffects = ParseBool(kvp.Value);
+                    break;
+                case "BuildingOcclusion":
+                    video.BuildingOcclusion = ParseBool(kvp.Value);
+                    break;
+                case "ShowProps":
+                    video.ShowProps = ParseBool(kvp.Value);
                     break;
             }
         }
@@ -601,6 +608,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"Gamma={options.Video.Gamma}");
         lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
         lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
+        lines.Add($"BuildingOcclusion={BoolToString(options.Video.BuildingOcclusion)}");
+        lines.Add($"ShowProps={BoolToString(options.Video.ShowProps)}");
 
         // Add additional video properties
         foreach (var kvp in options.Video.AdditionalProperties)

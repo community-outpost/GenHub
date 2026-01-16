@@ -138,6 +138,21 @@ public class UpdateProfileRequest
     /// </summary>
     public bool? VideoHeatEffects { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether to use shadow decals.
+    /// </summary>
+    public bool? VideoUseShadowDecals { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether building occlusion is enabled.
+    /// </summary>
+    public bool? VideoBuildingOcclusion { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to show props.
+    /// </summary>
+    public bool? VideoShowProps { get; set; }
+
     /// <summary>Gets or sets the static game LOD setting.</summary>
     public string? VideoStaticGameLOD { get; set; }
 

@@ -38,6 +38,12 @@ public class VideoSettings
     /// <summary>Gets or sets a value indicating whether heat effects are enabled (performance intensive).</summary>
     public bool HeatEffects { get; set; } = true;
 
+    /// <summary>Gets or sets a value indicating whether building occlusion (behind buildings) is enabled.</summary>
+    public bool BuildingOcclusion { get; set; } = true;
+
+    /// <summary>Gets or sets a value indicating whether props are shown.</summary>
+    public bool ShowProps { get; set; } = true;
+
     /// <summary>Gets or sets additional video properties not explicitly defined. Used to preserve game-specific settings.</summary>
     public Dictionary<string, string> AdditionalProperties { get; set; } = [];
 }

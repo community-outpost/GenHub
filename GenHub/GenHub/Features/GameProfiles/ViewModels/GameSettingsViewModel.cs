@@ -134,6 +134,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _heatEffects = true;
 
     [ObservableProperty]
+    private bool _useShadowDecals = true;
+
+    [ObservableProperty]
+    private bool _buildingOcclusion = true;
+
+    [ObservableProperty]
+    private bool _showProps = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCustomLodSelected))]
     private string _staticGameLOD = "High";
 
     [ObservableProperty]
@@ -204,7 +214,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private string? _selectedResolutionPreset;
 
     [ObservableProperty]
-    private ObservableCollection<string> _lodOptions = ["Low", "Medium", "High", "VeryHigh"];
+    private ObservableCollection<string> _lodOptions = ["Low", "Medium", "High", "VeryHigh", "Custom"];
+
+    /// <summary>
+    /// Gets a value indicating whether the custom LOD option is selected.
+    /// </summary>
+    public bool IsCustomLodSelected => StaticGameLOD == "Custom";
 
     [ObservableProperty]
     private ObservableCollection<int> _aaOptions = [1, 2, 4];
@@ -410,6 +425,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             VideoGamma = Gamma,
             VideoAlternateMouseSetup = AlternateMouseSetup,
             VideoHeatEffects = HeatEffects,
+            VideoUseShadowDecals = UseShadowDecals,
+            VideoBuildingOcclusion = BuildingOcclusion,
+            VideoShowProps = ShowProps,
             VideoStaticGameLOD = StaticGameLOD,
             VideoIdealStaticGameLOD = IdealStaticGameLOD,
             VideoUseDoubleClickAttackMove = UseDoubleClickAttackMove,
@@ -601,6 +619,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoGamma.HasValue) Gamma = profile.VideoGamma.Value;
         if (profile.VideoAlternateMouseSetup.HasValue) AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
         if (profile.VideoHeatEffects.HasValue) HeatEffects = profile.VideoHeatEffects.Value;
+        if (profile.VideoUseShadowDecals.HasValue) UseShadowDecals = profile.VideoUseShadowDecals.Value;
+        if (profile.VideoBuildingOcclusion.HasValue) BuildingOcclusion = profile.VideoBuildingOcclusion.Value;
+        if (profile.VideoShowProps.HasValue) ShowProps = profile.VideoShowProps.Value;
         if (profile.VideoStaticGameLOD != null) StaticGameLOD = profile.VideoStaticGameLOD;
         if (profile.VideoIdealStaticGameLOD != null) IdealStaticGameLOD = profile.VideoIdealStaticGameLOD;
         if (profile.VideoUseDoubleClickAttackMove.HasValue) UseDoubleClickAttackMove = profile.VideoUseDoubleClickAttackMove.Value;
@@ -837,6 +858,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         TextureQuality = calculatedQuality;
         Shadows = options.Video.UseShadowVolumes;
+        UseShadowDecals = options.Video.UseShadowDecals;
+        BuildingOcclusion = options.Video.BuildingOcclusion;
+        ShowProps = options.Video.ShowProps;
 
         // Load GenHub custom properties
         if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
@@ -929,7 +953,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         // Map TextureQuality to TextureReduction (0-3, inverted)
         options.Video.TextureReduction = TextureReductionOffset - (int)TextureQuality;
         options.Video.UseShadowVolumes = Shadows;
-        options.Video.UseShadowDecals = Shadows; // Enable decals when shadows are on
+        options.Video.UseShadowDecals = UseShadowDecals;
+        options.Video.BuildingOcclusion = BuildingOcclusion;
+        options.Video.ShowProps = ShowProps;
 
         // Custom GenHub properties
         options.Video.AdditionalProperties["GenHubParticleEffects"] = BoolToString(ParticleEffects);

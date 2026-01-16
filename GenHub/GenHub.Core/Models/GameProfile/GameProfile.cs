@@ -198,6 +198,15 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets a value indicating whether to skip the EA logo movie.</summary>
     public bool? VideoSkipEALogo { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether 2D shadows (shadow decals) are enabled.</summary>
+    public bool? VideoUseShadowDecals { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether building occlusion is enabled.</summary>
+    public bool? VideoBuildingOcclusion { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether props are shown.</summary>
+    public bool? VideoShowProps { get; set; }
+
     // ===== TheSuperHackers Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to archive replays automatically (TSH).</summary>

@@ -190,19 +190,32 @@
 
                             <Separator Background="#20FFFFFF" Height="1" Margin="0,4" />
 
-                            <!-- Graphics Options -->
-                            <TextBlock Classes="subsection-header" Text="Graphics Effects" />
-                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                                <CheckBox Grid.Column="0" Grid.Row="0" Content="Shadows" IsChecked="{Binding Shadows}" />
-                                <CheckBox Grid.Column="1" Grid.Row="0" Content="Particles" IsChecked="{Binding ParticleEffects}" />
-                                <CheckBox Grid.Column="0" Grid.Row="1" Content="Extra Anims" IsChecked="{Binding ExtraAnimations}" />
-                                <CheckBox Grid.Column="1" Grid.Row="1" Content="Building Anims" IsChecked="{Binding BuildingAnimations}" />
-                                <CheckBox Grid.Column="0" Grid.Row="2" Content="Heat Effects" IsChecked="{Binding HeatEffects}" />
-                                <CheckBox Grid.Column="1" Grid.Row="2" Content="Show Trees" IsChecked="{Binding ShowTrees}" />
-                                <CheckBox Grid.Column="0" Grid.Row="3" Content="Cloud Map" IsChecked="{Binding UseCloudMap}" />
-                                <CheckBox Grid.Column="1" Grid.Row="3" Content="Light Map" IsChecked="{Binding UseLightMap}" />
-                                <CheckBox Grid.Column="0" Grid.Row="4" Content="Soft Water" IsChecked="{Binding ShowSoftWaterEdge}" />
-                            </Grid>
+                            <!-- Graphics Options (Visible only when Custom Detail Level is selected) -->
+                            <StackPanel IsVisible="{Binding IsCustomLodSelected}">
+                                <TextBlock Classes="subsection-header" Text="Advanced Display Options" />
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                    <!-- Row 0 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="0" Content="3D Shadows" IsChecked="{Binding Shadows}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="0" Content="Behind Buildings" IsChecked="{Binding BuildingOcclusion}" />
+
+                                    <!-- Row 1 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="1" Content="2D Shadows" IsChecked="{Binding UseShadowDecals}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="1" Content="Show Props" IsChecked="{Binding ShowProps}" />
+
+                                    <!-- Row 2 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="2" Content="Cloud Shadows" IsChecked="{Binding UseCloudMap}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="2" Content="Extra Animations" IsChecked="{Binding ExtraAnimations}" />
+
+                                    <!-- Row 3 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="3" Content="Extra Ground Lighting" IsChecked="{Binding UseLightMap}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="3" Content="Enable Dynamic LOD" IsChecked="{Binding DynamicLOD}" ToolTip.Tip="Uncheck to disable dynamic detail adjustment (Force High Detail)." />
+
+                                    <!-- Row 4 -->
+                                    <CheckBox Grid.Column="0" Grid.Row="4" Content="Smooth Water Borders" IsChecked="{Binding ShowSoftWaterEdge}" />
+                                    <CheckBox Grid.Column="1" Grid.Row="4" Content="Heat Effects" IsChecked="{Binding HeatEffects}" />
+                                </Grid>
+                                <Separator Background="#20FFFFFF" Height="1" Margin="0,8" />
+                            </StackPanel>
 
                             <!-- Max Particle Count -->
                             <Grid ColumnDefinitions="110,*,60">
