@@ -214,4 +214,9 @@ public static class LanguageFilePatterns
     /// File pattern for game string files: "game.str".
     /// </summary>
     public const string GameStr = "game.str";
+
+    /// <summary>
+    /// File pattern for Portuguese ZH BIG files: "PortugueseZH.big".
+    /// </summary>
+    public const string PortugueseZHBig = "PortugueseZH.big";
 }

@@ -1,0 +1,39 @@
+{
+  "version": "test this will be implemented later in #156",
+  "lastUpdated": "2026-01-18T15:13:00Z",
+  "description": "Index of CSV registries for Command & Conquer Generals and Zero Hour validation",
+  "registries": [
+    {
+      "id": "generals-1.08",
+      "gameType": "Generals",
+      "version": "1.08",
+      "url": "https://raw.githubusercontent.com/Community-Outpost/GenHub/main/docs/GameInstallationFilesRegistry/Generals-1.08.csv",
+      "fileCount": 157,
+      "totalSizeBytes": 1278133763,
+      "languages": ["All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"],
+      "checksum": {
+        "md5": "a1b2c3d4e5f67890123456789012345",
+        "sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+      },
+      "generatedAt": "2025-09-17T09:15:00Z",
+      "generatorVersion": "1.0.0",
+      "isActive": true
+    },
+    {
+      "id": "zerohour-1.04",
+      "gameType": "ZeroHour",
+      "version": "1.04", 
+      "url": "https://raw.githubusercontent.com/Community-Outpost/GenHub/main/docs/GameInstallationFilesRegistry/ZeroHour-1.04.csv",
+      "fileCount": 164,
+      "totalSizeBytes": 1664139207,
+      "languages": ["All", "EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"],
+      "checksum": {
+        "md5": "f6e5d4c3b2a19876543210987654321",
+        "sha256": "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
+      },
+      "generatedAt": "2025-09-17T09:20:00Z",
+      "generatorVersion": "1.0.0",
+      "isActive": true
+    }
+  ]
+}
