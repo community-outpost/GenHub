@@ -3,7 +3,7 @@ namespace GenHub.Core.Constants;
 /// <summary>
 /// Constants for different file categories.
 /// </summary>
-public class FileCategoryConstants
+public static class FileCategoryConstants
 {
     /// <summary>
     /// Category name for configuration files.
