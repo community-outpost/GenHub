@@ -81,9 +81,61 @@ public class ContentSearchQuery
     public int? Page { get; set; }
 
     /// <summary>
-    /// Gets or sets sort value.
+    /// Gets or sets a value indicating whether to include older versions of content in results.
+    /// Default is false (show only latest stable version).
+    /// </summary>
+    public bool IncludeOlderVersions { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the sort order.
     /// </summary>
     public string Sort { get; set; } = string.Empty;
+
+    // ===== ModDB-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the ModDB category filter (full-version, patch, movie, etc.).
+    /// </summary>
+    public string? ModDBCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB addon category filter (multiplayer-map, skin, etc.).
+    /// </summary>
+    public string? ModDBAddonCategory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB license filter.
+    /// </summary>
+    public string? ModDBLicense { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB timeframe filter (24h, week, month, etc.).
+    /// </summary>
+    public string? ModDBTimeframe { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ModDB section to search (mods, downloads, addons).
+    /// </summary>
+    public string? ModDBSection { get; set; }
+
+    // ===== CNCLabs-specific filters =====
+
+    /// <summary>
+    /// Gets the CNCLabs map tag filters (Cramped, Spacious, Well-balanced, etc.).
+    /// </summary>
+    public Collection<string> CNCLabsMapTags { get; } = [];
+
+    // ===== GitHub-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the GitHub topic filter.
+    /// </summary>
+    public string? GitHubTopic { get; set; }
+
+    /// <summary>
+    /// Gets or sets the GitHub author/owner filter.
+    /// </summary>
+    public string? GitHubAuthor { get; set; }
 
     /// <summary>
     /// Gets or sets the optional language filter used by CSV content pipeline.

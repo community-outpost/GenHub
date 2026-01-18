@@ -270,19 +270,28 @@ public class ProfileEditorFacade(
                 errors.Add("Profile name is required");
             }
 
-            if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+            // Tool profiles don't require GameInstallationId
+            if (!profile.IsToolProfile)
             {
-                errors.Add("Game installation is required");
-            }
-
-            // Validate that the game installation exists
-            if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
-            {
-                var installationResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-                if (installationResult.Failed)
+                if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
                 {
-                    errors.Add($"Game installation not found: {profile.GameInstallationId}");
+                    errors.Add("Game installation is required for game profiles");
                 }
+
+                // Validate that the game installation exists
+                if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
+                {
+                    var installationResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+                    if (installationResult.Failed)
+                    {
+                        errors.Add($"Game installation not found: {profile.GameInstallationId}");
+                    }
+                }
+            }
+            else
+            {
+                // Tool profile validation
+                _logger.LogDebug("Validating Tool profile {ProfileId}, skipping GameInstallation validation", profile.Id);
             }
 
             // Validate content manifests exist

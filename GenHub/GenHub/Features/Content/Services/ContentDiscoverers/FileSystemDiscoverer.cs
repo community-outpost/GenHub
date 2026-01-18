@@ -42,6 +42,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         _logger = logger;
         _manifestDiscoveryService = manifestDiscoveryService;
         _configurationProvider = configurationProvider;
+
         InitializeContentDirectories();
     }
 
@@ -148,11 +149,9 @@ public class FileSystemDiscoverer : IContentDiscoverer
             }
         }
 
-        _logger.LogInformation("FileSystemDiscoverer found {Count} manifests matching query", discoveredItems.Count);
         return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
         {
             Items = discoveredItems,
-            TotalItems = discoveredItems.Count,
             HasMoreItems = false,
         });
     }

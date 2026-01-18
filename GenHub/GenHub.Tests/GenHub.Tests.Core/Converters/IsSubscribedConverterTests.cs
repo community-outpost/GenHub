@@ -42,7 +42,7 @@ public class IsSubscribedConverterTests
             Author = "user",
             State = "open",
         };
-        var values = new List<object?> { pr, subscribedPr, "some-branch" };
+        var values = (List<object?>)[pr, subscribedPr, "some-branch"];
 
         // Act
         var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
@@ -74,7 +74,7 @@ public class IsSubscribedConverterTests
             Author = "user",
             State = "open",
         };
-        var values = new List<object?> { pr, subscribedPr, "some-branch" };
+        var values = (List<object?>)[pr, subscribedPr, "some-branch"];
 
         // Act
         var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
@@ -92,7 +92,7 @@ public class IsSubscribedConverterTests
         // Arrange
         var branch = "main";
         var subscribedBranch = "main";
-        var values = new List<object?> { branch, null, subscribedBranch };
+        var values = (List<object?>)[branch, null, subscribedBranch];
 
         // Act
         var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
@@ -108,12 +108,25 @@ public class IsSubscribedConverterTests
     public void Convert_ReturnsFalse_WhenValuesCountTooLow()
     {
         // Arrange
-        var values = new List<object?> { "item", null };
+        var values = (List<object?>)["item", null];
 
         // Act
         var result = _converter.Convert(values, typeof(bool), null, CultureInfo.InvariantCulture);
 
         // Assert
         Assert.False((bool?)result);
+    }
+
+    /// <summary>
+    /// Verifies that ConvertBack returns an empty array.
+    /// </summary>
+    [Fact]
+    public void ConvertBack_ReturnsEmptyArray()
+    {
+        // Act
+        var result = IsSubscribedConverter.ConvertBack(true, [typeof(object), typeof(object), typeof(object)], null, CultureInfo.InvariantCulture);
+
+        // Assert
+        Assert.Empty(result);
     }
 }

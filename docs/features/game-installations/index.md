@@ -26,14 +26,13 @@ This ensures consistency across all installation detectors and makes future upda
 
 The main **service layer** that exposes the public API and handles in‑memory caching.
 
-- **Caching**:  
--  Results are detected once and cached using a thread‑safe `SemaphoreSlim`.
-+  Results are detected once and cached using a thread‑safe `SemaphoreSlim`. The cache persists across sessions via local manifests.
-- **Error Handling**:  
+- **Caching**:
+  Results are detected once and cached using a thread‑safe `SemaphoreSlim`.
+- **Error Handling**:
   Validates input parameters and reports descriptive error messages to API consumers.
-- **Lazy Loading**:  
+- **Lazy Loading**:
   Detection occurs only on the *first* request, then cached for reuse.
-+- **Granular Manifest Loading**:  
++- **Granular Manifest Loading**:
 +  Attempts to load game clients from existing manifests first. Only installations missing manifests trigger an expensive directory scan, preventing unnecessary rescans of Steam‑integrated and established installations.
 
 ---
@@ -56,8 +55,8 @@ Platform‑specific modules that actually scan for game installations.
 #### WindowsInstallationDetector
 
 - **Steam Detection**
-  - Uses registry keys (`SteamPath`/`InstallPath`)  
-  - Parses `libraryfolders.vdf` to locate all installed Steam libraries  
+  - Uses registry keys (`SteamPath`/`InstallPath`)
+  - Parses `libraryfolders.vdf` to locate all installed Steam libraries
   - Scans `steamapps/common` for Generals & Zero Hour
 
 - **EA App Detection**
@@ -147,7 +146,7 @@ public sealed class DetectionResult<T>
 
 Example usage:
 
-- `WindowsInstallationDetector.DetectInstallationsAsync()`  
+- `WindowsInstallationDetector.DetectInstallationsAsync()`
   → returns `DetectionResult<GameInstallation>` containing **0–N installations**
 
 ---
@@ -156,21 +155,21 @@ Example usage:
 
 Each layer has **clear responsibility**:
 
-1. **Detection Layer**  
-   - Catches registry/file system exceptions.  
+1. **Detection Layer**
+   - Catches registry/file system exceptions.
    - Converts into `DetectionResult` failures (with errors, not crashes).
 
-2. **Orchestration Layer**  
-   - Runs all detectors that match the platform.  
-   - Aggregates results.  
-   - Collects errors without stopping detection.  
+2. **Orchestration Layer**
+   - Runs all detectors that match the platform.
+   - Aggregates results.
+   - Collects errors without stopping detection.
 
-3. **Service Layer**  
-   - Caches results.  
-   - Validates inputs.  
+3. **Service Layer**
+   - Caches results.
+   - Validates inputs.
    - Exposes clean, structured `OperationResult` for API/consumer use.
 
-4. **Consumer Layer**  
+4. **Consumer Layer**
    - Always receives structured success **with valid installations** or structured failure **with descriptive errors**.
 
 ---
@@ -228,3 +227,4 @@ else
 - **Structured results** with robust error handling and caching
 - **Extensible design**: new detectors can be added with minimal changes to the core logic
 - **Prioritized detection**: ensures the most reliable installation is used (Steam > EA App > CD/ISO > Retail)
+- **Tool Profile Support**: Tool Profiles (standalone executables) bypass the requirement for a physical game installation, allowing them to run independently of the base game.

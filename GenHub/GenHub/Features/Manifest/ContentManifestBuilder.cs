@@ -465,29 +465,6 @@ public partial class ContentManifestBuilder(
     }
 
     /// <summary>
-    /// Downloads a file from a remote URL, stores it in CAS, and adds it to the manifest.
-    /// </summary>
-    /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
-    /// <param name="downloadUrl">Download URL for the remote file.</param>
-    /// <param name="sourceType">How this file should be handled (typically ContentAddressable).</param>
-    /// <param name="isExecutable">Whether the file is executable.</param>
-    /// <param name="permissions">File permissions.</param>
-    /// <param name="refererUrl">Optional referer URL to use for the download request.</param>
-    /// <param name="userAgent">Optional user agent to use for the download request.</param>
-/// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
-    public Task<IContentManifestBuilder> AddDownloadedFileAsync(
-        string relativePath,
-        string downloadUrl,
-        ContentSourceType sourceType = ContentSourceType.ContentAddressable,
-        bool isExecutable = false,
-        FilePermissions? permissions = null,
-        string? refererUrl = null,
-        string? userAgent = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
     /// Adds a game installation file from the detected game installation.
     /// </summary>
     /// <param name="relativePath">The relative path of the file in the workspace (destination).</param>
@@ -758,6 +735,20 @@ public partial class ContentManifestBuilder(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return (extension == ".exe" || extension == ".dll" || extension == ".so" || extension == string.Empty) && File.Exists(filePath);
+    }
+
+    /// <returns>The normalized version string.</returns>
+    private static string NormalizeVersion(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return "unknown";
+
+        // Lowercase and remove any non-alphanumeric characters to produce a
+        // single-token publisher id (no dots). This avoids creating extra
+        // dot-separated segments when the ID is constructed.
+        var lower = version.ToLowerInvariant().Trim();
+        var cleaned = PublisherIdRegex().Replace(lower, string.Empty);
+        return string.IsNullOrEmpty(cleaned) ? "unknown" : cleaned;
     }
 
     private static string NormalizePublisherName(string? input)

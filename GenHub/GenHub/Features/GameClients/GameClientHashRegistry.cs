@@ -51,6 +51,7 @@ public class GameClientHashRegistry : IGameClientHashRegistry
         [
 
             GameClientConstants.SteamGameDatExecutable, // game.dat
+            GameClientConstants.GeneralsExecutable,     // generals.exe (Standard)
 
             // Publisher clients
             GameClientConstants.SuperHackersGeneralsExecutable,

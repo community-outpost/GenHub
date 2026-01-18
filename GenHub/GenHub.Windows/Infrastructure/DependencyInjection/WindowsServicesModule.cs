@@ -31,7 +31,6 @@ public static class WindowsServicesModule
         services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
-        services.AddSingleton<IManualInstallationStorage, ManualInstallationStorage>();
 
         // Register WindowsFileOperationsService with factory to avoid circular dependency
         services.AddScoped<IFileOperationsService>(serviceProvider =>

@@ -96,6 +96,13 @@ public class GeneralsOnlineUpdateService(
 
         if (latest == null || current == null)
         {
+            // Fallback: If parsing fails, try simple integer comparison
+            // This handles cases where CDN returns plain integers like "011526" instead of "MMDDYY_QFE#"
+            if (int.TryParse(latestVersion, out var latestInt) && int.TryParse(currentVersion, out var currentInt))
+            {
+                return latestInt > currentInt;
+            }
+
             return false;
         }
 
@@ -193,7 +200,7 @@ public class GeneralsOnlineUpdateService(
             }
 
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var version = content?.Trim();
+            var version = content?.Trim().Trim('"');
 
             logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
 

@@ -68,7 +68,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Resolver ID for CNC Labs maps.
     /// </summary>
-    public const string ResolverId = "CNCLabsMap";
+    public const string ResolverId = ContentSourceNames.CNCLabsResolverId;
 
     /// <summary>
     /// Metadata key for map ID.
@@ -327,6 +327,98 @@ public static class CNCLabsConstants
 
     /// <summary>Version string used when version information is missing.</summary>
     public const string UnknownVersion = "unknown";
+
+    /// <summary>Display name for the 'Any' player option.</summary>
+    public const string PlayerOptionAny = "Any";
+
+    /// <summary>Display name for the '1 Player' option.</summary>
+    public const string PlayerOption1Player = "1 Player";
+
+    /// <summary>Display name for the '2 Players' option.</summary>
+    public const string PlayerOption2Players = "2 Players";
+
+    /// <summary>Display name for the '3 Players' option.</summary>
+    public const string PlayerOption3Players = "3 Players";
+
+    /// <summary>Display name for the '4 Players' option.</summary>
+    public const string PlayerOption4Players = "4 Players";
+
+    /// <summary>Display name for the '5 Players' option.</summary>
+    public const string PlayerOption5Players = "5 Players";
+
+    /// <summary>Display name for the '6 Players' option.</summary>
+    public const string PlayerOption6Players = "6 Players";
+
+    /// <summary>Display name for Maps content type.</summary>
+    public const string ContentTypeMaps = "Maps";
+
+    /// <summary>Display name for Missions content type.</summary>
+    public const string ContentTypeMissions = "Missions";
+
+    /// <summary>Display name for Patches content type.</summary>
+    public const string ContentTypePatches = "Patches";
+
+    /// <summary>Display name for Tools content type.</summary>
+    public const string ContentTypeTools = "Tools";
+
+    /// <summary>Map tag: Cramped.</summary>
+    public const string TagCramped = "Cramped";
+
+    /// <summary>Map tag: Spacious.</summary>
+    public const string TagSpacious = "Spacious";
+
+    /// <summary>Map tag: Well-balanced.</summary>
+    public const string TagWellBalanced = "Well-balanced";
+
+    /// <summary>Map tag: Money Map.</summary>
+    public const string TagMoneyMap = "Money Map";
+
+    /// <summary>Map tag: Detailed.</summary>
+    public const string TagDetailed = "Detailed";
+
+    /// <summary>Map tag: Custom Scripted.</summary>
+    public const string TagCustomScripted = "Custom Scripted";
+
+    /// <summary>Map tag: Symmetric.</summary>
+    public const string TagSymmetric = "Symmetric";
+
+    /// <summary>Map tag: Art of Defense.</summary>
+    public const string TagArtOfDefense = "Art of Defense";
+
+    /// <summary>Map tag: Multiplayer-only.</summary>
+    public const string TagMultiplayerOnly = "Multiplayer-only";
+
+    /// <summary>Map tag: Asymmetric.</summary>
+    public const string TagAsymmetric = "Asymmetric";
+
+    /// <summary>Map tag: Noob-Friendly.</summary>
+    public const string TagNoobFriendly = "Noob-Friendly";
+
+    /// <summary>Map tag: Veteran Suitable.</summary>
+    public const string TagVeteranSuitable = "Veteran Suitable";
+
+    /// <summary>Map tag: Fun Map.</summary>
+    public const string TagFunMap = "Fun Map";
+
+    /// <summary>Map tag: Art of Attack.</summary>
+    public const string TagArtOfAttack = "Art of Attack";
+
+    /// <summary>Map tag: ShellMap.</summary>
+    public const string TagShellMap = "ShellMap";
+
+    /// <summary>Map tag: Ported-Mission To ZH.</summary>
+    public const string TagPortedMissionToZH = "Ported-Mission To ZH";
+
+    /// <summary>Map tag: Custom Coded.</summary>
+    public const string TagCustomCoded = "Custom Coded";
+
+    /// <summary>Map tag: Coop Mission.</summary>
+    public const string TagCoopMission = "Coop Mission";
+
+    /// <summary>
+    /// Format for parsing release dates for CNC Labs (M/d/yyyy).
+    /// </summary>
+    public const string ReleaseDateFormat = "M/d/yyyy";
 
     /// <summary>
     /// Default tags for CNC Labs manifests.

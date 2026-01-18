@@ -73,6 +73,11 @@ public class UpdateProfileRequest
     public string? GameInstallationId { get; set; }
 
     /// <summary>
+    /// Gets or sets the tool content ID for Tool profiles.
+    /// </summary>
+    public string? ToolContentId { get; set; }
+
+    /// <summary>
     /// Gets or sets the command line arguments to pass to the game executable.
     /// </summary>
     public string? CommandLineArguments { get; set; }
@@ -122,6 +127,85 @@ public class UpdateProfileRequest
     /// This maps directly to the in-game gamma setting range.
     /// </summary>
     public int? VideoGamma { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether alternate mouse setup is enabled.
+    /// </summary>
+    public bool? VideoAlternateMouseSetup { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether heat effects are enabled.
+    /// </summary>
+    public bool? VideoHeatEffects { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to use shadow decals.
+    /// </summary>
+    public bool? VideoUseShadowDecals { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether building occlusion is enabled.
+    /// </summary>
+    public bool? VideoBuildingOcclusion { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to show props.
+    /// </summary>
+    public bool? VideoShowProps { get; set; }
+
+    /// <summary>Gets or sets the static game LOD setting.</summary>
+    public string? VideoStaticGameLOD { get; set; }
+
+    /// <summary>Gets or sets the ideal static game LOD setting.</summary>
+    public string? VideoIdealStaticGameLOD { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether double-click attack move is enabled.</summary>
+    public bool? VideoUseDoubleClickAttackMove { get; set; }
+
+    /// <summary>Gets or sets the scroll speed factor.</summary>
+    public int? VideoScrollFactor { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether retaliation is enabled.</summary>
+    public bool? VideoRetaliation { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether dynamic LOD is enabled.</summary>
+    public bool? VideoDynamicLOD { get; set; }
+
+    /// <summary>Gets or sets the maximum particle count.</summary>
+    public int? VideoMaxParticleCount { get; set; }
+
+    /// <summary>Gets or sets the anti-aliasing mode.</summary>
+    public int? VideoAntiAliasing { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to skip the EA logo movie.</summary>
+    public bool? VideoSkipEALogo { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to draw the scroll anchor.</summary>
+    public bool? VideoDrawScrollAnchor { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to move the scroll anchor.</summary>
+    public bool? VideoMoveScrollAnchor { get; set; }
+
+    /// <summary>Gets or sets the font size for the game time display.</summary>
+    public int? VideoGameTimeFontSize { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the language filter is enabled.</summary>
+    public bool? GameLanguageFilter { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use send delay (network optimization).</summary>
+    public bool? NetworkSendDelay { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show soft water edges.</summary>
+    public bool? VideoShowSoftWaterEdge { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to show trees.</summary>
+    public bool? VideoShowTrees { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use cloud maps.</summary>
+    public bool? VideoUseCloudMap { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether to use light maps.</summary>
+    public bool? VideoUseLightMap { get; set; }
 
     /// <summary>
     /// Gets or sets the sound volume for this profile.

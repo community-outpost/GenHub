@@ -9,7 +9,7 @@ public static class WorkspaceConstants
 {
     /// <summary>
     /// The default workspace strategy to use when none is specified.
-    /// Default is HardLink as it is space-efficient and works on most systems (same volume).
+    /// Default is HardLink as it provides space-efficient file management with good compatibility.
     /// </summary>
     public const WorkspaceStrategy DefaultWorkspaceStrategy = WorkspaceStrategy.HardLink;
 }

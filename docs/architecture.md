@@ -99,8 +99,8 @@ The GameClient model has been enhanced to support launch configuration with Laun
 
 - **GameProfile**: Central configuration object with comprehensive profile state including:
   - Core properties: Id, Name, Description, GameClient, ExecutablePath, GameInstallationId
-  - Content management: EnabledContentIds (List of manifest ID strings for content references)
-  - Workspace configuration: WorkspaceStrategy, CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId
+  - Content management: EnabledContentIds (List of manifest ID strings for content references), ToolContentId (manifest ID of the tool for Tool Profiles)
+  - Workspace configuration: WorkspaceStrategy, CustomExecutablePath, WorkingDirectory, ActiveWorkspaceId, IsToolProfile (computed indicator)
   - Launch configuration: CommandLineArguments (string), LaunchOptions (Dictionary), EnvironmentVariables (Dictionary)
   - UI state: ThemeColor, IconPath, BuildInfo
   - Game settings: Video properties (ResolutionWidth/Height, Windowed, TextureQuality, Shadows, ParticleEffects, ExtraAnimations, BuildingAnimations, Gamma [0-100])
@@ -120,7 +120,7 @@ The GameClient model has been enhanced to support launch configuration with Laun
 - **GameProfileRepository**: File-based storage implementation with JSON serialization
 
 **Profile Integration Model**:
-GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation. Launch customization is provided through CommandLineArguments (simple command string) for game-specific parameters and LaunchOptions/EnvironmentVariables (Dictionary collections) for advanced configuration. Game video and audio settings are stored directly on the profile (VideoResolutionWidth, AudioSoundVolume, etc.), enabling per-profile Options.ini customization without requiring separate file parsing.
+GameProfile objects serve as the primary user-facing abstraction, encapsulating all decisions about game configuration. Each profile maintains references to a base GameClient and a collection of EnabledContentIds representing installed modifications. The WorkspaceStrategy property determines how files will be assembled during workspace preparation. For **Tool Profiles** (identified by `IsToolProfile`), the system relaxes the mandatory requirement for a GameClient and GameInstallation, enforcing a "exactly one ModdingTool" restriction instead. Launch customization is provided through CommandLineArguments (simple command string) for game-specific parameters and LaunchOptions/EnvironmentVariables (Dictionary collections) for advanced configuration. Game video and audio settings are stored directly on the profile (VideoResolutionWidth, AudioSoundVolume, etc.), enabling per-profile Options.ini customization without requiring separate file parsing.
 
 **ProfileEditorFacade Integration**:
 ProfileEditorFacade auto-enables matching GameInstallation content (and GameClient if available) after creation by scanning the manifest pool for the profile's GameType; then resolves dependencies and prepares a workspace, persisting ActiveWorkspaceId.
@@ -275,6 +275,9 @@ Game launching follows a comprehensive pipeline:
 6. **Launch Registration**: Register active launch session through ILaunchRegistry
 7. **Runtime Monitoring**: Track process status and provide termination capabilities
 
+**Tool Profile Launch Path**:
+Tool Profiles follow an accelerated pipeline that bypasses workspace preparation. When `IsToolProfile` is detected, the `ProfileLauncherFacade` resolves the single tool manifest, locates the primary executable, and initiates process creation directly from the content storage location. This ensures that standalone utilities can be managed and launched through the same profile system while avoiding the overhead of workspace isolation designed for the base game.
+
 ---
 
 ## 2. Three-Tier Content Pipeline Architecture
@@ -373,7 +376,7 @@ public abstract class BaseContentProvider : IContentProvider
     protected abstract IContentDiscoverer Discoverer { get; }
     protected abstract IContentResolver Resolver { get; }
     protected abstract IContentDeliverer Deliverer { get; }
-    
+
     // Implements common pipeline orchestration logic for SearchAsync and PrepareContentAsync
 }
 ```
@@ -471,7 +474,7 @@ Some content providers need multiple discoverers, resolvers, or deliverers to ha
 **GitHub Example**:
 
 - **GitHubReleasesDiscoverer**: Finds GitHub releases
-- **GitHubArtifactsDiscoverer**: Finds GitHub workflow artifacts  
+- **GitHubArtifactsDiscoverer**: Finds GitHub workflow artifacts
 - **GitHubWorkflowDiscoverer**: Finds GitHub workflow definitions
 - **GitHubResolver**: Resolves GitHub release manifests
 - **GitHubArtifactResolver**: Resolves GitHub artifact manifests
@@ -574,20 +577,20 @@ public virtual async Task<OperationResult<IEnumerable<ContentSearchResult>>> Sea
 
 ```csharp
 public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
-    ProviderDefinition? provider, 
-    ContentSearchQuery query, 
+    ProviderDefinition? provider,
+    ContentSearchQuery query,
     CancellationToken cancellationToken = default)
 {
     // Use provider-defined endpoints with fallback to constants
-    var catalogUrl = provider?.Endpoints.CatalogUrl 
+    var catalogUrl = provider?.Endpoints.CatalogUrl
         ?? CommunityOutpostConstants.CatalogUrl;
-    var timeout = provider?.Timeouts.CatalogTimeoutSeconds 
+    var timeout = provider?.Timeouts.CatalogTimeoutSeconds
         ?? CommunityOutpostConstants.CatalogDownloadTimeoutSeconds;
-    
+
     // Use custom endpoints from the dictionary
-    var patchPageUrl = provider?.Endpoints.GetEndpoint("patchPageUrl") 
+    var patchPageUrl = provider?.Endpoints.GetEndpoint("patchPageUrl")
         ?? CommunityOutpostConstants.PatchPageUrl;
-    
+
     // Perform discovery with configured values...
 }
 ```
@@ -680,7 +683,7 @@ if (cachedResult != null)
 - **Manifest Caching**: Caches `ContentManifest` objects after successful provider retrieval
 - **Cache Invalidation**: Pattern-based invalidation when content is installed/updated
 
-**Level 2: Provider Caching** - Provider-specific optimization  
+**Level 2: Provider Caching** - Provider-specific optimization
 
 - **Discovery Result Caching**: Providers can cache discovery results for expensive operations (e.g., API calls)
 - **Resolution Caching**: Cache resolved manifests to avoid repeated processing
@@ -1005,19 +1008,19 @@ public static class GameProfileModule
         services.AddSingleton<IGameProfileRepository>(provider =>
             new GameProfileRepository(profilesPath, provider.GetRequiredService<ILogger<GameProfileRepository>>()));
         services.AddScoped<IGameProfileManager, GameProfileManager>();
-        
+
         // Process Management Services
         services.AddSingleton<IGameProcessManager, GameProcessManager>();
-        
+
         return services;
     }
-    
+
     public static IServiceCollection AddLaunchingServices(this IServiceCollection services, IConfigurationProviderService configProvider)
     {
         // Launch Registry and Management
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
         services.AddScoped<IGameLauncher, GameLauncher>();
-        
+
         return services;
     }
 }
@@ -1083,7 +1086,7 @@ public static class WorkspaceModule
 
         // Register workspace manager with CAS integration
         services.AddScoped<IWorkspaceManager, WorkspaceManager>();
-        
+
         // Register workspace validator
         services.AddScoped<IWorkspaceValidator, WorkspaceValidator>();
 
@@ -1125,7 +1128,7 @@ public static class WorkspaceModule
 **Platform-Specific Implementations**:
 
 - **WindowsInstallationDetector**: Windows-specific registry scanning and EA App/Steam library detection
-- **LinuxInstallationDetector**: Linux-specific Steam Proton and Wine prefix detection  
+- **LinuxInstallationDetector**: Linux-specific Steam Proton and Wine prefix detection
 - **WindowsUpdateInstaller**: Windows-specific application update installation
 - **LinuxUpdateInstaller**: Linux-specific update installation procedures
 - **WindowsFileOperationsService**: Windows-specific file operations with NTFS features

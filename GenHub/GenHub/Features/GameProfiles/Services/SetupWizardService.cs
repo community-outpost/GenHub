@@ -121,7 +121,7 @@ public class SetupWizardService(
             {
                 // Profile exists but it is not the latest managed version
                 item.Status = "Installed";
-                item.Description = $"Update existing {title} profiles (Detected: v{detectedVersion}).";
+                item.Description = $"Update existing {title} profiles to v{latestVersion}.";
                 item.ActionLabel = "Update / Reinstall";
                 item.ActionType = GameClientConstants.WizardActionTypes.Update;
             }
@@ -129,7 +129,7 @@ public class SetupWizardService(
             {
                 // Unmanaged files detected but no profile
                 item.Status = "Detected";
-                item.Description = $"Detected installed {title} (v{detectedVersion}). Create profiles?";
+                item.Description = $"Detected installed {title}. Install managed v{latestVersion} and create profiles?";
                 item.ActionLabel = "Create Profile";
                 item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
             }

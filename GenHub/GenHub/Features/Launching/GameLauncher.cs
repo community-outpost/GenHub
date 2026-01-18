@@ -657,6 +657,49 @@ public class GameLauncher(
             var workspaceInfo = workspaceResult.Data;
             logger.LogInformation("[GameLauncher] Workspace prepared successfully: {WorkspaceId}", workspaceInfo.Id);
 
+            // Handle skipping EA logo if enabled
+            if (profile.VideoSkipEALogo == true)
+            {
+                // TODO: Correct way to handle this would be to integrate with the reconciler
+                // but for now we'll just delete the file from the workspace if it exists.
+
+                // Try multiple possible paths for the EA logo
+                // Note: Steam version uses Data\English\Movies\EA_LOGO.BIK
+                var possiblePaths = new[]
+                {
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "data", "movies", "EA_LOGO.BIK"),
+                };
+
+                logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspaceInfo.WorkspacePath);
+
+                var deleted = false;
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        try
+                        {
+                            File.Delete(logoPath);
+                            logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
+                            deleted = true;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+                        }
+                    }
+                }
+
+                if (!deleted)
+                {
+                    logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
+                }
+            }
+
             // Prepare user data content (maps, replays, etc.) for this profile
             // This creates hard links from CAS to user's Documents folder for content with UserMapsDirectory, etc. install targets
             // Uses SwitchProfileUserDataAsync to deactivate any other profile's user data first (unlinks their maps)
@@ -901,13 +944,29 @@ public class GameLauncher(
                 }
 
                 // Get the executable name from the GameClient manifest for process monitoring
-                // The proxy launches generalszh.exe from workspace, so we monitor for that
+                // For CAS symlinked files, the process name is the SHA hash, not the original filename
+                // For hardlinked files, even if sourced from CAS, the process name is the executable name
                 var gameClientManifestForMonitor = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
                 var executableFileForMonitor = gameClientManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
-                var gameProcessName = executableFileForMonitor != null
-                    ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-                    : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
-                logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
+
+                string gameProcessName;
+                if (executableFileForMonitor != null &&
+                    executableFileForMonitor.SourceType == ContentSourceType.ContentAddressable &&
+                    profile.WorkspaceStrategy == WorkspaceStrategy.SymlinkOnly)
+                {
+                    // For CAS symlinked executables, the process name IS the hash
+                    // This is because Windows reports the symlink target hash as the process name
+                    gameProcessName = executableFileForMonitor.Hash;
+                    logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
+                }
+                else
+                {
+                    // For regular files or hardlinked CAS files, use the executable name
+                    gameProcessName = executableFileForMonitor != null
+                        ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
+                        : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+                    logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
+                }
 
                 // Discover and track the game process that Steam->proxy launches
                 processResult = await processManager.DiscoverAndTrackProcessAsync(
@@ -1018,17 +1077,59 @@ public class GameLauncher(
             var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
             if (!saveResult.Success)
             {
-                logger.LogWarning("Failed to save Options.ini for {GameType}: {Error}", gameType, saveResult.FirstError);
+                logger.LogWarning("[GameLauncher] Failed to save Options.ini for {GameType}: {Error}", gameType, saveResult.FirstError);
             }
             else
             {
-                logger.LogInformation("Successfully wrote Options.ini for {GameType}", gameType);
+                logger.LogInformation("[GameLauncher] Successfully wrote Options.ini for {GameType}", gameType);
             }
+
+            // Apply GeneralsOnline settings
+            await ApplyGeneralsOnlineSettingsAsync(profile);
         }
         catch (Exception ex)
         {
             // Don't fail the launch if Options.ini writing fails - log and continue
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
+        }
+    }
+
+    /// <summary>
+    /// Applies GeneralsOnline-specific settings to the settings.json file.
+    /// </summary>
+    /// <param name="profile">The game profile containing the settings.</param>
+    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
+    {
+        // Only apply if it's Zero Hour (as GO settings only apply there currently)
+        if (profile.GameClient?.GameType != GameType.ZeroHour)
+        {
+            return;
+        }
+
+        try
+        {
+            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
+
+            // Clean Launch Strategy: Create fresh settings object to ensure isolation and prevent pollution
+            var settings = new GeneralsOnlineSettings();
+
+            // Map GO settings from profile using the centralized mapper
+            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
+            if (!saveResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
+            }
+            else
+            {
+                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log and continue
+            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
         }
     }
 

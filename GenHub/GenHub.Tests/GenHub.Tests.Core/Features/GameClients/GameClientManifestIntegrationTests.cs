@@ -6,6 +6,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;

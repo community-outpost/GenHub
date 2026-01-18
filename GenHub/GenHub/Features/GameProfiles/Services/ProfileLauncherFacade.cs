@@ -74,6 +74,220 @@ public class ProfileLauncherFacade(
                 profile.GameClient.GameType,
                 profile.EnabledContentIds?.Count ?? 0);
 
+            // Perform auto-detection for Tool Profiles if not already explicitly set
+            // This handles cases where a profile has a ModdingTool content but ToolContentId wasn't set (legacy or UI issue)
+            string? detectedToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
+            if (detectedToolId != null)
+            {
+                logger.LogInformation("[Launch] Detected implicit Tool Profile (mixed content) - converting profile mode");
+                profile.ToolContentId = detectedToolId;
+
+                // Persist this fix
+                try
+                {
+                    await profileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { ToolContentId = profile.ToolContentId }, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[Launch] Failed to persist implicit Tool Profile fix (non-critical)");
+                }
+            }
+
+            // ===== TOOL PROFILE LAUNCH PATH =====
+            // Tool profiles launch standalone executables directly without game installation
+            if (profile.IsToolProfile)
+            {
+                logger.LogInformation("[Launch] Detected Tool profile, launching tool directly");
+
+                // Get the tool manifest
+                if (string.IsNullOrWhiteSpace(profile.ToolContentId))
+                {
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProfileMissingContentId);
+                }
+
+                var toolManifestResult = await manifestPool.GetManifestAsync(
+                    ManifestId.Create(profile.ToolContentId),
+                    cancellationToken);
+
+                if (toolManifestResult.Failed || toolManifestResult.Data == null)
+                {
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                        $"{ProfileValidationConstants.FailedToLoadToolManifest}: {toolManifestResult.FirstError}");
+                }
+
+                var toolManifest = toolManifestResult.Data;
+                logger.LogDebug("[Launch] Tool manifest loaded: {ManifestId}", toolManifest.Id);
+
+                // Get tool content directory
+                // For CAS-based content, there might not be a pre-existing directory.
+                // We need to use WorkspaceManager to hydrate the content into a temporary workspace.
+
+                // Try to resolve directory first (for local content)
+                var toolDirectory = await manifestPool.GetContentDirectoryAsync(toolManifest.Id, cancellationToken);
+                string toolWorkspacePath;
+
+                if (toolDirectory.Success && !string.IsNullOrEmpty(toolDirectory.Data))
+                {
+                    // Existing directory (e.g. Local content)
+                    toolWorkspacePath = toolDirectory.Data;
+                    logger.LogInformation("[Launch] Using existing tool directory: {Path}", toolWorkspacePath);
+                }
+                else
+                {
+                    // CAS content or unresolved path - use WorkspaceManager
+                    logger.LogInformation("[Launch] Tool content requires hydration, using WorkspaceManager");
+
+                    // Create a dummy GameClient for the workspace config
+                    var dummyGameClient = new GenHub.Core.Models.GameClients.GameClient
+                    {
+                        Name = toolManifest.Name,
+                        GameType = toolManifest.TargetGame,
+                    };
+
+                    // Define a base path for the workspace - for tools we can use a temp dir or app data
+                    // WorkspaceManager requires a BaseInstallationPath, even if empty for tools
+                    var appDataBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+                    if (!Directory.Exists(appDataBase)) Directory.CreateDirectory(appDataBase);
+
+                    var baseDetails = appDataBase;
+
+                    // Resolve all enabled content (Tool + Dependencies)
+                    var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
+                    var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
+
+                    var workspaceConfig = new WorkspaceConfiguration
+                    {
+                        Id = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}", // Unique ID for tool workspace
+                        Manifests = [.. allManifests],
+                        GameClient = dummyGameClient,
+                        Strategy = profile.WorkspaceStrategy, // Respect profile setting
+                        ForceRecreate = false,
+                        ValidateAfterPreparation = true,
+                        BaseInstallationPath = baseDetails, // Dummy base
+                        WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
+                        SkipCleanup = false,
+                    };
+
+                    // Prepare the workspace
+                    var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, progress: null, skipCleanup: false, cancellationToken: cancellationToken);
+                    if (prepareResult.Failed)
+                    {
+                         return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                            $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
+                    }
+
+                    toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+                    logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
+                }
+
+                var toolDirectoryPath = toolWorkspacePath;
+
+                // Find the executable file in the tool manifest
+                // Priority 1: File marked as IsExecutable
+                // Priority 2: File ending with .exe
+                var toolExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
+                    ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+
+                if (toolExecutable == null)
+                {
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                        ProfileValidationConstants.ToolManifestMissingExecutable);
+                }
+
+                var toolExecutablePath = Path.Combine(toolDirectoryPath, toolExecutable.RelativePath);
+                if (!File.Exists(toolExecutablePath))
+                {
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                        $"{ProfileValidationConstants.ToolExecutableNotFound}: {toolExecutablePath}");
+                }
+
+                logger.LogInformation("[Launch] Launching tool: {ToolPath}", toolExecutablePath);
+
+                // Launch the tool process directly
+                try
+                {
+                    var processStartInfo = new ProcessStartInfo
+                    {
+                        FileName = toolExecutablePath,
+                        WorkingDirectory = toolDirectoryPath,
+                        Arguments = profile.CommandLineArguments ?? string.Empty,
+                        UseShellExecute = false,
+                    };
+
+                    // Add environment variables if specified
+                    if (profile.EnvironmentVariables != null)
+                    {
+                        foreach (var envVar in profile.EnvironmentVariables)
+                        {
+                            processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+                        }
+                    }
+
+                    Process? process = null;
+                    try
+                    {
+                        process = Process.Start(processStartInfo);
+                    }
+                    catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
+                    {
+                        logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
+
+                        // Reconfigure for elevation
+                        processStartInfo.UseShellExecute = true;
+                        processStartInfo.Verb = "runas";
+
+                        // Retry launch
+                        process = Process.Start(processStartInfo);
+                    }
+
+                    if (process == null)
+                    {
+                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProcessStartFailed);
+                    }
+
+                    var launchId = Guid.NewGuid().ToString("N");
+                    var toolLaunchInfo = new GameLaunchInfo
+                    {
+                        LaunchId = launchId,
+                        ProfileId = profile.Id,
+                        WorkspaceId = ProfileConstants.ToolProfileWorkspaceId, // Tool profiles don't use workspaces
+                        ProcessInfo = new GameProcessInfo
+                        {
+                            ProcessId = process.Id,
+                            ExecutablePath = toolExecutablePath,
+                            IsRunning = true,
+                        },
+                    };
+
+                    logger.LogInformation(
+                        "=== TOOL LAUNCH SUCCESS: Profile {ProfileId}, ProcessId {ProcessId} ===",
+                        profileId,
+                        toolLaunchInfo.ProcessInfo.ProcessId);
+
+                    // Register the tool launch with the launch registry for process monitoring
+                    await launchRegistry.RegisterLaunchAsync(toolLaunchInfo);
+                    logger.LogDebug("[Launch] Registered tool launch {LaunchId} with LaunchRegistry", launchId);
+
+                    notificationService.ShowSuccess(
+                        ProfileValidationConstants.ToolLaunchSuccessTitle,
+                        $"Successfully launched '{profile.Name}'",
+                        NotificationDurations.Medium);
+
+                    return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[Launch] Tool launch failed");
+                    notificationService.ShowError(
+                        ProfileValidationConstants.ToolLaunchFailedTitle,
+                        $"Failed to launch '{profile.Name}': {ex.Message}",
+                        NotificationDurations.VeryLong);
+                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Tool launch failed: {ex.Message}");
+                }
+            }
+
+            // ===== REGULAR GAME PROFILE LAUNCH PATH =====
+
             // Try to resolve or rebind the installation if it's stale
             logger.LogDebug("[Launch] Step 2: Resolving game installation ID: {InstallationId}", profile.GameInstallationId);
             var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
@@ -315,6 +529,36 @@ public class ProfileLauncherFacade(
 
             List<string> errors = [];
 
+            // Perform auto-detection for Tool Profiles in validation
+            string? validationToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
+            if (validationToolId != null)
+            {
+                logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
+                profile.ToolContentId = validationToolId;
+            }
+
+            // Tool profiles have different validation requirements
+            if (profile.IsToolProfile)
+            {
+                logger.LogDebug("Validating Tool profile {ProfileId}, skipping game-specific validation", profile.Id);
+
+                // Tool profiles only need to have the ToolContentId set
+                if (string.IsNullOrWhiteSpace(profile.ToolContentId))
+                {
+                    errors.Add(ProfileValidationConstants.ToolProfileMissingContentId);
+                }
+
+                if (errors.Count > 0)
+                {
+                    logger.LogWarning("Tool profile {ProfileId} validation failed: {Errors}", profile.Id, string.Join(", ", errors));
+                    return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
+                }
+
+                logger.LogDebug("Tool profile {ProfileId} validation successful", profile.Id);
+                return ProfileOperationResult<bool>.CreateSuccess(true);
+            }
+
+            // Regular game profile validation
             // Basic validation
             if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
@@ -353,6 +597,11 @@ public class ProfileLauncherFacade(
                         {
                             hasGameClientManifest = true;
                         }
+                        else if (manifestResult.Data.ContentType == Core.Models.Enums.ContentType.ModdingTool ||
+                                 manifestResult.Data.ContentType == Core.Models.Enums.ContentType.Executable)
+                        {
+                             // Allow modding tools in regular validation flow if treating as mixed profile
+                        }
                     }
                 }
                 catch (ArgumentException ex)
@@ -364,12 +613,13 @@ public class ProfileLauncherFacade(
 
             if (!hasGameInstallationManifest)
             {
-                errors.Add("At least one game installation content item must be enabled for launch");
+                errors.Add(Core.Constants.ProfileValidationConstants.MissingGameInstallation);
             }
 
-            if (!hasGameClientManifest)
+            if (!hasGameClientManifest && string.IsNullOrWhiteSpace(profile.ToolContentId))
             {
-                errors.Add("At least one game client content item must be enabled for launch");
+                // Only require GameClient if we are NOT a tool profile (explicit or implicit)
+                errors.Add(Core.Constants.ProfileValidationConstants.MissingGameClient);
             }
 
             if (errors.Count > 0)
@@ -1300,5 +1550,30 @@ public class ProfileLauncherFacade(
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    /// <summary>
+    /// Detects if a profile is implicitly a tool profile and returns the tool content ID.
+    /// </summary>
+    private async Task<string?> DetectAndSetToolContentIdAsync(GameProfile profile, CancellationToken cancellationToken)
+    {
+        if (profile.IsToolProfile || profile.EnabledContentIds?.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var idString in profile.EnabledContentIds!)
+        {
+            var id = ManifestId.Create(idString);
+            var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
+            if (manifestResult.Success &&
+                (manifestResult.Data!.ContentType == ContentType.ModdingTool ||
+                 manifestResult.Data.ContentType == ContentType.Executable))
+            {
+                return idString;
+            }
+        }
+
+        return null;
     }
 }

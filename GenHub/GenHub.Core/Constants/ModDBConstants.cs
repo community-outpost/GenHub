@@ -61,6 +61,11 @@ public static class ModDBConstants
     /// <summary>Format for author tag.</summary>
     public const string AuthorTagFormat = "by {0}";
 
+    /// <summary>
+    /// UserAgent string that mimics a standard web browser.
+    /// </summary>
+    public const string BrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/moddb-logo.png";
 
@@ -402,5 +407,5 @@ public static class ModDBConstants
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "ModDB", "Community", "Mods", "Maps" };
+    public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
 }

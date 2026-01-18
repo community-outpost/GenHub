@@ -11,6 +11,11 @@ public static class TimeIntervals
     public const int HeaderCollapseDelayMs = 500;
 
     /// <summary>
+    /// Delay before the Game Profiles header automatically expands (grace period).
+    /// </summary>
+    public const int HeaderExpansionDelayMs = 500;
+
+    /// <summary>
     /// Default timeout for updater operations.
     /// </summary>
     public static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);

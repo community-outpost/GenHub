@@ -119,6 +119,6 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
                 }
             });
 
-        return issues.ToList();
+        return [.. issues];
     }
 }

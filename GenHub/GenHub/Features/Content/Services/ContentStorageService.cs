@@ -87,7 +87,7 @@ public class ContentStorageService : IContentStorageService
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
             _logger.LogWarning("Source directory is null, empty, or does not exist: {SourceDirectory}. Storing metadata only.", sourceDirectory);
-            return await StoreManifestOnlyAsync(manifest, cancellationToken);
+            return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken);
         }
 
         // Validate manifest for security issues
@@ -108,7 +108,7 @@ public class ContentStorageService : IContentStorageService
         if (isInvalidDrive && !forceStorage)
         {
             _logger.LogWarning("Source directory {SourceDirectory} is on an invalid or removable drive, storing metadata only", sourceDirectory);
-            return await StoreManifestOnlyAsync(manifest, cancellationToken);
+            return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken);
         }
 
         // Determine if this manifest requires physical file storage in CAS
@@ -117,7 +117,7 @@ public class ContentStorageService : IContentStorageService
         if (!requiresPhysicalStorage)
         {
             _logger.LogInformation("Storing {ContentType} manifest {ManifestId} metadata only (content references external source)", manifest.ContentType, manifest.Id);
-            return await StoreManifestOnlyAsync(manifest, cancellationToken);
+            return await StoreManifestOnlyAsync(manifest, sourceDirectory, cancellationToken);
         }
 
         var manifestPath = GetManifestStoragePath(manifest.Id);
@@ -244,6 +244,24 @@ public class ContentStorageService : IContentStorageService
         {
             // Untrack CAS references before removing manifest file
             await _referenceTracker.UntrackManifestAsync(manifestId, cancellationToken);
+
+            // Remove source.path mapping file if it exists
+            var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifestId.Value);
+            var sourcePathFile = Path.Combine(contentDir, "source.path");
+            FileOperationsService.DeleteFileIfExists(sourcePathFile);
+
+            // Clean up the data directory if empty
+            if (Directory.Exists(contentDir) && !Directory.EnumerateFileSystemEntries(contentDir).Any())
+            {
+                try
+                {
+                    Directory.Delete(contentDir);
+                }
+                catch (Exception deleteEx)
+                {
+                    _logger.LogWarning(deleteEx, "Failed to delete empty content directory {Directory}", contentDir);
+                }
+            }
 
             // Only remove manifest file - CAS files are cleaned up via garbage collection
             await Task.Run(() => FileOperationsService.DeleteFileIfExists(manifestPath), cancellationToken);
@@ -377,6 +395,7 @@ public class ContentStorageService : IContentStorageService
 
     private async Task<OperationResult<ContentManifest>> StoreManifestOnlyAsync(
         ContentManifest manifest,
+        string? sourceDirectory,
         CancellationToken cancellationToken)
     {
         var manifestPath = GetManifestStoragePath(manifest.Id);
@@ -395,6 +414,22 @@ public class ContentStorageService : IContentStorageService
             var manifestDir = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDir))
                 Directory.CreateDirectory(manifestDir);
+
+            // Create source.path mapping if we have a valid source directory
+            // This allows GetContentDirectoryAsync to resolve the content location
+            if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
+            {
+                var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
+                Directory.CreateDirectory(contentDir);
+
+                var sourcePathFile = Path.Combine(contentDir, "source.path");
+                await File.WriteAllTextAsync(sourcePathFile, sourceDirectory, cancellationToken);
+
+                _logger.LogInformation(
+                    "Created source path mapping for {ManifestId}: {SourcePath}",
+                    manifest.Id,
+                    sourceDirectory);
+            }
 
             // Store manifest metadata only
             var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);

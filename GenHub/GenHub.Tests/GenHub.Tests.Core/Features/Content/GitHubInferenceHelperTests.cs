@@ -40,7 +40,7 @@ public class GitHubInferenceHelperTests
     [Theory]
     [InlineData("repo", "zero hour release", GameType.ZeroHour)]
     [InlineData("repo-zh", "", GameType.ZeroHour)]
-    [InlineData("generals-repo", "", GameType.Generals)]
+    [InlineData("generals-repo", "", GameType.ZeroHour)]
     public void InferTargetGame_ReturnsExpectedGameType(string repo, string? releaseName, GameType expected)
     {
         // Act

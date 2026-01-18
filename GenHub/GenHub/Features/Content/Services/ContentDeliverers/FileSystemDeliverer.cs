@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -20,11 +20,14 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
+/// <param name="logger">The logger instance.</param>
+/// <param name="configProvider">The configuration provider service.</param>
+/// <param name="hashProvider">The file hash provider.</param>
+/// <param name="downloadService">The download service.</param>
 public class FileSystemDeliverer(
     ILogger<FileSystemDeliverer> logger,
     IConfigurationProviderService configProvider,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService,
     IDownloadService downloadService) : IContentDeliverer
 {
     /// <inheritdoc />
@@ -99,11 +102,10 @@ public class FileSystemDeliverer(
                 processedFiles++;
             }
 
-            // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
                 hashProvider,
-                manifestIdService,
+                null!,
                 downloadService,
                 configProvider);
 
