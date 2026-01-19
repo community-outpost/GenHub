@@ -702,7 +702,6 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         var testFiles = new[]
         {
             "generals.exe",
-            "generals.exe",
             "data/generals.big",
             "data/textures/texture1.tga",
             "mods/mod1/mod.ini",
@@ -772,7 +771,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         };
 
         // Add files with complete SourcePath (typical for GameInstallation content)
-        var testFiles = new[] { "generals.exe", "generals.exe", "data/generals.big", "data/textures/texture1.tga", "mods/mod1/mod.ini" };
+        var testFiles = new[] { "generals.exe", "data/generals.big", "data/textures/texture1.tga", "mods/mod1/mod.ini" };
         foreach (var file in testFiles)
         {
             var fullPath = Path.Combine(_tempGameInstall, file);

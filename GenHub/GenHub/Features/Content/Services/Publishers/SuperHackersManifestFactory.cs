@@ -292,7 +292,7 @@ public class SuperHackersManifestFactory(
 
                         if (!allowedExtensions.Contains(extension))
                         {
-                            logger.LogDebug("Excluding irrelevant file {FileName} from ModdingTool manifest", fileName);
+                            logger.LogDebug("Excluding irrelevant file {FileName} from GameClient manifest", fileName);
                             continue;
                         }
                     }
