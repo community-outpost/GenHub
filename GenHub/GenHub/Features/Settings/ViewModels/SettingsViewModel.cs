@@ -599,7 +599,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoCheckForUpdatesOnStartup = true;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
-            DefaultWorkspaceStrategy = WorkspaceStrategy.HybridCopySymlink;
+            DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
             DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
             DownloadUserAgent = ApiConstants.DefaultUserAgent;

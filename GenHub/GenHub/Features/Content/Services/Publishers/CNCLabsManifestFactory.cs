@@ -176,7 +176,7 @@ public partial class CNCLabsManifestFactory(
                 GetTags(details),
                 details.PreviewImage,
                 details.Screenshots)
-            .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink); // Default strategy
+            .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy); // Default strategy
 
         // 6. Add download file - Download and store in CAS
         var fileName = GetDownloadFilename(details);

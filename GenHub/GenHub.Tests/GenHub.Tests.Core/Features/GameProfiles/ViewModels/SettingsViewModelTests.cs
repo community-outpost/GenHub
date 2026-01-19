@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -168,7 +169,7 @@ public class SettingsViewModelTests
         Assert.Equal("Dark", viewModel.Theme);
         Assert.Equal(3, viewModel.MaxConcurrentDownloads);
         Assert.False(viewModel.EnableDetailedLogging);
-        Assert.Equal(WorkspaceStrategy.HybridCopySymlink, viewModel.DefaultWorkspaceStrategy);
+        Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, viewModel.DefaultWorkspaceStrategy);
     }
 
     /// <summary>

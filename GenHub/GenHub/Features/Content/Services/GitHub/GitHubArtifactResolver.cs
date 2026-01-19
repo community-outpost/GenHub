@@ -89,7 +89,7 @@ public class GitHubArtifactResolver(
                         $"Artifact: {artifactName}, Run #{runNumber}",
                         tags: ["workflow", "artifact"],
                         changelogUrl: string.Empty)
-                    .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                    .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
                 // Add artifact as remote file - use ArchiveDownloadUrl for authenticated downloads
                 var downloadUrl = !string.IsNullOrEmpty(artifact.ArchiveDownloadUrl)

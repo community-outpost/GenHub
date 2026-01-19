@@ -494,8 +494,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
     /// </summary>
     public static WorkspaceStrategy[] AvailableWorkspaceStrategies { get; } =
     [
-        WorkspaceStrategy.SymlinkOnly,
-        WorkspaceStrategy.HybridCopySymlink,
         WorkspaceStrategy.HardLink,
         WorkspaceStrategy.FullCopy,
     ];

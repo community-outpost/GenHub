@@ -118,18 +118,16 @@ public partial class GitHubResolver(
 
             // Generate proper ManifestId using 5-segment format per manifest-id-system.md
             // Format: schemaVersion.userVersion.publisher.contentType.contentName
-            // For GitHub content: publisher segment MUST be "github"
-            // Example: 1.20251031.github.gameclient.thesuperhackers-generalsgamecode
             var userVersion = ExtractVersionFromReleaseTag(release.TagName);
 
-            // Publisher segment = "github" (not owner name)
-            var publisherId = "github";
+            // Publisher segment = owner (e.g. "thesuperhackers", "cnclabs")
+            // This matches the ManifestIdGenerator logic and ensures correct attribution
+            var publisherId = owner;
 
-            // Content name = owner-repo combination for uniqueness
-            var contentName = $"{owner}-{repo}";
+            // Content name = repo name (unique within the publisher/owner namespace)
+            var contentName = repo;
 
             // Determine publisher type for factory resolution
-            // This allows SuperHackersManifestFactory to handle TheSuperHackers releases
             var publisherType = DeterminePublisherType(owner);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
@@ -137,8 +135,8 @@ public partial class GitHubResolver(
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
-                    publisherId, // Publisher = "github" (per manifest-id-system.md)
-                    contentName, // Content name = "owner-repo"
+                    publisherId, // Publisher = owner
+                    contentName, // Content name = repo
                     userVersion) // User version extracted from tag (e.g., 20251031)
                 .WithContentType(discoveredItem.ContentType, discoveredItem.TargetGame)
                 .WithPublisher(
@@ -149,7 +147,7 @@ public partial class GitHubResolver(
             release.Body ?? discoveredItem.Description ?? string.Empty,
             tags: GitHubInferenceHelper.InferTagsFromRelease(release),
             changelogUrl: release.HtmlUrl ?? string.Empty)
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Validate assets collection
             if (release.Assets == null || release.Assets.Count == 0)
@@ -331,8 +329,13 @@ public partial class GitHubResolver(
             var variant = ExtractAssetVariant(asset.Name);
 
             // Generate manifest ID matching the discoverer format
-            // Publisher = owner, Content name = repo + variant
+            // Publisher = owner
+            var publisherId = owner;
+
+            // Extract version from tag (Restored)
             var userVersion = ExtractVersionFromReleaseTag(tag);
+
+            // Content name = repo + variant
             var contentName = $"{repo}{variant}";
 
             // Determine publisher type for factory resolution
@@ -355,7 +358,7 @@ public partial class GitHubResolver(
             discoveredItem.Description ?? $"Release asset from {owner}/{repo}",
             tags: ["github", "release", owner, repo, variant.ToLowerInvariant()],
             changelogUrl: $"https://github.com/{owner}/{repo}/releases/tag/{tag}")
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Add only the selected asset
             await manifest.AddRemoteFileAsync(
