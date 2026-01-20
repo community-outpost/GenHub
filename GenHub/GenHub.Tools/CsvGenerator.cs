@@ -262,7 +262,7 @@ internal class CsvGenerator
         {
             metadata["category"] = FileCategoryConstants.Config;
         }
-        else if (relativePath.StartsWith("Data/Lang/", StringComparison.OrdinalIgnoreCase))
+        else if (relativePath.StartsWith(LanguageDirectoryNames.DataLang, StringComparison.OrdinalIgnoreCase))
         {
             metadata["category"] = FileCategoryConstants.Language;
         }
