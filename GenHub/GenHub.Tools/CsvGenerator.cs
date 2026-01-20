@@ -258,7 +258,7 @@ internal class CsvGenerator
     {
         var metadata = new Dictionary<string, string>();
 
-        if (relativePath.StartsWith("Data/INI/", StringComparison.OrdinalIgnoreCase))
+        if (relativePath.StartsWith(LanguageDirectoryNames.DataIni, StringComparison.OrdinalIgnoreCase))
         {
             metadata["category"] = FileCategoryConstants.Config;
         }
