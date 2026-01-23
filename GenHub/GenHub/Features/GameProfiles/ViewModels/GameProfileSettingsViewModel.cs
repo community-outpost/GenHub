@@ -32,6 +32,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Core.Models.Content.ContentAcquiredMessage>
 {
+    // Static flag to track if we've shown the "first load" notification this session
+    private static bool _hasShownFirstLoadNotification = false;
+
     private readonly IGameProfileManager? gameProfileManager;
     private readonly IGameSettingsService? gameSettingsService;
     private readonly IConfigurationProviderService? configurationProvider;
@@ -515,6 +518,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             LoadingError = false;
             StatusMessage = "Loading available content...";
 
+            // Only show the "loading resources" notification once per session (first time cache init)
+            // and use the global service so it appears on the Main Window.
+            if (!_hasShownFirstLoadNotification)
+            {
+                notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
+                _hasShownFirstLoadNotification = true;
+            }
+
             _currentProfileId = null;
             Name = "New Profile";
             Description = "A new game profile";
@@ -635,6 +646,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             IsInitializing = true;
             LoadingError = false;
             StatusMessage = "Loading profile...";
+
+            // Only show the "loading resources" notification once per session (first time cache init)
+            // and use the global service so it appears on the Main Window.
+            if (!_hasShownFirstLoadNotification)
+            {
+                notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
+                _hasShownFirstLoadNotification = true;
+            }
 
             _currentProfileId = profileId;
             logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
@@ -1956,8 +1975,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                     // Notify other components that a profile was created
                     WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(result.Data));
 
-                    // Close the window after a brief delay
-                    await Task.Delay(1000);
+                    // Close the window immediately
                     ExecuteCancel();
                 }
                 else
@@ -2006,8 +2024,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                     // Notify other components that a profile was updated
                     WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
 
-                    // Close the window after a brief delay
-                    await Task.Delay(1000);
+                    // Close the window immediately
                     ExecuteCancel();
                 }
                 else

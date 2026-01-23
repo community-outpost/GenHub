@@ -623,6 +623,25 @@ public partial class GameProfileItemViewModel : ViewModelBase
             // Update workspace info
             ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
             UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
+
+            // Update visuals
+            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
+            {
+                ColorValue = gameProfile.ThemeColor;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.IconPath))
+            {
+                IconPath = gameProfile.IconPath;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.CoverPath))
+            {
+                CoverPath = gameProfile.CoverPath;
+                CoverImagePath = gameProfile.CoverPath;
+            }
+
+            CommandLineArguments = gameProfile.CommandLineArguments;
         }
 
         // Notify UI of all property changes
@@ -631,6 +650,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(GameVersion));
         OnPropertyChanged(nameof(Publisher));
         OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ColorValue));
+        OnPropertyChanged(nameof(IconPath));
+        OnPropertyChanged(nameof(CoverPath));
+        OnPropertyChanged(nameof(CoverImagePath));
+        OnPropertyChanged(nameof(CommandLineArguments));
     }
 
     /// <summary>
