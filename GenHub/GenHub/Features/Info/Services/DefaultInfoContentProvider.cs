@@ -74,7 +74,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Your Personal Sandbox",
                     Content = "Keeping your game version, mods, and maps separate.",
                     Type = InfoCardType.Concept,
-                    IconKey = "FileDocumentMultiple",
                     IsExpandable = true,
                     DetailedContent = """
                     **Your Personal Sandbox:**
@@ -91,7 +90,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Controls",
                     Content = "Managing your profiles.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "CursorDefaultClick",
                     IsExpandable = true,
                     DetailedContent = """
                     **Button Guide:**
@@ -109,7 +107,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Advanced Profile Options",
                     Content = "Startup arguments and debugging.",
                     Type = InfoCardType.Feature,
-                    IconKey = "ConsoleLine",
                     IsExpandable = true,
                     DetailedContent = """
                     **Launch Arguments:**
@@ -136,91 +133,61 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             [
                 new InfoCard
                 {
-                    Title = "Display & Audio",
-                    Content = "Resolution, Windowing, and Sound configuration.",
+                    Title = "Standard Audio & Video",
+                    Content = "Configuration for the base Generals engine (Options.ini).",
                     Type = InfoCardType.Concept,
                     IconKey = "Monitor",
                     IsExpandable = true,
                     DetailedContent = """
                     **Display Settings**
-                    *   **Resolution:** Select your desired screen size (e.g., 1920x1080). Can run up to 4K/Ultrawide.
-                    *   **Windowed Mode:** Runs the game in a window. Essential for multi-monitor setups to prevent crashing when Alt-Tabbing.
-                    *   **Anti-Aliasing:** Techniques to smooth jagged edges. Higher (4x/8x) looks better but costs performance.
-                    *   **Gamma:** Adjusts the brightness of the game scene.
+                    *   **Resolution:** Select your screen size. Supports modern presets up to 4K and Ultrawide.
+                    *   **Windowed Mode:** Essential for multi-monitor setups to prevent crashes during Alt-Tabbing.
+                    *   **Anti-Aliasing:** Smooths jagged edges on 3D models.
+                    *   **Gamma:** Adjusts in-game brightness.
 
-                    **Audio Configuration**
-                    *   **Master Volume:** Global volume control.
-                    *   **Music/SFX/Voice:** Individual sliders to balance the mix.
-                    *   **3D Audio:** Toggle positional audio effects.
-                    *   **Sound Channels:** Maximum number of simultaneous sounds (Hardware Limit). Set to 64 or 128 for rich battle audio.
-                    *   **Language Filter:** Toggles the profanity filter in chat.
+                    **Audio & Gameplay**
+                    *   **Volume Sliders:** Master, SFX, Music, and Speech levels.
+                    *   **Sound Channels:** Max simultaneous sounds (Default is 16, up to 128 for high-end PCs).
+                    *   **Right-Click Attack:** Switch from classic Left-Click to modern RTS Right-Click controls.
+                    *   **Scroll Speed:** Edge-scrolling sensitivity.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Graphics & Performance",
-                    Content = "Visual fidelity and engine limits.",
-                    Type = InfoCardType.HowTo,
-                    IconKey = "Speedometer",
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Quality Settings**
-                    *   **Texture Quality:** Resolution of unit/terrain textures. 'High' recommended for modern PCs.
-                    *   **Shadows:**
-                        *   **Volumes:** Dynamic shadows (looks best, performance heavy).
-                        *   **Decals:** Simple dark circles under units (fast).
-                        *   **None:** Disables shadows completely.
-
-                    **Effects & Detail**
-                    *   **Heat Effects:** Distortion air-shimmer over tanks/fires.
-                    *   **Particle Cap:** Limits the number of smoke/spark effects to prevent lag in huge battles.
-                    *   **Cloud/Light Maps:** Advanced lighting on terrain.
-                    *   **Extra Animations:** Ambient movements (trees swaying, idle animations).
-                    *   **Soft Water Edge:** Blends water into the shore for a realistic look.
-                    *   **Show Trees/Props:** Toggling off removes clutter for competitive visibility.
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Gameplay & Controls",
-                    Content = "Input behavior and game rules.",
-                    Type = InfoCardType.Feature,
-                    IconKey = "ControllerClassic",
-                    IsExpandable = true,
-                    DetailedContent = """
-                    **Mouse & Input**
-                    *   **Right-Click Attack:** Switch to modern RTS controls (Right-click to move/attack). Default is classic Left-Click.
-                    *   **Double-Click Attack Move:** Uses the classic behavior where double-clicking ground triggers Attack Move.
-                    *   **Scroll Speed:** Sensitivity of camera movement when touching screen edges.
-
-                    **Scroll Anchor:**
-                    *   **Draw Anchor:** Visual indicator of where you started scrolling.
-                    *   **Move Anchor:** Allows dragging the map by holding the right mouse button.
-
-                    **Network & Game Flow**
-                    *   **Send Delay:** Adds artificial network latency (buffer) to smooth out stuttery connections.
-                    *   **Retaliation:** Units automatically return fire when attacked.
-                    *   **Behind Buildings:** Shows units through structures (X-Ray vision).
-                    """,
-                },
-                new InfoCard
-                {
-                    Title = "Advanced Extensions",
-                    Content = "GenTool and Client enhancements.",
+                    Title = "TheSuperHackers Engine",
+                    Content = "Advanced client extensions and stability fixes.",
                     Type = InfoCardType.Feature,
                     IconKey = "Chip",
                     IsExpandable = true,
                     DetailedContent = """
-                    **GenTool Enhancements**
-                    *   **FPS Limit:** Cap frame rate (e.g., 60fps) to fix game speed issues on fast monitors.
-                    *   **Cursor Lock:** Traps mouse inside the window to prevent clicking onto other monitors.
-                    *   **Camera Height:** Unlock the camera zoom limit for a better view of the battlefield.
+                    **Engine Enhancements**
+                    *   **Cursor Capture:** Locks the mouse inside the game window. Configurable for Menus vs Gameplay and Fullscreen vs Windowed.
+                    *   **Edge Scrolling:** Enables camera movement at screen edges even in windowed mode.
+                    *   **Font Scaling:** Adjust resolution-based font sizes for better readability on high-DPI displays.
 
-                    **Client Overlays (TheSuperHackers)**
-                    *   **Money/Min:** Shows your current income rate.
-                    *   **FPS Counter:** Real-time performance metrics overlay.
-                    *   **Network Latency:** Ping display for multiplayer matches.
-                    *   **System Time:** In-game clock overlay.
+                    **In-Game Information**
+                    *   **Money per Minute:** Real-time income rate display.
+                    *   **Time & Performance:** Overlays for System Time, FPS, and Network Latency.
+                    *   **Auto-Replay Archiving:** Automatically organizes replay files into a structured directory.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "GeneralsOnline Features",
+                    Content = "Social, Networking, and Lobby integration.",
+                    Type = InfoCardType.Feature,
+                    IconKey = "AccountGroup",
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Network & Social**
+                    *   **Ping & Ranks:** Displays player latency and ladder rankings in the lobby.
+                    *   **Auto-Login/Remember Me:** Streamlines the connection process.
+                    *   **Smart Notifications:** Desktop-style alerts when friends come online or send requests.
+                    *   **Chat Customization:** Adjustable font sizes and fade-out durations for the lobby chat.
+
+                    **Game Camera**
+                    *   **Camera Height:** Specialized logic to handle zoom limits.
+                    *   **Move Speed Ratio:** Sensitivity of camera movement in the online engine.
                     """,
                 },
             ],

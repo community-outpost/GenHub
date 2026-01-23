@@ -163,6 +163,7 @@ public class SidebarLayout : ContentControl
         if (_contentOverlay != null)
         {
             _contentOverlay.PointerPressed -= OnContentPointerPressed;
+            _contentOverlay.PointerEntered -= OnContentPointerEntered;
         }
 
         if (_sidebarPane != null)
@@ -182,6 +183,7 @@ public class SidebarLayout : ContentControl
         if (_contentOverlay != null)
         {
             _contentOverlay.PointerPressed += OnContentPointerPressed;
+            _contentOverlay.PointerEntered += OnContentPointerEntered;
         }
 
         if (_sidebarPane != null)
@@ -209,6 +211,11 @@ public class SidebarLayout : ContentControl
     }
 
     private void OnContentPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        IsPaneOpen = false;
+    }
+
+    private void OnContentPointerEntered(object? sender, PointerEventArgs e)
     {
         IsPaneOpen = false;
     }

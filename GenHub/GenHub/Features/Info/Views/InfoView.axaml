@@ -35,7 +35,7 @@
       <Setter Property="Background" Value="#1AFFFFFF" /> <!-- 10% White (Subtle) -->
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="CornerRadius" Value="0" />
       <Setter Property="Padding" Value="12,10" />
       <Setter Property="FontWeight" Value="Medium" />
       <Setter Property="Foreground" Value="White" />
