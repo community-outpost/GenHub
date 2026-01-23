@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
              xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -118,6 +119,9 @@
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="4">
         <StackPanel Spacing="0" Margin="12">
+            <!-- Inline Tab Navigation -->
+            <views:GameProfileNavigationView DataContext="{Binding $parent[Window].DataContext}" Margin="0,0,0,12" />
+
 
             <!-- Header with game type selector -->
             <Border Classes="info-box"

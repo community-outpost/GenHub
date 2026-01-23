@@ -111,6 +111,16 @@ public partial class GameProfileSettingsWindow : Window
     }
 
     /// <summary>
+    /// Handles the toggle fullscreen button click.
+    /// </summary>
+    /// <param name="sender">The sender.</param>
+    /// <param name="e">The event arguments.</param>
+    public void OnToggleFullscreenClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    }
+
+    /// <summary>
     /// Override to unsubscribe from events when window is closed.
     /// </summary>
     /// <param name="e">The event arguments.</param>

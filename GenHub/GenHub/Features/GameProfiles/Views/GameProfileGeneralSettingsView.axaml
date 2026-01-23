@@ -1,0 +1,259 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="1200"
+             x:Class="GenHub.Features.GameProfiles.Views.GameProfileGeneralSettingsView"
+             x:DataType="vm:GameProfileSettingsViewModel">
+
+    <UserControl.Resources>
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:WorkspaceStrategyTooltipConverter x:Key="WorkspaceStrategyTooltipConverter" />
+        <conv:TabIndexToVisibilityConverter x:Key="TabIndexToVisibilityConverter" />
+    </UserControl.Resources>
+
+    <ScrollViewer Padding="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="0">
+            <!-- Inline Tab Navigation -->
+            <views:GameProfileNavigationView Margin="0,0,0,12" />
+
+            <!-- Basic Info Section -->
+            <Border Classes="section-card"
+                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                <StackPanel>
+                    <TextBlock Classes="section-title" Text="Basic Information" />
+
+                    <StackPanel Classes="form-field">
+                        <TextBlock Classes="form-label" Text="Profile Name" />
+                        <TextBox Text="{Binding Name, Mode=TwoWay}"
+                                 Watermark="Enter profile name" />
+                    </StackPanel>
+
+                    <StackPanel Classes="form-field">
+                        <TextBlock Classes="form-label" Text="Description" />
+                        <TextBox Text="{Binding Description, Mode=TwoWay}"
+                                 Watermark="Optional description"
+                                 Height="50"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Icon & Cover Section -->
+            <Border Classes="section-card"
+                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                <StackPanel>
+                    <TextBlock Classes="section-title" Text="Icon &amp; Cover" />
+
+                    <!-- Icon Selection -->
+                    <StackPanel Classes="form-field">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="form-label" Text="Profile Icon" />
+                            <Button Grid.Column="1" Content="Browse..."
+                                    Command="{Binding BrowseForCustomIconCommand}"
+                                    Background="#15FFFFFF"
+                                    Padding="12,4"
+                                    FontSize="11"
+                                    CornerRadius="5" />
+                        </Grid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="100"
+                                      Background="Transparent">
+                            <ItemsControl ItemsSource="{Binding AvailableIcons}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="70" Height="70"
+                                                Margin="0,0,8,8"
+                                                Padding="4"
+                                                CornerRadius="8"
+                                                Background="#15FFFFFF"
+                                                BorderBrush="#30FFFFFF"
+                                                BorderThickness="1"
+                                                ToolTip.Tip="{Binding DisplayName}"
+                                                Tag="{Binding Path, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
+                                            <Border.Styles>
+                                                <Style Selector="Border[Tag=True]">
+                                                    <Setter Property="Background" Value="#405E35B1" />
+                                                    <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                </Style>
+                                            </Border.Styles>
+                                            <Button Background="Transparent"
+                                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectIconCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Cursor="Hand"
+                                                    Padding="0"
+                                                    BorderThickness="0">
+                                                <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}"
+                                                       Stretch="Uniform" />
+                                            </Button>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+
+                    <!-- Cover Selection -->
+                    <StackPanel Classes="form-field">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Classes="form-label" Text="Profile Cover" />
+                            <Button Grid.Column="1" Content="Browse..."
+                                    Command="{Binding BrowseForCustomCoverCommand}"
+                                    Background="#15FFFFFF"
+                                    Padding="12,4"
+                                    FontSize="11"
+                                    CornerRadius="5" />
+                        </Grid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="140"
+                                      Background="Transparent">
+                            <ItemsControl ItemsSource="{Binding AvailableCoversForSelection}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Width="180" Height="120"
+                                                Margin="0,0,12,8"
+                                                Padding="4"
+                                                CornerRadius="8"
+                                                Background="#15FFFFFF"
+                                                BorderBrush="#30FFFFFF"
+                                                BorderThickness="1"
+                                                ToolTip.Tip="{Binding DisplayName}"
+                                                Tag="{Binding Path, Converter={x:Static converters:ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
+                                            <Border.Styles>
+                                                <Style Selector="Border[Tag=True]">
+                                                    <Setter Property="Background" Value="#405E35B1" />
+                                                    <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                </Style>
+                                            </Border.Styles>
+                                            <Button Background="Transparent"
+                                                    Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectCoverCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Cursor="Hand"
+                                                    Padding="0"
+                                                    BorderThickness="0">
+                                                <Image Source="{Binding Path, Converter={StaticResource StringToImageConverter}}"
+                                                       Stretch="UniformToFill" />
+                                            </Button>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Launch Options Section -->
+            <Border Classes="section-card"
+                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                <StackPanel>
+                    <TextBlock Classes="section-title" Text="Launch Options" />
+
+                    <StackPanel Classes="form-field">
+                        <TextBlock Classes="form-label" Text="Workspace Strategy" />
+                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                  SelectedItem="{Binding SelectedWorkspaceStrategy}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.Styles>
+                                <Style Selector="ComboBoxItem">
+                                    <Setter Property="ToolTip.Tip">
+                                        <Binding Path="Content" RelativeSource="{RelativeSource Self}">
+                                            <Binding.Converter>
+                                                <conv:WorkspaceStrategyTooltipConverter />
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </Setter>
+                                </Style>
+                            </ComboBox.Styles>
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding .}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="{}{0}">
+                                    <Binding Path="SelectedWorkspaceStrategy" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Classes="form-field">
+                        <TextBlock Classes="form-label" Text="Command Line Arguments" />
+                        <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}"
+                                 Watermark="-win -quicklaunch" />
+                        <TextBlock Text="Optional arguments passed to the game executable"
+                                   FontSize="11" Opacity="0.6" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Theme Section -->
+            <Border Classes="section-card"
+                    Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                <StackPanel>
+                    <TextBlock Classes="section-title" Text="Theme Color" />
+                    <WrapPanel>
+                        <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" ToolTip.Tip="Red" />
+                        <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="Pink" />
+                        <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" ToolTip.Tip="Deep Pink" />
+                        <Button Classes="color-btn" Background="#9C27B0" Command="{Binding SelectThemeColorCommand}" CommandParameter="#9C27B0" ToolTip.Tip="Purple" />
+                        <Button Classes="color-btn" Background="#5E35B1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#5E35B1" ToolTip.Tip="Deep Purple" />
+                        <Button Classes="color-btn" Background="#673AB7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#673AB7" ToolTip.Tip="Indigo" />
+                        <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" ToolTip.Tip="Deep Indigo" />
+                        <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="Blue" />
+                        <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="Dark Blue" />
+                        <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="Light Blue" />
+                        <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="Blue" />
+                        <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="Cyan Blue" />
+                        <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="Cyan" />
+                        <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="Dark Cyan" />
+                        <Button Classes="color-btn" Background="#009688" Command="{Binding SelectThemeColorCommand}" CommandParameter="#009688" ToolTip.Tip="Teal" />
+                        <Button Classes="color-btn" Background="#00796B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00796B" ToolTip.Tip="Dark Teal" />
+                        <Button Classes="color-btn" Background="#4CAF50" Command="{Binding SelectThemeColorCommand}" CommandParameter="#4CAF50" ToolTip.Tip="Green" />
+                        <Button Classes="color-btn" Background="#388E3C" Command="{Binding SelectThemeColorCommand}" CommandParameter="#388E3C" ToolTip.Tip="Dark Green" />
+                        <Button Classes="color-btn" Background="#8BC34A" Command="{Binding SelectThemeColorCommand}" CommandParameter="#8BC34A" ToolTip.Tip="Light Green" />
+                        <Button Classes="color-btn" Background="#689F38" Command="{Binding SelectThemeColorCommand}" CommandParameter="#689F38" ToolTip.Tip="Olive Green" />
+                        <Button Classes="color-btn" Background="#CDDC39" Command="{Binding SelectThemeColorCommand}" CommandParameter="#CDDC39" ToolTip.Tip="Lime" />
+                        <Button Classes="color-btn" Background="#FFEB3B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFEB3B" ToolTip.Tip="Yellow" />
+                        <Button Classes="color-btn" Background="#FFC107" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFC107" ToolTip.Tip="Amber" />
+                        <Button Classes="color-btn" Background="#FF9800" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF9800" ToolTip.Tip="Orange" />
+                        <Button Classes="color-btn" Background="#FFA000" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFA000" ToolTip.Tip="Dark Orange" />
+                        <Button Classes="color-btn" Background="#FF5722" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF5722" ToolTip.Tip="Deep Orange" />
+                        <Button Classes="color-btn" Background="#E64A19" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E64A19" ToolTip.Tip="Dark Orange Red" />
+                        <Button Classes="color-btn" Background="#795548" Command="{Binding SelectThemeColorCommand}" CommandParameter="#795548" ToolTip.Tip="Brown" />
+                        <Button Classes="color-btn" Background="#BD5A0F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#BD5A0F" ToolTip.Tip="Generals" />
+                        <Button Classes="color-btn" Background="#2D4963" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2D4963" ToolTip.Tip="Zero Hour" />
+                        <Button Classes="color-btn" Background="#607D8B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#607D8B" ToolTip.Tip="Blue Grey" />
+                        <Button Classes="color-btn" Background="#455A64" Command="{Binding SelectThemeColorCommand}" CommandParameter="#455A64" ToolTip.Tip="Dark Grey" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+            <!-- Spacer for FAB -->
+            <Panel Height="120" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

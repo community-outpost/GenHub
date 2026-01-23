@@ -62,5 +62,3 @@ public class GameSettingsMapperTests
         Assert.Equal(expectedQuality, profile.VideoTextureQuality);
     }
 }
-
-
