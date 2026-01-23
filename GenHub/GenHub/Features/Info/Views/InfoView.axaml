@@ -86,12 +86,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <!-- Removed Border, Just Icon now with gradient fill effect usually handled by svg,
                                  but for MaterialIcon we use foreground. Using Pink/Purple -->
-                            <material:MaterialIcon Kind="{Binding IconKey}"
-                                                   Width="22"
-                                                   Height="22"
-                                                   Foreground="{StaticResource PurpleAccentBright}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"/>
+
                             <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="15" FontWeight="Medium" TextWrapping="Wrap"/>
                         </StackPanel>
                     </DataTemplate>

@@ -20,8 +20,6 @@ public partial class InfoSectionViewModel(InfoSection model) : ObservableObject
     [ObservableProperty]
     private string _description = model.Description;
 
-    [ObservableProperty]
-    private string _iconKey = model.IconKey;
 
     [ObservableProperty]
     private int _order = model.Order;
@@ -34,7 +32,6 @@ public partial class InfoSectionViewModel(InfoSection model) : ObservableObject
         Title = c.Title,
         Content = c.Content,
         Type = c.Type,
-        IconKey = c.IconKey,
         IsExpandable = c.IsExpandable,
         DetailedContent = c.DetailedContent,
         Actions = c.Actions,

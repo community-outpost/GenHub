@@ -173,7 +173,7 @@
 
          <!-- Header / Status Area -->
          <Grid Grid.Row="0" Margin="20" ColumnDefinitions="Auto,*" >
-           <TextBlock Text="{Binding SelectedTool.Metadata.Name, FallbackValue='Tools', TargetNullValue='GenHub Tools'}" Classes="header" />
+           <TextBlock Text="{Binding SelectedTool.Metadata.Name, FallbackValue='GenHub Tools'}" Classes="header" />
 
            <!-- Status Messages -->
            <Border Grid.Column="1"

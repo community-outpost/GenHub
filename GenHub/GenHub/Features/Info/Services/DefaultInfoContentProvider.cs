@@ -65,7 +65,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "game-profiles",
             Title = "Game Profiles",
             Description = "Manage isolation-based game configurations.",
-            IconKey = "ControllerClassic",
             Order = 0,
             Cards =
             [
@@ -127,7 +126,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "game-settings",
             Title = "Game Settings",
             Description = "Configure `Options.ini` settings per profile.",
-            IconKey = "Tune",
             Order = 1,
             Cards =
             [
@@ -136,7 +134,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Standard Audio & Video",
                     Content = "Configuration for the base Generals engine (Options.ini).",
                     Type = InfoCardType.Concept,
-                    IconKey = "Monitor",
                     IsExpandable = true,
                     DetailedContent = """
                     **Display Settings**
@@ -157,7 +154,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "TheSuperHackers Engine",
                     Content = "Advanced client extensions and stability fixes.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Chip",
                     IsExpandable = true,
                     DetailedContent = """
                     **Engine Enhancements**
@@ -176,7 +172,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "GeneralsOnline Features",
                     Content = "Social, Networking, and Lobby integration.",
                     Type = InfoCardType.Feature,
-                    IconKey = "AccountGroup",
                     IsExpandable = true,
                     DetailedContent = """
                     **Network & Social**
@@ -201,7 +196,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "game-profile-content",
             Title = "Profile Content",
             Description = "Manage Mods, Maps, and Patches.",
-            IconKey = "Layers",
             Order = 2,
             Cards =
             [
@@ -210,7 +204,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Content Types & Hierarchy",
                     Content = "Definitions and load-order priority.",
                     Type = InfoCardType.Concept,
-                    IconKey = "ShapeOutline",
                     IsExpandable = true,
                     DetailedContent = """
                     **Game Client**
@@ -247,7 +240,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Content Editor",
                     Content = "Assignment and ordering of content processing.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "Layers",
                     IsExpandable = true,
                     DetailedContent = """
                     **Workflow:**
@@ -264,7 +256,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Virtual File System",
                     Content = "How content is merged at runtime.",
                     Type = InfoCardType.Feature,
-                    IconKey = "FolderMultiple",
                     IsExpandable = true,
                     DetailedContent = """
                     **Layered Execution:**
@@ -286,7 +277,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "shortcuts",
             Title = "Desktop Shortcuts",
             Description = "Create direct-launch shortcuts.",
-            IconKey = "RocketLaunch",
             Order = 3,
             Cards =
             [
@@ -295,7 +285,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Headless Mode Launcher",
                     Content = "Architecture for non-GUI game execution.",
                     Type = InfoCardType.Concept,
-                    IconKey = "ConsoleLine",
                     IsExpandable = true,
                     DetailedContent = """
                     **Direct Game Launch:**
@@ -310,7 +299,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Shortcut Creation",
                     Content = "Generating linkage files.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "MonitorDashboard",
                     IsExpandable = true,
                     DetailedContent = """
                     **Process:**
@@ -324,7 +312,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Icon Customization",
                     Content = "Visual identification of shortcuts.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Palette",
                     IsExpandable = true,
                     DetailedContent = """
                     **Source:**
@@ -343,7 +330,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "steam-integration",
             Title = "Steam Integration",
             Description = "Enable Steam Overlay and Time Tracking.",
-            IconKey = "Steam",
             Order = 4,
             Cards =
             [
@@ -352,7 +338,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "AppID Injection",
                     Content = "Environment variable spoofing for Steam.",
                     Type = InfoCardType.Concept,
-                    IconKey = "Link",
                     IsExpandable = true,
                     DetailedContent = """
                     **Steam Connection:**
@@ -367,7 +352,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Usage Requirements",
                     Content = "Prerequisites for successful injection.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "CheckNetwork",
                     IsExpandable = true,
                     DetailedContent = """
                     **Prerequisites:**
@@ -383,7 +367,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Time Tracking",
                     Content = "Steam playtime logging.",
                     Type = InfoCardType.Feature,
-                    IconKey = "ClockOutline",
                     IsExpandable = true,
                     DetailedContent = """
                     **Mechanism:**
@@ -402,7 +385,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "local-content",
             Title = "Local Content",
             Description = "Import external Mods, Maps, and Tools.",
-            IconKey = "FolderZip",
             Order = 5,
             Cards =
             [
@@ -411,7 +393,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Universal Import",
                     Content = "Import Zips, Folders, and Executables.",
                     Type = InfoCardType.Concept,
-                    IconKey = "FileUpload",
                     IsExpandable = true,
                     DetailedContent = """
                     **The 'Add Local' Gateway:**
@@ -428,7 +409,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Endless Possibilities",
                     Content = "Map Packs, Total Conversions, and Utilities.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Puzzle",
                     IsExpandable = true,
                     DetailedContent = """
                     **What can you add?**
@@ -442,7 +422,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Smart Management",
                     Content = "Auto-validation and safe storage.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "ShieldCheck",
                     IsExpandable = true,
                     DetailedContent = """
                     **Intelligent Processing:**
@@ -463,7 +442,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "tools",
             Title = "Tools & Utilities",
             Description = "Replay and Map management.",
-            IconKey = "Tools",
             Order = 6,
             Cards =
             [
@@ -472,7 +450,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Replay Manager: Import & Parse",
                     Content = "Importing game recordings.",
                     Type = InfoCardType.Concept,
-                    IconKey = "MovieOpen",
                     IsExpandable = true,
                     DetailedContent = """
                     **Import Methods:**
@@ -490,7 +467,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Replay Manager: Cloud & Sharing",
                     Content = "Upload and share replays.",
                     Type = InfoCardType.Feature,
-                    IconKey = "CloudUpload",
                     IsExpandable = true,
                     DetailedContent = """
                     **Cloud Upload (Cloud Icon):**
@@ -509,7 +485,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Replay Manager: Archiving",
                     Content = "Zip and Unzip functionality.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "FolderZip",
                     IsExpandable = true,
                     DetailedContent = """
                     **Packaging (Zip Icon):**
@@ -526,7 +501,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Map Manager: Library",
                     Content = "Organizing custom maps.",
                     Type = InfoCardType.Concept,
-                    IconKey = "MapSearch",
                     IsExpandable = true,
                     DetailedContent = """
                     **Management:**
@@ -544,7 +518,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Map Manager: Map Packs",
                     Content = "Creating map collections.",
                     Type = InfoCardType.Feature,
-                    IconKey = "PackageVariant",
                     IsExpandable = true,
                     DetailedContent = """
                     **What is a Map Pack?**
@@ -570,7 +543,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "scan-games",
             Title = "Game Detection",
             Description = "Detect or register game installations.",
-            IconKey = "Radar",
             Order = 7,
             Cards =
             [
@@ -579,7 +551,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Auto-Detection",
                     Content = "Heuristic scanning for installed games.",
                     Type = InfoCardType.Concept,
-                    IconKey = "Magnify",
                     IsExpandable = true,
                     DetailedContent = """
                     **Heuristic Scanner:**
@@ -596,7 +567,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Signature Verification",
                     Content = "Anti-piracy and integrity checks.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Certificate",
                     IsExpandable = true,
                     DetailedContent = """
                     **SHA-256 Hashing:**
@@ -616,7 +586,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "workspaces",
             Title = "Virtual Workspaces",
             Description = "Technical details of NTFS Hardlink isolation.",
-            IconKey = "Harddisk",
             Order = 8,
             Cards =
             [
@@ -625,7 +594,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "The Magic Mirror",
                     Content = "Understanding the localized file system.",
                     Type = InfoCardType.Concept,
-                    IconKey = "Layers",
                     IsExpandable = true,
                     DetailedContent = """
                     **The "Magic Mirror":**
@@ -641,7 +609,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Troubleshooting",
                     Content = "Resolving common build errors.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "Wrench",
                     IsExpandable = true,
                     DetailedContent = """
                     **Common Issues:**
@@ -654,7 +621,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Performance Specs",
                     Content = "Efficiency and integrity metrics.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Speedometer",
                     IsExpandable = true,
                     DetailedContent = """
                     **Hardlinks:**
@@ -674,7 +640,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "app-updates",
             Title = "App Updates",
             Description = "Update mechanism.",
-            IconKey = "Update",
             Order = 9,
             Cards =
             [
@@ -683,7 +648,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Version Control",
                     Content = "GitHub Releases integration.",
                     Type = InfoCardType.Concept,
-                    IconKey = "Github",
                     IsExpandable = true,
                     DetailedContent = """
                     **Source:**
@@ -698,7 +662,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Update Workflow",
                     Content = "Applying patches.",
                     Type = InfoCardType.HowTo,
-                    IconKey = "CloudDownload",
                     IsExpandable = true,
                     DetailedContent = """
                     **Update Process:**
@@ -712,7 +675,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Title = "Rollback Capability",
                     Content = "Reverting to previous versions.",
                     Type = InfoCardType.Feature,
-                    IconKey = "Undo",
                     IsExpandable = true,
                     DetailedContent = """
                     **Manual Rollback:**
@@ -731,7 +693,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "changelogs",
             Title = "Changelog",
             Description = "Version history.",
-            IconKey = "History",
             Order = 10,
             Cards = [],
         };
@@ -744,7 +705,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "faq",
             Title = "Frequently Asked Questions",
             Description = "Common questions about the Generals Online service.",
-            IconKey = "HelpCircleOutline",
             Order = 7,
             Cards =
             [
@@ -943,7 +903,6 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             Id = "go-changelog",
             Title = "Changelog",
             Description = "View the latest changes and updates to the Generals Online service.",
-            IconKey = "History",
             Order = 8,
             Cards = [], // Content managed by dynamic view
         };

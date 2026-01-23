@@ -665,11 +665,7 @@
                       <!-- Card Header -->
                       <Grid ColumnDefinitions="Auto, *, Auto" Grid.Row="0" Margin="0,0,0,16">
                          <!-- Icon -->
-                        <material:MaterialIcon Kind="{Binding IconKey}"
-                                                Width="32" Height="32"
-                                                Foreground="{StaticResource SystemAccentColorBrush}"
-                                                IsVisible="{Binding IconKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                Margin="0,0,18,0"/>
+
 
                         <!-- Title -->
                         <TextBlock Text="{Binding Title}" Grid.Column="1" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
@@ -725,7 +721,7 @@
                                 Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
                                 CommandParameter="{Binding}">
                           <StackPanel Orientation="Horizontal" Spacing="8">
-                            <material:MaterialIcon Kind="{Binding IconKey}" Width="16" Height="16" IsVisible="{Binding IconKey, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
                             <TextBlock Text="{Binding Label}"/>
                           </StackPanel>
                         </Button>

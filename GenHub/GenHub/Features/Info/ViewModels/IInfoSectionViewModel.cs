@@ -13,11 +13,6 @@ public interface IInfoSectionViewModel
     string Title { get; }
 
     /// <summary>
-    /// Gets the icon key for the section (Material Icon name).
-    /// </summary>
-    string IconKey { get; }
-
-    /// <summary>
     /// Gets the sort order of the section.
     /// </summary>
     int Order { get; }

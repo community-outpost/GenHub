@@ -516,26 +516,41 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
     ];
 
     /// <summary>
-    /// Normalizes a resource path to ensure it's a valid absolute URI or file path.
-    /// Handles legacy relative paths by converting them to full avares:// URIs.
+    /// Normalizes a resource path to ensure it's compatible with both current and development branches.
+    /// Prefers relative paths (starting with /) for GenHub assets to ensure backward compatibility.
     /// </summary>
     private static string NormalizeResourcePath(string? path, string defaultUri)
     {
         if (string.IsNullOrWhiteSpace(path))
-            return defaultUri;
+        {
+            // If default URI is provided, normalize it too so we don't return avares:// defaults
+            return !string.IsNullOrEmpty(defaultUri) ? NormalizeResourcePath(defaultUri, string.Empty) : string.Empty;
+        }
 
-        // If it's already a full avares:// URI, return as-is (don't double-prefix)
+        // 1. Handle avares:// URIs -> Convert to relative path
         if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
-            return path;
+        {
+            if (Uri.TryCreate(path, UriKind.Absolute, out var uri))
+            {
+                return uri.AbsolutePath;
+            }
 
-        // If it's already an absolute URI (http, file, etc.), return as-is
-        if (Uri.TryCreate(path, UriKind.Absolute, out _))
-            return path;
+            return path.Replace("avares://GenHub", string.Empty);
+        }
 
-        // Legacy relative resource path - convert to full URI
-        // Remove leading slash if present to avoid double slashes
-        var relativePath = path.TrimStart('/');
-        return $"avares://GenHub/{relativePath}";
+        // 2. Handle relative paths (starts with / or Assets/) -> Ensure leading slash
+        // We check for Assets explicitly because some paths might be stored as "Assets/..." without slash
+        if (path.StartsWith('/') || path.StartsWith('\\') || path.StartsWith("Assets", StringComparison.OrdinalIgnoreCase))
+        {
+            // Careful not to mess up UNC paths (\\server) but unlikely for assets
+            if (path.StartsWith("\\\\")) return path;
+
+            var relative = path.TrimStart('/', '\\');
+            return "/" + relative;
+        }
+
+        // 3. Assume absolute local path or other URI scheme -> Return as is
+        return path;
     }
 
     /// <summary>

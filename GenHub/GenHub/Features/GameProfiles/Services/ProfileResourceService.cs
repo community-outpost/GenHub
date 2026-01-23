@@ -12,14 +12,14 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 public class ProfileResourceService(ILogger<ProfileResourceService> logger)
 {
-    private const string IconsPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Icons";
-    private const string CoversPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Covers";
-    private const string LogosPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Logos";
-    private const string ImagesPath = $"{UriConstants.AvarUriScheme}GenHub/Assets/Images";
+    private const string IconsPath = "/Assets/Icons";
+    private const string CoversPath = "/Assets/Covers";
+    private const string LogosPath = "/Assets/Logos";
+    private const string ImagesPath = "/Assets/Images";
 
     private readonly object _initLock = new();
-    private readonly List<ProfileResourceItem> _icons = new List<ProfileResourceItem>();
-    private readonly List<ProfileResourceItem> _covers = new List<ProfileResourceItem>();
+    private readonly List<ProfileResourceItem> _icons = [];
+    private readonly List<ProfileResourceItem> _covers = [];
     private bool _initialized = false;
 
     /// <summary>

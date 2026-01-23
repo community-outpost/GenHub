@@ -20,9 +20,6 @@ public partial class InfoCardViewModel : ObservableObject
     private InfoCardType _type;
 
     [ObservableProperty]
-    private string? _iconKey;
-
-    [ObservableProperty]
     private bool _isExpandable;
 
     [ObservableProperty]
