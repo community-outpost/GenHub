@@ -35,7 +35,6 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
-
     /// <summary>
     /// Gets the source name for this discoverer.
     /// </summary>

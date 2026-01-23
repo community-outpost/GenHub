@@ -46,6 +46,10 @@ public partial class ReplayManagerViewModel(
         return string.Concat(fileName.Where(c => !invalidChars.Contains(c)));
     }
 
+    private static bool IsDemoPath(string path) =>
+        path.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/Mock/", StringComparison.OrdinalIgnoreCase);
+
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
@@ -84,6 +88,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task ToggleHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Upload History",
+                "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
+            return;
+        }
+
         IsHistoryOpen = !IsHistoryOpen;
         if (IsHistoryOpen)
         {
@@ -154,6 +168,16 @@ public partial class ReplayManagerViewModel(
     {
         if (string.IsNullOrEmpty(url)) return;
 
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Copy Link",
+                "Copies the download link of the uploaded file to your clipboard.");
+            return;
+        }
+
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var clipboard = lifetime?.MainWindow?.Clipboard;
         if (clipboard != null)
@@ -170,6 +194,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Remove From History",
+                "Removes the item from your local history. This frees up your upload quota immediately.");
+            return;
+        }
+
         try
         {
             await uploadHistoryService.RemoveHistoryItemAsync(item.Url);
@@ -189,6 +223,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Clear History",
+                "Clears your entire local upload history. This frees up all your upload quota.");
+            return;
+        }
+
         try
         {
             await uploadHistoryService.ClearHistoryAsync();
@@ -320,8 +364,7 @@ public partial class ReplayManagerViewModel(
     {
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
@@ -371,8 +414,7 @@ public partial class ReplayManagerViewModel(
 
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
@@ -420,8 +462,7 @@ public partial class ReplayManagerViewModel(
     {
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
@@ -462,8 +503,7 @@ public partial class ReplayManagerViewModel(
         }
 
         // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => r.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                        r.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -502,8 +542,7 @@ public partial class ReplayManagerViewModel(
         }
 
         // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => r.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                        r.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -587,8 +626,7 @@ public partial class ReplayManagerViewModel(
         }
 
         // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => r.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                        r.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -678,8 +716,7 @@ public partial class ReplayManagerViewModel(
     {
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
@@ -695,8 +732,7 @@ public partial class ReplayManagerViewModel(
     private void RevealFile(ReplayFile replay)
     {
         // Check if replay is a demo item (has mock path)
-        if (replay.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            replay.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(replay.FullPath))
         {
             // Show notification toast explaining what the button does
             notificationService.ShowInfo(
@@ -718,8 +754,7 @@ public partial class ReplayManagerViewModel(
         if (zipFiles.Count == 0) return;
 
         // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => r.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                        r.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
         if (demoReplays.Count > 0)
         {
             // Show notification toast explaining what the button does

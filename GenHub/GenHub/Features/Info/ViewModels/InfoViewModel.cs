@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Info;
+using GenHub.Features.Info.ViewModels;
 
 namespace GenHub.Features.Info.ViewModels;
 
@@ -26,7 +27,7 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
     /// <summary>
     /// Gets the list of available modules.
     /// </summary>
-    public ObservableCollection<string> Modules { get; } = ["GenHub Guide", "Zero Hour"];
+    public ObservableCollection<string> Modules { get; } = ["GenHub Guide", "Zero Hour", "GeneralsOnline"];
 
     [ObservableProperty]
     private string _selectedModule = "GenHub Guide";
@@ -42,6 +43,11 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
     public bool IsZeroHourSelected => SelectedModule == "Zero Hour";
 
     /// <summary>
+    /// Gets a value indicating whether the "GeneralsOnline" module is selected.
+    /// </summary>
+    public bool IsGeneralsOnlineSelected => SelectedModule == "GeneralsOnline";
+
+    /// <summary>
     /// Gets the items to display in the sidebar for the current module.
     /// </summary>
     [ObservableProperty]
@@ -54,6 +60,7 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(IsGuideSelected));
         OnPropertyChanged(nameof(IsZeroHourSelected));
+        OnPropertyChanged(nameof(IsGeneralsOnlineSelected));
         UpdateSidebarItems();
     }
 
@@ -71,9 +78,26 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
             {
+                 // Filter for Guide sections (exclude FAQ and Changelog identifiers if needed,
+                 // but for now we'll filter them in the ViewModel or just reuse the section)
+                 // Actually, we need to switch the context of the GenHubInfoSectionViewModel
+                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
+
                  SelectedSection = genHubSection;
                  SidebarItems = genHubSection.Sections;
                  SelectedSidebarItem = genHubSection.SelectedSection;
+            }
+        }
+        else if (IsGeneralsOnlineSelected)
+        {
+            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+            if (genHubSection != null)
+            {
+                genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
+
+                SelectedSection = genHubSection;
+                SidebarItems = genHubSection.Sections;
+                SelectedSidebarItem = genHubSection.SelectedSection;
             }
         }
         else
@@ -109,7 +133,7 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedSidebarItemChanged(object? value)
     {
-        if (IsGuideSelected)
+        if (IsGuideSelected || IsGeneralsOnlineSelected)
         {
             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null && value is InfoSectionViewModel infoSection)
@@ -139,7 +163,8 @@ public partial class InfoViewModel : ViewModelBase, IDisposable
         Sections = new ObservableCollection<IInfoSectionViewModel>(_sectionViewModels.OrderBy(s => s.Order));
 
         // Default to GenHub Guide
-        SelectedSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+        SelectedSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault()
+            ?? Sections.FirstOrDefault();
 
         // Initialize sidebar items
         UpdateSidebarItems();

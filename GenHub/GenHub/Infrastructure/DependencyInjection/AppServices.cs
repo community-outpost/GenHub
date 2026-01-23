@@ -51,7 +51,6 @@ public static class AppServices
         services.AddNotificationModule();
 
         // Register UI services last (depends on all business services)
-        // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();
         InfoModule.Register(services);

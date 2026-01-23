@@ -17,6 +17,7 @@ public static class InfoModule
     public static void Register(IServiceCollection services)
     {
         services.AddSingleton<IFaqService, FaqService>();
+        services.AddSingleton<IGeneralsOnlinePatchNotesService, GeneralsOnlinePatchNotesService>();
         services.AddSingleton<IInfoContentProvider, DefaultInfoContentProvider>();
 
         // Register the container ViewModel
@@ -28,5 +29,6 @@ public static class InfoModule
 
         // Register view models
         services.AddTransient<ChangelogsViewModel>();
+        services.AddTransient<GeneralsOnlineChangelogViewModel>();
     }
 }

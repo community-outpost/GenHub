@@ -95,9 +95,9 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Button Classes="lang-btn"
-                                Command="{Binding $parent[UserControl].((vm:FaqSectionViewModel)DataContext).SelectLanguageCommand}"
+                                Command="{Binding ((vm:FaqSectionViewModel)DataContext).SelectLanguageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}"
-                                Classes.selected="{Binding Code, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[UserControl].((vm:FaqSectionViewModel)DataContext).SelectedLanguageOption.Code}}">
+                                Classes.selected="{Binding Code, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding ((vm:FaqSectionViewModel)DataContext).SelectedLanguageOption.Code, RelativeSource={RelativeSource AncestorType=UserControl}}}">
                             <Image Source="{Binding ImagePath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="24"/>
                         </Button>
                     </DataTemplate>

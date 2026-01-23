@@ -118,7 +118,7 @@ public partial class MapManagerViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Whether to MapPack panel is open.
+    /// Whether the MapPack panel is open.
     /// </summary>
     [ObservableProperty]
     private bool isMapPackPanelOpen = false;
@@ -523,8 +523,8 @@ public partial class MapManagerViewModel : ObservableObject
         {
             var directory = _directoryService.GetMapDirectory(SelectedTab);
             var safeZipName = ZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-                  ? ZipName
-                  : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+                ? ZipName
+                : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
 
             var destinationPath = Path.Combine(directory, safeZipName);
 
@@ -783,6 +783,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private void ToggleMapPackPanel()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "MapPacks",
+                "Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles.");
+            return;
+        }
+
         IsMapPackPanelOpen = !IsMapPackPanelOpen;
     }
 
@@ -963,6 +974,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private void ToggleHistory()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Upload History",
+                "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
+            return;
+        }
+
         IsHistoryOpen = !IsHistoryOpen;
         if (IsHistoryOpen)
         {
@@ -1022,6 +1044,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task CopyUrlAsync(string url)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Copy Link",
+                "Copies the download link of the uploaded file to your clipboard.");
+            return;
+        }
+
         try
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
@@ -1041,6 +1074,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Remove From History",
+                "Removes the item from your local history. This frees up your upload quota immediately.");
+            return;
+        }
+
         try
         {
             await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
@@ -1056,6 +1100,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Clear History",
+                "Clears your entire local upload history. This frees up all your upload quota.");
+            return;
+        }
+
         try
         {
             await _uploadHistoryService.ClearHistoryAsync();

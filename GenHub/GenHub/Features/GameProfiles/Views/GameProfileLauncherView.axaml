@@ -248,11 +248,19 @@
 
 
                         <Panel>
-                            <!-- Scan Button -->
-                            <Button Command="{Binding ScanForGamesCommand}"
-                                    Content="SCAN"
-                                    Classes="outline"
-                                    IsVisible="{Binding !IsScanning}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <!-- Manual Add Button -->
+                                <Button Command="{Binding AddManualGameCommand}"
+                                        Content="ADD GAME"
+                                        Classes="outline"
+                                        IsVisible="{Binding !IsScanning}" />
+
+                                <!-- Scan Button -->
+                                <Button Command="{Binding ScanForGamesCommand}"
+                                        Content="SCAN"
+                                        Classes="outline"
+                                        IsVisible="{Binding !IsScanning}" />
+                            </StackPanel>
 
                             <!-- Loading UI -->
                             <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsScanning}">

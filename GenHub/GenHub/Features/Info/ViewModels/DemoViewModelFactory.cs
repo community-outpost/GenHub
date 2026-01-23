@@ -48,6 +48,7 @@ public static class DemoViewModelFactory
                 PublisherType = PublisherTypeConstants.Steam,
             },
             GameInstallationId = "mock-steam-installation", // Required to switch IsSteamInstallation to true so the button appears
+            UseSteamLaunch = false, // Explicitly start disabled so the first toggle turns it ON
         };
 
         GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.png");
@@ -296,6 +297,16 @@ public static class DemoViewModelFactory
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
         return new AddLocalContentViewModel(mockService, mockLogger);
+    }
+
+    /// <summary>
+    /// Creates a demo WorkspaceDemoViewModel with mock data.
+    /// </summary>
+    /// <param name="notificationService">Optional notification service for demo actions.</param>
+    /// <returns>A configured demo workspace view model.</returns>
+    public static WorkspaceDemoViewModel CreateDemoWorkspaceViewModel(INotificationService? notificationService = null)
+    {
+        return new WorkspaceDemoViewModel(notificationService);
     }
 
     /// <summary>

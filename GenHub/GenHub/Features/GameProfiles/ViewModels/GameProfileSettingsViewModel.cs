@@ -102,6 +102,24 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         WeakReferenceMessenger.Default.Register(this);
     }
 
+    /// <summary>
+    /// Refreshes the visible filters and available content based on the current game type filter.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    protected internal async Task RefreshFiltersAndContentAsync()
+    {
+        await RefreshVisibleFiltersAsync();
+        await LoadAvailableContentAsync();
+    }
+
+    /// <summary>
+    /// Called when the game type filter changes.
+    /// </summary>
+    partial void OnGameTypeFilterChanged(GameType value)
+    {
+        _ = RefreshFiltersAndContentAsync();
+    }
+
     [ObservableProperty]
     private string _name = string.Empty;
 
@@ -311,24 +329,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
 
     [ObservableProperty]
     private Core.Models.Enums.GameType _gameTypeFilter = Core.Models.Enums.GameType.ZeroHour;
-
-    /// <summary>
-    /// Called when the game type filter changes.
-    /// </summary>
-    partial void OnGameTypeFilterChanged(GameType value)
-    {
-        _ = RefreshFiltersAndContentAsync();
-    }
-
-    /// <summary>
-    /// Refreshes the visible filters and available content based on the current game type filter.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    protected internal async Task RefreshFiltersAndContentAsync()
-    {
-        await RefreshVisibleFiltersAsync();
-        await LoadAvailableContentAsync();
-    }
 
     // ===== Local Content Dialog Properties =====
     [ObservableProperty]

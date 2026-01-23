@@ -430,9 +430,19 @@ public partial class GameProfileLauncherViewModel(
                 {
                     logger.LogInformation("No game installations found, prompting user for manual directory selection");
 
+                    // Use the shared manual game addition logic
+                    // We don't await the result here because we want to exit the scan flow if cancelled,
+                    // but AddManualGameAsync handles the full flow including UI updates.
+                    // However, for the scan flow, we need to know if it was successful to show the "Scan Cancelled" message or not.
                     var manualInstallation = await PromptForManualGameDirectoryAsync();
                     if (manualInstallation != null)
                     {
+                        // Proceed to process this installation usually handled inside AddManualGameAsync,
+                        // but here we want to continue the wizard flow.
+
+                        // Actually, let's just reuse the logic from AddManualGameAsync but we need to integrate it into the wizard flow.
+                        // For simplicity in this refactor, let's keep the wizard flow logic here but use the Prompt method.
+
                         // Ensure paths are populated
                         manualInstallation.Fetch();
 
@@ -602,6 +612,72 @@ public partial class GameProfileLauncherViewModel(
             // If user leaves before timer fires, StartHeaderTimer will cancel this
             _headerExpansionTimer.Stop(); // Reset
             _headerExpansionTimer.Start();
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddManualGameAsync()
+    {
+        try
+        {
+            StatusMessage = "Selecting game directory...";
+            var manualInstallation = await PromptForManualGameDirectoryAsync();
+
+            if (manualInstallation != null)
+            {
+                StatusMessage = "Processing manual installation...";
+
+                // Ensure paths are populated
+                manualInstallation.Fetch();
+
+                // Detect game clients for the manual installation
+                var detectionResult = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation]);
+                if (detectionResult.Success && detectionResult.Items?.Count > 0)
+                {
+                    manualInstallation.PopulateGameClients(detectionResult.Items);
+                }
+
+                // Create and register GameInstallation manifests
+                await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation);
+
+                // Register with service cache
+                var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation);
+                if (!addResult.Success)
+                {
+                    logger.LogWarning("Failed to add manual installation to cache: {Error}", addResult.FirstError);
+                }
+
+                // Create profiles for this installation
+                int profilesCreated = 0;
+
+                // For manual add, we just create standard profiles for found clients
+                if (manualInstallation.AvailableGameClients != null)
+                {
+                    foreach (var client in manualInstallation.AvailableGameClients)
+                    {
+                        if (await TryCreateProfileForGameClientAsync(manualInstallation, client))
+                        {
+                            profilesCreated++;
+                        }
+                    }
+                }
+
+                StatusMessage = $"Added installation and created {profilesCreated} profiles";
+                notificationService.ShowSuccess(
+                    "Game Added",
+                    $"Successfully added game from {manualInstallation.InstallationPath} and created {profilesCreated} profiles.");
+            }
+            else
+            {
+                StatusMessage = "Manual game addition cancelled";
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error adding manual game");
+            StatusMessage = "Error adding manual game";
+            ErrorMessage = ex.Message;
+            notificationService.ShowError("Error", $"Failed to add game: {ex.Message}");
         }
     }
 

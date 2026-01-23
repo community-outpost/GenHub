@@ -19,4 +19,7 @@ public enum InfoCardType
 
     /// <summary>Helpful tip or shortcut.</summary>
     Tip,
+
+    /// <summary>Notable capability or function.</summary>
+    Feature,
 }

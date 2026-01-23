@@ -19,89 +19,102 @@
 
             <SplitView.Pane>
               <!-- PART_SidebarPane is critical for the hover logic -->
+            <!-- PART_SidebarPane is critical for the hover logic -->
             <Border x:Name="PART_SidebarPane"
-                      Background="{StaticResource SidebarBackgroundGradient}"
-                      BorderBrush="{StaticResource SidebarGlassBorder}"
-                      BorderThickness="0,0,1,0"
-                      CornerRadius="0,16,16,0"
-                      BoxShadow="4 0 24 -2 #4D000000"> <!-- Subtle Shadow restored -->
-                <!-- Removed global Margin="20" to fix indent issue. -->
-                <Grid RowDefinitions="Auto,Auto,*,Auto">
-                  <!-- Header title - Removed Margin, using Padding for alignment -->
-                  <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0" >
-                    <TextBlock Text="{TemplateBinding PaneTitle}"
-                               FontSize="20"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               VerticalAlignment="Center"
-                               Padding="12,20,12,10"> <!-- Standard Padding -->
-                         <TextBlock.Effect>
-                             <DropShadowEffect BlurRadius="12" Color="{StaticResource SidebarGlowColor}" Opacity="0.4" OffsetX="0" OffsetY="0"/>
-                         </TextBlock.Effect>
-                    </TextBlock>
+                    Background="Transparent"
+                    BorderBrush="{StaticResource SidebarGlassBorder}"
+                    BorderThickness="0,0,1,0"
+                    CornerRadius="0,16,16,0"
+                    BoxShadow="4 0 24 -2 #4D000000"
+                    ClipToBounds="False"> <!-- Keep False for Shadow, wrap content for Clip -->
 
-                    <Button Grid.Column="1"
-                            Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="12"
-                            Margin="0,10,0,0"
-                            VerticalAlignment="Top"
-                            Foreground="{StaticResource PurpleAccentBright}">
-                      <TextBlock Text="✕" FontSize="18" FontWeight="Bold"/>
-                    </Button>
-                  </Grid>
+                <!-- Glassmorphic Layer -->
+                <ExperimentalAcrylicBorder CornerRadius="0,16,16,0" ClipToBounds="True">
+                    <ExperimentalAcrylicBorder.Material>
+                        <ExperimentalAcrylicMaterial
+                            BackgroundSource="Digger"
+                            TintColor="{StaticResource SidebarGlassBackground}"
+                            TintOpacity="0.85"
+                            MaterialOpacity="0.65" />
+                    </ExperimentalAcrylicBorder.Material>
 
-                  <!-- Pane Header (ComboBox) - Flush Left w/ Padding 12 -->
-                  <ContentPresenter Grid.Row="1" Content="{TemplateBinding PaneHeader}" Margin="0,0,0,20"/>
+                    <Grid RowDefinitions="Auto,Auto,*,Auto">
+                      <!-- Header title - Removed Margin, using Padding for alignment -->
+                      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0" >
+                        <TextBlock Text="{TemplateBinding PaneTitle}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   Padding="12,20,12,10"> <!-- Standard Padding -->
+                             <TextBlock.Effect>
+                                 <DropShadowEffect BlurRadius="12" Color="{StaticResource SidebarGlowColor}" Opacity="0.4" OffsetX="0" OffsetY="0"/>
+                             </TextBlock.Effect>
+                        </TextBlock>
 
-                  <!-- List - Flush Left w/ internal item padding 12 -->
-                  <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
-                    <ListBox ItemsSource="{TemplateBinding ItemsSource}"
-                             SelectedItem="{TemplateBinding SelectedItem, Mode=TwoWay}"
-                             ItemTemplate="{TemplateBinding ItemTemplate}"
-                             Background="Transparent">
-                         <ListBox.Styles>
-            <!-- ListBox Item Stying -->
-            <Style Selector="ListBoxItem">
-              <!-- Minimal padding, flush left if desired, but 12px is cleaner usually.
-                   User said REMOVE INDENT. So I will use very small padding 8px. -->
-              <Setter Property="Padding" Value="12,10"/>
-              <Setter Property="Margin" Value="0,1"/>
-              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-              <Setter Property="CornerRadius" Value="8"/> <!-- Slightly rounded -->
-              <Setter Property="Background" Value="Transparent"/> <!-- Clean Transparent Default -->
-              <Setter Property="Transitions">
-                  <Transitions>
-                      <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                      <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
-                  </Transitions>
-              </Setter>
-            </Style>
+                        <Button Grid.Column="1"
+                                Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="12"
+                                Margin="0,10,0,0"
+                                VerticalAlignment="Top"
+                                Foreground="{StaticResource PurpleAccentBright}">
+                          <TextBlock Text="✕" FontSize="18" FontWeight="Bold"/>
+                        </Button>
+                      </Grid>
 
-            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-              <Setter Property="Background" Value="{StaticResource SidebarItemHoverBackground}"/>
-              <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentMid}"/>
-              <Setter Property="BorderThickness" Value="0,0,0,0"/>
-            </Style>
+                      <!-- Pane Header (ComboBox) - Flush Left w/ Padding 12 -->
+                      <ContentPresenter Grid.Row="1" Content="{TemplateBinding PaneHeader}" Margin="0,0,0,20"/>
 
-            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-              <Setter Property="Background" Value="{StaticResource SidebarItemSelectedBackground}"/>
-              <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}"/>
-              <Setter Property="BorderThickness" Value="3,0,0,0"/> <!-- Left accent bar 3px -->
-            </Style>
+                      <!-- List - Flush Left w/ internal item padding 12 -->
+                      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
+                        <ListBox ItemsSource="{TemplateBinding ItemsSource}"
+                                 SelectedItem="{TemplateBinding SelectedItem, Mode=TwoWay}"
+                                 ItemTemplate="{TemplateBinding ItemTemplate}"
+                                 Background="Transparent">
+                             <ListBox.Styles>
+                <!-- ListBox Item Stying -->
+                <Style Selector="ListBoxItem">
+                  <!-- Minimal padding, flush left if desired, but 12px is cleaner usually.
+                       User said REMOVE INDENT. So I will use very small padding 8px. -->
+                  <Setter Property="Padding" Value="12,10"/>
+                  <Setter Property="Margin" Value="0,1"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  <Setter Property="CornerRadius" Value="8"/> <!-- Slightly rounded -->
+                  <Setter Property="Background" Value="Transparent"/> <!-- Clean Transparent Default -->
+                  <Setter Property="Transitions">
+                      <Transitions>
+                          <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                      </Transitions>
+                  </Setter>
+                </Style>
 
-            <Style Selector="ListBoxItem:pointerover">
-                <Setter Property="RenderTransform" Value="translateX(4px)"/>
-            </Style>
-                         </ListBox.Styles>
-                    </ListBox>
-                  </ScrollViewer>
+                <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                  <Setter Property="Background" Value="{StaticResource SidebarItemHoverBackground}"/>
+                  <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentMid}"/>
+                  <Setter Property="BorderThickness" Value="0,0,0,0"/>
+                </Style>
 
-                  <!-- Footer -->
-                  <ContentPresenter Grid.Row="3" Content="{TemplateBinding PaneFooter}"/>
-                </Grid>
-              </Border>
+                <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                  <Setter Property="Background" Value="{StaticResource SidebarItemSelectedBackground}"/>
+                  <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}"/>
+                  <Setter Property="BorderThickness" Value="3,0,0,0"/> <!-- Left accent bar 3px -->
+                </Style>
+
+                <Style Selector="ListBoxItem:pointerover">
+                    <Setter Property="RenderTransform" Value="translateX(4px)"/>
+                </Style>
+                             </ListBox.Styles>
+                        </ListBox>
+                      </ScrollViewer>
+
+                      <!-- Footer -->
+                      <ContentPresenter Grid.Row="3" Content="{TemplateBinding PaneFooter}"/>
+                    </Grid>
+                </ExperimentalAcrylicBorder>
+            </Border>
             </SplitView.Pane>
 
             <SplitView.Content>

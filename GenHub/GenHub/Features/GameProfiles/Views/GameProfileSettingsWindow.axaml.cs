@@ -44,20 +44,6 @@ public partial class GameProfileSettingsWindow : Window
     }
 
     /// <summary>
-    /// Wires up pointer event handlers to the header border in the shared content view.
-    /// </summary>
-    private void WireUpDragHandlers()
-    {
-        // Find the named header border in the shared content view
-        if (this.FindControl<GameProfileSettingsContentView>("ContentView")?.FindControl<Border>("HeaderBorder") is { } headerBorder)
-        {
-            headerBorder.PointerPressed += OnHeaderPointerPressed;
-            headerBorder.PointerMoved += OnHeaderPointerMoved;
-            headerBorder.PointerReleased += OnHeaderPointerReleased;
-        }
-    }
-
-    /// <summary>
     /// Handles pointer pressed on the header to enable window dragging and maximizing.
     /// </summary>
     /// <param name="sender">The sender.</param>
@@ -142,6 +128,20 @@ public partial class GameProfileSettingsWindow : Window
         SaveWindowSize();
 
         base.OnClosed(e);
+    }
+
+    /// <summary>
+    /// Wires up pointer event handlers to the header border in the shared content view.
+    /// </summary>
+    private void WireUpDragHandlers()
+    {
+        // Find the named header border in the shared content view
+        if (this.FindControl<GameProfileSettingsContentView>("ContentView")?.FindControl<Border>("HeaderBorder") is { } headerBorder)
+        {
+            headerBorder.PointerPressed += OnHeaderPointerPressed;
+            headerBorder.PointerMoved += OnHeaderPointerMoved;
+            headerBorder.PointerReleased += OnHeaderPointerReleased;
+        }
     }
 
     private void InitializeComponent()

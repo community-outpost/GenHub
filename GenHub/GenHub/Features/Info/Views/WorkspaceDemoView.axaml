@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="GenHub.Features.Info.Views.WorkspaceDemoView"
+             x:DataType="vm:WorkspaceDemoViewModel">
+
+    <Border Background="#121212" CornerRadius="12" BorderBrush="#333" BorderThickness="1" Padding="20">
+        <Grid RowDefinitions="Auto, *, Auto">
+
+            <!-- Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Workspace Simulator" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                    <TextBlock Text="{Binding Status}" FontSize="13" Foreground="#AAA" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding StartSimulationCommand}"
+                        IsEnabled="{Binding !IsSimulating}"
+                        Background="{StaticResource SystemAccentColorBrush}"
+                        Padding="16,8" CornerRadius="6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="White"/>
+                        <TextBlock Text="Run Simulator" FontWeight="SemiBold" Foreground="White"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Operation List -->
+            <Border Grid.Row="1" Background="#0F0F0F" CornerRadius="8" BorderBrush="#252525" BorderThickness="1">
+                <ScrollViewer x:Name="OperationsScroll">
+                    <ItemsControl ItemsSource="{Binding Operations}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#1A1A1A" BorderThickness="0,0,0,1" Padding="12,10">
+                                    <Grid ColumnDefinitions="*, Auto, *">
+                                        <!-- Source -->
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="SOURCE" FontSize="9" FontWeight="Bold" Foreground="#666"/>
+                                            <TextBlock Text="{Binding Source}" FontSize="11" Foreground="#999" TextWrapping="NoWrap"/>
+                                        </StackPanel>
+
+                                        <!-- Link Visual -->
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="15,0">
+                                            <material:MaterialIcon Kind="Link" Width="14" Height="14" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                                            <TextBlock Text="{Binding Type}" FontSize="9" Foreground="{StaticResource SystemAccentColorBrush}" HorizontalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <!-- Target -->
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                            <TextBlock Text="WORKSPACE" FontSize="9" FontWeight="Bold" Foreground="#666" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding Target}" FontSize="11" Foreground="#CCC" TextWrapping="NoWrap" HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Footer / Progress -->
+            <StackPanel Grid.Row="2" Margin="0,15,0,0" Spacing="8">
+                <ProgressBar Value="{Binding Progress}" Height="4" Background="#1A1A1A" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                <TextBlock Text="💡 This process creates a full 'virtual' game installation in milliseconds using almost zero disk space."
+                           FontSize="11" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

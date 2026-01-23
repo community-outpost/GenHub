@@ -108,7 +108,7 @@ public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewMod
             if (result.Success)
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
-                    async () =>
+                    () =>
                     {
                         Categories.Clear();
                         foreach (var category in result.Data)
@@ -117,7 +117,6 @@ public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewMod
                         }
 
                         SelectedCategory = Categories.FirstOrDefault();
-                        await Task.CompletedTask;
                     },
                     Avalonia.Threading.DispatcherPriority.Normal,
                     token);

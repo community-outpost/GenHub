@@ -65,7 +65,7 @@
                                        FontSize="13" Foreground="#888888" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <Button Command="{Binding $parent[UserControl].((vm:ChangelogsViewModel)DataContext).OpenReleaseUrlCommand}"
+                        <Button Command="{Binding ((vm:ChangelogsViewModel)DataContext).OpenReleaseUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding HtmlUrl}"
                                 Background="Transparent" Padding="4" ToolTip.Tip="View on GitHub">
                             <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="#888888"/>

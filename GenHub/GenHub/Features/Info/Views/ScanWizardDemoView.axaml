@@ -48,10 +48,9 @@
 
             <!-- Items (Mock Data Hardcoded for Visual Demo) -->
             <ScrollViewer Grid.Row="1" Padding="30,0">
-                <StackPanel Spacing="20">
-
+                <StackPanel Spacing="15">
                     <!-- Mock Item 1: Generals -->
-                    <Grid ColumnDefinitions="48,*,50">
+                    <Grid ColumnDefinitions="48,*,40">
                         <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
                              <Image Source="/Assets/Icons/generals-icon.png" Width="36" Height="36"/>
                         </Border>
@@ -62,20 +61,17 @@
                                        FontSize="13" Foreground="#888888" TextWrapping="Wrap" MaxLines="2" Margin="0,2,0,0"/>
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
-                                <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                    <TextBlock Text="Optimized" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
-                                </Border>
                                 <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                     <TextBlock Text="v1.08" FontSize="11" Foreground="#AAAAAA"/>
                                 </Border>
                             </StackPanel>
                         </StackPanel>
 
-                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,5,0"/>
                     </Grid>
 
                     <!-- Mock Item 2: Zero Hour -->
-                    <Grid ColumnDefinitions="48,*,50">
+                    <Grid ColumnDefinitions="48,*,40">
                         <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
                              <Image Source="/Assets/Icons/zerohour-icon.png" Width="36" Height="36"/>
                         </Border>
@@ -86,16 +82,13 @@
                                        FontSize="13" Foreground="#888888" TextWrapping="Wrap" MaxLines="2" Margin="0,2,0,0"/>
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
-                                <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                    <TextBlock Text="Ready to Import" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
-                                </Border>
                                 <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                     <TextBlock Text="v1.04" FontSize="11" Foreground="#AAAAAA"/>
                                 </Border>
                             </StackPanel>
                         </StackPanel>
 
-                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,5,0"/>
                     </Grid>
                 </StackPanel>
             </ScrollViewer>

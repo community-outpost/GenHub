@@ -69,14 +69,14 @@
 
     <!-- Glassmorphic Sidebar Colors - FIXED: High Transparency & Blue/Purple Only -->
     <Color x:Key="SidebarGlassBackground">#CC050510</Color> <!-- 80% opacity Dark Blue-Black (Solid Backdrop) -->
-    <Color x:Key="SidebarGlassBorder">#807C4DFF</Color> <!-- 50% Opacity Purple Border -->
-    <Color x:Key="SidebarGlowColor">#B37C4DFF</Color> <!-- Stronger Glow -->
+    <Color x:Key="SidebarGlassBorder">#334527A0</Color> <!-- 20% Opacity Dark Purple Border (Subtle) -->
+    <Color x:Key="SidebarGlowColor">#664527A0</Color> <!-- Subtle Glow -->
 
     <!-- Pure Blue-Purple Palette (NO PINK) -->
-    <Color x:Key="PurpleAccentDark">#304FFE</Color> <!-- Deep Blue -->
-    <Color x:Key="PurpleAccentMid">#651FFF</Color> <!-- Deep Purple -->
-    <Color x:Key="PurpleAccentBright">#7C4DFF</Color> <!-- Light Purple (Was Pink) -->
-    <Color x:Key="PurpleGlow">#807C4DFF</Color>
+    <Color x:Key="PurpleAccentDark">#311B92</Color> <!-- Deep Dark Purple (Material Deep Purple 900) -->
+    <Color x:Key="PurpleAccentMid">#4527A0</Color> <!-- Dark Purple (Material Deep Purple 800) -->
+    <Color x:Key="PurpleAccentBright">#673AB7</Color> <!-- Medium Purple (Material Deep Purple 500) -->
+    <Color x:Key="PurpleGlow">#804527A0</Color>
 
     <!-- Sidebar Gradients - Strong Backdrop -->
     <LinearGradientBrush x:Key="SidebarBackgroundGradient" StartPoint="0%,0%" EndPoint="100%,100%">
@@ -86,13 +86,14 @@
 
     <!-- "Blue to Purple" Gradient (No Pink) -->
     <LinearGradientBrush x:Key="PurpleAccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
-        <GradientStop Color="#304FFE" Offset="0" />   <!-- Deep Blue -->
-        <GradientStop Color="#7C4DFF" Offset="1" />   <!-- Purple -->
+        <GradientStop Color="#311B92" Offset="0" />   <!-- Deep Dark Purple -->
+        <GradientStop Color="#673AB7" Offset="1" />   <!-- Medium Purple -->
     </LinearGradientBrush>
 
     <!-- Hover and Selection States -->
+    <SolidColorBrush x:Key="SidebarItemHoverBinding" Color="#1AFFFFFF" /> <!-- Renamed to avoid confusion if needed, keeping Value same -->
     <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#1AFFFFFF" />
-    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#4D651FFF" /> <!-- Purple glass -->
+    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#4D4527A0" /> <!-- Dark Purple glass -->
     <SolidColorBrush x:Key="SidebarItemHoverBorder" Color="Transparent" />
-    <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="#7C4DFF" />
+    <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="#673AB7" /> <!-- Medium Purple Border -->
 </ResourceDictionary>

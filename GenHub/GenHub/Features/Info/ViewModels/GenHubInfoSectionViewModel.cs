@@ -11,9 +11,10 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Info;
-using GenHub.Features.Info.Services;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Info.Services;
+using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Tools.MapManager.ViewModels;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -24,12 +25,24 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 /// <param name="contentProvider">The info content provider.</param>
 /// <param name="changelogsViewModel">The changelogs view model.</param>
+/// <param name="goChangelogViewModel">The Generals Online changelog view model.</param>
 /// <param name="notificationService">Optional notification service for demo actions.</param>
 public partial class GenHubInfoSectionViewModel(
     IInfoContentProvider contentProvider,
     ChangelogsViewModel changelogsViewModel,
+    GeneralsOnlineChangelogViewModel goChangelogViewModel,
     INotificationService? notificationService = null) : ObservableObject, IInfoSectionViewModel
 {
+    /// <summary>
+    /// Gets the changelogs view model.
+    /// </summary>
+    public ChangelogsViewModel Changelogs => changelogsViewModel;
+
+    /// <summary>
+    /// Gets the Generals Online changelog view model.
+    /// </summary>
+    public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
     [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
@@ -40,7 +53,22 @@ public partial class GenHubInfoSectionViewModel(
     [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
     [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
     [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
     private InfoSectionViewModel? _selectedSection;
+
+    /// <summary>
+    /// Gets the FAQ cards for the left column.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> FaqCardsLeft => SelectedSection?.Cards.Where((_, i) => i % 2 == 0) ?? [];
+
+    /// <summary>
+    /// Gets the FAQ cards for the right column.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 == 1) ?? [];
 
     // Tools section expandable state
     [ObservableProperty]
@@ -65,6 +93,16 @@ public partial class GenHubInfoSectionViewModel(
     private bool _mapExportingExpanded = false;
     [ObservableProperty]
     private bool _mapPacksExpanded = false;
+    [ObservableProperty]
+    private bool _gsDisplayExpanded = false;
+    [ObservableProperty]
+    private bool _gsGraphicsExpanded = false;
+    [ObservableProperty]
+    private bool _gsAudioExpanded = false;
+    [ObservableProperty]
+    private bool _gsControlExpanded = false;
+    [ObservableProperty]
+    private bool _gsAdvancedExpanded = false;
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -73,7 +111,7 @@ public partial class GenHubInfoSectionViewModel(
     private bool _isPaneOpen;
 
     /// <inheritdoc/>
-    public string Title => "GenHub Guide";
+    public string Title => _currentModule == GeneralsHubModule.GeneralsOnline ? "GeneralsOnline" : "GenHub Guide";
 
     /// <inheritdoc/>
     public string IconKey => "InformationOutline";
@@ -82,9 +120,55 @@ public partial class GenHubInfoSectionViewModel(
     public int Order => 1;
 
     /// <summary>
-    /// Gets the available info sections.
+    /// Gets the available info sections for the current module context.
     /// </summary>
     public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
+
+    private readonly List<InfoSectionViewModel> _allSections = [];
+    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+
+    /// <summary>
+    /// Sets the current module context and filters the displayed sections.
+    /// </summary>
+    /// <param name="module">The module to switch to.</param>
+    public void SetModuleContext(GeneralsHubModule module)
+    {
+        if (_currentModule == module && Sections.Any()) return;
+
+        _currentModule = module;
+        OnPropertyChanged(nameof(Title));
+        FilterSections();
+    }
+
+    private void FilterSections()
+    {
+        Sections.Clear();
+
+        IEnumerable<InfoSectionViewModel> filtered;
+
+        if (_currentModule == GeneralsHubModule.GeneralsOnline)
+        {
+            // For GeneralsOnline, show FAQ and Changelog (and any others tagged for it)
+            // Assuming IDs: "faq", "go-changelog" (from DefaultInfoContentProvider)
+            filtered = _allSections.Where(s => s.Id == "faq" || s.Id == "go-changelog");
+        }
+        else
+        {
+            // For Guide, show everything ELSE
+            filtered = _allSections.Where(s => s.Id != "faq" && s.Id != "go-changelog");
+        }
+
+        foreach (var section in filtered)
+        {
+            Sections.Add(section);
+        }
+
+        // Auto-select first if current selection is invalid
+        if (SelectedSection == null || !Sections.Contains(SelectedSection))
+        {
+            SelectedSection = Sections.FirstOrDefault();
+        }
+    }
 
     /// <summary>
     /// Gets the demo profile card for interactive demonstrations (General/Shortcuts).
@@ -135,6 +219,11 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the demo add local content view model.
     /// </summary>
     public AddLocalContentViewModel? DemoAddLocalContent { get; private set; }
+
+    /// <summary>
+    /// Gets the demo workspace view model for the Filesystem Magic section.
+    /// </summary>
+    public WorkspaceDemoViewModel? DemoWorkspace { get; private set; }
 
     /// <summary>
     /// Toggles the expanded state of the replay features section.
@@ -203,9 +292,34 @@ public partial class GenHubInfoSectionViewModel(
     public void ToggleMapPacksExpanded() => MapPacksExpanded = !MapPacksExpanded;
 
     /// <summary>
-    /// Gets the changelogs view model.
+    /// Toggles the expanded state of the game settings display section.
     /// </summary>
-    public ChangelogsViewModel Changelogs => changelogsViewModel;
+    [RelayCommand]
+    public void ToggleGsDisplayExpanded() => GsDisplayExpanded = !GsDisplayExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings graphics section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsGraphicsExpanded() => GsGraphicsExpanded = !GsGraphicsExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings audio section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsAudioExpanded() => GsAudioExpanded = !GsAudioExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings control section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsControlExpanded() => GsControlExpanded = !GsControlExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings advanced section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsAdvancedExpanded() => GsAdvancedExpanded = !GsAdvancedExpanded;
 
     /// <summary>
     /// Gets a value indicating whether the Game Profiles section is selected.
@@ -252,6 +366,21 @@ public partial class GenHubInfoSectionViewModel(
     /// </summary>
     public bool IsChangelogsSelected => SelectedSection?.Id == "changelogs";
 
+    /// <summary>
+    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
+    /// </summary>
+    public bool IsWorkspaceSelected => SelectedSection?.Id == "workspaces";
+
+    /// <summary>
+    /// Gets a value indicating whether the FAQ section is selected.
+    /// </summary>
+    public bool IsFaqSelected => SelectedSection?.Id == "faq";
+
+    /// <summary>
+    /// Gets a value indicating whether the Generals Online Changelog section is selected.
+    /// </summary>
+    public bool IsGoChangelogSelected => SelectedSection?.Id == "go-changelog";
+
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
@@ -260,12 +389,13 @@ public partial class GenHubInfoSectionViewModel(
         {
             var sections = await contentProvider.GetAllSectionsAsync();
 
+            _allSections.Clear();
             foreach (var section in sections)
             {
-                Sections.Add(MapToViewModel(section));
+                _allSections.Add(MapToViewModel(section));
             }
 
-            SelectedSection = Sections.FirstOrDefault();
+            FilterSections();
 
             // Load changelogs automatically
             await Changelogs.LoadChangelogsAsync();
@@ -340,6 +470,12 @@ public partial class GenHubInfoSectionViewModel(
             DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent();
             OnPropertyChanged(nameof(DemoAddLocalContent));
         }
+
+        if (DemoWorkspace == null)
+        {
+            DemoWorkspace = DemoViewModelFactory.CreateDemoWorkspaceViewModel(notificationService);
+            OnPropertyChanged(nameof(DemoWorkspace));
+        }
     }
 
     private static InfoSectionViewModel MapToViewModel(InfoSection section)
@@ -403,10 +539,19 @@ public partial class GenHubInfoSectionViewModel(
         OnPropertyChanged(nameof(IsScanForGamesSelected));
         OnPropertyChanged(nameof(IsAppUpdatesSelected));
         OnPropertyChanged(nameof(IsChangelogsSelected));
+        OnPropertyChanged(nameof(IsChangelogsSelected));
+        OnPropertyChanged(nameof(IsWorkspaceSelected));
+        OnPropertyChanged(nameof(IsFaqSelected));
+        OnPropertyChanged(nameof(IsGoChangelogSelected));
 
         if (IsChangelogsSelected && !Changelogs.Releases.Any() && !Changelogs.IsLoading)
         {
             _ = Changelogs.LoadChangelogsAsync();
+        }
+
+        if (IsGoChangelogSelected && !GoChangelog.PatchNotes.Any() && !GoChangelog.IsLoading)
+        {
+            _ = GoChangelog.LoadPatchNotesCommand.ExecuteAsync(null);
         }
     }
 }

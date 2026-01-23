@@ -87,8 +87,9 @@ public partial class ChangelogsViewModel(IGitHubApiClient gitHubApiClient, ILogg
     [RelayCommand]
     private void OpenReleaseUrl(string? url)
     {
-        if (string.IsNullOrEmpty(url))
+        if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
         {
+            logger.LogWarning("Invalid or unsafe URL: {Url}", url);
             return;
         }
 

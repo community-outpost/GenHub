@@ -34,4 +34,14 @@ public static class InfoNavigationActions
     /// Navigation to local content.
     /// </summary>
     public const string NavigateToLocalContent = "NAV_LOCALCONTENT";
+
+    /// <summary>
+    /// Navigation to Replay Manager.
+    /// </summary>
+    public const string NavigateToReplayManager = "NAV_REPLAYMANAGER";
+
+    /// <summary>
+    /// Navigation to Map Manager.
+    /// </summary>
+    public const string NavigateToMapManager = "NAV_MAPMANAGER";
 }
