@@ -507,11 +507,15 @@ public partial class GenHubInfoSectionViewModel(
         else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
         {
             var url = action.ActionId[4..];
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
             {
-                FileName = url,
-                UseShellExecute = true,
-            });
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
         }
     }
 
