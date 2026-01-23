@@ -943,11 +943,14 @@ public class GameLauncher(
                     return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to launch via Steam: {ex.Message}", launchId, profile.Id);
                 }
 
-                // Get the executable name from the GameClient manifest for process monitoring
+                // Get the executable manifest for process monitoring (supports GameClient, Executable, and ModdingTool)
                 // For CAS symlinked files, the process name is the SHA hash, not the original filename
                 // For hardlinked files, even if sourced from CAS, the process name is the executable name
-                var gameClientManifestForMonitor = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
-                var executableFileForMonitor = gameClientManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+                var executableManifestForMonitor = manifests.FirstOrDefault(m =>
+                    m.ContentType == ContentType.GameClient ||
+                    m.ContentType == ContentType.Executable ||
+                    m.ContentType == ContentType.ModdingTool);
+                var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
 
                 string gameProcessName;
                 if (executableFileForMonitor != null &&
@@ -962,9 +965,10 @@ public class GameLauncher(
                 else
                 {
                     // For regular files or hardlinked CAS files, use the executable name
+                    // Extract the actual executable name from the file path, avoiding hardcoded fallbacks
                     gameProcessName = executableFileForMonitor != null
                         ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-                        : Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+                        : Path.GetFileNameWithoutExtension(finalExecutablePath);
                     logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
                 }
 

@@ -17,7 +17,7 @@ public static class ContentTypeExtensions
         return contentType switch
         {
             ContentType.GameInstallation => "Game Installation",
-            ContentType.GameClient => "Game",
+            ContentType.GameClient => "GameClient",
             ContentType.Mod => "Mods",
             ContentType.Patch => "Patch",
             ContentType.Addon => "Addons",

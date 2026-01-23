@@ -611,7 +611,7 @@ public partial class ContentManifestBuilder(
     /// <param name="workspaceStrategy">Workspace strategy.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithInstallationInstructions(
-        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink)
+        WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy)
     {
         _manifest.InstallationInstructions = new InstallationInstructions
         {

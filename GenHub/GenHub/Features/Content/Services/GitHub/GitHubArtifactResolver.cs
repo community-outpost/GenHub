@@ -89,7 +89,7 @@ public class GitHubArtifactResolver(
                         $"Artifact: {artifactName}, Run #{runNumber}",
                         tags: ["workflow", "artifact"],
                         changelogUrl: string.Empty)
-                    .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                    .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
                 // Add artifact as remote file - use ArchiveDownloadUrl for authenticated downloads
                 var downloadUrl = !string.IsNullOrEmpty(artifact.ArchiveDownloadUrl)
@@ -136,7 +136,7 @@ public class GitHubArtifactResolver(
                     $"Workflow: {workflowRun.Name}, Run #{workflowRun.RunNumber}",
                     tags: ["workflow", "artifact", workflowRun.Status ?? "unknown"],
                     changelogUrl: workflowRun.HtmlUrl ?? string.Empty)
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Add artifact as remote file - use ArchiveDownloadUrl for authenticated downloads
             var downloadUrlFinal = !string.IsNullOrEmpty(artifact.ArchiveDownloadUrl)

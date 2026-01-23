@@ -410,7 +410,7 @@ public class ProfileLauncherFacade(
             {
                 // No admin rights - switch profile to HardLink strategy permanently
                 var originalStrategy = effectiveStrategy;
-                effectiveStrategy = WorkspaceStrategy.HardLink;
+                effectiveStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
 
                 logger.LogInformation(
                     "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",

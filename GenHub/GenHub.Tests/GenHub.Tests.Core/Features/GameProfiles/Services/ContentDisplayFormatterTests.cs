@@ -311,7 +311,7 @@ public class ContentDisplayFormatterTests
     /// <param name="expected">The expected display name.</param>
     [Theory]
     [InlineData(ContentType.GameInstallation, "Game Installation")]
-    [InlineData(ContentType.GameClient, "Game")]
+    [InlineData(ContentType.GameClient, "GameClient")]
     [InlineData(ContentType.Executable, "Executable")]
     [InlineData(ContentType.ModdingTool, "Tool")]
     [InlineData(ContentType.Mod, "Mods")]

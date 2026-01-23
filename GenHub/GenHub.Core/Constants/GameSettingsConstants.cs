@@ -23,6 +23,21 @@ public static class GameSettingsConstants
         /// Low (0) maps to TextureReduction 2.
         /// </summary>
         public const int ReductionOffset = 2;
+
+        /// <summary>
+        /// Texture reduction value for low quality.
+        /// </summary>
+        public const int TextureReductionLow = 2;
+
+        /// <summary>
+        /// Texture reduction value for medium quality.
+        /// </summary>
+        public const int TextureReductionMedium = 1;
+
+        /// <summary>
+        /// Texture reduction value for high quality.
+        /// </summary>
+        public const int TextureReductionHigh = 0;
     }
 
     /// <summary>

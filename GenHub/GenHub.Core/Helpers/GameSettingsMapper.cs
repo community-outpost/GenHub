@@ -24,11 +24,14 @@ public static class GameSettingsMapper
         profile.VideoResolutionHeight = options.Video.ResolutionHeight;
         profile.VideoWindowed = options.Video.Windowed;
 
-        // Convert TextureReduction back to TextureQuality (inverse of ApplyToOptions)
-        if (options.Video.TextureReduction >= 0 && options.Video.TextureReduction <= 2)
+        // Convert TextureReduction back to TextureQuality
+        profile.VideoTextureQuality = options.Video.TextureReduction switch
         {
-            profile.VideoTextureQuality = (TextureQuality)(2 - options.Video.TextureReduction);
-        }
+            GameSettingsConstants.TextureQuality.TextureReductionLow => TextureQuality.Low,
+            GameSettingsConstants.TextureQuality.TextureReductionMedium => TextureQuality.Medium,
+            GameSettingsConstants.TextureQuality.TextureReductionHigh => TextureQuality.High,
+            _ => null // Invalid or custom scaling handled elsewhere
+        };
 
         profile.EnableVideoShadows = options.Video.UseShadowVolumes;
 
@@ -271,20 +274,16 @@ public static class GameSettingsMapper
 
         if (profile.VideoTextureQuality.HasValue)
         {
-            // VeryHigh (3) is only valid for TheSuperHackers client, but we allow it here
-            // The game will handle it appropriately based on the client
-            if (profile.VideoTextureQuality.Value >= TextureQuality.Low &&
-                profile.VideoTextureQuality.Value <= TextureQuality.VeryHigh)
+            // Engine Value (TextureReduction): 2=Low, 1=Medium, 0=High/Max
+            // Clamp anything higher than 'High' to Max Quality to prevent invalid values
+            options.Video.TextureReduction = profile.VideoTextureQuality.Value switch
             {
-                options.Video.TextureReduction = 2 - (int)profile.VideoTextureQuality.Value;
-            }
-            else
-            {
-                logger?.LogWarning(
-                    "Invalid VideoTextureQuality {Quality} for profile {ProfileId}, must be 0-3",
-                    profile.VideoTextureQuality.Value,
-                    profile.Id);
-            }
+                TextureQuality.Low => GameSettingsConstants.TextureQuality.TextureReductionLow,
+                TextureQuality.Medium => GameSettingsConstants.TextureQuality.TextureReductionMedium,
+                TextureQuality.High => GameSettingsConstants.TextureQuality.TextureReductionHigh,
+                TextureQuality.VeryHigh => GameSettingsConstants.TextureQuality.TextureReductionHigh,
+                _ => GameSettingsConstants.TextureQuality.TextureReductionHigh,
+            };
         }
 
         if (profile.EnableVideoShadows.HasValue)

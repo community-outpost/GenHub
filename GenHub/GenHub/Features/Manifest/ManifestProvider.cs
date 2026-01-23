@@ -131,7 +131,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     IsRequired = true,
                 })
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink)
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy)
                 .Build();
 
             // Validate ID before adding to pool
