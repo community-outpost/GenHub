@@ -249,12 +249,6 @@
 
                         <Panel>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <!-- Manual Add Button -->
-                                <Button Command="{Binding AddManualGameCommand}"
-                                        Content="ADD GAME"
-                                        Classes="outline"
-                                        IsVisible="{Binding !IsScanning}" />
-
                                 <!-- Scan Button -->
                                 <Button Command="{Binding ScanForGamesCommand}"
                                         Content="SCAN"

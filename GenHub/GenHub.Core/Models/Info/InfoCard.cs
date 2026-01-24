@@ -17,7 +17,6 @@ public class InfoCard
     /// <summary>Gets or sets the type of card (Concept, HowTo, etc.).</summary>
     public InfoCardType Type { get; set; } = InfoCardType.Concept;
 
-
     /// <summary>Gets or sets a value indicating whether the card can be expanded for more details.</summary>
     public bool IsExpandable { get; set; }
 

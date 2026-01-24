@@ -34,6 +34,18 @@ public partial class GenHubInfoSectionViewModel(
     INotificationService? notificationService = null) : ObservableObject, IInfoSectionViewModel
 {
     /// <summary>
+    /// Gets the icon key.
+    /// </summary>
+    public static string IconKey => "InformationOutline";
+
+    /// <inheritdoc/>
+    public string Title => _currentModule switch
+    {
+        GeneralsHubModule.GeneralsOnline => "Generals Online",
+        _ => "GenHub Guide",
+    };
+
+    /// <summary>
     /// Gets the changelogs view model.
     /// </summary>
     public ChangelogsViewModel Changelogs => changelogsViewModel;
@@ -42,6 +54,8 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the Generals Online changelog view model.
     /// </summary>
     public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
+
+    private readonly List<InfoSectionViewModel> _allSections = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
@@ -56,6 +70,7 @@ public partial class GenHubInfoSectionViewModel(
     [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
     [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
     [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
+    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
     [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
     [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
     private InfoSectionViewModel? _selectedSection;
@@ -110,11 +125,69 @@ public partial class GenHubInfoSectionViewModel(
     [ObservableProperty]
     private bool _isPaneOpen;
 
-    /// <inheritdoc/>
-    public string Title => _currentModule == GeneralsHubModule.GeneralsOnline ? "GeneralsOnline" : "GenHub Guide";
+    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+
+    /// <summary>
+    /// Toggles the expanded state of a card.
+    /// </summary>
+    /// <param name="card">The card to toggle.</param>
+    [RelayCommand]
+    private static void ToggleCardExpansion(InfoCardViewModel card)
+    {
+        if (card.IsExpandable)
+        {
+            card.IsExpanded = !card.IsExpanded;
+        }
+    }
+
+    /// <summary>
+    /// Handles an action from an info card.
+    /// </summary>
+    /// <param name="action">The action to handle.</param>
+    [RelayCommand]
+    private static void HandleAction(InfoAction action)
+    {
+        if (string.IsNullOrEmpty(action.ActionId))
+        {
+            return;
+        }
+
+        if (action.ActionId.StartsWith("NAV_INFO_", StringComparison.OrdinalIgnoreCase))
+        {
+            var sectionId = action.ActionId["NAV_INFO_".Length..];
+            WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(sectionId));
+        }
+        else if (action.ActionId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
+        {
+            var tabName = action.ActionId[4..];
+            if (Enum.TryParse<NavigationTab>(tabName, true, out var tab))
+            {
+                WeakReferenceMessenger.Default.Send(new NavigationMessage(tab));
+            }
+        }
+        else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = action.ActionId[4..];
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+        }
+    }
+
+    private static InfoSectionViewModel MapToViewModel(InfoSection section)
+    {
+        var vm = new InfoSectionViewModel(section);
+        return vm;
+    }
 
     /// <inheritdoc/>
-    public string IconKey => "InformationOutline";
+    public string Id => "guide";
 
     /// <inheritdoc/>
     public int Order => 1;
@@ -123,9 +196,6 @@ public partial class GenHubInfoSectionViewModel(
     /// Gets the available info sections for the current module context.
     /// </summary>
     public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
-
-    private readonly List<InfoSectionViewModel> _allSections = [];
-    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
 
     /// <summary>
     /// Sets the current module context and filters the displayed sections.
@@ -322,6 +392,11 @@ public partial class GenHubInfoSectionViewModel(
     public void ToggleGsAdvancedExpanded() => GsAdvancedExpanded = !GsAdvancedExpanded;
 
     /// <summary>
+    /// Gets a value indicating whether the Quickstart section is selected.
+    /// </summary>
+    public bool IsQuickStartSelected => SelectedSection?.Id == "quickstart";
+
+    /// <summary>
     /// Gets a value indicating whether the Game Profiles section is selected.
     /// </summary>
     public bool IsGameProfilesSelected => SelectedSection?.Id == "game-profiles";
@@ -478,62 +553,9 @@ public partial class GenHubInfoSectionViewModel(
         }
     }
 
-    private static InfoSectionViewModel MapToViewModel(InfoSection section)
-    {
-        var vm = new InfoSectionViewModel(section);
-        return vm;
-    }
-
-    /// <summary>
-    /// Handles an action from an info card.
-    /// </summary>
-    /// <param name="action">The action to handle.</param>
-    [RelayCommand]
-    private static void HandleAction(InfoAction action)
-    {
-        if (string.IsNullOrEmpty(action.ActionId))
-        {
-            return;
-        }
-
-        if (action.ActionId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
-        {
-            var tabName = action.ActionId[4..];
-            if (Enum.TryParse<NavigationTab>(tabName, true, out var tab))
-            {
-                WeakReferenceMessenger.Default.Send(new NavigationMessage(tab));
-            }
-        }
-        else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
-        {
-            var url = action.ActionId[4..];
-            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true,
-                });
-            }
-        }
-    }
-
-    /// <summary>
-    /// Toggles the expanded state of a card.
-    /// </summary>
-    /// <param name="card">The card to toggle.</param>
-    [RelayCommand]
-    private static void ToggleCardExpansion(InfoCardViewModel card)
-    {
-        if (card.IsExpandable)
-        {
-            card.IsExpanded = !card.IsExpanded;
-        }
-    }
-
     partial void OnSelectedSectionChanged(InfoSectionViewModel? value)
     {
+        OnPropertyChanged(nameof(IsQuickStartSelected));
         OnPropertyChanged(nameof(IsGameProfilesSelected));
         OnPropertyChanged(nameof(IsGameSettingsSelected));
         OnPropertyChanged(nameof(IsGameProfileContentSelected));

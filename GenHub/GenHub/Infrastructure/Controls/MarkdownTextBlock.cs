@@ -243,14 +243,18 @@ public class MarkdownTextBlock : UserControl
         var index = 1;
         foreach (var item in list.OfType<ListItemBlock>())
         {
-            var itemPanel = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, };
+            var itemGrid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto, *"),
+                Margin = new Thickness(0, 0, 0, 4),
+            };
 
             var bullet = new TextBlock
             {
                 Text = list.IsOrdered ? $"{index++}." : "•",
                 Foreground = new SolidColorBrush(Color.Parse("#888888")),
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
-                Margin = new Thickness(16, 0, 0, 0),
+                Margin = new Thickness(16, 0, 8, 0),
             };
 
             var contentPanel = new StackPanel { Spacing = 4, };
@@ -259,9 +263,12 @@ public class MarkdownTextBlock : UserControl
                 contentPanel.Children.Add(RenderBlock(block));
             }
 
-            itemPanel.Children.Add(bullet);
-            itemPanel.Children.Add(contentPanel);
-            stackPanel.Children.Add(itemPanel);
+            Grid.SetColumn(bullet, 0);
+            Grid.SetColumn(contentPanel, 1);
+
+            itemGrid.Children.Add(bullet);
+            itemGrid.Children.Add(contentPanel);
+            stackPanel.Children.Add(itemGrid);
         }
 
         return stackPanel;

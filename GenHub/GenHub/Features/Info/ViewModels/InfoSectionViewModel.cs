@@ -20,7 +20,6 @@ public partial class InfoSectionViewModel(InfoSection model) : ObservableObject
     [ObservableProperty]
     private string _description = model.Description;
 
-
     [ObservableProperty]
     private int _order = model.Order;
 

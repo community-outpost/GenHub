@@ -13,6 +13,11 @@ public interface IInfoSectionViewModel
     string Title { get; }
 
     /// <summary>
+    /// Gets the unique identifier for this section.
+    /// </summary>
+    string Id { get; }
+
+    /// <summary>
     /// Gets the sort order of the section.
     /// </summary>
     int Order { get; }

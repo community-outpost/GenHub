@@ -28,13 +28,12 @@
 
     <!-- Info Card Styles - Modern Premium Glassmorphic Look -->
     <Style Selector="Border.info-card">
-      <Setter Property="Background" Value="#CC1A1A1A"/>
+      <Setter Property="Background" Value="#1A1A1A"/>
       <Setter Property="CornerRadius" Value="12"/>
       <Setter Property="BorderBrush" Value="#333333"/>
       <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Margin" Value="0,0,0,24"/>
       <Setter Property="Padding" Value="24"/>
-      <Setter Property="BoxShadow" Value="0 8 32 0 #40000000"/>
+      <Setter Property="BoxShadow" Value="0 4 16 0 #30000000"/>
       <Setter Property="Transitions">
         <Transitions>
           <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
@@ -44,10 +43,33 @@
       </Setter>
     </Style>
 
-    <Style Selector="Border.info-card:pointerover">
-      <Setter Property="BorderBrush" Value="#7F6B46C1"/> <!-- Soft Purple Accent -->
-      <Setter Property="Background" Value="#E6222222"/>
-      <Setter Property="BoxShadow" Value="0 12 40 0 #60000000"/>
+    <Style Selector="Button.info-card-btn">
+       <Setter Property="FocusAdorner" Value="{x:Null}"/>
+       <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+       <Setter Property="Template">
+         <ControlTemplate>
+           <ContentPresenter Content="{TemplateBinding Content}"
+                             Padding="{TemplateBinding Padding}"
+                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+         </ControlTemplate>
+       </Setter>
+       <Setter Property="Transitions">
+          <Transitions>
+            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" Easing="CircularEaseOut" />
+          </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.info-card-btn:pointerover">
+       <Setter Property="RenderTransform" Value="scale(1.015)" />
+       <Setter Property="ZIndex" Value="10"/>
+    </Style>
+
+    <Style Selector="Button.info-card-btn:pointerover Border.info-card">
+      <Setter Property="BorderBrush" Value="#7F6B46C1"/>
+      <Setter Property="Background" Value="#222222"/>
+      <Setter Property="BoxShadow" Value="0 15 45 0 #80000000"/>
     </Style>
 
     <Style Selector="TextBlock.card-title">
@@ -103,12 +125,43 @@
 
     <!-- Header button for expandable sections -->
     <Style Selector="Button.info-section-header">
+        <Setter Property="FocusAdorner" Value="{x:Null}"/>
+        <Setter Property="Template">
+          <ControlTemplate>
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+          </ControlTemplate>
+        </Setter>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Padding" Value="16,12"/>
         <Setter Property="HorizontalAlignment" Value="Stretch"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.action-btn">
+       <Setter Property="FocusAdorner" Value="{x:Null}"/>
+       <Setter Property="Template">
+         <ControlTemplate>
+           <ContentPresenter Content="{TemplateBinding Content}"
+                             Padding="{TemplateBinding Padding}"
+                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+         </ControlTemplate>
+       </Setter>
+       <Setter Property="Opacity" Value="0.8"/>
+       <Setter Property="Transitions">
+         <Transitions>
+           <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+         </Transitions>
+       </Setter>
+    </Style>
+
+    <Style Selector="Button.action-btn:pointerover">
+       <Setter Property="Opacity" Value="1"/>
     </Style>
 
     <!-- Title text in section headers -->
@@ -168,7 +221,7 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40">
+  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False">
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
 
         <!-- Main Section Header -->
@@ -650,168 +703,173 @@
         <!-- Standard Layout (Single Column) -->
         <ItemsControl ItemsSource="{Binding SelectedSection.Cards}"
                       IsVisible="{Binding !IsFaqSelected}"
-                      Padding="0,0,0,20">
+                      Padding="0,0,0,20"
+                      ClipToBounds="False">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="0" ClipToBounds="False"/>
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:InfoCardViewModel">
-              <Border Classes="info-card">
-                <Grid RowDefinitions="Auto, Auto">
-                  <!-- Whole Card Interaction (Wraps Header and Body) -->
-                  <Button Grid.Row="0"
-                          Command="{Binding ToggleExpansionCommand}"
-                          Background="Transparent" BorderThickness="0" Padding="0"
-                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                          HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                    <Grid RowDefinitions="Auto, Auto, Auto">
+              <!-- Outermost Button to make entire card clickable -->
+              <Button Command="{Binding ToggleExpansionCommand}"
+                      Background="Transparent" BorderThickness="0" Padding="0"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                      Margin="0,0,0,24"
+                      Classes="info-card-btn">
+                <Border Classes="info-card">
+                  <Grid RowDefinitions="Auto, Auto">
+                    <Grid RowDefinitions="Auto, Auto, Auto" Grid.Row="0">
                       <!-- Card Header -->
-                      <Grid ColumnDefinitions="Auto, *, Auto" Grid.Row="0" Margin="0,0,0,16">
-                         <!-- Icon -->
-
-
+                      <Grid ColumnDefinitions="*, Auto" Grid.Row="0" Margin="0,0,0,16">
                         <!-- Title -->
-                        <TextBlock Text="{Binding Title}" Grid.Column="1" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Title}" Grid.Column="0" Classes="card-title" VerticalAlignment="Center" TextWrapping="Wrap"/>
 
-                        <!-- Expand Icon (Subtle) -->
-                        <Border Grid.Column="2"
-                                Background="#181818"
+                        <!-- Expand Icon -->
+                        <Border Grid.Column="1"
+                                Background="#2A2A2A"
                                 BorderBrush="#444"
                                 BorderThickness="1"
                                 CornerRadius="4"
-                                Padding="8,4"
+                                Padding="10,6"
+                                Margin="12,0,0,0"
                                 IsVisible="{Binding IsExpandable}">
-                          <StackPanel Orientation="Horizontal" Spacing="6">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
                               <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}, FallbackValue='Read More'}"
-                                         FontSize="12" Foreground="#999" VerticalAlignment="Center"/>
+                                         FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
                               <material:MaterialIcon Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                     Width="16" Height="16" Foreground="#999"/>
+                                                     Width="16" Height="16" Foreground="#666"/>
                           </StackPanel>
                         </Border>
                       </Grid>
 
-                      <!-- Main Content (Always visible) -->
+                      <!-- Main Content -->
                       <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="#CCC"/>
 
-                      <!-- Expanded Content ('God Tier' Details) -->
+                      <!-- Expanded Content -->
                       <Border Grid.Row="2"
                               IsVisible="{Binding IsExpanded}"
-                              Background="#161616"
-                              BorderBrush="#252525"
+                              Background="#CC111111"
+                              BorderBrush="#333"
                               BorderThickness="1"
                               CornerRadius="8"
                               Padding="24"
                               Margin="0,0,0,24">
                         <StackPanel>
-                            <TextBlock Text="DETAILED GUIDE"  FontSize="11" FontWeight="Bold" Foreground="#666" Margin="0,0,0,12"/>
+                            <TextBlock Text="DETAILED GUIDE" FontSize="11" FontWeight="Bold" Foreground="#888" Margin="0,0,0,12"/>
                             <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}" Classes="card-content" FontSize="14" Foreground="#BBB"/>
                         </StackPanel>
                       </Border>
                     </Grid>
-                  </Button>
 
-                  <!-- Actions Footer -->
-                  <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
-                    <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"/>
-                      </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="models:InfoAction">
-                        <Button Classes="action-btn"
-                                Classes.primary="{Binding IsPrimary}"
-                                Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
-                                CommandParameter="{Binding}">
-                          <StackPanel Orientation="Horizontal" Spacing="8">
-                            <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
-                            <TextBlock Text="{Binding Label}"/>
-                          </StackPanel>
-                        </Button>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                </Grid>
-              </Border>
+                    <!-- Actions Footer -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Actions}" IsVisible="{Binding Actions.Count}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="10"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:InfoAction">
+                          <Button Classes="action-btn"
+                                  Classes.primary="{Binding IsPrimary}"
+                                  Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
+                                  CommandParameter="{Binding}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                              <TextBlock Text="{Binding Label}"/>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Grid>
+                </Border>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
 
         <!-- FAQ Layout (Independent Columns for Staggered/Masonry Look) -->
-        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20">
+        <Grid IsVisible="{Binding IsFaqSelected}" ColumnDefinitions="*, *" Margin="0,0,0,20" ClipToBounds="False">
             <!-- Left Column -->
-            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}">
+            <ItemsControl Grid.Column="0" ItemsSource="{Binding FaqCardsLeft}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InfoCardViewModel">
-                        <Border Classes="info-card" Margin="12,0,6,24" VerticalAlignment="Top">
-                            <Button Command="{Binding ToggleExpansionCommand}"
-                                    Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Padding="0"
-                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                                <StackPanel>
-                                    <!-- Header -->
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <TextBlock Text="{Binding Title}" Grid.Column="0"
-                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
-                                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <material:MaterialIcon Grid.Column="1"
-                                                            Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                            Width="20" Height="20" Foreground="#666"
-                                                            Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                    </Grid>
+                      <Button Command="{Binding ToggleExpansionCommand}"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                              Classes="info-card-btn"
+                              Margin="12,0,6,24">
+                        <Border Classes="info-card">
+                            <StackPanel>
+                                <!-- Header (Unified structure) -->
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
+                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-                                    <!-- Content -->
-                                    <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
-                                        <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
-                                        <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
-                                                               IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                               FontSize="13" Foreground="#999"/>
-                                    </StackPanel>
+
+                                </Grid>
+
+                                <!-- Expanded Content (Unified with standard cards) -->
+                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
+                                                           IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           FontSize="13" Foreground="#999"/>
                                 </StackPanel>
-                            </Button>
+                            </StackPanel>
                         </Border>
+                      </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
             <!-- Right Column -->
-            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}">
+            <ItemsControl Grid.Column="1" ItemsSource="{Binding FaqCardsRight}" ClipToBounds="False">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Spacing="0" VerticalAlignment="Top"/>
+                        <StackPanel Spacing="0" VerticalAlignment="Top" ClipToBounds="False"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:InfoCardViewModel">
-                        <Border Classes="info-card" Margin="6,0,12,24" VerticalAlignment="Top">
-                            <Button Command="{Binding ToggleExpansionCommand}"
-                                    Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Padding="0"
-                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                                <StackPanel>
-                                    <!-- Header -->
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <TextBlock Text="{Binding Title}" Grid.Column="0"
-                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
-                                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <material:MaterialIcon Grid.Column="1"
-                                                            Kind="{Binding IsExpanded, Converter={StaticResource BoolToExpandIconConverter}}"
-                                                            Width="20" Height="20" Foreground="#666"
-                                                            Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                    </Grid>
+                      <Button Command="{Binding ToggleExpansionCommand}"
+                              Background="Transparent" BorderThickness="0" Padding="0"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                              Classes="info-card-btn"
+                              Margin="6,0,12,24">
+                        <Border Classes="info-card">
+                            <StackPanel>
+                                <!-- Header (Unified structure) -->
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="{Binding Title}" Grid.Column="0"
+                                               FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                               TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-                                    <!-- Content -->
-                                    <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
-                                        <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
-                                        <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
-                                                               IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                               FontSize="13" Foreground="#999"/>
-                                    </StackPanel>
+
+                                </Grid>
+
+                                <!-- Content -->
+                                <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
+                                                           IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           FontSize="13" Foreground="#999"/>
                                 </StackPanel>
-                            </Button>
+                            </StackPanel>
                         </Border>
+                      </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

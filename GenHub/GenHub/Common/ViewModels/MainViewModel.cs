@@ -1,14 +1,17 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -34,6 +37,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
 /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
 /// <param name="notificationService">Service for showing notifications.</param>
+/// <param name="dialogService">Dialog service for showing message boxes.</param>
 /// <param name="notificationFeedViewModel">Notification feed view model.</param>
 /// <param name="infoViewModel">Info view model.</param>
 /// <param name="logger">Logger instance.</param>
@@ -47,6 +51,7 @@ public partial class MainViewModel(
     IUserSettingsService userSettingsService,
     IVelopackUpdateManager velopackUpdateManager,
     INotificationService notificationService,
+    IDialogService dialogService,
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
     ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
@@ -57,7 +62,7 @@ public partial class MainViewModel(
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
     public MainViewModel()
-        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
+        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
     {
         // Parameterless constructor for XAML tools if needed, though usually handled by DI
     }
@@ -176,6 +181,8 @@ public partial class MainViewModel(
 
         // Start background check with cancellation support
         _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
+
+        CheckForQuickStart();
     }
 
     /// <summary>
@@ -308,6 +315,59 @@ public partial class MainViewModel(
         catch (Exception ex)
         {
             logger?.LogError(ex, "Unhandled exception in background update check");
+        }
+    }
+
+    private void CheckForQuickStart()
+    {
+        var settings = userSettingsService.Get();
+        if (!settings.HasSeenQuickStart)
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                var actions = new[]
+                {
+                    new DialogAction
+                    {
+                        Text = "Open Quickstart",
+                        Style = NotificationActionStyle.Primary, // Switched to Primary (Purple)
+                        Action = () =>
+                        {
+                             SelectTab(NavigationTab.Info);
+
+                             // Programmatic navigation to the quickstart section
+                             InfoViewModel.OpenSection("quickstart");
+                        },
+                    },
+                    new DialogAction
+                    {
+                        Text = "Close",
+                        Style = NotificationActionStyle.Secondary,
+                    },
+                };
+
+                var content = """
+                **Welcome to GenHub!**
+
+                Your modern, community-focused command center for **C&C: Generals & Zero Hour** is ready. The **Quickstart Guide** will help you get started with:
+
+                *   Managing profiles
+                *   Setting up downloads
+                *   Adding your own mods and content
+                """;
+
+                var result = await dialogService.ShowMessageAsync(
+                    "Getting Started",
+                    content,
+                    actions,
+                    showDoNotAskAgain: true);
+
+                if (result.DoNotAskAgain)
+                {
+                    userSettingsService.Update(s => s.HasSeenQuickStart = true);
+                    _ = userSettingsService.SaveAsync();
+                }
+            });
         }
     }
 

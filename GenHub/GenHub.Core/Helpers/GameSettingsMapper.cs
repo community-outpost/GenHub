@@ -30,7 +30,7 @@ public static class GameSettingsMapper
             GameSettingsConstants.TextureQuality.TextureReductionLow => TextureQuality.Low,
             GameSettingsConstants.TextureQuality.TextureReductionMedium => TextureQuality.Medium,
             GameSettingsConstants.TextureQuality.TextureReductionHigh => TextureQuality.High,
-            _ => null // Invalid or custom scaling handled elsewhere
+            _ => null, // Invalid or custom scaling handled elsewhere
         };
 
         profile.EnableVideoShadows = options.Video.UseShadowVolumes;

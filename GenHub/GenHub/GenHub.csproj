@@ -25,6 +25,10 @@
 
 
         <PackageReference Include="Markdig" />
+
+
+
+        <PackageReference Include="Markdown.Avalonia" />
         <PackageReference Include="Material.Icons.Avalonia" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

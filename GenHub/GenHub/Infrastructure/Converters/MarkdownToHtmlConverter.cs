@@ -19,7 +19,7 @@ public class MarkdownToHtmlConverter : IValueConverter
     {
         if (value is string markdown && !string.IsNullOrEmpty(markdown))
         {
-            return Markdown.ToHtml(markdown, Pipeline);
+            return Markdig.Markdown.ToHtml(markdown, Pipeline);
         }
 
         return value;

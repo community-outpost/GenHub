@@ -17,10 +17,10 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the FAQ section.
 /// </summary>
-public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewModel
+public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel
 {
-    private readonly IFaqService _faqService;
-    private readonly ILogger<FaqSectionViewModel> _logger;
+    private readonly IFaqService _faqService = faqService;
+    private readonly ILogger<FaqSectionViewModel> _logger = logger;
     private CancellationTokenSource? _loadCts;
 
     [ObservableProperty]
@@ -30,9 +30,14 @@ public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewMod
     private string _statusMessage = string.Empty;
 
     /// <inheritdoc/>
-    public string Title => "Zero Hour";
+    public string Id => "faq";
 
     /// <inheritdoc/>
+    public string Title => "Zero Hour";
+
+    /// <summary>
+    /// Gets the icon key.
+    /// </summary>
     public string IconKey => "HelpCircleOutline"; // Material Design Icon
 
     /// <inheritdoc/>
@@ -55,21 +60,16 @@ public partial class FaqSectionViewModel : ObservableObject, IInfoSectionViewMod
     ];
 
     [ObservableProperty]
-    private LanguageOption _selectedLanguageOption;
+    private LanguageOption _selectedLanguageOption = new LanguageOption("English", "en", "avares://GenHub/Assets/Images/Flags/en.png"); // Default, updated in constructor logic if needed but simpler to just init here or OnActivated
 
     [ObservableProperty]
     private FaqCategoryViewModel? _selectedCategory;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="FaqSectionViewModel"/> class.
+    /// Initializes static members of the <see cref="FaqSectionViewModel"/> class.
     /// </summary>
-    /// <param name="faqService">The FAQ service.</param>
-    /// <param name="logger">The logger.</param>
-    public FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger)
+    static FaqSectionViewModel()
     {
-        _faqService = faqService;
-        _logger = logger;
-        _selectedLanguageOption = LanguageOptions.First(x => x.Code == InfoConstants.FaqDefaultLanguage);
     }
 
     /// <inheritdoc/>

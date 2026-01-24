@@ -68,6 +68,7 @@ public class MainViewModelTests
             userSettingsService: userSettingsMock.Object,
             velopackUpdateManager: mockVelopackUpdateManager.Object,
             notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
             logger: mockLogger.Object);
@@ -111,6 +112,7 @@ public class MainViewModelTests
             userSettingsService: userSettingsMock.Object,
             velopackUpdateManager: mockVelopackUpdateManager.Object,
             notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
             logger: mockLogger.Object);
@@ -150,6 +152,7 @@ public class MainViewModelTests
             userSettingsService: userSettingsMock.Object,
             velopackUpdateManager: mockVelopackUpdateManager.Object,
             notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
             logger: mockLogger.Object);
@@ -191,6 +194,7 @@ public class MainViewModelTests
             userSettingsService: userSettingsMock.Object,
             velopackUpdateManager: mockVelopackUpdateManager.Object,
             notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
             notificationFeedViewModel: notificationFeedVm,
             infoViewModel: CreateInfoViewModel(),
             logger: mockLogger.Object);

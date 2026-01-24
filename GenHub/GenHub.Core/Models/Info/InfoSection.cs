@@ -16,7 +16,6 @@ public class InfoSection
     /// <summary>Gets or sets the short description of the section.</summary>
     public string Description { get; set; } = string.Empty;
 
-
     /// <summary>Gets or sets the order in which the section appears.</summary>
     public int Order { get; set; }
 

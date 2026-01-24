@@ -42,6 +42,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     {
         return
         [
+            CreateQuickStartSection(),
             CreateGameProfilesSection(),
             CreateGameSettingsSection(),
             CreateGameProfileContentSection(),
@@ -56,6 +57,175 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
             CreateAppUpdatesSection(),
             CreateChangelogSection(),
         ];
+    }
+
+    private static InfoSection CreateQuickStartSection()
+    {
+        return new InfoSection
+        {
+            Id = "quickstart",
+            Title = "Quickstart Guide",
+            Description = "Getting started with GenHub.",
+            Order = -1,
+            Cards =
+            [
+                new InfoCard
+                {
+                    Title = "Welcome to GenHub",
+                    Content = "Your central hub for Command & Conquer: Generals & Zero Hour.",
+                    Type = InfoCardType.Concept,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **What is GenHub?**
+                    GenHub is a unified launcher designed to make managing your **Command & Conquer: Generals & Zero Hour** experience simple. It solves the mess of having multiple mods, maps, and patches by keeping everything isolated and organized.
+
+                    **Platform Overview:**
+                    *   **Game Profiles:** This is your main dashboard. Use it to automatically scan for your game installation, create isolated workspaces for different mods, and launch the game.
+                    *   **Downloads:** The built-in browser for downloading essential community patches, multiplayer services, and mod updates.
+                    *   **Tools:** A suite of utilities for managing Replays and Maps without leaving the app.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Step 1: Scan for Games",
+                    Content = "Detect your installation to get started.",
+                    Type = InfoCardType.HowTo,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Detecting Your Game:**
+                    GenHub needs to know where your game is installed before it can do anything.
+
+                    1.  Navigate to the **Game Profiles** tab.
+                    2.  Click the **SCAN** button in the top toolbar.
+                    3.  GenHub will search your system and detect your Steam, EA App, or CD installation automatically.
+
+                    *Once detected, you can detect profiles based on this installation.*
+                    """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "Go to Detection Guide",
+                            ActionId = "NAV_INFO_scan-games",
+                            IconKey = "Magnify",
+                            IsPrimary = true,
+                        },
+                    ],
+                },
+                new InfoCard
+                {
+                    Title = "Step 2: Essential Downloads",
+                    Content = "Get the community recommended updates.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Recommended Setup:**
+                    Head over to the **Downloads** tab to grab the essential updates that every player should have. We recommend installing:
+
+                    *   **Generals Online:** The modern replacement for GameSpy to play online.
+                    *   **TheSuperHackers:** Provides weekly code fixes and mission content.
+                    *   **Community Patch:** Critical stability fixes for the base game.
+
+                    *You can also browse and download other mods and tools in this section.*
+                    """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "Go to Downloads",
+                            ActionId = "NAV_Downloads",
+                            IconKey = "CloudDownload",
+                            IsPrimary = true,
+                        },
+                         new InfoAction
+                        {
+                            Label = "Learn about Content",
+                            ActionId = "NAV_INFO_game-profile-content",
+                            IconKey = "BookOpenVariant",
+                        },
+                    ],
+                },
+                new InfoCard
+                {
+                    Title = "Step 3: Add Local Content",
+                    Content = "Importing your own Mods and Maps.",
+                    Type = InfoCardType.HowTo,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **How to add your own files:**
+                    If you have mods, maps, or mappacks already on your computer, you can add them to specific profiles without cluttering your main game folder.
+
+                    1.  Go to the **Game Profiles** tab.
+                    2.  Click the **Pencil Icon (Edit)** on any profile card.
+                    3.  Click the **Add Local Content** button.
+                    4.  Select your Mod folder, Map zip, or Mappack.
+
+                    *This content will only be active for that specific profile.*
+                    """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "Learn how to Import",
+                            ActionId = "NAV_INFO_local-content",
+                            IconKey = "FolderUpload",
+                            IsPrimary = true,
+                        },
+                    ],
+                },
+                new InfoCard
+                {
+                    Title = "The Core: Manifests & CAS",
+                    Content = "How GenHub handles your game data efficiently.",
+                    Type = InfoCardType.Concept,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **The Engine Under the Hood:**
+                    GenHub uses a sophisticated storage system to keep your installation clean and fast.
+
+                    *   **Content Manifests**: Every mod or update is defined by a `ContentManifest`. Think of this as the "DNA" of the package—it lists every file, its exact version, and its dependencies.
+                    *   **Declarative Packages**: Content in GenHub is "declarative." Instead of messy installers, GenHub reads the manifest and reconciles your game folder to match exactly what is defined.
+                    *   **CAS (Content Addressable Storage)**: Files are stored in a central "Pool" based on their digital fingerprint (hash), not their filename.
+                    *   **Deduplication**: If three different mods use the same 1GB texture file, GenHub only stores it **once** in the CAS, saving you massive amounts of disk space.
+                    *   **Integrity**: Because everything is hash-based, GenHub can instantly verify if a file is corrupted or modified and fix it automatically.
+
+                    *This system ensures that your profiles remain isolated and your disk usage stays optimal.*
+                    """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "Storage Settings",
+                            ActionId = "NAV_Settings",
+                            IconKey = "Harddisk",
+                        },
+                    ],
+                },
+                new InfoCard
+                {
+                    Title = "Automated Maintenance",
+                    Content = "Updates and compatibility checks.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Keeps your game clean:**
+                    GenHub handles the messy parts of game management for you.
+
+                    *   **Auto-Updates:** When you launch the game, GenHub automatically checks for updates to services like GeneralsOnline.
+                    *   **Version Control:** It automatically cleans up old versions of patches and ensures all your profiles are using the latest compatible files, so you don't have to manually update each one.
+                    """,
+                    Actions =
+                    [
+                        new InfoAction
+                        {
+                            Label = "App Utils",
+                            ActionId = "NAV_INFO_app-updates",
+                            IconKey = "Update",
+                        },
+                    ],
+                },
+            ],
+        };
     }
 
     private static InfoSection CreateGameProfilesSection()

@@ -277,60 +277,6 @@ public class GameProfileLauncherViewModelTests
         Assert.Contains("Scan failed", vm.StatusMessage);
     }
 
-    /// <summary>
-    /// Verifies that AddManualGameCommand creates profiles when installation is provided.
-    /// </summary>
-    [Fact]
-    public void AddManualGameCommand_WithValidSelection_CreatesProfiles()
-    {
-        var installationService = new Mock<IGameInstallationService>();
-
-        // Mock AddInstallationToCacheAsync to succeed
-        installationService.Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        var shortcutService = new Mock<IShortcutService>();
-        var notificationService = new Mock<INotificationService>();
-        var publisherOrchestrator = new Mock<IPublisherProfileOrchestrator>();
-        var profileManager = new Mock<IGameProfileManager>();
-
-        // Mock detection results
-        var gameClientDetector = new Mock<IGameClientDetector>();
-        var clients = new List<GameClient>
-        {
-            new() { Id = "client1", Name = "Zero Hour v1.04", GameType = GameType.ZeroHour },
-        };
-
-        gameClientDetector.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess(clients, TimeSpan.Zero));
-
-        // Mock profile creation
-        var editorFacade = new Mock<IProfileEditorFacade>();
-        editorFacade.Setup(x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GenHub.Core.Models.GameProfile.GameProfile>.CreateSuccess(new GenHub.Core.Models.GameProfile.GameProfile { Id = "p1", Name = "Test Profile" }));
-
-        // Smoke test for command existence
-        var vm = new GameProfileLauncherViewModel(
-            installationService.Object,
-            profileManager.Object,
-            new Mock<IProfileLauncherFacade>().Object,
-            null!,
-            editorFacade.Object,
-            new Mock<IConfigurationProviderService>().Object,
-            null!,
-            shortcutService.Object,
-            publisherOrchestrator.Object,
-            new Mock<ISteamManifestPatcher>().Object,
-            CreateProfileResourceService(),
-            gameClientDetector.Object,
-            notificationService.Object,
-            new Mock<ISetupWizardService>().Object,
-            new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance);
-
-        Assert.NotNull(vm.AddManualGameCommand);
-    }
-
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);

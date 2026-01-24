@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using GenHub.Core.Models.Dialogs;
 
 namespace GenHub.Core.Interfaces.Common;
 
@@ -22,4 +23,18 @@ public interface IDialogService
         string confirmText = "Confirm",
         string cancelText = "Cancel",
         string? sessionKey = null);
+
+    /// <summary>
+    /// Shows a generic message dialog with custom actions.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="content">The dialog content (Markdown supported).</param>
+    /// <param name="actions">The list of actions (buttons) to display.</param>
+    /// <param name="showDoNotAskAgain">Whether to show the "Do not show again" checkbox.</param>
+    /// <returns>The result of the dialog interaction.</returns>
+    Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(
+        string title,
+        string content,
+        IEnumerable<DialogAction> actions,
+        bool showDoNotAskAgain = false);
 }
