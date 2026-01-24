@@ -15,5 +15,5 @@ public class GenPatcherCatalog
     /// <summary>
     /// Gets or sets the list of content items.
     /// </summary>
-    public List<GenPatcherContentItem> Items { get; set; } = new();
+    public List<GenPatcherContentItem> Items { get; set; } = [];
 }

@@ -14,13 +14,13 @@ namespace GenHub.Core.Services.Tools;
 /// <param name="pluginLoader">Plugin loader for loading tool plugins.</param>
 /// <param name="toolRegistry">Registry for managing tool plugins.</param>
 /// <param name="userSettingsService">Service for managing user settings.</param>
-/// <param name="builtInPlugins">Collection of built-in tool plugins.</param>
+/// <param name="builtInTools">Collection of built-in tool plugins from DI.</param>
 /// <param name="logger">Logger for logging tool service activities.</param>
 public class ToolService(
     IToolPluginLoader pluginLoader,
     IToolRegistry toolRegistry,
     IUserSettingsService userSettingsService,
-    IEnumerable<IToolPlugin> builtInPlugins,
+    IEnumerable<IToolPlugin> builtInTools,
     ILogger<ToolService> logger)
 : IToolManager
 {
@@ -34,20 +34,20 @@ public class ToolService(
             if (!pluginLoader.ValidatePlugin(assemblyPath))
             {
                 logger.LogWarning("Tool plugin validation failed for: {AssemblyPath}", assemblyPath);
-                return await Task.FromResult(OperationResult<IToolPlugin>.CreateFailure("Invalid tool plugin assembly."));
+                return OperationResult<IToolPlugin>.CreateFailure("Invalid tool plugin assembly.");
             }
 
             var plugin = pluginLoader.LoadPluginFromAssembly(assemblyPath);
             if (plugin == null)
             {
                 logger.LogWarning("Failed to load tool plugin from assembly: {AssemblyPath}", assemblyPath);
-                return await Task.FromResult(OperationResult<IToolPlugin>.CreateFailure("Failed to load tool plugin from assembly."));
+                return OperationResult<IToolPlugin>.CreateFailure("Failed to load tool plugin from assembly.");
             }
 
             if (toolRegistry.GetToolById(plugin.Metadata.Id) != null)
             {
                 logger.LogWarning("Tool with ID {ToolId} is already registered", plugin.Metadata.Id);
-                return await Task.FromResult(OperationResult<IToolPlugin>.CreateFailure("A tool with the same ID is already registered."));
+                return OperationResult<IToolPlugin>.CreateFailure("A tool with the same ID is already registered.");
             }
 
             toolRegistry.RegisterTool(plugin, assemblyPath);
@@ -76,7 +76,7 @@ public class ToolService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while adding tool plugin from assembly: {AssemblyPath}", assemblyPath);
-            return await Task.FromResult(OperationResult<IToolPlugin>.CreateFailure("An error occurred while adding the tool plugin."));
+            return OperationResult<IToolPlugin>.CreateFailure("An error occurred while adding the tool plugin.");
         }
     }
 
@@ -87,31 +87,31 @@ public class ToolService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<List<IToolPlugin>>> LoadSavedToolsAsync()
+    public Task<OperationResult<List<IToolPlugin>>> LoadSavedToolsAsync()
     {
         try
         {
             var loadedPlugins = new List<IToolPlugin>();
 
-            // First, register all built-in plugins from DI
-            foreach (var builtInPlugin in builtInPlugins)
+            // 1. Register all built-in plugins from DI
+            foreach (var builtIn in builtInTools)
             {
-                var existingTool = toolRegistry.GetToolById(builtInPlugin.Metadata.Id);
+                var existingTool = toolRegistry.GetToolById(builtIn.Metadata.Id);
                 if (existingTool == null)
                 {
-                    builtInPlugin.Metadata.IsBundled = true;
-                    toolRegistry.RegisterTool(builtInPlugin);
-                    loadedPlugins.Add(builtInPlugin);
-                    logger.LogDebug("Registered built-in tool plugin: {PluginName}", builtInPlugin.Metadata.Name);
+                    builtIn.Metadata.IsBundled = true;
+                    toolRegistry.RegisterTool(builtIn);
+                    loadedPlugins.Add(builtIn);
+                    logger.LogDebug("Registered built-in tool plugin: {PluginName}", builtIn.Metadata.Name);
                 }
                 else
                 {
                     loadedPlugins.Add(existingTool);
-                    logger.LogDebug("Built-in tool plugin {PluginName} already registered", builtInPlugin.Metadata.Name);
+                    logger.LogDebug("Built-in tool plugin {PluginName} already registered", builtIn.Metadata.Name);
                 }
             }
 
-            // Then, load external plugins from saved paths
+            // 2. Load external plugins from saved paths
             var settings = userSettingsService.Get();
             var toolPaths = settings.InstalledToolAssemblyPaths ?? [];
 
@@ -126,14 +126,18 @@ public class ToolService(
             {
                 logger.LogDebug("Processing tool path: {Path}", path);
 
-                // Check if tool is already loaded in registry
+                // Check if tool is already loaded in registry by its path
                 var existingTools = toolRegistry.GetAllTools();
                 var existingTool = existingTools.FirstOrDefault(t => toolRegistry.GetToolAssemblyPath(t.Metadata.Id) == path);
 
                 if (existingTool != null)
                 {
                     // Tool already loaded, reuse it
-                    loadedPlugins.Add(existingTool);
+                    if (!loadedPlugins.Contains(existingTool))
+                    {
+                        loadedPlugins.Add(existingTool);
+                    }
+
                     logger.LogDebug("Tool plugin from {Path} already loaded, reusing existing instance.", path);
                     continue;
                 }
@@ -155,14 +159,15 @@ public class ToolService(
             logger.LogInformation(
                 "Loaded {Count} tool plugins ({BuiltIn} built-in, {External} external).",
                 loadedPlugins.Count,
-                builtInPlugins.Count(),
+                builtInTools.Count(),
                 toolPaths.Count);
-            return await Task.FromResult(OperationResult<List<IToolPlugin>>.CreateSuccess(loadedPlugins));
+
+            return Task.FromResult(OperationResult<List<IToolPlugin>>.CreateSuccess(loadedPlugins));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while loading saved tool plugins.");
-            return await Task.FromResult(OperationResult<List<IToolPlugin>>.CreateFailure("An error occurred while loading saved tool plugins."));
+            return Task.FromResult(OperationResult<List<IToolPlugin>>.CreateFailure("An error occurred while loading saved tool plugins."));
         }
     }
 
@@ -174,24 +179,24 @@ public class ToolService(
             var tool = toolRegistry.GetToolById(toolId);
             if (tool == null)
             {
-                return await Task.FromResult(OperationResult<bool>.CreateFailure("Tool not found."));
+                return OperationResult<bool>.CreateFailure("Tool not found.");
             }
 
             if (tool.Metadata.IsBundled)
             {
                 logger.LogWarning("Attempted to remove bundled tool: {ToolName} ({ToolId})", tool.Metadata.Name, toolId);
-                return await Task.FromResult(OperationResult<bool>.CreateFailure("Bundled tools cannot be removed."));
+                return OperationResult<bool>.CreateFailure("Bundled tools cannot be removed.");
             }
 
             var assemblyPath = toolRegistry.GetToolAssemblyPath(toolId);
             if (assemblyPath == null)
             {
-                return await Task.FromResult(OperationResult<bool>.CreateFailure("Tool registration is incomplete (missing assembly path)."));
+                return OperationResult<bool>.CreateFailure("Tool registration is incomplete (missing assembly path).");
             }
 
             if (!toolRegistry.UnregisterTool(toolId))
             {
-                return await Task.FromResult(OperationResult<bool>.CreateFailure("Failed to unregister tool."));
+                return OperationResult<bool>.CreateFailure("Failed to unregister tool.");
             }
 
             userSettingsService.Update(settings =>
@@ -204,9 +209,9 @@ public class ToolService(
             logger.LogInformation("Tool with ID {ToolId} removed successfully.", toolId);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch
+        catch (Exception ex)
         {
-            logger.LogError("An error occurred while removing tool with ID: {ToolId}", toolId);
+            logger.LogError(ex, "An error occurred while removing tool with ID: {ToolId}", toolId);
             return OperationResult<bool>.CreateFailure("An error occurred while removing the tool.");
         }
     }

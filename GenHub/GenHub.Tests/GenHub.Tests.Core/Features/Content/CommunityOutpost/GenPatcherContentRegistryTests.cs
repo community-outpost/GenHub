@@ -23,7 +23,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("genl", "GenLauncher", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("10gn", "Generals 1.08", ContentType.GameClient, GameType.Generals)]
     [InlineData("10zh", "Zero Hour 1.04", ContentType.GameClient, GameType.ZeroHour)]
-    [InlineData("cbbs", "Control Bar - Basic", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,
@@ -183,6 +183,8 @@ public class GenPatcherContentRegistryTests
     [InlineData("cbbs", GenPatcherContentCategory.ControlBar)]
     [InlineData("crzh", GenPatcherContentCategory.Camera)]
     [InlineData("hlen", GenPatcherContentCategory.Hotkeys)]
+    [InlineData("ewba", GenPatcherContentCategory.Tools)]
+    [InlineData("mskr", GenPatcherContentCategory.Maps)]
     [InlineData("gent", GenPatcherContentCategory.Tools)]
     [InlineData("maod", GenPatcherContentCategory.Maps)]
     [InlineData("icon", GenPatcherContentCategory.Visuals)]

@@ -121,6 +121,51 @@ public class LinuxShortcutService(ILogger<LinuxShortcutService> logger) : IShort
     }
 
     /// <inheritdoc />
+    public Task<OperationResult<bool>> CreateShortcutAsync(
+        string shortcutPath,
+        string targetPath,
+        string? arguments = null,
+        string? workingDirectory = null,
+        string? description = null,
+        string? iconPath = null)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(shortcutPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var name = Path.GetFileNameWithoutExtension(shortcutPath);
+            var comment = description ?? string.Empty;
+
+            var desktopEntry = BuildDesktopEntry(
+                name,
+                comment,
+                targetPath,
+                arguments ?? string.Empty,
+                workingDirectory ?? string.Empty,
+                iconPath ?? string.Empty);
+
+            File.WriteAllText(shortcutPath, desktopEntry, Encoding.UTF8);
+            MakeExecutable(shortcutPath);
+
+            logger.LogInformation(
+                "Created shortcut at {ShortcutPath} targeting {TargetPath}",
+                shortcutPath,
+                targetPath);
+
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create shortcut at {ShortcutPath}", shortcutPath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to create shortcut: {ex.Message}"));
+        }
+    }
+
+    /// <inheritdoc />
     public string GetShortcutPath(GameProfile profile, string? shortcutName = null)
     {
         ArgumentNullException.ThrowIfNull(profile);

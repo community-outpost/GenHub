@@ -47,23 +47,23 @@ URI scheme constants for handling different types of URIs and paths.
 
 Application-wide constants for GenHub.
 
-| Constant                  | Value/Type          | Description                                      |
-| ------------------------- | ------------------- | ------------------------------------------------ |
-| `AppName`                 | `"GenHub"`          | The name of the application                      |
-| `AppVersion`              | Dynamic (lazy)      | Full semantic version from assembly              |
-| `DisplayVersion`          | `"v" + AppVersion`  | Display version for UI                           |
-| `GitShortHash`            | Dynamic             | Short git commit hash (7 chars)                  |
-| `GitShortHashLength`      | `7`                 | Length of git short hash                         |
-| `PullRequestNumber`       | Dynamic             | PR number if PR build                            |
-| `BuildChannel`            | Dynamic             | Build channel (Dev, PR, CI, Release)             |
-| `IsCiBuild`               | bool                | Whether this is a CI/CD build                    |
-| `FullDisplayVersion`      | string              | Full display version with hash                   |
-| `GitHubRepositoryUrl`     | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                            |
-| `GitHubRepositoryOwner`   | `"community-outpost"`                           | GitHub repository owner                          |
-| `GitHubRepositoryName`    | `"GenHub"`                                      | GitHub repository name                           |
-| `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
-| `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
-| `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
+| Constant                | Value/Type                                      | Description                          |
+| ----------------------- | ----------------------------------------------- | ------------------------------------ |
+| `AppName`               | `"GenHub"`                                      | The name of the application          |
+| `AppVersion`            | Dynamic (lazy)                                  | Full semantic version from assembly  |
+| `DisplayVersion`        | `"v" + AppVersion`                              | Display version for UI               |
+| `GitShortHash`          | Dynamic                                         | Short git commit hash (7 chars)      |
+| `GitShortHashLength`    | `7`                                             | Length of git short hash             |
+| `PullRequestNumber`     | Dynamic                                         | PR number if PR build                |
+| `BuildChannel`          | Dynamic                                         | Build channel (Dev, PR, CI, Release) |
+| `IsCiBuild`             | bool                                            | Whether this is a CI/CD build        |
+| `FullDisplayVersion`    | string                                          | Full display version with hash       |
+| `GitHubRepositoryUrl`   | `"https://github.com/community-outpost/GenHub"` | GitHub repository URL                |
+| `GitHubRepositoryOwner` | `"community-outpost"`                           | GitHub repository owner              |
+| `GitHubRepositoryName`  | `"GenHub"`                                      | GitHub repository name               |
+| `DefaultTheme`          | `Theme.Dark`                                    | Default UI theme                     |
+| `DefaultThemeName`      | `"Dark"`                                        | Default theme name as string         |
+| `TokenFileName`         | `".ghtoken"`                                    | Default GitHub token file name       |
 
 ---
 
@@ -71,11 +71,11 @@ Application-wide constants for GenHub.
 
 Constants related to application updates and Velopack.
 
-| Constant                     | Value/Type                  | Description                                      |
-| ---------------------------- | --------------------------- | ------------------------------------------------ |
-| `PostUpdateExitDelay`        | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
-| `CacheDuration`              | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
-| `MaxHttpRetries`             | `3`                         | Maximum number of HTTP retries for failed requests |
+| Constant | Value/Type | Description |
+| :--- | :--- | :--- |
+| `PostUpdateExitDelay` | `TimeSpan.FromSeconds(5)` | Delay before exit after applying update |
+| `CacheDuration` | `TimeSpan.FromHours(1)` | Cache duration for update checks |
+| `MaxHttpRetries` | `3` | Maximum number of HTTP retries for failed requests |
 
 ---
 
@@ -193,13 +193,13 @@ File and directory name constants to prevent typos and ensure consistency.
 
 ### Manifest Files
 
-| Constant                | Value               | Description                       |
-| ----------------------- | ------------------- | --------------------------------- |
-| `ManifestsDirectory`    | `"Manifests"`       | Directory for manifest files      |
-| `ManifestFilePattern`   | `"*.manifest.json"` | File pattern for manifest files   |
-| `ManifestFileExtension` | `".manifest.json"`  | File extension for manifest files |
-| `UserDataManifestExtension` | `".userdata.json"` | File extension for user data manifest files |
-| `BackupExtension`       | `".ghbak"`          | File extension for backup files   |
+| Constant                    | Value               | Description                                 |
+| --------------------------- | ------------------- | ------------------------------------------- |
+| `ManifestsDirectory`        | `"Manifests"`       | Directory for manifest files                |
+| `ManifestFilePattern`       | `"*.manifest.json"` | File pattern for manifest files             |
+| `ManifestFileExtension`     | `".manifest.json"`  | File extension for manifest files           |
+| `UserDataManifestExtension` | `".userdata.json"`  | File extension for user data manifest files |
+| `BackupExtension`           | `".ghbak"`          | File extension for backup files             |
 
 ### JSON Files
 
@@ -245,10 +245,9 @@ Constants related to manifest ID generation, validation, and file operations.
 
 ### Manifest ID Regex Patterns
 
-| Constant                         | Description                     |
-| -------------------------------- | ------------------------------- |
-| `PublisherContentRegexPattern` | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
+| Constant                       | Description                                                                                                        |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `PublisherContentRegexPattern` | Regex for validating 5-segment publisher content IDs (schemaVersion.userVersion.publisher.contentType.contentName) |
 
 **Publisher Content Regex Pattern (5-segment format):**
 
@@ -281,14 +280,14 @@ Constants related to manifest ID generation, validation, and file operations.
 
 Constants related to Steam integration and the proxy launcher.
 
-| Constant                 | Value                     | Description                                      |
-| ------------------------ | ------------------------- | ------------------------------------------------ |
-| `GeneralsAppId`          | `"17300"`                 | Steam AppID for Generals                         |
-| `ZeroHourAppId`          | `"2732960"`               | Steam AppID for Zero Hour                        |
-| `TrackingFileName`       | `".genhub-files.json"`    | Tracking file for Steam launches                 |
-| `BackupDirName`          | `".genhub-backup"`        | Backup directory for original game files         |
-| `BackupExtension`        | `".ghbak"`                | Extension for backed up game executables         |
-| `ProxyLauncherFileName`  | `"GenHub.ProxyLauncher.exe"` | Filename of the proxy launcher executable        |
+| Constant                | Value                        | Description                               |
+| ----------------------- | ---------------------------- | ----------------------------------------- |
+| `GeneralsAppId`         | `"17300"`                    | Steam AppID for Generals                  |
+| `ZeroHourAppId`         | `"2732960"`                  | Steam AppID for Zero Hour                 |
+| `TrackingFileName`      | `".genhub-files.json"`       | Tracking file for Steam launches          |
+| `BackupDirName`         | `".genhub-backup"`           | Backup directory for original game files  |
+| `BackupExtension`       | `".ghbak"`                   | Extension for backed up game executables  |
+| `ProxyLauncherFileName` | `"GenHub.ProxyLauncher.exe"` | Filename of the proxy launcher executable |
 
 ---
 
@@ -312,7 +311,7 @@ Extensible SHA-256 hash constants and registry for known game executables used f
 | `MaxExternalHashSources`            | `50`                            | Maximum number of external hash sources that can be registered |
 | `ExternalSourceCacheTimeoutMinutes` | `30`                            | Cache timeout for external hash sources in minutes             |
 
-### Collections and Properties
+### Hash Registry Collections
 
 | Property                  | Type           | Description                                                                       |
 | ------------------------- | -------------- | --------------------------------------------------------------------------------- |
@@ -402,7 +401,7 @@ Well-known publisher type identifiers for content sources. Uses lowercase string
 | `LocalImport` | `"local"`      | Local file import by user |
 | `FileSystem`  | `"filesystem"` | Imported from file system |
 
-### Generated Content
+### Auto-Generated Content (Core)
 
 | Constant         | Value             | Description                                     |
 | ---------------- | ----------------- | ----------------------------------------------- |
@@ -410,7 +409,7 @@ Well-known publisher type identifiers for content sources. Uses lowercase string
 | `GenHubInternal` | `"genhub"`        | GenHub internal system content                  |
 | `CsvGenerated`   | `"csvgenerated"`  | Content generated from CSV authoritative source |
 
-### Special/Unknown
+### Special and Unknown Sources
 
 | Constant  | Value       | Description                           |
 | --------- | ----------- | ------------------------------------- |
@@ -570,7 +569,7 @@ These constants provide standardized publisher metadata for content attribution 
 | `Website`    | `"https://www.playgenerals.online/"`        | Website URL for Generals Online            |
 | `SupportUrl` | `"https://www.playgenerals.online/support"` | Support URL for Generals Online            |
 
-### Helper Methods
+### Publisher Source Helper Methods
 
 **`GetPublisherInfo(GameInstallationType)`**: Returns a tuple containing (Name, Website, SupportUrl) for the specified installation type.
 
@@ -602,13 +601,13 @@ Constants related to game client detection and management.
 
 ### Game Directory Names
 
-| Constant                           | Value                                      | Description                                    |
-| ---------------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| `GeneralsDirectoryName`                | `"Command and Conquer Generals"`            | Standard Generals installation directory name |
-| `ZeroHourDirectoryName`                | `"Command and Conquer Generals Zero Hour"`  | Standard Zero Hour installation directory name |
+| Constant                               | Value                                       | Description                                                         |
+| -------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------- |
+| `GeneralsDirectoryName`                | `"Command and Conquer Generals"`            | Standard Generals installation directory name                       |
+| `ZeroHourDirectoryName`                | `"Command and Conquer Generals Zero Hour"`  | Standard Zero Hour installation directory name                      |
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
-| `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
-| `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
+| `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant                         |
+| `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form                           |
 
 ### GeneralsOnline Client Detection
 
@@ -669,8 +668,8 @@ Enum for game client display names used in UI formatting and content display.
 
 ### Enum Values
 
-| Value      | Description                          |
-| ---------- | ------------------------------------ |
+| Value      | Description                           |
+| ---------- | ------------------------------------- |
 | `Generals` | Command & Conquer: Generals           |
 | `ZeroHour` | Command & Conquer: Generals Zero Hour |
 
@@ -857,11 +856,11 @@ Storage and CAS (Content-Addressable Storage) related constants.
 
 ---
 
-## GameClientHashRegistry Class
+## GameClientHashRegistry Class (Extended Registry)
 
 Extensible SHA-256 hash constants and registry for known game executables used for client detection across official and 3rd party distributions. Supports dynamic updates, external hash databases, and plugin extensibility.
 
-### Core Hash Constants
+### Core Hash Constants (Registry)
 
 | Constant          | Value                                                                | Description                                               |
 | ----------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -869,7 +868,7 @@ Extensible SHA-256 hash constants and registry for known game executables used f
 | `ZeroHour104Hash` | `"f37a4929f8d697104e99c2bcf46f8d833122c943afcd87fd077df641d344495b"` | SHA-256 hash for Zero Hour 1.04 executable (generals.exe) |
 | `ZeroHour105Hash` | `"420fba1dbdc4c14e2418c2b0d3010b9fac6f314eafa1f3a101805b8d98883ea1"` | SHA-256 hash for Zero Hour 1.05 executable (generals.exe) |
 
-### Extensibility Configuration Constants
+### Extensibility Configuration (Registry)
 
 | Constant                            | Value                           | Description                                                    |
 | ----------------------------------- | ------------------------------- | -------------------------------------------------------------- |
@@ -877,13 +876,13 @@ Extensible SHA-256 hash constants and registry for known game executables used f
 | `MaxExternalHashSources`            | `50`                            | Maximum number of external hash sources that can be registered |
 | `ExternalSourceCacheTimeoutMinutes` | `30`                            | Cache timeout for external hash sources in minutes             |
 
-### Collections and Properties
+### Registry Collections
 
 | Property                  | Type           | Description                                                                       |
 | ------------------------- | -------------- | --------------------------------------------------------------------------------- |
 | `PossibleExecutableNames` | `List<string>` | Executable file names that might contain game executables (extensible at runtime) |
 
-### Basic Usage Example
+### Registry Usage Snippet
 
 ```csharp
 using GenHub.Core.Constants;
@@ -905,7 +904,7 @@ if (info.HasValue)
 }
 ```
 
-### Extensibility Usage
+### Registry Extensibility Use Cases
 
 ```csharp
 using GenHub.Core.Constants;
@@ -925,15 +924,15 @@ GameClientHashRegistry.AddPossibleExecutableName("my-modded-generals.exe");
 
 ---
 
-## PublisherTypeConstants Class
+## PublisherTypeConstants Class Definition
 
-Well-known publisher type identifiers for content sources. Uses lowercase string identifiers for consistency with the ManifestId system.
+Well-known publisher type identifiers for content sources.
 
 ### Publisher Type Overview
 
 Publisher types are **string-based** (not an enum) for extensibility. Any string value is valid; these constants are just common identifiers for convenience.
 
-### Official Platform Publishers
+### Official Platform Identifiers
 
 | Constant         | Value              | Description                       |
 | ---------------- | ------------------ | --------------------------------- |
@@ -944,7 +943,7 @@ Publisher types are **string-based** (not an enum) for extensibility. Any string
 | `Wine`           | `"wine"`           | Wine/Proton compatibility layer   |
 | `CdIso`          | `"cdiso"`          | CD-ROM/ISO installation           |
 
-### Community Platforms
+### Community Platform Identifiers
 
 | Constant           | Value                | Description                                               |
 | ------------------ | -------------------- | --------------------------------------------------------- |
@@ -953,21 +952,21 @@ Publisher types are **string-based** (not an enum) for extensibility. Any string
 | `ModDb`            | `"moddb"`            | ModDB hosting platform                                    |
 | `CncLabs`          | `"cnclabs"`          | C&C Labs community site                                   |
 
-### Web/Download Sources
+### Web Source Constants
 
 | Constant      | Value      | Description          |
 | ------------- | ---------- | -------------------- |
 | `GitHub`      | `"github"` | GitHub repository    |
 | `WebDownload` | `"web"`    | Generic web download |
 
-### Local/System Sources
+### Local and System Sources
 
 | Constant      | Value          | Description               |
 | ------------- | -------------- | ------------------------- |
 | `LocalImport` | `"local"`      | Local file import by user |
 | `FileSystem`  | `"filesystem"` | Imported from file system |
 
-### Generated Content
+### Content Generation Metadata Constants
 
 | Constant         | Value             | Description                                     |
 | ---------------- | ----------------- | ----------------------------------------------- |
@@ -975,14 +974,14 @@ Publisher types are **string-based** (not an enum) for extensibility. Any string
 | `GenHubInternal` | `"genhub"`        | GenHub internal system content                  |
 | `CsvGenerated`   | `"csvgenerated"`  | Content generated from CSV authoritative source |
 
-### Special/Unknown
+### Miscellaneous Publisher Types
 
 | Constant  | Value       | Description                           |
 | --------- | ----------- | ------------------------------------- |
 | `Unknown` | `"unknown"` | Unknown or unspecified publisher type |
 | `Custom`  | `"custom"`  | Custom user-defined publisher         |
 
-### Helper Methods
+### Publisher Identification Utilities
 
 #### `FromInstallationType(GameInstallationType)`
 
@@ -1005,7 +1004,7 @@ public static string FromInstallationType(GameInstallationType installationType)
 }
 ```
 
-### Publisher Type Usage Examples
+### Publisher Constants Usage
 
 ```csharp
 using GenHub.Core.Constants;
@@ -1043,7 +1042,7 @@ var customPublisher = "my-custom-publisher";
 // Custom publishers work just like predefined constants
 ```
 
-### GeneralsOnline Publisher Type
+### GeneralsOnline Special Publisher Type
 
 The `GeneralsOnline` publisher type is used for the GeneralsOnline community launcher, which provides auto-updated clients for Command & Conquer Generals and Zero Hour.
 
@@ -1059,8 +1058,7 @@ The `GeneralsOnline` publisher type is used for the GeneralsOnline community lau
 - `1.0.generalsonline.gameclient.generalsonline_30hz` (GeneralsOnline 30Hz client)
 - `1.0.generalsonline.gameclient.generalsonline_60hz` (GeneralsOnline 60Hz client)
 
-See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details.
----
+### Manifest ID Details
 
 ## Configuration and Usage Examples
 
@@ -1285,7 +1283,9 @@ Constants for content pipeline component identifiers used in dependency injectio
 
 ---
 
-## MaintenanceWhen adding new constants
+## Maintenance
+
+When adding new constants
 
 1. Choose the appropriate constants file based on functionality
 2. Follow naming conventions (PascalCase for constants)
@@ -1441,7 +1441,7 @@ Constants for The Super Hackers content discovery and manifest creation.
 
 - `PublisherPrefix`: Publisher prefix string (`"thesuperhackers"`)
 - `PublisherDisplayName`: Display name for the publisher (`"The Super Hackers"`)
-- `VersionDelimiter`: Character used to separate components in version strings (`':'`)
+
 ## ToolConstants Class
 
 Constants for tool plugin metadata and configuration.
@@ -1450,18 +1450,17 @@ Constants for tool plugin metadata and configuration.
 
 Constants specific to the Replay Manager tool plugin.
 
-| Constant     | Value                                      | Description                                      |
-| ------------ | ------------------------------------------ | ------------------------------------------------ |
-| `Id`         | `"genhub.tools.replaymanager"`             | Unique identifier for the Replay Manager tool    |
-| `Name`       | `"Replay Manager"`                         | Display name for the Replay Manager tool         |
-| `Version`    | `"1.0.0"`                                  | Version of the Replay Manager tool               |
-| `Author`     | `"GenHub Team"`                            | Author of the Replay Manager tool                |
-| `Description`| `"Manage, import, and share replay files for Command & Conquer: Generals and Zero Hour."` | Description of the Replay Manager tool |
-| `Tags`       | `["replays", "file-management", "sharing"]`| Tags associated with the Replay Manager tool     |
-| `IconPath`   | `"Assets/Icons/replay.png"`                | Icon path for the Replay Manager tool (placeholder) |
-| `IsBundled`  | `true`                                     | Whether the tool is bundled with the application |
+| Constant    | Value                                       | Description                                         |
+| ----------- | ------------------------------------------- | --------------------------------------------------- |
+| `Id`        | `"genhub.tools.replaymanager"`              | Unique identifier for the Replay Manager tool       |
+| `Name`      | `"Replay Manager"`                          | Display name for the Replay Manager tool            |
+| `Version`   | `"1.0.0"`                                   | Version of the Replay Manager tool                  |
+| `Author`    | `"GenHub Team"`                             | Author of the Replay Manager tool                   |
+| `Tags`      | `["replays", "file-management", "sharing"]` | Tags associated with the Replay Manager tool        |
+| `IconPath`  | `"Assets/Icons/replay.png"`                 | Icon path for the Replay Manager tool (placeholder) |
+| `IsBundled` | `true`                                      | Whether the tool is bundled with the application    |
 
-### Usage Example
+### Replay Manager Usage Example
 
 ```csharp
 using GenHub.Core.Constants;
@@ -1486,78 +1485,24 @@ var metadata = new ToolMetadata
 
 Constants specifically for the Map Manager feature.
 
-| Constant                       | Value                                      | Description                                                                           |
-| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `MaxMapSizeBytes`              | `10485760` (10MB)                          | Maximum file size for individual maps                                                 |
-| `MaxWeeklyUploadBytes`         | `104857600` (100MB)                        | Maximum weekly upload limit                                                           |
-| `ThumbnailMaxWidth`            | `128`                                      | Maximum width for thumbnails                                                          |
-| `ThumbnailMaxHeight`           | `128`                                      | Maximum height for thumbnails                                                         |
-| `DefaultThumbnailName`         | `"map.tga"`                                | Default thumbnail filename                                                            |
-| `MaxDirectoryDepth`            | `1`                                        | Maximum directory nesting depth                                                       |
-| `GeneralsDataDirectoryName`    | `"Command and Conquer Generals Data"`      | Directory name for Generals data                                                      |
-| `ZeroHourDataDirectoryName`   | `"Command and Conquer Generals Zero Hour Data"` | Directory name for Zero Hour data                                                     |
-| `MapsSubdirectoryName`         | `"Maps"`                                   | Subdirectory name for maps                                                            |
-| `MapPacksSubdirectoryName`     | `"mappacks"`                               | Subdirectory name for MapPacks                                                        |
-| `MapFilePattern`               | `"*.map"`                                  | File pattern for maps                                                                 |
-| `ZipFilePattern`               | `"*.zip"`                                  | File pattern for ZIPs                                                                 |
-| `DefaultZipName`               | `"maps.zip"`                               | Default name for exported ZIPs                                                        |
-| `ToolId`                       | `"map-manager"`                            | Unique identifier for Map Manager                                                     |
-| `ToolName`                     | `"Map Manager"`                            | Display name for Map Manager                                                          |
-| `ToolDescription`              | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool |
-## Content Provider Constants
-
-Constants for various community content providers and manifest generation.
-
-### CommunityOutpostCatalogConstants Class
-
-Constants related to the Community Outpost (GenPatcher) catalog and metadata.
-
-- `CatalogFilename`: Default filename for the GenPatcher catalog (`"GenPatcher.dat"`)
-- `VersionKey`: Metadata key for version information (`"Version"`)
-- `DescriptionKey`: Metadata key for description information (`"Description"`)
-- `DownloadUrlKey`: Metadata key for download URLs (`"DownloadUrl"`)
-
-### GeneralsOnlineConstants Class
-
-Constants for Generals Online content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"generalsonline"`)
-- `PublisherId`: Publisher identifier (`"generals-online"`)
-- `PublisherDisplayName`: Display name for the publisher (`"Generals Online"`)
-- `QfeMarkerPrefix`: Prefix used for QFE (Quick Fix Engineering) versions (`"qfe-"`)
-- `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline"]`)
-- `UnknownVersion`: Default version string when unknown (`"unknown"`)
-- `CoverSource`: Default path for cover images (`"/Assets/Covers/zerohour-cover.png"`)
-
-### CNCLabsConstants Class
-
-Constants for CNC Labs (CNC Maps) content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"cnclabs"`)
-- `PublisherId`: Publisher identifier (`"cnc-labs"`)
-- `PublisherName`: Display name for the publisher (`"CNC Labs"`)
-- `PublisherWebsite`: Main website URL (`"https://www.cnclabs.com"`)
-- `DefaultTags`: Default tags for CNC Labs manifests (`["cnclabs"]`)
-- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
-
-### ModDBConstants Class
-
-Constants for ModDB content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"moddb"`)
-- `PublisherDisplayName`: Display name for the publisher (`"ModDB"`)
-- `PublisherWebsite`: Main website URL (`"https://www.moddb.com"`)
-- `ReleaseDateFormat`: Date format used in ModDB metadata (`"MMMM dd, yyyy"`)
-- `PublisherNameFormat`: Format string for including the author with the publisher name (`"ModDB ({0})"`)
-- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
-
-### SuperHackersConstants Class
-
-Constants for The Super Hackers content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"thesuperhackers"`)
-- `PublisherDisplayName`: Display name for the publisher (`"The Super Hackers"`)
-- `VersionDelimiter`: Character used to separate components in version strings (`':'`)
+| Constant                    | Value                                                                                  | Description                                                                            |
+| --------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `MaxMapSizeBytes`           | `10485760` (10MB)                                                                      | Maximum file size for individual maps                                                  |
+| `MaxWeeklyUploadBytes`      | `104857600` (100MB)                                                                    | Maximum weekly upload limit                                                            |
+| `ThumbnailMaxWidth`         | `128`                                                                                  | Maximum width for thumbnails                                                           |
+| `ThumbnailMaxHeight`        | `128`                                                                                  | Maximum height for thumbnails                                                          |
+| `DefaultThumbnailName`      | `"map.tga"`                                                                            | Default thumbnail filename                                                             |
+| `MaxDirectoryDepth`         | `1`                                                                                    | Maximum directory nesting depth                                                        |
+| `GeneralsDataDirectoryName` | `"Command and Conquer Generals Data"`                                                  | Directory name for Generals data                                                       |
+| `ZeroHourDataDirectoryName` | `"Command and Conquer Generals Zero Hour Data"`                                        | Directory name for Zero Hour data                                                      |
+| `MapsSubdirectoryName`      | `"Maps"`                                                                               | Subdirectory name for maps                                                             |
+| `MapPacksSubdirectoryName`  | `"mappacks"`                                                                           | Subdirectory name for MapPacks                                                         |
+| `MapFilePattern`            | `"*.map"`                                                                              | File pattern for maps                                                                  |
+| `ZipFilePattern`            | `"*.zip"`                                                                              | File pattern for ZIPs                                                                  |
+| `DefaultZipName`            | `"maps.zip"`                                                                           | Default name for exported ZIPs                                                         |
+| `ToolId`                    | `"map-manager"`                                                                        | Unique identifier for Map Manager                                                      |
+| `ToolName`                  | `"Map Manager"`                                                                        | Display name for Map Manager                                                           |
+| `ToolDescription`           | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool                                                                |
 
 ---
 

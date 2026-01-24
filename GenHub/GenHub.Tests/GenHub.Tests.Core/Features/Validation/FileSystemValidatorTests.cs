@@ -6,7 +6,7 @@ using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace GenHub.Tests.Features.Validation;
+namespace GenHub.Tests.Core.Features.Validation;
 
 /// <summary>
 /// Unit tests for FileSystemValidator.
@@ -80,17 +80,8 @@ public class FileSystemValidatorTests
     /// <summary>
     /// Test implementation of <see cref="FileSystemValidator"/> for unit testing.
     /// </summary>
-    public class TestFileSystemValidator : FileSystemValidator
+    public class TestFileSystemValidator(ILogger logger) : FileSystemValidator(logger, new Mock<IFileHashProvider>().Object)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TestFileSystemValidator"/> class.
-        /// </summary>
-        /// <param name="logger">Logger instance.</param>
-        public TestFileSystemValidator(ILogger logger)
-            : base(logger, new Mock<IFileHashProvider>().Object)
-        {
-        }
-
         /// <summary>
         /// Exposes base ValidateDirectoriesAsync for testing.
         /// </summary>
@@ -98,8 +89,8 @@ public class FileSystemValidatorTests
         /// <param name="requiredDirectories">Directories to check.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of validation issues.</returns>
-        public new Task<List<ValidationIssue>> ValidateDirectoriesAsync(string basePath, IEnumerable<string> requiredDirectories, CancellationToken cancellationToken)
-            => FileSystemValidator.ValidateDirectoriesAsync(basePath, requiredDirectories, cancellationToken);
+        public new async Task<List<ValidationIssue>> ValidateDirectoriesAsync(string basePath, IEnumerable<string> requiredDirectories, CancellationToken cancellationToken)
+            => await base.ValidateDirectoriesAsync(basePath, requiredDirectories, cancellationToken);
 
         /// <summary>
         /// Exposes base ValidateFilesAsync for testing.
@@ -109,7 +100,7 @@ public class FileSystemValidatorTests
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <param name="progress">Progress reporter.</param>
         /// <returns>List of validation issues.</returns>
-        public new Task<List<ValidationIssue>> ValidateFilesAsync(string basePath, IEnumerable<ManifestFile> files, CancellationToken cancellationToken, IProgress<ValidationProgress>? progress = null)
-            => base.ValidateFilesAsync(basePath, files, cancellationToken, progress);
+        public new async Task<List<ValidationIssue>> ValidateFilesAsync(string basePath, IEnumerable<ManifestFile> files, CancellationToken cancellationToken, IProgress<ValidationProgress>? progress = null)
+            => await base.ValidateFilesAsync(basePath, files, cancellationToken, progress);
     }
 }

@@ -13,20 +13,28 @@ The Replay Manager is a built-in tool in GenHub that allows you to manage, impor
 ## Getting Started
 
 To access the Replay Manager:
+
 1. Open GenHub.
+
 2. Navigate to the **TOOLS** tab.
 3. Select **Replay Manager** from the sidebar.
 
 ## Importing Replays
 
 ### From URL
+
+
 You can import replays from various sources by pasting the link into the import bar:
+
 - **UploadThing**: Direct links from other GenHub users.
+
 - **Generals Online**: Match view URLs.
 - **GenTool**: Directory URLs from the GenTool data repository.
 - **Direct Links**: Any URL ending in `.rep` or `.zip`.
 
 ### Drag and Drop
+
+
 Simply drag one or more `.rep` or `.zip` files from your computer and drop them anywhere on the Replay Manager window to import them.
 
 ## Sharing Replays
@@ -42,7 +50,9 @@ Simply drag one or more `.rep` or `.zip` files from your computer and drop them 
 ## Storage Policy
 
 Replays imported or shared via GenHub are subject to the following policies:
+
 - Files are maintained in our cloud storage for **14 days**.
+
 - Older files may be removed automatically to make room for new ones.
 - Only `.rep` files are allowed within shared archives.
 

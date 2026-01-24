@@ -54,10 +54,20 @@ public class OperationResult<T> : ResultBase
     /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
     public static OperationResult<T> CreateFailure(IEnumerable<string> errors, TimeSpan elapsed = default)
     {
+        return CreateFailure(errors, default, elapsed);
+    }
+
+    /// <summary>Creates a failed operation result with multiple error messages and partial data.</summary>
+    /// <param name="errors">The error messages.</param>
+    /// <param name="data">The partial data.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
+    public static OperationResult<T> CreateFailure(IEnumerable<string> errors, T? data, TimeSpan elapsed = default)
+    {
         ArgumentNullException.ThrowIfNull(errors, nameof(errors));
         if (!errors.Any())
             throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
-        return new OperationResult<T>(false, default, errors, elapsed);
+        return new OperationResult<T>(false, data, errors, elapsed);
     }
 
     /// <summary>Creates a failed operation result from another result, copying its errors.</summary>

@@ -124,7 +124,7 @@ public class IsSubscribedConverterTests
     public void ConvertBack_ReturnsEmptyArray()
     {
         // Act
-        var result = IsSubscribedConverter.ConvertBack(true, [typeof(object), typeof(object), typeof(object)], null, CultureInfo.InvariantCulture);
+        var result = _converter.ConvertBack(true, [typeof(object), typeof(object), typeof(object)], null, CultureInfo.InvariantCulture);
 
         // Assert
         Assert.Empty(result);

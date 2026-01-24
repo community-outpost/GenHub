@@ -107,6 +107,33 @@ public class WindowsShortcutService(ILogger<WindowsShortcutService> logger) : IS
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}.lnk");
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> CreateShortcutAsync(
+        string shortcutPath,
+        string targetPath,
+        string? arguments = null,
+        string? workingDirectory = null,
+        string? description = null,
+        string? iconPath = null)
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(shortcutPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            CreateShortcut(shortcutPath, targetPath, arguments, workingDirectory, description, iconPath);
+            return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create shortcut at {ShortcutPath}", shortcutPath);
+            return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to create shortcut: {ex.Message}"));
+        }
+    }
+
     /// <summary>
     /// Creates a Windows shortcut (.lnk file) using COM interop.
     /// </summary>

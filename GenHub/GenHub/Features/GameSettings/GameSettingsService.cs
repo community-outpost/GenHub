@@ -364,7 +364,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
             "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
             "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            "UseAlternateMouse", "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            "ScrollEdgeZone", "ScrollEdgeSpeed", "ScrollEdgeAcceleration",
         };
 
         Dictionary<string, string> audioDict = [];
@@ -607,6 +608,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"ExtraAnimations={BoolToString(options.Video.ExtraAnimations)}");
         lines.Add($"Gamma={options.Video.Gamma}");
         lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
+
         lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
         lines.Add($"BuildingOcclusion={BoolToString(options.Video.BuildingOcclusion)}");
         lines.Add($"ShowProps={BoolToString(options.Video.ShowProps)}");

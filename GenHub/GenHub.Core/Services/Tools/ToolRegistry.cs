@@ -32,10 +32,13 @@ public class ToolRegistry : IToolRegistry
     }
 
     /// <inheritdoc/>
-    public void RegisterTool(IToolPlugin plugin, string assemblyPath)
+    public void RegisterTool(IToolPlugin plugin, string? assemblyPath = null)
     {
         _tools[plugin.Metadata.Id] = plugin;
-        _toolAssemblyPaths[plugin.Metadata.Id] = assemblyPath;
+        if (assemblyPath != null)
+        {
+            _toolAssemblyPaths[plugin.Metadata.Id] = assemblyPath;
+        }
     }
 
     /// <inheritdoc/>

@@ -52,10 +52,6 @@ public class GameInstallationServiceTests : IDisposable
                 return Task.FromResult(clientResult);
             });
 
-        // Note: The service uses List<GameInstallation>, so the mock matches that concrete type.
-        _clientOrchestratorMock.Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<List<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(clientResult);
-
         _service = new GameInstallationService(
             _orchestratorMock.Object,
             _clientOrchestratorMock.Object,
