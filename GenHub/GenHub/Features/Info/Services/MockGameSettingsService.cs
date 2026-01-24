@@ -21,7 +21,7 @@ public class MockGameSettingsService : IGameSettingsService
         return Task.FromResult(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings
         {
              ShowFps = true,
-             RenderFpsLimit = 144,
+             Render = { FpsLimit = 144 },
              AutoLogin = true,
         }));
     }
