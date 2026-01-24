@@ -326,6 +326,9 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
+                    **Active Development Build**
+                    TheSuperHackers (TSH) is the **primary build being worked on actively** by the community developers. It provides the base for all modern feature testing and stability improvements.
+
                     **Engine Enhancements**
                     *   **Cursor Capture:** Locks the mouse inside the game window. Configurable for Menus vs Gameplay and Fullscreen vs Windowed.
                     *   **Edge Scrolling:** Enables camera movement at screen edges even in windowed mode.
@@ -344,6 +347,9 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
+                    **Integrated Evolution**
+                    GeneralsOnline is the modern lobby service that powers online play. **Any Generals online settings inherit directly from TSH changes**, ensuring a unified experience between offline and online play.
+
                     **Network & Social**
                     *   **Ping & Ranks:** Displays player latency and ladder rankings in the lobby.
                     *   **Auto-Login/Remember Me:** Streamlines the connection process.

@@ -190,7 +190,7 @@
     <ScrollViewer Padding="4"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="0" Margin="0,0,0,120">
+        <StackPanel Spacing="0">
 
             <!-- Enabled Content Section -->
             <Border Classes="section-card"
@@ -353,6 +353,7 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
+            <Panel Height="200" /> <!-- Bottom Spacer -->
         </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -83,7 +83,7 @@
         <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
 
         <!-- Content Area -->
-        <ScrollViewer x:Name="GeneralSettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="GeneralSettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
             <StackPanel Spacing="0">
                 <!-- Status Message -->
                 <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
@@ -244,7 +244,7 @@
                     </StackPanel>
                 </Border>
 
-                <Panel Height="80" /> <!-- Bottom Spacer -->
+                <Panel Height="200" /> <!-- Bottom Spacer -->
             </StackPanel>
         </ScrollViewer>
     </Grid>

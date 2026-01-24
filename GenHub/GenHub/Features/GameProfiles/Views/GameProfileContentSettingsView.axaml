@@ -31,7 +31,7 @@
 
         <!-- Content Area -->
         <!-- Content Area -->
-        <ScrollViewer x:Name="ContentSettingsScrollViewer" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="ContentSettingsScrollViewer" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
             <StackPanel Spacing="0">
 
                 <!-- Enabled Content Section -->
@@ -192,7 +192,7 @@
                     </StackPanel>
                 </Border>
 
-                <Panel Height="80" />
+                <Panel Height="200" />
             </StackPanel>
         </ScrollViewer>
     </Grid>

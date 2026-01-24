@@ -76,7 +76,34 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         if (string.IsNullOrWhiteSpace(path)) return defaultUri;
         if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase)) return path;
         if (Uri.TryCreate(path, UriKind.Absolute, out _)) return path;
-        return $"avares://GenHub/{path.TrimStart('/')}";
+
+        // Add backward compatibility for old cover paths
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        var normalizedPath = path;
+        if (normalizedPath.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedPath = normalizedPath.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
+                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+        }
+        else if (normalizedPath.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedPath = normalizedPath.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
+                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+        }
+        else if (normalizedPath.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedPath = normalizedPath.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
+                                           .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+        }
+        else if (normalizedPath.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
+                 (normalizedPath.Contains("cover", StringComparison.OrdinalIgnoreCase) ||
+                  normalizedPath.Contains("poster", StringComparison.OrdinalIgnoreCase)))
+        {
+            // Handle any other cover/poster files in the old Images directory
+            normalizedPath = normalizedPath.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return $"avares://GenHub/{normalizedPath.TrimStart('/')}";
     }
 
     private static void PopulateGameSettings(CreateProfileRequest request, UpdateProfileRequest? gameSettings)

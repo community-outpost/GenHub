@@ -477,7 +477,6 @@
         <Grid Grid.Row="2" Margin="12,12,12,12">
 
             <!-- Content Tab Panel (Index 0) -->
-            <!-- Content Tab Panel (Index 0) -->
             <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
 
             <!-- Profile Settings Tab Panel (Index 1) -->
@@ -717,6 +716,8 @@
                         </StackPanel>
                     </Border>
 
+
+                    <Panel Height="200" /> <!-- Bottom Spacer -->
                 </StackPanel>
             </ScrollViewer>
 

@@ -386,9 +386,10 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ? iconPath
             : UriConstants.DefaultIconUri;
 
-        // Handle cover path with fallback to icon
-        _coverPath = !string.IsNullOrEmpty(coverPath)
-            ? coverPath
+        // Handle cover path with fallback to icon, normalize old paths
+        var normalizedCoverPath = NormalizeCoverPath(coverPath);
+        _coverPath = !string.IsNullOrEmpty(normalizedCoverPath)
+            ? normalizedCoverPath
             : _iconPath;
 
         // Set cover image path (for UI binding)
@@ -638,8 +639,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             if (!string.IsNullOrEmpty(gameProfile.CoverPath))
             {
-                CoverPath = gameProfile.CoverPath;
-                CoverImagePath = gameProfile.CoverPath;
+                var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
+                CoverPath = normalizedCoverPath;
+                CoverImagePath = normalizedCoverPath;
             }
 
             CommandLineArguments = gameProfile.CommandLineArguments;
@@ -712,6 +714,39 @@ public partial class GameProfileItemViewModel : ViewModelBase
             GameType.Generals => "#BD5A0F", // Orange/yellow for Generals
             GameType.ZeroHour => "#1B6575", // Teal/blue for Zero Hour
             _ => "#2A2A2A", // Default dark gray
+        };
+    }
+
+    /// <summary>
+    /// Normalizes old cover paths to new paths for backward compatibility.
+    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png.
+    /// </summary>
+    /// <param name="coverPath">The cover path to normalize.</param>
+    /// <returns>The normalized cover path.</returns>
+    private static string NormalizeCoverPath(string coverPath)
+    {
+        if (string.IsNullOrEmpty(coverPath))
+            return coverPath;
+
+        // Map old paths to new paths for backward compatibility
+        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
+        return coverPath switch
+        {
+            var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("china-poster.png", "china-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains("usa-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("usa-poster.png", "usa-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
+                p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
+                 .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+
+            // Also handle just the directory change for any other files in Images/ that might reference covers
+            var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
+                       (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
+                p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
+            _ => coverPath,
         };
     }
 
@@ -799,9 +834,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 var parts = gameTypeSegment.Split('-');
                 ContentType = parts[1] switch
                 {
-                    "installation" => "Game Installation",
-                    "client" => "Game Client",
-                    _ => parts[1],
+                    "gameinstallation" => "Game Installation",
+                    "gameclient" => "Game Client",
+                    "mod" => "Mod",
+                    "patch" => "Patch",
+                    "addon" => "Add-on",
+                    "map" => "Map",
+                    "mappack" => "Map Pack",
+                    "executable" => "Executable",
+                    "moddingtool" => "Modding Tool",
+                    "mission" => "Mission",
+                    _ => parts[1].ToUpperInvariant(),
                 };
             }
         }

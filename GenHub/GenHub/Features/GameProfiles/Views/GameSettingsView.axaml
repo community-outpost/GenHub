@@ -87,7 +87,7 @@
         <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
 
         <!-- Right Content Area -->
-        <ScrollViewer x:Name="SettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer x:Name="SettingsScrollViewer" Grid.Column="2" Padding="0,24,0,80" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" BringIntoViewOnFocusChange="False">
             <StackPanel Spacing="0" HorizontalAlignment="Stretch">
                 <!-- Status Message -->
                 <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
@@ -371,7 +371,7 @@
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
                                 <TextBlock Text="Camera Move Speed" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <Slider Grid.Column="1" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" VerticalAlignment="Center" Margin="10,0,12,0" />
                                 <NumericUpDown Grid.Column="2" Value="{Binding GoCameraMoveSpeedRatio}" Minimum="0.5" Maximum="5.0" Increment="0.1" Classes="slider-input" />
                             </Grid>
 
@@ -420,7 +420,7 @@
                     </StackPanel>
                 </Border>
 
-                <Panel Height="80" /> <!-- Bottom Spacer -->
+                <Panel Height="200" /> <!-- Bottom Spacer -->
             </StackPanel>
         </ScrollViewer>
     </Grid>
