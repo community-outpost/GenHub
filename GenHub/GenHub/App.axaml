@@ -2,11 +2,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:GenHub.Infrastructure.Converters"
              x:Class="GenHub.App">
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
-        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
-    </Application.Styles>
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -19,4 +14,10 @@
         <local:IntToBoolConverter x:Key="IntToBoolConverter" />
         <local:EqualityConverter x:Key="EqualityConverter" />
     </Application.Resources>
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
+    </Application.Styles>
 </Application>

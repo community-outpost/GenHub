@@ -12,7 +12,7 @@
         x:DataType="vm:GameProfileSettingsViewModel"
         x:Name="SettingsWindow"
         Title="Profile Settings"
-        Width="750" Height="700"
+        Width="850" Height="750"
         MinWidth="600" MinHeight="550"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
@@ -41,23 +41,7 @@
     </Window.Resources>
 
     <Window.Styles>
-        <!-- Section card style -->
-        <Style Selector="Border.section-card">
-            <Setter Property="Background" Value="#50FFFFFF" />
-            <Setter Property="BorderBrush" Value="#60FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="16" />
-            <Setter Property="Margin" Value="0,0,0,12" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-        </Style>
 
-        <!-- Section title -->
-        <Style Selector="TextBlock.section-title">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,0,12" />
-        </Style>
 
         <!-- Form field -->
         <Style Selector="StackPanel.form-field">
@@ -448,7 +432,7 @@
                 <Path Classes="corner-accent bottom-right" Data="M 0,35 L 35,35 L 35,0" Canvas.Bottom="0" Canvas.Right="0" />
             </Canvas>
 
-            <Grid RowDefinitions="Auto,*">
+            <Grid RowDefinitions="Auto,Auto,*">
                 <!-- Redesigned Minimal Header -->
                 <Border Grid.Row="0"
                         Background="Transparent"
@@ -520,20 +504,22 @@
                     </Grid>
                 </Border>
 
+                <!-- Global Navigation at the Top -->
+                <views:GameProfileNavigationView Grid.Row="1" Margin="24,0,24,12" />
 
-        <!-- Tab Content Panels -->
-        <Grid Grid.Row="1" Margin="12,12,12,12">
-            <!-- Content Tab Panel (Index 0) -->
-            <views:GameProfileContentSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+                <!-- Tab Content Panels -->
+                <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
+                    <!-- Content Tab Panel (Index 0) -->
+                    <views:GameProfileContentSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
 
-            <!-- Profile Settings Tab Panel (Index 1) -->
-            <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
+                    <!-- Profile Settings Panel (Index 1) -->
+                    <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
 
-            <!-- Game Settings Tab Panel (Index 2) -->
-            <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}">
-                <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
-            </Panel>
-        </Grid>
+                    <!-- Game Settings Panel (Index 2) -->
+                    <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}">
+                        <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+                    </Panel>
+                </Grid>
 
         <!-- Add Local Content Dialog -->
         <Border Grid.RowSpan="2"
