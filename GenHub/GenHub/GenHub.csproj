@@ -40,7 +40,9 @@
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Octokit" />
         <PackageReference Include="ReactiveUI" />
-        <PackageReference Include="Serilog.Extensions.Logging.File" />
+        <PackageReference Include="Serilog" />
+        <PackageReference Include="Serilog.Sinks.File" />
+        <PackageReference Include="Serilog.Extensions.Logging" />
         <PackageReference Include="SharpCompress" />
         <PackageReference Include="Slugify.Core" />
         <PackageReference Include="StyleCop.Analyzers" />

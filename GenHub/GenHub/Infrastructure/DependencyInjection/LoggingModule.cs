@@ -1,9 +1,9 @@
 using System;
 using System.IO;
-using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Events;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -26,7 +26,12 @@ public static class LoggingModule
             builder.ClearProviders();
             builder.AddConsole();
             builder.AddDebug();
-            builder.AddFile(logPath, LogLevel.Information);
+
+            var logger = new LoggerConfiguration()
+                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Information)
+                .CreateLogger();
+
+            builder.AddSerilog(logger);
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
@@ -45,7 +50,12 @@ public static class LoggingModule
         {
             builder.AddConsole();
             builder.AddDebug();
-            builder.AddFile(logPath, LogLevel.Debug);
+
+            var logger = new LoggerConfiguration()
+                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Debug)
+                .CreateLogger();
+
+            builder.AddSerilog(logger);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
     }
