@@ -6,253 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeneralsHub - Universal C&C Launcher</title>
     <meta name="description"
-        content="Universal C&C Launcher for managing, launching, and customizing Command & Conquer: Generals and Zero Hour.">
-
+        content="The modern launcher for Command & Conquer: Generals and Zero Hour. Manage profiles, mods, maps, and replays in isolated workspaces.">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="GeneralsHub - Universal C&C Launcher">
+    <meta property="og:description" content="The modern launcher for Command & Conquer: Generals and Zero Hour.">
+    <meta property="og:type" content="website">
+    
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="./assets/icon.png">
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
 
-    <style>
-        :root {
-            --primary: #7c3aed;
-            --primary-dark: #6d28d9;
-            --primary-light: #a78bfa;
-            --secondary: #10b981;
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border: #334155;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            line-height: 1.6;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        /* Header */
-        header {
-            background-color: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
-            position: fixed;
-            width: 100%;
-            top: 0;
-            z-index: 100;
-        }
-
-        nav {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-weight: 700;
-            font-size: 1.25rem;
-            color: var(--text-main);
-            text-decoration: none;
-        }
-
-        .logo img {
-            width: 40px;
-            height: 38px;
-        }
-
-        /* Main Content */
-        main {
-            flex: 1;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 9rem 1.5rem 4rem;
-        }
-
-        /* Hero Section */
-        .hero {
-            text-align: center;
-            margin-bottom: 5rem;
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        .hero h1 {
-            font-size: 3.5rem;
-            line-height: 1.1;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.02em;
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-            max-width: 700px;
-            margin: 0 auto 2.5rem;
-        }
-
-        .version-badge {
-            display: inline-block;
-            background-color: rgba(124, 58, 237, 0.15);
-            color: var(--primary-light);
-            border: 1px solid var(--primary);
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Buttons */
-        .cta-group {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.875rem 2rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            font-size: 1rem;
-        }
-
-        .btn-primary {
-            background-color: var(--primary);
-            color: white;
-            border: 1px solid var(--primary);
-            box-shadow: 0 4px 14px 0 rgba(124, 58, 237, 0.3);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px 0 rgba(124, 58, 237, 0.4);
-        }
-
-        .btn-secondary {
-            background-color: var(--bg-card);
-            color: var(--text-muted);
-            border: 1px solid var(--border);
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--primary);
-            color: var(--text-main);
-        }
-
-        /* Features Grid */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 5rem;
-        }
-
-        .card {
-            background-color: rgba(30, 41, 59, 0.7);
-            border: 1px solid var(--border);
-            border-radius: 1rem;
-            padding: 2rem;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            background-color: var(--bg-card);
-        }
-
-        .card-icon {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            display: block;
-        }
-
-        .card h3 {
-            font-size: 1.25rem;
-            margin-bottom: 0.75rem;
-            color: var(--text-main);
-        }
-
-        .card p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        /* Footer */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 3rem 1.5rem;
-            text-align: center;
-            color: var(--text-muted);
-            background-color: var(--bg-dark);
-        }
-
-        footer a {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        footer a:hover {
-            text-decoration: underline;
-            color: var(--primary-light);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-            }
-
-            nav {
-                flex-direction: column;
-                gap: 1rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="./assets/css/variables.css">
+    <link rel="stylesheet" href="./assets/css/global.css">
+    <link rel="stylesheet" href="./assets/css/header.css">
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <link rel="stylesheet" href="./assets/css/features.css">
+    <link rel="stylesheet" href="./assets/css/footer.css">
+    <link rel="stylesheet" href="./assets/css/animations.css">
+    <link rel="stylesheet" href="./assets/css/responsive.css">
 </head>
 
 <body>
@@ -260,25 +39,27 @@
     <header>
         <nav>
             <a href="#" class="logo">
-                <img src="./assets/icon.png" alt="GenHub Icon" onerror="this.style.display='none'">
+                <img src="./assets/icon.png" alt="GenHub" onerror="this.style.display='none'">
                 GeneralsHub
             </a>
-            <div>
-                <a href="https://github.com/community-outpost/GenHub" target="_blank"
-                    style="color: var(--text-muted); text-decoration: none; margin-left: 1rem;">GitHub</a>
-                <a href="https://github.com/community-outpost/GenHub/blob/main/docs/onboarding.md" target="_blank"
-                    style="color: var(--text-muted); text-decoration: none; margin-left: 1rem;">Docs</a>
+            <div class="nav-links">
+                <a href="https://generalshub.netlify.app/wiki/" target="_blank">Docs</a>
+                <a href="https://github.com/community-outpost/GenHub" target="_blank">GitHub</a>
+                <a href="https://github.com/community-outpost/GenHub/releases" target="_blank">Releases</a>
             </div>
         </nav>
     </header>
 
     <main>
         <section class="hero">
-            <div class="version-badge">Latest Release: VERSION_PLACEHOLDER</div>
+            <div class="version-badge">Alpha Release: VERSION_PLACEHOLDER</div>
             <h1>Universal C&C Launcher</h1>
-            <p>
-                The ultimate tool for managing Command & Conquer: Generals and Zero Hour.
-                Organize mods, maps, and profiles in isolated, conflict-free workspaces.
+            <p class="hero-subtitle">
+                The modern platform for Command & Conquer: Generals and Zero Hour. 
+                Install, switch, and launch different setups without breaking your game folder.
+            </p>
+            <p class="hero-description">
+                Manage mods, maps, replays, and profiles in completely isolated workspaces.
             </p>
 
             <div class="cta-group">
@@ -294,60 +75,79 @@
                     View All Releases
                 </a>
             </div>
+            
+            <div class="platform-info">
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+                    Windows
+                </span>
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.468v.024c.016.264.066.466.178.664.022.04.05.077.08.113l.012.016.003.005c-.028.012-.056.03-.084.06-.073.066-.141.2-.161.333-.02.2.021.4.082.533.105.2.176.333.359.465.186.133.3.2.48.239l.005.002c-.087.06-.182.116-.252.198-.047.06-.081.14-.082.267 0 .09.015.2.066.332.062.137.172.27.332.399.325.26.747.4 1.186.4.145 0 .291-.014.44-.043a2.26 2.26 0 00.834-.304c.39-.223.672-.527.847-.869.174-.34.259-.698.259-1.06v-.074c0-.403-.16-.8-.46-1.067-.299-.266-.698-.4-1.106-.4a1.52 1.52 0 00-.406.053c-.148.043-.28.108-.395.2-.126.093-.226.202-.317.331v-.135c0-.2-.063-.4-.17-.534a.5.5 0 00-.4-.2z"/></svg>
+                    Linux
+                </span>
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 3.536c.603-.401 1.326-.635 2.106-.635.06 0 .12.003.18.007l3.149-4.567v-.063c0-2.583 2.1-4.687 4.687-4.687s4.687 2.104 4.687 4.687-2.1 4.687-4.687 4.687h-.105l-4.495 3.206c.003.054.007.109.007.165 0 1.94-1.576 3.518-3.518 3.518-.167 0-.331-.015-.492-.042l-6.102 3.354C2.964 22.636 7.16 24 11.979 24c6.627 0 12-5.373 12-12s-5.373-12-12-12z"/></svg>
+                    Steam Integration
+                </span>
+            </div>
         </section>
 
         <section class="features">
             <div class="card">
-                <span class="card-icon">🎮</span>
-                <h3>Profile Management</h3>
-                <p>Create custom configurations combining base games with mods, patches, and maps. Switch between setups
-                    instantly.</p>
+                <div class="card-icon"><i data-feather="sliders"></i></div>
+                <h3>Game Profiles</h3>
+                <p>Create configurations for Vanilla, Competitive, or Modded setups. Switch instantly without file conflicts.</p>
             </div>
 
             <div class="card">
-                <span class="card-icon">🔍</span>
+                <div class="card-icon"><i data-feather="download-cloud"></i></div>
+                <h3>One-Click Downloads</h3>
+                <p>Install Generals Online, TheSuperHackers releases, and Community Patches with a single click. Auto-updates included.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="compass"></i></div>
                 <h3>Content Discovery</h3>
-                <p>Automated discovery from GitHub, ModDB, CNC Labs, and local sources. Install mods with a single
-                    click.</p>
+                <p>Browse mods from GitHub, ModDB, and CNCLabs. Content is automatically discovered and ready to install.</p>
             </div>
 
             <div class="card">
-                <span class="card-icon">📁</span>
+                <div class="card-icon"><i data-feather="layers"></i></div>
                 <h3>Isolated Workspaces</h3>
-                <p>Run different profiles in completely isolated environments using symlinks or copies. No more file
-                    conflicts.</p>
+                <p>Each profile runs in its own environment. Smart storage deduplication saves disk space automatically.</p>
             </div>
 
             <div class="card">
-                <span class="card-icon">🌐</span>
-                <h3>Cross-Platform</h3>
-                <p>Native support for Windows and Linux. Manage your Generals ecosystem regardless of your OS.</p>
+                <div class="card-icon"><i data-feather="map"></i></div>
+                <h3>Map Manager</h3>
+                <p>Drag-and-drop import, cloud sharing, and MapPack creation. Import directly from GenTool or match pages.</p>
             </div>
 
             <div class="card">
-                <span class="card-icon">🔧</span>
-                <h3>Smart Updates</h3>
-                <p>Built-in update system powered by Velopack. Stay up to date with the latest features automatically.
-                </p>
-            </div>
-
-            <div class="card">
-                <span class="card-icon">🛡️</span>
-                <h3>User Data Safety</h3>
-                <p>Advanced user data management ensures your saves, replays, and maps are never lost when switching
-                    profiles.</p>
+                <div class="card-icon"><i data-feather="film"></i></div>
+                <h3>Replay Manager</h3>
+                <p>Import replays from multiple sources. Upload to GenHub Cloud and share with a simple link.</p>
             </div>
         </section>
     </main>
 
     <footer>
-        <p>&copy; 2024 Community Outpost. Built for the C&C Community.</p>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">
-            <a href="https://github.com/community-outpost/GenHub" target="_blank">View Source</a> &bull;
-            <a href="https://github.com/community-outpost/GenHub/blob/main/docs/onboarding.md"
-                target="_blank">Documentation</a>
-        </p>
+        <div class="footer-content">
+            <p>&copy; 2026 Community Outpost &bull; Built for the C&C Community</p>
+            <div class="footer-links">
+                <a href="https://github.com/community-outpost/GenHub" target="_blank">Source Code</a>
+                <span class="footer-divider">•</span>
+                <a href="https://generalshub.netlify.app/" target="_blank">Documentation</a>
+                <span class="footer-divider">•</span>
+                <a href="https://github.com/community-outpost/GenHub/issues" target="_blank">Report Issue</a>
+            </div>
+        </div>
     </footer>
+
+    <script>
+        // Initialize Feather Icons
+        feather.replace();
+    </script>
 
 </body>
 
