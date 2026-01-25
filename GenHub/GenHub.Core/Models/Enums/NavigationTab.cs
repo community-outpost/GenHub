@@ -29,4 +29,9 @@ public enum NavigationTab
     /// Application settings and configuration.
     /// </summary>
     Settings,
+
+    /// <summary>
+    /// Generals Online multiplayer service and profile.
+    /// </summary>
+    GeneralsOnline,
 }

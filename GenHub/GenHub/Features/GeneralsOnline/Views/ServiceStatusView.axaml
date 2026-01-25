@@ -1,0 +1,173 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GeneralsOnline.Views.ServiceStatusView"
+             x:DataType="vm:ServiceStatusViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="Border.stat-card">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+    
+    <Style Selector="TextBlock.stat-value">
+      <Setter Property="FontSize" Value="28" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    
+    <Style Selector="TextBlock.stat-label">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="#888888" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    
+    <Style Selector="Border.progress-bar-bg">
+      <Setter Property="Background" Value="#2A2A3E" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Height" Value="6" />
+    </Style>
+    
+    <Style Selector="Border.progress-bar-fill">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Height" Value="6" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="0,0,0,20" Spacing="16">
+      <!-- Loading -->
+      <Border IsVisible="{Binding IsLoading}" 
+              Background="#80000000" CornerRadius="8" Padding="40">
+        <TextBlock Text="Loading service stats..." Foreground="White" 
+                   HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" />
+      </Border>
+      
+      <!-- Key Metrics Grid -->
+      <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto" 
+            IsVisible="{Binding !IsLoading}">
+        <!-- Online Players -->
+        <Border Grid.Column="0" Classes="stat-card" Margin="0,0,8,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="🟢" FontSize="16" VerticalAlignment="Center"/>
+              <TextBlock Classes="stat-label" Text="ONLINE NOW" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Classes="stat-value" Text="{Binding Stats.PlayersOnline24h, StringFormat='{}{0:N0}'}" 
+                       Foreground="#4ade80"/>
+            <TextBlock Classes="stat-label" Text="active players"/>
+          </StackPanel>
+        </Border>
+        
+        <!-- Peak Players -->
+        <Border Grid.Column="1" Classes="stat-card" Margin="4,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="🏆" FontSize="16" VerticalAlignment="Center"/>
+              <TextBlock Classes="stat-label" Text="PEAK CONCURRENT" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Classes="stat-value" Text="{Binding Stats.PeakConcurrentPlayers, StringFormat='{}{0:N0}'}" 
+                       Foreground="#fbbf24"/>
+          </StackPanel>
+        </Border>
+        
+        <!-- Total Players -->
+        <Border Grid.Column="2" Classes="stat-card" Margin="8,0,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="👥" FontSize="16" VerticalAlignment="Center"/>
+              <TextBlock Classes="stat-label" Text="LIFETIME PLAYERS" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Classes="stat-value" Text="{Binding Stats.TotalLifetimePlayers, StringFormat='{}{0:N0}'}" 
+                       Foreground="#60a5fa"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+      
+      <!-- Connection Health -->
+      <Border Classes="stat-card" IsVisible="{Binding HasConnectionStats}">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="📊" FontSize="16"/>
+            <TextBlock Text="Connection Health" FontWeight="SemiBold" Foreground="White"/>
+            <TextBlock Text="{Binding LastUpdated, StringFormat='• Updated {0}'}" 
+                       Foreground="#666666" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0"/>
+          </StackPanel>
+          
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+            <!-- 24h Stats -->
+            <StackPanel Grid.Column="0" Grid.Row="0" Spacing="8">
+              <TextBlock Text="Last 24 Hours" Foreground="#888888" FontSize="12" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Text="{Binding Stats.SuccessRate24h, StringFormat='{}{0:F1}%'}" 
+                           Foreground="#4ade80" FontSize="18" FontWeight="Bold"/>
+                <Border Grid.Column="1" Classes="progress-bar-bg" Margin="12,0" VerticalAlignment="Center">
+                  <Border Classes="progress-bar-fill" Background="#4ade80" 
+                          HorizontalAlignment="Left" Width="{Binding SuccessRateWidth}"/>
+                </Border>
+                <TextBlock Grid.Column="2" Text="success rate" Foreground="#666666" FontSize="10" 
+                           VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="✓" Foreground="#4ade80" FontSize="11"/>
+                  <TextBlock Text="{Binding Stats.SuccessfulConnections24h, StringFormat='{}{0:N0}'}" 
+                             Foreground="#888888" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="✗" Foreground="#f87171" FontSize="11"/>
+                  <TextBlock Text="{Binding Stats.FailedConnections24h, StringFormat='{}{0:N0}'}" 
+                             Foreground="#888888" FontSize="11"/>
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+            
+            <!-- 30d Stats -->
+            <StackPanel Grid.Column="1" Grid.Row="0" Spacing="8" Margin="16,0,0,0">
+              <TextBlock Text="Last 30 Days" Foreground="#888888" FontSize="12" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Text="{Binding Stats.SuccessRate30d, StringFormat='{}{0:F1}%'}" 
+                           Foreground="#60a5fa" FontSize="18" FontWeight="Bold"/>
+                <Border Grid.Column="1" Classes="progress-bar-bg" Margin="12,0" VerticalAlignment="Center">
+                  <Border Classes="progress-bar-fill" Background="#60a5fa" 
+                          HorizontalAlignment="Left" Width="{Binding SuccessRate30dWidth}"/>
+                </Border>
+                <TextBlock Grid.Column="2" Text="success rate" Foreground="#666666" FontSize="10" 
+                           VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="✓" Foreground="#4ade80" FontSize="11"/>
+                  <TextBlock Text="{Binding Stats.SuccessfulConnections30d, StringFormat='{}{0:N0}'}" 
+                             Foreground="#888888" FontSize="11"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="✗" Foreground="#f87171" FontSize="11"/>
+                  <TextBlock Text="{Binding Stats.FailedConnections30d, StringFormat='{}{0:N0}'}" 
+                             Foreground="#888888" FontSize="11"/>
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+      
+      <!-- Quick Links -->
+      <Border Classes="stat-card" IsVisible="{Binding !IsLoading}">
+        <StackPanel Spacing="12">
+          <TextBlock Text="Quick Links" FontWeight="SemiBold" Foreground="White"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="🔗 Status Page" Command="{Binding OpenServiceStatusCommand}" 
+                    Background="#2A2A3E" Foreground="White" CornerRadius="4" Padding="12,8"/>
+            <Button Content="↻ Refresh" Command="{Binding RefreshCommand}" 
+                    Background="#2A2A3E" Foreground="#a78bfa" CornerRadius="4" Padding="12,8"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

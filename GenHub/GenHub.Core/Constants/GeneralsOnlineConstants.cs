@@ -5,7 +5,7 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class GeneralsOnlineConstants
 {
-    // ===== API Endpoints =====
+    // ===== CDN API Endpoints =====
 
     /// <summary>Base URL for Generals Online CDN.</summary>
     public const string CdnBaseUrl = "https://cdn.playgenerals.online";
@@ -29,6 +29,35 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Support/discord URL.</summary>
     public const string SupportUrl = "https://discord.playgenerals.online/";
+
+    // ===== Multiplayer API Endpoints =====
+
+    /// <summary>Base URL for Generals Online web API.</summary>
+    public const string ApiBaseUrl = "https://www.playgenerals.online";
+
+    /// <summary>API endpoint for service statistics.</summary>
+    public const string ServiceStatsEndpoint = "https://www.playgenerals.online/servicestats";
+
+    /// <summary>API endpoint for active matches and lobbies.</summary>
+    public const string MatchesEndpoint = "https://www.playgenerals.online/matches";
+
+    /// <summary>API endpoint for player profiles.</summary>
+    public const string PlayersEndpoint = "https://www.playgenerals.online/players";
+
+    /// <summary>API endpoint for leaderboards.</summary>
+    public const string LeaderboardsEndpoint = "https://www.playgenerals.online/leaderboards";
+
+    /// <summary>API endpoint for match history.</summary>
+    public const string MatchHistoryEndpoint = "https://www.playgenerals.online/matchhistory";
+
+    /// <summary>API endpoint for viewing a specific match.</summary>
+    public const string ViewMatchEndpoint = "https://www.playgenerals.online/viewmatch";
+
+    /// <summary>Service status monitoring URL.</summary>
+    public const string ServiceStatusUrl = "https://stats.uptimerobot.com/5OBCMJwv8P";
+
+    /// <summary>FAQ page URL.</summary>
+    public const string FaqUrl = ApiBaseUrl + "/faq";
 
     // ===== Content Metadata =====
 
@@ -114,6 +143,68 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Description for Generals Online deliverer.</summary>
     public const string DelivererDescription = "Delivers Generals Online content via ZIP extraction and CAS storage";
+
+    // ===== Authentication & API =====
+
+    /// <summary>Base URL for Generals Online REST API (production environment, contract version 1).</summary>
+    public const string RestApiBaseUrl = "https://api.playgenerals.online/env/prod/contract/1";
+
+    /// <summary>API endpoint for checking browser login status by gamecode.</summary>
+    public const string CheckLoginEndpoint = RestApiBaseUrl + "/CheckLogin";
+
+    /// <summary>API endpoint for exchanging refresh token for session token.</summary>
+    public const string LoginWithTokenEndpoint = RestApiBaseUrl + "/LoginWithToken";
+
+    /// <summary>API endpoint for token verification.</summary>
+    public const string VerifyTokenEndpoint = "https://api.playgenerals.online/v1/user/verify";
+
+    /// <summary>API endpoint for user profile information.</summary>
+    public const string UserProfileEndpoint = "https://api.playgenerals.online/v1/user/profile";
+
+    /// <summary>API endpoint for lobby listings.</summary>
+    public const string LobbiesEndpoint = "https://api.playgenerals.online/v1/lobbies";
+
+    /// <summary>Client identifier for GenHub authentication.</summary>
+    public const string ClientId = "genhub";
+
+    /// <summary>Length of the gamecode for browser login.</summary>
+    public const int GameCodeLength = 32;
+
+    // ===== HTTP Headers =====
+
+    /// <summary>HTTP Accept header name.</summary>
+    public const string AcceptHeader = "Accept";
+
+    /// <summary>HTTP Accept header value for Generals Online API.</summary>
+    public const string AcceptHeaderValue = "text/html,application/json";
+
+    /// <summary>HTTP header name for authentication token.</summary>
+    public const string AuthTokenHeader = "X-Auth-Token";
+
+    // ===== OAuth and Authentication Flow =====
+
+    /// <summary>Base URL for the login page.</summary>
+    public const string LoginUrlBase = "https://www.playgenerals.online/login";
+
+    /// <summary>Custom URI scheme for OAuth callbacks.</summary>
+    public const string CallbackScheme = "genhub";
+
+    /// <summary>Path component for OAuth callback URI.</summary>
+    public const string CallbackPath = "auth/callback";
+
+    /// <summary>Full callback URI template: genhub://auth/callback.</summary>
+    public const string CallbackUriTemplate = CallbackScheme + "://" + CallbackPath;
+
+    // ===== Credentials File =====
+
+    /// <summary>Name of the GeneralsOnline data folder.</summary>
+    public const string DataFolderName = "GeneralsOnlineData";
+
+    /// <summary>Name of the credentials JSON file.</summary>
+    public const string CredentialsFileName = "credentials.json";
+
+    /// <summary>Relative path to GeneralsOnlineData folder from Generals Zero Hour Data.</summary>
+    public const string GeneralsOnlineDataPath = "Command and Conquer Generals Zero Hour Data" + "\\" + DataFolderName;
 
     // ===== Content Tags =====
 

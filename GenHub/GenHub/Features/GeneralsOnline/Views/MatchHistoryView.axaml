@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GeneralsOnline.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GeneralsOnline;assembly=GenHub.Core"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.GeneralsOnline.Views.MatchHistoryView"
+             x:DataType="vm:MatchHistoryViewModel">
+
+  <UserControl.Resources>
+    <conv:RegionToColorConverter x:Key="RegionToColorConverter" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.match-card">
+      <Setter Property="Background" Value="#1E1E2E" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="Margin" Value="0,4" />
+    </Style>
+    <Style Selector="Border.match-card:pointerover">
+      <Setter Property="Background" Value="#252535" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    
+    <Style Selector="Border.region-badge">
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="Padding" Value="6,3" />
+    </Style>
+    <Style Selector="Border.region-eu">
+      <Setter Property="Background" Value="#1e3a5f" />
+    </Style>
+    <Style Selector="Border.region-as">
+      <Setter Property="Background" Value="#3d1e5f" />
+    </Style>
+    <Style Selector="Border.region-na">
+      <Setter Property="Background" Value="#1e5f3d" />
+    </Style>
+    <Style Selector="Border.region-af">
+      <Setter Property="Background" Value="#5f3d1e" />
+    </Style>
+    <Style Selector="Border.region-sa">
+      <Setter Property="Background" Value="#5f1e3d" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*">
+    <!-- Header with search -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="Recent Matches" FontSize="16" FontWeight="SemiBold" 
+                   Foreground="White" VerticalAlignment="Center" />
+      </StackPanel>
+      
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+        <TextBox Text="{Binding SearchPlayerName}" 
+                 Watermark="Search player..."
+                 Width="180" FontSize="12" Padding="8,6"/>
+        <Button Content="Search" Command="{Binding SearchPlayerCommand}" 
+                Background="#2A2A3E" Foreground="#a78bfa" CornerRadius="4" 
+                Padding="12,6" FontSize="12"/>
+        <Button Content="↻" Command="{Binding RefreshCommand}" 
+                ToolTip.Tip="Refresh"
+                Background="#2A2A3E" Foreground="White" 
+                CornerRadius="4" Padding="10,6"/>
+      </StackPanel>
+    </Grid>
+    
+    <!-- Info Banner -->
+    <Border Grid.Row="1" Background="#1A2030" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="ℹ️" FontSize="12" />
+        <TextBlock Text="Matches are retained for 14 days and may take up to 10 minutes after completion to appear." 
+                   Foreground="#64748b" FontSize="11" />
+      </StackPanel>
+    </Border>
+    
+    <!-- Loading Indicator -->
+    <Border Grid.Row="2" IsVisible="{Binding IsLoading}" 
+            Background="#80000000" CornerRadius="6">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Text="Loading match history..." Foreground="White" FontSize="14" />
+      </StackPanel>
+    </Border>
+    
+    <!-- Error Message -->
+    <Border Grid.Row="2" IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            Background="#2A1A1A" CornerRadius="6" Padding="12" Margin="0,8">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="#f87171" FontSize="12" TextWrapping="Wrap" />
+    </Border>
+    
+    <!-- Match List -->
+    <ScrollViewer Grid.Row="2" IsVisible="{Binding !IsLoading}">
+      <ItemsControl ItemsSource="{Binding Matches}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="models:MatchInfo">
+            <Border Classes="match-card">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Region Badge -->
+                <Border Grid.Column="0" Classes="region-badge"
+                        Background="{Binding Region, Converter={StaticResource RegionToColorConverter}}"
+                        VerticalAlignment="Center" Margin="0,0,12,0">
+                  <TextBlock Text="{Binding Region}" FontWeight="SemiBold" FontSize="10" Foreground="White" />
+                </Border>
+                
+                <!-- Match Info -->
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding LobbyName}" 
+                               FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                    <Border Background="#2A2A3E" CornerRadius="3" Padding="6,2">
+                      <TextBlock Text="{Binding MatchType}" FontSize="10" Foreground="#888888"/>
+                    </Border>
+                  </StackPanel>
+                  <TextBlock Text="{Binding MapName}" 
+                             FontSize="11" Foreground="#64748b" />
+                  <ItemsControl ItemsSource="{Binding Players}" Margin="0,4,0,0">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <Border Background="#252535" CornerRadius="3" Padding="6,2">
+                          <TextBlock Text="{Binding}" Foreground="#a0a0a0" FontSize="10" />
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+                
+                <!-- Match ID and Time -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Right" Spacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding MatchId, StringFormat='#{0}'}" 
+                               FontSize="12" Foreground="#64748b" VerticalAlignment="Center"/>
+                    <Button Content="View Details" 
+                            Command="{Binding $parent[UserControl].((vm:MatchHistoryViewModel)DataContext).ViewMatchDetailsCommand}"
+                            CommandParameter="{Binding}"
+                            Background="#2A2A3E" Foreground="#a78bfa" 
+                            FontSize="10" Padding="8,4" CornerRadius="4"/>
+                  </StackPanel>
+                  <TextBlock Text="{Binding StartTime, StringFormat='{}{0:MMM dd, HH:mm}'}" 
+                             FontSize="10" Foreground="#4a5568" HorizontalAlignment="Right" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <PackageReference Include="AngleSharp" />
+        <PackageReference Include="AsyncImageLoader.Avalonia" />
         <PackageReference Include="Avalonia" />
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="Avalonia.Themes.Fluent" />
@@ -34,6 +35,7 @@
         <PackageReference Include="Slugify.Core" />
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="Velopack" />
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     </ItemGroup>
 
     <ItemGroup>

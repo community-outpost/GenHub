@@ -647,8 +647,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     WorkspacePath = folders[0].Path.LocalPath;
                 }
             }
-
-            await Task.CompletedTask;
         }
         catch (Exception ex)
         {
@@ -680,8 +678,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     SettingsFilePath = file.Path.LocalPath;
                 }
             }
-
-            await Task.CompletedTask;
         }
         catch (Exception ex)
         {

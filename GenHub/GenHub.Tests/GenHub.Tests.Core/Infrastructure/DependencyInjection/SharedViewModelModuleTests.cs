@@ -44,6 +44,11 @@ public class SharedViewModelModuleTests
         var fileHashProviderMock = new Mock<IFileHashProvider>();
         services.AddSingleton<IFileHashProvider>(fileHashProviderMock.Object);
 
+        // Mock IExternalLinkService required by LoginViewModel
+        var externalLinkServiceMock = new Mock<IExternalLinkService>();
+        externalLinkServiceMock.Setup(x => x.OpenUrl(It.IsAny<string>())).Returns(true);
+        services.AddSingleton<IExternalLinkService>(externalLinkServiceMock.Object);
+
         // Mock content pipeline dependencies
         var githubDiscovererMock = new Mock<IContentDiscoverer>();
         githubDiscovererMock.SetupGet(d => d.SourceName).Returns("GitHub");
@@ -120,6 +125,7 @@ public class SharedViewModelModuleTests
         services.AddUserDataServices();
         services.AddLaunchingServices();
         services.AddToolsServices();
+        services.AddGeneralsOnlineServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService
