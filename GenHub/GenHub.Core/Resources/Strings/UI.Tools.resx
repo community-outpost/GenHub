@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Page Titles and Subtitles -->
+  <data name="Title.Tools" xml:space="preserve">
+    <value>Tools</value>
+    <comment>Page title for the Tools tab</comment>
+  </data>
+  <data name="Subtitle.Tools" xml:space="preserve">
+    <value>Manage and use tool plugins to extend GenHub functionality</value>
+    <comment>Page subtitle for the Tools tab</comment>
+  </data>
+  
+  <!-- Section Labels -->
+  <data name="Label.InstalledTools" xml:space="preserve">
+    <value>Installed Tools</value>
+    <comment>Section label for installed tools list</comment>
+  </data>
+  <data name="Label.Name" xml:space="preserve">
+    <value>Name</value>
+    <comment>Field label for tool name</comment>
+  </data>
+  <data name="Label.Version" xml:space="preserve">
+    <value>Version</value>
+    <comment>Field label for tool version</comment>
+  </data>
+  <data name="Label.Author" xml:space="preserve">
+    <value>Author</value>
+    <comment>Field label for tool author</comment>
+  </data>
+  <data name="Label.Description" xml:space="preserve">
+    <value>Description</value>
+    <comment>Field label for tool description</comment>
+  </data>
+  <data name="Label.ToolId" xml:space="preserve">
+    <value>Tool ID</value>
+    <comment>Field label for tool identifier</comment>
+  </data>
+  
+  <!-- Buttons -->
+  <data name="Button.AddTool" xml:space="preserve">
+    <value>➕ Add Tool</value>
+    <comment>Button to add a new tool plugin</comment>
+  </data>
+  <data name="Button.RefreshTools" xml:space="preserve">
+    <value>🔄 Refresh</value>
+    <comment>Button to refresh the tools list</comment>
+  </data>
+  <data name="Button.CloseDialog" xml:space="preserve">
+    <value>Close</value>
+    <comment>Button to close a dialog</comment>
+  </data>
+  
+  <!-- Menu Items -->
+  <data name="MenuItem.ViewDetails" xml:space="preserve">
+    <value>View Details</value>
+    <comment>Context menu item to view tool details</comment>
+  </data>
+  <data name="MenuItem.RemoveTool" xml:space="preserve">
+    <value>Remove Tool</value>
+    <comment>Context menu item to remove a tool</comment>
+  </data>
+  
+  <!-- Dialog Titles -->
+  <data name="Dialog.ToolDetails" xml:space="preserve">
+    <value>Tool Details</value>
+    <comment>Dialog title for viewing tool details</comment>
+  </data>
+  <data name="Dialog.SelectToolAssembly" xml:space="preserve">
+    <value>Select Tool Plugin Assembly</value>
+    <comment>File picker dialog title</comment>
+  </data>
+  
+  <!-- File Types -->
+  <data name="FileType.ToolPluginAssembly" xml:space="preserve">
+    <value>Tool Plugin Assembly</value>
+    <comment>File type description for DLL files</comment>
+  </data>
+  
+  <!-- Status Messages -->
+  <data name="Status.Loading" xml:space="preserve">
+    <value>Loading...</value>
+    <comment>Loading status message</comment>
+  </data>
+  <data name="Status.NoToolsInstalled" xml:space="preserve">
+    <value>No tools installed. Click 'Add Tool' to install a tool plugin.</value>
+    <comment>Status when no tools are installed</comment>
+  </data>
+  <data name="Status.InstallingTool" xml:space="preserve">
+    <value>Installing tool...</value>
+    <comment>Status during tool installation</comment>
+  </data>
+  <data name="Status.ToolInstalledSuccess" xml:space="preserve">
+    <value>✓ Tool '{0}' v{1} installed successfully.</value>
+    <comment>Success message after installing a tool. {0} = tool name, {1} = version</comment>
+  </data>
+  <data name="Status.RemovingTool" xml:space="preserve">
+    <value>Removing tool '{0}'...</value>
+    <comment>Status during tool removal. {0} = tool name</comment>
+  </data>
+  <data name="Status.ToolRemovedSuccess" xml:space="preserve">
+    <value>✓ Tool '{0}' removed successfully.</value>
+    <comment>Success message after removing a tool. {0} = tool name</comment>
+  </data>
+  <data name="Status.RefreshingTools" xml:space="preserve">
+    <value>Refreshing tools...</value>
+    <comment>Status during tools refresh</comment>
+  </data>
+  <data name="Status.ToolsRefreshedSuccess" xml:space="preserve">
+    <value>✓ Refreshed {0} tool(s) successfully.</value>
+    <comment>Success message after refreshing tools. {0} = tool count</comment>
+  </data>
+  
+  <!-- Empty States -->
+  <data name="EmptyState.NoTools" xml:space="preserve">
+    <value>No tools installed yet</value>
+    <comment>Empty state title when no tools are installed</comment>
+  </data>
+  <data name="EmptyState.NoToolsDescription" xml:space="preserve">
+    <value>Click 'Add Tool' to install your first tool plugin</value>
+    <comment>Empty state description when no tools are installed</comment>
+  </data>
+  <data name="EmptyState.SelectTool" xml:space="preserve">
+    <value>Select a tool from the list</value>
+    <comment>Prompt to select a tool from the sidebar</comment>
+  </data>
+  
+  <!-- Tooltips -->
+  <data name="Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>Expand Sidebar</value>
+    <comment>Tooltip for expand sidebar button</comment>
+  </data>
+  <data name="Tooltip.CollapseSidebar" xml:space="preserve">
+    <value>Collapse Sidebar</value>
+    <comment>Tooltip for collapse sidebar button</comment>
+  </data>
+  
+  <!-- Error Messages -->
+  <data name="Error.FailedToInstallTool" xml:space="preserve">
+    <value>✗ Failed to install tool: {0}</value>
+    <comment>Error message when tool installation fails. {0} = error details</comment>
+  </data>
+  <data name="Error.FailedToRemoveTool" xml:space="preserve">
+    <value>✗ Failed to remove tool: {0}</value>
+    <comment>Error message when tool removal fails. {0} = error details</comment>
+  </data>
+  <data name="Error.FailedToRefreshTools" xml:space="preserve">
+    <value>⚠ Failed to refresh tools: {0}</value>
+    <comment>Error message when tools refresh fails. {0} = error details</comment>
+  </data>
+  <data name="Error.FailedToLoadTools" xml:space="preserve">
+    <value>⚠ Failed to load tools: {0}</value>
+    <comment>Error message when loading tools fails. {0} = error details</comment>
+  </data>
+  <data name="Error.ErrorLoadingTool" xml:space="preserve">
+    <value>✗ Error loading tool '{0}': {1}</value>
+    <comment>Error message when a specific tool fails to load. {0} = tool name, {1} = error</comment>
+  </data>
+</root>
