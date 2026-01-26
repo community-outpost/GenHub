@@ -41,17 +41,29 @@ public interface IFilterPanelViewModel : INotifyPropertyChanged
     /// Applies the current filter state to a base query and returns the modified query.
     /// </summary>
     /// <param name="baseQuery">The base query to apply filters to.</param>
-    /// <returns>A new query with filters applied.</returns>
+    /// <summary>
+/// Applies the filter panel's current filters to a base content search query.
+/// </summary>
+/// <param name="baseQuery">The base ContentSearchQuery to which filters will be applied.</param>
+/// <returns>The resulting ContentSearchQuery with the panel's active filters applied.</returns>
     ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery);
 
     /// <summary>
     /// Clears all active filters to their default state.
-    /// </summary>
+    /// <summary>
+/// Resets all filters to their default (cleared) state.
+/// </summary>
+/// <remarks>
+/// Implementations should update related state (for example <c>HasActiveFilters</c> and <c>IsLoading</c>) and raise the <c>FiltersCleared</c> event after clearing.
+/// </remarks>
     void ClearFilters();
 
     /// <summary>
     /// Gets a human-readable summary of active filters for display.
     /// </summary>
-    /// <returns>Collection of filter description strings.</returns>
+    /// <summary>
+/// Provides a human-readable collection describing each currently active filter.
+/// </summary>
+/// <returns>Strings describing each active filter; empty collection if no filters are active.</returns>
     IEnumerable<string> GetActiveFilterSummary();
 }

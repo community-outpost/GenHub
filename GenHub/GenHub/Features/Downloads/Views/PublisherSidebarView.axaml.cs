@@ -9,6 +9,8 @@ public partial class PublisherSidebarView : UserControl
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherSidebarView"/> class.
+    /// <summary>
+    /// Initializes a new instance of PublisherSidebarView and loads its UI components.
     /// </summary>
     public PublisherSidebarView()
     {

@@ -35,7 +35,13 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Discovers GitHub release content according to the provided search query and configured repositories.
+    /// </summary>
+    /// <param name="query">Search and pagination parameters (search term, page, and page size) that control filtering and result paging.</param>
+    /// <returns>
+    /// An OperationResult containing a ContentDiscoveryResult with the discovered (and paginated) ContentSearchResult items, total item count (or -1 when only the latest release per repo was loaded), and HasMoreItems flag; or a failed OperationResult with error messages if discovery encountered errors and returned no results.
+    /// </returns>
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query, CancellationToken cancellationToken = default)
     {

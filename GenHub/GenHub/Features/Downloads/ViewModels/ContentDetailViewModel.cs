@@ -108,7 +108,19 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <param name="profileManager">The profile manager instance.</param>
     /// <param name="notificationService">The notification service instance.</param>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="closeAction">The action to close the view.</param>
+    /// <summary>
+    /// Creates a new ContentDetailViewModel, stores dependencies, initializes screenshots, and begins loading the icon and basic parsed page data.
+    /// </summary>
+    /// <param name="searchResult">Initial search result used to populate metadata and screenshot URLs.</param>
+    /// <param name="serviceProvider">Service provider used to resolve runtime services.</param>
+    /// <param name="parsers">Parsers used to extract detailed page data from the content URL.</param>
+    /// <param name="downloadService">Service responsible for performing downloads.</param>
+    /// <param name="profileContentService">Service for managing content associated with game profiles.</param>
+    /// <param name="profileManager">Manager for game profiles.</param>
+    /// <param name="notificationService">Service for showing user notifications.</param>
+    /// <param name="logger">Logger instance for this view model.</param>
+    /// <param name="closeAction">Optional action invoked to close the detail view.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="searchResult"/>, <paramref name="serviceProvider"/>, <paramref name="profileContentService"/>, <paramref name="profileManager"/>, <paramref name="notificationService"/>, or <paramref name="logger"/> is null.</exception>
     public ContentDetailViewModel(
         ContentSearchResult searchResult,
         IServiceProvider serviceProvider,
@@ -164,6 +176,8 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Command to close the detail view (navigate back).
+    /// <summary>
+    /// Invokes the configured close action to close or navigate away from the content detail view.
     /// </summary>
     [RelayCommand]
     private void Close()
@@ -171,6 +185,13 @@ public partial class ContentDetailViewModel : ObservableObject
         _closeAction?.Invoke();
     }
 
+    /// <summary>
+    /// Loads the view model's IconBitmap from IconUrl when one is provided.
+    /// </summary>
+    /// <remarks>
+    /// Supports Avalonia asset URIs (avares://) and remote image URLs. Failures are silently ignored and do not throw; the existing IconBitmap is left unchanged on error or when no IconUrl is present.
+    /// </remarks>
+    /// <returns>A task that completes when the icon load attempt has finished.</returns>
     private async Task LoadIconAsync()
     {
         if (string.IsNullOrEmpty(IconUrl)) return;
@@ -201,7 +222,13 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Loads the basic parsed page data (context and overview info) without loading all tab content.
+    /// <summary>
+    /// Loads basic parsed page data for the content's source URL and applies it to the view model.
     /// </summary>
+    /// <remarks>
+    /// If a suitable parser for the source URL is found, the parsed page is stored on the underlying search result, the view-model's basic-data flag is set, and bound properties are updated by invoking LoadRichContent on the UI thread. If no parser is available or the URL is empty, the method returns without side effects. The method also sets and clears the IsLoadingDetails flag during the operation and logs errors on failure.
+    /// </remarks>
+    /// <returns>A task that completes after the parsed data (if any) has been applied and the UI updates have finished.</returns>
     private async Task LoadBasicParsedDataAsync()
     {
         if (_basicContentLoaded || ParsedPage != null) return;
@@ -245,7 +272,10 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Ensures the basic parsed page data is loaded before accessing tab content.
+    /// <summary>
+    /// Ensures that the basic parsed page data has been loaded into the view model.
     /// </summary>
+    /// <returns>A task that completes once the basic parsed data has been loaded.</returns>
     private async Task EnsureBasicDataLoadedAsync()
     {
         if (!_basicContentLoaded)
@@ -256,7 +286,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Loads rich content from the parsed web page data.
+    /// <summary>
+    /// Populates view-model properties from the parsed web page and raises PropertyChanged notifications for all dependent metadata, collections, and visibility flags.
     /// </summary>
+    /// <remarks>
+    /// If the parsed page provides an icon URL and no icon is currently loaded, this method initiates an asynchronous icon load.
+    /// </remarks>
     private void LoadRichContent()
     {
         // Check both the new ParsedPageData property and the legacy Data property
@@ -307,7 +342,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Lazy loads images when the Images tab is accessed.
+    /// <summary>
+    /// Loads the Images tab content on first access and updates related UI properties.
     /// </summary>
+    /// <remarks>
+    /// Ensures basic parsed data is available, refreshes the Images and HasImages properties, and marks the images section as loaded so subsequent calls are no-ops.
+    /// </remarks>
     [RelayCommand]
     private async Task LoadImagesAsync()
     {
@@ -343,7 +383,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Lazy loads videos when the Videos tab is accessed.
+    /// <summary>
+    /// Lazily loads the Videos tab content for the view model, ensuring basic parsed data is available and updating UI-bound properties.
     /// </summary>
+    /// <remarks>
+    /// This operation is idempotent: it does nothing if videos have already been loaded or are currently loading. On success it raises change notifications for <c>Videos</c> and <c>HasVideos</c>.
+    /// </remarks>
     [RelayCommand]
     private async Task LoadVideosAsync()
     {
@@ -378,7 +423,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Lazy loads releases when the Releases tab is accessed.
+    /// <summary>
+    /// Loads release files from the parsed page into the Releases collection for the Releases tab.
     /// </summary>
+    /// <remarks>
+    /// No-op if releases are already loaded or currently loading. Ensures basic parsed data is available before populating and updates the HasReleases state.
+    /// </remarks>
     [RelayCommand]
     private async Task LoadReleasesAsync()
     {
@@ -418,7 +468,13 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Lazy loads addons when the Addons tab is accessed.
+    /// <summary>
+    /// Lazily loads addon file entries from the parsed page into the Addons collection and updates related UI state.
     /// </summary>
+    /// <remarks>
+    /// If addons have already been loaded or are currently loading, the method returns immediately.
+    /// Ensures basic parsed data is available before populating addons, updates loading flags and counts, and logs failures.
+    /// </remarks>
     [RelayCommand]
     private async Task LoadAddonsAsync()
     {
@@ -648,7 +704,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Command to download the main content.
+    /// <summary>
+    /// Initiates download of the current content, updates the view-model's download state and progress, and notifies other components and the user on completion.
     /// </summary>
+    /// <remarks>
+    /// Reports progress to DownloadProgress and DownloadStatusMessage, sets IsDownloading while running, sets IsDownloaded when the download completes successfully, and updates the underlying search result with the acquired manifest ID. Handles cancellation and errors by updating DownloadStatusMessage and logging as appropriate.
+    /// </remarks>
     [RelayCommand]
     private async Task DownloadAsync(CancellationToken cancellationToken = default)
     {
@@ -736,7 +797,11 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Formats a user-friendly progress status message.
+    /// <summary>
+    /// Builds a human-readable status message for the given content acquisition progress.
     /// </summary>
+    /// <param name="progress">Progress details including phase, current operation, files processed, total files, and progress percentage.</param>
+    /// <returns>A status string describing the current phase and, when available, the current operation; otherwise file counts with a computed percentage or an overall percentage.</returns>
     private static string FormatProgressStatus(ContentAcquisitionProgress progress)
     {
         var phaseName = progress.Phase switch
@@ -771,7 +836,11 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Command to update the content (download newer version).
+    /// <summary>
+    /// Initiates an update for the current content by downloading and applying any available updates.
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the update operation.</param>
+    /// <returns>A task that completes when the update operation finishes.</returns>
     [RelayCommand]
     private async Task UpdateAsync(CancellationToken cancellationToken = default)
     {
@@ -783,7 +852,11 @@ public partial class ContentDetailViewModel : ObservableObject
     /// Command to download an individual file from the Files list.
     /// </summary>
     /// <param name="file">The file to download.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <summary>
+    /// Initiates downloading of the specified web file for this content item.
+    /// </summary>
+    /// <param name="file">The web file to download; must have a valid <see cref="WebFile.DownloadUrl"/>.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
     [RelayCommand]
     private async Task DownloadFileAsync(WebFile file, CancellationToken cancellationToken = default)
     {
@@ -811,7 +884,10 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <summary>
     /// Command to set the selected screenshot.
     /// </summary>
-    /// <param name="url">The screenshot URL.</param>
+    /// <summary>
+    /// Selects the specified screenshot URL as the currently displayed screenshot.
+    /// </summary>
+    /// <param name="url">The screenshot URL to select.</param>
     [RelayCommand]
     private void SetSelectedScreenshot(string url)
     {
@@ -820,7 +896,12 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Command to add the downloaded content to a game profile.
+    /// <summary>
+    /// Opens the profile selection dialog to add the current content to a profile.
     /// </summary>
+    /// <remarks>
+    /// If the content has not been downloaded, logs a warning and shows a user-facing warning instead of opening the dialog.
+    /// </remarks>
     [RelayCommand]
     private async Task AddToProfileAsync()
     {
@@ -840,7 +921,10 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <summary>
     /// Downloads an individual file from the WebFile.
     /// </summary>
-    /// <param name="file">The file to download.</param>
+    /// <summary>
+    /// Starts the download process for the specified WebFile by delegating to the primary download flow.
+    /// </summary>
+    /// <param name="file">The WebFile to download; must have a non-empty DownloadUrl. If null or missing a URL, the method logs a warning and shows an error notification.</param>
     private async Task DownloadFileAsync(WebFile file)
     {
         if (file == null || string.IsNullOrEmpty(file.DownloadUrl))
@@ -868,7 +952,10 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <summary>
     /// Adds a specific file's manifest to a profile.
     /// </summary>
-    /// <param name="file">The file whose manifest should be added to a profile.</param>
+    /// <summary>
+    /// Opens the profile selection dialog to add the specified file's manifest to a profile.
+    /// </summary>
+    /// <param name="file">The WebFile whose manifest should be added; if null the method logs a warning and does nothing.</param>
     private async Task AddFileToProfileAsync(WebFile file)
     {
         if (file == null)
@@ -885,7 +972,13 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Shows the profile selection dialog for adding content to a profile.
+    /// <summary>
+    /// Shows a profile selection dialog to add the currently selected content to a user profile.
     /// </summary>
+    /// <remarks>
+    /// If the content has not been downloaded (no manifest ID present) a warning is shown and the method returns.
+    /// Otherwise this loads profiles for the content's target game and manifest ID, displays a profile selection dialog owned by the application's main window (when available), and applies logging and user-facing error notifications on failure.
+    /// </remarks>
     private async Task ShowProfileSelectionDialogAsync()
     {
         try
@@ -977,7 +1070,10 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <summary>
     /// Populates the Releases collection from parsed page data.
     /// </summary>
-    /// <param name="files">The files to populate releases from.</param>
+    /// <summary>
+    /// Populate the Releases collection with ReleaseItemViewModel instances created from the provided files that belong to the Downloads section.
+    /// </summary>
+    /// <param name="files">Sequence of WebFile items to convert; only files with <see cref="FileSectionType.Downloads"/> are used. Each created ReleaseItemViewModel is given a unique Id, mapped metadata, and a DownloadCommand bound to download that file.</param>
     public void PopulateReleases(IEnumerable<WebFile> files)
     {
         Releases.Clear();
@@ -1003,7 +1099,10 @@ public partial class ContentDetailViewModel : ObservableObject
     /// <summary>
     /// Populates the Addons collection from parsed page data.
     /// </summary>
-    /// <param name="files">The files to populate addons from.</param>
+    /// <summary>
+    /// Replaces the Addons collection with view models created from the provided files that are marked as addons.
+    /// </summary>
+    /// <param name="files">Sequence of WebFile objects; those with FileSectionType.Addons are converted to AddonItemViewModel instances and added to the Addons collection (existing items are cleared first).</param>
     public void PopulateAddons(IEnumerable<WebFile> files)
     {
         Addons.Clear();

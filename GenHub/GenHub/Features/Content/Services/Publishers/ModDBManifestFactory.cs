@@ -81,7 +81,17 @@ public partial class ModDBManifestFactory(
     /// </summary>
     /// <param name="details">The parsed ModDB content details.</param>
     /// <param name="detailPageUrl">The detail page URL.</param>
-    /// <returns>A fully constructed ContentManifest.</returns>
+    /// <summary>
+    /// Create a ContentManifest from parsed ModDB map details.
+    /// </summary>
+    /// <remarks>
+    /// Generates a release-date-based manifest ID, attaches primary and any additional download files as content-addressable remote files, populates publisher and metadata (including tags, screenshots, and icon), and adds game-specific installation dependencies.
+    /// </remarks>
+    /// <param name="details">Parsed ModDB details for the content (name, author, submission date, download URL, metadata, screenshots, and any additional files).</param>
+    /// <param name="detailPageUrl">The original ModDB detail page URL used as a fallback support URL when provider metadata is not available.</param>
+    /// <returns>A fully constructed ContentManifest whose Id is set to the generated release-date-based manifest identifier and which includes metadata, remote files, and dependencies.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="details"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="details"/> lacks a valid DownloadUrl.</exception>
     public async Task<ContentManifest> CreateManifestAsync(MapDetails details, string detailPageUrl)
     {
         ArgumentNullException.ThrowIfNull(details);
@@ -247,7 +257,11 @@ public partial class ModDBManifestFactory(
     /// Generates appropriate tags for ModDB content.
     /// </summary>
     /// <param name="details">The content details.</param>
-    /// <returns>A list of tags.</returns>
+    /// <summary>
+    /// Builds the metadata tag list for a ModDB content item from its details.
+    /// </summary>
+    /// <param name="details">MapDetails containing the target game, content type, and author used to derive tags.</param>
+    /// <returns>A list of tags including default ModDB tags, a game-specific tag, a content-type tag, and an optional author tag.</returns>
     private static List<string> GetTags(MapDetails details)
     {
         List<string> tags = [.. ModDBConstants.Tags];

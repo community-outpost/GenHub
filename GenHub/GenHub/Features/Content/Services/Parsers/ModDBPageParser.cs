@@ -22,7 +22,12 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 {
     /// <summary>
     /// Detects the page type based on URL patterns and DOM structure.
+    /// <summary>
+    /// Determines the ModDB page type by inspecting the document DOM and URL patterns.
     /// </summary>
+    /// <param name="url">The page URL used to identify list-like paths (for example, "/addons" or "/images").</param>
+    /// <param name="document">The parsed HTML document used to detect DOM-specific markers.</param>
+    /// <returns>One of PageType.FileDetail, PageType.List, PageType.Summary, or PageType.Detail indicating the page category.</returns>
     private static PageType DetectPageType(string url, IDocument document)
     {
         // Check for file detail page
@@ -50,7 +55,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts content sections from summary/news pages.
+    /// <summary>
+    /// Extracts content sections from a summary (news) page.
     /// </summary>
+    /// <param name="document">The parsed HTML document to extract articles from.</param>
+    /// <returns>A list of ContentSection items representing articles found in the document.</returns>
     private static List<ContentSection> ExtractSummarySections(IDocument document)
     {
         var sections = new List<ContentSection>();
@@ -65,7 +74,12 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// Extracts a file from a row element.
     /// </summary>
     /// <param name="row">The row element containing file information.</param>
-    /// <param name="sectionType">The type of file section (Release or Addon).</param>
+    /// <summary>
+    /// Builds a File model from a DOM row representing a file entry on a ModDB page.
+    /// </summary>
+    /// <param name="row">The HTML row element containing file entry fields (name, size, date, download link, comments).</param>
+    /// <param name="sectionType">The file section category to assign to the created File (e.g., Downloads or Addons).</param>
+    /// <returns>A <see cref="File"/> populated with the row's name, size, dates, download URL, comment count, and section type, or <c>null</c> if the row does not contain a valid file name.</returns>
     private static File? ExtractFileFromRow(IElement row, FileSectionType sectionType = FileSectionType.Downloads)
     {
         var nameEl = row.QuerySelector(ModDBParserConstants.FileNameSelector);
@@ -141,7 +155,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts metadata from the sidebar profile section.
+    /// <summary>
+    /// Extracts metadata from the page's profile/sidebar section.
     /// </summary>
+    /// <param name="document">The parsed HTML document to read the profile/sidebar from.</param>
+    /// <returns>A ProfileMeta containing name, size in bytes (if parsed), size display string, release date, developer/uploader, and MD5 hash; fields are null when not present.</returns>
     private static ProfileMeta ExtractProfileMeta(IDocument document)
     {
         var sidebar = document.QuerySelector(ModDBParserConstants.ProfileSidebarSelector);
@@ -224,7 +242,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts videos from the document.
+    /// <summary>
+    /// Extracts embedded video entries from the provided HTML document.
     /// </summary>
+    /// <param name="document">The parsed HTML document to search for embedded videos.</param>
+    /// <returns>A list of Video objects containing title, thumbnail URL, embed URL, and detected platform (e.g., "YouTube", "Vimeo", or "Unknown"); returns an empty list if no videos are found.</returns>
     private static List<Video> ExtractVideos(IDocument document)
     {
         var videos = new List<Video>();
@@ -275,7 +297,10 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts images from the document.
+    /// <summary>
+    /// Extracts images from the page's image gallery and returns them as Image records.
     /// </summary>
+    /// <returns>A list of Image objects representing each gallery image; empty if none found.</returns>
     private static List<Image> ExtractImages(IDocument document)
     {
         var images = new List<Image>();
@@ -314,7 +339,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts an image from a row element.
+    /// <summary>
+    /// Extracts an image entry from a DOM row element representing a gallery/list item.
     /// </summary>
+    /// <param name="row">The DOM element containing the image node to extract.</param>
+    /// <returns>An Image with Title, FullSizeUrl, and Description if an image is found; otherwise <c>null</c>.</returns>
     private static Image? ExtractImageFromRow(IElement row)
     {
         var img = row.QuerySelector(ModDBParserConstants.ImageSelector);
@@ -345,7 +374,10 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts articles from the document.
+    /// <summary>
+    /// Extracts article entries from the provided HTML document.
     /// </summary>
+    /// <returns>A list of Article objects found in the document, each populated with Title, Author, PublishDate (when parsable), Content, and Url (normalized to an absolute URL when applicable); returns an empty list if no articles are found.</returns>
     private static List<Article> ExtractArticles(IDocument document)
     {
         var articles = new List<Article>();
@@ -397,7 +429,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts reviews from the document.
+    /// <summary>
+    /// Extracts user reviews from the provided HTML document and returns them as a list of Review objects.
     /// </summary>
+    /// <param name="document">The parsed HTML document containing review elements to extract.</param>
+    /// <returns>A list of extracted Review objects; empty if no reviews are present.</returns>
     private static List<Review> ExtractReviews(IDocument document)
     {
         var reviews = new List<Review>();
@@ -457,7 +493,10 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts comments from the document.
+    /// <summary>
+    /// Extracts user comments from the provided HTML document.
     /// </summary>
+    /// <returns>A list of Comment objects representing each comment found in the document; an empty list if none are present.</returns>
     private static List<Comment> ExtractComments(IDocument document)
     {
         var comments = new List<Comment>();
@@ -508,7 +547,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Parses a file size string (e.g., "15.5 MB") into bytes.
+    /// <summary>
+    /// Parses a human-readable file size (e.g., "15.5 MB") and converts it to bytes using 1024-based units.
     /// </summary>
+    /// <param name="sizeText">The file size text to parse, typically a numeric value followed by a unit (GB, MB, KB, B).</param>
+    /// <returns>`null` if the input cannot be parsed; otherwise the size in bytes as a long.</returns>
     private static long? ParseFileSize(string sizeText)
     {
         if (string.IsNullOrEmpty(sizeText))
@@ -541,7 +584,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Parses ModDB date formats like "Mar 15th, 2024" or "Added Mar 15th, 2024".
+    /// <summary>
+    /// Parses ModDB-style human-readable date strings (optionally prefixed with "Added", "Released", or "Updated") into a DateTime.
     /// </summary>
+    /// <param name="dateStr">The input date string; supports month/day/year formats and ordinal day suffixes (e.g., "Mar 15th, 2024", "Mar 1st, 2024", "2024-03-15", "03/15/2024").</param>
+    /// <returns>The parsed <see cref="DateTime"/> if parsing succeeds; otherwise <c>null</c>.</returns>
     private static DateTime? ParseModDBDate(string dateStr)
     {
         if (string.IsNullOrEmpty(dateStr))
@@ -604,7 +651,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// Extracts content sections from list pages (addons, images).
     /// </summary>
     /// <param name="document">The document to extract from.</param>
-    /// <param name="sectionType">The type of file section (Release or Addon).</param>
+    /// <summary>
+    /// Extracts images and files from a list-style page and returns them as content sections.
+    /// </summary>
+    /// <param name="sectionType">Specifies how extracted file entries should be classified (e.g., Downloads or Addons).</param>
+    /// <returns>A list of ContentSection items containing extracted images and files from the document's list rows.</returns>
     private static List<ContentSection> ExtractListSections(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
     {
         var sections = new List<ContentSection>();
@@ -634,7 +685,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// Extracts files from the document.
     /// </summary>
     /// <param name="document">The document to extract files from.</param>
-    /// <param name="sectionType">The type of file section (Release or Addon).</param>
+    /// <summary>
+    /// Extracts all file entries from the document and returns them as a list of File objects.
+    /// </summary>
+    /// <param name="sectionType">The file section type to assign to each extracted file (e.g., downloads or addons).</param>
+    /// <returns>A list of extracted File objects; empty if no file rows are found.</returns>
     private static List<File> ExtractFiles(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
     {
         var files = new List<File>();
@@ -656,7 +711,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// Extracts content sections from detail pages.
     /// </summary>
     /// <param name="document">The document to extract from.</param>
-    /// <param name="sectionType">The type of file section (Release or Addon).</param>
+    /// <summary>
+    /// Extracts all detail-page content sections — files, videos, images, articles, reviews, and comments — from the provided document.
+    /// </summary>
+    /// <param name="sectionType">Specifies which file section type to assign to extracted files (e.g., Downloads or Addons).</param>
+    /// <returns>A combined list of ContentSection items found on the detail page.</returns>
     private static List<ContentSection> ExtractDetailSections(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
     {
         var sections = new List<ContentSection>();
@@ -689,7 +748,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     public bool CanParse(string url) =>
         url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase);
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Parses the ModDB page at the specified URL into a structured ParsedWebPage.
+    /// </summary>
+    /// <param name="url">The ModDB page URL to parse.</param>
+    /// <returns>A ParsedWebPage containing the page's global context, detected page type, and extracted content sections.</returns>
     public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Parsing ModDB page: {Url}", url);
@@ -698,7 +761,13 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         return await ParseInternalAsync(url, document, cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Parse the provided HTML for a ModDB page and produce a ParsedWebPage representing the page's context and content sections.
+    /// </summary>
+    /// <param name="url">The original page URL used to resolve relative links and to help determine page type.</param>
+    /// <param name="html">The raw HTML content of the page to parse.</param>
+    /// <param name="cancellationToken">A token to observe while parsing; may be used to cancel the operation.</param>
+    /// <returns>A <see cref="ParsedWebPage"/> containing the extracted global context and a collection of content sections.</returns>
     public Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
     {
         var browsingContext = BrowsingContext.New(Configuration.Default);
@@ -708,7 +777,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Determines if the URL is a mod detail page that should have both downloads and addons.
+    /// <summary>
+    /// Determines whether a URL refers to a mod's main detail page (the /mods/{name} page) excluding downloads, addons, images, and news subpages.
     /// </summary>
+    /// <param name="url">The URL to evaluate.</param>
+    /// <returns>`true` if the URL points to a mod detail page that should fetch both downloads and addons; `false` otherwise.</returns>
     private static bool IsModDetailPage(string url)
     {
         // Check if URL matches /mods/mod-name pattern but not /mods/mod-name/downloads or /mods/mod-name/addons
@@ -721,7 +794,12 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Internal parsing logic that works with a parsed AngleSharp document.
+    /// <summary>
+    /// Parses a ModDB page document, detects its page type, and builds a ParsedWebPage containing the extracted global context and content sections.
     /// </summary>
+    /// <param name="url">The page URL used for page-type detection and assigned to the resulting ParsedWebPage.</param>
+    /// <param name="document">The parsed HTML document to extract data from.</param>
+    /// <returns>A ParsedWebPage containing the original URL, the extracted global context, the collected content sections, and the detected page type.</returns>
     private ParsedWebPage ParseInternal(string url, IDocument document)
     {
         var context = ExtractGlobalContext(document);
@@ -773,7 +851,13 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Async internal parsing logic that can fetch additional pages for mod detail pages.
+    /// <summary>
+    /// Parse a ModDB page and produce a ParsedWebPage representing its global context and extracted content sections.
     /// </summary>
+    /// <param name="url">The page URL to parse.</param>
+    /// <param name="document">The parsed HTML document to extract content from.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for asynchronous operations to complete.</param>
+    /// <returns>A ParsedWebPage containing the page URL, extracted global context, collected content sections, and detected page type.</returns>
     private async Task<ParsedWebPage> ParseInternalAsync(string url, IDocument document, CancellationToken cancellationToken)
     {
         var context = ExtractGlobalContext(document);
@@ -871,7 +955,11 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts global context from the page header and profile sidebar.
+    /// <summary>
+    /// Builds a GlobalContext by extracting page-level metadata (title, developer, release date, game name, icon URL, and description) from the provided HTML document.
     /// </summary>
+    /// <param name="document">The parsed HTML document to extract context from.</param>
+    /// <returns>A GlobalContext populated with Title, Developer, ReleaseDate, GameName, IconUrl, and Description (fields may be null or contain fallback values when not present in the document).</returns>
     private GlobalContext ExtractGlobalContext(IDocument document)
     {
         // 1. Extract title from main header
@@ -959,7 +1047,10 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
 
     /// <summary>
     /// Extracts content sections from file detail pages.
+    /// <summary>
+    /// Extracts the detailed file section from a file-detail page.
     /// </summary>
+    /// <returns>A list containing the detailed file content section when one is present; otherwise an empty list.</returns>
     private List<ContentSection> ExtractFileDetailSections(IDocument document)
     {
         var sections = new List<ContentSection>();
@@ -977,7 +1068,10 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// <summary>
     /// Extracts detailed file information from a file detail page.
     /// Parses the metadata table with rows like: Filename, Category, Uploader, Size, MD5 Hash.
+    /// <summary>
+    /// Extracts detailed file metadata from a file-detail page document and constructs a File object.
     /// </summary>
+    /// <returns>A File populated with name, size (bytes and display), uploader, category, upload/release dates, download URL, and MD5 hash; or null if the document does not contain file detail information.</returns>
     private File? ExtractDetailedFile(IDocument document)
     {
         // Initialize metadata dictionary

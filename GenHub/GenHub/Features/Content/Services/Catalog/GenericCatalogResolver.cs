@@ -28,7 +28,11 @@ public class GenericCatalogResolver(
     /// <inheritdoc />
     public string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Resolves a catalog search result into a ContentManifest by extracting catalog metadata, downloading the primary artifact, adding declared dependencies, and building the final manifest.
+    /// </summary>
+    /// <param name="searchResult">The catalog search result containing resolver metadata (release, content item, and publisher profile) used to construct the manifest.</param>
+    /// <returns>`OperationResult&lt;ContentManifest&gt;` containing the constructed manifest on success; a failed result with an explanatory error message on failure.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult searchResult,
         CancellationToken cancellationToken = default)
@@ -129,6 +133,11 @@ public class GenericCatalogResolver(
         }
     }
 
+    /// <summary>
+    /// Extracts digits from a version string and returns them as an integer.
+    /// </summary>
+    /// <param name="version">The version string to extract digits from.</param>
+    /// <returns>The integer formed by concatenating all digits found in <paramref name="version"/>, or 0 if no digits are present or parsing fails.</returns>
     private static int ExtractVersionNumber(string version)
     {
         if (int.TryParse(new string([.. version.Where(char.IsDigit)]), out var result))

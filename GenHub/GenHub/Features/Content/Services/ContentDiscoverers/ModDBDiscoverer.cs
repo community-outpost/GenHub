@@ -39,7 +39,14 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Discover ModDB content matching the provided search query using a Playwright-driven browser and aggregate results across relevant sections.
+    /// </summary>
+    /// <param name="query">Search parameters and filters (e.g., search term, content type, section, page, and target game) used to determine which ModDB sections and pages to query.</param>
+    /// <param name="cancellationToken">Token to cancel the discovery operation.</param>
+    /// <returns>
+    /// An <see cref="OperationResult{ContentDiscoveryResult}"/> whose value contains the discovered items and a <see cref="ContentDiscoveryResult.HasMoreItems"/> flag indicating if additional pages are available; the result will represent failure with an error message if discovery could not be completed.
+    /// </returns>
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -85,6 +92,12 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         }
     }
 
+    /// <summary>
+    /// Ensures the shared Playwright runtime and a headless Chromium browser are initialized for use by the discoverer.
+    /// </summary>
+    /// <remarks>
+    /// Safe to call multiple times; this method serializes initialization so only one browser instance is created and stored in the static fields.
+    /// </remarks>
     private static async Task EnsurePlaywrightInitializedAsync()
     {
         if (_browser != null) return;
@@ -107,6 +120,11 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         }
     }
 
+    /// <summary>
+    /// Selects which ModDB sections to search based on the provided query.
+    /// </summary>
+    /// <param name="query">Search query whose ModDBSection or ContentType determine the sections to search.</param>
+    /// <returns>A list of section names (for example "downloads" or "addons"). If <c>query.ModDBSection</c> is set that single section is returned; otherwise sections are chosen based on <c>query.ContentType</c>, defaulting to "downloads".</returns>
     private static List<string> DetermineSectionsToSearch(ContentSearchQuery query)
     {
         // Use explicit section from query if provided
@@ -130,6 +148,11 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         return ["downloads"];
     }
 
+    /// <summary>
+    /// Builds a ModDBFilter populated from the provided ContentSearchQuery.
+    /// </summary>
+    /// <param name="query">Search parameters whose fields are mapped into the filter: SearchTerm -> Keyword, Page -> Page (defaults to 1), ModDBCategory -> Category, ModDBAddonCategory -> AddonCategory, ModDBLicense -> Licence, ModDBTimeframe -> Timeframe.</param>
+    /// <returns>A ModDBFilter populated from the query's values.</returns>
     private static ModDBFilter BuildFilterFromQuery(ContentSearchQuery query)
     {
         var filter = new ModDBFilter
@@ -165,6 +188,12 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         return filter;
     }
 
+    /// <summary>
+    /// Maps a ContentType to the corresponding ModDB category identifier for the given section.
+    /// </summary>
+    /// <param name="contentType">The content type to map.</param>
+    /// <param name="section">The ModDB section context; expected values are "downloads" or "addons".</param>
+    /// <returns>The ModDB category identifier matching the content type and section, or <c>null</c> if no mapping exists.</returns>
     private static string? MapContentTypeToCategory(ContentType contentType, string section)
     {
         if (section == "downloads")
@@ -193,6 +222,13 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         return null;
     }
 
+    /// <summary>
+    /// Parses a ModDB listing element into a ContentSearchResult.
+    /// </summary>
+    /// <param name="item">An AngleSharp element representing a single listing or row from a ModDB results page.</param>
+    /// <param name="gameType">The target game to assign to the parsed result.</param>
+    /// <param name="section">The ModDB section (e.g., "downloads" or "addons") used to infer content type and metadata.</param>
+    /// <returns>The parsed ContentSearchResult populated with metadata (id, name, author, icon, description, content type, source URL, etc.), or `null` if the element lacks a valid title/link or ModDB URL.</returns>
     private static ContentSearchResult? ParseContentItem(AngleSharp.Dom.IElement item, GameType gameType, string section)
     {
         var titleLink = item.QuerySelector("h4 a, h3 a, a.title") ?? item.QuerySelector("td.content.name a");
@@ -261,6 +297,16 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         return result;
     }
 
+    /// <summary>
+    /// Determine the content type for a ModDB item from its section, optional category name, and URL.
+    /// </summary>
+    /// <param name="section">The ModDB section name (e.g., "mods", "downloads", "addons").</param>
+    /// <param name="category">An optional category name used to map to a ContentType when available.</param>
+    /// <param name="url">The item's URL; used to detect map items when it contains "/maps/".</param>
+    /// <returns>
+    /// The inferred <see cref="ContentType"/>: if a category maps to a non-Addon type that is returned; otherwise,
+    /// for "mods" returns <c>ContentType.Mod</c>, for "downloads" or "addons" returns <c>ContentType.Map</c> when the URL contains "/maps/" and <c>ContentType.Addon</c> otherwise; defaults to <c>ContentType.Addon</c>.
+    /// </returns>
     private static ContentType DetermineContentType(string section, string? category, string url)
     {
         if (!string.IsNullOrEmpty(category))
@@ -278,6 +324,10 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         };
     }
 
+    /// <summary>
+    /// Extracts the ModDB identifier from the given content URL.
+    /// </summary>
+    /// <returns>The last non-empty path segment of the URL (the ModDB identifier); if the URL is invalid or contains no path segments, returns a newly generated GUID string.</returns>
     private static string ExtractModDBIdFromUrl(string url)
     {
         try
@@ -295,6 +345,16 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         }
     }
 
+    /// <summary>
+    /// Discovers content items from a specific ModDB section for the given game and query, returning found items and whether another page exists.
+    /// </summary>
+    /// <param name="section">The ModDB section to search (e.g., "downloads", "addons").</param>
+    /// <param name="gameType">Target game variant used to build the section base URL.</param>
+    /// <param name="query">Search and filter parameters (search term, page, categories, etc.).</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>
+    /// A tuple where `Items` is the list of discovered ContentSearchResult entries from the requested page, and `HasMoreItems` is `true` if a next page link was detected, `false` otherwise. On error the function returns an empty list and `false`.
+    /// </returns>
     private async Task<(List<ContentSearchResult> Items, bool HasMoreItems)> DiscoverFromSectionAsync(
         string section,
         GameType gameType,

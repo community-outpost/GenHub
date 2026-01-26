@@ -30,6 +30,8 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModDBFilterViewModel"/> class.
+    /// <summary>
+    /// Creates a ModDBFilterViewModel and populates its category, addon category, timeframe, and license option collections.
     /// </summary>
     public ModDBFilterViewModel()
     {
@@ -69,7 +71,12 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         !string.IsNullOrEmpty(SelectedLicense) ||
         !string.IsNullOrEmpty(SelectedTimeframe);
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Applies the view model's selected ModDB section and filters (category, addon category, license, timeframe) to the provided ContentSearchQuery.
+    /// </summary>
+    /// <param name="baseQuery">The query to modify; must not be null.</param>
+    /// <returns>The same <see cref="ContentSearchQuery"/> instance with ModDBSection, ModDBCategory, ModDBAddonCategory, ModDBLicense, and ModDBTimeframe set according to the current selections.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseQuery"/> is null.</exception>
     public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
     {
         ArgumentNullException.ThrowIfNull(baseQuery);
@@ -110,7 +117,12 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         return baseQuery;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Clears all selected ModDB filters (category, addon category, license, and timeframe) and notifies observers of the change.
+    /// </summary>
+    /// <remarks>
+    /// Invokes <see cref="NotifyFiltersChanged"/> and <see cref="OnFiltersCleared"/> after resetting the selections.
+    /// </remarks>
     public override void ClearFilters()
     {
         SelectedCategory = null;
@@ -121,7 +133,10 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         OnFiltersCleared();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Produces a concise summary for each currently selected ModDB filter.
+    /// </summary>
+    /// <returns>An enumeration of human-readable summary strings for each active filter (category, addon category, license, timeframe); empty if no filters are selected.</returns>
     public override IEnumerable<string> GetActiveFilterSummary()
     {
         if (!string.IsNullOrEmpty(SelectedCategory))
@@ -145,38 +160,74 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         }
     }
 
-    partial void OnSelectedCategoryChanged(string? value) { }
+    /// <summary>
+/// Called when the SelectedCategory property changes to notify observers and react to the new selection.
+/// </summary>
+/// <param name="value">The new selected category value, or null if the selection was cleared.</param>
+partial void OnSelectedCategoryChanged(string? value) { }
 
-    partial void OnSelectedAddonCategoryChanged(string? value) { }
+    /// <summary>
+/// Invoked when the SelectedAddonCategory property changes to allow responding to the new selection.
+/// </summary>
+/// <param name="value">The new selected addon category, or null if the selection was cleared.</param>
+partial void OnSelectedAddonCategoryChanged(string? value) { }
 
-    partial void OnSelectedLicenseChanged(string? value) { }
+    /// <summary>
+/// Invoked when the SelectedLicense property changes; receives the new selected license value or null.
+/// </summary>
+/// <param name="value">The new license value, or null if no license is selected.</param>
+partial void OnSelectedLicenseChanged(string? value) { }
 
-    partial void OnSelectedTimeframeChanged(string? value) { }
+    /// <summary>
+/// Called when the SelectedTimeframe property value changes.
+/// </summary>
+/// <param name="value">The new SelectedTimeframe value, or null if cleared.</param>
+partial void OnSelectedTimeframeChanged(string? value) { }
 
+    /// <summary>
+    /// Toggles the current category selection: selects the given option's value or clears the selection if it's already selected.
+    /// </summary>
+    /// <param name="option">The category option to select or deselect; its Value is applied to SelectedCategory or cleared if already active.</param>
     [RelayCommand]
     private void SelectCategory(FilterOption option)
     {
         SelectedCategory = SelectedCategory == option.Value ? null : option.Value;
     }
 
+    /// <summary>
+    /// Sets the active addon category filter to the provided option's value, or clears it if that option is already selected.
+    /// </summary>
+    /// <param name="option">The addon category option to toggle; its Value becomes the active SelectedAddonCategory or is cleared if already active.</param>
     [RelayCommand]
     private void SelectAddonCategory(FilterOption option)
     {
         SelectedAddonCategory = SelectedAddonCategory == option.Value ? null : option.Value;
     }
 
+    /// <summary>
+    /// Sets SelectedLicense to the provided option's value, or clears SelectedLicense if that value is already selected.
+    /// </summary>
+    /// <param name="option">The license option to select or toggle; its Value is stored in SelectedLicense.</param>
     [RelayCommand]
     private void SelectLicense(FilterOption option)
     {
         SelectedLicense = SelectedLicense == option.Value ? null : option.Value;
     }
 
+    /// <summary>
+    /// Toggles the current timeframe selection between the provided option and cleared state.
+    /// </summary>
+    /// <param name="option">The timeframe option to select; if it is already selected the timeframe is cleared.</param>
     [RelayCommand]
     private void SelectTimeframe(FilterOption option)
     {
         SelectedTimeframe = SelectedTimeframe == option.Value ? null : option.Value;
     }
 
+    /// <summary>
+    /// Sets the active ModDB section; when the section changes, clears all currently selected filters.
+    /// </summary>
+    /// <param name="section">The ModDB section to select.</param>
     [RelayCommand]
     private void SetSection(ModDBSection section)
     {
@@ -186,6 +237,10 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         ClearFilters();
     }
 
+    /// <summary>
+    /// Notifies that filter visibility properties may have changed when the selected ModDB section changes.
+    /// </summary>
+    /// <param name="value">The newly selected ModDB section.</param>
     partial void OnSelectedSectionChanged(ModDBSection value)
     {
         OnPropertyChanged(nameof(ShowCategoryFilter));
@@ -208,6 +263,9 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
     /// </summary>
     public bool ShowLicenseFilter => SelectedSection == ModDBSection.Addons;
 
+    /// <summary>
+    /// Populates the CategoryOptions collection with the predefined set of ModDB categories used for Downloads and Mods filters.
+    /// </summary>
     private void InitializeDownloadsFilters()
     {
         // Category options for Downloads/Mods - form select name="category"
@@ -242,6 +300,12 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         CategoryOptions.Add(new FilterOption("Other", "24"));
     }
 
+    /// <summary>
+    /// Populates AddonCategoryOptions with predefined addon categories and their ModDB category codes.
+    /// </summary>
+    /// <remarks>
+    /// Each option's Value is the category code used by ModDB form fields (e.g., "categoryaddon" for Downloads or "category" for Addons).
+    /// </remarks>
     private void InitializeAddonsFilters()
     {
         // Addon category options - form select name="categoryaddon" (Downloads) or "category" (Addons)
@@ -274,6 +338,12 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         AddonCategoryOptions.Add(new FilterOption("Texture", "129"));
     }
 
+    /// <summary>
+    /// Populates the LicenseOptions collection with available ModDB license filter options.
+    /// </summary>
+    /// <remarks>
+    /// Each added FilterOption's Value is the ModDB license identifier used when applying filters (applies to Addons section).
+    /// </remarks>
     private void InitializeLicenseOptions()
     {
         LicenseOptions.Add(new FilterOption("BSD", "7"));
@@ -287,6 +357,9 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         LicenseOptions.Add(new FilterOption("Public Domain", "4"));
     }
 
+    /// <summary>
+    /// Populates the TimeframeOptions collection with predefined timeframe filter options used for ModDB queries.
+    /// </summary>
     private void InitializeTimeframeOptions()
     {
         TimeframeOptions.Add(new FilterOption("Past 24 hours", "1"));

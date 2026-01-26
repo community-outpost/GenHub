@@ -13,6 +13,8 @@ public partial class MainWindow : Window
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
+    /// <summary>
+    /// Initializes the main application window, loads XAML components, and registers drag-and-drop event handlers for file drop and drag-over.
     /// </summary>
     public MainWindow()
     {
@@ -21,6 +23,11 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
+    /// <summary>
+    /// Provides drag-over feedback that permits drops only when the drag data contains files.
+    /// </summary>
+    /// <param name="sender">The source of the drag event.</param>
+    /// <param name="e">Drag event data; its DragEffects is set to Link when files are present, otherwise set to None.</param>
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (e.Data.Contains(DataFormats.Files))
@@ -33,6 +40,12 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Handles files dropped onto the window by processing each dropped JSON file and, when a `catalogUrl` property is found, invoking the application's subscription handler.
+    /// </summary>
+    /// <remarks>
+    /// For each dropped file with a ".json" extension, the method reads and parses the file, extracts the `catalogUrl` string if present and non-empty, and calls <c>HandleSubscribeCommandAsync(url)</c> on the current <c>App</c> instance. Non-JSON files and files that fail to be read or parsed are silently ignored. The method processes files sequentially.
+    /// </remarks>
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         var files = e.Data.GetFiles()?.ToList();

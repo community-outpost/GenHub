@@ -238,7 +238,13 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
 
     /// <summary>
     /// Converts a parsed content item to a ContentSearchResult using GenPatcherContentRegistry.
+    /// <summary>
+    /// Converts a parsed GenPatcher content item into a ContentSearchResult populated with metadata, tags, provider info, download URL and resolver metadata.
     /// </summary>
+    /// <param name="item">The parsed GenPatcher content item containing content code, file size and mirror entries.</param>
+    /// <param name="catalogVersion">The catalog version string to record in resolver metadata.</param>
+    /// <param name="provider">The provider definition supplying provider identifiers, endpoints, default tags and mirror preferences.</param>
+    /// <returns>The constructed ContentSearchResult, or <c>null</c> if the item is skipped or cannot be converted.</returns>
     private ContentSearchResult? ConvertToContentSearchResult(
         GenPatcherContentItem item,
         string catalogVersion,

@@ -30,17 +30,31 @@ public abstract partial class FilterPanelViewModelBase : ObservableObject, IFilt
     /// <inheritdoc />
     public abstract bool HasActiveFilters { get; }
 
-    /// <inheritdoc />
+    /// <summary>
+/// Applies the filter panel's active filters to a provided content search query.
+/// </summary>
+/// <param name="baseQuery">The starting ContentSearchQuery to which this panel's active filters will be applied.</param>
+/// <returns>A ContentSearchQuery representing the original query with this panel's filters applied.</returns>
     public abstract ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery);
 
-    /// <inheritdoc />
+    /// <summary>
+/// Reset all filters to their default (no-filter) state.
+/// </summary>
+/// <remarks>
+/// Implementations should clear any stored filter values and raise the <see cref="FiltersCleared"/> event to notify listeners that filters have been cleared.
+/// </remarks>
     public abstract void ClearFilters();
 
-    /// <inheritdoc />
+    /// <summary>
+/// Gets a human-readable summary of the currently active filters.
+/// </summary>
+/// <returns>An enumerable of strings describing each active filter; empty if no filters are active.</returns>
     public abstract IEnumerable<string> GetActiveFilterSummary();
 
     /// <summary>
     /// Raises property changed for HasActiveFilters when any filter changes.
+    /// <summary>
+    /// Raises a property-changed notification for the <c>HasActiveFilters</c> property.
     /// </summary>
     protected void NotifyFiltersChanged()
     {
@@ -49,6 +63,8 @@ public abstract partial class FilterPanelViewModelBase : ObservableObject, IFilt
 
     /// <summary>
     /// Raises the FiltersCleared event.
+    /// <summary>
+    /// Notifies subscribers that filters have been cleared by raising the <see cref="FiltersCleared"/> event.
     /// </summary>
     protected void OnFiltersCleared()
     {
@@ -57,6 +73,8 @@ public abstract partial class FilterPanelViewModelBase : ObservableObject, IFilt
 
     /// <summary>
     /// Command to apply the current filters.
+    /// <summary>
+    /// Raises the <see cref="FiltersApplied"/> event to notify subscribers that the apply-filters action was triggered.
     /// </summary>
     [RelayCommand]
     private void ApplyFiltersAction()

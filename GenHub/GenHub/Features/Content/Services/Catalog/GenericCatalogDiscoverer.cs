@@ -40,6 +40,12 @@ public class GenericCatalogDiscoverer(
     /// </summary>
     public static string ResolverId => CatalogConstants.GenericCatalogResolverId;
 
+    /// <summary>
+    /// Determines whether a catalog content item satisfies the filters specified by a content search query.
+    /// </summary>
+    /// <param name="content">The catalog content item to evaluate.</param>
+    /// <param name="query">The search query containing target game, content type, and optional text filters.</param>
+    /// <returns>`true` if the content item matches all active filters in the query, `false` otherwise.</returns>
     private static bool MatchesQuery(CatalogContentItem content, ContentSearchQuery query)
     {
         // Filter by game type
@@ -69,6 +75,11 @@ public class GenericCatalogDiscoverer(
         return true;
     }
 
+    /// <summary>
+    /// Extracts the numeric portion from a version string and returns it as an integer.
+    /// </summary>
+    /// <param name="version">The version string to extract digits from; non-digit characters are ignored.</param>
+    /// <returns>The integer formed by the concatenation of all digit characters in <paramref name="version"/>, or 0 if no digits are present or parsing fails.</returns>
     private static int ExtractVersionNumber(string version)
     {
         if (int.TryParse(new string([.. version.Where(char.IsDigit)]), out var result))
@@ -96,7 +107,11 @@ public class GenericCatalogDiscoverer(
     /// <summary>
     /// Configures this discoverer for a specific publisher subscription.
     /// </summary>
-    /// <param name="subscription">The publisher subscription.</param>
+    /// <summary>
+    /// Configures the discoverer with the specified publisher subscription.
+    /// </summary>
+    /// <param name="subscription">Publisher subscription to use for discovery.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="subscription"/> is null.</exception>
     public void Configure(PublisherSubscription subscription)
     {
         ArgumentNullException.ThrowIfNull(subscription);
@@ -104,7 +119,15 @@ public class GenericCatalogDiscoverer(
         _logger.LogDebug("Configured discoverer for publisher: {PublisherId}", subscription.PublisherId);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Discovers content from the configured publisher catalog and returns matching search results.
+    /// </summary>
+    /// <param name="query">Filters and options applied when converting catalog entries to search results.</param>
+    /// <param name="cancellationToken">Token to cancel the discovery operation.</param>
+    /// <returns>
+    /// An <see cref="OperationResult{ContentDiscoveryResult}"/> containing a <see cref="ContentDiscoveryResult"/> with discovered items on success;
+    /// on failure, an operation result with an error reason (for example: discoverer not configured, catalog fetch or parse errors, timeout, or other discovery errors).
+    /// </returns>
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -151,6 +174,10 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    /// <summary>
+    /// Fetches the publisher catalog JSON from the configured subscription URL, enforces the maximum catalog size, and parses it into a PublisherCatalog.
+    /// </summary>
+    /// <returns>An OperationResult containing the parsed PublisherCatalog on success, or a failure result describing the error (HTTP error, timeout, size limit exceeded, or parse failure).</returns>
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
         try
@@ -187,6 +214,12 @@ public class GenericCatalogDiscoverer(
         }
     }
 
+    /// <summary>
+    /// Converts a publisher catalog into content search results by selecting releases per the query and applying query filters.
+    /// </summary>
+    /// <param name="catalog">The publisher catalog to convert.</param>
+    /// <param name="query">Search filters and options that control which items and releases are included (for example, whether to include older versions).</param>
+    /// <returns>A list of ContentSearchResult entries created for each release that matches the query; each result includes provider/publisher details, media, tags, and resolver metadata with serialized catalog, release, and publisher profile.</returns>
     private List<ContentSearchResult> ConvertCatalogToSearchResults(
         PublisherCatalog catalog,
         ContentSearchQuery query)

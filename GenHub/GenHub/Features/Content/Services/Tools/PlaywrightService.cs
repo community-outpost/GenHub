@@ -40,7 +40,11 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
         return await context.NewPageAsync();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Retrieves the rendered HTML content of the page at the specified URL.
+    /// </summary>
+    /// <param name="url">The absolute URL to navigate to.</param>
+    /// <returns>The page's HTML markup as a string.</returns>
     public async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken = default)
     {
         try
@@ -100,7 +104,14 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
         GC.SuppressFinalize(this);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Downloads a file from the specified URL using Playwright and saves it to the configured destination.
+    /// </summary>
+    /// <param name="configuration">Download settings including the source Url, DestinationPath, Timeout, and OverwriteExisting behavior.</param>
+    /// <param name="cancellationToken">Token to cancel the download operation.</param>
+    /// <returns>
+    /// A <see cref="DownloadResult"/> indicating success with the saved file path, file size, and elapsed time, or a failure result containing an error message.
+    /// </returns>
     public async Task<DownloadResult> DownloadFileAsync(GenHub.Core.Models.Common.DownloadConfiguration configuration, CancellationToken cancellationToken = default)
     {
         try
@@ -218,7 +229,12 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
 
     /// <summary>
     /// Ensures Playwright is initialized with a browser instance.
+    /// <summary>
+    /// Ensures a shared Playwright instance and Chromium browser are initialized for use.
     /// </summary>
+    /// <remarks>
+    /// Acquires an internal semaphore to initialize the singleton Playwright and browser instances in a thread-safe manner; subsequent calls return immediately if initialization is already complete.
+    /// </remarks>
     private static async Task EnsurePlaywrightInitializedAsync(CancellationToken cancellationToken)
     {
         if (_browser != null) return;

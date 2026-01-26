@@ -11,7 +11,11 @@ public interface IPublisherCatalogRefreshService
     /// Refreshes all subscribed catalogs.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Summary of the refresh operation.</returns>
+    /// <summary>
+/// Refreshes all subscribed publisher catalogs.
+/// </summary>
+/// <param name="cancellationToken">Token to cancel the refresh operation.</param>
+/// <returns>An <see cref="OperationResult{T}"/> containing `true` if the refresh succeeded, `false` otherwise.</returns>
     Task<OperationResult<bool>> RefreshAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -19,6 +23,10 @@ public interface IPublisherCatalogRefreshService
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if refreshed, false otherwise.</returns>
+    /// <summary>
+/// Refreshes the catalog for the specified publisher.
+/// </summary>
+/// <param name="publisherId">The identifier of the publisher whose catalog to refresh.</param>
+/// <returns>OperationResult containing `true` if the publisher's catalog was refreshed, `false` otherwise.</returns>
     Task<OperationResult<bool>> RefreshPublisherAsync(string publisherId, CancellationToken cancellationToken = default);
 }

@@ -37,7 +37,12 @@ public class AODMapsResolver(
     /// </summary>
     /// <param name="discoveredItem">The discovered content item to resolve.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A result containing the resolved content manifest.</returns>
+    /// <summary>
+    /// Resolves content details for a discovered AODMaps item and creates a ContentManifest.
+    /// </summary>
+    /// <param name="discoveredItem">The discovered content item containing the source URL and resolver metadata used to locate the corresponding file on the AODMaps page.</param>
+    /// <param name="cancellationToken">Token to observe while waiting for the operation to complete.</param>
+    /// <returns>An <see cref="OperationResult{ContentManifest}"/> containing the created <see cref="ContentManifest"/> on success; a failure result with an error message otherwise.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
@@ -93,6 +98,13 @@ public class AODMapsResolver(
         }
     }
 
+    /// <summary>
+    /// Build a ParsedContentDetails object from a discovered file, its page context, and the originating search item.
+    /// </summary>
+    /// <param name="file">Parsed file section containing metadata such as name, uploader, thumbnail, sizes, dates, and URLs.</param>
+    /// <param name="context">Page-level context (title, developer, etc.) used as fallback metadata.</param>
+    /// <param name="item">Original discovered content search result, used for resolver metadata and referer URL.</param>
+    /// <returns>A ParsedContentDetails populated with name, description, author, images, file metadata, inferred game and content type, file type extension, rating (0), and the referer URL.</returns>
     private static ParsedContentDetails ConvertToMapDetails(File file, GlobalContext context, ContentSearchResult item)
     {
         // Determine GameType and ContentType

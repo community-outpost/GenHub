@@ -169,7 +169,10 @@ public partial class MainViewModel(
     /// <summary>
     /// Performs asynchronous initialization for the shell and all tabs.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Performs startup for the MainViewModel: registers message handlers, initializes child tab view models, triggers the initial tab activation, and starts background update and quickstart checks.
+    /// </summary>
+    /// <returns>A task that completes when initialization and the immediate setup steps have finished.</returns>
     public async Task InitializeAsync()
     {
         RegisterMessages();

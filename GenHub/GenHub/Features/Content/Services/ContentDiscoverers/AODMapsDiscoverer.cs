@@ -29,12 +29,25 @@ public partial class AODMapsDiscoverer(
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly ILogger<AODMapsDiscoverer> _logger = logger;
 
+    /// <summary>
+    /// Provides a regular expression that matches a download count (a number with optional thousands separators) followed by the word "download" or "downloads".
+    /// </summary>
+    /// <returns>A compiled <see cref="Regex"/> whose first capture group contains the numeric download count (digits with optional commas); matching is case-insensitive.</returns>
     [GeneratedRegex(@"(\d+(?:,\d{3})*)\s*downloads?", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
+    /// <summary>
+    /// Provides a regular expression that matches an integer page number in filenames ending with ".html".
+    /// </summary>
+    /// <returns>A <see cref="Regex"/> that captures a sequence of digits immediately followed by the literal ".html".</returns>
     [GeneratedRegex(@"(\d+)\.html", RegexOptions.None)]
     private static partial Regex HtmlPageNumberRegex();
 
+    /// <summary>
+    /// Convert a potentially relative AODMaps URL to an absolute URL using the AODMaps base URL.
+    /// </summary>
+    /// <param name="url">The URL to normalize; may be null, empty, relative, or already absolute.</param>
+    /// <returns>The absolute URL when a relative URL was provided, or the original <paramref name="url"/> if it is null, empty, or already starts with "http".</returns>
     private static string? MakeAbsoluteUrl(string? url)
     {
         if (string.IsNullOrEmpty(url))
@@ -195,7 +208,13 @@ public partial class AODMapsDiscoverer(
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Discovers AODMaps content for the given query and returns the found items and pagination hint.
+    /// </summary>
+    /// <param name="query">Search or browsing query specifying filters (page, content type, tags, etc.).</param>
+    /// <param name="cancellationToken">Token to cancel the discovery operation.</param>
+    /// <returns>An <see cref="OperationResult{ContentDiscoveryResult}"/> whose value contains the discovered items and a flag indicating whether more pages are available; the result is a failure if discovery could not be completed.</returns>
+    /// <exception cref="OperationCanceledException">Thrown if the operation is canceled via <paramref name="cancellationToken"/>.</exception>
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -266,6 +285,11 @@ public partial class AODMapsDiscoverer(
         }
     }
 
+    /// <summary>
+    /// Builds the AODMaps discovery page URL appropriate for the given search query.
+    /// </summary>
+    /// <param name="query">Search parameters including optional Page, ContentType, and CNCLabsMapTags (used to select author pages, player-count pages, compstomp category, or other special pages).</param>
+    /// <returns>The fully formatted relative discovery URL for the query (e.g., a pattern like "new.html", "new2.html", a map maker page, player-count page, compstomp page, or map packs page).</returns>
     private static string BuildDiscoveryUrl(ContentSearchQuery query)
     {
         var page = query.Page ?? 1;
@@ -322,6 +346,16 @@ public partial class AODMapsDiscoverer(
         return string.Format(AODMapsConstants.NewMapsPagePattern, suffix);
     }
 
+    /// <summary>
+    /// Extracts content items from an AODMaps HTML document and determines whether a subsequent page is available.
+    /// </summary>
+    /// <param name="document">The parsed HTML document to scan for content items.</param>
+    /// <param name="sourceUrl">The originating page URL used as the source for any discovered item links.</param>
+    /// <param name="currentPage">The current page number used when evaluating pagination/next-page hints.</param>
+    /// <returns>
+    /// A tuple where `Items` is the list of discovered ContentSearchResult entries parsed from the document,
+    /// and `HasMoreItems` is `true` when the document contains indicators that a next page exists, `false` otherwise.
+    /// </returns>
     private (List<ContentSearchResult> Items, bool HasMoreItems) ExtractItems(IDocument document, string sourceUrl, int currentPage)
     {
         var results = new List<ContentSearchResult>();
@@ -367,6 +401,12 @@ public partial class AODMapsDiscoverer(
         return (results, hasMoreItems);
     }
 
+    /// <summary>
+    /// Determines whether the provided HTML document indicates the presence of a next paginated page after the specified current page.
+    /// </summary>
+    /// <param name="document">The parsed HTML document to inspect for pagination links or next-page patterns.</param>
+    /// <param name="currentPage">The current page number to compare against discovered page links.</param>
+    /// <returns>`true` if a next page is detected, `false` otherwise.</returns>
     private bool CheckForNextPage(IDocument document, int currentPage)
     {
         // AODMaps uses pagination links at the bottom of pages

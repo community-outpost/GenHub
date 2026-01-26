@@ -37,7 +37,11 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
         };
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Selects the most recent stable (non-prerelease) content release, preferring a release marked <c>IsLatest</c>.
+    /// </summary>
+    /// <returns>The stable release marked <c>IsLatest</c> with the latest <c>ReleaseDate</c>, or if none is marked <c>IsLatest</c> the stable release with the latest <c>ReleaseDate</c>; returns <c>null</c> if no stable releases are found.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="releases"/> is <c>null</c>.</exception>
     public ContentRelease? GetLatestStable(IEnumerable<ContentRelease> releases)
     {
         ArgumentNullException.ThrowIfNull(releases);
@@ -61,6 +65,11 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
             .FirstOrDefault();
     }
 
+    /// <summary>
+    /// Selects the most recent stable (non-prerelease) release from the provided list and returns it as a single-element sequence, or an empty sequence if none are found.
+    /// </summary>
+    /// <param name="releases">The list of candidate releases to search.</param>
+    /// <returns>A sequence containing the latest stable release if one exists; otherwise an empty sequence.</returns>
     private IEnumerable<ContentRelease> GetLatestStableReleases(List<ContentRelease> releases)
     {
         var latest = GetLatestStable(releases);
@@ -74,6 +83,11 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
         return [];
     }
 
+    /// <summary>
+    /// Selects the single most recent release from the provided list, including prereleases.
+    /// </summary>
+    /// <param name="releases">The candidate releases to evaluate.</param>
+    /// <returns>A collection containing the latest release if one exists; otherwise an empty collection.</returns>
     private IEnumerable<ContentRelease> GetLatestWithPrereleases(List<ContentRelease> releases)
     {
         var latest = GetLatest(releases);

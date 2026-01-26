@@ -377,7 +377,13 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="searchResult">The content search result to acquire.</param>
     /// <param name="progress">Optional progress reporter for acquisition status.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result object containing the acquired game manifest.</returns>
+    /// <summary>
+    /// Acquires content for the specified search result by resolving or retrieving its manifest, downloading and validating files, and storing the content in the manifest pool.
+    /// </summary>
+    /// <param name="searchResult">The content search result identifying the item to acquire; may include an embedded manifest or require resolver/provider retrieval.</param>
+    /// <param name="progress">Optional progress reporter that receives staged acquisition updates (manifest resolution, download, processing, validation, and storage).</param>
+    /// <param name="cancellationToken">Token to cancel the acquisition operation.</param>
+    /// <returns>An OperationResult containing the stored ContentManifest on success; on failure the result contains one or more error messages describing what went wrong.</returns>
     public async Task<OperationResult<ContentManifest>> AcquireContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
@@ -615,6 +621,10 @@ public class ContentOrchestrator : IContentOrchestrator
         }
     }
 
+    /// <summary>
+    /// Formats a byte count into a human-readable string using units B, KB, MB, or GB.
+    /// </summary>
+    /// <returns>A string representing the byte count with up to two decimal places and an appropriate unit (B, KB, MB, or GB).</returns>
     private static string FormatBytes(long bytes)
     {
         string[] sizes = ["B", "KB", "MB", "GB"];

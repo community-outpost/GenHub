@@ -17,7 +17,15 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 {
     private readonly ILogger<JsonPublisherCatalogParser> _logger = logger;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Parses a GenHub-format publisher catalog from the provided JSON and validates its contents.
+    /// </summary>
+    /// <param name="catalogJson">A JSON string containing a GenHub-format publisher catalog.</param>
+    /// <param name="cancellationToken">A token to cancel the parsing operation.</param>
+    /// <returns>
+    /// An <see cref="OperationResult{PublisherCatalog}"/> containing the parsed <see cref="PublisherCatalog"/> on success;
+    /// on failure, contains error information describing why deserialization or validation failed.
+    /// </returns>
     public async Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(
         string catalogJson,
         CancellationToken cancellationToken = default)
@@ -64,7 +72,14 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Validates a PublisherCatalog for required schema version, publisher metadata, content items, releases, and artifact fields.
+    /// </summary>
+    /// <param name="catalog">The catalog to validate. Must not be null.</param>
+    /// <returns>
+    /// An <see cref="OperationResult{T}"/> containing `true` when the catalog passes all validations; otherwise a failure result containing a list of validation error messages.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="catalog"/> is null.</exception>
     public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
     {
         ArgumentNullException.ThrowIfNull(catalog);
@@ -155,7 +170,13 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Determines whether the publisher catalog's signature is valid.
+    /// If the catalog contains no signature, returns true. If a signature is present, signature verification is not yet implemented and the method currently returns true while logging a warning.
+    /// </summary>
+    /// <param name="catalogJson">The raw catalog JSON used as the source for signature verification.</param>
+    /// <param name="catalog">The parsed <see cref="PublisherCatalog"/> whose <c>Signature</c> is checked.</param>
+    /// <returns>`true` if no signature is present or while signature verification is not implemented; `false` only when explicit verification fails (not currently reached).</returns>
     public bool VerifySignature(string catalogJson, PublisherCatalog catalog)
     {
         // TODO: Implement catalog signature verification

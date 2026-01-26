@@ -55,7 +55,10 @@ public partial class SubscriptionConfirmationViewModel(
     /// <summary>
     /// Initializes the ViewModel by fetching the catalog metadata.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Loads the publisher catalog from the configured URL, parses it, and updates the view model's publisher metadata and state flags.
+    /// </summary>
+    /// <returns>A task that completes once the catalog has been fetched and the view model state has been updated.</returns>
     public async Task InitializeAsync()
     {
         try
@@ -94,6 +97,12 @@ public partial class SubscriptionConfirmationViewModel(
         }
     }
 
+    /// <summary>
+    /// Persists the previously parsed catalog as a new subscription and closes the dialog when the subscription is added successfully.
+    /// </summary>
+    /// <remarks>
+    /// If no parsed catalog is available, the method exits without action. On failure it sets <c>ErrorMessage</c> with the encountered errors; on success it invokes <c>RequestClose(true)</c>.
+    /// </remarks>
     [RelayCommand]
     private async Task ConfirmAsync()
     {
@@ -131,6 +140,9 @@ public partial class SubscriptionConfirmationViewModel(
         }
     }
 
+    /// <summary>
+    /// Requests that the dialog be closed and signals the operation was cancelled.
+    /// </summary>
     [RelayCommand]
     private void Cancel()
     {

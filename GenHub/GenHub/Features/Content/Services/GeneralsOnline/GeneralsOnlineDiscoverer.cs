@@ -61,7 +61,16 @@ public class GeneralsOnlineDiscoverer(
         return DiscoverAsync(provider: null, query, cancellationToken);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Discovers Generals Online releases by fetching the provider's CDN catalog, parsing its contents, and applying an optional search term filter.
+    /// </summary>
+    /// <param name="provider">Optional provider definition to use; if null the discoverer will load the default Generals Online provider.</param>
+    /// <param name="query">Search parameters; when <see cref="ContentSearchQuery.SearchTerm"/> is provided results are filtered by release Name or Version (case-insensitive).</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the discovery operation.</param>
+    /// <returns>
+    /// An <see cref="OperationResult{ContentDiscoveryResult}"/> whose success case contains a <see cref="ContentDiscoveryResult"/> with discovered release items (possibly filtered).
+    /// The result's <see cref="ContentDiscoveryResult.HasMoreItems"/> is false because the CDN catalog is returned in full. On failure the operation result contains an error message.
+    /// </returns>
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ProviderDefinition? provider,
         ContentSearchQuery query,

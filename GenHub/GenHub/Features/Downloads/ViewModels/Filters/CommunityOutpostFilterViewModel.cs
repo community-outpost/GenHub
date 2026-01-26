@@ -28,7 +28,12 @@ public partial class CommunityOutpostFilterViewModel() : FilterPanelViewModelBas
     /// <inheritdoc />
     public override bool HasActiveFilters => SelectedContentType.HasValue;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Applies the currently selected content type to the provided content search query.
+    /// </summary>
+    /// <param name="baseQuery">The query to which the selected content type will be applied.</param>
+    /// <returns>The same <see cref="ContentSearchQuery"/> instance, with <c>ContentType</c> set when a selection exists.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="baseQuery"/> is null.</exception>
     public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
     {
         ArgumentNullException.ThrowIfNull(baseQuery);
@@ -41,7 +46,12 @@ public partial class CommunityOutpostFilterViewModel() : FilterPanelViewModelBas
         return baseQuery;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Clears the selected content type and resets all content type filter items to unselected.
+    /// </summary>
+    /// <remarks>
+    /// After clearing, observers are notified of the filter change and the filter-cleared callback is invoked.
+    /// </remarks>
     public override void ClearFilters()
     {
         SelectedContentType = null;
@@ -63,6 +73,10 @@ public partial class CommunityOutpostFilterViewModel() : FilterPanelViewModelBas
         }
     }
 
+    /// <summary>
+    /// Toggles the given content type filter item: selects it (deselecting all others) or clears the selection if it was already selected, then signals that filters have changed.
+    /// </summary>
+    /// <param name="item">The content type filter item to toggle.</param>
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -84,8 +98,18 @@ public partial class CommunityOutpostFilterViewModel() : FilterPanelViewModelBas
         NotifyFiltersChanged();
     }
 
-    partial void OnSelectedContentTypeChanged(ContentType? value) => NotifyFiltersChanged();
+    /// <summary>
+/// Called when SelectedContentType changes to signal that the filter state has been updated.
+/// </summary>
+/// <param name="value">The new selected content type, or <c>null</c> if no content type is selected.</param>
+partial void OnSelectedContentTypeChanged(ContentType? value) => NotifyFiltersChanged();
 
+    /// <summary>
+    /// Populates the ContentTypeFilters collection with the curated set of content types available for Community Outpost.
+    /// </summary>
+    /// <remarks>
+    /// Adds filter items for GameClient, Addon, ModdingTool, and Map using the corresponding display strings from CommunityOutpostConstants.
+    /// </remarks>
     private void InitializeContentTypeFilters()
     {
         // Only include relevant types for Community Outpost

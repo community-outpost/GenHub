@@ -32,7 +32,11 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     /// Initializes a new instance of the <see cref="PublisherSubscriptionStore"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
+    /// <summary>
+    /// Initializes a new instance of <see cref="PublisherSubscriptionStore"/> and configures the path to the subscriptions.json file inside the application's data directory.
+    /// </summary>
+    /// <param name="logger">Logger for publisher subscription store operations.</param>
+    /// <param name="configurationProvider">Service that provides application configuration values, including the application data path used to locate the subscriptions file.</param>
     public PublisherSubscriptionStore(
         ILogger<PublisherSubscriptionStore> logger,
         IConfigurationProviderService configurationProvider)
@@ -44,7 +48,10 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         _subscriptionsFilePath = Path.Combine(appDataPath, "subscriptions.json");
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Retrieve all stored publisher subscriptions.
+    /// </summary>
+    /// <returns>An OperationResult containing the stored <see cref="PublisherSubscription"/> sequence on success; on failure the result indicates failure and includes an error message.</returns>
     public async Task<OperationResult<IEnumerable<PublisherSubscription>>> GetSubscriptionsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -82,7 +89,12 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Adds a new publisher subscription to the persistent subscriptions store and prevents duplicates.
+    /// </summary>
+    /// <param name="subscription">The subscription to add.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>An <see cref="OperationResult{T}"/> containing `true` if the subscription was added; a failure result if a subscription with the same publisher ID already exists or an error occurs.</returns>
     public async Task<OperationResult<bool>> AddSubscriptionAsync(
         PublisherSubscription subscription,
         CancellationToken cancellationToken = default)
@@ -182,7 +194,11 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Determines whether a subscription exists for the specified publisher.
+    /// </summary>
+    /// <param name="publisherId">The identifier of the publisher to check. Comparison is case-insensitive.</param>
+    /// <returns>true if a subscription for the specified publisher exists, false otherwise.</returns>
     public async Task<OperationResult<bool>> IsSubscribedAsync(
         string publisherId,
         CancellationToken cancellationToken = default)
@@ -202,7 +218,12 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Updates the trust level of the subscription for the specified publisher.
+    /// </summary>
+    /// <param name="publisherId">The identifier of the publisher whose subscription will be updated (comparison is case-insensitive).</param>
+    /// <param name="trustLevel">The new trust level to assign to the subscription.</param>
+    /// <returns>An <see cref="OperationResult{T}"/> containing `true` if the subscription was found and updated; on failure the result will contain an error message.</returns>
     public async Task<OperationResult<bool>> UpdateTrustLevelAsync(
         string publisherId,
         TrustLevel trustLevel,
@@ -237,6 +258,10 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         }
     }
 
+    /// <summary>
+    /// Loads and returns the publisher subscription collection, using the in-memory cache when available. If the subscriptions file is missing, initializes and returns an empty collection; otherwise deserializes the file and caches the result.
+    /// </summary>
+    /// <returns>The loaded and cached <see cref="PublisherSubscriptionCollection"/>.</returns>
     private async Task<PublisherSubscriptionCollection> LoadSubscriptionsAsync(CancellationToken cancellationToken)
     {
         // Return cached if available
@@ -260,6 +285,11 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         return _cachedSubscriptions;
     }
 
+    /// <summary>
+    /// Persists the provided subscription collection to the subscriptions file and updates the in-memory cache.
+    /// </summary>
+    /// <param name="collection">The subscription collection to serialize and save to disk; becomes the new in-memory cache.</param>
+    /// <param name="cancellationToken">Token to observe for cancellation of the file write operation.</param>
     private async Task SaveSubscriptionsAsync(
         PublisherSubscriptionCollection collection,
         CancellationToken cancellationToken)

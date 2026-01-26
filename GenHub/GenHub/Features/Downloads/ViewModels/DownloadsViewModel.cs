@@ -92,7 +92,10 @@ public partial class DownloadsViewModel(
     /// Called when the tab is activated/navigated to.
     /// Refreshes installation status for all publisher cards.
     /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Handle activation of the Downloads tab: register message recipients if needed, lazily populate publisher cards, and refresh installation status for any expanded publisher cards.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> that completes when the activation processing and any required status refreshes have finished.</returns>
     public async Task OnTabActivatedAsync()
     {
         // Ensure we are registered for messages
@@ -146,6 +149,14 @@ public partial class DownloadsViewModel(
         };
     }
 
+    /// <summary>
+    /// Create and initialize the collection of publisher card view models used by the Downloads tab.
+    /// </summary>
+    /// <remarks>
+    /// Instantiates publisher cards from the service provider, sets identifying metadata (PublisherId, DisplayName, LogoSource, ReleaseNotes),
+    /// marks them as loading, and assigns the resulting list to <see cref="PublisherCards"/>. Cards populated include Generals Online,
+    /// TheSuperHackers, Community Outpost, GitHub topics, CNC Labs, and ModDB.
+    /// </remarks>
     private void InitializePublisherCards()
     {
         var publishers = new System.Collections.Generic.List<PublisherCardViewModel>();
@@ -219,6 +230,10 @@ public partial class DownloadsViewModel(
         PublisherCards = new ObservableCollection<PublisherCardViewModel>(publishers);
     }
 
+    /// <summary>
+    /// Populate all publisher cards.
+    /// </summary>
+    /// <returns>Completion of all publisher card population operations.</returns>
     private async Task PopulatePublisherCardsAsync()
     {
         await Task.WhenAll(
@@ -230,6 +245,15 @@ public partial class DownloadsViewModel(
             PopulateModDBCardAsync());
     }
 
+    /// <summary>
+    /// Populates the Generals Online publisher card with discovered release items and metadata.
+    /// </summary>
+    /// <remarks>
+    /// Locates the Generals Online card, discovers releases via the GeneralsOnlineDiscoverer (if available),
+    /// groups discovered releases by content type into ContentTypeGroup entries, and updates the card's
+    /// LatestVersion, DownloadSize, and ReleaseDate from the most recent release. On failure the card is
+    /// marked with an error message. The card's IsLoading flag is cleared when processing completes.
+    /// </remarks>
     private async Task PopulateGeneralsOnlineCardAsync()
     {
         try
@@ -287,6 +311,15 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Populates the "TheSuperHackers" publisher card with GitHub release data and related metadata.
+    /// </summary>
+    /// <remarks>
+    /// Queries the GitHubReleasesDiscoverer for releases, groups results by content type into ContentTypeGroup entries,
+    /// and updates the card's LatestVersion, DownloadSize, and ReleaseDate from the most recent release.
+    /// If no releases are found, sets a user-facing "No releases" summary and release notes. On discovery failure or exception,
+    /// marks the card with an error and sets an error message. Always clears the card's loading state when complete.
+    /// </remarks>
     private async Task PopulateSuperHackersCardAsync()
     {
         try
@@ -367,6 +400,15 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Populates the Community Outpost publisher card with discovered releases grouped by content type.
+    /// </summary>
+    /// <remarks>
+    /// If discovery succeeds, the card's ContentTypes are filled and LatestVersion, DownloadSize, and ReleaseDate
+    /// are set from the newest release. On failure the card's HasError and ErrorMessage are set. The card's
+    /// IsLoading flag is cleared when the operation completes.
+    /// </remarks>
+    /// <returns>Completion of the population operation.</returns>
     private async Task PopulateCommunityOutpostCardAsync()
     {
         try
@@ -431,6 +473,10 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Populates the GitHub topics publisher card with discovered repositories grouped by content type.
+    /// </summary>
+    /// <returns>A task that completes when the GitHub card has been populated and its loading state updated.</returns>
     private async Task PopulateGithubCardAsync()
     {
         var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GitHubTopicsConstants.PublisherType);
@@ -490,6 +536,15 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Populate the CNC Labs publisher card with discovered map releases and update its metadata and state.
+    /// </summary>
+    /// <remarks>
+    /// Locates the CNC Labs publisher card, discovers available maps, groups results by content type into the card's <c>ContentTypes</c>,
+    /// and updates the card's <c>LatestVersion</c>, <c>DownloadSize</c>, and <c>ReleaseDate</c> from the discovered data.
+    /// If the CNCLabsMapDiscoverer is not available, sets <c>LatestVersion</c> to "Unavailable". If discovery returns no items, sets <c>LatestVersion</c> to "Ready".
+    /// On discovery failure sets the card's <c>HasError</c> to true and writes a user-facing <c>ErrorMessage</c>. The card's <c>IsLoading</c> is cleared when the operation completes.
+    /// </remarks>
     private async Task PopulateCNCLabsCardAsync()
     {
         try
@@ -556,6 +611,12 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Populates the ModDB publisher card with discovered content and metadata.
+    /// </summary>
+    /// <remarks>
+    /// If discovery succeeds, fills the card's ContentTypes grouped by content type and updates LatestVersion, DownloadSize, and ReleaseDate. If no content is found, sets LatestVersion to "Ready". On error, marks the card HasError and sets ErrorMessage. Always clears the card's IsLoading flag when finished.
+    /// </remarks>
     private async Task PopulateModDBCardAsync()
     {
         try
@@ -622,6 +683,12 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Retrieves the latest Generals Online release version and updates the GeneralsOnlineVersion property.
+    /// </summary>
+    /// <remarks>
+    /// If the version cannot be retrieved, sets <c>GeneralsOnlineVersion</c> to "Unavailable" and logs a warning.
+    /// </remarks>
     private async Task FetchGeneralsOnlineVersionAsync()
     {
         try
@@ -644,6 +711,13 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Fetches the latest weekly release from GitHub releases and updates the WeeklyReleaseVersion property.
+    /// </summary>
+    /// <remarks>
+    /// If a latest release is found, WeeklyReleaseVersion is set to that release's version and an informational log is written.
+    /// If retrieval fails or no releases are available, WeeklyReleaseVersion is set to "Unavailable" and a warning is logged.
+    /// </remarks>
     private async Task FetchWeeklyReleaseVersionAsync()
     {
         try
@@ -671,6 +745,13 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Fetches the latest Community Patch version and updates the CommunityPatchVersion property.
+    /// </summary>
+    /// <remarks>
+    /// If a CommunityOutpostDiscoverer is available, queries for content and sets CommunityPatchVersion to the first discovered item's Version.
+    /// On failure or when no content is found, CommunityPatchVersion is set to "Unavailable".
+    /// </remarks>
     private async Task FetchCommunityPatchVersionAsync()
     {
         try
@@ -771,6 +852,9 @@ public partial class DownloadsViewModel(
         }
     }
 
+    /// <summary>
+    /// Show an informational notification announcing upcoming GitHub Manager features.
+    /// </summary>
     [RelayCommand]
     private void OpenGitHubBuilds()
     {
@@ -791,7 +875,14 @@ public partial class DownloadsViewModel(
     /// <summary>
     /// Receives message to open publisher details/browser.
     /// </summary>
-    /// <param name="message">The message containing the publisher id to open.</param>
+    /// <summary>
+    /// Opens the publisher details browser for the publisher identified by the message.
+    /// </summary>
+    /// <remarks>
+    /// If the browser view model is not yet created, it is resolved lazily. If a matching publisher is found,
+    /// it becomes the selected publisher, the browser is shown, and the view title is set to "Browser".
+    /// </remarks>
+    /// <param name="message">Message containing the publisher identifier to open.</param>
     public void Receive(Core.Messages.OpenPublisherDetailsMessage message)
     {
         BrowserViewModel ??= serviceProvider.GetService(typeof(DownloadsBrowserViewModel)) as DownloadsBrowserViewModel;
@@ -811,12 +902,21 @@ public partial class DownloadsViewModel(
     /// <summary>
     /// Receives message to close publisher details/browser.
     /// </summary>
+    /// <summary>
+    /// Closes the publisher details view and navigates back to the Downloads dashboard.
+    /// </summary>
     /// <param name="message">The message indicating the publisher details view should be closed.</param>
     public void Receive(Core.Messages.ClosePublisherDetailsMessage message)
     {
         GoToDashboard();
     }
 
+    /// <summary>
+    /// Navigates back to the downloads dashboard.
+    /// </summary>
+    /// <remarks>
+    /// Hides the publisher browser and resets the view title to "Downloads".
+    /// </remarks>
     [RelayCommand]
     private void GoToDashboard()
     {

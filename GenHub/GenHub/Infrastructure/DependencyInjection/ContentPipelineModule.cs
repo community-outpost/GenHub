@@ -42,6 +42,9 @@ public static class ContentPipelineModule
     /// Registers content pipeline services for dependency injection.
     /// </summary>
     /// <param name="services">The service collection to configure.</param>
+    /// <summary>
+    /// Registers core and all content pipeline services into the provided service collection.
+    /// </summary>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddContentPipelineServices(this IServiceCollection services)
     {
@@ -63,7 +66,15 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers core services required by all pipelines.
+    /// <summary>
+    /// Registers core shared services and infrastructure required by all content pipelines.
     /// </summary>
+    /// <remarks>
+    /// Registers foundational services such as the content orchestrator, hash providers, memory and dynamic caches,
+    /// HTTP client factories (including a named client for Generals Online), content storage and manifest pool,
+    /// provider/ catalog parsers and factories, content caching, GitHub API client, local content service,
+    /// publisher subscription and catalog services, the generic catalog pipeline types, and a subscription confirmation view model registration.
+    /// </remarks>
     private static void AddCoreServices(IServiceCollection services)
     {
         // Register content orchestrator
@@ -151,6 +162,8 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers GitHub content pipeline services.
+    /// <summary>
+    /// Registers GitHub-specific services required by the content pipeline, including providers, discoverers, resolver, deliverer, publisher manifest factories, and the SuperHackers update service.
     /// </summary>
     private static void AddGitHubPipeline(IServiceCollection services)
     {
@@ -192,6 +205,8 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers Generals Online content pipeline services.
+    /// <summary>
+    /// Registers all dependency-injection services required by the Generals Online content pipeline.
     /// </summary>
     private static void AddGeneralsOnlinePipeline(IServiceCollection services)
     {
@@ -224,7 +239,12 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers Community Outpost content pipeline services.
+    /// <summary>
+    /// Registers Community Outpost content-pipeline services into the provided service collection.
     /// </summary>
+    /// <remarks>
+    /// Adds concrete implementations and their interface mappings for the Community Outpost provider, discoverer, resolver, deliverer, manifest factory, and update service.
+    /// </remarks>
     private static void AddCommunityOutpostPipeline(IServiceCollection services)
     {
         // Register Community Outpost provider
@@ -253,6 +273,8 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers CNCLabs content pipeline services.
+    /// <summary>
+    /// Registers CNCLabs content pipeline components (content provider, map discoverer, map resolver, and publisher manifest factory) as singletons in the DI container.
     /// </summary>
     private static void AddCNCLabsPipeline(IServiceCollection services)
     {
@@ -275,7 +297,10 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers ModDB content pipeline services.
+    /// <summary>
+    /// Registers ModDB-specific content-pipeline services and configures the named HttpClient used to access ModDB.
     /// </summary>
+    /// <param name="services">The IServiceCollection to which ModDB pipeline services (HttpClient, Playwright page parser, discoverer, resolver, manifest factory, and content provider) will be added.</param>
     private static void AddModDBPipeline(IServiceCollection services)
     {
         // Register named HTTP client for ModDB
@@ -325,6 +350,8 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers Local File System content pipeline services.
+    /// <summary>
+    /// Registers Local File System content pipeline services — provider, discoverer, manifest resolver, and deliverer — into the provided IServiceCollection.
     /// </summary>
     private static void AddLocalFileSystemPipeline(IServiceCollection services)
     {
@@ -347,7 +374,12 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers AODMaps content pipeline services.
+    /// <summary>
+    /// Registers the AODMaps content-pipeline components and a named HttpClient into the provided service collection.
     /// </summary>
+    /// <remarks>
+    /// Adds a named "AODMaps" HttpClient and singleton registrations for the page parser, IWebPageParser, discoverer, resolver, content provider, and publisher manifest factory.
+    /// </remarks>
     private static void AddAODMapsPipeline(IServiceCollection services)
     {
         // Register named HttpClient for AODMaps
@@ -383,7 +415,18 @@ public static class ContentPipelineModule
 
     /// <summary>
     /// Registers shared components used across multiple pipelines.
+    /// <summary>
+    /// Registers services and shared components used by multiple content pipelines.
     /// </summary>
+    /// <remarks>
+    /// Registers:
+    /// - HttpContentDeliverer and its IContentDeliverer mapping,
+    /// - PublisherManifestFactoryResolver,
+    /// - IContentPipelineFactory (ContentPipelineFactory),
+    /// - PublisherCardViewModel (transient),
+    /// - IContentValidator (ContentValidator),
+    /// - IContentStateService (scoped ContentStateService).
+    /// </remarks>
     private static void AddSharedComponents(IServiceCollection services)
     {
         // Register shared deliverers

@@ -22,6 +22,8 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GitHubFilterViewModel"/> class.
+    /// <summary>
+    /// Initializes a new instance of GitHubFilterViewModel and populates the default topic and author options.
     /// </summary>
     public GitHubFilterViewModel()
     {
@@ -64,7 +66,9 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
         return baseQuery;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Clears the selected topic and author filters and notifies listeners that the filters have changed and been cleared.
+    /// </summary>
     public override void ClearFilters()
     {
         SelectedTopic = null;
@@ -90,7 +94,10 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
     /// <summary>
     /// Updates the available authors list from discovered content.
     /// </summary>
-    /// <param name="authors">The discovered author names.</param>
+    /// <summary>
+    /// Populate AuthorOptions with an "All Authors" entry followed by distinct, alphabetically ordered authors.
+    /// </summary>
+    /// <param name="authors">Sequence of author names to include; duplicate names are ignored and entries are sorted.</param>
     public void UpdateAvailableAuthors(IEnumerable<string> authors)
     {
         AuthorOptions.Clear();
@@ -102,22 +109,42 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
         }
     }
 
-    partial void OnSelectedTopicChanged(string? value) { }
+    /// <summary>
+/// Called when the SelectedTopic value changes to allow responsive behavior in partial implementations.
+/// </summary>
+/// <param name="value">The new selected topic value, or null if no topic is selected.</param>
+partial void OnSelectedTopicChanged(string? value) { }
 
-    partial void OnSelectedAuthorChanged(string? value) { }
+    /// <summary>
+/// Invoked when the SelectedAuthor property changes so implementers can react to the new selection.
+/// </summary>
+/// <param name="value">The newly selected author, or null if the selection was cleared.</param>
+partial void OnSelectedAuthorChanged(string? value) { }
 
+    /// <summary>
+    /// Selects the given topic option and updates the view model's SelectedTopic.
+    /// </summary>
+    /// <param name="option">The chosen FilterOption; if its Value is empty or null, the topic selection is cleared.</param>
     [RelayCommand]
     private void SelectTopic(FilterOption option)
     {
         SelectedTopic = string.IsNullOrEmpty(option.Value) ? null : option.Value;
     }
 
+    /// <summary>
+    /// Sets the SelectedAuthor to the provided option's value, or clears the selection when the option's value is empty.
+    /// </summary>
+    /// <param name="option">The author option chosen; an empty <see cref="FilterOption.Value"/> clears the current selection.</param>
     [RelayCommand]
     private void SelectAuthor(FilterOption option)
     {
         SelectedAuthor = string.IsNullOrEmpty(option.Value) ? null : option.Value;
     }
 
+    /// <summary>
+    /// Populates TopicOptions with predefined GitHub topic entries (including an "All Topics" option)
+    /// and initializes AuthorOptions with a single "All Authors" entry.
+    /// </summary>
     private void InitializeTopics()
     {
         // Pre-defined topics from GitHubTopicsConstants

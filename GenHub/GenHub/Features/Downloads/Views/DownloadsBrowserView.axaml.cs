@@ -9,6 +9,8 @@ public partial class DownloadsBrowserView : UserControl
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadsBrowserView"/> class.
+    /// <summary>
+    /// Initializes a new instance of DownloadsBrowserView and loads its associated XAML components.
     /// </summary>
     public DownloadsBrowserView()
     {

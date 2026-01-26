@@ -35,6 +35,14 @@ public static partial class ManifestIdGenerator
     /// <param name="contentName">Human readable content name used as the second segment.</param>
     /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
     /// <returns>A normalized manifest identifier in the form 'schemaVersion.manifestVersion.publisher.contentType.contentName'.</returns>
+    /// <summary>
+    /// Generate a manifest ID for publisher-provided content in the format: schemaVersion.userVersion.publisher.contentType.contentName.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier to include in the manifest ID; must not be null, empty, or whitespace.</param>
+    /// <param name="contentType">The content type that determines the contentType segment of the ID.</param>
+    /// <param name="contentName">The content name to include in the manifest ID; must not be null, empty, or whitespace.</param>
+    /// <param name="userVersion">A non-negative numeric version used as the userVersion segment; defaults to 0.</param>
+    /// <returns>The composed manifest ID string.</returns>
     /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is empty or whitespace, or when <paramref name="userVersion"/> is negative.</exception>
     public static string GeneratePublisherContentId(
         string publisherId,
@@ -67,7 +75,15 @@ public static partial class ManifestIdGenerator
     /// <param name="contentName">Human readable content name.</param>
     /// <param name="releaseDate">The release date to use as version (formatted as yyyyMMdd).</param>
     /// <returns>A normalized manifest identifier.</returns>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is empty or whitespace.</exception>
+    /// <summary>
+    — Creates a manifest ID for publisher-provided content using the release date as the version.
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier; must not be null, empty, or whitespace and will be normalized for the manifest segment.</param>
+    /// <param name="contentType">The content type to include in the manifest ID.</param>
+    /// <param name="contentName">Content name; must not be null, empty, or whitespace and will be normalized for the manifest segment.</param>
+    /// <param name="releaseDate">Release date used to derive the version segment (formatted as yyyyMMdd).</param>
+    /// <returns>The manifest ID in the format: schemaVersion.dateVersion.publisher.contentType.contentName.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is null, empty, or whitespace.</exception>
     public static string GeneratePublisherContentId(
         string publisherId,
         ContentType contentType,

@@ -20,7 +20,12 @@ public class PublisherCatalogRefreshService(
     IPublisherSubscriptionStore subscriptionStore,
     IPublisherCatalogParser catalogParser) : IPublisherCatalogRefreshService
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Refreshes catalogs for all stored publisher subscriptions.
+    /// </summary>
+    /// <returns>
+    /// An <see cref="OperationResult{T}"/> containing `true` when the refresh operation completed successfully; on failure the result contains error details.
+    /// </returns>
     public async Task<OperationResult<bool>> RefreshAllAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -48,7 +53,12 @@ public class PublisherCatalogRefreshService(
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Refreshes and updates the stored catalog and subscription metadata for the specified publisher.
+    /// </summary>
+    /// <param name="publisherId">The identifier of the publisher whose catalog should be refreshed.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>An <see cref="OperationResult{T}"/> whose value is <c>true</c> when the catalog was successfully fetched, parsed, and the subscription updated; otherwise a failure result containing an error message.</returns>
     public async Task<OperationResult<bool>> RefreshPublisherAsync(string publisherId, CancellationToken cancellationToken = default)
     {
         try
@@ -95,6 +105,11 @@ public class PublisherCatalogRefreshService(
         }
     }
 
+    /// <summary>
+    /// Compute the SHA-256 hash of the given text and return it as a hexadecimal string.
+    /// </summary>
+    /// <param name="text">The input text to hash; encoded as UTF-8.</param>
+    /// <returns>The SHA-256 hash of <paramref name="text"/> encoded as UTF-8, returned as an uppercase hex string with no prefix.</returns>
     private static string ComputeHash(string text)
     {
         var bytes = Encoding.UTF8.GetBytes(text);

@@ -30,6 +30,9 @@ public static class SharedViewModelModule
     /// Adds shared view model services to the service collection.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <summary>
+    /// Registers shared view models and related factories into the provided service collection for dependency injection.
+    /// </summary>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddSharedViewModelModule(this IServiceCollection services)
     {

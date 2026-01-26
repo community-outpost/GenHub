@@ -51,7 +51,10 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger) : I
         return _cache.TryGetValue(cacheKey, out var entry) && DateTime.UtcNow < entry.ExpiresAt;
     }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Removes the cached entry for the specified key, if present.
+    /// </summary>
+    /// <param name="cacheKey">The cache key identifying the entry to remove.</param>
     public void Invalidate(string cacheKey)
     {
         _cache.TryRemove(cacheKey, out _);
@@ -60,6 +63,8 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger) : I
 
     /// <summary>
     /// Clears all cached data.
+    /// <summary>
+    /// Removes all entries from the in-memory content cache.
     /// </summary>
     public void ClearAll()
     {

@@ -37,7 +37,12 @@ public class ModDBResolver(
     /// <inheritdoc />
     public string ResolverId => "ModDB";
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Resolves a ModDB detail page identified by a discovered item's SourceUrl into a ContentManifest.
+    /// </summary>
+    /// <param name="discoveredItem">The discovered search result containing the SourceUrl and contextual metadata used to build the manifest.</param>
+    /// <param name="cancellationToken">A token to observe while waiting for the operation to complete.</param>
+    /// <returns>An OperationResult containing the created ContentManifest on success, or a failure result with an error message on failure.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
@@ -127,7 +132,21 @@ public class ModDBResolver(
     /// <summary>
     /// Converts a single file from the parsed page to MapDetails for the manifest factory.
     /// Uses the file's release date and FileSectionType to create unique manifest IDs.
+    /// <summary>
+    /// Create a MapDetails instance for a single file using the file entry, the parsed page context, and the original discovered item.
     /// </summary>
+    /// <param name="file">The file entry from the parsed ModDB page to convert into map details.</param>
+    /// <param name="parsedPage">The parsed page containing contextual metadata and image sections used to enrich the map details.</param>
+    /// <param name="discoveredItem">The original discovery record providing fallback values such as source, icon, name, author, content type, and target game.</param>
+    /// <returns>
+    /// A MapDetails populated from the file and context:
+    /// - Name, Description, Author, PreviewImage, Screenshots
+    /// - FileSize and DownloadUrl (empty if unavailable)
+    /// - DownloadCount set to 0
+    /// - SubmissionDate chosen from file.ReleaseDate, file.UploadDate, parsed page context, or UTC now
+    /// - TargetGame and ContentType (sets Addon when file's section is Addons; otherwise uses discoveredItem.ContentType)
+    /// - AdditionalFiles set to null
+    /// </returns>
     private static MapDetails ConvertFileToMapDetails(
         File file,
         ParsedWebPage parsedPage,

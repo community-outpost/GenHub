@@ -230,7 +230,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="installationService">Game installation service.</param>
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
-    /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <summary>
+    /// Creates a new SettingsViewModel that exposes and manages application settings, preferences, and related configuration state.
+    /// </summary>
+    /// <remarks>
+    /// The constructor loads persisted settings, initializes internal timers and state, and registers message handlers required for view-model updates.
+    /// </remarks>
+    /// <param name="gitHubTokenStorage">Optional storage for GitHub tokens; pass <c>null</c> when GitHub token persistence is not required.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -1635,6 +1641,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Copies the contents of the most recently modified log file to the system clipboard.
+    /// </summary>
+    /// <remarks>
+    /// If no logs are found, the user is notified. If the logs directory or clipboard is unavailable, or the file cannot be read, a notification is shown and the error is logged.
+    /// </remarks>
     [RelayCommand]
     private async Task CopyLatestLog()
     {
@@ -1693,6 +1705,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Loads publisher subscriptions from the subscription store and populates the <see cref="Subscriptions"/> collection.
+    /// </summary>
+    /// <remarks>
+    /// Sets <see cref="IsLoadingSubscriptions"/> to true while loading and resets it when finished. Errors are logged but not thrown to callers.
+    /// </remarks>
     [RelayCommand]
     private async Task LoadSubscriptionsAsync()
     {
@@ -1719,6 +1737,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Removes the specified publisher subscription, updates the subscriptions list, and shows a success or error notification.
+    /// </summary>
+    /// <param name="subscription">The publisher subscription to remove; if null the method returns without action.</param>
     [RelayCommand]
     private async Task RemoveSubscriptionAsync(GenHub.Core.Models.Providers.PublisherSubscription subscription)
     {
@@ -1744,6 +1766,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Toggle the given publisher subscription's trust level between Trusted and Untrusted and persist the change.
+    /// </summary>
+    /// <param name="subscription">The subscription to toggle; if null the method returns without action.</param>
+    /// <remarks>On success the subscription's TrustLevel is updated and the Subscriptions property is refreshed for the UI. Failures are logged.</remarks>
     [RelayCommand]
     private async Task ToggleSubscriptionTrustAsync(PublisherSubscription subscription)
     {
@@ -1771,6 +1798,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Refreshes all subscribed publisher catalogs, reloads the local subscriptions list, and notifies the user of success or failure.
+    /// </summary>
+    /// <remarks>
+    /// Sets <c>IsLoadingSubscriptions</c> to true for the duration of the operation.
+    /// </remarks>
     [RelayCommand]
     private async Task RefreshAllCatalogsAsync()
     {

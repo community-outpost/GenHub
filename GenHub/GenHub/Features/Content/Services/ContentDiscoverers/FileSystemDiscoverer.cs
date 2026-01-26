@@ -28,6 +28,12 @@ public class FileSystemDiscoverer : IContentDiscoverer
     private readonly ManifestDiscoveryService _manifestDiscoveryService;
     private readonly IConfigurationProviderService _configurationProvider;
 
+    /// <summary>
+    /// Determines whether a content manifest satisfies the provided search query criteria.
+    /// </summary>
+    /// <param name="manifest">The content manifest to evaluate.</param>
+    /// <param name="query">The search query containing optional filters (search term, content type, target game).</param>
+    /// <returns>`true` if the manifest matches the query's search term (found in Name or Id, case-insensitive) and any specified ContentType and TargetGame; `false` otherwise.</returns>
     private static bool MatchesQuery(ContentManifest manifest, ContentSearchQuery query)
     {
         if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
@@ -55,7 +61,12 @@ public class FileSystemDiscoverer : IContentDiscoverer
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="manifestDiscoveryService">The manifest discovery service.</param>
-    /// <param name="configurationProvider">The unified configuration provider.</param>
+    /// <summary>
+    /// Initializes a new FileSystemDiscoverer and loads content directories from configuration.
+    /// </summary>
+    /// <param name="logger">Logger for diagnostic and error messages.</param>
+    /// <param name="manifestDiscoveryService">Service used to discover content manifests from file system locations.</param>
+    /// <param name="configurationProvider">Provider for application configuration, used to obtain configured content directories.</param>
     public FileSystemDiscoverer(
         ILogger<FileSystemDiscoverer> logger,
         ManifestDiscoveryService manifestDiscoveryService,

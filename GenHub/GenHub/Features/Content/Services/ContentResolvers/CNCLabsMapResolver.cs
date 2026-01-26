@@ -40,7 +40,11 @@ public class CNCLabsMapResolver(
     /// </summary>
     /// <param name="discoveredItem">The discovered content item to resolve.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A <see cref="OperationResult{ContentManifest}"/> containing the resolved details.</returns>
+    /// <summary>
+    /// Resolve a detailed ContentManifest for a discovered CNC Labs map by fetching and parsing its detail page.
+    /// </summary>
+    /// <param name="discoveredItem">The discovered content item whose SourceUrl points to the map detail page. Its ResolverMetadata may contain a map ID under CNCLabsConstants.MapIdMetadataKey which is used as a fallback for the download URL.</param>
+    /// <returns>An <see cref="OperationResult{ContentManifest}"/> containing the manifest on success, or a failure result with an explanatory message when resolution fails (e.g., missing source URL, no download URL found, invalid map ID, HTTP errors, or other errors).</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)

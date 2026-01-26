@@ -95,7 +95,10 @@ public partial class DownloadsBrowserViewModel(
     /// <summary>
     /// Performs asynchronous initialization.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Initializes the publisher list and per-publisher filter view models.
+    /// </summary>
+    /// <returns>A task that completes after publishers and filter view models have been initialized.</returns>
     public Task InitializeAsync()
     {
         InitializePublishers();
@@ -106,7 +109,10 @@ public partial class DownloadsBrowserViewModel(
     /// <summary>
     /// Called when the Downloads tab is activated.
     /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Ensures content is loaded when the tab becomes active by triggering a refresh if no items are present and loading is not already in progress.
+    /// </summary>
+    /// <returns>A task that completes when the content refresh (if performed) finishes.</returns>
     public async Task OnTabActivatedAsync()
     {
         if (ContentItems.Count == 0 && !IsLoading)
@@ -115,12 +121,22 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Requests closing the publisher details view by sending a ClosePublisherDetailsMessage.
+    /// </summary>
     [RelayCommand]
     private static void GoBack()
     {
         CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(new Core.Messages.ClosePublisherDetailsMessage());
     }
 
+    /// <summary>
+    /// Update view model state when the selected publisher changes.
+    /// </summary>
+    /// <remarks>
+    /// Updates the Publishers collection selection flags, detaches and clears the previous filter view model, attaches and wires the new publisher's filter view model (if any), resets paging and load-more state, closes any open content detail, and starts a content refresh.
+    /// </remarks>
+    /// <param name="value">The newly selected publisher, or <c>null</c> to clear the selection.</param>
     partial void OnSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         // Update selection state
@@ -159,12 +175,20 @@ public partial class DownloadsBrowserViewModel(
         _ = RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Refreshes the content list when filter settings are cleared.
+    /// </summary>
     private void OnFiltersCleared(object? sender, EventArgs e)
     {
         // Trigger content refresh when filters are cleared
         _ = RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Handles filter-application events by resetting pagination to the first page and refreshing content.
+    /// </summary>
+    /// <param name="sender">The event source (unused).</param>
+    /// <param name="e">Event arguments (unused).</param>
     private void OnFiltersApplied(object? sender, EventArgs e)
     {
         // Trigger content refresh when filters are applied
@@ -172,12 +196,19 @@ public partial class DownloadsBrowserViewModel(
         _ = RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Sets the currently selected publisher in the view model.
+    /// </summary>
     [RelayCommand]
     private void SelectPublisher(PublisherItemViewModel publisher)
     {
         SelectedPublisher = publisher;
     }
 
+    /// <summary>
+    /// Initiates a new search by resetting pagination to the first page and loading results.
+    /// </summary>
+    /// <returns>Completes when the first page of search results has been loaded into the view model.</returns>
     [RelayCommand]
     private async Task SearchAsync()
     {
@@ -185,6 +216,10 @@ public partial class DownloadsBrowserViewModel(
         await RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Loads the next page of content and appends the results to the current list when more items are available and no load is in progress.
+    /// </summary>
+    /// <returns>Completion of the load-more operation.</returns>
     [RelayCommand]
     private async Task LoadMoreAsync()
     {
@@ -200,7 +235,11 @@ public partial class DownloadsBrowserViewModel(
     }
 
     /// <param name="append">Whether to append results to the current list instead of clearing.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Refreshes the content grid for the currently selected publisher using the current search term, paging, and active filters.
+    /// </summary>
+    /// <param name="append">If true, adds fetched items to the existing ContentItems collection; if false, clears existing items before loading.</param>
+    /// <returns>A task that completes when the refresh operation has finished.</returns>
     private async Task RefreshContentAsync(bool append = false)
     {
         if (SelectedPublisher == null)
@@ -263,6 +302,12 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Refreshes content from a single publisher: queries the publisher's discoverer, resolves content state, and adds any new items to the view model's content collection.
+    /// </summary>
+    /// <param name="publisherId">The identifier of the publisher to refresh.</param>
+    /// <param name="query">The search query and paging parameters to use for discovery.</param>
+    /// <param name="ct">A cancellation token that can cancel the discovery and state resolution operations.</param>
     private async Task RefreshSinglePublisherAsync(string publisherId, ContentSearchQuery query, CancellationToken ct)
     {
         var discoverer = GetDiscovererForPublisher(publisherId);
@@ -327,6 +372,18 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Loads content from all configured publishers using a prioritized strategy and merges results into the view model's content collection.
+    /// </summary>
+    /// <param name="query">Base search query used for all discoverers (includes SearchTerm, Page, Take, TargetGame, and ContentType). When <c>Page</c> is 1 the method performs an initial prioritized load (small counts from high-priority sources); for subsequent pages it batches additional items across remaining sources.</param>
+    /// <param name="ct">Token to observe for cancellation of the multi-source discovery operation.</param>
+    /// <remarks>
+    /// Side effects:
+    /// - Adds discovered items to <see cref="ContentItems"/>.
+    /// - Resolves and assigns each item's content state via the content state service.
+    /// - Updates <see cref="CanLoadMore"/> to indicate whether more content is available.
+    /// Exceptions from individual discoverers are logged and do not abort the overall operation.
+    /// </remarks>
     private async Task RefreshAllPublishersAsync(ContentSearchQuery query, CancellationToken ct)
     {
         // Prioritized loading order as requested:
@@ -495,7 +552,11 @@ public partial class DownloadsBrowserViewModel(
         CanLoadMore = !ct.IsCancellationRequested && anyProviderHasMore;
     }
 
-    /// <returns>The discoverer for the specified publisher, or null if not found.</returns>
+    /// <summary>
+    /// Resolves the content discoverer associated with the given publisher identifier.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier (e.g., one of the PublisherTypeConstants or other publisher-specific IDs).</param>
+    /// <returns>The matching <see cref="IContentDiscoverer"/> instance for the publisher, or <c>null</c> if no discoverer is registered for that publisher.</returns>
     private IContentDiscoverer? GetDiscovererForPublisher(string publisherId)
     {
         return publisherId switch
@@ -511,6 +572,10 @@ public partial class DownloadsBrowserViewModel(
         };
     }
 
+    /// <summary>
+    /// Opens the detail view for the specified content item by creating and assigning a ContentDetailViewModel to SelectedContent.
+    /// </summary>
+    /// <param name="item">The content grid item whose SearchResult will be used to build the detail view. If null or its SearchResult is null, the method does nothing.</param>
     [RelayCommand]
     private void ViewContent(ContentGridItemViewModel item)
     {
@@ -537,12 +602,18 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Closes the content detail view by clearing the currently selected content.
+    /// </summary>
     [RelayCommand]
     private void CloseDetail()
     {
         SelectedContent = null;
     }
 
+    /// <summary>
+    /// Populates the Publishers collection with the predefined set of publisher entries (including an "All Publishers" entry) and selects the first publisher as the default.
+    /// </summary>
     private void InitializePublishers()
     {
         Publishers =
@@ -596,6 +667,9 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Populates the per-publisher filter view model map used to provide publisher-specific filter panels.
+    /// </summary>
     private void InitializeFilterViewModels()
     {
         // Static publisher filters
@@ -613,6 +687,11 @@ public partial class DownloadsBrowserViewModel(
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
     }
 
+    /// <summary>
+    /// Initiates and manages the download workflow for a content grid item and updates its UI state.
+    /// </summary>
+    /// <param name="item">The content grid item to download; its progress, status, download state, and search result ID may be updated during the operation.</param>
+    /// <returns>Completes when the download workflow finishes and the item's state (progress, status, downloaded flag, and content ID) has been updated.</returns>
     [RelayCommand]
     private async Task DownloadContentAsync(ContentGridItemViewModel item)
     {
@@ -697,7 +776,11 @@ public partial class DownloadsBrowserViewModel(
 
     /// <summary>
     /// Formats a user-friendly progress status message with stage indicators.
+    /// <summary>
+    /// Create a user-facing status string describing content acquisition progress.
     /// </summary>
+    /// <param name="progress">Snapshot of the content acquisition progress, including staged progress, phase, percentages, file counts, and optional bottleneck information.</param>
+    /// <returns>A human-readable status string representing the current progress, including stage/total, description, percentage, file counts, and bottleneck notes when available.</returns>
     private static string FormatProgressStatus(ContentAcquisitionProgress progress)
     {
         // Use the new staged progress format if available
@@ -759,7 +842,10 @@ public partial class DownloadsBrowserViewModel(
 
     /// <summary>
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
+    /// <summary>
+    /// Prompts the user to select a profile and adds the specified content to that profile, if the content has an associated manifest ID.
     /// </summary>
+    /// <param name="item">The content grid item to add to a profile; must represent content that has been downloaded or has a resolvable local manifest ID.</param>
     [RelayCommand]
     private async Task AddContentToProfileAsync(ContentGridItemViewModel item)
     {

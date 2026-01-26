@@ -23,7 +23,10 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
     /// <summary>
     /// Initializes a new instance of the <see cref="StaticPublisherFilterViewModel"/> class.
     /// </summary>
-    /// <param name="publisherId">The publisher ID.</param>
+    /// <summary>
+    /// Initializes a StaticPublisherFilterViewModel for the specified publisher and populates its content type filters.
+    /// </summary>
+    /// <param name="publisherId">The identifier of the publisher whose content will be filtered.</param>
     public StaticPublisherFilterViewModel(string publisherId)
     {
         PublisherId = publisherId;
@@ -49,7 +52,9 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         return baseQuery;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Clears any active content-type filter, resets all filter items to not selected, and notifies listeners that filters were cleared.
+    /// </summary>
     public override void ClearFilters()
     {
         SelectedContentType = null;
@@ -62,7 +67,10 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         OnFiltersCleared();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Produces textual summaries of the currently active filters.
+    /// </summary>
+    /// <returns>An enumeration of summary strings for active filters; when a content type is selected yields a single entry like "Type: {ContentType}".</returns>
     public override IEnumerable<string> GetActiveFilterSummary()
     {
         if (SelectedContentType.HasValue)
@@ -71,6 +79,10 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         }
     }
 
+    /// <summary>
+    /// Toggle selection of a content-type filter item, ensuring only one item is selected at a time.
+    /// </summary>
+    /// <param name="item">The filter item to toggle; selecting it makes its content type active, deselecting it clears the content type filter.</param>
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -94,6 +106,9 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         NotifyFiltersChanged();
     }
 
+    /// <summary>
+    /// Populates the ContentTypeFilters collection with the fixed set of available content-type filter items.
+    /// </summary>
     private void InitializeContentTypeFilters()
     {
         ContentTypeFilters =

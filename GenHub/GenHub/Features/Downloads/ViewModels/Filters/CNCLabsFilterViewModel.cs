@@ -69,6 +69,10 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     [ObservableProperty]
     private PlayerOption? _selectedPlayerOption;
 
+    /// <summary>
+    /// Updates NumberOfPlayers to match the newly selected player option.
+    /// </summary>
+    /// <param name="value">The newly selected PlayerOption, or null to clear the player count; its Value is assigned to NumberOfPlayers.</param>
     partial void OnSelectedPlayerOptionChanged(PlayerOption? value)
     {
         NumberOfPlayers = value?.Value;
@@ -93,7 +97,11 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     /// <inheritdoc />
     public override bool HasActiveFilters => MapTagFilters.Any(t => t.IsSelected) || TargetGame.HasValue || NumberOfPlayers.HasValue;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Apply the view model's selected CNCLabs filters to the given content search query.
+    /// </summary>
+    /// <param name="baseQuery">The query to augment with selected filters; must not be null.</param>
+    /// <returns>The same <see cref="ContentSearchQuery"/> instance with content type, target game, player count, and CNCLabs map tags applied where set.</returns>
     public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
     {
         ArgumentNullException.ThrowIfNull(baseQuery);
@@ -124,7 +132,12 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         return baseQuery;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Resets all filter state to defaults for the CNCLabs panel.
+    /// </summary>
+    /// <remarks>
+    /// Sets the target game to ZeroHour, selects ContentType.Map, clears NumberOfPlayers, selects the "Any" player option, marks the Map content-type filter as selected, clears all map tag selections, and notifies listeners that filters were changed and cleared.
+    /// </remarks>
     public override void ClearFilters()
     {
         TargetGame = GameType.ZeroHour; // Reset to default
@@ -147,7 +160,15 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         OnFiltersCleared();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Produce human-readable summary lines for the currently active filters.
+    /// </summary>
+    /// <returns>
+    /// An enumeration of summary strings:
+    /// - "Game: {TargetGame}" if a target game is selected.
+    /// - "Tags: {tag1, tag2, ...}" if any map tags are selected.
+    /// The sequence is empty if no filters are active.
+    /// </returns>
     public override IEnumerable<string> GetActiveFilterSummary()
     {
         if (TargetGame.HasValue)
@@ -162,6 +183,11 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         }
     }
 
+    /// <summary>
+    /// Sets the selected target game for the filter panel.
+    /// </summary>
+    /// <param name="game">The game to select, or <c>null</c> to clear the selection.</param>
+    /// <remarks>Raises property change notifications for <see cref="IsZeroHourSelected"/> and <see cref="IsGeneralsSelected"/>.</remarks>
     [RelayCommand]
     private void SetGame(GameType? game)
     {
@@ -191,6 +217,10 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         set => SetGame(value ? GameType.Generals : null);
     }
 
+    /// <summary>
+    /// Handle a tag toggle action by signaling that the set of active tags may have changed.
+    /// </summary>
+    /// <param name="item">The map tag item whose selection was changed by the UI; the method does not modify the item's selection.</param>
     [RelayCommand]
     private void ToggleTag(MapTagFilterItem item)
     {
@@ -201,6 +231,10 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         OnPropertyChanged(nameof(ActiveTags));
     }
 
+    /// <summary>
+    /// Selects the given content-type filter, clears selection on all other content-type filters, and updates the view model's SelectedContentType.
+    /// </summary>
+    /// <param name="item">The ContentTypeFilterItem to select. This item becomes the active content type filter.</param>
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {

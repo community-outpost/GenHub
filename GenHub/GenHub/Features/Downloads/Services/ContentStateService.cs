@@ -27,7 +27,16 @@ public sealed class ContentStateService(
     private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly ILogger<ContentStateService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Determines the content's UI state (Downloaded, UpdateAvailable, or NotDownloaded) by comparing a prospective manifest derived from the provided content metadata against local manifests.
+    /// </summary>
+    /// <param name="item">Content metadata used to generate a prospective manifest identifier for matching against local manifests.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>
+    /// <see cref="ContentState.Downloaded"/> if an exact manifest is acquired or a matching local manifest exists with the same or newer version;
+    /// <see cref="ContentState.UpdateAvailable"/> if a matching local manifest exists but a newer version is available;
+    /// <see cref="ContentState.NotDownloaded"/> if no matching manifest is found.
+    /// </returns>
     public async Task<ContentState> GetStateAsync(ContentSearchResult item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -144,6 +153,13 @@ public sealed class ContentStateService(
     /// A tuple containing:
     /// - The matching manifest (or null if not found)
     /// - Whether a newer version is available (true if local version is older than release date)
+    /// <summary>
+    /// Locates a local manifest that matches the prospective manifest's publisher, content type, and content name (ignoring version) and indicates if a newer version is available.
+    /// </summary>
+    /// <param name="prospectiveId">The prospective manifest identifier in the form <c>schemaVersion.userVersion.publisher.contentType.contentName</c>.</param>
+    /// <param name="releaseDate">The prospective content release date used for version comparison.</param>
+    /// <returns>
+    /// A tuple where the first element is the matching local <see cref="ContentManifest"/> or <c>null</c> if none is found, and the second element is <c>true</c> if the prospective manifest's version represents a newer release than the local manifest (comparison is performed only when both versions are 8-digit numeric dates in yyyyMMdd format), <c>false</c> otherwise.
     /// </returns>
     private async Task<(ContentManifest? Manifest, bool IsNewerAvailable)> FindMatchingManifestAsync(
         string prospectiveId,

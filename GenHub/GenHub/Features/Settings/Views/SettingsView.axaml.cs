@@ -26,7 +26,10 @@ public partial class SettingsView : UserControl
     /// <summary>
     /// Called when the control is attached to the visual tree.
     /// </summary>
-    /// <param name="e">The event arguments.</param>
+    /// <summary>
+    /// Marks the settings view as visible and triggers loading of subscriptions when the control is attached to the visual tree and its DataContext is a SettingsViewModel.
+    /// </summary>
+    /// <param name="e">Event data for the visual-tree attachment event.</param>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);

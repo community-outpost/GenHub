@@ -59,7 +59,10 @@ public partial class ContentGridItemViewModel : ObservableObject
     /// Initializes a new instance of the <see cref="ContentGridItemViewModel"/> class.
     /// </summary>
     /// <param name="searchResult">The content search result.</param>
-    /// <param name="logger">The logger instance (optional).</param>
+    /// <summary>
+    /// Initializes a view model for the given content search result.
+    /// </summary>
+    /// <param name="searchResult">The content search result used to populate the view model; must not be null.</param>
     public ContentGridItemViewModel(ContentSearchResult searchResult, ILogger<ContentGridItemViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(searchResult);
@@ -68,6 +71,12 @@ public partial class ContentGridItemViewModel : ObservableObject
         _ = LoadIconAsync();
     }
 
+    /// <summary>
+    /// Loads the content icon specified by <c>IconUrl</c> into <c>IconBitmap</c>, supporting local avares assets and remote HTTP URLs.
+    /// </summary>
+    /// <remarks>
+    /// If loading fails for any reason, the method swallows the error and leaves <c>IconBitmap</c> unchanged so the UI can show a fallback.
+    /// </remarks>
     private async Task LoadIconAsync()
     {
         if (string.IsNullOrEmpty(IconUrl)) return;
@@ -257,6 +266,8 @@ public partial class ContentGridItemViewModel : ObservableObject
 
     /// <summary>
     /// Command to view content details.
+    /// <summary>
+    /// Executes the configured view command, passing this view model as the command parameter.
     /// </summary>
     [RelayCommand]
     private void ViewDetails()
@@ -266,6 +277,8 @@ public partial class ContentGridItemViewModel : ObservableObject
 
     /// <summary>
     /// Command to open source URL in browser.
+    /// <summary>
+    /// Opens the item's source URL by invoking the bound OpenUrlCommand when a source URL is available.
     /// </summary>
     [RelayCommand]
     private void OpenSourceUrl()
@@ -278,6 +291,8 @@ public partial class ContentGridItemViewModel : ObservableObject
 
     /// <summary>
     /// Command to download content.
+    /// <summary>
+    /// Executes the configured DownloadCommand using this view model as the command parameter.
     /// </summary>
     [RelayCommand]
     private void DownloadContent()
@@ -287,6 +302,8 @@ public partial class ContentGridItemViewModel : ObservableObject
 
     /// <summary>
     /// Command to update content to newer version.
+    /// <summary>
+    /// Invokes the configured UpdateCommand, passing this view model as the command parameter if a command is set.
     /// </summary>
     [RelayCommand]
     private void UpdateContent()

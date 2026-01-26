@@ -41,6 +41,12 @@ public static class ComparisonConverters
     /// </summary>
     public static readonly IValueConverter IsNotEqualTo = new NotEqualToConverter();
 
+    /// <summary>
+    /// Attempts to convert the provided value to a <see cref="double"/> using the invariant culture.
+    /// </summary>
+    /// <param name="value">The value to convert; may be null.</param>
+    /// <param name="result">When this method returns, contains the converted double when successful, or 0 when conversion fails.</param>
+    /// <returns><c>true</c> if the value was successfully converted to a double; <c>false</c> otherwise.</returns>
     private static bool TryGetDouble(object? value, out double result)
     {
         if (value == null)

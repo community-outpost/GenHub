@@ -10,6 +10,8 @@ public partial class SubscriptionConfirmationDialog : Avalonia.Controls.Window
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SubscriptionConfirmationDialog"/> class.
+    /// <summary>
+    /// Initializes a new SubscriptionConfirmationDialog instance and loads its UI components.
     /// </summary>
     public SubscriptionConfirmationDialog()
     {
@@ -19,7 +21,10 @@ public partial class SubscriptionConfirmationDialog : Avalonia.Controls.Window
     /// <summary>
     /// Closes the dialog with the specified result.
     /// </summary>
-    /// <param name="result">The result to return from the dialog.</param>
+    /// <summary>
+    /// Closes the dialog and sets its dialog result to the specified value.
+    /// </summary>
+    /// <param name="result">The boolean result to assign to the dialog.</param>
     public void CloseDialog(bool result)
     {
         Close(result);
@@ -28,7 +33,10 @@ public partial class SubscriptionConfirmationDialog : Avalonia.Controls.Window
     /// <summary>
     /// Called when the window is opened.
     /// </summary>
-    /// <param name="e">The event arguments.</param>
+    /// <summary>
+    /// Handles the window opened event by wiring the view model's close delegate and invoking its asynchronous initialization if the DataContext is a SubscriptionConfirmationViewModel.
+    /// </summary>
+    /// <param name="e">The event arguments for the opened event.</param>
     protected override async void OnOpened(EventArgs e)
     {
         base.OnOpened(e);

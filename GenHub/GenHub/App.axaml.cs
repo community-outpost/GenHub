@@ -51,7 +51,14 @@ public partial class App : Application
     /// <summary>
     /// Called when the Avalonia framework initialization is completed.
     /// Sets up the main window and applies window settings.
+    /// <summary>
+    /// Initializes the application's main window and lifecycle when running as a classic desktop application.
     /// </summary>
+    /// <remarks>
+    /// When the application lifetime is a classic desktop lifetime, this method creates the main window with its
+    /// view model, applies persisted window settings, assigns the window as the application's main window,
+    /// registers shutdown handling, subscribes to single-instance IPC commands, and begins processing startup arguments.
+    /// </remarks>
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -78,7 +85,11 @@ public partial class App : Application
     /// Handles a subscription command for a given URL.
     /// </summary>
     /// <param name="url">The URL to subscribe to.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <summary>
+    /// Handles a subscription URL by showing a confirmation dialog and, if confirmed, refreshing the downloads view.
+    /// </summary>
+    /// <param name="url">The subscription URL to process.</param>
+    /// <returns>A task that completes when the subscription command has been processed.</returns>
     public async Task HandleSubscribeCommandAsync(string url)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();
@@ -126,6 +137,12 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Update the main view model to mark the specified profile as running and set a launch status message.
+    /// </summary>
+    /// <param name="mainWindow">The application's main window whose DataContext is the <see cref="MainViewModel"/>.</param>
+    /// <param name="profileId">The identifier of the profile to update; matched case-insensitively against profile IDs.</param>
+    /// <param name="processId">The operating system process ID of the launched profile.</param>
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
     {
         var mainViewModel = mainWindow.DataContext as MainViewModel;
@@ -219,6 +236,12 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Processes startup command-line arguments to launch a game profile or handle a subscription URL.
+    /// </summary>
+    /// <param name="args">Command-line arguments to inspect for a profile ID or subscription URL.</param>
+    /// <param name="mainWindow">The main application window used to update UI state when launching a profile.</param>
+    /// <returns>A task that completes after any detected launch or subscription arguments have been processed.</returns>
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
     {
         if (args == null || args.Length == 0)
@@ -243,6 +266,10 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Subscribes to single-instance IPC commands and dispatches received commands to the UI thread for handling.
+    /// </summary>
+    /// <param name="mainWindow">The application's main window used as the target/context when handling incoming commands.</param>
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
         // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
@@ -262,6 +289,11 @@ public partial class App : Application
         logger?.LogDebug("Subscribed to single instance IPC commands");
     }
 
+    /// <summary>
+    /// Dispatches a single-instance IPC command to the appropriate handler.
+    /// </summary>
+    /// <param name="command">IPC command string. Recognized prefixes: <c>IpcCommands.LaunchProfilePrefix</c> to launch a profile and <c>IpcCommands.SubscribePrefix</c> to process a subscription URL.</param>
+    /// <param name="mainWindow">The main application window used for UI updates when handling the command.</param>
     private void HandleSingleInstanceCommand(string command, MainWindow mainWindow)
     {
         var logger = _serviceProvider.GetService<ILogger<App>>();

@@ -9,6 +9,8 @@ public partial class ContentDetailView : UserControl
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentDetailView"/> class.
+    /// <summary>
+    /// Initializes a new instance of ContentDetailView and loads its XAML-defined components.
     /// </summary>
     public ContentDetailView()
     {
