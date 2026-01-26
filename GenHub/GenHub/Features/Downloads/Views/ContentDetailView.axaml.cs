@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.Downloads.Views;
 
@@ -8,12 +9,15 @@ namespace GenHub.Features.Downloads.Views;
 public partial class ContentDetailView : UserControl
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentDetailView"/> class.
-    /// <summary>
-    /// Initializes a new instance of ContentDetailView and loads its XAML-defined components.
+    /// Initializes a new instance of the <see cref="ContentDetailView"/> class and loads its XAML-defined components.
     /// </summary>
     public ContentDetailView()
     {
         InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }

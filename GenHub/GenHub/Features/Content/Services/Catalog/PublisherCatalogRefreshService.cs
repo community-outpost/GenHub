@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,7 @@ public class PublisherCatalogRefreshService(
     /// <summary>
     /// Refreshes catalogs for all stored publisher subscriptions.
     /// </summary>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>
     /// An <see cref="OperationResult{T}"/> containing `true` when the refresh operation completed successfully; on failure the result contains error details.
     /// </returns>
@@ -42,6 +44,7 @@ public class PublisherCatalogRefreshService(
             if (failures.Count > 0)
             {
                 logger.LogWarning("Refreshed catalogs with {FailureCount} failures", failures.Count);
+                return OperationResult<bool>.CreateFailure($"Failed to refresh {failures.Count} catalogs");
             }
 
             return OperationResult<bool>.CreateSuccess(true);
@@ -73,7 +76,7 @@ public class PublisherCatalogRefreshService(
             logger.LogInformation("Refreshing catalog for: {PublisherName}", subscription.PublisherName);
 
             var httpClient = httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            httpClient.Timeout = TimeSpan.FromSeconds(TimeoutConstants.CatalogRefreshSeconds);
 
             var response = await httpClient.GetAsync(subscription.CatalogUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -94,7 +97,12 @@ public class PublisherCatalogRefreshService(
             subscription.AvatarUrl = parseResult.Data?.Publisher.AvatarUrl ?? subscription.AvatarUrl;
             subscription.PublisherName = parseResult.Data?.Publisher.Name ?? subscription.PublisherName;
 
-            await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+            var updateResult = await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+            if (!updateResult.Success)
+            {
+                logger.LogWarning("Failed to update subscription metadata: {Error}", updateResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to update subscription metadata: {updateResult.FirstError}");
+            }
 
             return OperationResult<bool>.CreateSuccess(true);
         }

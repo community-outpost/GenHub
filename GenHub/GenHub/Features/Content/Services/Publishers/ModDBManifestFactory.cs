@@ -76,16 +76,10 @@ public partial class ModDBManifestFactory(
     }
 
     /// <summary>
-    /// Creates a content manifest from ModDB content details.
-    /// Uses the file's release date to generate a unique manifest ID.
-    /// </summary>
-    /// <param name="details">The parsed ModDB content details.</param>
-    /// <param name="detailPageUrl">The detail page URL.</param>
-    /// <summary>
     /// Create a ContentManifest from parsed ModDB map details.
     /// </summary>
     /// <remarks>
-    /// Generates a release-date-based manifest ID, attaches primary and any additional download files as content-addressable remote files, populates publisher and metadata (including tags, screenshots, and icon), and adds game-specific installation dependencies.
+    /// Generates a release-date-based manifest ID, attaches primary and any additional download files as remote downloads, populates publisher and metadata (including tags, screenshots, and icon), and adds game-specific installation dependencies.
     /// </remarks>
     /// <param name="details">Parsed ModDB details for the content (name, author, submission date, download URL, metadata, screenshots, and any additional files).</param>
     /// <param name="detailPageUrl">The original ModDB detail page URL used as a fallback support URL when provider metadata is not available.</param>
@@ -109,7 +103,7 @@ public partial class ModDBManifestFactory(
         var contentName = SlugifyTitle(details.Name);
 
         // 3. Use release date for manifest ID generation
-        // Format: 1.YYYYMMDD.moddb-{author}.{contentType}.{contentName}
+        // Format: 1.YYYYMMDD.moddb.{contentType}.{contentName}
         var releaseDate = details.SubmissionDate;
 
         // 4. Generate manifest ID with release date using ManifestIdGenerator
@@ -134,9 +128,10 @@ public partial class ModDBManifestFactory(
         var supportUrl = provider?.Endpoints.SupportUrl ?? detailPageUrl;
 
         // Format release date as YYYYMMDD for the manifest version
-        var releaseDateVersion = releaseDate.ToString("yyyyMMdd");
+        var releaseDateVersion = releaseDate.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
 
         var manifest = manifestBuilder
+            .WithId(ManifestId.Create(manifestId))
             .WithBasicInfo(publisherId, details.Name, releaseDateVersion)
             .WithContentType(details.ContentType, details.TargetGame)
             .WithPublisher(
@@ -156,14 +151,13 @@ public partial class ModDBManifestFactory(
         // 7. Add the download files
         var addedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Add primary file
         var primaryFileName = ExtractFileNameFromUrl(details.DownloadUrl);
-        logger.LogInformation("[TEMP] ModDBManifestFactory - Adding primary file: {FileName} from URL: {Url}", primaryFileName, details.DownloadUrl);
+        logger.LogDebug("Adding primary file: {FileName} from URL: {Url}", primaryFileName, details.DownloadUrl);
 
         manifest = await manifest.AddRemoteFileAsync(
             primaryFileName,
             details.DownloadUrl,
-            ContentSourceType.ContentAddressable,
+            ContentSourceType.RemoteDownload,
             isExecutable: false,
             permissions: null);
 
@@ -179,12 +173,12 @@ public partial class ModDBManifestFactory(
 
                 var fileName = !string.IsNullOrEmpty(file.Name) ? file.Name : ExtractFileNameFromUrl(file.DownloadUrl);
 
-                logger.LogInformation("[TEMP] ModDBManifestFactory - Adding additional file: {FileName} from URL: {Url}", fileName, file.DownloadUrl);
+                logger.LogDebug("Adding additional file: {FileName} from URL: {Url}", fileName, file.DownloadUrl);
 
                 manifest = await manifest.AddRemoteFileAsync(
                     fileName,
                     file.DownloadUrl,
-                    ContentSourceType.ContentAddressable,
+                    ContentSourceType.RemoteDownload,
                     isExecutable: false,
                     permissions: null);
 
@@ -192,19 +186,13 @@ public partial class ModDBManifestFactory(
             }
         }
 
-        logger.LogInformation("[TEMP] ModDBManifestFactory - {Count} total files added to manifest with CAS storage", addedUrls.Count);
-
         // 8. Add dependencies based on target game
         manifest = AddGameDependencies(manifest, details.TargetGame);
 
-        var builtManifest = manifest.Build();
-
-        // Override the manifest ID with our pre-generated ID that uses the release date
-        // This ensures the ID matches the format: 1.YYYYMMDD.moddb.{contentType}.{contentName}
-        builtManifest.Id = ManifestId.Create(manifestId);
-
-        return builtManifest;
+        return manifest.Build();
     }
+
+    private static readonly SlugHelper _slugHelper = new();
 
     /// <summary>
     /// Normalizes an author name for use in a publisher ID.
@@ -221,8 +209,7 @@ public partial class ModDBManifestFactory(
 
         // Remove all non-alphanumeric characters and convert to lowercase
         // Using Slugify to normalize the author name
-        var slugHelper = new SlugHelper();
-        var normalized = slugHelper.GenerateSlug(author).Replace("-", string.Empty);
+        var normalized = _slugHelper.GenerateSlug(author).Replace("-", string.Empty);
 
         // If the result is empty after normalization, use default
         return string.IsNullOrEmpty(normalized) ? ModDBConstants.DefaultAuthor : normalized;
@@ -242,8 +229,7 @@ public partial class ModDBManifestFactory(
 
         try
         {
-            var slugHelper = new SlugHelper();
-            var slug = slugHelper.GenerateSlug(title);
+            var slug = _slugHelper.GenerateSlug(title);
             return string.IsNullOrEmpty(slug) ? ModDBConstants.DefaultContentName : slug;
         }
         catch
@@ -253,10 +239,6 @@ public partial class ModDBManifestFactory(
         }
     }
 
-    /// <summary>
-    /// Generates appropriate tags for ModDB content.
-    /// </summary>
-    /// <param name="details">The content details.</param>
     /// <summary>
     /// Builds the metadata tag list for a ModDB content item from its details.
     /// </summary>

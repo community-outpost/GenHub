@@ -38,6 +38,43 @@ public partial class ContentDetailViewModel : ObservableObject
         Timeout = TimeSpan.FromSeconds(10),
     };
 
+    /// <summary>
+    /// Formats a user-friendly progress status message based on the current acquisition phase.
+    /// </summary>
+    /// <param name="progress">The current content acquisition progress.</param>
+    /// <returns>A formatted status string; for example, "Downloading: archive.zip" or "Extracting".</returns>
+    internal static string FormatProgressStatus(ContentAcquisitionProgress progress)
+    {
+        var phaseName = progress.Phase switch
+        {
+            ContentAcquisitionPhase.None => "Preparing",
+            ContentAcquisitionPhase.Downloading => "Downloading",
+            ContentAcquisitionPhase.Extracting => "Extracting",
+            ContentAcquisitionPhase.Copying => "Copying",
+            ContentAcquisitionPhase.ValidatingManifest => "Validating manifest",
+            ContentAcquisitionPhase.ValidatingFiles => "Validating files",
+            ContentAcquisitionPhase.StoringInCas => "Storing",
+            ContentAcquisitionPhase.Delivering => "Installing",
+            ContentAcquisitionPhase.Completed => "Complete",
+            _ => "Processing",
+        };
+
+        if (!string.IsNullOrEmpty(progress.CurrentOperation))
+        {
+            return $"{phaseName}: {progress.CurrentOperation}";
+        }
+
+        var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
+
+        if (progress.TotalFiles > 0)
+        {
+            var phasePercent = (int)((double)progress.FilesProcessed / progress.TotalFiles * 100);
+            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
+        }
+
+        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
+    }
+
     private readonly ContentSearchResult _searchResult;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ContentDetailViewModel> _logger;
@@ -65,6 +102,8 @@ public partial class ContentDetailViewModel : ObservableObject
     private bool _isDownloading;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
+    [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
     private bool _isDownloaded;
 
     [ObservableProperty]
@@ -98,18 +137,7 @@ public partial class ContentDetailViewModel : ObservableObject
     private bool _isLoadingAddons;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentDetailViewModel"/> class.
-    /// </summary>
-    /// <param name="searchResult">The content search result.</param>
-    /// <param name="serviceProvider">The service provider for resolving dependencies.</param>
-    /// <param name="parsers">The web page parsers.</param>
-    /// <param name="downloadService">The download service instance.</param>
-    /// <param name="profileContentService">The profile content service instance.</param>
-    /// <param name="profileManager">The profile manager instance.</param>
-    /// <param name="notificationService">The notification service instance.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <summary>
-    /// Creates a new ContentDetailViewModel, stores dependencies, initializes screenshots, and begins loading the icon and basic parsed page data.
+    /// Initializes a new instance of the <see cref="ContentDetailViewModel"/> class, stores dependencies, initializes screenshots, and begins loading the icon and basic parsed page data.
     /// </summary>
     /// <param name="searchResult">Initial search result used to populate metadata and screenshot URLs.</param>
     /// <param name="serviceProvider">Service provider used to resolve runtime services.</param>
@@ -134,6 +162,8 @@ public partial class ContentDetailViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(searchResult);
         ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(parsers);
+        ArgumentNullException.ThrowIfNull(downloadService);
         ArgumentNullException.ThrowIfNull(profileContentService);
         ArgumentNullException.ThrowIfNull(profileManager);
         ArgumentNullException.ThrowIfNull(notificationService);
@@ -175,8 +205,6 @@ public partial class ContentDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Command to close the detail view (navigate back).
-    /// <summary>
     /// Invokes the configured close action to close or navigate away from the content detail view.
     /// </summary>
     [RelayCommand]
@@ -214,14 +242,14 @@ public partial class ContentDetailViewModel : ObservableObject
                 IconBitmap = new Avalonia.Media.Imaging.Bitmap(stream);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "Failed to load icon from {Url}", IconUrl);
+
             // Ignore load failures, fallback will be shown
         }
     }
 
-    /// <summary>
-    /// Loads the basic parsed page data (context and overview info) without loading all tab content.
     /// <summary>
     /// Loads basic parsed page data for the content's source URL and applies it to the view model.
     /// </summary>
@@ -271,9 +299,7 @@ public partial class ContentDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Ensures the basic parsed page data is loaded before accessing tab content.
-    /// <summary>
-    /// Ensures that the basic parsed page data has been loaded into the view model.
+    /// Ensures that the basic parsed page data has been loaded into the view model before accessing tab content.
     /// </summary>
     /// <returns>A task that completes once the basic parsed data has been loaded.</returns>
     private async Task EnsureBasicDataLoadedAsync()
@@ -284,8 +310,6 @@ public partial class ContentDetailViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Loads rich content from the parsed web page data.
     /// <summary>
     /// Populates view-model properties from the parsed web page and raises PropertyChanged notifications for all dependent metadata, collections, and visibility flags.
     /// </summary>
@@ -315,8 +339,8 @@ public partial class ContentDetailViewModel : ObservableObject
         OnPropertyChanged(nameof(HasVersion));
         OnPropertyChanged(nameof(HasAuthor));
 
-        // Reload icon if the URL changed from parsed context
-        if (!string.IsNullOrEmpty(parsedPage.Context.IconUrl) && IconBitmap == null)
+        // Reload icon if the URL changed from parsed context or search result
+        if (!string.IsNullOrEmpty(IconUrl) && IconBitmap == null)
         {
             _ = LoadIconAsync();
         }
@@ -332,6 +356,7 @@ public partial class ContentDetailViewModel : ObservableObject
         // Notify visibility properties
         OnPropertyChanged(nameof(HasFiles));
         OnPropertyChanged(nameof(ShowFilesTab));
+        OnPropertyChanged(nameof(HasGitHubVariants));
         OnPropertyChanged(nameof(HasImages));
         OnPropertyChanged(nameof(HasVideos));
         OnPropertyChanged(nameof(HasComments));
@@ -340,8 +365,6 @@ public partial class ContentDetailViewModel : ObservableObject
         OnPropertyChanged(nameof(HasCommunity));
     }
 
-    /// <summary>
-    /// Lazy loads images when the Images tab is accessed.
     /// <summary>
     /// Loads the Images tab content on first access and updates related UI properties.
     /// </summary>
@@ -382,8 +405,6 @@ public partial class ContentDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Lazy loads videos when the Videos tab is accessed.
-    /// <summary>
     /// Lazily loads the Videos tab content for the view model, ensuring basic parsed data is available and updating UI-bound properties.
     /// </summary>
     /// <remarks>
@@ -421,8 +442,6 @@ public partial class ContentDetailViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Lazy loads releases when the Releases tab is accessed.
     /// <summary>
     /// Loads release files from the parsed page into the Releases collection for the Releases tab.
     /// </summary>
@@ -466,8 +485,6 @@ public partial class ContentDetailViewModel : ObservableObject
         }
     }
 
-    /// <summary>
-    /// Lazy loads addons when the Addons tab is accessed.
     /// <summary>
     /// Lazily loads addon file entries from the parsed page into the Addons collection and updates related UI state.
     /// </summary>
@@ -531,9 +548,36 @@ public partial class ContentDetailViewModel : ObservableObject
     public ObservableCollection<Image> Images => ParsedPage?.Sections.OfType<Image>().ToObservableCollection() ?? [];
 
     /// <summary>
-    /// Gets the files from the parsed page.
+    /// Gets the files from the parsed page, including GitHub variants if available.
     /// </summary>
-    public ObservableCollection<WebFile> Files => ParsedPage?.Sections.OfType<WebFile>().ToObservableCollection() ?? [];
+    public ObservableCollection<WebFile> Files
+    {
+        get
+        {
+            // First try to get files from parsed page
+            var files = ParsedPage?.Sections.OfType<WebFile>().ToList() ?? [];
+
+            // Check for GitHub variants in the search result
+            if (files.Count == 0 && _searchResult.ResolverMetadata.TryGetValue("has-variants", out var hasVariants)
+                && bool.TryParse(hasVariants, out var hasVariantsBool) && hasVariantsBool)
+            {
+                var variants = _searchResult.GetData<List<GenHub.Core.Models.GitHub.GitHubVariantArtifact>>("variants");
+                if (variants != null)
+                {
+                    foreach (var variant in variants)
+                    {
+                        files.Add(new WebFile(
+                            variant.DisplayName,
+                            DownloadUrl: variant.DownloadUrl,
+                            SizeBytes: variant.SizeInBytes,
+                            OriginalFileName: variant.Name));
+                    }
+                }
+            }
+
+            return files.ToObservableCollection();
+        }
+    }
 
     /// <summary>
     /// Gets the reviews from the parsed page.
@@ -552,9 +596,17 @@ public partial class ContentDetailViewModel : ObservableObject
 
     /// <summary>
     /// Gets a value indicating whether the Files tab should be shown.
-    /// Only show if there are multiple files (more than 1).
+    /// Show if there are multiple files OR if there are GitHub variants.
     /// </summary>
-    public bool ShowFilesTab => Files.Count > 1;
+    public bool ShowFilesTab => Files.Count > 1 || HasGitHubVariants;
+
+    /// <summary>
+    /// Gets a value indicating whether this content has GitHub release variants.
+    /// </summary>
+    public bool HasGitHubVariants =>
+        _searchResult.ResolverMetadata.TryGetValue("has-variants", out var hasVariants)
+        && bool.TryParse(hasVariants, out var hasVariantsBool)
+        && hasVariantsBool;
 
     /// <summary>
     /// Gets a value indicating whether images are available.
@@ -673,9 +725,11 @@ public partial class ContentDetailViewModel : ObservableObject
     public string ProviderName => _searchResult.ProviderName ?? string.Empty;
 
     /// <summary>
-    /// Gets the icon URL - prefers parsed page context icon.
+    /// Gets the icon URL - prefers parsed page context icon if non-empty.
     /// </summary>
-    public string? IconUrl => ParsedPage?.Context.IconUrl ?? _searchResult.IconUrl;
+    public string? IconUrl => !string.IsNullOrEmpty(ParsedPage?.Context.IconUrl)
+        ? ParsedPage.Context.IconUrl
+        : _searchResult.IconUrl;
 
     /// <summary>
     /// Gets the collection of screenshot URLs.
@@ -702,8 +756,6 @@ public partial class ContentDetailViewModel : ObservableObject
     /// </summary>
     public bool ShowAddToProfileButton => IsDownloaded && !IsUpdateAvailable;
 
-    /// <summary>
-    /// Command to download the main content.
     /// <summary>
     /// Initiates download of the current content, updates the view-model's download state and progress, and notifies other components and the user on completion.
     /// </summary>
@@ -796,47 +848,6 @@ public partial class ContentDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Formats a user-friendly progress status message.
-    /// <summary>
-    /// Builds a human-readable status message for the given content acquisition progress.
-    /// </summary>
-    /// <param name="progress">Progress details including phase, current operation, files processed, total files, and progress percentage.</param>
-    /// <returns>A status string describing the current phase and, when available, the current operation; otherwise file counts with a computed percentage or an overall percentage.</returns>
-    private static string FormatProgressStatus(ContentAcquisitionProgress progress)
-    {
-        var phaseName = progress.Phase switch
-        {
-            ContentAcquisitionPhase.Downloading => "Downloading",
-            ContentAcquisitionPhase.Extracting => "Extracting",
-            ContentAcquisitionPhase.Copying => "Copying",
-            ContentAcquisitionPhase.ValidatingManifest => "Validating manifest",
-            ContentAcquisitionPhase.ValidatingFiles => "Validating files",
-            ContentAcquisitionPhase.Delivering => "Installing",
-            ContentAcquisitionPhase.Completed => "Complete",
-            _ => "Processing",
-        };
-
-        if (!string.IsNullOrEmpty(progress.CurrentOperation))
-        {
-            return $"{phaseName}: {progress.CurrentOperation}";
-        }
-
-        var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
-
-        if (progress.TotalFiles > 0)
-        {
-            var phasePercent = progress.TotalFiles > 0
-                ? (int)((double)progress.FilesProcessed / progress.TotalFiles * 100)
-                : 0;
-            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
-        }
-
-        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
-    }
-
-    /// <summary>
-    /// Command to update the content (download newer version).
-    /// <summary>
     /// Initiates an update for the current content by downloading and applying any available updates.
     /// </summary>
     /// <param name="cancellationToken">Token to cancel the update operation.</param>
@@ -848,10 +859,6 @@ public partial class ContentDetailViewModel : ObservableObject
         await DownloadAsync(cancellationToken);
     }
 
-    /// <summary>
-    /// Command to download an individual file from the Files list.
-    /// </summary>
-    /// <param name="file">The file to download.</param>
     /// <summary>
     /// Initiates downloading of the specified web file for this content item.
     /// </summary>
@@ -870,24 +877,17 @@ public partial class ContentDetailViewModel : ObservableObject
         {
             _logger.LogInformation("Downloading individual file: {FileName} from {Url}", file.Name, file.DownloadUrl);
 
-            _logger.LogInformation("Downloading individual file: {FileName} from {Url}", file.Name, file.DownloadUrl);
-
-            // TODO: Implement individual file download
-            _notificationService.ShowWarning("Not Implemented", "Individual file downloading is coming soon. Please download the full content package.");
-            return;
-            // This would use IDownloadService to download the specific file
-            // For now, we'll just trigger the main download
+            // Implementation: Trigger the main download flow since we need to create a manifest for the file
+            // The ContentOrchestrator handles this properly via AcquireContentAsync
             await DownloadAsync(cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error downloading file: {FileName}", file.Name);
+            _notificationService.ShowError("Download Error", $"Failed to download {file.Name}: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Command to set the selected screenshot.
-    /// </summary>
     /// <summary>
     /// Selects the specified screenshot URL as the currently displayed screenshot.
     /// </summary>
@@ -898,8 +898,6 @@ public partial class ContentDetailViewModel : ObservableObject
         SelectedScreenshotUrl = url;
     }
 
-    /// <summary>
-    /// Command to add the downloaded content to a game profile.
     /// <summary>
     /// Opens the profile selection dialog to add the current content to a profile.
     /// </summary>
@@ -923,40 +921,6 @@ public partial class ContentDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Downloads an individual file from the WebFile.
-    /// </summary>
-    /// <summary>
-    /// Starts the download process for the specified WebFile by delegating to the primary download flow.
-    /// </summary>
-    /// <param name="file">The WebFile to download; must have a non-empty DownloadUrl. If null or missing a URL, the method logs a warning and shows an error notification.</param>
-    private async Task DownloadFileAsync(WebFile file)
-    {
-        if (file == null || string.IsNullOrEmpty(file.DownloadUrl))
-        {
-            _logger.LogWarning("Cannot download file: invalid file or missing download URL");
-            _notificationService.ShowError("Download Error", "Invalid file or missing download URL.");
-            return;
-        }
-
-        try
-        {
-            _logger.LogInformation("Downloading individual file: {FileName} from {Url}", file.Name, file.DownloadUrl);
-
-            // For individual file downloads, we trigger the main download flow
-            // The resolver will handle creating the appropriate manifest
-            await DownloadAsync(CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error downloading file: {FileName}", file.Name);
-            _notificationService.ShowError("Download Error", $"Failed to download {file.Name}: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Adds a specific file's manifest to a profile.
-    /// </summary>
-    /// <summary>
     /// Opens the profile selection dialog to add the specified file's manifest to a profile.
     /// </summary>
     /// <param name="file">The WebFile whose manifest should be added; if null the method logs a warning and does nothing.</param>
@@ -974,8 +938,6 @@ public partial class ContentDetailViewModel : ObservableObject
         await ShowProfileSelectionDialogAsync();
     }
 
-    /// <summary>
-    /// Shows the profile selection dialog for adding content to a profile.
     /// <summary>
     /// Shows a profile selection dialog to add the currently selected content to a user profile.
     /// </summary>
@@ -1094,6 +1056,7 @@ public partial class ContentDetailViewModel : ObservableObject
 
                 // Wire up commands
                 DownloadCommand = new RelayCommand(async () => await DownloadFileAsync(file)),
+                AddToProfileCommand = new RelayCommand(async () => await AddFileToProfileAsync(file)),
             };
 
             Releases.Add(releaseItem);

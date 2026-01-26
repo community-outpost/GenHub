@@ -56,13 +56,10 @@ public partial class ContentGridItemViewModel : ObservableObject
     private Bitmap? _iconBitmap;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentGridItemViewModel"/> class.
-    /// </summary>
-    /// <param name="searchResult">The content search result.</param>
-    /// <summary>
-    /// Initializes a view model for the given content search result.
+    /// Initializes a new instance of the <see cref="ContentGridItemViewModel"/> class with the specified search result and optional logger.
     /// </summary>
     /// <param name="searchResult">The content search result used to populate the view model; must not be null.</param>
+    /// <param name="logger">The optional logger for this view model.</param>
     public ContentGridItemViewModel(ContentSearchResult searchResult, ILogger<ContentGridItemViewModel>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(searchResult);
@@ -99,9 +96,9 @@ public partial class ContentGridItemViewModel : ObservableObject
                 IconBitmap = new Bitmap(stream);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore load failures, fallback will be shown
+            _logger?.LogWarning(ex, "Failed to load icon for content {ContentName} from URL {IconUrl}", Name, IconUrl);
         }
     }
 
@@ -232,9 +229,6 @@ public partial class ContentGridItemViewModel : ObservableObject
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
     /// </summary>
-    /// <summary>
-    /// Gets a value indicating whether the Add to Profile button should be shown.
-    /// </summary>
     public bool ShowAddToProfileButton => CurrentState == ContentState.Downloaded || CurrentState == ContentState.UpdateAvailable;
 
     /// <summary>
@@ -268,8 +262,6 @@ public partial class ContentGridItemViewModel : ObservableObject
     public System.Windows.Input.ICommand? UpdateCommand { get; set; }
 
     /// <summary>
-    /// Command to view content details.
-    /// <summary>
     /// Executes the configured view command, passing this view model as the command parameter.
     /// </summary>
     [RelayCommand]
@@ -278,8 +270,6 @@ public partial class ContentGridItemViewModel : ObservableObject
         ViewCommand?.Execute(this);
     }
 
-    /// <summary>
-    /// Command to open source URL in browser.
     /// <summary>
     /// Opens the item's source URL by invoking the bound OpenUrlCommand when a source URL is available.
     /// </summary>
@@ -293,8 +283,6 @@ public partial class ContentGridItemViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Command to download content.
-    /// <summary>
     /// Executes the configured DownloadCommand using this view model as the command parameter.
     /// </summary>
     [RelayCommand]
@@ -303,8 +291,6 @@ public partial class ContentGridItemViewModel : ObservableObject
         DownloadCommand?.Execute(this);
     }
 
-    /// <summary>
-    /// Command to update content to newer version.
     /// <summary>
     /// Invokes the configured UpdateCommand, passing this view model as the command parameter if a command is set.
     /// </summary>

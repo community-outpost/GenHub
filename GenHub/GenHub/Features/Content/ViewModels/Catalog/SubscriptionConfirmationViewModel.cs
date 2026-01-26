@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -53,9 +54,6 @@ public partial class SubscriptionConfirmationViewModel(
     private PublisherCatalog? _parsedCatalog;
 
     /// <summary>
-    /// Initializes the ViewModel by fetching the catalog metadata.
-    /// </summary>
-    /// <summary>
     /// Loads the publisher catalog from the configured URL, parses it, and updates the view model's publisher metadata and state flags.
     /// </summary>
     /// <returns>A task that completes once the catalog has been fetched and the view model state has been updated.</returns>
@@ -66,11 +64,13 @@ public partial class SubscriptionConfirmationViewModel(
             IsLoading = true;
             ErrorMessage = null;
             CanConfirm = false;
+            _parsedCatalog = null; // Reset to avoid stale data from previous attempts
 
             logger.LogInformation("Fetching catalog from {Url}", catalogUrl);
-            var response = await httpClient.GetStringAsync(catalogUrl);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var response = await httpClient.GetStringAsync(catalogUrl, cts.Token);
 
-            var result = await catalogParser.ParseCatalogAsync(response);
+            var result = await catalogParser.ParseCatalogAsync(response, cts.Token);
             if (result.Success && result.Data != null)
             {
                 _parsedCatalog = result.Data;
@@ -85,6 +85,11 @@ public partial class SubscriptionConfirmationViewModel(
                 ErrorMessage = string.Join(Environment.NewLine, result.Errors);
                 logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Catalog fetch timed out for {Url}", catalogUrl);
+            ErrorMessage = "Failed to fetch catalog: Request timed out (30s). Please check your connection and try again.";
         }
         catch (Exception ex)
         {

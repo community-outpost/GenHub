@@ -266,7 +266,6 @@ public class MainViewModelTests
             mockUpdateManager.Object,
             new Mock<IPublisherSubscriptionStore>().Object,
             new Mock<IPublisherCatalogRefreshService>().Object,
-            new Mock<IGitHubApiClient>().Object,
             mockNotificationServiceForSettings.Object,
             mockConfigurationProvider.Object,
             mockInstallationService.Object,
@@ -298,7 +297,8 @@ public class MainViewModelTests
         var mockContentOrchestrator = new Mock<IContentOrchestrator>();
         var mockProfileContentService = new Mock<IProfileContentService>();
         var mockProfileManager = new Mock<IGameProfileManager>();
-        var mockNotificationService = new Mock<INotificationService>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockParsers = Enumerable.Empty<GenHub.Core.Interfaces.Parsers.IWebPageParser>();
 
         return new DownloadsBrowserViewModel(
             mockServiceProvider.Object,
@@ -309,7 +309,8 @@ public class MainViewModelTests
             mockContentOrchestrator.Object,
             mockProfileContentService.Object,
             mockProfileManager.Object,
-            mockNotificationService.Object);
+            mockNotificationService.Object,
+            mockParsers);
     }
 
     /// <summary>

@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
@@ -39,6 +40,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
     /// Discovers GitHub release content according to the provided search query and configured repositories.
     /// </summary>
     /// <param name="query">Search and pagination parameters (search term, page, and page size) that control filtering and result paging.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>
     /// An OperationResult containing a ContentDiscoveryResult with the discovered (and paginated) ContentSearchResult items, total item count (or -1 when only the latest release per repo was loaded), and HasMoreItems flag; or a failed OperationResult with error messages if discovery encountered errors and returned no results.
     /// </returns>
@@ -68,7 +70,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         // Determine whether to load all releases or just the latest
         // Page 1 with default Take = load only latest releases (1 per repo) to conserve API calls
         // LoadMore (page > 1 or explicitly requesting all) = load additional releases
-        bool loadOnlyLatest = (query.Page ?? 1) == 1 && query.Take <= relevantRepos.Count;
+        bool loadOnlyLatest = (query.Page ?? 1) == 1 && (query.Take == 0 || query.Take <= relevantRepos.Count);
 
         foreach (var (owner, repo) in relevantRepos)
         {
@@ -85,7 +87,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                 }
                 else
                 {
-                    // Fetch all releases when explicitly requested (Load More)
+                    // Fetch all releases when explicitly requested (Load More or non-standard page 1)
                     logger.LogDebug("Fetching all releases for {Owner}/{Repo}", owner, repo);
                     releases = (await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken)) ?? [];
                 }
@@ -106,7 +108,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
 
                         results.Add(new ContentSearchResult
                         {
-                            Id = $"github.{owner}.{repo}.{release.TagName}",
+                            Id = ManifestIdGenerator.GenerateGitHubContentId(owner, repo, inferredContentType.Type, release.TagName),
                             Name = release.Name ?? $"{repo} {release.TagName}",
                             Description = release.Body ?? "GitHub release - full details available after resolution",
                             Version = release.TagName.TrimStart('v', 'V'),
@@ -145,7 +147,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         }
 
         // Sort by date descending (newest first)
-        results = results.OrderByDescending(r => r.LastUpdated).ToList();
+        results = [.. results.OrderByDescending(r => r.LastUpdated)];
 
         // Apply pagination
         var totalItems = results.Count;
@@ -156,9 +158,11 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
 
         var paginatedResults = results.Skip(skip).Take(pageSize).ToList();
 
-        // HasMoreItems is true if we loaded only latest releases (user can request more)
-        // or if there are more items in the paginated results
-        var hasMoreItems = loadOnlyLatest || (skip + paginatedResults.Count < totalItems);
+        // HasMoreItems:
+        // 1. If no items found at all, then no more items exist.
+        // 2. If we only loaded latest, we assume more exists (multiple releases per repo).
+        // 3. If we loaded all, check if there are more in the total set.
+        var hasMoreItems = totalItems > 0 && (loadOnlyLatest || (skip + paginatedResults.Count < totalItems));
 
         logger.LogInformation(
             "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}, LoadedOnlyLatest: {LoadedOnlyLatest}",

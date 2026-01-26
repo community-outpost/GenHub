@@ -12,9 +12,7 @@ namespace GenHub.Common.Views;
 public partial class MainWindow : Window
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="MainWindow"/> class.
-    /// <summary>
-    /// Initializes the main application window, loads XAML components, and registers drag-and-drop event handlers for file drop and drag-over.
+    /// Initializes a new instance of the <see cref="MainWindow"/> class and registers drag-and-drop event handlers for file drop and drag-over.
     /// </summary>
     public MainWindow()
     {
@@ -67,10 +65,6 @@ public partial class MainWindow : Window
                         {
                             if (Avalonia.Application.Current is App app)
                             {
-                                // Call the internal subscription handler
-                                // We use reflection or make it public if needed,
-                                // but App already has SingleInstance handle logic.
-                                // Actually we can just call the public method if we add it.
                                 await app.HandleSubscribeCommandAsync(url);
                             }
                         }

@@ -12,6 +12,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,7 @@ public partial class App : Application
     private readonly IProfileLauncherFacade _profileLauncherFacade;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
+    /// Initializes a new instance of the <see cref="App"/> class and registers drag-and-drop event handlers for file drop and drag-over.
     /// </summary>
     /// <param name="serviceProvider">The application's service provider for dependency injection.</param>
     public App(IServiceProvider serviceProvider)
@@ -48,9 +49,6 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    /// <summary>
-    /// Called when the Avalonia framework initialization is completed.
-    /// Sets up the main window and applies window settings.
     /// <summary>
     /// Initializes the application's main window and lifecycle when running as a classic desktop application.
     /// </summary>
@@ -82,10 +80,6 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Handles a subscription command for a given URL.
-    /// </summary>
-    /// <param name="url">The URL to subscribe to.</param>
-    /// <summary>
     /// Handles a subscription URL by showing a confirmation dialog and, if confirmed, refreshing the downloads view.
     /// </summary>
     /// <param name="url">The subscription URL to process.</param>
@@ -97,8 +91,6 @@ public partial class App : Application
         {
             logger?.LogInformation("Processing subscription for URL: {Url}", url);
 
-            // For now, we'll just log it.
-            // Phase 5 will implement the confirmation dialog and actual subscription logic.
             // Dispatch to UI thread if we need to show a dialog
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
@@ -119,7 +111,7 @@ public partial class App : Application
 
                         // Optional: Trigger a refresh of the publishers list in DownloadsBrowserViewModel if it's active
                         var mainVm = desktop.MainWindow.DataContext as MainViewModel;
-                        if (mainVm?.DownloadsViewModel is { } downloadsVm)
+                        if (mainVm?.DownloadsViewModel is DownloadsBrowserViewModel downloadsVm)
                         {
                             await downloadsVm.InitializeAsync();
                         }
@@ -309,6 +301,13 @@ public partial class App : Application
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
             var url = command[IpcCommands.SubscribePrefix.Length..];
+
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                logger?.LogWarning("Received IPC subscribe command with empty URL - ignoring");
+                return;
+            }
+
             logger?.LogInformation("Received IPC subscribe command for URL: {Url}", url);
 
             // Handle subscription

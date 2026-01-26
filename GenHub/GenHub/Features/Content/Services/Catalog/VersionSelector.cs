@@ -32,7 +32,7 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
         {
             VersionPolicy.LatestStableOnly => GetLatestStableReleases(releasesList),
             VersionPolicy.AllVersions => releasesList,
-            VersionPolicy.IncludePrereleases => GetLatestWithPrereleases(releasesList),
+            VersionPolicy.LatestIncludingPrereleases => GetLatestWithPrereleases(releasesList),
             _ => throw new ArgumentOutOfRangeException(nameof(policy), policy, "Unknown version policy"),
         };
     }
@@ -40,19 +40,20 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
     /// <summary>
     /// Selects the most recent stable (non-prerelease) content release, preferring a release marked <c>IsLatest</c>.
     /// </summary>
+    /// <param name="releases">The collection of releases to search.</param>
     /// <returns>The stable release marked <c>IsLatest</c> with the latest <c>ReleaseDate</c>, or if none is marked <c>IsLatest</c> the stable release with the latest <c>ReleaseDate</c>; returns <c>null</c> if no stable releases are found.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="releases"/> is <c>null</c>.</exception>
     public ContentRelease? GetLatestStable(IEnumerable<ContentRelease> releases)
     {
         ArgumentNullException.ThrowIfNull(releases);
 
-        return releases
+        // Cache filtered and sorted collection to avoid double enumeration
+        var stableReleases = releases
             .Where(r => !r.IsPrerelease)
             .OrderByDescending(r => r.ReleaseDate)
-            .FirstOrDefault(r => r.IsLatest) ?? releases
-            .Where(r => !r.IsPrerelease)
-            .OrderByDescending(r => r.ReleaseDate)
-            .FirstOrDefault();
+            .ToList();
+
+        return stableReleases.FirstOrDefault(r => r.IsLatest) ?? stableReleases.FirstOrDefault();
     }
 
     /// <inheritdoc />
@@ -62,6 +63,7 @@ public class VersionSelector(ILogger<VersionSelector> logger) : IVersionSelector
 
         return releases
             .OrderByDescending(r => r.ReleaseDate)
+            .ThenByDescending(r => r.Version)
             .FirstOrDefault();
     }
 

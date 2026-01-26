@@ -41,15 +41,8 @@ public sealed class ContentStateService(
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        // 1. Get release date from item.LastUpdated or use DateTime.MinValue
-        var releaseDate = item.LastUpdated ?? DateTime.MinValue;
-
-        // 2. Generate prospective manifest ID (used for parsing segments)
-        var prospectiveId = ManifestIdGenerator.GeneratePublisherContentId(
-            item.ProviderName ?? "unknown",
-            item.ContentType,
-            item.Name ?? item.Id ?? "unknown",
-            releaseDate == DateTime.MinValue ? DateTime.Now : releaseDate);
+        // 2. Generate prospective manifest ID
+        var prospectiveId = GetProspectiveId(item);
 
         _logger.LogDebug(
             "Generated prospective manifest ID: {ManifestId} for content: {ContentName}",
@@ -66,7 +59,7 @@ public sealed class ContentStateService(
 
         // 4. Find ANY matching manifest by publisher+type+name, ignoring version
         // This handles cases where factories use different versioning schemes (date vs numeric)
-        var (matchingManifest, isNewerAvailable) = await FindMatchingManifestAsync(prospectiveId, releaseDate, cancellationToken);
+        var (matchingManifest, isNewerAvailable) = await FindMatchingManifestAsync(prospectiveId, cancellationToken);
 
         if (matchingManifest != null)
         {
@@ -102,6 +95,14 @@ public sealed class ContentStateService(
         ArgumentException.ThrowIfNullOrWhiteSpace(publisher);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentName);
 
+        // Treat default date as unknown to avoid manifest ID exceptions
+        if (releaseDate == default)
+        {
+            _logger.LogWarning("GetStateAsync called with default releaseDate for {ContentName}; using unknown-state logic.", contentName);
+
+            // This will fall through to GetProspectiveId handling it as null (version 0 fallback)
+        }
+
         // Create a temporary ContentSearchResult for processing
         var item = new ContentSearchResult
         {
@@ -109,7 +110,7 @@ public sealed class ContentStateService(
             ContentType = contentType,
             Name = contentName,
             Id = contentName,
-            LastUpdated = releaseDate,
+            LastUpdated = releaseDate == default ? null : releaseDate,
         };
 
         return await GetStateAsync(item, cancellationToken);
@@ -120,15 +121,8 @@ public sealed class ContentStateService(
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        // 1. Get release date from item.LastUpdated or use DateTime.MinValue
-        var releaseDate = item.LastUpdated ?? DateTime.MinValue;
-
         // 2. Generate prospective manifest ID
-        var prospectiveId = ManifestIdGenerator.GeneratePublisherContentId(
-            item.ProviderName ?? "unknown",
-            item.ContentType,
-            item.Name ?? item.Id ?? "unknown",
-            releaseDate);
+        var prospectiveId = GetProspectiveId(item);
 
         // 3. Check if exact match exists (fast path)
         var isAcquiredResult = await _manifestPool.IsManifestAcquiredAsync(prospectiveId, cancellationToken);
@@ -138,8 +132,54 @@ public sealed class ContentStateService(
         }
 
         // 4. Find ANY matching manifest by publisher+type+name, ignoring version
-        var (matchingManifest, _) = await FindMatchingManifestAsync(prospectiveId, releaseDate, cancellationToken);
+        var (matchingManifest, _) = await FindMatchingManifestAsync(prospectiveId, cancellationToken);
         return matchingManifest?.Id.Value;
+    }
+
+    private static int CompareVersions(string v1, string? v2)
+    {
+        if (v2 == null) return 1;
+        if (v1 == v2) return 0;
+
+        // 1. Try date-based comparison (yyyyMMdd)
+        if (v1.Length == 8 && v2.Length == 8 &&
+            int.TryParse(v1, out var i1) &&
+            int.TryParse(v2, out var i2))
+        {
+            return i1.CompareTo(i2);
+        }
+
+        // 2. Try semantic version comparison
+        if (Version.TryParse(v1, out var s1) &&
+            Version.TryParse(v2, out var s2))
+        {
+            return s1.CompareTo(s2);
+        }
+
+        // 3. Fallback to ordinal comparison
+        return string.CompareOrdinal(v1, v2);
+    }
+
+    private string GetProspectiveId(ContentSearchResult item)
+    {
+        if (item.LastUpdated == null)
+        {
+            _logger.LogWarning(
+                "ContentSearchResult {ContentName} has null LastUpdated, using version 0 for manifest ID generation",
+                item.Name ?? item.Id ?? "unknown");
+
+            return ManifestIdGenerator.GeneratePublisherContentId(
+                item.ProviderName ?? "unknown",
+                item.ContentType,
+                item.Name ?? item.Id ?? "unknown",
+                0);
+        }
+
+        return ManifestIdGenerator.GeneratePublisherContentId(
+            item.ProviderName ?? "unknown",
+            item.ContentType,
+            item.Name ?? item.Id ?? "unknown",
+            item.LastUpdated.Value);
     }
 
     /// <summary>
@@ -147,23 +187,14 @@ public sealed class ContentStateService(
     /// This handles cases where different factories use different versioning schemes.
     /// </summary>
     /// <param name="prospectiveId">The prospective manifest ID for the current version.</param>
-    /// <param name="releaseDate">The release date from the content source (used for update detection).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>
     /// A tuple containing:
-    /// - The matching manifest (or null if not found)
-    /// - Whether a newer version is available (true if local version is older than release date)
-    /// <summary>
-    /// Locates a local manifest that matches the prospective manifest's publisher, content type, and content name (ignoring version) and indicates if a newer version is available.
-    /// </summary>
-    /// <param name="prospectiveId">The prospective manifest identifier in the form <c>schemaVersion.userVersion.publisher.contentType.contentName</c>.</param>
-    /// <param name="releaseDate">The prospective content release date used for version comparison.</param>
-    /// <returns>
-    /// A tuple where the first element is the matching local <see cref="ContentManifest"/> or <c>null</c> if none is found, and the second element is <c>true</c> if the prospective manifest's version represents a newer release than the local manifest (comparison is performed only when both versions are 8-digit numeric dates in yyyyMMdd format), <c>false</c> otherwise.
+    /// - The matching manifest (or null if not found).
+    /// - Whether a newer version is available (true if local version is older than release date).
     /// </returns>
     private async Task<(ContentManifest? Manifest, bool IsNewerAvailable)> FindMatchingManifestAsync(
         string prospectiveId,
-        DateTime releaseDate,
         CancellationToken cancellationToken)
     {
         // Get all manifests and filter in memory
@@ -206,7 +237,7 @@ public sealed class ContentStateService(
                 var existingVersion = manifestSegments[1];
 
                 // Keep the one with the highest version (newest)
-                if (bestMatch == null || string.CompareOrdinal(existingVersion, bestMatchVersion) > 0)
+                if (bestMatch == null || CompareVersions(existingVersion, bestMatchVersion) > 0)
                 {
                     bestMatch = manifest;
                     bestMatchVersion = existingVersion;
@@ -221,29 +252,8 @@ public sealed class ContentStateService(
 
         // Determine if a newer version is available
         // Compare the local version with the prospective version (release date)
-        // If prospective version (from source) is newer than local version → update available
         var prospectiveVersion = prospectiveSegments[1];
-        bool isNewerAvailable = false;
-
-        // Only consider update available if:
-        // 1. Both versions are date-based (8 digits, yyyyMMdd format)
-        // 2. The prospective version is greater than the local version
-        if (prospectiveVersion.Length == 8 && bestMatchVersion?.Length == 8 &&
-            int.TryParse(prospectiveVersion, out var prospectiveInt) &&
-            int.TryParse(bestMatchVersion, out var localInt))
-        {
-            isNewerAvailable = prospectiveInt > localInt;
-        }
-        else
-        {
-            // Try semantic version comparison
-            if (Version.TryParse(prospectiveVersion, out var prospectiveSemVer) &&
-                Version.TryParse(bestMatchVersion, out var localSemVer))
-            {
-                isNewerAvailable = prospectiveSemVer > localSemVer;
-            }
-        }
-
+        bool isNewerAvailable = CompareVersions(prospectiveVersion, bestMatchVersion) > 0;
 
         _logger.LogDebug(
             "Found matching manifest: {ManifestId}, local version: {LocalVersion}, prospective version: {ProspectiveVersion}, update available: {UpdateAvailable}",

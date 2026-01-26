@@ -200,8 +200,6 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
     }
 
     /// <summary>
-    /// Creates a ContentSearchResult from a release and provider configuration.
-    /// <summary>
     /// Builds a ContentSearchResult representing the specified Generals Online release using the provided provider metadata.
     /// </summary>
     /// <param name="release">Release metadata to include in the search result.</param>

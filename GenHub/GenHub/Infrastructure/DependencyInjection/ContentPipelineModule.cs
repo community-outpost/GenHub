@@ -39,12 +39,9 @@ namespace GenHub.Infrastructure.DependencyInjection;
 public static class ContentPipelineModule
 {
     /// <summary>
-    /// Registers content pipeline services for dependency injection.
-    /// </summary>
-    /// <param name="services">The service collection to configure.</param>
-    /// <summary>
     /// Registers core and all content pipeline services into the provided service collection.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddContentPipelineServices(this IServiceCollection services)
     {
@@ -65,10 +62,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers core services required by all pipelines.
-    /// <summary>
     /// Registers core shared services and infrastructure required by all content pipelines.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     /// <remarks>
     /// Registers foundational services such as the content orchestrator, hash providers, memory and dynamic caches,
     /// HTTP client factories (including a named client for Generals Online), content storage and manifest pool,
@@ -148,6 +144,7 @@ public static class ContentPipelineModule
 
         // Register generic catalog pipeline (transient for per-subscription instances)
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogDiscoverer>();
+        services.AddTransient<IContentDiscoverer>(sp => sp.GetRequiredService<GenHub.Features.Content.Services.Catalog.GenericCatalogDiscoverer>());
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>());
 
@@ -157,10 +154,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers GitHub content pipeline services.
-    /// <summary>
     /// Registers GitHub-specific services required by the content pipeline, including providers, discoverers, resolver, deliverer, publisher manifest factories, and the SuperHackers update service.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     private static void AddGitHubPipeline(IServiceCollection services)
     {
         // Register GitHub content provider
@@ -200,10 +196,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers Generals Online content pipeline services.
-    /// <summary>
     /// Registers all dependency-injection services required by the Generals Online content pipeline.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     private static void AddGeneralsOnlinePipeline(IServiceCollection services)
     {
         // Register Generals Online provider
@@ -234,10 +229,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers Community Outpost content pipeline services.
-    /// <summary>
     /// Registers Community Outpost content-pipeline services into the provided service collection.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     /// <remarks>
     /// Adds concrete implementations and their interface mappings for the Community Outpost provider, discoverer, resolver, deliverer, manifest factory, and update service.
     /// </remarks>
@@ -268,10 +262,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers CNCLabs content pipeline services.
-    /// <summary>
     /// Registers CNCLabs content pipeline components (content provider, map discoverer, map resolver, and publisher manifest factory) as singletons in the DI container.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     private static void AddCNCLabsPipeline(IServiceCollection services)
     {
         // Register CNCLabs content provider
@@ -291,8 +284,6 @@ public static class ContentPipelineModule
         services.AddSingleton<IPublisherManifestFactory>(sp => sp.GetRequiredService<CNCLabsManifestFactory>());
     }
 
-    /// <summary>
-    /// Registers ModDB content pipeline services.
     /// <summary>
     /// Registers ModDB-specific content-pipeline services and configures the named HttpClient used to access ModDB.
     /// </summary>
@@ -324,10 +315,8 @@ public static class ContentPipelineModule
 
         // Register ModDB page parser
         services.AddSingleton<ModDBPageParser>();
-        // Register ModDB page parser
-        services.AddSingleton<ModDBPageParser>();
+        services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<ModDBPageParser>());
 
-        // Register ModDB discoverer (concrete and interface) with named HttpClient
         // Register ModDB discoverer (concrete and interface)
         services.AddSingleton<ModDBDiscoverer>();
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<ModDBDiscoverer>());
@@ -346,10 +335,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers Local File System content pipeline services.
-    /// <summary>
     /// Registers Local File System content pipeline services — provider, discoverer, manifest resolver, and deliverer — into the provided IServiceCollection.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     private static void AddLocalFileSystemPipeline(IServiceCollection services)
     {
         // Register Local File System content provider
@@ -370,10 +358,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers AODMaps content pipeline services.
-    /// <summary>
     /// Registers the AODMaps content-pipeline components and a named HttpClient into the provided service collection.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     /// <remarks>
     /// Adds a named "AODMaps" HttpClient and singleton registrations for the page parser, IWebPageParser, discoverer, resolver, content provider, and publisher manifest factory.
     /// </remarks>
@@ -387,11 +374,9 @@ public static class ContentPipelineModule
             client.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
         });
 
-        // Register AODMaps page parser (Concrete)
+        // Register AODMaps page parser (Concrete and Interface)
         services.AddSingleton<AODMapsPageParser>();
-
-        // Register AODMaps page parser (Concrete)
-        services.AddSingleton<AODMapsPageParser>();
+        services.AddSingleton<IWebPageParser>(sp => sp.GetRequiredService<AODMapsPageParser>());
 
         // Register AODMaps discoverer
         services.AddSingleton<GenHub.Features.Content.Services.ContentDiscoverers.AODMapsDiscoverer>();
@@ -411,10 +396,9 @@ public static class ContentPipelineModule
     }
 
     /// <summary>
-    /// Registers shared components used across multiple pipelines.
-    /// <summary>
     /// Registers services and shared components used by multiple content pipelines.
     /// </summary>
+    /// <param name="services">The service collection to configure.</param>
     /// <remarks>
     /// Registers:
     /// - HttpContentDeliverer and its IContentDeliverer mapping,

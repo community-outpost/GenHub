@@ -29,6 +29,12 @@ public partial class DownloadsViewModel(
     GitHubTopicsDiscoverer gitHubTopicsDiscoverer) : ViewModelBase, IRecipient<GenHub.Core.Messages.OpenPublisherDetailsMessage>, IRecipient<GenHub.Core.Messages.ClosePublisherDetailsMessage>
 {
     private bool _isPublisherContentPopulated;
+    private PublisherCardViewModel? _generalsOnlineCard;
+    private PublisherCardViewModel? _superHackersCard;
+    private PublisherCardViewModel? _communityOutpostCard;
+    private PublisherCardViewModel? _githubCard;
+    private PublisherCardViewModel? _cncLabsCard;
+    private PublisherCardViewModel? _modDBCard;
 
     [ObservableProperty]
     private string _title = "Downloads";
@@ -89,10 +95,6 @@ public partial class DownloadsViewModel(
     }
 
     /// <summary>
-    /// Called when the tab is activated/navigated to.
-    /// Refreshes installation status for all publisher cards.
-    /// </summary>
-    /// <summary>
     /// Handle activation of the Downloads tab: register message recipients if needed, lazily populate publisher cards, and refresh installation status for any expanded publisher cards.
     /// </summary>
     /// <returns>A <see cref="Task"/> that completes when the activation processing and any required status refreshes have finished.</returns>
@@ -113,18 +115,15 @@ public partial class DownloadsViewModel(
         if (!_isPublisherContentPopulated)
         {
             _isPublisherContentPopulated = true;
-            // Fire and forget with error handling
-            _ = Task.Run(async () =>
+
+            try
             {
-                try
-                {
-                    await PopulatePublisherCardsAsync();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to populate publisher cards");
-                }
-            });
+                await PopulatePublisherCardsAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to populate publisher cards");
+            }
         }
 
         try
@@ -269,7 +268,7 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GeneralsOnlineConstants.PublisherType);
+            var card = _generalsOnlineCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == GeneralsOnlineConstants.PublisherType);
             if (card == null) return;
 
             if (serviceProvider.GetService(typeof(GeneralsOnlineDiscoverer)) is not GeneralsOnlineDiscoverer discoverer) return;
@@ -295,8 +294,12 @@ public partial class DownloadsViewModel(
                     card.ContentTypes.Add(contentGroup);
                 }
 
-                // Set card metadata from first release
-                var latest = releases.FirstOrDefault();
+                // Set card metadata from latest release
+                var latest = releases
+                    .OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue)
+                    .ThenByDescending(r => r.Version)
+                    .FirstOrDefault();
+
                 if (latest != null)
                 {
                     card.LatestVersion = latest.Version;
@@ -335,7 +338,7 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
+            var card = _superHackersCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card == null) return;
 
             // Query for all configured GitHub releases
@@ -377,7 +380,7 @@ public partial class DownloadsViewModel(
                 }
 
                 // Set card metadata from latest release
-                var latest = releases.OrderByDescending(r => r.LastUpdated).FirstOrDefault();
+                var latest = releases.OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue).FirstOrDefault();
                 if (latest != null)
                 {
                     card.LatestVersion = latest.Version;
@@ -424,7 +427,7 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
+            var card = _communityOutpostCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
             if (card == null)
             {
                 return;
@@ -457,8 +460,12 @@ public partial class DownloadsViewModel(
                     card.ContentTypes.Add(contentGroup);
                 }
 
-                // Set card metadata from first release
-                var latest = releases.FirstOrDefault();
+                // Set card metadata from latest release
+                var latest = releases
+                    .OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue)
+                    .ThenByDescending(r => r.Version)
+                    .FirstOrDefault();
+
                 if (latest != null)
                 {
                     card.LatestVersion = latest.Version;
@@ -490,7 +497,7 @@ public partial class DownloadsViewModel(
     /// <returns>A task that completes when the GitHub card has been populated and its loading state updated.</returns>
     private async Task PopulateGithubCardAsync()
     {
-        var card = PublisherCards.FirstOrDefault(c => c.PublisherId == GitHubTopicsConstants.PublisherType);
+        var card = _githubCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == GitHubTopicsConstants.PublisherType);
         if (card == null) return;
 
         try
@@ -560,7 +567,7 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CNCLabsConstants.PublisherType);
+            var card = _cncLabsCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == CNCLabsConstants.PublisherType);
             if (card == null) return;
 
             if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer)) is not GenHub.Features.Content.Services.ContentDiscoverers.CNCLabsMapDiscoverer discoverer)
@@ -591,8 +598,8 @@ public partial class DownloadsViewModel(
                     card.ContentTypes.Add(contentGroup);
                 }
 
-                // Set card metadata from first release
-                var latest = releases.FirstOrDefault();
+                // Set card metadata from latest release
+                var latest = releases.OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue).FirstOrDefault();
                 if (latest != null)
                 {
                     card.LatestVersion = $"{releases.Count} maps";
@@ -632,7 +639,7 @@ public partial class DownloadsViewModel(
     {
         try
         {
-            var card = PublisherCards.FirstOrDefault(c => c.PublisherId == ModDBConstants.PublisherType);
+            var card = _modDBCard ??= PublisherCards.FirstOrDefault(c => c.PublisherId == ModDBConstants.PublisherType);
             if (card == null) return;
 
             if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer)) is not GenHub.Features.Content.Services.ContentDiscoverers.ModDBDiscoverer discoverer)
@@ -663,8 +670,8 @@ public partial class DownloadsViewModel(
                     card.ContentTypes.Add(contentGroup);
                 }
 
-                // Set card metadata from first release
-                var latest = releases.OrderByDescending(r => r.LastUpdated).FirstOrDefault();
+                // Set card metadata from latest release
+                var latest = releases.OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue).FirstOrDefault();
                 if (latest != null)
                 {
                     card.LatestVersion = $"{releases.Count} items";
@@ -713,6 +720,10 @@ public partial class DownloadsViewModel(
                     GeneralsOnlineVersion = $"v{firstResult.Version}";
                     logger.LogInformation("Fetched GeneralsOnline version: {Version}", firstResult.Version);
                 }
+                else
+                {
+                    GeneralsOnlineVersion = "Unavailable";
+                }
             }
         }
         catch (Exception ex)
@@ -740,12 +751,20 @@ public partial class DownloadsViewModel(
                 {
                     // Filter for SuperHackers content if needed, similar to PopulateSuperHackersCardAsync
                     // For now, assuming the discoverer returns relevant releases based on config
-                    var latest = result.Data.Items.OrderByDescending(r => r.LastUpdated).FirstOrDefault();
+                    var latest = result.Data.Items.OrderByDescending(r => r.LastUpdated ?? DateTime.MinValue).FirstOrDefault();
                     if (latest != null)
                     {
                         WeeklyReleaseVersion = latest.Version;
                         logger.LogInformation("Fetched Weekly Release version: {Version}", latest.Version);
                     }
+                    else
+                    {
+                        WeeklyReleaseVersion = "Unavailable";
+                    }
+                }
+                else
+                {
+                    WeeklyReleaseVersion = "Unavailable";
                 }
             }
         }
@@ -774,6 +793,10 @@ public partial class DownloadsViewModel(
                 {
                     var firstResult = result.Data.Items.First();
                     CommunityPatchVersion = firstResult.Version;
+                }
+                else
+                {
+                    CommunityPatchVersion = "Unavailable";
                 }
             }
         }
@@ -884,9 +907,6 @@ public partial class DownloadsViewModel(
     private bool _isBrowserVisible;
 
     /// <summary>
-    /// Receives message to open publisher details/browser.
-    /// </summary>
-    /// <summary>
     /// Opens the publisher details browser for the publisher identified by the message.
     /// </summary>
     /// <remarks>
@@ -907,12 +927,17 @@ public partial class DownloadsViewModel(
                 IsBrowserVisible = true;
                 Title = "Browser"; // Temporarily change title or keep context?
             }
+            else
+            {
+                logger.LogWarning("Publisher {PublisherId} not found in browser", message.Value);
+            }
+        }
+        else
+        {
+            logger.LogError("Could not resolve DownloadsBrowserViewModel to open publisher {PublisherId}", message.Value);
         }
     }
 
-    /// <summary>
-    /// Receives message to close publisher details/browser.
-    /// </summary>
     /// <summary>
     /// Closes the publisher details view and navigates back to the Downloads dashboard.
     /// </summary>

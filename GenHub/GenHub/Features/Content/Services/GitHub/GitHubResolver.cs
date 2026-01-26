@@ -205,13 +205,13 @@ public partial class GitHubResolver(
     private static string DeterminePublisherType(string owner)
     {
         // Check for known publishers that have custom manifest factories
-        if (owner.Equals("thesuperhackers", StringComparison.OrdinalIgnoreCase))
+        if (owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
         {
-            return "thesuperhackers";
+            return PublisherTypeConstants.TheSuperHackers;
         }
 
         // Default to generic GitHub publisher
-        return "github";
+        return PublisherTypeConstants.GitHub;
     }
 
     /// <summary>

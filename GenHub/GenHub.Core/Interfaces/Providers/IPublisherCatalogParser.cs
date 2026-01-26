@@ -9,11 +9,6 @@ namespace GenHub.Core.Interfaces.Providers;
 public interface IPublisherCatalogParser
 {
     /// <summary>
-    /// Parses a catalog from JSON content.
-    /// </summary>
-    /// <param name="catalogJson">The raw JSON content of the catalog.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <summary>
     /// Parse raw publisher catalog JSON into a PublisherCatalog model and produce an operation result.
     /// </summary>
     /// <param name="catalogJson">Raw JSON content of the publisher catalog.</param>
@@ -22,10 +17,6 @@ public interface IPublisherCatalogParser
     Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(string catalogJson, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates that a catalog conforms to the expected schema version.
-    /// </summary>
-    /// <param name="catalog">The catalog to validate.</param>
-    /// <summary>
     /// Validates that a PublisherCatalog conforms to the expected schema version and structure.
     /// </summary>
     /// <param name="catalog">The parsed publisher catalog to validate.</param>
@@ -33,15 +24,10 @@ public interface IPublisherCatalogParser
     OperationResult<bool> ValidateCatalog(PublisherCatalog catalog);
 
     /// <summary>
-    /// Verifies the catalog signature if present.
+    /// Verifies the publisher catalog's signature when present.
     /// </summary>
-    /// <param name="catalogJson">The raw JSON content.</param>
-    /// <param name="catalog">The parsed catalog with signature field.</param>
-    /// <summary>
-/// Verifies the publisher catalog's signature when present.
-/// </summary>
-/// <param name="catalogJson">The raw catalog JSON used for signature verification.</param>
-/// <param name="catalog">The parsed PublisherCatalog which may include signature metadata.</param>
-/// <returns>`true` if the signature is valid or verification is not required, `false` otherwise.</returns>
-    bool VerifySignature(string catalogJson, PublisherCatalog catalog);
+    /// <param name="catalogJson">The raw catalog JSON used for signature verification.</param>
+    /// <param name="catalog">The parsed PublisherCatalog which may include signature metadata.</param>
+    /// <returns>An OperationResult containing `true` if the signature is valid or verification is not required; otherwise a failure result.</returns>
+    OperationResult<bool> VerifySignature(string catalogJson, PublisherCatalog catalog);
 }

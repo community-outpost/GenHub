@@ -15,8 +15,6 @@ public partial class AODMapsFilterViewModel : FilterPanelViewModelBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="AODMapsFilterViewModel"/> class.
-    /// <summary>
-    /// Initializes a new instance of the AODMapsFilterViewModel class.
     /// </summary>
     public AODMapsFilterViewModel()
     {
@@ -52,7 +50,7 @@ public partial class AODMapsFilterViewModel : FilterPanelViewModelBase
     /// </summary>
     /// <remarks>
     /// Sets <see cref="SelectedPlayerCount"/> and <see cref="SelectedCategory"/> to <c>null</c>,
-    /// then notifies listeners by invoking <see cref="NotifyFiltersChanged"/> and <see cref="OnFiltersCleared"/>.
+    /// then notifies listeners by invoking <see cref="FilterPanelViewModelBase.NotifyFiltersChanged"/> and <see cref="FilterPanelViewModelBase.OnFiltersCleared"/>.
     /// </remarks>
     public override void ClearFilters()
     {
@@ -66,8 +64,8 @@ public partial class AODMapsFilterViewModel : FilterPanelViewModelBase
     /// <inheritdoc />
     public override IEnumerable<string> GetActiveFilterSummary()
     {
-        if (!string.IsNullOrEmpty(SelectedPlayerCount)) yield return SelectedPlayerCount;
-        if (!string.IsNullOrEmpty(SelectedCategory)) yield return SelectedCategory;
+        if (!string.IsNullOrEmpty(SelectedPlayerCount)) yield return $"Players: {SelectedPlayerCount}";
+        if (!string.IsNullOrEmpty(SelectedCategory)) yield return $"Category: {SelectedCategory}";
     }
 
     [ObservableProperty]

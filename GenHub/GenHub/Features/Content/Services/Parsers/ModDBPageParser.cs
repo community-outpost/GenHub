@@ -21,8 +21,6 @@ namespace GenHub.Features.Content.Services.Parsers;
 public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDBPageParser> logger) : IWebPageParser
 {
     /// <summary>
-    /// Detects the page type based on URL patterns and DOM structure.
-    /// <summary>
     /// Determines the ModDB page type by inspecting the document DOM and URL patterns.
     /// </summary>
     /// <param name="url">The page URL used to identify list-like paths (for example, "/addons" or "/images").</param>
@@ -54,8 +52,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts content sections from summary/news pages.
-    /// <summary>
     /// Extracts content sections from a summary (news) page.
     /// </summary>
     /// <param name="document">The parsed HTML document to extract articles from.</param>
@@ -70,10 +66,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         return sections;
     }
 
-    /// <summary>
-    /// Extracts a file from a row element.
-    /// </summary>
-    /// <param name="row">The row element containing file information.</param>
     /// <summary>
     /// Builds a File model from a DOM row representing a file entry on a ModDB page.
     /// </summary>
@@ -154,8 +146,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts metadata from the sidebar profile section.
-    /// <summary>
     /// Extracts metadata from the page's profile/sidebar section.
     /// </summary>
     /// <param name="document">The parsed HTML document to read the profile/sidebar from.</param>
@@ -224,7 +214,8 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
                 case "added":
                 case "date":
                 case "release date":
-                    if (DateTime.TryParse(content, out var dt))
+                    var dt = ParseModDBDate(content);
+                    if (dt.HasValue)
                     {
                          releaseDate = dt;
                     }
@@ -240,8 +231,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         return new ProfileMeta(name, sizeBytes, sizeDisplay, releaseDate, developer, md5Hash);
     }
 
-    /// <summary>
-    /// Extracts videos from the document.
     /// <summary>
     /// Extracts embedded video entries from the provided HTML document.
     /// </summary>
@@ -296,8 +285,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts images from the document.
-    /// <summary>
     /// Extracts images from the page's image gallery and returns them as Image records.
     /// </summary>
     /// <returns>A list of Image objects representing each gallery image; empty if none found.</returns>
@@ -338,8 +325,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts an image from a row element.
-    /// <summary>
     /// Extracts an image entry from a DOM row element representing a gallery/list item.
     /// </summary>
     /// <param name="row">The DOM element containing the image node to extract.</param>
@@ -373,8 +358,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts articles from the document.
-    /// <summary>
     /// Extracts article entries from the provided HTML document.
     /// </summary>
     /// <returns>A list of Article objects found in the document, each populated with Title, Author, PublishDate (when parsable), Content, and Url (normalized to an absolute URL when applicable); returns an empty list if no articles are found.</returns>
@@ -404,6 +387,15 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
                 {
                     publishDate = parsedDate;
                 }
+                else if (!string.IsNullOrEmpty(dateStr))
+                {
+                    // Fall back to ParseModDBDate for ordinal suffixes like "Mar 15th, 2024"
+                    var modDBDate = ParseModDBDate(dateStr);
+                    if (modDBDate.HasValue)
+                    {
+                        publishDate = modDBDate;
+                    }
+                }
             }
 
             var contentEl = row.QuerySelector(ModDBParserConstants.ArticleContentSelector);
@@ -427,8 +419,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         return articles;
     }
 
-    /// <summary>
-    /// Extracts reviews from the document.
     /// <summary>
     /// Extracts user reviews from the provided HTML document and returns them as a list of Review objects.
     /// </summary>
@@ -492,8 +482,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts comments from the document.
-    /// <summary>
     /// Extracts user comments from the provided HTML document.
     /// </summary>
     /// <returns>A list of Comment objects representing each comment found in the document; an empty list if none are present.</returns>
@@ -546,8 +534,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Parses a file size string (e.g., "15.5 MB") into bytes.
-    /// <summary>
     /// Parses a human-readable file size (e.g., "15.5 MB") and converts it to bytes using 1024-based units.
     /// </summary>
     /// <param name="sizeText">The file size text to parse, typically a numeric value followed by a unit (GB, MB, KB, B).</param>
@@ -582,8 +568,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         };
     }
 
-    /// <summary>
-    /// Parses ModDB date formats like "Mar 15th, 2024" or "Added Mar 15th, 2024".
     /// <summary>
     /// Parses ModDB-style human-readable date strings (optionally prefixed with "Added", "Released", or "Updated") into a DateTime.
     /// </summary>
@@ -648,12 +632,9 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         string? Md5Hash);
 
     /// <summary>
-    /// Extracts content sections from list pages (addons, images).
-    /// </summary>
-    /// <param name="document">The document to extract from.</param>
-    /// <summary>
     /// Extracts images and files from a list-style page and returns them as content sections.
     /// </summary>
+    /// <param name="document">The HTML document to parse.</param>
     /// <param name="sectionType">Specifies how extracted file entries should be classified (e.g., Downloads or Addons).</param>
     /// <returns>A list of ContentSection items containing extracted images and files from the document's list rows.</returns>
     private static List<ContentSection> ExtractListSections(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
@@ -682,12 +663,9 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts files from the document.
-    /// </summary>
-    /// <param name="document">The document to extract files from.</param>
-    /// <summary>
     /// Extracts all file entries from the document and returns them as a list of File objects.
     /// </summary>
+    /// <param name="document">The document containing the file listings.</param>
     /// <param name="sectionType">The file section type to assign to each extracted file (e.g., downloads or addons).</param>
     /// <returns>A list of extracted File objects; empty if no file rows are found.</returns>
     private static List<File> ExtractFiles(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
@@ -708,12 +686,9 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts content sections from detail pages.
-    /// </summary>
-    /// <param name="document">The document to extract from.</param>
-    /// <summary>
     /// Extracts all detail-page content sections — files, videos, images, articles, reviews, and comments — from the provided document.
     /// </summary>
+    /// <param name="document">The document to extract from.</param>
     /// <param name="sectionType">Specifies which file section type to assign to extracted files (e.g., Downloads or Addons).</param>
     /// <returns>A combined list of ContentSection items found on the detail page.</returns>
     private static List<ContentSection> ExtractDetailSections(IDocument document, FileSectionType sectionType = FileSectionType.Downloads)
@@ -752,6 +727,7 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     /// Parses the ModDB page at the specified URL into a structured ParsedWebPage.
     /// </summary>
     /// <param name="url">The ModDB page URL to parse.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>A ParsedWebPage containing the page's global context, detected page type, and extracted content sections.</returns>
     public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
     {
@@ -776,8 +752,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Determines if the URL is a mod detail page that should have both downloads and addons.
-    /// <summary>
     /// Determines whether a URL refers to a mod's main detail page (the /mods/{name} page) excluding downloads, addons, images, and news subpages.
     /// </summary>
     /// <param name="url">The URL to evaluate.</param>
@@ -785,15 +759,14 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     private static bool IsModDetailPage(string url)
     {
         // Check if URL matches /mods/mod-name pattern but not /mods/mod-name/downloads or /mods/mod-name/addons
+        // Must handle both with and without trailing slashes: /downloads, /downloads/, /addons, /addons/
         return url.Contains("/mods/", StringComparison.OrdinalIgnoreCase) &&
-            !url.Contains("/downloads/", StringComparison.OrdinalIgnoreCase) &&
-            !url.Contains("/addons/", StringComparison.OrdinalIgnoreCase) &&
-            !url.Contains("/images/", StringComparison.OrdinalIgnoreCase) &&
-            !url.Contains("/news/", StringComparison.OrdinalIgnoreCase);
+            !url.Contains("/downloads", StringComparison.OrdinalIgnoreCase) &&
+            !url.Contains("/addons", StringComparison.OrdinalIgnoreCase) &&
+            !url.Contains("/images", StringComparison.OrdinalIgnoreCase) &&
+            !url.Contains("/news", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Internal parsing logic that works with a parsed AngleSharp document.
     /// <summary>
     /// Parses a ModDB page document, detects its page type, and builds a ParsedWebPage containing the extracted global context and content sections.
     /// </summary>
@@ -850,8 +823,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Async internal parsing logic that can fetch additional pages for mod detail pages.
-    /// <summary>
     /// Parse a ModDB page and produce a ParsedWebPage representing its global context and extracted content sections.
     /// </summary>
     /// <param name="url">The page URL to parse.</param>
@@ -879,34 +850,46 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
             sections.AddRange(ExtractReviews(document));
             sections.AddRange(ExtractComments(document));
 
-            // Try to fetch the downloads section
+            // Start both fetches concurrently
+            var downloadsUrl = url.TrimEnd('/') + "/downloads";
+            var addonsUrl = url.TrimEnd('/') + "/addons";
+
+            var downloadsTask = playwrightService.FetchAndParseAsync(downloadsUrl, cancellationToken);
+            var addonsTask = playwrightService.FetchAndParseAsync(addonsUrl, cancellationToken);
+
+            // Wait for both to complete (individually to handle partial failures)
             try
             {
-                var downloadsUrl = url.TrimEnd('/') + "/downloads";
-                logger.LogDebug("Fetching downloads section from {Url}", downloadsUrl);
-                var downloadsDoc = await playwrightService.FetchAndParseAsync(downloadsUrl, cancellationToken);
+                var downloadsDoc = await downloadsTask;
                 var downloadsFiles = ExtractFiles(downloadsDoc, FileSectionType.Downloads);
                 sections.AddRange(downloadsFiles);
                 logger.LogInformation("Found {Count} files in downloads section", downloadsFiles.Count);
             }
+            catch (OperationCanceledException)
+            {
+                // Re-throw cancellation to honor caller intent
+                throw;
+            }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to fetch downloads section for {Url}", url);
+                logger.LogWarning(ex, "Failed to fetch downloads section for {Url}", downloadsUrl);
             }
 
-            // Try to fetch the addons section
             try
             {
-                var addonsUrl = url.TrimEnd('/') + "/addons";
-                logger.LogDebug("Fetching addons section from {Url}", addonsUrl);
-                var addonsDoc = await playwrightService.FetchAndParseAsync(addonsUrl, cancellationToken);
+                var addonsDoc = await addonsTask;
                 var addonsFiles = ExtractFiles(addonsDoc, FileSectionType.Addons);
                 sections.AddRange(addonsFiles);
                 logger.LogInformation("Found {Count} files in addons section", addonsFiles.Count);
             }
+            catch (OperationCanceledException)
+            {
+                // Re-throw cancellation to honor caller intent
+                throw;
+            }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to fetch addons section for {Url}", url);
+                logger.LogWarning(ex, "Failed to fetch addons section for {Url}", addonsUrl);
             }
         }
         else
@@ -953,8 +936,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
             PageType: pageType);
     }
 
-    /// <summary>
-    /// Extracts global context from the page header and profile sidebar.
     /// <summary>
     /// Builds a GlobalContext by extracting page-level metadata (title, developer, release date, game name, icon URL, and description) from the provided HTML document.
     /// </summary>
@@ -1046,8 +1027,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
     }
 
     /// <summary>
-    /// Extracts content sections from file detail pages.
-    /// <summary>
     /// Extracts the detailed file section from a file-detail page.
     /// </summary>
     /// <returns>A list containing the detailed file content section when one is present; otherwise an empty list.</returns>
@@ -1065,9 +1044,6 @@ public class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDB
         return sections;
     }
 
-    /// <summary>
-    /// Extracts detailed file information from a file detail page.
-    /// Parses the metadata table with rows like: Filename, Category, Uploader, Size, MD5 Hash.
     /// <summary>
     /// Extracts detailed file metadata from a file-detail page document and constructs a File object.
     /// </summary>

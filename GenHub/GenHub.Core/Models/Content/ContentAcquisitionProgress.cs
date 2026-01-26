@@ -53,18 +53,45 @@ public class ContentAcquisitionProgress
 
     /// <summary>
     /// Gets or sets the current stage number (1-based).
+    /// Values are automatically clamped between 1 and TotalStages.
     /// </summary>
-    public int CurrentStage { get; set; } = 1;
+    public int CurrentStage
+    {
+        get => _currentStage;
+        set => _currentStage = Math.Clamp(value, 1, TotalStages);
+    }
+
+    private int _currentStage = 1;
 
     /// <summary>
     /// Gets or sets the total number of stages in the acquisition process.
+    /// Defaults to 5 and is clamped to a minimum of 1.
     /// </summary>
-    public int TotalStages { get; set; } = 5;
+    public int TotalStages
+    {
+        get => _totalStages;
+        set
+        {
+            _totalStages = Math.Max(1, value);
+
+            // Re-clamp CurrentStage in case TotalStages was reduced below CurrentStage
+            CurrentStage = _currentStage;
+        }
+    }
+
+    private int _totalStages = 5;
 
     /// <summary>
     /// Gets or sets the progress within the current stage (0-100).
+    /// Values are automatically clamped to the valid range.
     /// </summary>
-    public double StageProgress { get; set; }
+    public double StageProgress
+    {
+        get => _stageProgress;
+        set => _stageProgress = Math.Clamp(value, 0, 100);
+    }
+
+    private double _stageProgress;
 
     /// <summary>
     /// Gets or sets the description of the current stage.
@@ -78,7 +105,7 @@ public class ContentAcquisitionProgress
     public TimeSpan TimeSinceLastUpdate { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the current operation is a bottleneck (e.g., hash calculation).
+    /// Gets or sets a value indicating whether the current operation is a bottleneck (e.g., hash calculation).
     /// </summary>
     public bool IsBottleneck { get; set; }
 
@@ -99,9 +126,9 @@ public class ContentAcquisitionProgress
     {
         get
         {
-            var stagePart = $"{CurrentStage}/{TotalStages}";
-            var percentPart = StageProgress > 0 ? $" ({StageProgress:F0}%)" : "";
-            var description = !string.IsNullOrEmpty(StageDescription) ? $" - {StageDescription}" : "";
+            var stagePart = StageIndicator;
+            var percentPart = StageProgress > 0 ? $" ({StageProgress:F0}%)" : string.Empty;
+            var description = !string.IsNullOrEmpty(StageDescription) ? $" - {StageDescription}" : string.Empty;
             return $"{stagePart}{description}{percentPart}";
         }
     }

@@ -33,7 +33,6 @@ public class GenericCatalogDiscoverer(
     private readonly IVersionSelector _versionSelector = versionSelector;
 
     private PublisherSubscription? _subscription;
-    private PublisherCatalog? _cachedCatalog;
 
     /// <summary>
     /// Gets the unique identifier of the resolver used by this discoverer.
@@ -64,30 +63,18 @@ public class GenericCatalogDiscoverer(
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
             var searchLower = query.SearchTerm.ToLowerInvariant();
+            var description = content.Description ?? string.Empty;
+            var tags = content.Tags ?? [];
+
             if (!content.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase) &&
-                !content.Description.Contains(searchLower, StringComparison.OrdinalIgnoreCase) &&
-                !content.Tags.Any(t => t.Contains(searchLower, StringComparison.OrdinalIgnoreCase)))
+                !description.Contains(searchLower, StringComparison.OrdinalIgnoreCase) &&
+                !tags.Any(t => t.Contains(searchLower, StringComparison.OrdinalIgnoreCase)))
             {
                 return false;
             }
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Extracts the numeric portion from a version string and returns it as an integer.
-    /// </summary>
-    /// <param name="version">The version string to extract digits from; non-digit characters are ignored.</param>
-    /// <returns>The integer formed by the concatenation of all digit characters in <paramref name="version"/>, or 0 if no digits are present or parsing fails.</returns>
-    private static int ExtractVersionNumber(string version)
-    {
-        if (int.TryParse(new string([.. version.Where(char.IsDigit)]), out var result))
-        {
-            return result;
-        }
-
-        return 0;
     }
 
     /// <inheritdoc />
@@ -104,9 +91,6 @@ public class GenericCatalogDiscoverer(
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery | ContentSourceCapabilities.SupportsManifestGeneration;
 
-    /// <summary>
-    /// Configures this discoverer for a specific publisher subscription.
-    /// </summary>
     /// <summary>
     /// Configures the discoverer with the specified publisher subscription.
     /// </summary>
@@ -148,7 +132,6 @@ public class GenericCatalogDiscoverer(
             }
 
             var catalog = catalogResult.Data!;
-            _cachedCatalog = catalog;
 
             // Convert catalog items to search results
             var searchResults = ConvertCatalogToSearchResults(catalog, query).ToList();
@@ -183,36 +166,29 @@ public class GenericCatalogDiscoverer(
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            httpClient.Timeout = TimeoutConstants.CatalogRefresh;
 
             _logger.LogDebug("Fetching catalog from: {CatalogUrl}", _subscription!.CatalogUrl);
 
-            var response = await httpClient.GetAsync(_subscription.CatalogUrl, cancellationToken);
+            using var response = await httpClient.GetAsync(_subscription.CatalogUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             // Check size limit from header if available
             if (response.Content.Headers.ContentLength.HasValue &&
-                response.Content.Headers.ContentLength.Value > CatalogConstants.MaxCatalogSizeBytes)
+                response.Content.Headers.ContentLength.Value > ContentConstants.MaxCatalogSizeBytes)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"Catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                    $"Catalog exceeds maximum size of {ContentConstants.MaxCatalogSizeBytes} bytes");
             }
 
-            // Read with size limit
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var reader = new System.IO.StreamReader(stream);
+            var catalogJson = await response.Content.ReadAsStringAsync(cancellationToken);
 
-            // Read into buffer to enforce limit if header was missing
-            var buffer = new char[CatalogConstants.MaxCatalogSizeBytes + 1]; // +1 to detect overflow
-            var charsRead = await reader.ReadAsync(buffer, 0, buffer.Length);
-
-            if (charsRead > CatalogConstants.MaxCatalogSizeBytes)
+            // Re-check size if it's dynamic
+            if (catalogJson.Length > ContentConstants.MaxCatalogSizeBytes)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure(
-                    $"Catalog exceeds maximum size of {CatalogConstants.MaxCatalogSizeBytes} bytes");
+                    $"Catalog exceeds maximum size of {ContentConstants.MaxCatalogSizeBytes} bytes");
             }
-
-            var catalogJson = new string(buffer, 0, charsRead);
 
             // Parse catalog
             return await _catalogParser.ParseCatalogAsync(catalogJson, cancellationToken);
@@ -243,6 +219,12 @@ public class GenericCatalogDiscoverer(
 
         foreach (var contentItem in catalog.Content)
         {
+            // Apply search filters EARLY - skip processing releases if item doesn't match
+            if (!MatchesQuery(contentItem, query))
+            {
+                continue;
+            }
+
             // Apply version filtering (default: latest only)
             var policy = query.IncludeOlderVersions
                 ? VersionPolicy.AllVersions
@@ -252,19 +234,13 @@ public class GenericCatalogDiscoverer(
 
             foreach (var release in selectedReleases)
             {
-                // Apply search filters
-                if (!MatchesQuery(contentItem, query))
-                {
-                    continue;
-                }
-
                 var searchResult = new ContentSearchResult
                 {
                     Id = ManifestIdGenerator.GeneratePublisherContentId(
                         catalog.Publisher.Id,
                         contentItem.ContentType,
                         contentItem.Id,
-                        ExtractVersionNumber(release.Version)),
+                        ManifestIdGenerator.ExtractVersionNumber(release.Version)),
                     Name = contentItem.Name,
                     Description = contentItem.Description,
                     Version = release.Version,

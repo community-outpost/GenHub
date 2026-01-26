@@ -24,12 +24,10 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Creates separate manifest items for releases and addons based on FileSectionType.
 /// </summary>
 public class ModDBResolver(
-    HttpClient httpClient,
     ModDBManifestFactory manifestFactory,
     ModDBPageParser webPageParser,
     ILogger<ModDBResolver> logger) : IContentResolver
 {
-    private readonly HttpClient _httpClient = httpClient;
     private readonly ModDBManifestFactory _manifestFactory = manifestFactory;
     private readonly ModDBPageParser _webPageParser = webPageParser;
     private readonly ILogger<ModDBResolver> _logger = logger;
@@ -47,8 +45,6 @@ public class ModDBResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-
-
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -71,6 +67,14 @@ public class ModDBResolver(
             if (allFiles.Count == 0)
             {
                 return OperationResult<ContentManifest>.CreateFailure("No files found in mod details");
+            }
+
+            // Validate that at least one file has a download URL
+            var filesWithDownloadUrl = allFiles.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();
+            if (filesWithDownloadUrl.Count == 0)
+            {
+                _logger.LogWarning("No files with download URLs found for mod at {Url}", discoveredItem.SourceUrl);
+                return OperationResult<ContentManifest>.CreateFailure("No download URLs found for this mod");
             }
 
             // Create separate manifests for each file based on FileSectionType and release date
@@ -126,9 +130,6 @@ public class ModDBResolver(
     }
 
     /// <summary>
-    /// Converts a single file from the parsed page to MapDetails for the manifest factory.
-    /// Uses the file's release date and FileSectionType to create unique manifest IDs.
-    /// <summary>
     /// Create a MapDetails instance for a single file using the file entry, the parsed page context, and the original discovered item.
     /// </summary>
     /// <param name="file">The file entry from the parsed ModDB page to convert into map details.</param>
@@ -136,12 +137,12 @@ public class ModDBResolver(
     /// <param name="discoveredItem">The original discovery record providing fallback values such as source, icon, name, author, content type, and target game.</param>
     /// <returns>
     /// A MapDetails populated from the file and context:
-    /// - Name, Description, Author, PreviewImage, Screenshots
-    /// - FileSize and DownloadUrl (empty if unavailable)
-    /// - DownloadCount set to 0
-    /// - SubmissionDate chosen from file.ReleaseDate, file.UploadDate, parsed page context, or UTC now
-    /// - TargetGame and ContentType (sets Addon when file's section is Addons; otherwise uses discoveredItem.ContentType)
-    /// - AdditionalFiles set to null
+    /// - Name, Description, Author, PreviewImage, Screenshots.
+    /// - FileSize and DownloadUrl (empty if unavailable).
+    /// - DownloadCount set to 0.
+    /// - SubmissionDate chosen from file.ReleaseDate, file.UploadDate, parsed page context, or UTC now.
+    /// - TargetGame and ContentType (sets Addon when file's section is Addons; otherwise uses discoveredItem.ContentType).
+    /// - AdditionalFiles set to null.
     /// </returns>
     private static MapDetails ConvertFileToMapDetails(
         File file,
@@ -156,8 +157,8 @@ public class ModDBResolver(
             .Select(img => img.FullSizeUrl!)
             .ToList();
 
-        // Use file's release date or fallback to context release date or current date
-        var releaseDate = file.ReleaseDate ?? file.UploadDate ?? context.ReleaseDate ?? DateTime.UtcNow;
+        // Use file's release date or fallback to context release date or sentinel date
+        var releaseDate = file.ReleaseDate ?? file.UploadDate ?? context.ReleaseDate ?? new DateTime(2000, 1, 1);
 
         // Use preview image from context or discovered item
         var previewImage = context.IconUrl ?? discoveredItem.IconUrl ?? string.Empty;

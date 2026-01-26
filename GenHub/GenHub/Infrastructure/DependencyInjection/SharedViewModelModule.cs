@@ -1,5 +1,6 @@
 using System;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -53,7 +54,6 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IVelopackUpdateManager>(),
             sp.GetRequiredService<IPublisherSubscriptionStore>(),
             sp.GetRequiredService<IPublisherCatalogRefreshService>(),
-            sp.GetRequiredService<IGitHubApiClient>(),
             sp.GetRequiredService<INotificationService>(),
             sp.GetRequiredService<IConfigurationProviderService>(),
             sp.GetRequiredService<IGameInstallationService>(),

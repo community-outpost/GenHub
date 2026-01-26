@@ -17,6 +17,7 @@ namespace GenHub.Core.Models.Parsers;
 /// <param name="DownloadCount">Number of downloads (optional).</param>
 /// <param name="FileSectionType">The file section type (Downloads or Addons).</param>
 /// <param name="ReleaseDate">The release date (optional, may differ from upload date).</param>
+/// <param name="OriginalFileName">The original source filename on disk, as provided by the publisher (optional). This differs from Name which may be a display/sanitized version for UI purposes.</param>
 public record File(
     string Name,
     string? Version = null,
@@ -31,4 +32,5 @@ public record File(
     string? ThumbnailUrl = null,
     int? DownloadCount = null,
     FileSectionType FileSectionType = FileSectionType.Downloads,
-    DateTime? ReleaseDate = null) : ContentSection(SectionType.File, Name);
+    DateTime? ReleaseDate = null,
+    string? OriginalFileName = null) : ContentSection(SectionType.File, Name);

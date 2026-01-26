@@ -1,5 +1,5 @@
-using System.Text.RegularExpressions;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
@@ -31,14 +31,6 @@ public static partial class ManifestIdGenerator
     /// - Content type categorization (fourth segment) for filtering and organization
     /// - Content naming (fifth segment) for human-readable identification.
     /// </summary>
-    /// <param name="publisherId">Publisher identifier used as the first segment (e.g., 'cnclabs', 'moddb-westwood').</param>
-    /// <param name="contentType">The type of content being identified.</param>
-    /// <param name="contentName">Human readable content name used as the second segment.</param>
-    /// <param name="userVersion">User-specified version number (e.g., 1, 2, 20). Defaults to 0 for first version.</param>
-    /// <returns>A normalized manifest identifier in the form 'schemaVersion.manifestVersion.publisher.contentType.contentName'.</returns>
-    /// <summary>
-    /// Generate a manifest ID for publisher-provided content in the format: schemaVersion.userVersion.publisher.contentType.contentName.
-    /// </summary>
     /// <param name="publisherId">The publisher identifier to include in the manifest ID; must not be null, empty, or whitespace.</param>
     /// <param name="contentType">The content type that determines the contentType segment of the ID.</param>
     /// <param name="contentName">The content name to include in the manifest ID; must not be null, empty, or whitespace.</param>
@@ -67,19 +59,11 @@ public static partial class ManifestIdGenerator
     }
 
     /// <summary>
-    /// Generates a manifest ID for publisher-provided content using release date as version.
+    /// Creates a manifest ID for publisher-provided content using the release date as the version.
     /// Used for publishers like ModDB, CNCLabs, AODMaps that don't have semantic versioning.
     /// Format: schemaVersion.dateVersion.publisher.contentType.contentName (exactly 5 segments).
     /// </summary>
-    /// <param name="publisherId">Publisher identifier (e.g., 'moddb', 'cnclabs').</param>
-    /// <param name="contentType">The type of content being identified.</param>
-    /// <param name="contentName">Human readable content name.</param>
-    /// <param name="releaseDate">The release date to use as version (formatted as yyyyMMdd).</param>
-    /// <returns>A normalized manifest identifier.</returns>
-    /// <summary>
-    — Creates a manifest ID for publisher-provided content using the release date as the version.
-    /// </summary>
-    /// <param name="publisherId">Publisher identifier; must not be null, empty, or whitespace and will be normalized for the manifest segment.</param>
+    /// <param name="publisherId">Publisher identifier (e.g., 'moddb', 'cnclabs'); must not be null, empty, or whitespace and will be normalized for the manifest segment.</param>
     /// <param name="contentType">The content type to include in the manifest ID.</param>
     /// <param name="contentName">Content name; must not be null, empty, or whitespace and will be normalized for the manifest segment.</param>
     /// <param name="releaseDate">Release date used to derive the version segment (formatted as yyyyMMdd).</param>
@@ -95,6 +79,10 @@ public static partial class ManifestIdGenerator
             throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
         if (string.IsNullOrWhiteSpace(contentName))
             throw new ArgumentException("Content name cannot be empty", nameof(contentName));
+
+        // Validate releaseDate is not a default value to avoid ID collisions
+        if (releaseDate == default)
+            throw new ArgumentException("Release date cannot be default DateTime value", nameof(releaseDate));
 
         var safePublisher = Normalize(publisherId);
         var contentTypeString = contentType.ToManifestIdString();
@@ -197,6 +185,31 @@ public static partial class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Extracts a numeric version from a version string using standard normalization rules.
+    /// Used to ensure consistent manifest IDs across different content sources.
+    /// </summary>
+    /// <param name="version">The version string to extract from.</param>
+    /// <returns>The normalized integer version, or 0 if parsing fails.</returns>
+    public static int ExtractVersionNumber(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return 0;
+
+        try
+        {
+            // Try standard normalization (handles 1.08 -> 108, 1.5 -> 105)
+            var normalized = NormalizeVersionString(version);
+            return int.TryParse(normalized, out var result) ? result : 0;
+        }
+        catch (ArgumentException)
+        {
+            // Fallback to simple digit extraction if strict normalization fails
+            // (e.g. for complex versions like "beta-1-final")
+            return ExtractDigitsForFallback(version);
+        }
+    }
+
+    /// <summary>
     /// Normalizes a version value to a string without dots.
     /// Examples: "1.08" → "108", "1.04" → "104", "1.8" → "108", 5 → "5", "2.0" → "200", null → "0".
     /// Note: Minor versions are always padded to 2 digits for consistency.
@@ -266,17 +279,32 @@ public static partial class ManifestIdGenerator
         {
             // Fallback to simple digit extraction if strict normalization fails
             // (e.g. for complex tags like "beta-1-final")
-            var digits = DigitsRegex().Replace(tag, string.Empty);
-
-            if (string.IsNullOrEmpty(digits))
-                return 0;
-
-            // Take first 9 digits to avoid overflow
-            if (digits.Length > 9)
-                digits = digits[..9];
-
-            return int.TryParse(digits, out var version) ? version : 0;
+            return ExtractDigitsForFallback(tag);
         }
+    }
+
+    /// <summary>
+    /// Fallback logic to extract numeric digits from a string, used when strict normalization fails.
+    /// Extracts up to the first 9 digits to avoid integer overflow.
+    /// </summary>
+    /// <param name="input">The string to extract digits from.</param>
+    /// <returns>The parsed integer, or 0 if no digits found or parsing fails.</returns>
+    private static int ExtractDigitsForFallback(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return 0;
+
+        // Using Regex for consistency with existing codebase patterns
+        var digits = DigitsRegex().Replace(input, string.Empty);
+
+        if (string.IsNullOrEmpty(digits))
+            return 0;
+
+        // Take first 9 digits to avoid overflow
+        if (digits.Length > 9)
+            digits = digits[..9];
+
+        return int.TryParse(digits, out var version) ? version : 0;
     }
 
     /// <summary>

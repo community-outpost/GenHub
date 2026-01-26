@@ -253,6 +253,13 @@ public interface IContentManifestBuilder
     IContentManifestBuilder AddPatchFile(string targetRelativePath, string patchSourceFile);
 
     /// <summary>
+    /// Explicitly sets the manifest ID, overriding any automatically generated ID.
+    /// </summary>
+    /// <param name="id">The manifest ID to use.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithId(ManifestId id);
+
+    /// <summary>
     /// Builds the final ContentManifest.
     /// </summary>
     /// <returns>The constructed ContentManifest.</returns>

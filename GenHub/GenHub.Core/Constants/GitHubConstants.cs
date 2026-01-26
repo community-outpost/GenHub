@@ -343,4 +343,44 @@ public static class GitHubConstants
 
     /// <summary>Metadata key for release tag.</summary>
     public const string TagMetadataKey = "tag";
+
+    /// <summary>Gets common language patterns and their display names.</summary>
+    public static readonly IReadOnlyDictionary<string, string> LanguagePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "english", "English" },
+        { "russian", "Russian" },
+        { "spanish", "Spanish" },
+        { "french", "French" },
+        { "german", "German" },
+        { "chinese", "Chinese" },
+        { "japanese", "Japanese" },
+        { "korean", "Korean" },
+        { "italian", "Italian" },
+        { "portuguese", "Portuguese" },
+    };
+
+    /// <summary>Gets common resolution display names for user-friendly output.</summary>
+    public static readonly IReadOnlyDictionary<string, string> ResolutionDisplayNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "1280x720", "720p" },
+        { "1366x768", "768p" },
+        { "1600x900", "900p" },
+        { "1920x1080", "1080p" },
+        { "2560x1440", "1440p" },
+        { "3840x2160", "4K" },
+        { "5120x2880", "5K" },
+        { "7680x4320", "8K" },
+    };
+
+    /// <summary>Gets file extensions that are archives and should be checked for variants.</summary>
+    public static readonly IReadOnlyList<string> ArchiveExtensions =
+    [
+        ".zip", ".7z", ".rar", ".tar.gz", ".tgz",
+    ];
+
+    /// <summary>Gets filenames to exclude from variant splitting (source code, etc.).</summary>
+    public static readonly IReadOnlyList<string> ExcludedPatterns =
+    [
+        "source", "src", "debug", "symbols", "pdb",
+    ];
 }

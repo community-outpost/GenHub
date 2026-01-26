@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -29,9 +30,7 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
     private string? _selectedTimeframe;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ModDBFilterViewModel"/> class.
-    /// <summary>
-    /// Creates a ModDBFilterViewModel and populates its category, addon category, timeframe, and license option collections.
+    /// Initializes a new instance of the <see cref="ModDBFilterViewModel"/> class and populates its category, addon category, timeframe, and license option collections.
     /// </summary>
     public ModDBFilterViewModel()
     {
@@ -94,6 +93,10 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         {
             baseQuery.ModDBCategory = SelectedCategory;
         }
+        else
+        {
+            baseQuery.ModDBCategory = null;
+        }
 
         // Apply Addon Category filter
         if (!string.IsNullOrEmpty(SelectedAddonCategory))
@@ -101,17 +104,29 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
             // For Addons section, use "category" param; for Downloads/Mods, use "categoryaddon"
             baseQuery.ModDBAddonCategory = SelectedAddonCategory;
         }
+        else
+        {
+            baseQuery.ModDBAddonCategory = null;
+        }
 
         // Apply License filter (Addons section only)
         if (!string.IsNullOrEmpty(SelectedLicense))
         {
             baseQuery.ModDBLicense = SelectedLicense;
         }
+        else
+        {
+            baseQuery.ModDBLicense = null;
+        }
 
         // Apply Timeframe filter
         if (!string.IsNullOrEmpty(SelectedTimeframe))
         {
             baseQuery.ModDBTimeframe = SelectedTimeframe;
+        }
+        else
+        {
+            baseQuery.ModDBTimeframe = null;
         }
 
         return baseQuery;
@@ -121,7 +136,7 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
     /// Clears all selected ModDB filters (category, addon category, license, and timeframe) and notifies observers of the change.
     /// </summary>
     /// <remarks>
-    /// Invokes <see cref="NotifyFiltersChanged"/> and <see cref="OnFiltersCleared"/> after resetting the selections.
+    /// Invokes <see cref="FilterPanelViewModelBase.NotifyFiltersChanged"/> and <see cref="FilterPanelViewModelBase.OnFiltersCleared"/> after resetting the selections.
     /// </remarks>
     public override void ClearFilters()
     {
@@ -141,48 +156,48 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
     {
         if (!string.IsNullOrEmpty(SelectedCategory))
         {
-            yield return $"Category: {SelectedCategory}";
+            yield return $"Category: {CategoryOptions.FirstOrDefault(o => o.Value == SelectedCategory)?.DisplayName ?? SelectedCategory}";
         }
 
         if (!string.IsNullOrEmpty(SelectedAddonCategory))
         {
-            yield return $"Addon: {SelectedAddonCategory}";
+            yield return $"Addon: {AddonCategoryOptions.FirstOrDefault(o => o.Value == SelectedAddonCategory)?.DisplayName ?? SelectedAddonCategory}";
         }
 
         if (!string.IsNullOrEmpty(SelectedLicense))
         {
-            yield return $"License: {SelectedLicense}";
+            yield return $"License: {LicenseOptions.FirstOrDefault(o => o.Value == SelectedLicense)?.DisplayName ?? SelectedLicense}";
         }
 
         if (!string.IsNullOrEmpty(SelectedTimeframe))
         {
-            yield return $"Time: {SelectedTimeframe}";
+            yield return $"Time: {TimeframeOptions.FirstOrDefault(o => o.Value == SelectedTimeframe)?.DisplayName ?? SelectedTimeframe}";
         }
     }
 
     /// <summary>
-/// Called when the SelectedCategory property changes to notify observers and react to the new selection.
-/// </summary>
-/// <param name="value">The new selected category value, or null if the selection was cleared.</param>
-partial void OnSelectedCategoryChanged(string? value) { }
+    /// Called when the SelectedCategory property changes to notify observers and react to the new selection.
+    /// </summary>
+    /// <param name="value">The new selected category value, or null if the selection was cleared.</param>
+    partial void OnSelectedCategoryChanged(string? value) => NotifyFiltersChanged();
 
     /// <summary>
-/// Invoked when the SelectedAddonCategory property changes to allow responding to the new selection.
-/// </summary>
-/// <param name="value">The new selected addon category, or null if the selection was cleared.</param>
-partial void OnSelectedAddonCategoryChanged(string? value) { }
+    /// Invoked when the SelectedAddonCategory property changes to allow responding to the new selection.
+    /// </summary>
+    /// <param name="value">The new selected addon category, or null if the selection was cleared.</param>
+    partial void OnSelectedAddonCategoryChanged(string? value) => NotifyFiltersChanged();
 
     /// <summary>
-/// Invoked when the SelectedLicense property changes; receives the new selected license value or null.
-/// </summary>
-/// <param name="value">The new license value, or null if no license is selected.</param>
-partial void OnSelectedLicenseChanged(string? value) { }
+    /// Invoked when the SelectedLicense property changes; receives the new selected license value or null.
+    /// </summary>
+    /// <param name="value">The new license value, or null if no license is selected.</param>
+    partial void OnSelectedLicenseChanged(string? value) => NotifyFiltersChanged();
 
     /// <summary>
-/// Called when the SelectedTimeframe property value changes.
-/// </summary>
-/// <param name="value">The new SelectedTimeframe value, or null if cleared.</param>
-partial void OnSelectedTimeframeChanged(string? value) { }
+    /// Called when the SelectedTimeframe property value changes.
+    /// </summary>
+    /// <param name="value">The new SelectedTimeframe value, or null if cleared.</param>
+    partial void OnSelectedTimeframeChanged(string? value) => NotifyFiltersChanged();
 
     /// <summary>
     /// Toggles the current category selection: selects the given option's value or clears the selection if it's already selected.
@@ -191,8 +206,8 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     [RelayCommand]
     private void SelectCategory(FilterOption option)
     {
+        if (option == null) return;
         SelectedCategory = SelectedCategory == option.Value ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -202,8 +217,8 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     [RelayCommand]
     private void SelectAddonCategory(FilterOption option)
     {
+        if (option == null) return;
         SelectedAddonCategory = SelectedAddonCategory == option.Value ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -213,8 +228,8 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     [RelayCommand]
     private void SelectLicense(FilterOption option)
     {
+        if (option == null) return;
         SelectedLicense = SelectedLicense == option.Value ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -224,8 +239,8 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     [RelayCommand]
     private void SelectTimeframe(FilterOption option)
     {
+        if (option == null) return;
         SelectedTimeframe = SelectedTimeframe == option.Value ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -273,35 +288,35 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     private void InitializeDownloadsFilters()
     {
         // Category options for Downloads/Mods - form select name="category"
-        CategoryOptions.Add(new FilterOption("Releases", "1"));
-        CategoryOptions.Add(new FilterOption("Full Version", "2"));
-        CategoryOptions.Add(new FilterOption("Demo", "3"));
-        CategoryOptions.Add(new FilterOption("Patch", "4"));
-        CategoryOptions.Add(new FilterOption("Script", "28"));
-        CategoryOptions.Add(new FilterOption("Trainer", "29"));
-        CategoryOptions.Add(new FilterOption("Media", "6"));
-        CategoryOptions.Add(new FilterOption("Trailer", "7"));
-        CategoryOptions.Add(new FilterOption("Movie", "8"));
-        CategoryOptions.Add(new FilterOption("Music", "9"));
-        CategoryOptions.Add(new FilterOption("Audio", "25"));
-        CategoryOptions.Add(new FilterOption("Wallpaper", "10"));
-        CategoryOptions.Add(new FilterOption("Tools", "11"));
-        CategoryOptions.Add(new FilterOption("Archive Tool", "20"));
-        CategoryOptions.Add(new FilterOption("Graphics Tool", "13"));
-        CategoryOptions.Add(new FilterOption("Mapping Tool", "14"));
-        CategoryOptions.Add(new FilterOption("Modelling Tool", "15"));
-        CategoryOptions.Add(new FilterOption("Installer Tool", "16"));
-        CategoryOptions.Add(new FilterOption("Server Tool", "17"));
-        CategoryOptions.Add(new FilterOption("IDE", "18"));
-        CategoryOptions.Add(new FilterOption("SDK", "19"));
-        CategoryOptions.Add(new FilterOption("Source Code", "26"));
-        CategoryOptions.Add(new FilterOption("RTX Remix", "31"));
-        CategoryOptions.Add(new FilterOption("RTX.conf", "32"));
-        CategoryOptions.Add(new FilterOption("Miscellaneous", "21"));
-        CategoryOptions.Add(new FilterOption("Guide", "22"));
-        CategoryOptions.Add(new FilterOption("Tutorial", "23"));
-        CategoryOptions.Add(new FilterOption("Language Pack", "30"));
-        CategoryOptions.Add(new FilterOption("Other", "24"));
+        CategoryOptions.Add(new FilterOption("Releases", ModDBConstants.CategoryFullVersion));
+        CategoryOptions.Add(new FilterOption("Full Version", ModDBConstants.CategoryFullVersion));
+        CategoryOptions.Add(new FilterOption("Demo", ModDBConstants.CategoryDemo));
+        CategoryOptions.Add(new FilterOption("Patch", ModDBConstants.CategoryPatch));
+        CategoryOptions.Add(new FilterOption("Script", ModDBConstants.CategoryScript));
+        CategoryOptions.Add(new FilterOption("Trainer", ModDBConstants.CategoryTrainer));
+        CategoryOptions.Add(new FilterOption("Media", ModDBConstants.CategoryMedia, IsHeader: true));
+        CategoryOptions.Add(new FilterOption("Trailer", ModDBConstants.CategoryTrailer));
+        CategoryOptions.Add(new FilterOption("Movie", ModDBConstants.CategoryMovie));
+        CategoryOptions.Add(new FilterOption("Music", ModDBConstants.CategoryMusic));
+        CategoryOptions.Add(new FilterOption("Audio", ModDBConstants.CategoryAudio));
+        CategoryOptions.Add(new FilterOption("Wallpaper", ModDBConstants.CategoryWallpaper));
+        CategoryOptions.Add(new FilterOption("Tools", ModDBConstants.CategoryTools, IsHeader: true));
+        CategoryOptions.Add(new FilterOption("Archive Tool", ModDBConstants.CategoryArchiveTool));
+        CategoryOptions.Add(new FilterOption("Graphics Tool", ModDBConstants.CategoryGraphicsTool));
+        CategoryOptions.Add(new FilterOption("Mapping Tool", ModDBConstants.CategoryMappingTool));
+        CategoryOptions.Add(new FilterOption("Modelling Tool", ModDBConstants.CategoryModellingTool));
+        CategoryOptions.Add(new FilterOption("Installer Tool", ModDBConstants.CategoryInstallerTool));
+        CategoryOptions.Add(new FilterOption("Server Tool", ModDBConstants.CategoryServerTool));
+        CategoryOptions.Add(new FilterOption("IDE", ModDBConstants.CategoryIDE));
+        CategoryOptions.Add(new FilterOption("SDK", ModDBConstants.CategorySDK));
+        CategoryOptions.Add(new FilterOption("Source Code", ModDBConstants.CategorySourceCode));
+        CategoryOptions.Add(new FilterOption("RTX Remix", ModDBConstants.CategoryRTXRemix));
+        CategoryOptions.Add(new FilterOption("RTX.conf", ModDBConstants.CategoryRTXConf));
+        CategoryOptions.Add(new FilterOption("Miscellaneous", ModDBConstants.CategoryMiscellaneous, IsHeader: true));
+        CategoryOptions.Add(new FilterOption("Guide", ModDBConstants.CategoryGuide));
+        CategoryOptions.Add(new FilterOption("Tutorial", ModDBConstants.CategoryTutorial));
+        CategoryOptions.Add(new FilterOption("Language Pack", ModDBConstants.CategoryLanguagePack));
+        CategoryOptions.Add(new FilterOption("Other", ModDBConstants.CategoryOther));
     }
 
     /// <summary>
@@ -313,33 +328,33 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     private void InitializeAddonsFilters()
     {
         // Addon category options - form select name="categoryaddon" (Downloads) or "category" (Addons)
-        AddonCategoryOptions.Add(new FilterOption("Maps", "100"));
-        AddonCategoryOptions.Add(new FilterOption("Multiplayer Map", "101"));
-        AddonCategoryOptions.Add(new FilterOption("Singleplayer Map", "102"));
-        AddonCategoryOptions.Add(new FilterOption("Prefab", "103"));
-        AddonCategoryOptions.Add(new FilterOption("Models", "104"));
-        AddonCategoryOptions.Add(new FilterOption("Player Model", "106"));
-        AddonCategoryOptions.Add(new FilterOption("Prop Model", "132"));
-        AddonCategoryOptions.Add(new FilterOption("Vehicle Model", "107"));
-        AddonCategoryOptions.Add(new FilterOption("Weapon Model", "108"));
-        AddonCategoryOptions.Add(new FilterOption("Model Pack", "131"));
-        AddonCategoryOptions.Add(new FilterOption("Skins", "110"));
-        AddonCategoryOptions.Add(new FilterOption("Player Skin", "112"));
-        AddonCategoryOptions.Add(new FilterOption("Prop Skin", "133"));
-        AddonCategoryOptions.Add(new FilterOption("Vehicle Skin", "113"));
-        AddonCategoryOptions.Add(new FilterOption("Weapon Skin", "114"));
-        AddonCategoryOptions.Add(new FilterOption("Skin Pack", "134"));
-        AddonCategoryOptions.Add(new FilterOption("Audio", "116"));
-        AddonCategoryOptions.Add(new FilterOption("Music", "117"));
-        AddonCategoryOptions.Add(new FilterOption("Player Audio", "119"));
-        AddonCategoryOptions.Add(new FilterOption("Audio Pack", "118"));
-        AddonCategoryOptions.Add(new FilterOption("Graphics", "123"));
-        AddonCategoryOptions.Add(new FilterOption("Decal", "124"));
-        AddonCategoryOptions.Add(new FilterOption("Effects GFX", "136"));
-        AddonCategoryOptions.Add(new FilterOption("GUI", "125"));
-        AddonCategoryOptions.Add(new FilterOption("HUD", "126"));
-        AddonCategoryOptions.Add(new FilterOption("Sprite", "128"));
-        AddonCategoryOptions.Add(new FilterOption("Texture", "129"));
+        AddonCategoryOptions.Add(new FilterOption("Maps", ModDBConstants.AddonMaps));
+        AddonCategoryOptions.Add(new FilterOption("Multiplayer Map", ModDBConstants.AddonMultiplayerMap));
+        AddonCategoryOptions.Add(new FilterOption("Singleplayer Map", ModDBConstants.AddonSingleplayerMap));
+        AddonCategoryOptions.Add(new FilterOption("Prefab", ModDBConstants.AddonPrefab));
+        AddonCategoryOptions.Add(new FilterOption("Models", ModDBConstants.AddonModels));
+        AddonCategoryOptions.Add(new FilterOption("Player Model", ModDBConstants.AddonPlayerModel));
+        AddonCategoryOptions.Add(new FilterOption("Prop Model", ModDBConstants.AddonPropModel));
+        AddonCategoryOptions.Add(new FilterOption("Vehicle Model", ModDBConstants.AddonVehicleModel));
+        AddonCategoryOptions.Add(new FilterOption("Weapon Model", ModDBConstants.AddonWeaponModel));
+        AddonCategoryOptions.Add(new FilterOption("Model Pack", ModDBConstants.AddonModelPack));
+        AddonCategoryOptions.Add(new FilterOption("Skins", ModDBConstants.AddonSkins));
+        AddonCategoryOptions.Add(new FilterOption("Player Skin", ModDBConstants.AddonPlayerSkin));
+        AddonCategoryOptions.Add(new FilterOption("Prop Skin", ModDBConstants.AddonPropSkin));
+        AddonCategoryOptions.Add(new FilterOption("Vehicle Skin", ModDBConstants.AddonVehicleSkin));
+        AddonCategoryOptions.Add(new FilterOption("Weapon Skin", ModDBConstants.AddonWeaponSkin));
+        AddonCategoryOptions.Add(new FilterOption("Skin Pack", ModDBConstants.AddonSkinPack));
+        AddonCategoryOptions.Add(new FilterOption("Audio", ModDBConstants.AddonAudio));
+        AddonCategoryOptions.Add(new FilterOption("Music", ModDBConstants.AddonMusic));
+        AddonCategoryOptions.Add(new FilterOption("Player Audio", ModDBConstants.AddonPlayerAudio));
+        AddonCategoryOptions.Add(new FilterOption("Audio Pack", ModDBConstants.AddonAudioPack));
+        AddonCategoryOptions.Add(new FilterOption("Graphics", ModDBConstants.AddonGraphics));
+        AddonCategoryOptions.Add(new FilterOption("Decal", ModDBConstants.AddonDecal));
+        AddonCategoryOptions.Add(new FilterOption("Effects GFX", ModDBConstants.AddonEffectsGFX));
+        AddonCategoryOptions.Add(new FilterOption("GUI", ModDBConstants.AddonGUI));
+        AddonCategoryOptions.Add(new FilterOption("HUD", ModDBConstants.AddonHUD));
+        AddonCategoryOptions.Add(new FilterOption("Sprite", ModDBConstants.AddonSprite));
+        AddonCategoryOptions.Add(new FilterOption("Texture", ModDBConstants.AddonTexture));
     }
 
     /// <summary>
@@ -350,15 +365,16 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     /// </remarks>
     private void InitializeLicenseOptions()
     {
-        LicenseOptions.Add(new FilterOption("BSD", "7"));
-        LicenseOptions.Add(new FilterOption("Commercial", "1"));
-        LicenseOptions.Add(new FilterOption("Creative Commons", "2"));
-        LicenseOptions.Add(new FilterOption("GPL", "5"));
-        LicenseOptions.Add(new FilterOption("L-GPL", "6"));
-        LicenseOptions.Add(new FilterOption("MIT", "8"));
-        LicenseOptions.Add(new FilterOption("Zlib", "9"));
-        LicenseOptions.Add(new FilterOption("Proprietary", "3"));
-        LicenseOptions.Add(new FilterOption("Public Domain", "4"));
+        LicenseOptions.Add(new FilterOption("Any", string.Empty));
+        LicenseOptions.Add(new FilterOption("BSD", ModDBConstants.LicenseBSD));
+        LicenseOptions.Add(new FilterOption("Commercial", ModDBConstants.LicenseCommercial));
+        LicenseOptions.Add(new FilterOption("Creative Commons", ModDBConstants.LicenseCreativeCommons));
+        LicenseOptions.Add(new FilterOption("GPL", ModDBConstants.LicenseGPL));
+        LicenseOptions.Add(new FilterOption("L-GPL", ModDBConstants.LicenseLGPL));
+        LicenseOptions.Add(new FilterOption("MIT", ModDBConstants.LicenseMIT));
+        LicenseOptions.Add(new FilterOption("Zlib", ModDBConstants.LicenseZlib));
+        LicenseOptions.Add(new FilterOption("Proprietary", ModDBConstants.LicenseProprietary));
+        LicenseOptions.Add(new FilterOption("Public Domain", ModDBConstants.LicensePublicDomain));
     }
 
     /// <summary>
@@ -366,10 +382,10 @@ partial void OnSelectedTimeframeChanged(string? value) { }
     /// </summary>
     private void InitializeTimeframeOptions()
     {
-        TimeframeOptions.Add(new FilterOption("Past 24 hours", "1"));
-        TimeframeOptions.Add(new FilterOption("Past week", "2"));
-        TimeframeOptions.Add(new FilterOption("Past month", "3"));
-        TimeframeOptions.Add(new FilterOption("Past year", "4"));
-        TimeframeOptions.Add(new FilterOption("Year or older", "5"));
+        TimeframeOptions.Add(new FilterOption("Past 24 hours", ModDBConstants.TimeframePast24Hours));
+        TimeframeOptions.Add(new FilterOption("Past week", ModDBConstants.TimeframePastWeek));
+        TimeframeOptions.Add(new FilterOption("Past month", ModDBConstants.TimeframePastMonth));
+        TimeframeOptions.Add(new FilterOption("Past year", ModDBConstants.TimeframePastYear));
+        TimeframeOptions.Add(new FilterOption("Year or older", ModDBConstants.TimeframeYearOrOlder));
     }
 }

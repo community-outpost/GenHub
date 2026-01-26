@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,13 +38,22 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 return OperationResult<PublisherCatalog>.CreateFailure("Catalog JSON is empty or null");
             }
 
-            var catalog = await Task.Run(
-                () => JsonSerializer.Deserialize<PublisherCatalog>(catalogJson),
-                cancellationToken);
+            // Use MemoryStream to support Async deserialization for better responsiveness
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(catalogJson));
+            var catalog = await JsonSerializer.DeserializeAsync<PublisherCatalog>(stream, cancellationToken: cancellationToken);
 
             if (catalog == null)
             {
                 return OperationResult<PublisherCatalog>.CreateFailure("Failed to deserialize catalog JSON");
+            }
+
+            // Verify signature
+            var signatureVerificationResult = VerifySignature(catalogJson, catalog);
+            if (!signatureVerificationResult.Success)
+            {
+                var errorMessage = $"Catalog signature verification failed: {signatureVerificationResult.FirstError}";
+                _logger.LogError("Catalog signature verification failed: {ErrorMessage}", signatureVerificationResult.FirstError);
+                return OperationResult<PublisherCatalog>.CreateFailure(errorMessage);
             }
 
             // Validate after parsing
@@ -59,6 +69,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 catalog.Content.Count);
 
             return OperationResult<PublisherCatalog>.CreateSuccess(catalog);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (JsonException ex)
         {
@@ -172,23 +186,23 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
     /// <summary>
     /// Determines whether the publisher catalog's signature is valid.
-    /// If the catalog contains no signature, returns true. If a signature is present, signature verification is not yet implemented and the method currently returns true while logging a warning.
+    /// If the catalog contains no signature, returns true. If a signature is present, signature verification is not yet implemented and the method currently returns a failure result.
     /// </summary>
     /// <param name="catalogJson">The raw catalog JSON used as the source for signature verification.</param>
     /// <param name="catalog">The parsed <see cref="PublisherCatalog"/> whose <c>Signature</c> is checked.</param>
-    /// <returns>`true` if no signature is present or while signature verification is not implemented; `false` only when explicit verification fails (not currently reached).</returns>
-    public bool VerifySignature(string catalogJson, PublisherCatalog catalog)
+    /// <returns>An OperationResult containing `true` if no signature is present; otherwise a failure result (rejecting signed catalogs until verification is implemented).</returns>
+    public OperationResult<bool> VerifySignature(string catalogJson, PublisherCatalog catalog)
     {
-        // TODO: Implement catalog signature verification
+        // TODO: Implement catalog signature verification (Tracking issue: GH-123)
         // For now, signatures are optional
         if (string.IsNullOrEmpty(catalog.Signature))
         {
             _logger.LogDebug("No signature present in catalog");
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
 
         // Fail-secure: reject signed catalogs until verification is implemented
         _logger.LogError("Signature verification not yet implemented - rejecting signed catalog");
-        return false;
+        return OperationResult<bool>.CreateFailure("Catalog signature verification not yet implemented");
     }
 }

@@ -91,18 +91,6 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
             return string.Empty;
         }
 
-        // Handle Auto-Updated versions (GeneralsOnline) - return empty string
-        if (trimmedVersion.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase))
-        {
-            return string.Empty;
-        }
-
-        // Handle auto-detected GeneralsOnline clients - return empty string to avoid showing "vAutomatically added"
-        if (trimmedVersion.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
-        {
-            return string.Empty;
-        }
-
         // Try to resolve hash-based versions (e.g., from GameClientHashRegistry)
         var (detectedGameType, hashVersion) = hashRegistry.GetGameInfoFromHash(trimmedVersion);
         if (detectedGameType != GameType.Unknown && !string.IsNullOrEmpty(hashVersion))
@@ -113,7 +101,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         // Remove 'v' prefix if present (case-insensitive)
         if (trimmedVersion.StartsWith(VersionPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return trimmedVersion.Substring(VersionPrefix.Length).Trim();
+            return trimmedVersion[VersionPrefix.Length..].Trim();
         }
 
         return trimmedVersion;

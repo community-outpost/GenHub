@@ -21,9 +21,7 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
     private string? _selectedAuthor;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="GitHubFilterViewModel"/> class.
-    /// <summary>
-    /// Initializes a new instance of GitHubFilterViewModel and populates the default topic and author options.
+    /// Initializes a new instance of the <see cref="GitHubFilterViewModel"/> class and populates the default topic and author options.
     /// </summary>
     public GitHubFilterViewModel()
     {
@@ -53,15 +51,8 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
     {
         ArgumentNullException.ThrowIfNull(baseQuery);
 
-        if (!string.IsNullOrEmpty(SelectedTopic))
-        {
-            baseQuery.GitHubTopic = SelectedTopic;
-        }
-
-        if (!string.IsNullOrEmpty(SelectedAuthor))
-        {
-            baseQuery.GitHubAuthor = SelectedAuthor;
-        }
+        baseQuery.GitHubTopic = !string.IsNullOrEmpty(SelectedTopic) ? SelectedTopic : null;
+        baseQuery.GitHubAuthor = !string.IsNullOrEmpty(SelectedAuthor) ? SelectedAuthor : null;
 
         return baseQuery;
     }
@@ -73,7 +64,6 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
     {
         SelectedTopic = null;
         SelectedAuthor = null;
-        NotifyFiltersChanged();
         OnFiltersCleared();
     }
 
@@ -92,9 +82,6 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
     }
 
     /// <summary>
-    /// Updates the available authors list from discovered content.
-    /// </summary>
-    /// <summary>
     /// Populate AuthorOptions with an "All Authors" entry followed by distinct, alphabetically ordered authors.
     /// </summary>
     /// <param name="authors">Sequence of author names to include; duplicate names are ignored and entries are sorted.</param>
@@ -103,23 +90,31 @@ public partial class GitHubFilterViewModel : FilterPanelViewModelBase
         AuthorOptions.Clear();
         AuthorOptions.Add(new FilterOption("All Authors", string.Empty));
 
-        foreach (var author in authors.Distinct().OrderBy(a => a))
+        if (authors == null) return;
+
+        foreach (var author in authors.Where(a => !string.IsNullOrWhiteSpace(a)).Distinct().OrderBy(a => a))
         {
             AuthorOptions.Add(new FilterOption(author, author));
         }
     }
 
     /// <summary>
-/// Called when the SelectedTopic value changes to allow responsive behavior in partial implementations.
-/// </summary>
-/// <param name="value">The new selected topic value, or null if no topic is selected.</param>
-partial void OnSelectedTopicChanged(string? value) { }
+    /// Called when the SelectedTopic value changes to allow responsive behavior in partial implementations.
+    /// </summary>
+    /// <param name="value">The new selected topic value, or null if no topic is selected.</param>
+    partial void OnSelectedTopicChanged(string? value)
+    {
+        NotifyFiltersChanged();
+    }
 
     /// <summary>
-/// Invoked when the SelectedAuthor property changes so implementers can react to the new selection.
-/// </summary>
-/// <param name="value">The newly selected author, or null if the selection was cleared.</param>
-partial void OnSelectedAuthorChanged(string? value) { }
+    /// Invoked when the SelectedAuthor property changes so implementers can react to the new selection.
+    /// </summary>
+    /// <param name="value">The newly selected author, or null if the selection was cleared.</param>
+    partial void OnSelectedAuthorChanged(string? value)
+    {
+        NotifyFiltersChanged();
+    }
 
     /// <summary>
     /// Selects the given topic option and updates the view model's SelectedTopic.
@@ -128,8 +123,8 @@ partial void OnSelectedAuthorChanged(string? value) { }
     [RelayCommand]
     private void SelectTopic(FilterOption option)
     {
+        if (option == null) return;
         SelectedTopic = string.IsNullOrEmpty(option.Value) ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -139,8 +134,8 @@ partial void OnSelectedAuthorChanged(string? value) { }
     [RelayCommand]
     private void SelectAuthor(FilterOption option)
     {
+        if (option == null) return;
         SelectedAuthor = string.IsNullOrEmpty(option.Value) ? null : option.Value;
-        NotifyFiltersChanged();
     }
 
     /// <summary>

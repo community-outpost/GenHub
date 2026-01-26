@@ -15,8 +15,6 @@ public partial class ProfileSelectionView : Window
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProfileSelectionView"/> class.
-    /// <summary>
-    /// Initializes a new instance of the ProfileSelectionView class.
     /// </summary>
     public ProfileSelectionView()
     {
@@ -25,9 +23,6 @@ public partial class ProfileSelectionView : Window
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProfileSelectionView"/> class with a specific view model.
-    /// </summary>
-    /// <summary>
-    /// Initializes a new ProfileSelectionView and assigns the provided view model as its DataContext.
     /// </summary>
     /// <param name="viewModel">The profile selection view model to use as the view's DataContext.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="viewModel"/> is null.</exception>
@@ -79,8 +74,6 @@ public partial class ProfileSelectionView : Window
         Close();
     }
 
-    /// <summary>
-    /// Loads and initializes the XAML components for this window.
     /// <summary>
     /// Loads and applies the Avalonia XAML associated with this view, initializing its UI components.
     /// </summary>

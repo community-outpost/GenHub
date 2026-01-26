@@ -38,10 +38,15 @@ public partial class DownloadsBrowserViewModel(
     IContentOrchestrator contentOrchestrator,
     IProfileContentService profileContentService,
     IGameProfileManager profileManager,
-    INotificationService notificationService) : ObservableObject
+    INotificationService notificationService,
+    IEnumerable<IWebPageParser> parsers) : ObservableObject
 {
     private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
+    private readonly object lockObj = new();
 
+    /// <summary>
+    /// Gets or sets the search term used for filtering content results.
+    /// </summary>
     [ObservableProperty]
     private string _searchTerm = string.Empty;
 
@@ -57,6 +62,9 @@ public partial class DownloadsBrowserViewModel(
     [ObservableProperty]
     private ObservableCollection<PublisherItemViewModel> _publishers = [];
 
+    /// <summary>
+    /// Gets or sets the currently selected publisher in the view model.
+    /// </summary>
     [ObservableProperty]
     private PublisherItemViewModel? _selectedPublisher;
 
@@ -93,9 +101,6 @@ public partial class DownloadsBrowserViewModel(
     private int _pageSize = 24;
 
     /// <summary>
-    /// Performs asynchronous initialization.
-    /// </summary>
-    /// <summary>
     /// Initializes the publisher list and per-publisher filter view models.
     /// </summary>
     /// <returns>A task that completes after publishers and filter view models have been initialized.</returns>
@@ -107,10 +112,7 @@ public partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
-    /// Called when the Downloads tab is activated.
-    /// </summary>
-    /// <summary>
-    /// Ensures content is loaded when the tab becomes active by triggering a refresh if no items are present and loading is not already in progress.
+    /// Called when the Downloads tab is activated. Ensures content is loaded when the tab becomes active by triggering a refresh if no items are present and loading is not already in progress.
     /// </summary>
     /// <returns>A task that completes when the content refresh (if performed) finishes.</returns>
     public async Task OnTabActivatedAsync()
@@ -234,7 +236,6 @@ public partial class DownloadsBrowserViewModel(
         }
     }
 
-    /// <param name="append">Whether to append results to the current list instead of clearing.</param>
     /// <summary>
     /// Refreshes the content grid for the currently selected publisher using the current search term, paging, and active filters.
     /// </summary>
@@ -248,10 +249,16 @@ public partial class DownloadsBrowserViewModel(
         }
 
         // Cancel previous search if still running
-        _lastSearchCts?.Cancel();
+        if (_lastSearchCts != null)
+        {
+            _lastSearchCts.Cancel();
+            _lastSearchCts.Dispose();
+        }
+
         _lastSearchCts = new CancellationTokenSource();
         var ct = _lastSearchCts.Token;
 
+        var publisherId = SelectedPublisher.PublisherId;
         try
         {
             IsLoading = true;
@@ -275,22 +282,22 @@ public partial class DownloadsBrowserViewModel(
                 baseQuery = CurrentFilterViewModel.ApplyFilters(baseQuery);
             }
 
-            if (SelectedPublisher.PublisherId == PublisherTypeConstants.All)
+            if (publisherId == PublisherTypeConstants.All)
             {
                 await RefreshAllPublishersAsync(baseQuery, ct);
             }
             else
             {
-                await RefreshSinglePublisherAsync(SelectedPublisher.PublisherId, baseQuery, ct);
+                await RefreshSinglePublisherAsync(publisherId, baseQuery, ct);
             }
         }
         catch (OperationCanceledException)
         {
-            logger.LogInformation("Search for {Publisher} was canceled", SelectedPublisher.PublisherId);
+            logger.LogInformation("Search for {Publisher} was canceled", publisherId);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to refresh content for publisher {Publisher}", SelectedPublisher.PublisherId);
+            logger.LogError(ex, "Failed to refresh content for publisher {Publisher}", publisherId);
         }
         finally
         {
@@ -328,9 +335,13 @@ public partial class DownloadsBrowserViewModel(
             var items = result.Data.Items.ToList();
 
             // Track existing IDs to prevent duplicates
-            var existingIds = new HashSet<string>(ContentItems.Select(x => x.SearchResult.Id ?? string.Empty));
+            HashSet<string> existingIds;
+            lock (lockObj)
+            {
+                existingIds = [.. ContentItems.Select(x => x.SearchResult.Id ?? string.Empty)];
+            }
 
-            var addedCount = 0;
+            var vmItems = new List<ContentGridItemViewModel>();
             foreach (var item in items)
             {
                 var itemId = item.Id ?? string.Empty;
@@ -348,15 +359,23 @@ public partial class DownloadsBrowserViewModel(
                     var state = await contentStateService.GetStateAsync(item, ct);
                     vm.CurrentState = state;
 
-                    ContentItems.Add(vm);
+                    vmItems.Add(vm);
                     existingIds.Add(itemId);
-                    addedCount++;
                 }
             }
 
+            // Add to collection on main thread to ensure thread-safety
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var vm in vmItems)
+                {
+                    ContentItems.Add(vm);
+                }
+            });
+
             logger.LogInformation(
                 "Added {AddedCount} new items out of {TotalCount} fetched for {Publisher} (page {Page}). HasMoreItems: {HasMore}",
-                addedCount,
+                vmItems.Count,
                 items.Count,
                 publisherId,
                 query.Page,
@@ -395,7 +414,6 @@ public partial class DownloadsBrowserViewModel(
         // 6. Then: 5 from ModDB
         // 7. Then: 5 from AODMaps
         // After initial load, "Load More" gets 20 at a time from remaining sources
-
         var anyProviderHasMore = false;
         var lockObj = new object();
         var existingIds = new HashSet<string>(ContentItems.Select(x => x.SearchResult.Id ?? string.Empty));
@@ -451,7 +469,10 @@ public partial class DownloadsBrowserViewModel(
 
                     if (result.Data.HasMoreItems)
                     {
-                        lock (lockObj) { anyProviderHasMore = true; }
+                        lock (lockObj)
+                        {
+                            anyProviderHasMore = true;
+                        }
                     }
 
                     // Add to collection on main thread
@@ -524,14 +545,10 @@ public partial class DownloadsBrowserViewModel(
             {
                 await LoadFromDiscovererAsync(aodDiscoverer, 5, "AODMaps");
             }
-
-            // Always show "Load More" on initial load since there's likely more content
-            anyProviderHasMore = true;
         }
         else
         {
             // Load More: batch load 20 items total from all sources proportionally
-            var batchSize = 20;
             var perSourceSize = 4; // 5 sources * 4 = 20 items
 
             var loadMoreTasks = new List<Task>();
@@ -591,13 +608,6 @@ public partial class DownloadsBrowserViewModel(
         if (item?.SearchResult != null)
         {
             var contentLogger = serviceProvider.GetService(typeof(ILogger<ContentDetailViewModel>)) as ILogger<ContentDetailViewModel>;
-            if (contentLogger is null)
-            {
-                logger.LogWarning("Could not resolve ILogger<ContentDetailViewModel> from service provider");
-            }
-
-            var parsers = serviceProvider.GetService(typeof(IEnumerable<IWebPageParser>)) as IEnumerable<IWebPageParser> ?? [];
-
             SelectedContent = new ContentDetailViewModel(
                 item.SearchResult,
                 serviceProvider,
@@ -606,7 +616,7 @@ public partial class DownloadsBrowserViewModel(
                 profileContentService,
                 profileManager,
                 notificationService,
-                contentLogger!,
+                contentLogger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentDetailViewModel>.Instance,
                 CloseDetail);
         }
     }
@@ -694,6 +704,7 @@ public partial class DownloadsBrowserViewModel(
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[GitHubTopicsConstants.PublisherType] = new GitHubFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
+        _filterViewModels[PublisherTypeConstants.TheSuperHackers] = new SuperHackersFilterViewModel();
     }
 
     /// <summary>
@@ -709,7 +720,9 @@ public partial class DownloadsBrowserViewModel(
             return;
         }
 
-        CancellationToken cancellationToken = default; // We might want to support cancellation later
+        // Use a linked cancellation token if we want to support user cancellation later
+        // For now, use a default token as we don't have a specific cancellation source for individual downloads yet
+        CancellationToken cancellationToken = CancellationToken.None;
 
         try
         {
@@ -726,7 +739,7 @@ public partial class DownloadsBrowserViewModel(
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     item.DownloadProgress = (int)p.ProgressPercentage;
-                    item.DownloadStatus = FormatProgressStatus(p);
+                    item.DownloadStatus = ContentDetailViewModel.FormatProgressStatus(p);
                 });
             });
 
@@ -784,75 +797,7 @@ public partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
-    /// Formats a user-friendly progress status message with stage indicators.
-    /// <summary>
-    /// Create a user-facing status string describing content acquisition progress.
-    /// </summary>
-    /// <param name="progress">Snapshot of the content acquisition progress, including staged progress, phase, percentages, file counts, and optional bottleneck information.</param>
-    /// <returns>A human-readable status string representing the current progress, including stage/total, description, percentage, file counts, and bottleneck notes when available.</returns>
-    private static string FormatProgressStatus(ContentAcquisitionProgress progress)
-    {
-        // Use the new staged progress format if available
-        if (progress.TotalStages > 0 && progress.CurrentStage > 0)
-        {
-            var stagePart = $"{progress.CurrentStage}/{progress.TotalStages}";
-            var description = !string.IsNullOrEmpty(progress.StageDescription)
-                ? progress.StageDescription
-                : progress.CurrentOperation;
-
-            // Add percentage for stages that have measurable progress
-            var percentPart = progress.StageProgress > 0 && progress.StageProgress < 100
-                ? $" ({progress.StageProgress:F0}%)"
-                : "";
-
-            // Add bottleneck indicator if applicable
-            var bottleneckPart = progress.IsBottleneck && !string.IsNullOrEmpty(progress.BottleneckReason)
-                ? $" - {progress.BottleneckReason}"
-                : "";
-
-            // Add file count if processing multiple files
-            var filesPart = progress.TotalFiles > 1
-                ? $" [{progress.FilesProcessed}/{progress.TotalFiles}]"
-                : "";
-
-            return $"{stagePart} - {description}{percentPart}{filesPart}{bottleneckPart}";
-        }
-
-        // Fallback to legacy format
-        var phaseName = progress.Phase switch
-        {
-            ContentAcquisitionPhase.Downloading => "Downloading",
-            ContentAcquisitionPhase.Extracting => "Extracting",
-            ContentAcquisitionPhase.Copying => "Copying",
-            ContentAcquisitionPhase.ValidatingManifest => "Validating manifest",
-            ContentAcquisitionPhase.ValidatingFiles => "Validating files",
-            ContentAcquisitionPhase.Delivering => "Installing",
-            ContentAcquisitionPhase.Completed => "Complete",
-            _ => "Processing",
-        };
-
-        if (!string.IsNullOrEmpty(progress.CurrentOperation))
-        {
-            return $"{phaseName}: {progress.CurrentOperation}";
-        }
-
-        var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
-
-        if (progress.TotalFiles > 0)
-        {
-            var phasePercent = progress.TotalFiles > 0
-                ? (int)((double)progress.FilesProcessed / progress.TotalFiles * 100)
-                : 0;
-            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
-        }
-
-        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
-    }
-
-    /// <summary>
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
-    /// <summary>
-    /// Prompts the user to select a profile and adds the specified content to that profile, if the content has an associated manifest ID.
     /// </summary>
     /// <param name="item">The content grid item to add to a profile; must represent content that has been downloaded or has a resolvable local manifest ID.</param>
     [RelayCommand]

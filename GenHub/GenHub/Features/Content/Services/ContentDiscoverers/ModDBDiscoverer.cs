@@ -29,6 +29,7 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
     /// <summary>
     /// Disposes static Playwright resources. Call on application shutdown.
     /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public static async Task DisposePlaywrightAsync()
     {
         await _browserLock.WaitAsync();
@@ -39,6 +40,7 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
                 await _browser.CloseAsync();
                 _browser = null;
             }
+
             _playwright?.Dispose();
             _playwright = null;
         }
@@ -47,6 +49,7 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
             _browserLock.Release();
         }
     }
+
     private readonly ILogger<ModDBDiscoverer> _logger = logger;
 
     /// <inheritdoc />
@@ -75,6 +78,9 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
     {
         try
         {
+            // Check for cancellation before expensive Playwright initialization
+            cancellationToken.ThrowIfCancellationRequested();
+
             await EnsurePlaywrightInitializedAsync();
 
             var gameType = query.TargetGame ?? GameType.ZeroHour;
@@ -106,6 +112,11 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
                 Items = results,
                 HasMoreItems = hasMoreItems,
             });
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("ModDB discovery was cancelled");
+            throw;
         }
         catch (Exception ex)
         {
@@ -150,10 +161,22 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
     /// <returns>A list of section names (for example "downloads" or "addons"). If <c>query.ModDBSection</c> is set that single section is returned; otherwise sections are chosen based on <c>query.ContentType</c>, defaulting to "downloads".</returns>
     private static List<string> DetermineSectionsToSearch(ContentSearchQuery query)
     {
+        // Normalize and validate ModDBSection to avoid invalid URLs
+        string? section = query.ModDBSection;
+
         // Use explicit section from query if provided
-        if (!string.IsNullOrEmpty(query.ModDBSection))
+        if (!string.IsNullOrEmpty(section))
         {
-            return [query.ModDBSection];
+            // Normalize to lowercase for consistency and validate against known sections
+            section = section.ToLowerInvariant();
+            var validSections = new[] { "downloads", "addons" };
+            if (!validSections.Contains(section))
+            {
+                // Default to downloads for invalid sections
+                section = "downloads";
+            }
+
+            return [section];
         }
 
         // Map ContentType to section if possible
@@ -212,40 +235,6 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
     }
 
     /// <summary>
-    /// Maps a ContentType to the corresponding ModDB category identifier for the given section.
-    /// </summary>
-    /// <param name="contentType">The content type to map.</param>
-    /// <param name="section">The ModDB section context; expected values are "downloads" or "addons".</param>
-    /// <returns>The ModDB category identifier matching the content type and section, or <c>null</c> if no mapping exists.</returns>
-    private static string? MapContentTypeToCategory(ContentType contentType, string section)
-    {
-        if (section == "downloads")
-        {
-            return contentType switch
-            {
-                ContentType.Mod => ModDBConstants.CategoryFullVersion,
-                ContentType.Patch => ModDBConstants.CategoryPatch,
-                ContentType.Video => ModDBConstants.CategoryMovie,
-                ContentType.ModdingTool => ModDBConstants.CategoryMappingTool,
-                ContentType.LanguagePack => ModDBConstants.CategoryLanguagePack,
-                _ => null,
-            };
-        }
-        else if (section == "addons")
-        {
-            return contentType switch
-            {
-                ContentType.Map => ModDBConstants.AddonMultiplayerMap,
-                ContentType.Skin => ModDBConstants.AddonPlayerSkin,
-                ContentType.LanguagePack => ModDBConstants.AddonLanguageSounds,
-                _ => null,
-            };
-        }
-
-        return null;
-    }
-
-    /// <summary>
     /// Parses a ModDB listing element into a ContentSearchResult.
     /// </summary>
     /// <param name="item">An AngleSharp element representing a single listing or row from a ModDB results page.</param>
@@ -276,6 +265,11 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
         var iconUrl = img?.GetAttribute("src") ?? string.Empty;
         if (!string.IsNullOrEmpty(iconUrl))
         {
+            if (iconUrl.StartsWith("//"))
+            {
+                iconUrl = "https:" + iconUrl;
+            }
+
             if (iconUrl.Contains("blank.gif")) iconUrl = string.Empty;
             else if (!iconUrl.StartsWith("http")) iconUrl = ModDBConstants.BaseUrl + iconUrl;
         }
@@ -413,20 +407,25 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
             {
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             });
+            cancellationToken.ThrowIfCancellationRequested();
+
             page = await context.NewPageAsync();
 
-            await page.GotoAsync(url, new PageGotoOptions { Timeout = 30000, WaitUntil = WaitUntilState.DOMContentLoaded });
+            await page.GotoAsync(url, new PageGotoOptions { Timeout = TimeoutConstants.ModDBDiscoveryBrowserTimeoutSeconds * 1000, WaitUntil = WaitUntilState.DOMContentLoaded });
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Wait for content to load
             try
             {
-                await page.WaitForSelectorAsync("div.row.rowcontent, div.table tr", new PageWaitForSelectorOptions { Timeout = 5000 });
+                // Try multiple selectors to handle ModDB's various layouts
+                await page.WaitForSelectorAsync("div.row.rowcontent, div.row.clear, div.table tr, article.row", new PageWaitForSelectorOptions { Timeout = TimeoutConstants.ModDBDiscoverySelectorTimeoutSeconds * 1000 });
             }
             catch
             {
                 _logger.LogWarning("Timeout waiting for content selector on {Url}, parsing what we have...", url);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var html = await page.ContentAsync();
 
             // Use AngleSharp to parse the HTML (Robust and already implemented)
@@ -434,7 +433,16 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
             var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
 
             List<ContentSearchResult> results = [];
-            var contentItems = document.QuerySelectorAll("div.row.rowcontent, div.table tr");
+
+            // Use multiple selectors to handle ModDB's various page layouts
+            var contentItems = document.QuerySelectorAll("div.row.rowcontent, div.row.clear, div.table tr, article.row");
+
+            // Fallback: if no items found, try to find any div containing download links
+            if (contentItems.Length == 0)
+            {
+                _logger.LogWarning("[ModDB] Primary selectors found no items. Trying fallback selectors...");
+                contentItems = document.QuerySelectorAll("div[class*='row']:has(a[href*='/downloads/']), div[class*='row']:has(a[href*='/addons/'])");
+            }
 
             foreach (var item in contentItems)
             {
@@ -452,44 +460,39 @@ public class ModDBDiscoverer(ILogger<ModDBDiscoverer> logger) : IContentDiscover
                 }
             }
 
-            // NEW LOGGING:
-            _logger.LogInformation("[ModDB] Pagination Logic Starting...");
-            var pagesDiv = document.QuerySelector("div.pages");
-            if (pagesDiv != null)
-            {
-                _logger.LogInformation("[ModDB] found div.pages. Html content length: {Length}", pagesDiv.InnerHtml.Length);
-                var allLinks = pagesDiv.QuerySelectorAll("a");
-                foreach (var link in allLinks)
-                {
-                    _logger.LogInformation("[ModDB] Link in pages: Text='{Text}', Href='{Href}', Class='{Class}'", link.TextContent?.Trim(), link.GetAttribute("href"), link.ClassName);
-                }
-            }
-            else
-            {
-                _logger.LogWarning("[ModDB] div.pages NOT FOUND");
-            }
-
-            // Check for pagination "next" button
-            // ModDB typically has a 'a.next' or 'span.next' inside a div.pages
+            // Check for pagination "next" button using multiple strategies
+            // Strategy 1: Standard ModDB selectors
             var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
 
+            // Strategy 2: Look for rel="next" link (common pattern)
+            nextLink ??= document.QuerySelector("a[rel='next']");
+
+            // Strategy 3: Look for link containing "page/X+1" in href
             if (nextLink == null)
             {
-                 _logger.LogWarning("[ModDB] NEXT LINK IS NULL. Trying broader search...");
-                 var anyNext = document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent != null && a.TextContent.Contains("next", StringComparison.OrdinalIgnoreCase));
-                 if (anyNext != null)
-                 {
-                     _logger.LogInformation("[ModDB] Found a link containing 'next' (but not matching selector): Text='{Text}', Href='{Href}', Class='{Class}'", anyNext.TextContent, anyNext.GetAttribute("href"), anyNext.ClassName);
-                 }
+                var nextPageNum = (query.Page ?? 1) + 1;
+                nextLink = document.QuerySelectorAll("a")
+                    .FirstOrDefault(a => a.GetAttribute("href")?.Contains($"/page/{nextPageNum}") == true);
             }
-            else
-            {
-                _logger.LogInformation("[ModDB] Found next link via selector: {Url}", nextLink.GetAttribute("href"));
-            }
+
+            // Strategy 4: Any link with "next" text
+            nextLink ??= document.QuerySelectorAll("a")
+                    .FirstOrDefault(a => a.TextContent?.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase) == true ||
+                                         a.GetAttribute("title")?.Contains("next", StringComparison.OrdinalIgnoreCase) == true);
 
             var hasMoreItems = nextLink != null;
 
+            _logger.LogInformation(
+                "[ModDB] Discovered {Count} items from section '{Section}', hasMoreItems: {HasMore}",
+                results.Count,
+                section,
+                hasMoreItems);
+
             return (results, hasMoreItems);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

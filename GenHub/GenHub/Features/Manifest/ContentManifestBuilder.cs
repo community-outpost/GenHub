@@ -694,6 +694,21 @@ public partial class ContentManifestBuilder(
         return this;
     }
 
+    /// <inheritdoc/>
+    public IContentManifestBuilder WithId(ManifestId id)
+    {
+        ManifestIdValidator.EnsureValid(id);
+        _manifest.Id = id;
+        logger.LogDebug("Manifest ID explicitly set to: {Id}", id);
+
+        // Clear stored values to prevent ID regeneration during Build()
+        _publisherId = null;
+        _contentName = null;
+        _manifestVersion = null;
+
+        return this;
+    }
+
     /// <summary>
     /// Builds and returns the manifest.
     /// </summary>

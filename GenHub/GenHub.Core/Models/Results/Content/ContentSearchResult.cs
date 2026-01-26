@@ -81,6 +81,9 @@ public class ContentSearchResult
     /// <summary>Gets additional metadata for resolvers.</summary>
     public IDictionary<string, string> ResolverMetadata { get; } = new Dictionary<string, string>();
 
+    /// <summary>Gets additional data storage for flexible property extensibility.</summary>
+    public IDictionary<string, object> AdditionalData { get; } = new Dictionary<string, object>();
+
     /// <summary>Gets or sets parsed web page data with rich metadata (files, images, videos, comments, etc.).</summary>
     public ParsedWebPage? ParsedPageData { get; set; }
 
@@ -105,5 +108,30 @@ public class ContentSearchResult
     public void UpdateId(string newId)
     {
         Id = newId;
+    }
+
+    /// <summary>Returns the data payload from the dictionary cast to type T, or null if unavailable or of wrong type.</summary>
+    /// <typeparam name="T">Expected type of the data payload.</typeparam>
+    /// <param name="key">The key for the data.</param>
+    /// <returns>The typed data or null.</returns>
+    public T? GetData<T>(string key)
+        where T : class
+    {
+        if (AdditionalData.TryGetValue(key, out var data) && data is T typedData)
+        {
+            return typedData;
+        }
+
+        return null;
+    }
+
+    /// <summary>Sets the data payload in the dictionary with type safety.</summary>
+    /// <typeparam name="T">Type of the data payload.</typeparam>
+    /// <param name="key">The key for the data.</param>
+    /// <param name="data">The data to store.</param>
+    public void SetData<T>(string key, T data)
+        where T : class
+    {
+        AdditionalData[key] = data;
     }
 }

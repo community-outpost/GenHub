@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.Downloads.Views;
 
@@ -8,12 +9,15 @@ namespace GenHub.Features.Downloads.Views;
 public partial class ContentCardView : UserControl
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ContentCardView"/> class.
-    /// <summary>
-    /// Initializes a new instance of the ContentCardView class and loads its XAML-defined components.
+    /// Initializes a new instance of the <see cref="ContentCardView"/> class and loads its XAML-defined components.
     /// </summary>
     public ContentCardView()
     {
         InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }

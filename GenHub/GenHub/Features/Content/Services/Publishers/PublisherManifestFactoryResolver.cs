@@ -17,7 +17,7 @@ public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFact
     /// </summary>
     /// <param name="manifest">The manifest to resolve a factory for.</param>
     /// <returns>The appropriate publisher-specific factory, or null if no factory can handle the manifest.</returns>
-    public IPublisherManifestFactory? ResolveFactory(ContentManifest manifest)
+    public virtual IPublisherManifestFactory? ResolveFactory(ContentManifest manifest)
     {
         // Try to find a specialized factory that can handle this manifest
         var factory = factories.FirstOrDefault(f => f.CanHandle(manifest));

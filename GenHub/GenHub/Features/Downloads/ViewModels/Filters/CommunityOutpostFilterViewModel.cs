@@ -16,10 +16,14 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// </summary>
 public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommunityOutpostFilterViewModel"/> class.
+    /// </summary>
     public CommunityOutpostFilterViewModel()
     {
         InitializeContentTypeFilters();
     }
+
     [ObservableProperty]
     private ContentType? _selectedContentType;
 
@@ -46,6 +50,10 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
         {
             baseQuery.ContentType = SelectedContentType;
         }
+        else
+        {
+            baseQuery.ContentType = null;
+        }
 
         return baseQuery;
     }
@@ -64,7 +72,6 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
             filter.IsSelected = false;
         }
 
-        NotifyFiltersChanged();
         OnFiltersCleared();
     }
 
@@ -103,10 +110,10 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
     }
 
     /// <summary>
-/// Called when SelectedContentType changes to signal that the filter state has been updated.
-/// </summary>
-/// <param name="value">The new selected content type, or <c>null</c> if no content type is selected.</param>
-partial void OnSelectedContentTypeChanged(ContentType? value) => NotifyFiltersChanged();
+    /// Called when SelectedContentType changes to signal that the filter state has been updated.
+    /// </summary>
+    /// <param name="value">The new selected content type, or <c>null</c> if no content type is selected.</param>
+    partial void OnSelectedContentTypeChanged(ContentType? value) => NotifyFiltersChanged();
 
     /// <summary>
     /// Populates the ContentTypeFilters collection with the curated set of content types available for Community Outpost.

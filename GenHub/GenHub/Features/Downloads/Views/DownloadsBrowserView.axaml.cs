@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 
 namespace GenHub.Features.Downloads.Views;
 
@@ -8,12 +9,15 @@ namespace GenHub.Features.Downloads.Views;
 public partial class DownloadsBrowserView : UserControl
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DownloadsBrowserView"/> class.
-    /// <summary>
-    /// Initializes a new instance of DownloadsBrowserView and loads its associated XAML components.
+    /// Initializes a new instance of the <see cref="DownloadsBrowserView"/> class and loads its associated XAML components.
     /// </summary>
     public DownloadsBrowserView()
     {
         InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
     }
 }

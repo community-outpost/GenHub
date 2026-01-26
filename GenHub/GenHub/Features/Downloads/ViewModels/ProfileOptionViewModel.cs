@@ -22,10 +22,7 @@ public sealed partial class ProfileOptionViewModel(GameProfile profile) : Observ
     /// <summary>
     /// Gets the game type.
     /// </summary>
-    /// <summary>
-    /// Gets the game type.
-    /// </summary>
-    public GameType GameType => Profile.GameClient?.GameType ?? GameType.Generals;
+    public GameType GameType => Profile.GameClient?.GameType ?? GameType.Unknown;
 
     /// <summary>
     /// Gets the game client name.
@@ -42,7 +39,7 @@ public sealed partial class ProfileOptionViewModel(GameProfile profile) : Observ
     /// Gets or sets the warning message.
     /// </summary>
     [ObservableProperty]
-    private string? _warningMessage;
+    private string? _warningMessage = string.Empty;
 
     /// <summary>
     /// Gets the description for display.

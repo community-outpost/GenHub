@@ -33,11 +33,6 @@ public class AODMapsResolver(
     public string ResolverId => AODMapsConstants.PublisherType;
 
     /// <summary>
-    /// Resolves the details of a discovered AODMaps content item.
-    /// </summary>
-    /// <param name="discoveredItem">The discovered content item to resolve.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <summary>
     /// Resolves content details for a discovered AODMaps item and creates a ContentManifest.
     /// </summary>
     /// <param name="discoveredItem">The discovered content item containing the source URL and resolver metadata used to locate the corresponding file on the AODMaps page.</param>
@@ -120,7 +115,7 @@ public class AODMapsResolver(
         var contentType = ContentType.Map; // Default
 
         // Parse date if available
-        var subDate = file.UploadDate ?? DateTime.MinValue;
+        var subDate = file.UploadDate ?? DateTime.UnixEpoch;
 
         // Use Author as request
         var author = file.Uploader ?? context.Developer ?? AODMapsConstants.DefaultAuthorName;
@@ -137,8 +132,8 @@ public class AODMapsResolver(
             DownloadUrl: file.DownloadUrl ?? string.Empty,
             TargetGame: gameType,
             ContentType: contentType,
-            FileType: Path.GetExtension(file.DownloadUrl) ?? ".zip",
+            FileType: !string.IsNullOrEmpty(file.DownloadUrl) ? Path.GetExtension(file.DownloadUrl) : ".zip",
             Rating: 0f,
-            RefererUrl: item?.SourceUrl);
+            RefererUrl: item.SourceUrl);
     }
 }

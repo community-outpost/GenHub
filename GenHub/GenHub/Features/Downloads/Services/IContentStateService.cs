@@ -34,35 +34,22 @@ public enum ContentState
 public interface IContentStateService
 {
     /// <summary>
-    /// Gets the state for a content search result.
+    /// Determine the current UI state for a discovered content item.
     /// </summary>
     /// <param name="item">The content search result from discovery.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <summary>
-/// Determine the current UI state for a discovered content item.
-/// </summary>
-/// <param name="item">The content search result from discovery.</param>
-/// <param name="cancellationToken">Token to cancel the operation.</param>
-/// <returns>A <see cref="ContentState"/> indicating whether the content is not downloaded, has an update available, or is downloaded and up to date.</returns>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>A <see cref="ContentState"/> indicating whether the content is not downloaded, has an update available, or is downloaded and up to date.</returns>
     Task<ContentState> GetStateAsync(ContentSearchResult item, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the state by generating a prospective manifest ID from components.
+    /// Determine the UI state for content identified by the provided components.
     /// </summary>
-    /// <param name="publisher">Publisher identifier.</param>
-    /// <param name="contentType">Content type.</param>
-    /// <param name="contentName">Content name.</param>
-    /// <param name="releaseDate">Release date (used as version).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <summary>
-        /// Determine the UI state for content identified by the provided components.
-        /// </summary>
-        /// <param name="publisher">The publisher identifier of the content.</param>
-        /// <param name="contentType">The type/category of the content.</param>
-        /// <param name="contentName">The name of the content.</param>
-        /// <param name="releaseDate">The release date used as the content version to compare against local installs.</param>
-        /// <param name="cancellationToken">Token to cancel the operation.</param>
-        /// <returns>The content's <see cref="ContentState"/>: NotDownloaded, UpdateAvailable, or Downloaded.</returns>
+    /// <param name="publisher">The publisher identifier of the content.</param>
+    /// <param name="contentType">The type/category of the content.</param>
+    /// <param name="contentName">The name of the content.</param>
+    /// <param name="releaseDate">The release date used as the content version to compare against local installs.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>The content's <see cref="ContentState"/>: NotDownloaded, UpdateAvailable, or Downloaded.</returns>
     Task<ContentState> GetStateAsync(
         string publisher,
         ContentType contentType,
@@ -71,15 +58,10 @@ public interface IContentStateService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the local manifest ID if content is downloaded.
+    /// Retrieves the local manifest ID for the specified content if it is downloaded locally.
     /// </summary>
-    /// <param name="item">The content search result.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <summary>
-/// Retrieves the local manifest ID for the specified content if it is downloaded locally.
-/// </summary>
-/// <param name="item">The discovered content search result to check for a local installation.</param>
-/// <param name="cancellationToken">Token to cancel the operation.</param>
-/// <returns>The local manifest ID when the content is downloaded, or <c>null</c> if it is not downloaded.</returns>
+    /// <param name="item">The discovered content search result to check for a local installation.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>The local manifest ID when the content is downloaded, or <c>null</c> if it is not downloaded.</returns>
     Task<string?> GetLocalManifestIdAsync(ContentSearchResult item, CancellationToken cancellationToken = default);
 }

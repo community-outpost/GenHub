@@ -8,9 +8,7 @@ namespace GenHub.Features.Downloads.Views;
 public partial class FilterPanelView : UserControl
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="FilterPanelView"/> class.
-    /// <summary>
-    /// Initializes a new instance of the FilterPanelView class and initializes the UI components defined in its XAML.
+    /// Initializes a new instance of the <see cref="FilterPanelView"/> class and initializes the UI components defined in its XAML.
     /// </summary>
     public FilterPanelView()
     {

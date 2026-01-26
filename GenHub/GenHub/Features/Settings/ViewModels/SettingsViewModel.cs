@@ -223,15 +223,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="updateManager">The update manager service.</param>
     /// <param name="subscriptionStore">The publisher subscription store.</param>
     /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
-    /// <param name="githubClient">The GitHub API client.</param>
     /// <param name="notificationService">Notification service.</param>
     /// <param name="configurationProvider">Configuration provider.</param>
     /// <param name="installationService">Game installation service.</param>
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
-    /// <summary>
-    /// Creates a new SettingsViewModel that exposes and manages application settings, preferences, and related configuration state.
-    /// </summary>
     /// <remarks>
     /// The constructor loads persisted settings, initializes internal timers and state, and registers message handlers required for view-model updates.
     /// </remarks>

@@ -733,6 +733,7 @@ public class OctokitGitHubApiClient(
             PublishedAt = octokitRelease.PublishedAt,
             IsDraft = octokitRelease.Draft,
             IsPrerelease = octokitRelease.Prerelease,
+            Author = octokitRelease.Author?.Login ?? string.Empty,
             Assets = [.. octokitRelease.Assets.Select(MapToGitHubReleaseAsset)],
         };
     }

@@ -95,19 +95,13 @@ public sealed partial class ProfileSelectionViewModel(
     }
 
     /// <summary>
-    /// Filters profiles by compatibility with target game.
-    /// </summary>
-    /// <param name="targetGame">The target game type for compatibility.</param>
-    /// <param name="contentManifestId">The optional content manifest ID to be added.</param>
-    /// <param name="contentName">The optional content name for display.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <summary>
     /// Loads all profiles, partitions them into profiles compatible with the specified target game and incompatible profiles, and updates the view model state accordingly.
     /// </summary>
+    /// <param name="targetGame">The target game type for compatibility.</param>
     /// <param name="contentManifestId">Optional content manifest identifier to associate with profiles when selecting or creating profiles.</param>
     /// <param name="contentName">Optional display name of the content used to derive new profile names when creating a profile.</param>
     /// <param name="ct">Cancellation token to cancel the load operation.</param>
-    /// <returns>Completes after the view model's profile lists and related state (TargetGame, ContentManifestId, ContentName, CompatibleProfiles, OtherProfiles, HasAnyProfiles, ProfileSummary, IsLoading, and ErrorMessage) have been updated.</returns>
+    /// <returns>Completes after the view model's profile lists and related state have been updated.</returns>
     public async Task LoadProfilesAsync(
         GameType targetGame,
         string? contentManifestId = null,
@@ -176,11 +170,6 @@ public sealed partial class ProfileSelectionViewModel(
     }
 
     /// <summary>
-    /// Determines if a profile is compatible with the target game type.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <param name="targetGame">The target game type.</param>
-    /// <summary>
     /// Determines whether the given profile is compatible with the specified target game.
     /// </summary>
     /// <param name="profile">The profile to evaluate.</param>
@@ -193,9 +182,6 @@ public sealed partial class ProfileSelectionViewModel(
         return profile.GameClient.GameType == targetGame;
     }
 
-    /// <summary>
-    /// Selects a profile and optionally adds content to it.
-    /// </summary>
     /// <summary>
     /// Selects the provided profile option; if content is specified on the view model, attempts to add that content to the profile, then requests the dialog to close.
     /// </summary>
@@ -276,8 +262,6 @@ public sealed partial class ProfileSelectionViewModel(
     }
 
     /// <summary>
-    /// Cancels the profile selection and closes the dialog.
-    /// <summary>
     /// Cancels the selection and requests the dialog to close without selecting a profile.
     /// </summary>
     [RelayCommand]
@@ -289,10 +273,9 @@ public sealed partial class ProfileSelectionViewModel(
     }
 
     /// <summary>
-    /// Creates a new profile with the current content pre-enabled.
-    /// <summary>
     /// Creates a new profile pre-populated with the current content manifest and refreshes the profile list on success.
     /// </summary>
+    /// <returns>A task representing the profile creation operation.</returns>
     /// <remarks>
     /// If <see cref="ContentManifestId"/> is null or empty the method exits without action. The method derives a base name from <see cref="ContentName"/>, ensures the profile name is unique by appending " (n)" when necessary, and calls the content service to create the profile. On successful creation the profile list is reloaded for <see cref="TargetGame"/>; failures are logged but not thrown. Exceptions are caught and logged. This method is executed as an async command.
     /// </remarks>
@@ -347,10 +330,6 @@ public sealed partial class ProfileSelectionViewModel(
         }
     }
 
-    /// <summary>
-    /// Checks if a profile with the given name already exists.
-    /// </summary>
-    /// <param name="profileName">The profile name to check.</param>
     /// <summary>
     /// Determines whether a profile with the specified name exists.
     /// </summary>

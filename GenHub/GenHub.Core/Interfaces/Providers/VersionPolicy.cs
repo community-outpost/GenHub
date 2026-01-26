@@ -16,7 +16,7 @@ public enum VersionPolicy
     AllVersions,
 
     /// <summary>
-    /// Include prerelease versions in addition to stable releases.
+    /// Show the latest release including prereleases. Note: This returns only the single most recent release (which may be a prerelease), not all releases.
     /// </summary>
-    IncludePrereleases,
+    LatestIncludingPrereleases,
 }

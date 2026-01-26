@@ -9,7 +9,7 @@
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
              x:DataType="vm:ContentDetailViewModel"
-             Background="#1A1A1A">
+             Background="{DynamicResource WindowBackground}">
 
     <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
@@ -135,39 +135,50 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <!-- Files Tab - Only show if more than 1 file -->
+                    <!-- Files Tab - Shows files/variants -->
                     <TabItem Header="Files" IsVisible="{Binding ShowFilesTab}">
                         <ScrollViewer>
-                            <ItemsControl ItemsSource="{Binding Files}" Margin="0,24,0,0">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="parsers:File">
-                                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <StackPanel Grid.Column="0" Spacing="4">
-                                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
-                                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="#AAAAAA" FontSize="13"
-                                                                   IsVisible="{Binding SizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                        <TextBlock Text="{Binding UploadDate, StringFormat='{}{0:MMM dd, yyyy}'}"
-                                                                   Foreground="#AAAAAA" FontSize="13"
-                                                                   IsVisible="{Binding UploadDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            <StackPanel Margin="0,24,0,0">
+                                <!-- Info text for GitHub variants -->
+                                <TextBlock Text="Available Variants" FontWeight="SemiBold" FontSize="16" Foreground="White" Margin="0,0,0,8"
+                                           IsVisible="{Binding HasGitHubVariants}"/>
+                                <TextBlock Text="Select a variant to download based on your preference" FontSize="13" Foreground="#888888" Margin="0,0,0,16"
+                                           IsVisible="{Binding HasGitHubVariants}"/>
+
+                                <ItemsControl ItemsSource="{Binding Files}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="parsers:File">
+                                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                                            <TextBlock Text="{Binding SizeDisplay}" Foreground="#AAAAAA" FontSize="13"
+                                                                       IsVisible="{Binding SizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                            <TextBlock Text="{Binding UploadDate, StringFormat='{}{0:MMM dd, yyyy}'}"
+                                                                       Foreground="#AAAAAA" FontSize="13"
+                                                                       IsVisible="{Binding UploadDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding OriginalFileName}"
+                                                                   Foreground="#666666" FontSize="11"
+                                                                   IsVisible="{Binding OriginalFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <TextBlock Text="{Binding Uploader, StringFormat='By: {0}'}"
+                                                                   Foreground="#888888" FontSize="12"
+                                                                   IsVisible="{Binding Uploader, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding Uploader, StringFormat='By: {0}'}"
-                                                               Foreground="#888888" FontSize="12"
-                                                               IsVisible="{Binding Uploader, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                </StackPanel>
-                                                <Button Grid.Column="1" Content="Download"
-                                                        Command="{Binding $parent[UserControl].((vm:ContentDetailViewModel)DataContext).DownloadFileCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}"
-                                                        CornerRadius="6" Padding="16,8"
-                                                        VerticalAlignment="Center"
-                                                        IsVisible="False" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                                    <Button Grid.Column="1" Content="Download"
+                                                            Command="{Binding $parent[UserControl].((vm:ContentDetailViewModel)DataContext).DownloadFileCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}"
+                                                            CornerRadius="6" Padding="16,8"
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding $parent[UserControl].((vm:ContentDetailViewModel)DataContext).HasGitHubVariants}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
                     </TabItem>
 
@@ -181,7 +192,7 @@
                                 <ItemsControl ItemsSource="{Binding Releases}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#333333" CornerRadius="8" Padding="16" Margin="0,0,0,8">
+                                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,8">
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <StackPanel Grid.Column="0" Spacing="4">
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White" />

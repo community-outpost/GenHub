@@ -735,7 +735,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         var latestItem = ContentTypes
             .SelectMany(g => g.Items)
             .Where(i => !i.IsInstalled)
-            .OrderByDescending(i => i.Model.LastUpdated)
+            .OrderByDescending(i => i.Model.LastUpdated ?? DateTime.MinValue)
             .FirstOrDefault();
 
         if (latestItem == null)

@@ -11,11 +11,6 @@ public static class CatalogConstants
     public const int CatalogSchemaVersion = 1;
 
     /// <summary>
-    /// Filename for subscriptions storage.
-    /// </summary>
-    public const string SubscriptionFileName = "subscriptions.json";
-
-    /// <summary>
     /// Resolver ID for generic catalog resolver.
     /// </summary>
     public const string GenericCatalogResolverId = "generic-catalog";
@@ -26,7 +21,24 @@ public static class CatalogConstants
     public const int DefaultCatalogCacheExpirationHours = 24;
 
     /// <summary>
-    /// Maximum catalog size in bytes (10 MB).
+    /// File name for the catalog manifest (catalog.json).
     /// </summary>
-    public const long MaxCatalogSizeBytes = 10 * 1024 * 1024;
+    public const string CatalogManifestFileName = "catalog.json";
+
+    /// <summary>
+    /// File name for the catalog signature file (catalog.json.sig).
+    /// </summary>
+    public const string CatalogManifestSignatureFileName = "catalog.json.sig";
+
+    /// <summary>
+    /// File name for catalog metadata.
+    /// </summary>
+    [Obsolete("Use CatalogManifestFileName instead")]
+    public const string CatalogMetaFileName = CatalogManifestFileName;
+
+    /// <summary>
+    /// File name for catalog signature.
+    /// </summary>
+    [Obsolete("Use CatalogManifestSignatureFileName instead")]
+    public const string CatalogSignatureFileName = CatalogManifestSignatureFileName;
 }

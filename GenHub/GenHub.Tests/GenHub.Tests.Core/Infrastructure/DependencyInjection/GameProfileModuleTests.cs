@@ -275,7 +275,6 @@ public class GameProfileModuleTests
         services.AddSingleton<ICasService>(new Mock<ICasService>().Object);
         services.AddSingleton<IGameLauncher>(new Mock<IGameLauncher>().Object);
         services.AddSingleton<ILaunchRegistry>(new Mock<ILaunchRegistry>().Object);
-        services.AddSingleton<ICasService>(new Mock<ICasService>().Object);
         services.AddSingleton<INotificationService>(new Mock<INotificationService>().Object);
         services.AddSingleton<GenHub.Core.Interfaces.Shortcuts.IShortcutService>(new Mock<GenHub.Core.Interfaces.Shortcuts.IShortcutService>().Object);
         services.AddScoped(provider => new Mock<IGeneralsOnlineProfileReconciler>().Object);

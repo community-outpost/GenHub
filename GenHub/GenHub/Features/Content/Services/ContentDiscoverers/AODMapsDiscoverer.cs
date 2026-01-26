@@ -44,6 +44,19 @@ public partial class AODMapsDiscoverer(
     private static partial Regex HtmlPageNumberRegex();
 
     /// <summary>
+    /// Checks if the provided URL matches one of the known AODMaps page patterns.
+    /// </summary>
+    private static bool IsPagePattern(string href)
+    {
+        if (string.IsNullOrEmpty(href)) return false;
+
+        return href.Contains("new", StringComparison.OrdinalIgnoreCase) ||
+               href.Contains("players", StringComparison.OrdinalIgnoreCase) ||
+               href.Contains("compstomp", StringComparison.OrdinalIgnoreCase) ||
+               href.Contains("Map_Packs", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Convert a potentially relative AODMaps URL to an absolute URL using the AODMaps base URL.
     /// </summary>
     /// <param name="url">The URL to normalize; may be null, empty, relative, or already absolute.</param>
@@ -60,8 +73,12 @@ public partial class AODMapsDiscoverer(
             return url;
         }
 
-        // Handle ../ paths if necessary, but simple concatenation usually works if base is known
-        // Or specific cleaning
+        // Use Uri for reliable resolution
+        if (Uri.TryCreate(new Uri(AODMapsConstants.BaseUrl), url, out var absoluteUri))
+        {
+            return absoluteUri.ToString();
+        }
+
         return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
     }
 
@@ -293,7 +310,6 @@ public partial class AODMapsDiscoverer(
     private static string BuildDiscoveryUrl(ContentSearchQuery query)
     {
         var page = query.Page ?? 1;
-        var pageStr = page > 1 ? page.ToString() : string.Empty; // Some URLs use "2", "3". "1" is often empty or omitted.
 
         // Special case: Page 1 often has no suffix. Page 2 has '2'.
         // Format {0} in patterns usually denotes the number suffix.
@@ -302,14 +318,15 @@ public partial class AODMapsDiscoverer(
         // 1. Check for specific map makers in query or tags
         // If we want to browse a map maker
         // Not implemented in basic browsing yet unless we parse "tags" containing "author:xxx"
-        if (query.CNCLabsMapTags != null && query.CNCLabsMapTags.Any(t => t.StartsWith("author:")))
+        if (query.CNCLabsMapTags != null)
         {
-            var authorTag = query.CNCLabsMapTags.First(t => t.StartsWith("author:"));
-            var authorName = authorTag.Replace("author:", string.Empty);
-
-            // Look up mapping if needed
-            // Try formatting
-            return string.Format(AODMapsConstants.MapMakerPagePattern, authorName);
+            var authorTag = query.CNCLabsMapTags.FirstOrDefault(t => t.StartsWith("author:", StringComparison.OrdinalIgnoreCase));
+            if (authorTag != null)
+            {
+                var authorName = authorTag[7..]; // "author:".Length
+                var encodedAuthor = System.Net.WebUtility.UrlEncode(authorName);
+                return string.Format(AODMapsConstants.MapMakerPagePattern, encodedAuthor);
+            }
         }
 
         // 2. Check Content Type
@@ -358,7 +375,7 @@ public partial class AODMapsDiscoverer(
     /// </returns>
     private (List<ContentSearchResult> Items, bool HasMoreItems) ExtractItems(IDocument document, string sourceUrl, int currentPage)
     {
-        var results = new List<ContentSearchResult>();
+        var results = new Dictionary<string, ContentSearchResult>();
 
         // Strategy 1: Gallery Items (Common on Players, New, Packs pages)
         var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
@@ -367,9 +384,9 @@ public partial class AODMapsDiscoverer(
             foreach (var item in galleryItems)
             {
                 var result = ParseGalleryItem(item, sourceUrl);
-                if (result != null)
+                if (result != null && !results.ContainsKey(result.Id))
                 {
-                    results.Add(result);
+                    results[result.Id] = result;
                 }
             }
         }
@@ -387,9 +404,9 @@ public partial class AODMapsDiscoverer(
                 if (contentDiv != null)
                 {
                     var result = ParseMapMakerItem(contentDiv, sourceUrl);
-                    if (result != null)
+                    if (result != null && !results.ContainsKey(result.Id))
                     {
-                        results.Add(result);
+                        results[result.Id] = result;
                     }
                 }
             }
@@ -398,7 +415,7 @@ public partial class AODMapsDiscoverer(
         // Check for next page indicator to support progressive loading
         bool hasMoreItems = CheckForNextPage(document, currentPage);
 
-        return (results, hasMoreItems);
+        return (results.Values.ToList(), hasMoreItems);
     }
 
     /// <summary>
@@ -411,7 +428,6 @@ public partial class AODMapsDiscoverer(
     {
         // AODMaps uses pagination links at the bottom of pages
         // We need to check if there's a link to the next page
-
         // Method 1: Look for a "Next" link text
         var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
             a.TextContent != null &&
@@ -419,8 +435,12 @@ public partial class AODMapsDiscoverer(
 
         if (nextLink != null)
         {
-            _logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", nextLink.GetAttribute("href"));
-            return true;
+            var href = nextLink.GetAttribute("href");
+            if (!string.IsNullOrEmpty(href) && href != "#")
+            {
+                _logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", href);
+                return true;
+            }
         }
 
         // Method 2: Look for numbered pagination links and check if any are greater than current page
@@ -431,11 +451,12 @@ public partial class AODMapsDiscoverer(
             var text = a.TextContent?.Trim();
 
             // Look for links that might be page numbers (digits or patterns like "new2.html", "new3.html")
-            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
+            // Support empty text links if they have a page pattern in href
+            if (string.IsNullOrEmpty(href))
                 return false;
 
             // Check if href contains page pattern (new2.html, new3.html, etc.)
-            if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
+            if (IsPagePattern(href))
             {
                 // Extract page number from href patterns
                 // e.g., "new2.html" -> page 2, "6_players2.html" -> page 2
@@ -462,15 +483,16 @@ public partial class AODMapsDiscoverer(
         }
 
         // Method 3: Check for any link that points to the next page based on URL patterns
-        // Look for links with "new{N}.html" pattern where N > currentPage
-        var nextPagePattern = currentPage > 1
-            ? $"new{currentPage + 1}.html"
-            : "new2.html";
-
+        // Look for links with "{N}.html" pattern where N > currentPage, searching for the base name pattern
+        var nextNum = currentPage + 1;
         var directNextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
         {
             var href = a.GetAttribute("href");
-            return href != null && href.Contains(nextPagePattern);
+            if (href == null) return false;
+
+            var match = HtmlPageNumberRegex().Match(href);
+            bool isPagePattern = IsPagePattern(href);
+            return match.Success && isPagePattern && int.TryParse(match.Groups[1].Value, out var pageNum) && pageNum == nextNum;
         });
 
         if (directNextLink != null)

@@ -390,7 +390,7 @@ public class ProfileLauncherFacade(
             logger.LogDebug("[Launch] Step 5: Checking workspace strategy and admin rights - Strategy: {Strategy}", effectiveStrategy);
 
             // Admin check for symlink strategies.
-            // If not admin and using a symlink-based strategy, permanently switch the profile to HardLink strategy.
+            // If not admin and using a symlink-based strategy, permanently switch the profile to FullCopy strategy.
             var isAdmin = false;
             if (OperatingSystem.IsWindows())
             {
@@ -412,20 +412,43 @@ public class ProfileLauncherFacade(
                     effectiveStrategy);
             }
 
-            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
+            if (OperatingSystem.IsWindows() &&
+                !isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
-                // No admin rights - switch profile to HardLink strategy permanently
-                var originalStrategy = effectiveStrategy;
-                effectiveStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
+                // No admin rights - switch profile to FullCopy strategy instead of symlink-based strategies
+                // FullCopy is more reliable than HardLink as it works across different drives
+                var originalStrategy = profile.WorkspaceStrategy;
+                effectiveStrategy = WorkspaceStrategy.FullCopy;
+
+                // Set the strategy immediately in memory so launch uses FullCopy even if persistence fails
+                profile.WorkspaceStrategy = effectiveStrategy;
+
+                // Persist the change so the user doesn't get notified every single time
+                try
+                {
+                    var result = await profileManager.UpdateProfileAsync(profileId, new UpdateProfileRequest { PreferredStrategy = effectiveStrategy }, cancellationToken);
+                    if (result.Failed)
+                    {
+                        logger.LogWarning("Failed to persist workspace strategy change for profile {ProfileId}: {Errors}", profileId, string.Join(", ", result.Errors));
+                    }
+                    else
+                    {
+                        logger.LogInformation("Profile {ProfileId} workspace strategy persisted as {Strategy}", profileId, effectiveStrategy);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Exception while persisting workspace strategy change for profile {ProfileId} (non-critical)", profileId);
+                }
 
                 logger.LogInformation(
-                    "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",
+                    "Profile {ProfileId} - Switching from {OriginalStrategy} to FullCopy strategy due to missing admin rights",
                     profileId,
                     originalStrategy);
 
                 notificationService.ShowInfo(
                     "Workspace Strategy Changed",
-                    $"'{profile.Name}' requires admin for {originalStrategy}. Switching to HardLink strategy.",
+                    $"'{profile.Name}' requires admin for {originalStrategy}. Switching to FullCopy strategy.",
                     NotificationDurations.Long);
             }
 
@@ -443,30 +466,8 @@ public class ProfileLauncherFacade(
                 $"Starting '{profile.Name}' with {effectiveStrategy} workspace strategy...",
                 NotificationDurations.Medium);
 
-            // Persist the effective strategy to the profile if it changed due to lack of admin rights
-            if (effectiveStrategy != profile.WorkspaceStrategy)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    PreferredStrategy = effectiveStrategy,
-                };
-                var strategyUpdateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (strategyUpdateResult.Success)
-                {
-                    profile.WorkspaceStrategy = effectiveStrategy;
-                    logger.LogInformation(
-                        "Updated profile {ProfileId} workspace strategy to {Strategy} due to admin rights requirement",
-                        profileId,
-                        effectiveStrategy);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Failed to persist strategy change for profile {ProfileId}: {Error}",
-                        profileId,
-                        strategyUpdateResult.FirstError);
-                }
-            }
+            // Note: profile.WorkspaceStrategy is already set to effectiveStrategy in the admin check block above
+            // The profile will launch with FullCopy strategy even if persistence below fails
 
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");

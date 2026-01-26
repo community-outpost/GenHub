@@ -31,38 +31,38 @@ public abstract partial class FilterPanelViewModelBase : ObservableObject, IFilt
     public abstract bool HasActiveFilters { get; }
 
     /// <summary>
-/// Applies the filter panel's active filters to a provided content search query.
-/// </summary>
-/// <param name="baseQuery">The starting ContentSearchQuery to which this panel's active filters will be applied.</param>
-/// <returns>A ContentSearchQuery representing the original query with this panel's filters applied.</returns>
+    /// Applies the filter panel's active filters to a provided content search query.
+    /// </summary>
+    /// <param name="baseQuery">The starting ContentSearchQuery to which this panel's active filters will be applied.</param>
+    /// <returns>A ContentSearchQuery representing the original query with this panel's filters applied.</returns>
     public abstract ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery);
 
     /// <summary>
-/// Reset all filters to their default (no-filter) state.
-/// </summary>
-/// <remarks>
-/// Implementations should clear any stored filter values and raise the <see cref="FiltersCleared"/> event to notify listeners that filters have been cleared.
-/// </remarks>
+    /// Reset all filters to their default (no-filter) state.
+    /// </summary>
+    /// <remarks>
+    /// Implementations should clear any stored filter values and raise the <see cref="FiltersCleared"/> event to notify listeners that filters have been cleared.
+    /// </remarks>
     public abstract void ClearFilters();
 
     /// <summary>
-/// Gets a human-readable summary of the currently active filters.
-/// </summary>
-/// <returns>An enumerable of strings describing each active filter; empty if no filters are active.</returns>
+    /// Gets a human-readable summary of the currently active filters.
+    /// </summary>
+    /// <returns>An enumerable of strings describing each active filter; empty if no filters are active.</returns>
     public abstract IEnumerable<string> GetActiveFilterSummary();
 
     /// <summary>
     /// Raises property changed for HasActiveFilters when any filter changes.
-    /// <summary>
-    /// Raises a property-changed notification for the <c>HasActiveFilters</c> property.
+    /// Also raises the FiltersApplied event to trigger content refresh.
     /// </summary>
     protected void NotifyFiltersChanged()
     {
         OnPropertyChanged(nameof(HasActiveFilters));
+
+        // Automatically trigger content refresh when filters change
+        FiltersApplied?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Raises the FiltersCleared event.
     /// <summary>
     /// Notifies subscribers that filters have been cleared by raising the <see cref="FiltersCleared"/> event.
     /// </summary>
@@ -71,8 +71,6 @@ public abstract partial class FilterPanelViewModelBase : ObservableObject, IFilt
         FiltersCleared?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Command to apply the current filters.
     /// <summary>
     /// Raises the <see cref="FiltersApplied"/> event to notify subscribers that the apply-filters action was triggered.
     /// </summary>

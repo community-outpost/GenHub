@@ -21,9 +21,7 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
     private ObservableCollection<ContentTypeFilterItem> _contentTypeFilters = [];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SuperHackersFilterViewModel"/> class.
-    /// <summary>
-    /// Initializes a new SuperHackersFilterViewModel and populates the content type filter options.
+    /// Initializes a new instance of the <see cref="SuperHackersFilterViewModel"/> class and populates the content type filter options.
     /// </summary>
     public SuperHackersFilterViewModel()
     {
@@ -45,6 +43,10 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
         {
             baseQuery.ContentType = SelectedContentType;
         }
+        else
+        {
+            baseQuery.ContentType = null;
+        }
 
         return baseQuery;
     }
@@ -64,9 +66,9 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
     }
 
     /// <summary>
-    /// Produces summary strings for the currently active filters.
+    /// Gets a human-readable summary of the currently active filters.
     /// </summary>
-    /// <returns>An enumerable of human-readable filter summaries; yields "Type: {SelectedContentType}" when a content type is selected.</returns>
+    /// <returns>An enumerable of strings describing each active filter; yields "Type: {SelectedContentType}" when a content type is selected.</returns>
     public override IEnumerable<string> GetActiveFilterSummary()
     {
         if (SelectedContentType.HasValue)
@@ -76,9 +78,9 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
     }
 
     /// <summary>
-    /// Toggle the selection state of the given content type filter, ensuring it becomes the sole selected item or is deselected and SelectedContentType is updated accordingly.
+    /// Toggles the given content type filter item: selects it (deselecting all others) or clears the selection if it was already selected.
     /// </summary>
-    /// <param name="item">The content type filter item to toggle; its IsSelected state will be changed and SelectedContentType will be set or cleared to match the result.</param>
+    /// <param name="item">The content type filter item to toggle.</param>
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -101,7 +103,7 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
     }
 
     /// <summary>
-    /// Populate the ContentTypeFilters collection with the content type options available for TheSuperHackers publisher.
+    /// Populates the ContentTypeFilters collection with the content type options available for TheSuperHackers publisher.
     /// </summary>
     /// <remarks>
     /// Sets ContentTypeFilters to a collection containing a single "Game Client" filter item.

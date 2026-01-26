@@ -205,6 +205,12 @@ public static class ModDBConstants
 
     // Downloads Section - Media
 
+    /// <summary>
+    /// Value used for the Media group category in filter options.
+    /// Returns an empty string as it's a structural element.
+    /// </summary>
+    public const string CategoryMedia = "";
+
     /// <summary>Category: Trailer (Video).</summary>
     public const string CategoryTrailer = "7";
 
@@ -221,6 +227,12 @@ public static class ModDBConstants
     public const string CategoryWallpaper = "10";
 
     // Downloads Section - Tools
+
+    /// <summary>
+    /// Value used for the Tools group category in filter options.
+    /// Returns an empty string as it's a structural element.
+    /// </summary>
+    public const string CategoryTools = "";
 
     /// <summary>Category: Archive Tool.</summary>
     public const string CategoryArchiveTool = "20";
@@ -249,7 +261,19 @@ public static class ModDBConstants
     /// <summary>Category: Source Code.</summary>
     public const string CategorySourceCode = "26";
 
+    /// <summary>Category: RTX Remix.</summary>
+    public const string CategoryRTXRemix = "31";
+
+    /// <summary>Category: RTX.conf.</summary>
+    public const string CategoryRTXConf = "32";
+
     // Downloads Section - Miscellaneous
+
+    /// <summary>
+    /// Value used for the Miscellaneous group category in filter options.
+    /// Returns an empty string as it's a structural element.
+    /// </summary>
+    public const string CategoryMiscellaneous = "";
 
     /// <summary>Category: Guide.</summary>
     public const string CategoryGuide = "22";
@@ -265,6 +289,9 @@ public static class ModDBConstants
 
     // Addons Section - Maps
 
+    /// <summary>Addon Category: Maps (Group).</summary>
+    public const string AddonMaps = "";
+
     /// <summary>Addon Category: Multiplayer Map.</summary>
     public const string AddonMultiplayerMap = "101";
 
@@ -275,6 +302,9 @@ public static class ModDBConstants
     public const string AddonPrefab = "103";
 
     // Addons Section - Models
+
+    /// <summary>Addon Category: Models (Group).</summary>
+    public const string AddonModels = "";
 
     /// <summary>Addon Category: Player Model.</summary>
     public const string AddonPlayerModel = "106";
@@ -293,6 +323,9 @@ public static class ModDBConstants
 
     // Addons Section - Skins
 
+    /// <summary>Addon Category: Skins (Group).</summary>
+    public const string AddonSkins = "";
+
     /// <summary>Addon Category: Player Skin.</summary>
     public const string AddonPlayerSkin = "112";
 
@@ -310,6 +343,9 @@ public static class ModDBConstants
 
     // Addons Section - Audio
 
+    /// <summary>Addon Category: Audio (Group).</summary>
+    public const string AddonAudio = "";
+
     /// <summary>Addon Category: Music.</summary>
     public const string AddonMusic = "117";
 
@@ -323,6 +359,9 @@ public static class ModDBConstants
     public const string AddonAudioPack = "118";
 
     // Addons Section - Graphics
+
+    /// <summary>Addon Category: Graphics (Group).</summary>
+    public const string AddonGraphics = "";
 
     /// <summary>Addon Category: Decal.</summary>
     public const string AddonDecal = "124";
@@ -403,6 +442,35 @@ public static class ModDBConstants
 
     /// <summary>Timeframe: Year or older.</summary>
     public const string TimeframeYearOrOlder = "5";
+
+    // ===== License Type Constants =====
+
+    /// <summary>License type: BSD License.</summary>
+    public const string LicenseBSD = "7";
+
+    /// <summary>License type: Commercial License.</summary>
+    public const string LicenseCommercial = "1";
+
+    /// <summary>License type: Creative Commons License.</summary>
+    public const string LicenseCreativeCommons = "2";
+
+    /// <summary>License type: GPL License.</summary>
+    public const string LicenseGPL = "5";
+
+    /// <summary>License type: LGPL License.</summary>
+    public const string LicenseLGPL = "6";
+
+    /// <summary>License type: MIT License.</summary>
+    public const string LicenseMIT = "8";
+
+    /// <summary>License type: Zlib License.</summary>
+    public const string LicenseZlib = "9";
+
+    /// <summary>License type: Proprietary License.</summary>
+    public const string LicenseProprietary = "3";
+
+    /// <summary>License type: Public Domain License.</summary>
+    public const string LicensePublicDomain = "4";
 
     // ===== Content Tags =====
 

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
@@ -29,11 +30,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     private PublisherSubscriptionCollection? _cachedSubscriptions;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherSubscriptionStore"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    /// <summary>
-    /// Initializes a new instance of <see cref="PublisherSubscriptionStore"/> and configures the path to the subscriptions.json file inside the application's data directory.
+    /// Initializes a new instance of the <see cref="PublisherSubscriptionStore"/> class and configures the path to the subscriptions.json file inside the application's data directory.
     /// </summary>
     /// <param name="logger">Logger for publisher subscription store operations.</param>
     /// <param name="configurationProvider">Service that provides application configuration values, including the application data path used to locate the subscriptions file.</param>
@@ -51,6 +48,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     /// <summary>
     /// Retrieve all stored publisher subscriptions.
     /// </summary>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>An OperationResult containing the stored <see cref="PublisherSubscription"/> sequence on success; on failure the result indicates failure and includes an error message.</returns>
     public async Task<OperationResult<IEnumerable<PublisherSubscription>>> GetSubscriptionsAsync(
         CancellationToken cancellationToken = default)
@@ -59,8 +57,9 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         try
         {
             var collection = await LoadSubscriptionsAsync(cancellationToken);
-            // Return a copy to safely allow enumeration outside the lock
-            return OperationResult<IEnumerable<PublisherSubscription>>.CreateSuccess(collection.Subscriptions.ToList());
+
+            // Return defensive copies to prevent cached object mutation
+            return OperationResult<IEnumerable<PublisherSubscription>>.CreateSuccess(collection.Subscriptions.Select(s => s.Clone()));
         }
         catch (Exception ex)
         {
@@ -86,7 +85,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
             var subscription = collection.Subscriptions
                 .FirstOrDefault(s => s.PublisherId.Equals(publisherId, StringComparison.OrdinalIgnoreCase));
 
-            return OperationResult<PublisherSubscription?>.CreateSuccess(subscription);
+            return OperationResult<PublisherSubscription?>.CreateSuccess(subscription?.Clone());
         }
         catch (Exception ex)
         {
@@ -121,7 +120,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
                 return OperationResult<bool>.CreateFailure($"Subscription for '{subscription.PublisherId}' already exists");
             }
 
-            collection.Subscriptions.Add(subscription);
+            collection.Subscriptions.Add(subscription.Clone());
             await SaveSubscriptionsAsync(collection, cancellationToken);
 
             _logger.LogInformation("Added subscription for publisher: {PublisherId}", subscription.PublisherId);
@@ -188,7 +187,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
                 return OperationResult<bool>.CreateFailure($"Subscription for '{subscription.PublisherId}' not found");
             }
 
-            collection.Subscriptions[index] = subscription;
+            collection.Subscriptions[index] = subscription.Clone();
             await SaveSubscriptionsAsync(collection, cancellationToken);
 
             _logger.LogInformation("Updated subscription for publisher: {PublisherId}", subscription.PublisherId);
@@ -209,6 +208,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     /// Determines whether a subscription exists for the specified publisher.
     /// </summary>
     /// <param name="publisherId">The identifier of the publisher to check. Comparison is case-insensitive.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while checking the subscription status.</param>
     /// <returns>true if a subscription for the specified publisher exists, false otherwise.</returns>
     public async Task<OperationResult<bool>> IsSubscribedAsync(
         string publisherId,
@@ -239,6 +239,7 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     /// </summary>
     /// <param name="publisherId">The identifier of the publisher whose subscription will be updated (comparison is case-insensitive).</param>
     /// <param name="trustLevel">The new trust level to assign to the subscription.</param>
+    /// <param name="cancellationToken">A cancellation token to observe while updating the trust level.</param>
     /// <returns>An <see cref="OperationResult{T}"/> containing `true` if the subscription was found and updated; on failure the result will contain an error message.</returns>
     public async Task<OperationResult<bool>> UpdateTrustLevelAsync(
         string publisherId,
@@ -275,8 +276,14 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
     }
 
     /// <summary>
-    /// Loads and returns the publisher subscription collection, using the in-memory cache when available. If the subscriptions file is missing, initializes and returns an empty collection; otherwise deserializes the file and caches the result.
+    /// Loads and returns the publisher subscription collection, using the in-memory cache when available.
+    /// If the subscriptions file is missing, initializes and returns an empty collection; otherwise deserializes the file and caches the result.
     /// </summary>
+    /// <remarks>
+    /// The cache is currently only invalidated when this instance performs a write operation.
+    /// External changes to the subscriptions file will not be reflected until the application is restarted
+    /// or a write operation triggers a cache refresh.
+    /// </remarks>
     /// <returns>The loaded and cached <see cref="PublisherSubscriptionCollection"/>.</returns>
     private async Task<PublisherSubscriptionCollection> LoadSubscriptionsAsync(CancellationToken cancellationToken)
     {
@@ -317,9 +324,35 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
         }
 
         var json = JsonSerializer.Serialize(collection, _jsonOptions);
-        await File.WriteAllTextAsync(_subscriptionsFilePath, json, cancellationToken);
 
-        _cachedSubscriptions = collection;
-        _logger.LogDebug("Saved {Count} subscriptions to file", collection.Subscriptions.Count);
+        // Atomic write using a temp file to prevent data corruption if the process crashes or power is lost
+        var tempFile = $"{_subscriptionsFilePath}.tmp";
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, json, cancellationToken);
+            File.Move(tempFile, _subscriptionsFilePath, overwrite: true);
+
+            _cachedSubscriptions = collection;
+            _logger.LogDebug("Saved {Count} subscriptions to file", collection.Subscriptions.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to perform atomic write to {Path}", _subscriptionsFilePath);
+            throw;
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete temporary file {TempFile}", tempFile);
+                }
+            }
+        }
     }
 }

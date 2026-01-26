@@ -2,7 +2,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
@@ -13,6 +12,7 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
@@ -39,7 +39,6 @@ public class SettingsViewModelTests
     private readonly Mock<IConfigurationProviderService> _mockConfigurationProvider;
     private readonly Mock<IGameInstallationService> _mockInstallationService;
     private readonly Mock<IStorageLocationService> _mockStorageLocationService;
-    private readonly Mock<IGitHubApiClient> _mockGitHubApiClient;
     private readonly Mock<IPublisherSubscriptionStore> _mockSubscriptionStore;
     private readonly Mock<IPublisherCatalogRefreshService> _mockCatalogRefreshService;
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
@@ -61,7 +60,6 @@ public class SettingsViewModelTests
         _mockConfigurationProvider = new Mock<IConfigurationProviderService>();
         _mockInstallationService = new Mock<IGameInstallationService>();
         _mockStorageLocationService = new Mock<IStorageLocationService>();
-        _mockGitHubApiClient = new Mock<IGitHubApiClient>();
         _mockSubscriptionStore = new Mock<IPublisherSubscriptionStore>();
         _mockCatalogRefreshService = new Mock<IPublisherCatalogRefreshService>();
         _mockUserDataTracker = new Mock<IUserDataTracker>();
@@ -98,7 +96,6 @@ public class SettingsViewModelTests
             _mockUpdateManager.Object,
             _mockSubscriptionStore.Object,
             _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
@@ -120,26 +117,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesUserSettingsService()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
-        {
-            Theme = "Light",
-            MaxConcurrentDownloads = 5,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Light";
+        viewModel.MaxConcurrentDownloads = 5;
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -157,27 +137,10 @@ public class SettingsViewModelTests
     public async Task ResetToDefaultsCommand_ResetsAllProperties()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
-        {
-            Theme = "Light",
-            MaxConcurrentDownloads = 10,
-            EnableDetailedLogging = true,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.Theme = "Light";
+        viewModel.MaxConcurrentDownloads = 10;
+        viewModel.EnableDetailedLogging = true;
 
         // Act
         await Task.Run(() => viewModel.ResetToDefaultsCommand.Execute(null));
@@ -196,26 +159,10 @@ public class SettingsViewModelTests
     public void MaxConcurrentDownloads_SetsValueWithinBounds()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
-        {
-            // Act & Assert - Test lower bound
-            MaxConcurrentDownloads = 0,
-        };
+        var viewModel = CreateViewModel();
+
+        // Act & Assert - Test lower bound
+        viewModel.MaxConcurrentDownloads = 0;
         Assert.Equal(1, viewModel.MaxConcurrentDownloads); // ViewModel clamps to 1
 
         // Act & Assert - Test upper bound
@@ -234,22 +181,7 @@ public class SettingsViewModelTests
     public void AvailableThemes_ReturnsExpectedValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        _ = CreateViewModel();
 
         // Act
         var themes = SettingsViewModel.AvailableThemes.ToList();
@@ -267,22 +199,7 @@ public class SettingsViewModelTests
     public void AvailableWorkspaceStrategies_ReturnsAllEnumValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        _ = CreateViewModel();
 
         // Act
         var strategies = SettingsViewModel.AvailableWorkspaceStrategies.ToList();
@@ -302,22 +219,7 @@ public class SettingsViewModelTests
     {
         // Arrange
         _mockConfigService.Setup(x => x.SaveAsync()).ThrowsAsync(new IOException("Disk full"));
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -343,22 +245,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Throws(new Exception("Configuration error"));
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        var viewModel = CreateViewModel();
 
         // Assert - Should not throw and use defaults
         Assert.Equal("Dark", viewModel.Theme);
@@ -383,22 +270,7 @@ public class SettingsViewModelTests
         _mockProfileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
 
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        var viewModel = CreateViewModel();
 
         // Act
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
@@ -415,7 +287,119 @@ public class SettingsViewModelTests
     public async Task UninstallGenHubCommand_CallsService()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUpdateManager.Verify(x => x.Uninstall(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that LoadSubscriptionsCommand populates the Subscriptions collection.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSubscriptionsCommand_PopulatesSubscriptions()
+    {
+        // Arrange
+        var subscriptions = new List<PublisherSubscription>
+        {
+            new() { PublisherId = "pub1", PublisherName = "Publisher 1" },
+            new() { PublisherId = "pub2", PublisherName = "Publisher 2" },
+        };
+
+        _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<PublisherSubscription>>.CreateSuccess(subscriptions));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.LoadSubscriptionsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(2, viewModel.Subscriptions.Count);
+        Assert.Equal("Publisher 1", viewModel.Subscriptions[0].PublisherName);
+        Assert.Equal("Publisher 2", viewModel.Subscriptions[1].PublisherName);
+        _mockSubscriptionStore.Verify(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RemoveSubscriptionCommand removes a subscription and shows notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_RemovesSubscription()
+    {
+        // Arrange
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Publisher 1" };
+        var viewModel = CreateViewModel();
+        viewModel.Subscriptions.Add(sub);
+
+        _mockSubscriptionStore.Setup(x => x.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Empty(viewModel.Subscriptions);
+        _mockSubscriptionStore.Verify(x => x.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ToggleSubscriptionTrustCommand updates trust level.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ToggleSubscriptionTrustCommand_UpdatesTrustLevel()
+    {
+        // Arrange
+        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Publisher 1", TrustLevel = TrustLevel.Untrusted };
+        var viewModel = CreateViewModel();
+        viewModel.Subscriptions.Add(sub);
+
+        _mockSubscriptionStore.Setup(x => x.UpdateTrustLevelAsync("pub1", TrustLevel.Trusted, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await viewModel.ToggleSubscriptionTrustCommand.ExecuteAsync(sub);
+
+        // Assert
+        Assert.Equal(TrustLevel.Trusted, sub.TrustLevel);
+        _mockSubscriptionStore.Verify(x => x.UpdateTrustLevelAsync("pub1", TrustLevel.Trusted, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that RefreshAllCatalogsCommand refreshes catalogs and reloads subscriptions.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RefreshAllCatalogsCommand_RefreshesAndReloads()
+    {
+        // Arrange
+        _mockCatalogRefreshService.Setup(x => x.RefreshAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _mockSubscriptionStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(OperationResult<IEnumerable<PublisherSubscription>>.CreateSuccess([])));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.RefreshAllCatalogsCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockCatalogRefreshService.Verify(x => x.RefreshAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockSubscriptionStore.Verify(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockNotificationService.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    private SettingsViewModel CreateViewModel()
+    {
+        return new SettingsViewModel(
             _mockConfigService.Object,
             _mockLogger.Object,
             _mockCasService.Object,
@@ -425,17 +409,10 @@ public class SettingsViewModelTests
             _mockUpdateManager.Object,
             _mockSubscriptionStore.Object,
             _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
             _mockNotificationService.Object,
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
             _mockUserDataTracker.Object);
-
-        // Act
-        await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
-
-        // Assert
-        _mockUpdateManager.Verify(x => x.Uninstall(), Times.Once);
     }
 }

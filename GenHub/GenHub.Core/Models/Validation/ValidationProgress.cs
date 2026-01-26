@@ -3,21 +3,14 @@ namespace GenHub.Core.Models.Validation;
 /// <summary>
 /// Represents progress information for validation operations.
 /// </summary>
-public class ValidationProgress
+/// <remarks>
+/// Initializes a new instance of the <see cref="ValidationProgress"/> class.
+/// </remarks>
+/// <param name="processed">Number of files processed.</param>
+/// <param name="total">Total number of files.</param>
+/// <param name="currentFile">Current file being processed.</param>
+public class ValidationProgress(int processed, int total, string? currentFile)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ValidationProgress"/> class.
-    /// </summary>
-    /// <param name="processed">Number of files processed.</param>
-    /// <param name="total">Total number of files.</param>
-    /// <param name="currentFile">Current file being processed.</param>
-    public ValidationProgress(int processed, int total, string? currentFile)
-    {
-        Processed = processed;
-        Total = total;
-        CurrentFile = currentFile;
-    }
-
     /// <summary>
     /// Gets the percentage of completion (0-100).
     /// </summary>
@@ -26,15 +19,21 @@ public class ValidationProgress
     /// <summary>
     /// Gets the number of files processed.
     /// </summary>
-    public int Processed { get; }
+    public int Processed { get; } = processed;
 
     /// <summary>
     /// Gets the total number of files.
     /// </summary>
-    public int Total { get; }
+    public int Total { get; } = total;
 
     /// <summary>
     /// Gets the current file being processed.
     /// </summary>
-    public string? CurrentFile { get; }
+    public string? CurrentFile { get; } = currentFile;
+
+    /// <summary>
+    /// Gets a value indicating whether the current operation is computing file hashes.
+    /// This is an explicit flag to replace fragile heuristics based on file counts.
+    /// </summary>
+    public bool IsHashComputation { get; init; }
 }

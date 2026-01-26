@@ -24,20 +24,13 @@ public partial class SettingsView : UserControl
     }
 
     /// <summary>
-    /// Called when the control is attached to the visual tree.
-    /// </summary>
-    /// <summary>
     /// Marks the settings view as visible and triggers loading of subscriptions when the control is attached to the visual tree and its DataContext is a SettingsViewModel.
     /// </summary>
     /// <param name="e">Event data for the visual-tree attachment event.</param>
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        if (DataContext is SettingsViewModel vm)
-        {
-            vm.IsViewVisible = true;
-            vm.LoadSubscriptionsCommand.Execute(null);
-        }
+        TryLoadSubscriptions();
     }
 
     /// <summary>
@@ -60,10 +53,18 @@ public partial class SettingsView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (DataContext is SettingsViewModel vm)
+        TryLoadSubscriptions();
+    }
+
+    private void TryLoadSubscriptions()
+    {
+        if (this.VisualRoot != null && DataContext is SettingsViewModel vm)
         {
-            // Sync visibility state with current visual tree state
-            vm.IsViewVisible = this.VisualRoot != null;
+            vm.IsViewVisible = true;
+            if (vm.LoadSubscriptionsCommand.CanExecute(null))
+            {
+                vm.LoadSubscriptionsCommand.Execute(null);
+            }
         }
     }
 

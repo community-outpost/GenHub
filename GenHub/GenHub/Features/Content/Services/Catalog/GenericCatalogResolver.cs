@@ -32,6 +32,7 @@ public class GenericCatalogResolver(
     /// Resolves a catalog search result into a ContentManifest by extracting catalog metadata, downloading the primary artifact, adding declared dependencies, and building the final manifest.
     /// </summary>
     /// <param name="searchResult">The catalog search result containing resolver metadata (release, content item, and publisher profile) used to construct the manifest.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>`OperationResult&lt;ContentManifest&gt;` containing the constructed manifest on success; a failed result with an explanatory error message on failure.</returns>
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
         ContentSearchResult searchResult,
@@ -58,9 +59,10 @@ public class GenericCatalogResolver(
             }
 
             // Deserialize from JSON
-            var release = System.Text.Json.JsonSerializer.Deserialize<ContentRelease>(releaseJson);
-            var contentItem = System.Text.Json.JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson);
-            var publisher = System.Text.Json.JsonSerializer.Deserialize<PublisherProfile>(publisherJson);
+            var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var release = System.Text.Json.JsonSerializer.Deserialize<ContentRelease>(releaseJson, options);
+            var contentItem = System.Text.Json.JsonSerializer.Deserialize<CatalogContentItem>(contentItemJson, options);
+            var publisher = System.Text.Json.JsonSerializer.Deserialize<PublisherProfile>(publisherJson, options);
 
             if (release == null || contentItem == null || publisher == null)
             {
@@ -85,12 +87,11 @@ public class GenericCatalogResolver(
                     screenshotUrls: contentItem.Metadata?.ScreenshotUrls?.ToList());
 
             // Add primary artifact for download
-            if (release.Artifacts == null || release.Artifacts.Count == 0)
+            var primaryArtifact = release.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? release.Artifacts.FirstOrDefault();
+            if (primaryArtifact == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure("No artifacts found in release");
             }
-
-            var primaryArtifact = release.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? release.Artifacts.First();
 
             // ContentManifestBuilder.AddDownloadedFileAsync will:
             // 1. Download the file
@@ -106,18 +107,20 @@ public class GenericCatalogResolver(
                 permissions: null);
 
             // Add dependencies
-            foreach (var dependency in release.Dependencies)
+            foreach (var dependency in release.Dependencies ?? [])
             {
+                var depType = dependency.ContentType;
+
                 var dependencyId = ManifestIdGenerator.GeneratePublisherContentId(
                     dependency.PublisherId,
-                    ContentType.Mod, // Default to Mod for catalog dependencies if not specified
+                    depType,
                     dependency.ContentId,
-                    ExtractVersionNumber(dependency.VersionConstraint ?? "0"));
+                    ManifestIdGenerator.ExtractVersionNumber(dependency.VersionConstraint ?? "0"));
 
                 builder.AddDependency(
                     id: ManifestId.Create(dependencyId),
                     name: dependency.ContentId,
-                    dependencyType: ContentType.Mod,
+                    dependencyType: depType,
                     installBehavior: dependency.IsOptional ? DependencyInstallBehavior.Optional : DependencyInstallBehavior.RequireExisting,
                     minVersion: dependency.VersionConstraint ?? string.Empty);
             }
@@ -136,20 +139,5 @@ public class GenericCatalogResolver(
             _logger.LogError(ex, "Failed to resolve content from catalog");
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Extracts digits from a version string and returns them as an integer.
-    /// </summary>
-    /// <param name="version">The version string to extract digits from.</param>
-    /// <returns>The integer formed by concatenating all digits found in <paramref name="version"/>, or 0 if no digits are present or parsing fails.</returns>
-    private static int ExtractVersionNumber(string version)
-    {
-        if (int.TryParse(new string([.. version.Where(char.IsDigit)]), out var result))
-        {
-            return result;
-        }
-
-        return 0;
     }
 }

@@ -43,7 +43,6 @@ public class ContentManifestBuilderTests
     /// </summary>
     private readonly Mock<IConfigurationProviderService> _configurationProviderMock;
 
-
     /// <summary>
     /// The content manifest builder under test.
     /// </summary>

@@ -18,8 +18,8 @@ namespace GenHub.Features.Content.Services.Tools;
 public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightService, IAsyncDisposable
 {
     private static readonly SemaphoreSlim _browserLock = new(1, 1);
-    private static IPlaywright? _playwright;
-    private static IBrowser? _browser;
+    private static volatile IPlaywright? _playwright;
+    private static volatile IBrowser? _browser;
 
     /// <inheritdoc />
     public async Task<IPage> CreatePageAsync(BrowserNewContextOptions? options = null, CancellationToken cancellationToken = default)
@@ -44,6 +44,7 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
     /// Retrieves the rendered HTML content of the page at the specified URL.
     /// </summary>
     /// <param name="url">The absolute URL to navigate to.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
     /// <returns>The page's HTML markup as a string.</returns>
     public async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken = default)
     {
@@ -100,7 +101,6 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
             _playwright.Dispose();
             _playwright = null;
         }
-
 
         GC.SuppressFinalize(this);
     }
@@ -189,9 +189,17 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
 
                 var path = await download.PathAsync();
 
-                if (File.Exists(configuration.DestinationPath) && configuration.OverwriteExisting)
+                if (File.Exists(configuration.DestinationPath))
                 {
-                    File.Delete(configuration.DestinationPath);
+                    if (configuration.OverwriteExisting)
+                    {
+                        File.Delete(configuration.DestinationPath);
+                    }
+                    else
+                    {
+                        logger.LogWarning("Destination file {Path} already exists and OverwriteExisting is false. Failing download.", configuration.DestinationPath);
+                        return DownloadResult.CreateFailure($"File already exists: {configuration.DestinationPath}");
+                    }
                 }
 
                 // Create directory if it doesn't exist
@@ -229,8 +237,6 @@ public class PlaywrightService(ILogger<PlaywrightService> logger) : IPlaywrightS
         }
     }
 
-    /// <summary>
-    /// Ensures Playwright is initialized with a browser instance.
     /// <summary>
     /// Ensures a shared Playwright instance and Chromium browser are initialized for use.
     /// </summary>

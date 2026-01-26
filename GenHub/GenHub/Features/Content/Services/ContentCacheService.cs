@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Parsers;
@@ -18,6 +17,8 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger, IMe
     /// <inheritdoc/>
     public Task<ParsedWebPage?> GetAsync(string cacheKey, CancellationToken ct = default)
     {
+        if (ct.IsCancellationRequested) return Task.FromCanceled<ParsedWebPage?>(ct);
+
         if (cache.TryGetValue(cacheKey, out ParsedWebPage? data))
         {
             logger.LogDebug("Cache hit for {CacheKey}", cacheKey);
@@ -31,6 +32,8 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger, IMe
     /// <inheritdoc/>
     public Task SetAsync(string cacheKey, ParsedWebPage data, TimeSpan? ttl = null, CancellationToken ct = default)
     {
+        if (ct.IsCancellationRequested) return Task.FromCanceled(ct);
+
         var expiresAt = DateTime.UtcNow + (ttl ?? _defaultTtl);
 
         using var entry = cache.CreateEntry(cacheKey);
@@ -60,9 +63,7 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger, IMe
     }
 
     /// <summary>
-    /// Clears all cached data.
-    /// Note: IMemoryCache does not support clearing all entries.
-    /// This implementation is a no-op as MemoryCache handles eviction automatically.
+    /// Clears all cached data if the underlying cache supports it (best‑effort).
     /// </summary>
     public void ClearAll()
     {
