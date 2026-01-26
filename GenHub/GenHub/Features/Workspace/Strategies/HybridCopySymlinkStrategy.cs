@@ -44,7 +44,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
+        if (configuration?.Manifests is null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalUsage = 0;
@@ -92,7 +92,8 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             Directory.CreateDirectory(workspacePath);
 
             // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            var allFiles = configuration.GetAllUniqueFiles().ToList();
+            // include files where InstallTarget is Workspace.
+            var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -113,7 +114,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
             // Process each manifest and its files to maintain manifest context for source path resolution
             foreach (var manifest in configuration.Manifests)
             {
-                foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+                foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var destinationPath = Path.Combine(workspacePath, file.RelativePath);
@@ -304,12 +305,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest == null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

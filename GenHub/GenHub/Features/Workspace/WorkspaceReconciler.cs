@@ -42,7 +42,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
 
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 var relativePath = file.RelativePath.Replace('/', Path.DirectorySeparatorChar);
 

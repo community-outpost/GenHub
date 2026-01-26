@@ -49,13 +49,13 @@ public sealed class FullCopyStrategy(
     /// <returns>The estimated disk usage in bytes, or <see cref="long.MaxValue"/> if overflow occurs.</returns>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        if (configuration?.Manifests == null || configuration.Manifests.Count == 0)
+        if (configuration?.Manifests is null || configuration.Manifests.Count == 0)
             return 0;
 
         long totalSize = 0;
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in manifest.Files)
+            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 // Prevent negative sizes and overflow
                 long safeSize = Math.Max(0, file.Size);
@@ -96,7 +96,8 @@ public sealed class FullCopyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.GetAllUniqueFiles().ToList();
+            // ONLY include files where InstallTarget is Workspace.
+            var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
             var totalFiles = allFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
@@ -123,8 +124,11 @@ public sealed class FullCopyStrategy(
             }
 
             // Group files by destination path to handle conflicts
+            // include files where InstallTarget is Workspace.
             var filesByDestination = configuration.Manifests
-                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>()).Select(f => new { Manifest = m, File = f }))
+                .SelectMany(m => (m.Files ?? Enumerable.Empty<ManifestFile>())
+                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
+                    .Select(f => new { Manifest = m, File = f }))
                 .GroupBy(item => item.File.RelativePath, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -276,12 +280,7 @@ public sealed class FullCopyStrategy(
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest is null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

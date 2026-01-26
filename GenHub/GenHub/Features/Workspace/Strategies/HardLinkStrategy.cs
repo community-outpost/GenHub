@@ -44,8 +44,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        // Deduplicate files for accurate estimation
-        var allFiles = configuration.GetAllUniqueFiles().ToList();
+        // Deduplicate files for accurate estimation - only include workspace-targeted files
+        var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
 
         // Check if source and destination are on the same volume
         var sourceRoot = Path.GetPathRoot(configuration.BaseInstallationPath);
@@ -94,8 +94,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
             // Deduplicate files by RelativePath with priority ordering (GameClient > GameInstallation)
             // so lower-priority sources cannot overwrite higher-priority files like modded clients.
+            // ONLY include files where InstallTarget is Workspace.
             var prioritizedFiles = configuration.Manifests
                 .SelectMany((manifest, index) => (manifest.Files ?? Enumerable.Empty<ManifestFile>())
+                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
                     .Select(file => new { File = file, Manifest = manifest, ManifestIndex = index }))
                 .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g
@@ -117,18 +119,15 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
             if (!sameVolume)
             {
-                var errorMessage = $"HardLink strategy cannot be used across different drives.\n" +
-                    $"Game installation: {configuration.BaseInstallationPath} (drive {sourceRoot})\n" +
-                    $"Workspace location: {workspacePath} (drive {destRoot})\n" +
-                    $"Please manually change to FullCopy strategy in profile settings or move your workspace to the same drive as your game.";
-                Logger.LogError(errorMessage);
-
-                workspaceInfo.IsPrepared = false;
-                workspaceInfo.ValidationIssues.Add(new()
-                {
-                    Message = errorMessage,
-                    Severity = Core.Models.Validation.ValidationSeverity.Error,
-                });
+                Logger.LogError(
+                    "HardLink strategy cannot be used across different drives.\n" +
+                    "Game installation: {SourcePath} (drive {SourceDrive})\n" +
+                    "Workspace location: {DestPath} (drive {DestDrive})\n" +
+                    "Please manually change to FullCopy strategy in profile settings or move your workspace to the same drive as your game.",
+                    configuration.BaseInstallationPath,
+                    sourceRoot,
+                    workspacePath,
+                    destRoot);
 
                 CleanupWorkspaceOnFailure(workspacePath);
                 return workspaceInfo;
@@ -372,12 +371,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest is null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

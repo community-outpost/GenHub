@@ -108,7 +108,8 @@ public sealed class SymlinkOnlyStrategy(
             // Deduplicate files by RelativePath - multiple manifests may contain the same file
             // (e.g., GameClient and GameInstallation both contain the executable)
             // Group by path and take the first occurrence to avoid parallel creation conflicts
-            var manifestFiles = configuration.GetAllUniqueFiles()
+            // include files where InstallTarget is Workspace.
+            var manifestFiles = configuration.GetWorkspaceUniqueFiles()
                 .Select(f => new { Manifest = configuration.Manifests.First(m => m.Files.Contains(f)), File = f })
                 .ToList();
 
@@ -233,12 +234,7 @@ public sealed class SymlinkOnlyStrategy(
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest is null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

@@ -103,7 +103,7 @@ public abstract class WorkspaceStrategyBase<T>(
         string currentFile,
         DownloadProgress? downloadProgress = null)
     {
-        if (progress == null)
+        if (progress is null)
         {
             return;
         }
@@ -446,9 +446,8 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="file">The manifest file to resolve the path for.</param>
     /// <param name="workspacePath">The root workspace path.</param>
-    /// <param name="manifest">The manifest containing the file (for target game info).</param>
     /// <returns>The fully resolved target path.</returns>
-    protected string ResolveTargetPath(ManifestFile file, string workspacePath, ContentManifest manifest)
+    protected string ResolveTargetPath(ManifestFile file, string workspacePath)
     {
         // Most content goes to the workspace
         if (file.InstallTarget == ContentInstallTarget.Workspace)
@@ -456,20 +455,17 @@ public abstract class WorkspaceStrategyBase<T>(
             return Path.Combine(workspacePath, file.RelativePath);
         }
 
-        // Get the user data base path for non-workspace content
-        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+        // If we reach here, it means a file with UserData or System target was passed to a workspace strategy.
+        // The strategies and reconciler have been updated to filter these out, but we'll handle it gracefully
+        // by logging a warning and treating it as a workspace file as a final fallback.
+        logger.LogWarning(
+            "[Workspace] File {RelativePath} has non-workspace target {InstallTarget}. " +
+            "Workspace strategies should only process Workspace-targeted files. " +
+            "This file will be placed in the workspace as a fallback.",
+            file.RelativePath,
+            file.InstallTarget);
 
-        return file.InstallTarget switch
-        {
-            ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, file.RelativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, StripLeadingDirectory(file.RelativePath, "Maps")),
-            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(file.RelativePath, "Replays")),
-            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(file.RelativePath, "Screenshots")),
-            ContentInstallTarget.System => throw new NotSupportedException(
-                "System install target is not supported for workspace operations. " +
-                "Prerequisites like Visual C++ runtimes should be installed through system package managers."),
-            _ => Path.Combine(workspacePath, file.RelativePath),
-        };
+        return Path.Combine(workspacePath, file.RelativePath);
     }
 
     /// <summary>
@@ -484,7 +480,7 @@ public abstract class WorkspaceStrategyBase<T>(
     protected virtual async Task ProcessManifestFileAsync(ManifestFile file, ContentManifest manifest, string workspacePath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
     {
         // Resolve target path based on InstallTarget - maps go to user Documents, etc.
-        var targetPath = ResolveTargetPath(file, workspacePath, manifest);
+        var targetPath = ResolveTargetPath(file, workspacePath);
 
         // Log if installing to non-workspace location
         if (file.InstallTarget != ContentInstallTarget.Workspace)
