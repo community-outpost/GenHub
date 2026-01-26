@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
+using System.Diagnostics;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -54,4 +55,10 @@ public interface IGameProcessManager
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the discovered process info.</returns>
     Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Registers an existing process for tracking.
+    /// </summary>
+    /// <param name="process">The process to track.</param>
+    void TrackProcess(Process process);
 }

@@ -62,4 +62,20 @@ public static class ContentTypeExtensions
             _ => "unknown",
         };
     }
+
+    /// <summary>
+    /// Gets a value indicating whether this content type is standalone (doesn't require a game client foundation).
+    /// </summary>
+    /// <param name="contentType">The content type.</param>
+    /// <returns>True if standalone; otherwise, false.</returns>
+    public static bool IsStandalone(this ContentType contentType)
+    {
+        return contentType switch
+        {
+            ContentType.ModdingTool => true,
+            ContentType.Executable => true,
+            ContentType.Addon => true,
+            _ => false,
+        };
+    }
 }

@@ -138,10 +138,10 @@ public class GitHubContentDeliverer(
             // Check if this is GameClient content with ZIP files
             var zipFiles = downloadedFiles.Where(f => Path.GetExtension(f).Equals(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            if ((packageManifest.ContentType == ContentType.GameClient || packageManifest.ContentType == ContentType.Mod) && zipFiles.Count > 0)
+            if (zipFiles.Count > 0)
             {
                 logger.LogInformation(
-                    "GameClient content detected with {Count} ZIP files. Extracting...",
+                    "Content detected with {Count} ZIP files. Extracting...",
                     zipFiles.Count);
 
                 // Extract all ZIPs

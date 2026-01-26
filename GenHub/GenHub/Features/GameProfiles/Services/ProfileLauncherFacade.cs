@@ -49,6 +49,7 @@ public class ProfileLauncherFacade(
     IStorageLocationService storageLocationService,
     INotificationService notificationService,
     IGeneralsOnlineProfileReconciler generalsOnlineReconciler,
+    IGameProcessManager gameProcessManager,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
@@ -190,6 +191,7 @@ public class ProfileLauncherFacade(
 
                 if (toolExecutable == null)
                 {
+                    logger.LogError("[Launch] Tool manifest {ManifestId} does not specify an executable file", toolManifest.Id);
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                         ProfileValidationConstants.ToolManifestMissingExecutable);
                 }
@@ -197,6 +199,7 @@ public class ProfileLauncherFacade(
                 var toolExecutablePath = Path.Combine(toolDirectoryPath, toolExecutable.RelativePath);
                 if (!File.Exists(toolExecutablePath))
                 {
+                    logger.LogError("[Launch] Tool executable not found at path: {Path}", toolExecutablePath);
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                         $"{ProfileValidationConstants.ToolExecutableNotFound}: {toolExecutablePath}");
                 }
@@ -267,6 +270,9 @@ public class ProfileLauncherFacade(
                     // Register the tool launch with the launch registry for process monitoring
                     await launchRegistry.RegisterLaunchAsync(toolLaunchInfo);
                     logger.LogDebug("[Launch] Registered tool launch {LaunchId} with LaunchRegistry", launchId);
+
+                    // Also track it in the process manager to get exit events
+                    gameProcessManager.TrackProcess(process);
 
                     notificationService.ShowSuccess(
                         ProfileValidationConstants.ToolLaunchSuccessTitle,
@@ -670,7 +676,12 @@ public class ProfileLauncherFacade(
             var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
             if (launch == null)
             {
-                return ProfileOperationResult<GameProcessInfo>.CreateFailure($"No active launch found for profile {profileId}");
+                logger.LogDebug("No active launch found for profile {ProfileId}, returning stopped status", profileId);
+                return ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+                {
+                    IsRunning = false,
+                    ProcessId = -1,
+                });
             }
 
             logger.LogDebug("Profile {ProfileId} launch status: {Status}", profileId, launch.ProcessInfo.IsRunning ? "Running" : "Not Running");
@@ -1566,9 +1577,7 @@ public class ProfileLauncherFacade(
         {
             var id = ManifestId.Create(idString);
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success &&
-                (manifestResult.Data!.ContentType == ContentType.ModdingTool ||
-                 manifestResult.Data.ContentType == ContentType.Executable))
+            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
             {
                 return idString;
             }

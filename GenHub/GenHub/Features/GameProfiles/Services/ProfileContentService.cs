@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -337,30 +338,39 @@ public sealed class ProfileContentService(
                 return ProfileOperationResult<GameProfile>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
             }
 
-            // Generate and add the GameInstallation manifest ID to enabled content
-            var gameInstallationManifestId = Core.Models.Manifest.ManifestIdGenerator.GenerateGameInstallationId(
-                installation,
-                manifest.TargetGame,
-                gameClient.Version); // Use the actual game version from the selected client
-
-            if (!enabledContentIds.Contains(gameInstallationManifestId, StringComparer.OrdinalIgnoreCase))
+            // Standalone content (Tools, Addons, Executables) does not require a GameInstallation or GameClient foundation.
+            // We skip adding these foundation manifests to the profile if the target content is standalone.
+            if (manifest.ContentType.IsStandalone())
             {
-                enabledContentIds.Insert(0, gameInstallationManifestId); // Add at beginning for proper dependency order
-                logger.LogInformation("Added GameInstallation manifest {ManifestId} to enabled content", gameInstallationManifestId);
+                logger.LogInformation("Creating standalone profile for {ManifestId} - skipping foundation injection", manifestId);
             }
+            else
+            {
+                // Generate and add the GameInstallation manifest ID to enabled content
+                var gameInstallationManifestId = Core.Models.Manifest.ManifestIdGenerator.GenerateGameInstallationId(
+                    installation,
+                    manifest.TargetGame,
+                    gameClient.Version); // Use the actual game version from the selected client
 
-            // Add the GameClient manifest ID only if the content being added is not a GameClient
-            // (e.g., if adding a mod/mappack, we need the base game client; if adding GeneralsOnline, we don't)
-            if (manifest.ContentType != ContentType.GameClient &&
-                !string.IsNullOrEmpty(gameClient.Id) &&
-                !enabledContentIds.Contains(gameClient.Id, StringComparer.OrdinalIgnoreCase))
-            {
-                enabledContentIds.Insert(1, gameClient.Id); // Add after GameInstallation
-                logger.LogInformation("Added GameClient manifest {ManifestId} to enabled content", gameClient.Id);
-            }
-            else if (manifest.ContentType == ContentType.GameClient)
-            {
-                logger.LogInformation("Skipping base GameClient - content being added is already a GameClient: {ManifestId}", manifestId);
+                if (!enabledContentIds.Contains(gameInstallationManifestId, StringComparer.OrdinalIgnoreCase))
+                {
+                    enabledContentIds.Insert(0, gameInstallationManifestId); // Add at beginning for proper dependency order
+                    logger.LogInformation("Added GameInstallation manifest {ManifestId} to enabled content", gameInstallationManifestId);
+                }
+
+                // Add the GameClient manifest ID only if the content being added is not a GameClient
+                // (e.g., if adding a mod/mappack, we need the base game client; if adding GeneralsOnline, we don't)
+                if (manifest.ContentType != ContentType.GameClient &&
+                    !string.IsNullOrEmpty(gameClient.Id) &&
+                    !enabledContentIds.Contains(gameClient.Id, StringComparer.OrdinalIgnoreCase))
+                {
+                    enabledContentIds.Insert(1, gameClient.Id); // Add after GameInstallation
+                    logger.LogInformation("Added GameClient manifest {ManifestId} to enabled content", gameClient.Id);
+                }
+                else if (manifest.ContentType == ContentType.GameClient)
+                {
+                    logger.LogInformation("Skipping base GameClient - content being added is already a GameClient: {ManifestId}", manifestId);
+                }
             }
 
             // Create the profile request
