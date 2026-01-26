@@ -26,10 +26,10 @@ public interface IPublisherCatalogParser
     /// </summary>
     /// <param name="catalog">The catalog to validate.</param>
     /// <summary>
-/// Validates that a PublisherCatalog conforms to the expected schema version and structure.
-/// </summary>
-/// <param name="catalog">The parsed publisher catalog to validate.</param>
-/// <returns>`true` if the catalog is valid; `false` otherwise. The OperationResult contains validation errors when present.</returns>
+    /// Validates that a PublisherCatalog conforms to the expected schema version and structure.
+    /// </summary>
+    /// <param name="catalog">The parsed publisher catalog to validate.</param>
+    /// <returns>`true` if the catalog is valid; `false` otherwise. The OperationResult contains validation errors when present.</returns>
     OperationResult<bool> ValidateCatalog(PublisherCatalog catalog);
 
     /// <summary>
