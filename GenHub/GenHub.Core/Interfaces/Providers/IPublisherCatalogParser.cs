@@ -14,11 +14,11 @@ public interface IPublisherCatalogParser
     /// <param name="catalogJson">The raw JSON content of the catalog.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <summary>
-/// Parse raw publisher catalog JSON into a PublisherCatalog model and produce an operation result.
-/// </summary>
-/// <param name="catalogJson">Raw JSON content of the publisher catalog.</param>
-/// <param name="cancellationToken">Token to cancel the parse operation.</param>
-/// <returns>An OperationResult containing the parsed PublisherCatalog on success, or errors describing why parsing failed.</returns>
+    /// Parse raw publisher catalog JSON into a PublisherCatalog model and produce an operation result.
+    /// </summary>
+    /// <param name="catalogJson">Raw JSON content of the publisher catalog.</param>
+    /// <param name="cancellationToken">Token to cancel the parse operation.</param>
+    /// <returns>An OperationResult containing the parsed PublisherCatalog on success, or errors describing why parsing failed.</returns>
     Task<OperationResult<PublisherCatalog>> ParseCatalogAsync(string catalogJson, CancellationToken cancellationToken = default);
 
     /// <summary>
