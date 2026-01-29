@@ -347,8 +347,10 @@
             owner: 'community-outpost',
             repo: 'GenHub',
             cacheKey: 'genhub_stats_v1',
-            apiUrl: 'https://api.github.com/repos/community-outpost/GenHub/releases?per_page=100'
+            perPage: 100
           };
+
+          const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/releases?per_page=${CONFIG.perPage}`;
 
           // Initialize
           document.addEventListener('DOMContentLoaded', initStats);
@@ -357,8 +359,13 @@
             // Check cache first (session-only to ensure fresh data per visit)
             const cached = sessionStorage.getItem(CONFIG.cacheKey);
             if (cached) {
-              renderStats(JSON.parse(cached));
-              return;
+              try {
+                renderStats(JSON.parse(cached));
+                return;
+              } catch (parseError) {
+                // Cache is corrupted, clear it and proceed to fetch
+                sessionStorage.removeItem(CONFIG.cacheKey);
+              }
             }
 
             try {
@@ -372,8 +379,13 @@
           }
 
           async function fetchGitHubStats() {
-            const response = await fetch(CONFIG.apiUrl);
-            
+            // Add timeout to prevent indefinite hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const response = await fetch(apiUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
             if (response.status === 403) {
               throw new Error('Rate limit exceeded. Try again later.');
             }
@@ -395,7 +407,7 @@
                 const name = asset.name.toLowerCase();
                 
                 // Setup.exe = Fresh installs
-                if (name.endsWith('-setup.exe') || name.endsWith('.exe') && !name.includes('full') && !name.includes('delta')) {
+                if (name.endsWith('-setup.exe') || (name.endsWith('.exe') && !name.includes('full') && !name.includes('delta'))) {
                   releaseInstalls += asset.download_count;
                 }
                 // .nupkg = Updates (both full and delta count as update mechanisms)
