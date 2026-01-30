@@ -231,6 +231,6 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     /// <inheritdoc />
     public CsvCatalogConfiguration GetCsvCatalogConfiguration()
     {
-        return _configuration?.GetSection("GenHub:CsvCatalog").Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
+        return _configuration?.GetSection("GenHub").Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
     }
 }

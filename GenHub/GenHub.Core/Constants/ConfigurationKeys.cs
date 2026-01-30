@@ -112,10 +112,10 @@ public static class ConfigurationKeys
     /// <summary>
     /// Configuration key for the CSV catalog index file path.
     /// </summary>
-    public const string CsvCatalogIndexPath = "GenHub:CsvCatalog:IndexFilePath";
+    public const string CsvCatalogIndexPath = "GenHub:IndexFilePath";
 
     /// <summary>
     /// Configuration key for the CSV validation catalogs fallback.
     /// </summary>
-    public const string CsvValidationCatalogs = "GenHub:CsvCatalog:ValidationCatalogs";
+    public const string CsvValidationCatalogs = "GenHub:CsvValidationCatalogs";
 }
