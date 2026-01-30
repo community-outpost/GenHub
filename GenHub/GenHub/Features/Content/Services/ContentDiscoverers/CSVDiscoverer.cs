@@ -43,10 +43,10 @@ public class CSVDiscoverer : IContentDiscoverer
     }
 
     /// <inheritdoc />
-    public string SourceName => "Csv Discoverer";
+    public string SourceName => CsvConstants.SourceName;
 
     /// <inheritdoc />
-    public string Description => "Discovers base game manifests from verified CSV catalogs.";
+    public string Description => CsvConstants.Description;
 
     /// <inheritdoc />
     public bool IsEnabled => true;
@@ -75,7 +75,7 @@ public class CSVDiscoverer : IContentDiscoverer
             var filteredEntries = entries;
             if (query.TargetGame.HasValue)
             {
-                var targetGameStr = query.TargetGame.Value == GameType.Generals ? "Generals" : "ZeroHour";
+                var targetGameStr = query.TargetGame.Value == GameType.Generals ? CsvConstants.GeneralsGameType : CsvConstants.ZeroHourGameType;
                 filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
@@ -83,7 +83,7 @@ public class CSVDiscoverer : IContentDiscoverer
             {
                 // Determine languages to include
                 var languagesToInclude = entry.SupportedLanguages;
-                if (!string.IsNullOrWhiteSpace(query.Language) && !query.Language.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(query.Language) && !query.Language.Equals(CsvConstants.AllLanguagesFilter, StringComparison.OrdinalIgnoreCase))
                 {
                     languagesToInclude = entry.SupportedLanguages
                         .Where(l => l.Equals(query.Language, StringComparison.OrdinalIgnoreCase))
@@ -213,7 +213,7 @@ public class CSVDiscoverer : IContentDiscoverer
 
         // We act as the publisher 'csvregistry'
         var id = ManifestIdGenerator.GeneratePublisherContentId(
-            "csvregistry", // this will be in a constant
+            CsvConstants.PublisherId,
             ContentType.GameInstallation,
             contentName); // Version 0 for the manifest ID
 
@@ -227,20 +227,20 @@ public class CSVDiscoverer : IContentDiscoverer
             TargetGame = gameType,
             ProviderName = SourceName,
             RequiresResolution = true,
-            ResolverId = "CsvCatalogResolver", // this will be in a constant
+            ResolverId = CsvConstants.ResolverId,
             SourceUrl = entry.Url, // The CSV URL is the source
             DownloadSize = 0, // We don't know the size yet until resolved
         };
 
         // Add metadata for the resolver
-        result.ResolverMetadata["csvUrl"] = entry.Url;
-        result.ResolverMetadata["gameType"] = entry.GameType;
-        result.ResolverMetadata["version"] = entry.Version;
-        result.ResolverMetadata["language"] = language;
+        result.ResolverMetadata[CsvConstants.CsvUrlMetadataKey] = entry.Url;
+        result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = entry.GameType;
+        result.ResolverMetadata[CsvConstants.VersionMetadataKey] = entry.Version;
+        result.ResolverMetadata[CsvConstants.LanguageMetadataKey] = language;
 
         if (entry.FileCount.HasValue)
         {
-            result.ResolverMetadata["fileCount"] = entry.FileCount.Value.ToString();
+            result.ResolverMetadata[CsvConstants.FileCountMetadataKey] = entry.FileCount.Value.ToString();
         }
 
         return result;
