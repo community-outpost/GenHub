@@ -14,8 +14,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,23 +26,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           LATEST_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
-          
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Error: No releases found for repository ${{ github.repository }}" >&2
+            exit 1
+          fi
+
           BUILD_NUM=$(echo "$LATEST_TAG" | cut -d'.' -f3)
           DISPLAY_NAME="Alpha ${BUILD_NUM}"
-          
+
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "display_name=$DISPLAY_NAME" >> $GITHUB_OUTPUT
 
       - run: |
           mkdir -p ./public
           cp Landing-page/index.html ./public/index.html
-          
+
           if [ -d "Landing-page/assets" ]; then
             cp -r Landing-page/assets ./public/assets
           fi
-          
+
           DOWNLOAD_URL="https://github.com/community-outpost/GenHub/releases/download/${{ steps.release_info.outputs.latest_tag }}/GenHub-win-Setup.exe"
-          
+
           sed -i "s|VERSION_PLACEHOLDER|${{ steps.release_info.outputs.display_name }}|g" ./public/index.html
           sed -i "s|URL_PLACEHOLDER|${DOWNLOAD_URL}|g" ./public/index.html
 

@@ -15,6 +15,11 @@ public static class GameClientConstants
     /// <summary>Zero Hour executable filename (EA App/Retail installations).</summary>
     public const string ZeroHourExecutable = "generals.exe";
 
+    /// <summary>
+    /// A required file present in valid Zero Hour installations (used to distinguish from Generals in root).
+    /// </summary>
+    public const string ZeroHourRequiredFile = "PatchZH.big";
+
     /// <summary>Game engine executable filename.</summary>
     public const string GameExecutable = "game.exe";
 
@@ -205,27 +210,6 @@ public static class GameClientConstants
         SuperHackersGeneralsExecutable,  // generalsv.exe
         SuperHackersZeroHourExecutable,  // generalszh.exe
     ];
-
-    /// <summary>
-    /// Action types used in the Setup Wizard.
-    /// </summary>
-    public static class WizardActionTypes
-    {
-        /// <summary>Update an existing component.</summary>
-        public const string Update = "Update";
-
-        /// <summary>Install a new component.</summary>
-        public const string Install = "Install";
-
-        /// <summary>Create a profile for an existing installation.</summary>
-        public const string CreateProfile = "CreateProfile";
-
-        /// <summary>Decline the component.</summary>
-        public const string Decline = "Decline";
-
-        /// <summary>No action taken.</summary>
-        public const string None = "None";
-    }
 
     /// <summary>
     /// Deterministic IDs for synthetic game clients used during initial setup.

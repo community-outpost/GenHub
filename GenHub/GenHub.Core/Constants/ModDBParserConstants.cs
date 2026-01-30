@@ -4,6 +4,10 @@ namespace GenHub.Core.Constants;
 /// CSS selectors and constants for parsing ModDB web pages.
 /// Used by ModDBPageParser to extract content from ModDB pages.
 /// </summary>
+/// <remarks>
+/// Generic selectors (like <see cref="TitleSelector"/>) should be used within a scoped context
+/// (e.g., within an element found by <see cref="HeaderBoxSelector"/>) to avoid false positives.
+/// </remarks>
 public static class ModDBParserConstants
 {
     // ===== Global Context Selectors =====

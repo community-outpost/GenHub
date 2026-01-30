@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Tools;
 
@@ -29,6 +30,15 @@ public interface IUploadHistoryService
 
     /// <summary>
     /// Records an upload.
+    /// </summary>
+    /// <param name="fileSizeBytes">The file size in bytes.</param>
+    /// <param name="url">The URL.</param>
+    /// <param name="fileName">The file name.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task RecordUploadAsync(long fileSizeBytes, string url, string fileName);
+
+    /// <summary>
+    /// Records an upload (synchronous alias for RecordUploadAsync).
     /// </summary>
     /// <param name="fileSizeBytes">The file size in bytes.</param>
     /// <param name="url">The URL.</param>

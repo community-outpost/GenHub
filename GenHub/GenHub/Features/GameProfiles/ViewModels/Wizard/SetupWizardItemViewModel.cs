@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 
 namespace GenHub.Features.GameProfiles.ViewModels.Wizard;
@@ -57,9 +58,9 @@ public partial class SetupWizardItemViewModel : ObservableObject
     private string _version = string.Empty;
 
     /// <summary>
-    /// Gets or sets the type of action to perform (e.g., "Install", "Update", "CreateProfile").
+    /// Gets or sets the type of action to perform (e.g., Install, Update, CreateProfile).
     /// </summary>
-    public string ActionType { get; set; } = string.Empty;
+    public WizardActionType ActionType { get; set; } = WizardActionType.None;
 
     /// <summary>
     /// Gets or sets the GameInstallation context associated with this item.

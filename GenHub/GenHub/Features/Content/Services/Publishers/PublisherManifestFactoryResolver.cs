@@ -11,6 +11,7 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Resolves the appropriate publisher-specific manifest factory for a given manifest.
 /// </summary>
 public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFactory> factories, ILogger<PublisherManifestFactoryResolver> logger)
+    : IPublisherManifestFactoryResolver
 {
     /// <summary>
     /// Resolves the appropriate factory for the given manifest.
@@ -40,4 +41,17 @@ public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFact
 
         return null;
     }
+}
+
+/// <summary>
+/// Resolves the appropriate publisher-specific manifest factory for a given manifest.
+/// </summary>
+public interface IPublisherManifestFactoryResolver
+{
+    /// <summary>
+    /// Resolves the appropriate factory for the given manifest.
+    /// </summary>
+    /// <param name="manifest">The manifest to resolve a factory for.</param>
+    /// <returns>The appropriate publisher-specific factory, or null if no factory can handle the manifest.</returns>
+    IPublisherManifestFactory? ResolveFactory(ContentManifest manifest);
 }

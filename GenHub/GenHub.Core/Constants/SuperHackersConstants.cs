@@ -33,7 +33,7 @@ public static class SuperHackersConstants
     /// <summary>
     /// Cover image source path for Zero Hour variant.
     /// </summary>
-    public const string ZeroHourCoverSource = "/Assets/Covers/china-cover.png";
+    public const string ZeroHourCoverSource = "/Assets/Covers/zerohour-cover.png";
 
     /// <summary>
     /// Theme color for Zero Hour variant.

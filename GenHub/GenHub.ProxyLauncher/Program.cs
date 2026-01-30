@@ -43,13 +43,22 @@ internal class Program
                 return await TryLaunchBackupAsync(baseDir, args);
             }
 
-            var configJson = await File.ReadAllTextAsync(configPath);
-            var config = JsonSerializer.Deserialize<ProxyConfig>(configJson);
+            ProxyConfig? config = null;
+            try
+            {
+                var configJson = await File.ReadAllTextAsync(configPath);
+                config = JsonSerializer.Deserialize<ProxyConfig>(configJson);
+            }
+            catch (JsonException ex)
+            {
+                LogError($"Failed to parse configuration from {configPath}: {ex.Message}");
+                return await TryLaunchBackupAsync(baseDir, args);
+            }
 
             if (config == null || string.IsNullOrWhiteSpace(config.TargetExecutable))
             {
                 LogError("Invalid configuration: TargetExecutable is missing.");
-                return 1;
+                return await TryLaunchBackupAsync(baseDir, args);
             }
 
             // Log configuration for debugging
@@ -164,7 +173,11 @@ internal class Program
                 }
             }
 
-            startInfo.Arguments = string.Join(" ", arguments);
+            // Use ArgumentList for proper argument handling instead of manual quoting
+            foreach (var arg in arguments)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
 
             // Some game launchers (like Community Patch) check their own executable path location.
             // If the target exe is NOT in the working directory, we need to copy it there temporarily.
@@ -194,7 +207,7 @@ internal class Program
             }
 
             // Log the full command line being executed
-            LogInfo($"Launching: \"{startInfo.FileName}\" {startInfo.Arguments}");
+            LogInfo($"Launching: \"{startInfo.FileName}\" {string.Join(" ", arguments.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}");
             LogInfo($"Working Directory: {startInfo.WorkingDirectory}");
 
             // Launch the target game
@@ -224,7 +237,7 @@ internal class Program
             if (sw.Elapsed.TotalSeconds < 30)
             {
                 var baseName = Path.GetFileNameWithoutExtension(startInfo.FileName);
-                var spawned = TryFindSpawnedProcess(baseName, startInfo.WorkingDirectory, launchStartUtc, process.Id);
+                var spawned = await TryFindSpawnedProcess(baseName, startInfo.WorkingDirectory, launchStartUtc, process.Id);
                 if (spawned != null)
                 {
                     LogInfo($"Detected spawned process {spawned.Id} for {baseName}; waiting for it to exit to preserve Steam tracking.");
@@ -334,7 +347,7 @@ internal class Program
     /// <param name="launchStartUtc">The time when the launch started.</param>
     /// <param name="excludedPid">The PID of the launcher itself to exclude.</param>
     /// <returns>The found process, or null if not found.</returns>
-    private static Process? TryFindSpawnedProcess(string baseName, string? workingDir, DateTime launchStartUtc, int excludedPid)
+    private static async Task<Process?> TryFindSpawnedProcess(string baseName, string? workingDir, DateTime launchStartUtc, int excludedPid)
     {
         try
         {
@@ -344,7 +357,7 @@ internal class Program
             }
 
             // Give the launcher a moment to spawn the real game.
-            Thread.Sleep(ProxyConstants.LauncherToGameSpawnDelayMs);
+            await Task.Delay(ProxyConstants.LauncherToGameSpawnDelayMs);
 
             var candidates = Process.GetProcessesByName(baseName);
             foreach (var p in candidates)
@@ -443,32 +456,46 @@ internal class Program
     }
 
     /// <summary>
-    /// Logs an informational message to the proxy log file.
+    /// Logs an informational message to the proxy log file with rotation.
     /// </summary>
     /// <param name="message">The message to log.</param>
     private static void LogInfo(string message)
     {
-        try
-        {
-            var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] INFO: {message}{Environment.NewLine}");
-        }
-        catch
-        {
-            /* Ignore logging errors */
-        }
+        LogToFile("INFO", message);
     }
 
     /// <summary>
-    /// Logs an error message to the proxy log file.
+    /// Logs an error message to the proxy log file with rotation.
     /// </summary>
     /// <param name="message">The message to log.</param>
     private static void LogError(string message)
     {
+        LogToFile("ERROR", message);
+    }
+
+    private static void LogToFile(string level, string message)
+    {
         try
         {
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: {message}{Environment.NewLine}");
+
+            // Check for log rotation (Max 1MB for proxy log)
+            var fileInfo = new FileInfo(logPath);
+            if (fileInfo.Exists && fileInfo.Length > 1 * 1024 * 1024)
+            {
+                try
+                {
+                    var backupPath = logPath + ".bak";
+                    if (File.Exists(backupPath)) File.Delete(backupPath);
+                    File.Move(logPath, backupPath);
+                }
+                catch
+                {
+                    /* Ignore rotation failures */
+                }
+            }
+
+            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {level}: {message}{Environment.NewLine}");
         }
         catch
         {
@@ -478,12 +505,16 @@ internal class Program
 
     private class ProxyConfig
     {
+        [System.Text.Json.Serialization.JsonPropertyName("targetExecutable")]
         public string? TargetExecutable { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("workingDirectory")]
         public string? WorkingDirectory { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("arguments")]
         public string[]? Arguments { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("steamAppId")]
         public string? SteamAppId { get; set; }
     }
 }

@@ -62,7 +62,7 @@ public class GeneralsOnlineDiscoverer(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+    public virtual async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ProviderDefinition? provider,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)

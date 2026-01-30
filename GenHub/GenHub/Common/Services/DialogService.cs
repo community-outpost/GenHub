@@ -68,7 +68,8 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         string title,
         string content,
         System.Collections.Generic.IEnumerable<DialogAction> actions,
-        bool showDoNotAskAgain = false)
+        bool showDoNotAskAgain = false,
+        string? sessionKey = null)
     {
         var viewModel = new GenericMessageViewModel
         {

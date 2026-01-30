@@ -26,7 +26,8 @@ public static class PublisherExtensions
             Publisher.GeneralsOnline => "GeneralsOnline",
             Publisher.SuperHackers => "TheSuperHackers",
             Publisher.CncLabs => "CNClabs",
-            _ => GameClientConstants.UnknownVersion,
+            Publisher.AODMaps => "AODMaps",
+            _ => PublisherInfoConstants.UnknownDisplayName,
         };
     }
 }

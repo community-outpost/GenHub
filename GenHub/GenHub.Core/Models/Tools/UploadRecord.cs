@@ -8,7 +8,7 @@ public sealed class UploadRecord
     /// <summary>
     /// Gets or sets the timestamp of the upload.
     /// </summary>
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
 
     /// <summary>
     /// Gets or sets the size of the upload in bytes.

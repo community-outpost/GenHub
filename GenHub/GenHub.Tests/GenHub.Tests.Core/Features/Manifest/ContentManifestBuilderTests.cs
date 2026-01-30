@@ -75,6 +75,10 @@ public class ContentManifestBuilderTests
                 return OperationResult<ManifestId>.CreateSuccess(ManifestId.Create(generated));
             });
 
+        // Set up default success for download service
+        _downloadServiceMock.Setup(x => x.DownloadFilesAsync(It.IsAny<IEnumerable<ManifestFile>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
         _builder = new ContentManifestBuilder(
             _loggerMock.Object,
             _hashProviderMock.Object,

@@ -95,7 +95,7 @@ public sealed class MapImportService(
                     tempPath = newPath;
                 }
 
-                result = await ImportFromFilesAsync([tempPath], targetVersion, ct);
+                result = await ImportFromFilesAsync([tempPath], targetVersion, progress, ct);
             }
 
             // Cleanup temp file
@@ -118,6 +118,7 @@ public sealed class MapImportService(
     public async Task<ImportResult> ImportFromFilesAsync(
         IEnumerable<string> filePaths,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
         var result = new ImportResult();
@@ -219,10 +220,10 @@ public sealed class MapImportService(
         CancellationToken ct = default)
     {
         return await Task.Run(
-            () =>
+            async () =>
             {
                 var result = new ImportResult();
-                var (isValid, errorMessage) = ValidateZip(zipPath);
+                var (isValid, errorMessage) = await ValidateZipAsync(zipPath, ct);
 
                 if (!isValid)
                 {
@@ -361,7 +362,7 @@ public sealed class MapImportService(
     }
 
     /// <inheritdoc />
-    public (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath)
+    public Task<(bool IsValid, string? ErrorMessage)> ValidateZipAsync(string zipPath, CancellationToken ct = default)
     {
         try
         {
@@ -370,7 +371,7 @@ public sealed class MapImportService(
 
             if (entries.Count == 0)
             {
-                return (false, "ZIP file is empty");
+                return Task.FromResult<(bool, string?)>((false, "ZIP file is empty"));
             }
 
             var allowedExtensions = MapManagerConstants.AllowedExtensions;
@@ -384,14 +385,14 @@ public sealed class MapImportService(
                 // Allow files at root (depth 0) or in one subdirectory (depth 1)
                 if (separatorCount > 1)
                 {
-                    return (false, "ZIP contains nested directories beyond 1 level. Only flat archives or 1-level deep directories are supported.");
+                    return Task.FromResult<(bool, string?)>((false, "ZIP contains nested directories beyond 1 level. Only flat archives or 1-level deep directories are supported."));
                 }
 
                 // Validate file extension
                 var extension = Path.GetExtension(entry.Name);
                 if (!allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
                 {
-                    return (false, $"ZIP contains invalid file type: {extension}. Only .map, .tga, .ini, .str, and .txt files are allowed.");
+                    return Task.FromResult<(bool, string?)>((false, $"ZIP contains invalid file type: {extension}. Only .map, .tga, .ini, .str, and .txt files are allowed."));
                 }
 
                 // Track which directories contain .map files
@@ -422,16 +423,16 @@ public sealed class MapImportService(
             {
                 if (!directoriesWithMaps.Contains(dir))
                 {
-                    return (false, $"Directory '{dir}' does not contain a .map file. Each directory must have at least one .map file.");
+                    return Task.FromResult<(bool, string?)>((false, $"Directory '{dir}' does not contain a .map file. Each directory must have at least one .map file."));
                 }
             }
 
-            return (true, null);
+            return Task.FromResult<(bool, string?)>((true, null));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to validate ZIP: {ZipPath}", zipPath);
-            return (false, $"Failed to read ZIP file: {ex.Message}");
+            return Task.FromResult<(bool, string?)>((false, $"Failed to read ZIP file: {ex.Message}"));
         }
     }
 
@@ -440,6 +441,7 @@ public sealed class MapImportService(
         Stream stream,
         string fileName,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
         var tempPath = Path.Combine(Path.GetTempPath(), fileName);
@@ -451,7 +453,7 @@ public sealed class MapImportService(
                 await stream.CopyToAsync(fileStream, ct);
             }
 
-            return await ImportFromFilesAsync([tempPath], targetVersion, ct);
+            return await ImportFromFilesAsync([tempPath], targetVersion, progress, ct);
         }
         finally
         {

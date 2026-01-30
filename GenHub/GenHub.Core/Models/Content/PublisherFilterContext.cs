@@ -147,6 +147,7 @@ public class PublisherFilterContext
         }
 
         // CNCLabs filters
+        query.CNCLabsMapTags.Clear();
         foreach (var tag in CNCLabsMapTags)
         {
             query.CNCLabsMapTags.Add(tag);

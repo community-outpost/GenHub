@@ -210,17 +210,19 @@ public class GameInstallation : IGameInstallation
                 if (rootGeneralsExe.FileExistsCaseInsensitive())
                 {
                     // If we are in root and found generals.exe, it could be ZH.
-                    // Check for something specific to ZH if possible, or just assume if user pointed here it might be combined.
-                    // For safety, let's treat root install as potentially containing both if we can't distinguish.
-
-                    // Ideally we check for a ZH specific file, but standard detection often just looks for exe.
-                    // Let's assume if the user pointed us here and it has the exe, it's valid.
-                    // Standard Retail ZH has "generals.exe" but also usually lives in its own folder.
-                    // If user pointed to "C:\Games\ZH", it has generals.exe.
-                    HasZeroHour = true;
-                    ZeroHourPath = InstallationPath;
-                    foundZeroHour = true;
-                    _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath}", ZeroHourPath);
+                    // To avoid false positives (flagging Generals as ZH), we check for a ZH-specific file.
+                    var zhValidationFile = Path.Combine(InstallationPath, GameClientConstants.ZeroHourRequiredFile);
+                    if (zhValidationFile.FileExistsCaseInsensitive())
+                    {
+                        HasZeroHour = true;
+                        ZeroHourPath = InstallationPath;
+                        foundZeroHour = true;
+                        _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath} (verified by {ValidationFile})", ZeroHourPath, GameClientConstants.ZeroHourRequiredFile);
+                    }
+                    else
+                    {
+                         _logger?.LogDebug("Found generals.exe at root but missing {ValidationFile}, assuming standard Generals installation only.", GameClientConstants.ZeroHourRequiredFile);
+                    }
                 }
             }
 

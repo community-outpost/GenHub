@@ -102,9 +102,14 @@ public static partial class GameVersionHelper
                 return null;
             }
 
-            var month = int.Parse(datePart[0..2]);
-            var day = int.Parse(datePart[2..4]);
-            var year = 2000 + int.Parse(datePart[4..6]);
+            if (!int.TryParse(datePart[0..2], out var month) ||
+                !int.TryParse(datePart[2..4], out var day) ||
+                !int.TryParse(datePart[4..6], out var yearPart))
+            {
+                return null;
+            }
+
+            var year = 2000 + yearPart;
 
             return (new DateTime(year, month, day), qfe);
         }
@@ -130,8 +135,13 @@ public static partial class GameVersionHelper
         var parsed = ParseGeneralsOnlineVersion(version);
         if (parsed != null)
         {
-            var dateValue = int.Parse(parsed.Value.Date.ToString("MMddyy"));
-            return (dateValue * 10) + parsed.Value.Qfe;
+            if (int.TryParse(parsed.Value.Date.ToString("MMddyy"), out var dateValue))
+            {
+                // Use *1000 to allow QFE values up to 999 without collisions
+                // Use long to avoid overflow before casting back to int
+                long sortable = (dateValue * 1000L) + parsed.Value.Qfe;
+                return sortable > int.MaxValue ? int.MaxValue : (int)sortable;
+            }
         }
 
         // Fallback: extract all digits

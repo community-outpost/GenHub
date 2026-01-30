@@ -29,7 +29,7 @@ public static class ToolProfileHelper
             return false;
         }
 
-        var contentIdsList = enabledContentIds.ToList();
+        var contentIdsList = enabledContentIds.Distinct().ToList();
 
         // Tool profiles must have exactly one content item
         if (contentIdsList.Count != ProfileValidationConstants.ToolProfileMaxContentItems)
@@ -67,7 +67,7 @@ public static class ToolProfileHelper
             return ProfileValidationConstants.InvalidToolProfileParameters;
         }
 
-        var contentIdsList = enabledContentIds.ToList();
+        var contentIdsList = enabledContentIds.Distinct().ToList();
 
         // Load all manifests
         var moddingToolCount = 0;
@@ -114,7 +114,7 @@ public static class ToolProfileHelper
     /// <returns>True if this is a Tool Profile configuration.</returns>
     public static bool IsToolProfile(IEnumerable<(string ManifestId, ContentType ContentType)> enabledContent)
     {
-        var contentList = enabledContent.ToList();
+        var contentList = enabledContent.Distinct().ToList();
 
         // Must have exactly one content item
         if (contentList.Count != ProfileValidationConstants.ToolProfileMaxContentItems)
@@ -134,7 +134,7 @@ public static class ToolProfileHelper
     /// <returns>Error message if invalid, null if valid.</returns>
     public static string? ValidateToolProfileContent(IEnumerable<(string ManifestId, ContentType ContentType)> enabledContent)
     {
-        var contentList = enabledContent.ToList();
+        var contentList = enabledContent.Distinct().ToList();
 
         var moddingToolCount = contentList.Count(c => c.ContentType.IsStandalone());
         var otherContentCount = contentList.Count - moddingToolCount;

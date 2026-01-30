@@ -42,6 +42,12 @@ public class ContentSearchResult
     /// <summary>Gets or sets the URL for the content's banner image (optional).</summary>
     public string? BannerUrl { get; set; }
 
+    /// <summary>Gets or sets the direct download URL for the content.</summary>
+    public string? DownloadUrl { get; set; }
+
+    /// <summary>Gets or sets the release notes for the content.</summary>
+    public string? ReleaseNotes { get; set; }
+
     /// <summary>Gets a list of screenshot URLs.</summary>
     public IList<string> ScreenshotUrls { get; } = [];
 
@@ -49,7 +55,7 @@ public class ContentSearchResult
     public IList<string> Tags { get; } = [];
 
     /// <summary>Gets or sets the date the content was last updated (optional).</summary>
-    public DateTime? LastUpdated { get; set; }
+    public DateTimeOffset? LastUpdated { get; set; }
 
     /// <summary>Gets or sets the download size in bytes.</summary>
     public long DownloadSize { get; set; }
@@ -104,6 +110,11 @@ public class ContentSearchResult
     /// <param name="newId">The new identifier.</param>
     public void UpdateId(string newId)
     {
+        if (string.IsNullOrWhiteSpace(newId))
+        {
+            throw new ArgumentException("New ID cannot be null or whitespace.", nameof(newId));
+        }
+
         Id = newId;
     }
 }

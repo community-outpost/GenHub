@@ -522,14 +522,14 @@ public class GameProcessManager(
     }
 
     /// <inheritdoc/>
-    public void TrackProcess(Process process)
+    public OperationResult TrackProcess(Process process)
     {
         ArgumentNullException.ThrowIfNull(process);
 
         if (process.HasExited)
         {
             logger.LogWarning("[Process] Attempted to track already exited process {ProcessId}", process.Id);
-            return;
+            return OperationResult.CreateFailure("Process has already exited");
         }
 
         logger.LogInformation("[Process] Registering existing process for tracking: {ProcessId} ({ProcessName})", process.Id, process.ProcessName);
@@ -544,7 +544,10 @@ public class GameProcessManager(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[Process] Failed to enable raising events for tracked process {ProcessId}", process.Id);
+            return OperationResult.CreateFailure($"Failed to enable raising events: {ex.Message}");
         }
+
+        return OperationResult.CreateSuccess();
     }
 
     /// <inheritdoc/>

@@ -1,4 +1,4 @@
-using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -15,15 +15,15 @@ public class SetupWizardResult
     /// <summary>
     /// Gets or sets the action to take for Community Patch.
     /// </summary>
-    public string CommunityPatchAction { get; set; } = GameClientConstants.WizardActionTypes.None;
+    public WizardActionType CommunityPatchAction { get; set; } = WizardActionType.None;
 
     /// <summary>
     /// Gets or sets the action to take for Generals Online.
     /// </summary>
-    public string GeneralsOnlineAction { get; set; } = GameClientConstants.WizardActionTypes.None;
+    public WizardActionType GeneralsOnlineAction { get; set; } = WizardActionType.None;
 
     /// <summary>
     /// Gets or sets the action to take for The Super Hackers.
     /// </summary>
-    public string SuperHackersAction { get; set; } = GameClientConstants.WizardActionTypes.None;
+    public WizardActionType SuperHackersAction { get; set; } = WizardActionType.None;
 }

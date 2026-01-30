@@ -21,7 +21,28 @@ public class CatalogParserFactory : ICatalogParserFactory
         ILogger<CatalogParserFactory> logger)
     {
         _logger = logger;
-        _parsers = parsers.ToDictionary(p => p.CatalogFormat, p => p, StringComparer.OrdinalIgnoreCase);
+        var formatGroups = parsers.GroupBy(p => p.CatalogFormat, StringComparer.OrdinalIgnoreCase);
+        _parsers = new Dictionary<string, ICatalogParser>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in formatGroups)
+        {
+            // Skip null or whitespace format keys
+            if (string.IsNullOrWhiteSpace(group.Key))
+            {
+                _logger.LogWarning("Skipping catalog parser with null or whitespace format key");
+                continue;
+            }
+
+            // Use deterministic ordering to avoid non-deterministic behavior
+            var parser = group.OrderBy(p => p.GetType().FullName).First();
+            _parsers[group.Key] = parser;
+
+            if (group.Count() > 1)
+            {
+                var allParserTypes = string.Join(", ", group.Select(p => p.GetType().Name));
+                _logger.LogWarning("Multiple parsers registered for format '{Format}'. Using {ParserType}. All: {AllTypes}", group.Key, parser.GetType().Name, allParserTypes);
+            }
+        }
 
         _logger.LogDebug(
             "CatalogParserFactory initialized with {Count} parsers: {Formats}",

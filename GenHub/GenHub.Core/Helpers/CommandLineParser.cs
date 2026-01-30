@@ -41,18 +41,26 @@ public static class CommandLineParser
     /// <returns>The extracted catalog URL if present; otherwise, <c>null</c>.</returns>
     public static string? ExtractSubscriptionUrl(string[] args)
     {
-        foreach (var arg in args)
+        try
         {
-            if (arg.StartsWith(CommandLineConstants.SubscribeUriPrefix, StringComparison.OrdinalIgnoreCase))
+            foreach (var arg in args)
             {
-                // Simple parsing for ?url=...
-                var queryStart = arg.IndexOf(CommandLineConstants.SubscribeUrlParam, StringComparison.OrdinalIgnoreCase);
-                if (queryStart != -1)
+                if (arg.StartsWith(CommandLineConstants.SubscribeUriPrefix, StringComparison.OrdinalIgnoreCase))
                 {
-                    var url = arg[(queryStart + CommandLineConstants.SubscribeUrlParam.Length)..];
-                    return Uri.UnescapeDataString(url).Trim('"');
+                    // Simple parsing for ?url=...
+                    var queryStart = arg.IndexOf(CommandLineConstants.SubscribeUrlParam, StringComparison.OrdinalIgnoreCase);
+                    if (queryStart != -1)
+                    {
+                        var url = arg[(queryStart + CommandLineConstants.SubscribeUrlParam.Length)..];
+                        return Uri.UnescapeDataString(url).Trim('"');
+                    }
                 }
             }
+        }
+        catch (UriFormatException)
+        {
+            // Fail silently for invalid CLI args with malformed URI encoding
+            return null;
         }
 
         return null;

@@ -384,13 +384,12 @@ public class GameProfileSettingsViewModelDependencyTests
         _viewModel.AvailableContent.Add(modDisplayItem);
 
         // Act
-        // We use the command directly or the method if public. EnableContent is private but called via RelayCommand.
         _viewModel.EnableContentCommand.Execute(modDisplayItem);
 
-        // Wait for async background operation
-        await Task.Delay(50);
-
         // Assert
+        // Poll for result instead of using a fixed delay to avoid flakiness
+        await WaitForConditionAsync(() => _viewModel.SelectedGameInstallation == zeroHourInstall);
+
         Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
         Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == generalsInstallId.Value);
@@ -458,10 +457,10 @@ public class GameProfileSettingsViewModelDependencyTests
         // Act
         _viewModel.EnableContentCommand.Execute(clientDisplayItem);
 
-        // Wait for async background operation
-        await Task.Delay(50);
-
         // Assert
+        // Poll for result
+        await WaitForConditionAsync(() => _viewModel.SelectedGameInstallation == zeroHourInstall);
+
         Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
         Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == generalsInstallId.Value);
@@ -532,10 +531,24 @@ public class GameProfileSettingsViewModelDependencyTests
         _viewModel.EnableContentCommand.Execute(clientDisplayItem);
 
         // Assert
-        // Need to wait slightly because ResolveDependenciesAsync is fire-and-forget void async
-        await Task.Delay(50);
+        // Poll for result
+        await WaitForConditionAsync(() => _viewModel.EnabledContent.Any(c => c.ManifestId.Value == mapPackId.Value));
 
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackId.Value);
         Assert.True(_viewModel.EnabledContent.First(c => c.ManifestId.Value == mapPackId.Value).IsEnabled);
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, int timeoutMs = 2000)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (!condition() && stopwatch.ElapsedMilliseconds < timeoutMs)
+        {
+            await Task.Delay(10);
+        }
+
+        if (!condition())
+        {
+            throw new TimeoutException("Condition not met within timeout.");
+        }
     }
 }

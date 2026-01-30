@@ -21,8 +21,9 @@ public interface IMapPackService
     /// <param name="name">The name of the MapPack.</param>
     /// <param name="profileId">Optional profile ID to associate with.</param>
     /// <param name="mapFilePaths">List of map file paths to include.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>The created MapPack.</returns>
-    Task<MapPack> CreateMapPackAsync(string name, Guid? profileId, IEnumerable<string> mapFilePaths);
+    Task<MapPack> CreateMapPackAsync(string name, Guid? profileId, IEnumerable<string> mapFilePaths, CancellationToken ct = default);
 
     /// <summary>
     /// Creates a new MapPack manifest using the Content Addressable Storage system.
@@ -30,7 +31,7 @@ public interface IMapPackService
     /// <param name="name">The name of the MapPack.</param>
     /// <param name="targetGame">The target game.</param>
     /// <param name="selectedMaps">The maps to include.</param>
-    /// <param name="progress">Progress repoter.</param>
+    /// <param name="progress">Progress reporter.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The operation result with the created manifest.</returns>
     Task<OperationResult<ContentManifest>> CreateCasMapPackAsync(
@@ -43,41 +44,47 @@ public interface IMapPackService
     /// <summary>
     /// Gets all available MapPacks.
     /// </summary>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>List of all MapPacks.</returns>
-    Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync();
+    Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets MapPacks associated with a specific profile.
     /// </summary>
     /// <param name="profileId">The profile ID.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>List of MapPacks for the profile.</returns>
-    Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId);
+    Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId, CancellationToken ct = default);
 
     /// <summary>
     /// Loads a MapPack by copying its maps to the game directory.
     /// </summary>
     /// <param name="mapPackId">The MapPack ID.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>True if successful.</returns>
-    Task<bool> LoadMapPackAsync(ManifestId mapPackId);
+    Task<bool> LoadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default);
 
     /// <summary>
     /// Unloads a MapPack by removing its maps from the game directory.
     /// </summary>
     /// <param name="mapPackId">The MapPack ID.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>True if successful.</returns>
-    Task<bool> UnloadMapPackAsync(ManifestId mapPackId);
+    Task<bool> UnloadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default);
 
     /// <summary>
     /// Deletes a MapPack.
     /// </summary>
     /// <param name="mapPackId">The MapPack ID.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>True if successful.</returns>
-    Task<bool> DeleteMapPackAsync(ManifestId mapPackId);
+    Task<bool> DeleteMapPackAsync(ManifestId mapPackId, CancellationToken ct = default);
 
     /// <summary>
     /// Updates an existing MapPack.
     /// </summary>
     /// <param name="mapPack">The updated MapPack.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>True if successful.</returns>
-    Task<bool> UpdateMapPackAsync(MapPack mapPack);
+    Task<bool> UpdateMapPackAsync(MapPack mapPack, CancellationToken ct = default);
 }

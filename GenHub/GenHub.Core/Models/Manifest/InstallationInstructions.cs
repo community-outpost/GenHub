@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 

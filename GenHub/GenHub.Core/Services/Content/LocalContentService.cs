@@ -88,15 +88,20 @@ public class LocalContentService(
             // This ensures auto-resolution logic works correctly for locally added clients
             if (contentType == ContentType.GameClient)
             {
-                manifest.Dependencies.Add(new ContentDependency
-                {
-                    Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
-                    DependencyType = ContentType.GameInstallation,
-                    CompatibleGameTypes = [targetGame],
-                    IsOptional = false,
-                });
+                manifest.Dependencies ??= [];
 
-                logger.LogInformation("Auto-added GameInstallation dependency for local GameClient");
+                if (!manifest.Dependencies.Any(d => d.DependencyType == ContentType.GameInstallation))
+                {
+                    manifest.Dependencies.Add(new ContentDependency
+                    {
+                        Id = ManifestId.Create(ManifestConstants.DefaultContentDependencyId),
+                        DependencyType = ContentType.GameInstallation,
+                        CompatibleGameTypes = [targetGame],
+                        IsOptional = false,
+                    });
+
+                    logger.LogInformation("Auto-added GameInstallation dependency for local GameClient");
+                }
             }
 
             // Override publisher info to mark as local content
@@ -138,15 +143,22 @@ public class LocalContentService(
         string name,
         string directoryPath,
         ContentType contentType,
-        GameType targetGame)
+        GameType targetGame,
+        IProgress<GenHub.Core.Models.Content.ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         // Forward to the main method, swapping name and directoryPath to match expected signature
-        return CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame);
+        return CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, progress, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<OperationResult> DeleteLocalContentAsync(string manifestId)
     {
+        if (string.IsNullOrWhiteSpace(manifestId))
+        {
+            return OperationResult.CreateFailure("Manifest ID cannot be null or empty.");
+        }
+
         try
         {
             logger.LogInformation("Deleting local content with manifest ID '{ManifestId}'", manifestId);

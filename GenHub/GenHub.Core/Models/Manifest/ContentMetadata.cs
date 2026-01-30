@@ -33,7 +33,7 @@ public class ContentMetadata
     /// <summary>
     /// Gets or sets the release date.
     /// </summary>
-    public DateTime ReleaseDate { get; set; }
+    public DateTimeOffset ReleaseDate { get; set; }
 
     /// <summary>
     /// Gets or sets the changelog URL.

@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
@@ -52,6 +56,126 @@ public class DownloadService(
         };
 
         return await DownloadFileAsync(configuration, progress, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<IDictionary<string, DownloadResult>> DownloadFilesAsync(
+        IDictionary<Uri, string> files,
+        IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var results = new Dictionary<string, DownloadResult>();
+
+        // Limit concurrent downloads to avoid overwhelming the system
+        // Limit concurrent downloads to avoid overwhelming the system
+        using var semaphore = new SemaphoreSlim(DownloadDefaults.MaxConcurrentDownloads);
+
+        var fileKeys = files.Keys.ToList();
+        int completedFiles = 0;
+        int totalFiles = fileKeys.Count;
+
+        var tasks = fileKeys.Select(async uri =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                // Create file-specific progress to track individual download progress
+                IProgress<DownloadProgress>? fileProgress = null;
+                if (progress != null)
+                {
+                    fileProgress = new Progress<DownloadProgress>(dp =>
+                    {
+                        // Report overall progress including completed files
+                        progress.Report(dp);
+                    });
+                }
+
+                var result = await DownloadFileAsync(uri, files[uri], null, fileProgress, cancellationToken);
+
+                // Update overall progress for completed files
+                Interlocked.Increment(ref completedFiles);
+                if (progress != null)
+                {
+                    progress.Report(new DownloadProgress(
+                        completedFiles,
+                        totalFiles,
+                        "Batch Download",
+                        new Uri("about:blank"),
+                        0));
+                }
+
+                return new { Path = files[uri], Result = result };
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        var downloadResults = await Task.WhenAll(tasks);
+        foreach (var item in downloadResults)
+        {
+            results[item.Path] = item.Result;
+        }
+
+        return results;
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult> DownloadFilesAsync(
+        IEnumerable<ManifestFile> files,
+        string destinationDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        // Validate inputs
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationDirectory);
+
+        var downloadMap = new Dictionary<Uri, string>();
+        foreach (var file in files)
+        {
+            if (!string.IsNullOrEmpty(file.DownloadUrl) && Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri))
+            {
+                // Validate and sanitize RelativePath to prevent path traversal attacks
+                var relativePath = file.RelativePath;
+
+                // Check for path traversal attempts
+                if (relativePath.Contains("..") || Path.IsPathRooted(relativePath))
+                {
+                    logger.LogWarning("Skipping file with invalid relative path: {RelativePath}", relativePath);
+                    continue;
+                }
+
+                var destPath = Path.Combine(destinationDirectory, relativePath);
+
+                // Ensure the resolved path is still within the destination directory
+                var normalizedDest = Path.GetFullPath(destPath);
+                var normalizedDestDir = Path.GetFullPath(destinationDirectory);
+                if (!normalizedDest.StartsWith(normalizedDestDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Skipping file with path outside destination directory: {RelativePath}", relativePath);
+                    continue;
+                }
+
+                downloadMap[uri] = destPath;
+            }
+        }
+
+        if (downloadMap.Count == 0)
+        {
+            return OperationResult.CreateSuccess();
+        }
+
+        var results = await DownloadFilesAsync(downloadMap, null, cancellationToken);
+
+        var failures = results.Values.Where(r => !r.Success).ToList();
+        if (failures.Count != 0)
+        {
+            // Aggregate all failure messages for better debugging
+            var allErrors = string.Join("; ", failures.Select(f => $"{f.FirstError}"));
+            return OperationResult.CreateFailure($"Failed to download {failures.Count} file(s): {allErrors}");
+        }
+
+        return OperationResult.CreateSuccess();
     }
 
     /// <inheritdoc/>

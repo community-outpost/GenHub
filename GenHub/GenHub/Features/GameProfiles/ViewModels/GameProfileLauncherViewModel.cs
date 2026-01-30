@@ -330,8 +330,8 @@ public partial class GameProfileLauncherViewModel(
         // Keep adding numbers until we find a unique name (case-insensitive comparison)
         while (Profiles.OfType<GameProfileItemViewModel>().Any(p => string.Equals(p.Name, copyName, StringComparison.OrdinalIgnoreCase)))
         {
-            counter++;
             copyName = $"{baseName} {string.Format(ProfileConstants.CopyNameNumberedFormat, counter)}";
+            counter++;
         }
 
         return copyName;
@@ -517,9 +517,9 @@ public partial class GameProfileLauncherViewModel(
 
                 // Check if any patches were selected globally
                 bool anyPatchSelectedGlobally =
-                    (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None) ||
-                    (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None) ||
-                    (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None);
+                    (cpDecision != WizardActionType.Decline && cpDecision != WizardActionType.None) ||
+                    (goDecision != WizardActionType.Decline && goDecision != WizardActionType.None) ||
+                    (shDecision != WizardActionType.Decline && shDecision != WizardActionType.None);
 
                 // 4. Execution Phase: Apply decisions per installation
                 int profilesCreated = 0;
@@ -534,13 +534,13 @@ public partial class GameProfileLauncherViewModel(
                     bool anyPatchHandled = false;
 
                     // Execute CP Decision
-                    if (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None)
+                    if (cpDecision != WizardActionType.Decline && cpDecision != WizardActionType.None)
                     {
                         var cpClient = installation.AvailableGameClients.FirstOrDefault(c => c.PublisherType == CommunityOutpostConstants.PublisherType);
-                        if (cpClient != null || cpDecision == GameClientConstants.WizardActionTypes.Install)
+                        if (cpClient != null || cpDecision == WizardActionType.Install)
                         {
                             var clientToUse = cpClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.CommunityPatch, Name = "Community Patch", PublisherType = CommunityOutpostConstants.PublisherType, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                            bool forceAttr = cpDecision == GameClientConstants.WizardActionTypes.Update;
+                            bool forceAttr = cpDecision == WizardActionType.Update;
                             var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
                             if (result.Success && result.Data > 0) profilesCreated += result.Data;
                             anyPatchHandled = true;
@@ -548,13 +548,13 @@ public partial class GameProfileLauncherViewModel(
                     }
 
                     // Execute GO Decision
-                    if (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None)
+                    if (goDecision != WizardActionType.Decline && goDecision != WizardActionType.None)
                     {
                         var goClient = installation.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline);
-                        if (goClient != null || goDecision == GameClientConstants.WizardActionTypes.Install)
+                        if (goClient != null || goDecision == WizardActionType.Install)
                         {
                             var clientToUse = goClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.GeneralsOnline, Name = "GeneralsOnline", PublisherType = PublisherTypeConstants.GeneralsOnline, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                            bool forceAttr = goDecision == GameClientConstants.WizardActionTypes.Update;
+                            bool forceAttr = goDecision == WizardActionType.Update;
                             var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
                             if (result.Success && result.Data > 0) profilesCreated += result.Data;
                             anyPatchHandled = true;
@@ -562,13 +562,13 @@ public partial class GameProfileLauncherViewModel(
                     }
 
                     // Execute SH Decision
-                    if (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None)
+                    if (shDecision != WizardActionType.Decline && shDecision != WizardActionType.None)
                     {
                         var shClient = installation.AvailableGameClients.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
-                        if (shClient != null || shDecision == GameClientConstants.WizardActionTypes.Install)
+                        if (shClient != null || shDecision == WizardActionType.Install)
                         {
                             var clientToUse = shClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.SuperHackers, Name = "SuperHackers", PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                            bool forceAttr = shDecision == GameClientConstants.WizardActionTypes.Update;
+                            bool forceAttr = shDecision == WizardActionType.Update;
                             var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
                             if (result.Success && result.Data > 0) profilesCreated += result.Data;
                             anyPatchHandled = true;
@@ -1416,8 +1416,8 @@ public partial class GameProfileLauncherViewModel(
                 GameClient = sourceProfile.GameClient,
                 PreferredStrategy = sourceProfile.WorkspaceStrategy,
                 EnabledContentIds = sourceProfile.EnabledContentIds != null
-                    ? new List<string>(sourceProfile.EnabledContentIds)
-                    : new List<string>(),
+                    ? [.. sourceProfile.EnabledContentIds]
+                    : [],
                 ThemeColor = sourceProfile.ThemeColor,
                 IconPath = sourceProfile.IconPath,
                 CoverPath = sourceProfile.CoverPath,

@@ -50,8 +50,8 @@ public static class VersionComparer
         if (numericResult.HasValue)
             return numericResult.Value;
 
-        // Fall back to ordinal string comparison
-        return string.Compare(version1, version2, StringComparison.Ordinal);
+        // Fall back to Natural Sort comparison (alphanumeric chunks)
+        return NaturalCompare(version1, version2);
     }
 
     /// <summary>
@@ -182,5 +182,63 @@ public static class VersionComparer
         }
 
         return result.ToString();
+    }
+
+    /// <summary>
+    /// Compares two strings using natural sort order (numeric chunks compared numerically).
+    /// </summary>
+    private static int NaturalCompare(string? s1, string? s2)
+    {
+        if (s1 == s2) return 0;
+        if (s1 == null) return -1;
+        if (s2 == null) return 1;
+
+        int i1 = 0, i2 = 0;
+        while (i1 < s1.Length && i2 < s2.Length)
+        {
+            // If both are digits, compare numerically
+            if (char.IsDigit(s1[i1]) && char.IsDigit(s2[i2]))
+            {
+                // Extract numbers
+                string n1 = ExtractNumber(s1, ref i1);
+                string n2 = ExtractNumber(s2, ref i2);
+
+                int result;
+                if (long.TryParse(n1, out long v1) && long.TryParse(n2, out long v2))
+                {
+                    result = v1.CompareTo(v2);
+                }
+                else
+                {
+                     // Fallback to string comparison if too large for long
+                     // Use length first for numeric semantic
+                     result = n1.Length.CompareTo(n2.Length);
+                     if (result == 0) result = string.Compare(n1, n2, StringComparison.Ordinal);
+                }
+
+                if (result != 0) return result;
+            }
+            else
+            {
+                // Compare chars
+                int result = s1[i1].CompareTo(s2[i2]);
+                if (result != 0) return result;
+                i1++;
+                i2++;
+            }
+        }
+
+        return s1.Length.CompareTo(s2.Length);
+    }
+
+    private static string ExtractNumber(string s, ref int index)
+    {
+        int start = index;
+        while (index < s.Length && char.IsDigit(s[index]))
+        {
+            index++;
+        }
+
+        return s[start..index];
     }
 }

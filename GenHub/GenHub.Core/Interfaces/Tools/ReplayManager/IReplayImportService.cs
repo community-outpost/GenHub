@@ -38,11 +38,13 @@ public interface IReplayImportService
     /// </summary>
     /// <param name="filePaths">The paths to the local files.</param>
     /// <param name="targetVersion">The target game version.</param>
+    /// <param name="progress">Progress reporter for import updates.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The result of the import operation.</returns>
     Task<ImportResult> ImportFromFilesAsync(
         IEnumerable<string> filePaths,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default);
 
     /// <summary>
@@ -63,8 +65,9 @@ public interface IReplayImportService
     /// Validates a ZIP archive to ensure it contains only a single layer of replay files.
     /// </summary>
     /// <param name="zipPath">The path to the ZIP archive.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>A result indicating whether the ZIP is valid and any error message.</returns>
-    (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath);
+    Task<(bool IsValid, string? ErrorMessage)> ValidateZipAsync(string zipPath, CancellationToken ct = default);
 
     /// <summary>
     /// Imports replays from a stream (e.g., for drag-and-drop).
@@ -72,11 +75,13 @@ public interface IReplayImportService
     /// <param name="stream">The stream to read from.</param>
     /// <param name="fileName">The name of the file being imported.</param>
     /// <param name="targetVersion">The target game version.</param>
+    /// <param name="progress">Progress reporter for import updates.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The result of the import operation.</returns>
     Task<ImportResult> ImportFromStreamAsync(
         Stream stream,
         string fileName,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default);
 }

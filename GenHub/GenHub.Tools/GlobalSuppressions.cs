@@ -21,7 +21,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage(
     "StyleCop.CSharp.SpacingRules",
     "SA1010:Opening square brackets should be spaced correctly",
-    Justification = "Conflicts with shortend assignment of enumerations introduced in C#8.")]
+    Justification = "Conflicts with shortened assignment of enumerations introduced in C#8.")]
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.ReadabilityRules",
@@ -61,7 +61,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage(
     "StyleCop.CSharp.DocumentationRules",
     "SA1633:File should have header",
-    Justification = "Licensing and other information is provided in seperate files.")]
+    Justification = "Licensing and other information is provided in separate files.")]
 
 [assembly: SuppressMessage(
     "StyleCop.CSharp.SpacingRules",

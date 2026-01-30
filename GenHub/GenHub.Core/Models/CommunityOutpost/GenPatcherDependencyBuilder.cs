@@ -21,6 +21,8 @@ namespace GenHub.Core.Models.CommunityOutpost;
 /// </remarks>
 public static class GenPatcherDependencyBuilder
 {
+    private const string BaseDependencyVersion = "1.0";
+
     /// <summary>
     /// Gets the dependencies for a given content code and metadata.
     /// </summary>
@@ -142,10 +144,10 @@ public static class GenPatcherDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create("1.0.any.gameinstallation.zerohour"),
+            Id = ManifestId.Create($"{BaseDependencyVersion}.any.gameinstallation.zerohour"),
             Name = "Zero Hour Base Installation (Required)",
             DependencyType = ContentType.GameInstallation,
-            MinVersion = "1.0",
+            MinVersion = BaseDependencyVersion,
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,
@@ -162,10 +164,10 @@ public static class GenPatcherDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create("1.0.any.gameinstallation.generals"),
+            Id = ManifestId.Create($"{BaseDependencyVersion}.any.gameinstallation.generals"),
             Name = "Generals Base Installation (Required)",
             DependencyType = ContentType.GameInstallation,
-            MinVersion = "1.0",
+            MinVersion = BaseDependencyVersion,
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
             StrictPublisher = false,

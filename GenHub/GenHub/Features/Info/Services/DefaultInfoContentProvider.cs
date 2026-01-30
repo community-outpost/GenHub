@@ -21,9 +21,16 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     /// <summary>
     /// Gets all info sections asynchronously.
     /// </summary>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation containing the collection of info sections.</returns>
-    public Task<IEnumerable<InfoSection>> GetAllSectionsAsync()
+    public Task<IEnumerable<InfoSection>> GetAllSectionsAsync(CancellationToken ct = default)
     {
+        // Check for cancellation
+        if (ct.IsCancellationRequested)
+        {
+            return Task.FromCanceled<IEnumerable<InfoSection>>(ct);
+        }
+
         // Return the pre-loaded sections
         return Task.FromResult(_sections.OrderBy(s => s.Order).AsEnumerable());
     }
@@ -32,9 +39,16 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
     /// Gets a specific info section by its identifier asynchronously.
     /// </summary>
     /// <param name="sectionId">The section identifier.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation containing the info section or null if not found.</returns>
-    public Task<InfoSection?> GetSectionAsync(string sectionId)
+    public Task<InfoSection?> GetSectionAsync(string sectionId, CancellationToken ct = default)
     {
+        // Check for cancellation
+        if (ct.IsCancellationRequested)
+        {
+            return Task.FromCanceled<InfoSection?>(ct);
+        }
+
         return Task.FromResult(_sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)));
     }
 

@@ -42,6 +42,6 @@ public interface IGameInstallationService
     /// </summary>
     /// <param name="installation">The installation to persist.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default);
+    /// <returns>An operation result indicating success or failure of the registration.</returns>
+    Task<OperationResult<bool>> CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default);
 }

@@ -233,13 +233,13 @@ public partial class MainViewModel(
             var settings = userSettingsService.Get();
 
             // Push settings to update manager (important context for other components)
-            if (settings.SubscribedPrNumber.HasValue)
+            if (settings.App.SubscribedPrNumber.HasValue)
             {
-                velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
+                velopackUpdateManager.SubscribedPrNumber = settings.App.SubscribedPrNumber;
             }
 
             // 1. Check for standard GitHub releases (Default)
-            if (string.IsNullOrEmpty(settings.SubscribedBranch))
+            if (string.IsNullOrEmpty(settings.App.SubscribedBranch))
             {
                 var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
                 if (updateInfo != null)
@@ -267,8 +267,8 @@ public partial class MainViewModel(
             else
             {
                 // 2. Check for Subscribed Branch Artifacts
-                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.SubscribedBranch);
-                velopackUpdateManager.SubscribedBranch = settings.SubscribedBranch;
+                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.App.SubscribedBranch);
+                velopackUpdateManager.SubscribedBranch = settings.App.SubscribedBranch;
                 velopackUpdateManager.SubscribedPrNumber = null; // Clear PR to avoid ambiguity
 
                 var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
@@ -282,7 +282,7 @@ public partial class MainViewModel(
                         notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
                             "Branch Update Available",
-                            $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
+                            $"A new build ({newVersionBase}) is available on branch '{settings.App.SubscribedBranch}'.",
                             null, // Persistent
                             actions:
                             [

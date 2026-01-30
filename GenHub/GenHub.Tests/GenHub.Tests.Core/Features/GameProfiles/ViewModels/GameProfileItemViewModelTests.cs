@@ -15,10 +15,7 @@ public class GameProfileItemViewModelTests
     [Fact]
     public void CanConstruct()
     {
-        var mockProfile = new Mock<IGameProfile>();
-        mockProfile.SetupGet(p => p.Version).Returns("1.0");
-        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = CreateViewModel("test-profile-id");
         Assert.NotNull(vm);
         Assert.Equal("test-profile-id", vm.ProfileId);
     }
@@ -31,11 +28,7 @@ public class GameProfileItemViewModelTests
     public async Task CopyProfileCommand_CallsCopyAction()
     {
         // Arrange
-        var mockProfile = new Mock<IGameProfile>();
-        mockProfile.SetupGet(p => p.Version).Returns("1.0");
-        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-
-        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = CreateViewModel();
 
         GameProfileItemViewModel? passedVm = null;
         vm.CopyProfileAction = viewModel =>
@@ -59,11 +52,7 @@ public class GameProfileItemViewModelTests
     public void CopyProfileCommand_CanExecute_WhenActionIsSet()
     {
         // Arrange
-        var mockProfile = new Mock<IGameProfile>();
-        mockProfile.SetupGet(p => p.Version).Returns("1.0");
-        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-
-        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = CreateViewModel();
         vm.CopyProfileAction = _ => Task.CompletedTask;
 
         // Act & Assert
@@ -77,11 +66,7 @@ public class GameProfileItemViewModelTests
     public void CopyProfileCommand_CanExecute_WhenActionIsNull()
     {
         // Arrange
-        var mockProfile = new Mock<IGameProfile>();
-        mockProfile.SetupGet(p => p.Version).Returns("1.0");
-        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-
-        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = CreateViewModel();
 
         // Don't set CopyProfileAction
 
@@ -97,16 +82,21 @@ public class GameProfileItemViewModelTests
     public async Task CopyProfileCommand_Execute_WhenActionIsNull_DoesNotThrow()
     {
         // Arrange
-        var mockProfile = new Mock<IGameProfile>();
-        mockProfile.SetupGet(p => p.Version).Returns("1.0");
-        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
-
-        var vm = new GameProfileItemViewModel("test-profile-id", mockProfile.Object, "icon.png", "cover.jpg");
+        var vm = CreateViewModel();
 
         // Don't set CopyProfileAction (null)
 
         // Act & Assert - should not throw
         var exception = await Record.ExceptionAsync(() => vm.CopyProfileCommand.ExecuteAsync(null));
         Assert.Null(exception);
+    }
+
+    private static GameProfileItemViewModel CreateViewModel(string id = "test-id")
+    {
+        var mockProfile = new Mock<IGameProfile>();
+        mockProfile.SetupGet(p => p.Name).Returns("Test Game");
+        mockProfile.SetupGet(p => p.Version).Returns("1.0");
+        mockProfile.SetupGet(p => p.ExecutablePath).Returns("C:/fake/path.exe");
+        return new GameProfileItemViewModel(id, mockProfile.Object, "icon.png", "cover.jpg");
     }
 }

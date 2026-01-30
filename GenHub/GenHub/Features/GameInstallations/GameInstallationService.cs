@@ -181,7 +181,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
     }
 
     /// <inheritdoc/>
-    public async Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
         logger!.LogInformation(
             "[MANIFEST-GEN] CreateAndRegisterInstallationManifestsAsync called for {InstallationType} at {Path}",
@@ -194,7 +194,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             logger!.LogWarning(
                 "[MANIFEST-GEN] Installation directory does not exist: {Path}",
                 gameDir);
-            return;
+            return OperationResult<bool>.CreateFailure("Installation directory does not exist");
         }
 
         logger!.LogInformation(
@@ -269,6 +269,8 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         logger!.LogInformation(
             "[MANIFEST-GEN] Completed manifest generation for {InstallationType}",
             installation.InstallationType);
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     /// <summary>

@@ -91,7 +91,7 @@ public sealed class ReplayImportService(
 
                 var importedFileName = GetFileNameFromUrl(directUrl);
                 using var stream = File.OpenRead(tempPath);
-                return await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
+                return await ImportFromStreamAsync(stream, importedFileName, targetVersion, progress, ct);
             }
             finally
             {
@@ -112,6 +112,7 @@ public sealed class ReplayImportService(
     public async Task<ImportResult> ImportFromFilesAsync(
         IEnumerable<string> filePaths,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
         var imported = new List<string>();
@@ -148,7 +149,7 @@ public sealed class ReplayImportService(
                 }
 
                 using var stream = File.OpenRead(path);
-                var result = await ImportFromStreamAsync(stream, Path.GetFileName(path), targetVersion, ct);
+                var result = await ImportFromStreamAsync(stream, Path.GetFileName(path), targetVersion, null, ct);
                 if (result.Success)
                 {
                     imported.AddRange(result.ImportedFiles);
@@ -183,7 +184,7 @@ public sealed class ReplayImportService(
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
-        var (isValid, errorMessage) = ValidateZip(zipPath);
+        var (isValid, errorMessage) = await ValidateZipAsync(zipPath, ct);
         if (!isValid)
         {
             logger.LogWarning("Import from ZIP failed validation: {Error}", errorMessage);
@@ -213,7 +214,7 @@ public sealed class ReplayImportService(
                 progress?.Report((double)count / total);
 
                 using var stream = entry.Open();
-                var result = await ImportFromStreamAsync(stream, entry.Name, targetVersion, ct);
+                var result = await ImportFromStreamAsync(stream, entry.Name, targetVersion, progress: null, ct: ct);
                 if (result.Success)
                 {
                     imported.AddRange(result.ImportedFiles);
@@ -246,6 +247,7 @@ public sealed class ReplayImportService(
         Stream stream,
         string fileName,
         GameType targetVersion,
+        IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
         try
@@ -275,9 +277,15 @@ public sealed class ReplayImportService(
     }
 
     /// <inheritdoc />
-    public (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath)
+    public async Task<(bool IsValid, string? ErrorMessage)> ValidateZipAsync(string zipPath, CancellationToken ct = default)
     {
-        return zipValidationService.ValidateZip(zipPath);
+        // Honor cancellation token before performing the validation
+        ct.ThrowIfCancellationRequested();
+        var result = zipValidationService.ValidateZip(zipPath);
+
+        // Check cancellation again after validation completes
+        ct.ThrowIfCancellationRequested();
+        return result;
     }
 
     private static bool IsZipFile(string filePath)

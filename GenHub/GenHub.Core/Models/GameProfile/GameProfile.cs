@@ -48,7 +48,9 @@ public class GameProfile : IGameProfile
     /// Gets a value indicating whether this is a Tool profile (standalone executable without game installation).
     /// Tool profiles have a ToolContentId and no GameInstallationId.
     /// </summary>
-    public bool IsToolProfile => !string.IsNullOrWhiteSpace(ToolContentId);
+    public bool IsToolProfile =>
+        !string.IsNullOrWhiteSpace(ToolContentId) &&
+        string.IsNullOrWhiteSpace(GameInstallationId);
 
     /// <summary>Gets or sets the workspace strategy for this profile.</summary>
     public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;

@@ -542,9 +542,9 @@ public partial class MapManagerViewModel : ObservableObject
             }
 
             var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, new Progress<double>(p => Progress = p));
-            if (result != null)
+            if (result.Success && result.Data != null)
             {
-                _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
+                _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result.Data)} in map folder.");
                 StatusMessage = "ZIP created successfully.";
 
                 // Reload maps to show the new ZIP
@@ -553,7 +553,7 @@ public partial class MapManagerViewModel : ObservableObject
                 // Reveal in Explorer
                 try
                 {
-                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{result}\"");
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{result.Data}\"");
                 }
                 catch
                 {
@@ -635,9 +635,10 @@ public partial class MapManagerViewModel : ObservableObject
 
         try
         {
-            var url = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
-            if (url != null)
+            var result = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
+            if (result.Success && result.Data != null)
             {
+                var url = result.Data;
                 var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
                 var clipboard = lifetime?.MainWindow?.Clipboard;
                 if (clipboard != null)

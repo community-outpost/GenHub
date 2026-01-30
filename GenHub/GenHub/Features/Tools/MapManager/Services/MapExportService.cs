@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.MapManager;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.MapManager;
 using Microsoft.Extensions.Logging;
 using System;
@@ -27,7 +28,7 @@ public sealed class MapExportService(
     private const long MaxTotalUploadBytes = MapManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
-    public async Task<string?> UploadToUploadThingAsync(
+    public async Task<OperationResult<string>> UploadToUploadThingAsync(
         IEnumerable<MapFile> maps,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
@@ -38,11 +39,11 @@ public sealed class MapExportService(
         try
         {
             var mapList = maps.ToList();
-            if (mapList.Count == 0) return null;
+            if (mapList.Count == 0) return OperationResult<string>.CreateFailure("No maps to export.");
 
             if (mapList.Count == 1 && mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase))
             {
-                var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
+                var (isValid, errorMessage) = await importService.ValidateZipAsync(mapList[0].FullPath, ct);
                 if (!isValid)
                 {
                     logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
@@ -54,20 +55,23 @@ public sealed class MapExportService(
             else
             {
                 var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
-                var createdZip = await ExportToZipAsync(mapList, tempZip, progress, ct);
-                if (createdZip == null) return null;
+                var createdZipResult = await ExportToZipAsync(mapList, tempZip, progress, ct);
+                if (!createdZipResult.Success) return OperationResult<string>.FromFailure(createdZipResult);
 
-                zipToUpload = createdZip;
+                zipToUpload = createdZipResult.Data;
                 isTemporaryZip = true;
             }
 
             if (new FileInfo(zipToUpload).Length > MaxTotalUploadBytes)
             {
                 logger.LogError("File exceeds size limit: {Path}", zipToUpload);
-                return null;
+                return OperationResult<string>.CreateFailure("File exceeds size limit.");
             }
 
-            return await uploadThingService.UploadFileAsync(zipToUpload, progress, ct);
+            var uploadUrl = await uploadThingService.UploadFileAsync(zipToUpload, progress, ct);
+            return uploadUrl != null
+                ? OperationResult<string>.CreateSuccess(uploadUrl)
+                : OperationResult<string>.CreateFailure("Upload failed.");
         }
         catch (ArgumentException)
         {
@@ -76,7 +80,7 @@ public sealed class MapExportService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to upload to UploadThing");
-            return null;
+            return OperationResult<string>.CreateFailure(ex.Message);
         }
         finally
         {
@@ -88,7 +92,7 @@ public sealed class MapExportService(
     }
 
     /// <inheritdoc />
-    public async Task<string?> ExportToZipAsync(
+    public async Task<OperationResult<string>> ExportToZipAsync(
         IEnumerable<MapFile> maps,
         string destinationPath,
         IProgress<double>? progress = null,
@@ -100,7 +104,7 @@ public sealed class MapExportService(
                 () =>
                 {
                     var mapList = maps.ToList();
-                    if (mapList.Count == 0) return null;
+                    if (mapList.Count == 0) return OperationResult<string>.CreateFailure("No maps to export.");
 
                     using var zipFile = File.Create(destinationPath);
                     using var archive = new ZipArchive(zipFile, ZipArchiveMode.Create);
@@ -151,14 +155,14 @@ public sealed class MapExportService(
                         }
                     }
 
-                    return destinationPath;
+                    return OperationResult<string>.CreateSuccess(destinationPath);
                 },
                 ct);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create ZIP: {Path}", destinationPath);
-            return null;
+            return OperationResult<string>.CreateFailure(ex.Message);
         }
     }
 }

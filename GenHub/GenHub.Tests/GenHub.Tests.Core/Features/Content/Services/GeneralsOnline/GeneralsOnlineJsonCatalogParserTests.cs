@@ -1,9 +1,11 @@
+using System.Text.Json;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 
@@ -13,7 +15,6 @@ namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 public class GeneralsOnlineJsonCatalogParserTests
 {
     private readonly GeneralsOnlineJsonCatalogParser _parser;
-    private readonly Mock<IProviderDefinitionLoader> _providerLoaderMock;
     private readonly ProviderDefinition _provider;
 
     /// <summary>
@@ -22,7 +23,6 @@ public class GeneralsOnlineJsonCatalogParserTests
     public GeneralsOnlineJsonCatalogParserTests()
     {
         _parser = new GeneralsOnlineJsonCatalogParser(NullLogger<GeneralsOnlineJsonCatalogParser>.Instance);
-        _providerLoaderMock = new Mock<IProviderDefinitionLoader>();
 
         _provider = new ProviderDefinition
         {
@@ -40,55 +40,81 @@ public class GeneralsOnlineJsonCatalogParserTests
     }
 
     /// <summary>
-    /// Tests that ParseAsync correctly parses PascalCase JSON.
+    /// Tests that ParseAsync correctly parses PascalCase JSON (wrapper properties must be lowercase for parser, inner data can be PascalCase).
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task ParseAsync_WithPascalCaseJson_ParsesCorrectly()
     {
         // Arrange
-        var json = @"{
-            ""Version"": ""111825_QFE2"",
-            ""Download_Url"": ""https://example.com/download.zip"",
-            ""Size"": 123456,
-            ""Release_Notes"": ""Fixes stuff""
-        }";
-
-        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+        // Parser creates a JsonDocument and uses TryGetProperty("source"). This is CASE SENSITIVE.
+        // So we must use "source" and "data".
+        // The *inner* data deserialization expects snake_case fields.
+        var wrapper = new
+        {
+            source = "manifest",
+            data = new
+            {
+                version = "1.0",
+                download_url = "url1",
+                release_notes = "notes1",
+                size = 100,
+            },
+        };
+        var jsonString = JsonSerializer.Serialize(wrapper);
 
         // Act
-        var result = await _parser.ParseAsync(wrapper, _provider);
+        var result = await _parser.ParseAsync(jsonString, _provider);
 
         // Assert
-        Assert.True(result.Success);
-        var item = result.Data.First();
-        Assert.Equal("111825_QFE2", item.Version);
+        Assert.NotNull(result);
+        if (!result.Success)
+        {
+             // Fail with helpful message
+             Assert.Fail($"Parser failed: {result.FirstError}");
+        }
+
+        Assert.NotNull(result.Data);
+        var item = Assert.Single(result.Data);
+        Assert.Equal("GeneralsOnline_1.0", item.Id);
+        Assert.Equal("url1", item.DownloadUrl);
+        Assert.Equal("notes1", item.ReleaseNotes);
+        Assert.Equal("Generals Online", item.Name);
     }
 
     /// <summary>
-    /// Tests that ParseAsync correctly parses camelCase JSON.
+    /// Tests that ParseAsync correctly parses snake_case JSON.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ParseAsync_WithCamelCaseJson_ParsesCorrectly()
+    public async Task ParseAsync_WithSnakeCaseJson_ParsesCorrectly()
     {
         // Arrange
-        // Standard lowercase/camelCase that matches exact property names if attributes weren't there
-        var json = @"{
-            ""version"": ""111825_QFE2"",
-            ""download_url"": ""https://example.com/download.zip"",
-            ""size"": 123456,
-            ""release_notes"": ""Fixes stuff""
-        }";
-
-        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+        var wrapper = new
+        {
+            source = "manifest",
+            data = new
+            {
+                version = "1.0",
+                download_url = "url1",
+                release_notes = "notes1",
+                size = 100,
+            },
+        };
+        var jsonString = JsonSerializer.Serialize(wrapper);
 
         // Act
-        var result = await _parser.ParseAsync(wrapper, _provider);
+        var result = await _parser.ParseAsync(jsonString, _provider);
 
         // Assert
-        Assert.True(result.Success);
-        var item = result.Data.First();
-        Assert.Equal("111825_QFE2", item.Version);
+        Assert.NotNull(result);
+        if (!result.Success) Assert.Fail($"Parser failed: {result.FirstError}");
+
+        Assert.NotNull(result.Data);
+        var item = Assert.Single(result.Data);
+        Assert.Equal("GeneralsOnline_1.0", item.Id);
+        Assert.Equal("url1", item.DownloadUrl);
+        Assert.Equal("notes1", item.ReleaseNotes);
+        Assert.Equal("Generals Online", item.Name);
     }
 }

@@ -20,60 +20,64 @@ public static class GameSettingsMapper
     public static void ApplyFromOptions(IniOptions options, GameProfile profile)
     {
         // Video settings
-        profile.VideoResolutionWidth = options.Video.ResolutionWidth;
-        profile.VideoResolutionHeight = options.Video.ResolutionHeight;
-        profile.VideoWindowed = options.Video.Windowed;
-
-        // Convert TextureReduction back to TextureQuality
-        profile.VideoTextureQuality = options.Video.TextureReduction switch
+        if (options.Video != null)
         {
-            GameSettingsConstants.TextureQuality.TextureReductionLow => TextureQuality.Low,
-            GameSettingsConstants.TextureQuality.TextureReductionMedium => TextureQuality.Medium,
-            GameSettingsConstants.TextureQuality.TextureReductionHigh => TextureQuality.High,
-            _ => null,
-        };
+            profile.VideoResolutionWidth = options.Video.ResolutionWidth;
+            profile.VideoResolutionHeight = options.Video.ResolutionHeight;
+            profile.VideoWindowed = options.Video.Windowed;
 
-        profile.EnableVideoShadows = options.Video.UseShadowVolumes;
+            // Convert TextureReduction back to TextureQuality
+            profile.VideoTextureQuality = options.Video.TextureReduction switch
+            {
+                GameSettingsConstants.TextureQuality.TextureReductionLow => TextureQuality.Low,
+                GameSettingsConstants.TextureQuality.TextureReductionMedium => TextureQuality.Medium,
+                GameSettingsConstants.TextureQuality.TextureReductionHigh => TextureQuality.High,
+                GameSettingsConstants.TextureQuality.TextureReductionVeryHigh => TextureQuality.VeryHigh,
+                _ => null,
+            };
 
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba))
-            profile.VideoBuildingAnimations = ParseBool(ba);
+            profile.EnableVideoShadows = options.Video.UseShadowVolumes;
 
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var pe))
-            profile.VideoParticleEffects = ParseBool(pe);
+            if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var ba))
+                profile.VideoBuildingAnimations = ParseBool(ba);
 
-        profile.VideoExtraAnimations = options.Video.ExtraAnimations;
-        profile.VideoGamma = options.Video.Gamma;
-        profile.VideoAlternateMouseSetup = options.Video.AlternateMouseSetup;
-        profile.VideoHeatEffects = options.Video.HeatEffects;
+            if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var pe))
+                profile.VideoParticleEffects = ParseBool(pe);
 
-        // Load additional video settings from root (Flat format support)
-        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
-            profile.VideoStaticGameLOD = staticLOD;
-        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
-            profile.VideoIdealStaticGameLOD = idealLOD;
+            profile.VideoExtraAnimations = options.Video.ExtraAnimations;
+            profile.VideoGamma = options.Video.Gamma;
+            profile.VideoAlternateMouseSetup = options.Video.AlternateMouseSetup;
+            profile.VideoHeatEffects = options.Video.HeatEffects;
 
-        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel))
-            profile.VideoSkipEALogo = ParseBool(sel);
+            // Load additional video settings from root (Flat format support)
+            if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
+                profile.VideoStaticGameLOD = staticLOD;
+            if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
+                profile.VideoIdealStaticGameLOD = idealLOD;
 
-        profile.VideoAntiAliasing ??= options.Video.AntiAliasing;
+            if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel))
+                profile.VideoSkipEALogo = ParseBool(sel);
 
-        // TSH settings from root (Flat format support)
-        if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
-            profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClick);
-        else if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClick", out var dbl))
-            profile.VideoUseDoubleClickAttackMove = ParseBool(dbl);
+            profile.VideoAntiAliasing ??= options.Video.AntiAliasing;
 
-        if (options.Video.AdditionalProperties.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
-            profile.VideoScrollFactor = scrollVal;
-        if (options.Video.AdditionalProperties.TryGetValue("Retaliation", out var retaliation))
-            profile.VideoRetaliation = ParseBool(retaliation);
-        if (options.Video.AdditionalProperties.TryGetValue("DynamicLOD", out var dynLOD))
-            profile.VideoDynamicLOD = ParseBool(dynLOD);
-        if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
-            profile.VideoMaxParticleCount = particleVal;
+            // TSH settings from root (Flat format support)
+            if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+                profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClick);
+            else if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClick", out var dbl))
+                profile.VideoUseDoubleClickAttackMove = ParseBool(dbl);
+
+            if (options.Video.AdditionalProperties.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+                profile.VideoScrollFactor = scrollVal;
+            if (options.Video.AdditionalProperties.TryGetValue("Retaliation", out var retaliation))
+                profile.VideoRetaliation = ParseBool(retaliation);
+            if (options.Video.AdditionalProperties.TryGetValue("DynamicLOD", out var dynLOD))
+                profile.VideoDynamicLOD = ParseBool(dynLOD);
+            if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+                profile.VideoMaxParticleCount = particleVal;
+        }
 
         // TSH-specific settings from the [TheSuperHackers] section (Hierarchical format support)
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
+        if (options.AdditionalSections != null && options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
         {
             if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClickTsh))
                 profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClickTsh);
@@ -88,15 +92,21 @@ public static class GameSettingsMapper
         }
 
         // Audio settings
-        profile.AudioSoundVolume = options.Audio.SFXVolume;
-        profile.AudioThreeDSoundVolume = options.Audio.SFX3DVolume;
-        profile.AudioSpeechVolume = options.Audio.VoiceVolume;
-        profile.AudioMusicVolume = options.Audio.MusicVolume;
-        profile.AudioEnabled = options.Audio.AudioEnabled;
-        profile.AudioNumSounds = options.Audio.NumSounds;
+        if (options.Audio != null)
+        {
+            profile.AudioSoundVolume = options.Audio.SFXVolume;
+            profile.AudioThreeDSoundVolume = options.Audio.SFX3DVolume;
+            profile.AudioSpeechVolume = options.Audio.VoiceVolume;
+            profile.AudioMusicVolume = options.Audio.MusicVolume;
+            profile.AudioEnabled = options.Audio.AudioEnabled;
+            profile.AudioNumSounds = options.Audio.NumSounds;
+        }
 
         // Network settings
-        profile.GameSpyIPAddress = options.Network.GameSpyIPAddress;
+        if (options.Network != null)
+        {
+            profile.GameSpyIPAddress = options.Network.GameSpyIPAddress;
+        }
     }
 
     /// <summary>

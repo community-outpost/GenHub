@@ -82,6 +82,7 @@ public class OctokitGitHubApiClientTests
 
         // Assert
         result.Should().BeEmpty();
+        cache.Dispose();
     }
 
     /// <summary>

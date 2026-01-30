@@ -229,6 +229,8 @@ public class GeneralsOnlineJsonCatalogParser(
             IconUrl = iconUrl ?? string.Empty,
             LastUpdated = release.ReleaseDate,
             DownloadSize = release.PortableSize ?? 0,
+            DownloadUrl = release.PortableUrl,
+            ReleaseNotes = release.Changelog,
             RequiresResolution = true,
             ResolverId = GeneralsOnlineConstants.ResolverId,
             SourceUrl = downloadPageUrl ?? provider.Endpoints.WebsiteUrl ?? string.Empty,

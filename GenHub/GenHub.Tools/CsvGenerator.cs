@@ -297,7 +297,7 @@ internal class CsvGenerator
         };
 
         // Custom map for writing is better
-        await using var writer = new StreamWriter(csvPath);
+        await using var writer = new StreamWriter(csvPath, false, System.Text.Encoding.UTF8);
         await using var csv = new CsvWriter(writer, config);
         await csv.WriteRecordsAsync(entries);
     }

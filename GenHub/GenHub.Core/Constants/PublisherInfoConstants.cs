@@ -9,6 +9,11 @@ namespace GenHub.Core.Constants;
 public static class PublisherInfoConstants
 {
     /// <summary>
+    /// Display name used when a publisher is unknown or unspecified.
+    /// </summary>
+    public const string UnknownDisplayName = "Unknown";
+
+    /// <summary>
     /// Publisher information for Steam.
     /// </summary>
     public static class Steam
@@ -143,10 +148,10 @@ public static class PublisherInfoConstants
         public const string Name = "TheSuperHackers";
 
         /// <summary>Website URL for TheSuperHackers.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://github.com/TheSuperHackers";
 
         /// <summary>Support URL for TheSuperHackers.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/issues";
 
         /// <summary>Logo source for TheSuperHackers.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png";
@@ -161,10 +166,10 @@ public static class PublisherInfoConstants
         public const string Name = "CommunityOutpost";
 
         /// <summary>Website URL for Community Outpost.</summary>
-        public const string Website = ""; // TODO: Add website
+        public const string Website = "https://github.com/community-outpost";
 
         /// <summary>Support URL for Community Outpost.</summary>
-        public const string SupportUrl = "";
+        public const string SupportUrl = "https://github.com/community-outpost/GenHub/issues";
 
         /// <summary>Logo source for Community Outpost.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/communityoutpost-logo.png";
@@ -252,6 +257,12 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for All Publishers view.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+
+        /// <summary>Website URL for all publishers (default).</summary>
+        public const string Website = "https://github.com/community-outpost/GenHub";
+
+        /// <summary>Support URL for all publishers (default).</summary>
+        public const string SupportUrl = "https://github.com/community-outpost/GenHub/issues";
     }
 
     /// <summary>

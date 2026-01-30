@@ -59,4 +59,43 @@ public class GameSettingsMapperTests
         // Assert
         Assert.Equal(expectedQuality, profile.VideoTextureQuality);
     }
+
+    /// <summary>
+    /// Verifies that ApplyFromOptions handles invalid reduction values by setting quality to null.
+    /// </summary>
+    /// <param name="reduction">The invalid reduction value.</param>
+    [Theory]
+    [InlineData(3)] // Out of range positive
+    [InlineData(99)] // Far out of range
+    public void ApplyFromOptions_InvalidReduction_MapsToNull(int reduction)
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.Video.TextureReduction = reduction;
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Null(profile.VideoTextureQuality);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyFromOptions does not throw when Video options are null.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_NullVideo_DoesNotThrow()
+    {
+        // Arrange
+        var options = new IniOptions { Video = null! };
+        var profile = new GameProfile();
+
+        // Act
+        var exception = Record.Exception(() => GameSettingsMapper.ApplyFromOptions(options, profile));
+
+        // Assert
+        Assert.Null(exception);
+        Assert.Null(profile.VideoTextureQuality);
+    }
 }

@@ -212,6 +212,12 @@ public static partial class ManifestIdGenerator
             // Use standard normalization logic (handles 1.04 -> 104, 1.5 -> 105)
             // This ensures "v1.5" produces the same ID as "1.5" would in other contexts
             var normalized = NormalizeVersionString(cleanTag);
+
+            if (normalized.Length > 9)
+            {
+                normalized = normalized[..9];
+            }
+
             return int.TryParse(normalized, out var version) ? version : 0;
         }
         catch (ArgumentException)

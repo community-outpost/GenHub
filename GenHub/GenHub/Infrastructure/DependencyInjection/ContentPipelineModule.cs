@@ -290,7 +290,7 @@ public static class ContentPipelineModule
         services.AddTransient<IContentDeliverer, HttpContentDeliverer>();
 
         // Register publisher manifest factory resolver
-        services.AddTransient<PublisherManifestFactoryResolver>();
+        services.AddTransient<IPublisherManifestFactoryResolver, PublisherManifestFactoryResolver>();
 
         // Register content pipeline factory for provider-based component lookup
         services.AddSingleton<IContentPipelineFactory, ContentPipelineFactory>();

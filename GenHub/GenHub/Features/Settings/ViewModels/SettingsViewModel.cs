@@ -502,7 +502,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             CasRootPath = settings.CasConfiguration.CasRootPath;
             EnableAutomaticGc = settings.CasConfiguration.EnableAutomaticGc;
 
-            SubscribedBranchInput = settings.SubscribedBranch ?? string.Empty;
+            SubscribedBranchInput = settings.App.SubscribedBranch ?? string.Empty;
             MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / ConversionConstants.BytesPerGigabyte;
             CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
             CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
@@ -544,7 +544,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
 
-                settings.SubscribedBranch = string.IsNullOrWhiteSpace(SubscribedBranchInput) ? null : SubscribedBranchInput;
+                settings.App.SubscribedBranch = string.IsNullOrWhiteSpace(SubscribedBranchInput) ? null : SubscribedBranchInput;
                 settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * ConversionConstants.BytesPerKilobyte); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;

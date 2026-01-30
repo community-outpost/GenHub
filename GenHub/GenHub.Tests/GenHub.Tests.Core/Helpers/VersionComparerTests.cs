@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
 
@@ -65,6 +66,11 @@ public class VersionComparerTests
     [InlineData("1.0", "1.0", 0)] // Same version
     [InlineData("2.0", "1.0", 1)] // Newer version
     [InlineData("1.0", "2.0", -1)] // Older version
+    [InlineData("111825_QFE2", "111825_QFE1", 1)] // Same date, newer QFE
+    [InlineData("111825_QFE1", "111825_QFE2", -1)] // Same date, older QFE
+    [InlineData("111825_QFE2", "111825", 1)] // Newer QFE vs no QFE
+    [InlineData("121825", "111825", 1)] // Newer date, no QFE
+    [InlineData("111825_QFE0", "111825_QFE1", -1)] // Higher QFE wins
     public void CompareVersions_GeneralsOnline_NumericVersions_ReturnsCorrectComparison(
         string version1,
         string version2,

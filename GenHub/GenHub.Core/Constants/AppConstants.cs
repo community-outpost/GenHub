@@ -13,6 +13,11 @@ public static class AppConstants
     /// </summary>
     public const string AppName = "GenHub";
 
+    /// <summary>
+    /// The default user-agent string for downloads.
+    /// </summary>
+    public const string DefaultUserAgent = "GenHub/1.0";
+
     private static readonly Lazy<string> _appVersion = new(() =>
     {
         var assembly = Assembly.GetExecutingAssembly();
@@ -110,7 +115,7 @@ public static class AppConstants
     /// <summary>
     /// The folder path where the CSV registry files are stored.
     /// </summary>
-    public const string RegistryFolderPath = "docs\\GameInstallationFilesRegistry";
+    public const string RegistryFolderPath = "docs/GameInstallationFilesRegistry";
 
     /// <summary>
     /// Length of the git short hash used in versioning (7 characters).

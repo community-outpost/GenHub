@@ -200,8 +200,8 @@ jobs:
           # Copy only specific files to avoid duplicates
           # 1. Windows Setup and NuPkgs
           find artifacts/windows-release -type f \( -name "*.exe" -o -name "*.nupkg" -o -name "RELEASES" -o -name "*.json" \) -exec cp {} final-assets/ \;
-          # 2. Linux NuPkgs and Json
-          find artifacts/linux-release -type f \( -name "*.nupkg" -o -name "*.json" \) -exec cp {} final-assets/ \;
+          # 2. Linux NuPkgs, Json, and AppImage
+          find artifacts/linux-release -type f \( -name "*.nupkg" -o -name "*.json" -o -name "*.AppImage" \) -exec cp {} final-assets/ \;
           # 3. Windows Portable (Specific match)
           cp artifacts/windows-portable/*.zip final-assets/
 
@@ -221,6 +221,7 @@ jobs:
             ${{ steps.info.outputs.CHANGELOG }}
 
             ### 🔧 Assets
-            - **Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe)
-            - **Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
+            - **Windows Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe)
+            - **Windows Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
+            - **Linux Package:** [GenHub-${{ steps.info.outputs.VERSION }}-linux-x64.AppImage](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-linux-x64.AppImage)
           files: final-assets/*

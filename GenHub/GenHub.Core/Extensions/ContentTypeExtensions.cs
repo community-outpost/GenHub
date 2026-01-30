@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Extensions;
@@ -34,6 +36,24 @@ public static class ContentTypeExtensions
         };
     }
 
+    private static readonly FrozenDictionary<ContentType, string> ManifestIdMap = new Dictionary<ContentType, string>
+    {
+        [ContentType.GameInstallation] = "gameinstallation",
+        [ContentType.GameClient] = "gameclient",
+        [ContentType.Mod] = "mod",
+        [ContentType.Patch] = "patch",
+        [ContentType.Addon] = "addon",
+        [ContentType.MapPack] = "mappack",
+        [ContentType.LanguagePack] = "languagepack",
+        [ContentType.ContentBundle] = "contentbundle",
+        [ContentType.PublisherReferral] = "publisherreferral",
+        [ContentType.ContentReferral] = "contentreferral",
+        [ContentType.Mission] = "mission",
+        [ContentType.Map] = "map",
+        [ContentType.ModdingTool] = "moddingtool",
+        [ContentType.Executable] = "executable",
+    }.ToFrozenDictionary();
+
     /// <summary>
     /// Gets a lowercase string representation of a content type for manifest IDs.
     /// This is the canonical method for converting ContentType to string in manifest IDs.
@@ -42,25 +62,7 @@ public static class ContentTypeExtensions
     /// <returns>A stable lowercase string representation (e.g., "gameinstallation", "gameclient").</returns>
     public static string ToManifestIdString(this ContentType contentType)
     {
-        return contentType switch
-        {
-            ContentType.GameInstallation => "gameinstallation",
-            ContentType.GameClient => "gameclient",
-            ContentType.Mod => "mod",
-            ContentType.Patch => "patch",
-            ContentType.Addon => "addon",
-            ContentType.MapPack => "mappack",
-            ContentType.LanguagePack => "languagepack",
-            ContentType.ContentBundle => "contentbundle",
-            ContentType.PublisherReferral => "publisherreferral",
-            ContentType.ContentReferral => "contentreferral",
-            ContentType.Mission => "mission",
-            ContentType.Map => "map",
-            ContentType.ModdingTool => "moddingtool",
-            ContentType.Executable => "executable",
-            ContentType.UnknownContentType => "unknown",
-            _ => "unknown",
-        };
+        return ManifestIdMap.TryGetValue(contentType, out var id) ? id : "unknown";
     }
 
     /// <summary>

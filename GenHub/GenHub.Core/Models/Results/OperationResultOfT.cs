@@ -23,7 +23,6 @@ public class OperationResult<T> : ResultBase
     }
 
     /// <summary>Gets the data returned by the operation.</summary>
-    [NotNullIfNotNull(nameof(Success))]
     public T? Data { get; }
 
     /// <summary>Gets a value indicating whether the operation was successful.</summary>
@@ -55,9 +54,10 @@ public class OperationResult<T> : ResultBase
     public static OperationResult<T> CreateFailure(IEnumerable<string> errors, TimeSpan elapsed = default)
     {
         ArgumentNullException.ThrowIfNull(errors, nameof(errors));
-        if (!errors.Any())
+        var errorList = errors.ToList();
+        if (errorList.Count == 0)
             throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
-        return new OperationResult<T>(false, default, errors, elapsed);
+        return new OperationResult<T>(false, default, errorList, elapsed);
     }
 
     /// <summary>Creates a failed operation result from another result, copying its errors.</summary>
@@ -67,6 +67,15 @@ public class OperationResult<T> : ResultBase
     public static OperationResult<T> CreateFailure(ResultBase result, TimeSpan elapsed = default)
     {
         ArgumentNullException.ThrowIfNull(result, nameof(result));
-        return new OperationResult<T>(false, default, result.Errors ?? [], elapsed);
+        var errorList = result.Errors?.ToList() ?? [];
+        if (errorList.Count == 0)
+            errorList.Add("An unknown error occurred.");
+        return new OperationResult<T>(false, default, errorList, elapsed);
     }
+
+    /// <summary>Creates a failed operation result from another result (alias for CreateFailure).</summary>
+    /// <param name="result">The source result to copy errors from.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="OperationResult{T}"/> with copied errors.</returns>
+    public static OperationResult<T> FromFailure(ResultBase result, TimeSpan elapsed = default) => CreateFailure(result, elapsed);
 }

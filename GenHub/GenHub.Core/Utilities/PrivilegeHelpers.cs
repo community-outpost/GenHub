@@ -8,34 +8,29 @@ namespace GenHub.Core.Utilities;
 /// </summary>
 public static class PrivilegeHelpers
 {
-    private static bool? _isAdministrator;
+    private static readonly Lazy<bool> _isAdministrator = new(CheckAdministratorPrivileges);
 
     /// <summary>
     /// Gets a value indicating whether the current process is running as Administrator.
     /// </summary>
-    public static bool IsAdministrator
-    {
-        get
-        {
-            if (_isAdministrator.HasValue)
-            {
-                return _isAdministrator.Value;
-            }
+    public static bool IsAdministrator => _isAdministrator.Value;
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+    private static bool CheckAdministratorPrivileges()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            try
             {
                 using var identity = WindowsIdentity.GetCurrent();
                 var principal = new WindowsPrincipal(identity);
-                _isAdministrator = principal.IsInRole(WindowsBuiltInRole.Administrator);
+                return principal.IsInRole(WindowsBuiltInRole.Administrator);
             }
-            else
+            catch
             {
-                // On non-Windows platforms, we assume false for now or implement specific checks if needed.
-                // For this specific issue (Windows UIPI), we only care about Windows Admin.
-                _isAdministrator = false;
+                return false;
             }
-
-            return _isAdministrator.Value;
         }
+
+        return false;
     }
 }

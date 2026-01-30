@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -34,6 +35,30 @@ public interface IDownloadService
         string destinationPath,
         string? expectedHash = null,
         IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Downloads multiple files in parallel.
+    /// </summary>
+    /// <param name="files">A dictionary mapping URLs to destination paths. Destination paths must be unique; if multiple URIs map to the same path, the last download will overwrite previous ones.</param>
+    /// <param name="progress">Progress reporter for overall download progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A dictionary mapping destination file paths to their download results.</returns>
+    Task<IDictionary<string, DownloadResult>> DownloadFilesAsync(
+        IDictionary<Uri, string> files,
+        IProgress<DownloadProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Downloads files defined in a manifest.
+    /// </summary>
+    /// <param name="files">The files to download.</param>
+    /// <param name="destinationDirectory">The destination directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The operation result.</returns>
+    Task<OperationResult> DownloadFilesAsync(
+        IEnumerable<ManifestFile> files,
+        string destinationDirectory,
         CancellationToken cancellationToken = default);
 
     /// <summary>

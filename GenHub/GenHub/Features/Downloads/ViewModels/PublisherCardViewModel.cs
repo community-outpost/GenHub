@@ -59,7 +59,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private string _releaseNotes = string.Empty;
 
     [ObservableProperty]
-    private DateTime? _releaseDate;
+    private DateTimeOffset? _releaseDate;
 
     [ObservableProperty]
     private long? _downloadSize;

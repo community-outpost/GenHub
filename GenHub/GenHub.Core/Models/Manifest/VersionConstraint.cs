@@ -109,6 +109,12 @@ public partial class VersionConstraint
             return false;
         }
 
+        // 'latest' satisfies any constraint
+        if (version.Equals("latest", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         // Exact version match takes precedence
         if (!string.IsNullOrEmpty(ExactVersion))
         {

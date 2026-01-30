@@ -120,6 +120,12 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
+    public Task RecordUploadAsync(long fileSizeBytes, string url, string fileName)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
     public void RecordUpload(long fileSizeBytes, string url, string fileName)
     {
     }
@@ -200,13 +206,13 @@ public class MockReplayDirectoryService : IReplayDirectoryService
 public class MockReplayImportService : IReplayImportService
 {
     /// <inheritdoc/>
-    public Task<ReplayImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, CancellationToken ct = default)
+    public Task<ReplayImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
         return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
 
     /// <inheritdoc/>
-    public Task<ReplayImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
+    public Task<ReplayImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
          return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
@@ -224,9 +230,9 @@ public class MockReplayImportService : IReplayImportService
     }
 
     /// <inheritdoc/>
-    public (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath)
+    public Task<(bool IsValid, string? ErrorMessage)> ValidateZipAsync(string zipPath, CancellationToken ct = default)
     {
-        return (true, null);
+        return Task.FromResult((true, (string?)null));
     }
 }
 
@@ -348,14 +354,16 @@ public class MockMapDirectoryService : IMapDirectoryService
 public class MockMapImportService : IMapImportService
 {
     /// <inheritdoc/>
-    public Task<MapImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, CancellationToken ct = default)
+    public async Task<MapImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
          // MapImportResult does NOT have FilesSkipped (unlike ReplayImportResult)
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+         // Honor cancellation token
+         await Task.Delay(1, ct);
+         return new MapImportResult { Success = true, FilesImported = 0 };
     }
 
     /// <inheritdoc/>
-    public Task<MapImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
+    public Task<MapImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
          return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
@@ -373,9 +381,9 @@ public class MockMapImportService : IMapImportService
     }
 
     /// <inheritdoc/>
-    public (bool IsValid, string? ErrorMessage) ValidateZip(string zipPath)
+    public Task<(bool IsValid, string? ErrorMessage)> ValidateZipAsync(string zipPath, CancellationToken ct = default)
     {
-        return (true, null);
+        return Task.FromResult((true, (string?)null));
     }
 }
 
@@ -385,15 +393,17 @@ public class MockMapImportService : IMapImportService
 public class MockMapExportService : IMapExportService
 {
     /// <inheritdoc/>
-    public Task<string?> ExportToZipAsync(IEnumerable<MapFile> maps, string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
+    public async Task<OperationResult<string>> ExportToZipAsync(IEnumerable<MapFile> maps, string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        return Task.FromResult<string?>(destinationPath);
+        // Honor cancellation token
+        await Task.Delay(1, cancellationToken);
+        return OperationResult<string>.CreateSuccess(destinationPath);
     }
 
     /// <inheritdoc/>
-    public Task<string?> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult<string>> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        return Task.FromResult<string?>("https://mock.upload/maps/123");
+        return Task.FromResult(OperationResult<string>.CreateSuccess("https://mock.upload/maps/123"));
     }
 }
 
@@ -409,28 +419,30 @@ public class MockMapPackService : IMapPackService
     }
 
     /// <inheritdoc/>
-    public Task<MapPack> CreateMapPackAsync(string name, Guid? profileId, IEnumerable<string> mapFilePaths)
+    public async Task<MapPack> CreateMapPackAsync(string name, Guid? profileId, IEnumerable<string> mapFilePaths, CancellationToken ct = default)
     {
-        return Task.FromResult(new MapPack { Name = name });
+        // Honor cancellation
+        await Task.Delay(1, ct);
+        return new MapPack { Id = new ManifestId("mock-map-pack"), Name = name };
     }
 
     /// <inheritdoc/>
-    public Task<bool> DeleteMapPackAsync(ManifestId mapPackId) => Task.FromResult(true);
+    public Task<bool> DeleteMapPackAsync(ManifestId mapPackId, CancellationToken ct = default) => Task.FromResult(true);
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync() => Task.FromResult<IReadOnlyList<MapPack>>([]);
+    public Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<MapPack>>([]);
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId) => Task.FromResult<IReadOnlyList<MapPack>>([]);
+    public Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<MapPack>>([]);
 
     /// <inheritdoc/>
-    public Task<bool> LoadMapPackAsync(ManifestId mapPackId) => Task.FromResult(true);
+    public Task<bool> LoadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default) => Task.FromResult(true);
 
     /// <inheritdoc/>
-    public Task<bool> UnloadMapPackAsync(ManifestId mapPackId) => Task.FromResult(true);
+    public Task<bool> UnloadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default) => Task.FromResult(true);
 
     /// <inheritdoc/>
-    public Task<bool> UpdateMapPackAsync(MapPack mapPack) => Task.FromResult(true);
+    public Task<bool> UpdateMapPackAsync(MapPack mapPack, CancellationToken ct = default) => Task.FromResult(true);
 }
 
 /// <summary>
@@ -442,9 +454,13 @@ public class MockLocalContentService : ILocalContentService
     public IReadOnlyList<ContentType> AllowedContentTypes => [ContentType.Mod, ContentType.Map, ContentType.GameClient];
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame)
+    public async Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame }));
+        // Honor cancellation token and report progress
+        progress?.Report(new ContentStorageProgress { ProcessedCount = 1, TotalCount = 2, CurrentFileName = name });
+        await Task.Delay(1, cancellationToken);
+        progress?.Report(new ContentStorageProgress { ProcessedCount = 2, TotalCount = 2, CurrentFileName = name });
+        return OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame });
     }
 
     /// <inheritdoc/>

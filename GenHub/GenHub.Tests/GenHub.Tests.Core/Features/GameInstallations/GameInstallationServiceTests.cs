@@ -198,7 +198,12 @@ public class GameInstallationServiceTests : IDisposable
     public async Task GetAllInstallationsAsync_WithDetectionFailure_ShouldReturnSuccessWithEmptyList()
     {
         // Arrange
-        _service.InvalidateCache();
+        var successResult = DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero);
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successResult);
+
+        await _service.GetAllInstallationsAsync(); // initialize cache
+
         var detectionResult = DetectionResult<GameInstallation>.CreateFailure("Detection failed");
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(detectionResult);
@@ -240,8 +245,17 @@ public class GameInstallationServiceTests : IDisposable
     [Fact]
     public void Dispose_ShouldDisposeResources()
     {
+        // Arrange
+        var disposableService = new GameInstallationService(
+            _orchestratorMock.Object,
+            _clientOrchestratorMock.Object,
+            _loggerMock.Object,
+            _manifestServiceMock.Object,
+            _manifestPoolMock.Object,
+            _pathResolverMock.Object);
+
         // Act
-        var exception = Record.Exception(() => _service.Dispose());
+        var exception = Record.Exception(() => disposableService.Dispose());
 
         // Assert
         Assert.Null(exception);

@@ -25,6 +25,11 @@ public static class GameSettingsConstants
         public const int ReductionOffset = 2;
 
         /// <summary>
+        /// Texture reduction value for very high quality.
+        /// </summary>
+        public const int TextureReductionVeryHigh = -1;
+
+        /// <summary>
         /// Texture reduction value for low quality.
         /// </summary>
         public const int TextureReductionLow = 2;

@@ -28,7 +28,7 @@ public static class ProfileValidationConstants
     /// <summary>
     /// Error message for Tool profile with multiple ModdingTool items.
     /// </summary>
-    public const string ToolProfileMultipleToolsNotAllowed = "Tool profiles can only contain one ModdingTool content item";
+    public const string ToolProfileMultipleToolsNotAllowed = "Tool profiles cannot contain more than one ModdingTool content item";
 
     /// <summary>
     /// The exact number of ModdingTool items required for a Tool profile.

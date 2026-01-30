@@ -10,7 +10,7 @@ namespace GenHub.Core.Models.Common;
 /// <param name="Url">The public URL of the upload.</param>
 /// <param name="FileName">The name of the uploaded file.</param>
 public record UploadHistoryItem(
-    DateTime Timestamp,
+    DateTimeOffset Timestamp,
     long SizeBytes,
     string Url,
     string FileName);

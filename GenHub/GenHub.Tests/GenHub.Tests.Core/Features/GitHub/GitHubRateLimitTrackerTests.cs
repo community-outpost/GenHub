@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using GenHub.Core.Exceptions;
 using GenHub.Features.GitHub.Services;
 using Microsoft.Extensions.Logging;
@@ -169,7 +168,7 @@ public class GitHubRateLimitTrackerTests
     public void RemainingPercentage_CalculatesCorrectly()
     {
         // Arrange
-        var logger = new NullLogger<GitHubRateLimitTracker>();
+        var logger = NullLogger<GitHubRateLimitTracker>.Instance;
         var tracker = new GitHubRateLimitTracker(logger);
         var expectedResetTime = DateTime.UtcNow.AddHours(1);
         tracker.UpdateFromHeaders(50, 100, expectedResetTime);

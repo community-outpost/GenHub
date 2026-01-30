@@ -26,7 +26,7 @@ namespace GenHub.Features.Content.Services.GitHub;
 public class GitHubContentDeliverer(
     IDownloadService downloadService,
     IContentManifestPool manifestPool,
-    PublisherManifestFactoryResolver factoryResolver,
+    IPublisherManifestFactoryResolver factoryResolver,
     ILogger<GitHubContentDeliverer> logger) : IContentDeliverer
 {
     /// <inheritdoc />

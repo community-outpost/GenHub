@@ -58,7 +58,7 @@ public static class MapManagerConstants
     /// <summary>
     /// Subdirectory name where MapPacks are stored.
     /// </summary>
-    public const string MapPacksSubdirectoryName = "mappacks";
+    public const string MapPacksSubdirectoryName = "MapPacks";
 
     /// <summary>
     /// File pattern for map files.

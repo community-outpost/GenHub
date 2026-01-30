@@ -334,16 +334,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         // Load subscribed PR and Branch from settings
         var settings = _userSettingsService.Get();
-        if (settings.SubscribedPrNumber.HasValue)
+        if (settings.App.SubscribedPrNumber.HasValue)
         {
-            _velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
-            _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", settings.SubscribedPrNumber);
+            _velopackUpdateManager.SubscribedPrNumber = settings.App.SubscribedPrNumber;
+            _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", settings.App.SubscribedPrNumber);
         }
 
-        if (!string.IsNullOrEmpty(settings.SubscribedBranch))
+        if (!string.IsNullOrEmpty(settings.App.SubscribedBranch))
         {
-            SubscribedBranch = settings.SubscribedBranch;
-            _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
+            SubscribedBranch = settings.App.SubscribedBranch;
+            _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.App.SubscribedBranch);
         }
 
         // Load data if we have a PAT
@@ -500,7 +500,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     if (prRun > currentRun)
                     {
                         var settings = _userSettingsService.Get();
-                        if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                        if (!string.Equals(prVersionBase, settings.App.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                         {
                             IsUpdateAvailable = true;
                             LatestVersion = prVersionBase;
@@ -541,7 +541,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         if (prRun > currentRun)
                         {
                             var settings = _userSettingsService.Get();
-                            if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                            if (!string.Equals(prVersionBase, settings.App.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                             {
                                 IsUpdateAvailable = true;
                                 LatestVersion = prVersionBase;
@@ -586,7 +586,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     if (!string.Equals(artifactVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
                     {
                         var settings = _userSettingsService.Get();
-                        if (!string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                        if (!string.Equals(artifactVersionBase, settings.App.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                         {
                             IsUpdateAvailable = true;
                             LatestVersion = artifactVersionBase;
@@ -618,7 +618,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 var version = _currentUpdateInfo.TargetFullRelease.Version.ToString();
                 var settings = _userSettingsService.Get();
-                if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(version, settings.App.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     IsUpdateAvailable = true;
                     LatestVersion = version;
@@ -635,7 +635,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 var githubVersion = _velopackUpdateManager.LatestVersionFromGitHub;
                 var settings = _userSettingsService.Get();
-                if (!string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(githubVersion, settings.App.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     IsUpdateAvailable = true;
                     LatestVersion = githubVersion ?? GameClientConstants.UnknownVersion;
@@ -680,9 +680,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         // Clear dismissal status in settings so the user can see the update again
         var settings = _userSettingsService.Get();
-        if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion))
+        if (!string.IsNullOrEmpty(settings.App.DismissedUpdateVersion))
         {
-            _userSettingsService.Update(s => s.DismissedUpdateVersion = string.Empty);
+            _userSettingsService.Update(s => s.App.DismissedUpdateVersion = string.Empty);
             await _userSettingsService.SaveAsync();
         }
 
@@ -1017,7 +1017,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (!string.IsNullOrEmpty(LatestVersion))
         {
-            _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion);
+            _userSettingsService.Update(s => s.App.DismissedUpdateVersion = LatestVersion);
             _ = _userSettingsService.SaveAsync();
             _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }
@@ -1160,8 +1160,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         _userSettingsService.Update(settings =>
         {
-            settings.SubscribedPrNumber = prNumber;
-            settings.SubscribedBranch = null;
+            settings.App.SubscribedPrNumber = prNumber;
+            settings.App.SubscribedBranch = null;
         });
         _ = _userSettingsService.SaveAsync();
 
@@ -1187,8 +1187,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         _userSettingsService.Update(settings =>
         {
-            settings.SubscribedBranch = branchName;
-            settings.SubscribedPrNumber = null;
+            settings.App.SubscribedBranch = branchName;
+            settings.App.SubscribedPrNumber = null;
         });
         _ = _userSettingsService.SaveAsync();
 
@@ -1224,8 +1224,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         _userSettingsService.Update(settings =>
         {
-            settings.SubscribedPrNumber = null;
-            settings.SubscribedBranch = null;
+            settings.App.SubscribedPrNumber = null;
+            settings.App.SubscribedBranch = null;
         });
         _ = _userSettingsService.SaveAsync();
 

@@ -58,7 +58,7 @@ public static class GeneralsOnlineConstants
     public const string QfeMarkerPrefix = "QFE";
 
     /// <summary>Version string used when version information is missing.</summary>
-    public const string UnknownVersion = "unknown";
+    public const string UnknownVersion = GameClientConstants.UnknownVersion;
 
     // ===== File Extensions =====
 

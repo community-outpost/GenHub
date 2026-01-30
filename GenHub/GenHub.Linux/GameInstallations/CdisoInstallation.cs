@@ -310,7 +310,8 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
                     var line = lines[i].Trim();
 
                     // Look for the EA Games registry section
-                    if (line.Contains($"{GameClientConstants.EaGamesParentDirectoryName}\\\\{GameClientConstants.ZeroHourRetailDirectoryName}", StringComparison.OrdinalIgnoreCase))
+                    if (line.Contains($"{GameClientConstants.EaGamesParentDirectoryName}\\\\{GameClientConstants.GeneralsRetailDirectoryName}", StringComparison.OrdinalIgnoreCase)
+                        || line.Contains($"{GameClientConstants.EaGamesParentDirectoryName}\\\\{GameClientConstants.ZeroHourRetailDirectoryName}", StringComparison.OrdinalIgnoreCase))
                     {
                         inEaGamesSection = true;
                         logger?.LogDebug("Found EA Games section in Wine registry");
@@ -346,20 +347,39 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
                                     var pathValue = parts[1].Trim().Trim('"');
 
                                     // Convert Windows path to Wine path
-                                    if (pathValue.StartsWith("C:\\\\", StringComparison.OrdinalIgnoreCase) || pathValue.StartsWith("C:/", StringComparison.OrdinalIgnoreCase))
+                                    if (!string.IsNullOrEmpty(pathValue))
                                     {
-                                        // Remove C:\ or C:/ and replace backslashes with forward slashes
-                                        pathValue = pathValue[3..].Replace("\\\\", "/").Replace("\\", "/");
-                                        installPath = Path.Combine(winePrefix, "drive_c", pathValue);
+                                        // Normalize separators first
+                                        var normalizedPath = pathValue.Replace("\\\\", "/").Replace("\\", "/");
 
-                                        if (!string.IsNullOrEmpty(installPath) && Directory.Exists(installPath))
+                                        // Handle various C: prefixes
+                                        if (normalizedPath.StartsWith("C:/", StringComparison.OrdinalIgnoreCase))
                                         {
-                                            logger?.LogInformation("CD/ISO path found in Wine registry using value '{ValueName}': {InstallPath}", valueName, installPath);
-                                            return true;
-                                        }
-                                        else
-                                        {
-                                            logger?.LogDebug("Found registry value '{ValueName}' but path does not exist: {InstallPath}", valueName, installPath);
+                                            // Ensure the path is relative for Path.Combine
+                                            var relativePath = normalizedPath[3..].TrimStart('/');
+                                            installPath = Path.Combine(winePrefix, "drive_c", relativePath);
+
+                                            // Check if installPath points to a file (e.g., ends with .exe)
+                                            // If so, get the directory instead before checking Directory.Exists
+                                            if (!string.IsNullOrEmpty(installPath) && Path.HasExtension(installPath))
+                                            {
+                                                var directoryPath = Path.GetDirectoryName(installPath);
+                                                if (!string.IsNullOrEmpty(directoryPath))
+                                                {
+                                                    installPath = directoryPath;
+                                                    logger?.LogDebug("Registry value '{ValueName}' was a file path, using directory: {InstallPath}", valueName, installPath);
+                                                }
+                                            }
+
+                                            if (!string.IsNullOrEmpty(installPath) && Directory.Exists(installPath))
+                                            {
+                                                logger?.LogInformation("CD/ISO path found in Wine registry using value '{ValueName}': {InstallPath}", valueName, installPath);
+                                                return true;
+                                            }
+                                            else
+                                            {
+                                                logger?.LogDebug("Found registry value '{ValueName}' but path does not exist: {InstallPath}", valueName, installPath);
+                                            }
                                         }
                                     }
                                 }

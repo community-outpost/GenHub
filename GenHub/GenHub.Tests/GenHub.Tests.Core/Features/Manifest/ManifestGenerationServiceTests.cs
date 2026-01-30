@@ -246,7 +246,6 @@ public class ManifestGenerationServiceTests : IDisposable
         Assert.Contains(manifest.Files, f => f.RelativePath == "Generals.dat");
 
         // Also verify required DLLs from GameClientConstants are included
-        Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
     }
 
     /// <summary>

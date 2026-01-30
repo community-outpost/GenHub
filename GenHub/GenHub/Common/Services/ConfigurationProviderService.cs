@@ -203,6 +203,7 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public UserSettings GetEffectiveSettings()
     {
+        var currentSettings = _userSettings.Get();
         return new UserSettings
         {
             Theme = GetTheme(),
@@ -210,22 +211,28 @@ public class ConfigurationProviderService(
             WindowHeight = GetWindowHeight(),
             IsMaximized = GetIsWindowMaximized(),
             WorkspacePath = GetWorkspacePath(),
-            LastUsedProfileId = _userSettings.Get().LastUsedProfileId,
+            LastUsedProfileId = currentSettings.LastUsedProfileId,
             LastSelectedTab = GetLastSelectedTab(),
-            MaxConcurrentDownloads = GetMaxConcurrentDownloads(),
-            AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
-            AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
-            LastUpdateCheckTimestamp = _userSettings.Get().LastUpdateCheckTimestamp,
-            EnableDetailedLogging = GetEnableDetailedLogging(),
+            App = new ApplicationSettings
+            {
+                MaxConcurrentDownloads = GetMaxConcurrentDownloads(),
+                AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
+                AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
+                LastUpdateCheckTimestamp = currentSettings.App.LastUpdateCheckTimestamp,
+                EnableDetailedLogging = GetEnableDetailedLogging(),
+                DownloadBufferSize = GetDownloadBufferSize(),
+                DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
+                DownloadUserAgent = GetDownloadUserAgent(),
+                CachePath = GetCachePath(),
+                ApplicationDataPath = GetApplicationDataPath(),
+                SubscribedPrNumber = currentSettings.App.SubscribedPrNumber,
+                SubscribedBranch = currentSettings.App.SubscribedBranch,
+                DismissedUpdateVersion = currentSettings.App.DismissedUpdateVersion,
+            },
             DefaultWorkspaceStrategy = GetDefaultWorkspaceStrategy(),
-            DownloadBufferSize = GetDownloadBufferSize(),
-            DownloadTimeoutSeconds = GetDownloadTimeoutSeconds(),
-            DownloadUserAgent = GetDownloadUserAgent(),
-            SettingsFilePath = _userSettings.Get().SettingsFilePath,
+            SettingsFilePath = currentSettings.SettingsFilePath,
             ContentDirectories = GetContentDirectories(),
             GitHubDiscoveryRepositories = GetGitHubDiscoveryRepositories(),
-            ApplicationDataPath = GetApplicationDataPath(),
-            CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
         };
     }

@@ -126,9 +126,9 @@ public static class LanguageFilePatterns
     public const string AudioPortugueseBrazilBig = "AudioPortugueseBrazil.big";
 
     /// <summary>
-    /// File pattern for Portuguese ZH BIG files: "PortugueseZH.big".
+    /// File pattern for Portuguese (Brazil) ZH BIG files: "PortugueseBrazilZH.big".
     /// </summary>
-    public const string PortugueseBrazilZH = "PortugueseZH.big";
+    public const string PortugueseBrazilZHBig = "PortugueseBrazilZH.big";
 
     /// <summary>
     /// File pattern for Chinese BIG files: "Chinese.big".
@@ -216,7 +216,7 @@ public static class LanguageFilePatterns
     public const string GameStr = "game.str";
 
     /// <summary>
-    /// File pattern for Portuguese ZH BIG files: "PortugueseZH.big".
+    /// File pattern for Portuguese (Portugal) ZH BIG files: "PortugueseZH.big".
     /// </summary>
     public const string PortugueseZHBig = "PortugueseZH.big";
 }

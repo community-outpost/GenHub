@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using GenHub.Core.Models.Dialogs;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -31,10 +30,12 @@ public interface IDialogService
     /// <param name="content">The dialog content (Markdown supported).</param>
     /// <param name="actions">The list of actions (buttons) to display.</param>
     /// <param name="showDoNotAskAgain">Whether to show the "Do not show again" checkbox.</param>
+    /// <param name="sessionKey">Optional key for "do not ask again" session preference.</param>
     /// <returns>The result of the dialog interaction.</returns>
     Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(
         string title,
         string content,
         IEnumerable<DialogAction> actions,
-        bool showDoNotAskAgain = false);
+        bool showDoNotAskAgain = false,
+        string? sessionKey = null);
 }

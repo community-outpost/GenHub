@@ -94,7 +94,7 @@ public class GitHubResolverTests : IDisposable
         var preRelease = CreateRelease("v0.5-beta");
 
         _apiClientMock.Setup(c => c.GetLatestReleaseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubRelease)null!);
+            .ReturnsAsync((GitHubRelease?)null);
 
         _apiClientMock.Setup(c => c.GetReleasesAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([preRelease]);

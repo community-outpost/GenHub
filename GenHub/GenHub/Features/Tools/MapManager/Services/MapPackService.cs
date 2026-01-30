@@ -79,7 +79,8 @@ public sealed class MapPackService : IMapPackService
     public Task<MapPack> CreateMapPackAsync(
         string name,
         Guid? profileId,
-        IEnumerable<string> mapFilePaths)
+        IEnumerable<string> mapFilePaths,
+        CancellationToken ct = default)
     {
         // Legacy method - we should probably discourage its use or map it to CAS
         var mapPack = new MapPack
@@ -179,9 +180,9 @@ public sealed class MapPackService : IMapPackService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync()
+    public async Task<IReadOnlyList<MapPack>> GetAllMapPacksAsync(CancellationToken ct = default)
     {
-        var result = await _manifestPool.GetAllManifestsAsync();
+        var result = await _manifestPool.GetAllManifestsAsync(ct);
         var mapPacks = new List<MapPack>();
 
         if (result.Success)
@@ -225,14 +226,14 @@ public sealed class MapPackService : IMapPackService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId)
+    public async Task<IReadOnlyList<MapPack>> GetMapPacksForProfileAsync(Guid profileId, CancellationToken ct = default)
     {
         var allPacks = await GetAllMapPacksAsync();
         return allPacks.Where(p => p.ProfileId == profileId).ToList();
     }
 
     /// <inheritdoc />
-    public Task<bool> LoadMapPackAsync(ManifestId mapPackId)
+    public Task<bool> LoadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default)
     {
         lock (_fileLock)
         {
@@ -254,7 +255,7 @@ public sealed class MapPackService : IMapPackService
     }
 
     /// <inheritdoc />
-    public Task<bool> UnloadMapPackAsync(ManifestId mapPackId)
+    public Task<bool> UnloadMapPackAsync(ManifestId mapPackId, CancellationToken ct = default)
     {
         lock (_fileLock)
         {
@@ -276,7 +277,7 @@ public sealed class MapPackService : IMapPackService
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteMapPackAsync(ManifestId mapPackId)
+    public async Task<bool> DeleteMapPackAsync(ManifestId mapPackId, CancellationToken ct = default)
     {
         // Try to delete from CAS pool first
         var casResult = await _manifestPool.RemoveManifestAsync(mapPackId);
@@ -303,7 +304,7 @@ public sealed class MapPackService : IMapPackService
     }
 
     /// <inheritdoc />
-    public Task<bool> UpdateMapPackAsync(MapPack mapPack)
+    public Task<bool> UpdateMapPackAsync(MapPack mapPack, CancellationToken ct = default)
     {
         lock (_fileLock)
         {

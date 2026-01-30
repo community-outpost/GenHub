@@ -279,32 +279,52 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that CopyProfile generates a unique name for the copied profile.
+    /// Verifies that GenerateUniqueProfileName creates a higher number when existing copies already exist.
     /// </summary>
     [Fact]
-    public void GenerateUniqueProfileName_CreatesUniqueName()
+    public void GenerateUniqueProfileName_WithExistingCopies_CreatesHigherNumber()
     {
         // Arrange
         var vm = CreateViewModelWithMockDependencies();
 
-        // Add some existing profiles to simulate name conflicts
-        var existingProfile1 = new GameProfileItemViewModel("id1", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
+        // Add existing profiles with copy suffixes (1 and 2)
+        vm.Profiles.Add(new GameProfileItemViewModel("id1", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
         {
             Name = $"Test Profile {ProfileConstants.CopyNameSuffix}",
-        };
-        var existingProfile2 = new GameProfileItemViewModel("id2", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
+        });
+        vm.Profiles.Add(new GameProfileItemViewModel("id2", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
         {
             Name = $"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 2)}",
-        };
-
-        vm.Profiles.Add(existingProfile1);
-        vm.Profiles.Add(existingProfile2);
+        });
 
         // Act
         var uniqueName = vm.GenerateUniqueProfileName("Test Profile");
 
         // Assert
         Assert.Equal($"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 3)}", uniqueName);
+    }
+
+    /// <summary>
+    /// Verifies that GenerateUniqueProfileName starts numbering at 2 when only the base copy suffix already exists.
+    /// </summary>
+    [Fact]
+    public void GenerateUniqueProfileName_WithOnlyCopy_CreatesCopy2()
+    {
+        // Arrange
+        var vm = CreateViewModelWithMockDependencies();
+
+        // Add a profile that just has the "(Copy)" suffix
+        var existingProfile = new GameProfileItemViewModel("id1", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
+        {
+            Name = $"Test Profile {ProfileConstants.CopyNameSuffix}",
+        };
+        vm.Profiles.Add(existingProfile);
+
+        // Act
+        var uniqueName = vm.GenerateUniqueProfileName("Test Profile");
+
+        // Assert
+        Assert.Equal($"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 2)}", uniqueName);
     }
 
     private static ProfileResourceService CreateProfileResourceService()
@@ -340,16 +360,17 @@ public class GameProfileLauncherViewModelTests
     /// Creates a GameProfileLauncherViewModel with mocked dependencies for testing.
     /// </summary>
     /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
-    private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies()
+    private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies(
+        Mock<IGameProfileManager>? gameProfileManager = null)
     {
-        var gameProfileManager = new Mock<IGameProfileManager>();
+        gameProfileManager ??= new Mock<IGameProfileManager>();
 
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
             gameProfileManager.Object,
             new Mock<IProfileLauncherFacade>().Object,
             new GameProfileSettingsViewModel(
-                new Mock<IGameProfileManager>().Object,
+                gameProfileManager.Object, // Reuse same manager mock
                 new Mock<IGameSettingsService>().Object,
                 new Mock<IConfigurationProviderService>().Object,
                 new Mock<IProfileContentLoader>().Object,

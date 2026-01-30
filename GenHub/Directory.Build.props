@@ -12,8 +12,10 @@
     -->
     <_NumericVersion Condition="$(Version.Contains('-'))">$(Version.Substring(0, $(Version.IndexOf('-'))))</_NumericVersion>
     <_NumericVersion Condition="!$(Version.Contains('-'))">$(Version)</_NumericVersion>
-    <AssemblyVersion>$(_NumericVersion)</AssemblyVersion>
-    <FileVersion>$(_NumericVersion)</FileVersion>
+    <_NumericVersion4 Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_NumericVersion)', '^\d+\.\d+\.\d+$'))">$(_NumericVersion).0</_NumericVersion4>
+    <_NumericVersion4 Condition="'$(_NumericVersion4)' == ''">$(_NumericVersion)</_NumericVersion4>
+    <AssemblyVersion>$(_NumericVersion4)</AssemblyVersion>
+    <FileVersion>$(_NumericVersion4)</FileVersion>
 
     <!-- Make version available to source generators / build-time code -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>

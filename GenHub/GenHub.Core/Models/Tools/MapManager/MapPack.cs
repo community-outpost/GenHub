@@ -12,7 +12,7 @@ public sealed class MapPack
     /// <summary>
     /// Gets or sets the unique identifier for this MapPack.
     /// </summary>
-    public ManifestId Id { get; set; }
+    public required ManifestId Id { get; set; }
 
     /// <summary>
     /// Gets or sets the name of the MapPack.
@@ -37,7 +37,7 @@ public sealed class MapPack
     /// <summary>
     /// Gets or sets the creation date.
     /// </summary>
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset CreatedDate { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
     /// Gets or sets a value indicating whether this MapPack is currently loaded.

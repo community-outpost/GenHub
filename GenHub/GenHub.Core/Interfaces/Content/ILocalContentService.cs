@@ -36,12 +36,16 @@ public interface ILocalContentService
     /// <param name="directoryPath">The path to the local directory.</param>
     /// <param name="contentType">The type of content.</param>
     /// <param name="targetGame">The target game for this content.</param>
+    /// <param name="progress">Optional progress reporter for tracking manifest creation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A result containing the created manifest or errors.</returns>
     Task<OperationResult<ContentManifest>> AddLocalContentAsync(
         string name,
         string directoryPath,
         ContentType contentType,
-        GameType targetGame);
+        GameType targetGame,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Deletes local content by removing its manifest and potentially deleting files.

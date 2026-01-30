@@ -20,20 +20,21 @@ public class WorkspacePrioritizationVerifyTests
     public void GetAllUniqueFiles_ShouldPrioritizeGameClientOverInstallation()
     {
         // Arrange
-        var commonFile = new ManifestFile { RelativePath = "data.ini", Size = 100 };
+        var installationFile = new ManifestFile { RelativePath = "data.ini", Size = 100, SourcePath = "installation" };
+        var clientFile = new ManifestFile { RelativePath = "data.ini", Size = 200, SourcePath = "client" };
 
         var installationManifest = new ContentManifest
         {
             Id = new ManifestId("install"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
-            Files = [commonFile],
+            Files = [installationFile],
         };
 
         var clientManifest = new ContentManifest
         {
             Id = new ManifestId("client"),
             ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
-            Files = [commonFile], // Same file
+            Files = [clientFile],
         };
 
         // Order matters for the BUG: usually installation comes first
@@ -47,9 +48,9 @@ public class WorkspacePrioritizationVerifyTests
 
         // Assert
         Assert.Single(result);
-
-        // We can't easily check WHICH file it is since they are identical objects/values here,
-        // so let's make them distinguishable.
+        var chosenFile = result.First();
+        Assert.Equal(200, chosenFile.Size);
+        Assert.Equal("client", chosenFile.SourcePath);
     }
 
     /// <summary>

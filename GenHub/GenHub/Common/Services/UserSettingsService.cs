@@ -204,15 +204,21 @@ public class UserSettingsService : IUserSettingsService
         var minBufferBytes = appConfig.GetMinDownloadBufferSizeBytes();
         var maxBufferBytes = appConfig.GetMaxDownloadBufferSizeBytes();
 
+        // Guard against null App - this can happen when loading partial JSON
+        if (s.App == null)
+        {
+            return;
+        }
+
         // Only clamp if values are set (> 0)
-        if (s.MaxConcurrentDownloads > 0)
-            s.MaxConcurrentDownloads = Math.Clamp(s.MaxConcurrentDownloads, minConcurrent, maxConcurrent);
+        if (s.App.MaxConcurrentDownloads > 0)
+            s.App.MaxConcurrentDownloads = Math.Clamp(s.App.MaxConcurrentDownloads, minConcurrent, maxConcurrent);
 
-        if (s.DownloadTimeoutSeconds > 0)
-            s.DownloadTimeoutSeconds = Math.Clamp(s.DownloadTimeoutSeconds, minTimeout, maxTimeout);
+        if (s.App.DownloadTimeoutSeconds > 0)
+            s.App.DownloadTimeoutSeconds = Math.Clamp(s.App.DownloadTimeoutSeconds, minTimeout, maxTimeout);
 
-        if (s.DownloadBufferSize > 0)
-            s.DownloadBufferSize = Math.Clamp(s.DownloadBufferSize, minBufferBytes, maxBufferBytes);
+        if (s.App.DownloadBufferSize > 0)
+            s.App.DownloadBufferSize = Math.Clamp(s.App.DownloadBufferSize, minBufferBytes, maxBufferBytes);
     }
 
     /// <summary>
@@ -227,10 +233,25 @@ public class UserSettingsService : IUserSettingsService
 
             foreach (var property in root.EnumerateObject())
             {
-                var propertyName = ConvertJsonPropertyNameToCSharp(property.Name);
-                if (!string.IsNullOrEmpty(propertyName))
+                // Handle nested "app" object for ApplicationSettings properties
+                if (property.NameEquals("app") && property.Value.ValueKind == JsonValueKind.Object)
                 {
-                    settings.MarkAsExplicitlySet(propertyName);
+                    foreach (var appProperty in property.Value.EnumerateObject())
+                    {
+                        var appPropertyName = ConvertJsonPropertyNameToCSharp(appProperty.Name);
+                        if (!string.IsNullOrEmpty(appPropertyName))
+                        {
+                            settings.MarkAsExplicitlySet(appPropertyName);
+                        }
+                    }
+                }
+                else
+                {
+                    var propertyName = ConvertJsonPropertyNameToCSharp(property.Name);
+                    if (!string.IsNullOrEmpty(propertyName))
+                    {
+                        settings.MarkAsExplicitlySet(propertyName);
+                    }
                 }
             }
         }
@@ -255,18 +276,18 @@ public class UserSettingsService : IUserSettingsService
             "workspacePath" => nameof(UserSettings.WorkspacePath),
             "lastUsedProfileId" => nameof(UserSettings.LastUsedProfileId),
             "lastSelectedTab" => nameof(UserSettings.LastSelectedTab),
-            "maxConcurrentDownloads" => nameof(UserSettings.MaxConcurrentDownloads),
-            "allowBackgroundDownloads" => nameof(UserSettings.AllowBackgroundDownloads),
-            "autoCheckForUpdatesOnStartup" => nameof(UserSettings.AutoCheckForUpdatesOnStartup),
-            "lastUpdateCheckTimestamp" => nameof(UserSettings.LastUpdateCheckTimestamp),
-            "enableDetailedLogging" => nameof(UserSettings.EnableDetailedLogging),
+            "maxConcurrentDownloads" => nameof(ApplicationSettings.MaxConcurrentDownloads),
+            "allowBackgroundDownloads" => nameof(ApplicationSettings.AllowBackgroundDownloads),
+            "autoCheckForUpdatesOnStartup" => nameof(ApplicationSettings.AutoCheckForUpdatesOnStartup),
+            "lastUpdateCheckTimestamp" => nameof(ApplicationSettings.LastUpdateCheckTimestamp),
+            "enableDetailedLogging" => nameof(ApplicationSettings.EnableDetailedLogging),
             "defaultWorkspaceStrategy" => nameof(UserSettings.DefaultWorkspaceStrategy),
-            "downloadBufferSize" => nameof(UserSettings.DownloadBufferSize),
-            "downloadTimeoutSeconds" => nameof(UserSettings.DownloadTimeoutSeconds),
-            "downloadUserAgent" => nameof(UserSettings.DownloadUserAgent),
+            "downloadBufferSize" => nameof(ApplicationSettings.DownloadBufferSize),
+            "downloadTimeoutSeconds" => nameof(ApplicationSettings.DownloadTimeoutSeconds),
+            "downloadUserAgent" => nameof(ApplicationSettings.DownloadUserAgent),
             "settingsFilePath" => nameof(UserSettings.SettingsFilePath),
-            "cachePath" => nameof(UserSettings.CachePath),
-            "applicationDataPath" => nameof(UserSettings.ApplicationDataPath),
+            "cachePath" => nameof(ApplicationSettings.CachePath),
+            "applicationDataPath" => nameof(ApplicationSettings.ApplicationDataPath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),
             "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
             _ => string.Empty,

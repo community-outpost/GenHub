@@ -10,6 +10,7 @@ public class ToolRegistry : IToolRegistry
 {
     private readonly ConcurrentDictionary<string, IToolPlugin> _tools = new();
     private readonly ConcurrentDictionary<string, string> _toolAssemblyPaths = new();
+    private readonly object _lock = new();
 
     /// <inheritdoc/>
     public IReadOnlyList<IToolPlugin> GetAllTools()
@@ -34,26 +35,35 @@ public class ToolRegistry : IToolRegistry
     /// <inheritdoc/>
     public void RegisterTool(IToolPlugin plugin, string assemblyPath)
     {
-        _tools[plugin.Metadata.Id] = plugin;
-        _toolAssemblyPaths[plugin.Metadata.Id] = assemblyPath;
+        lock (_lock)
+        {
+            _tools[plugin.Metadata.Id] = plugin;
+            _toolAssemblyPaths[plugin.Metadata.Id] = assemblyPath;
+        }
     }
 
     /// <inheritdoc/>
     public void RegisterTool(IToolPlugin plugin)
     {
-        _tools[plugin.Metadata.Id] = plugin;
+        lock (_lock)
+        {
+            _tools[plugin.Metadata.Id] = plugin;
+        }
     }
 
     /// <inheritdoc/>
     public bool UnregisterTool(string toolId)
     {
-        var removed = _tools.TryRemove(toolId, out var plugin);
-        if (removed && plugin != null)
+        lock (_lock)
         {
-            plugin.Dispose();
-            _ = _toolAssemblyPaths.TryRemove(toolId, out _);
-        }
+            var removed = _tools.TryRemove(toolId, out var plugin);
+            if (removed && plugin != null)
+            {
+                plugin.Dispose();
+                _ = _toolAssemblyPaths.TryRemove(toolId, out _);
+            }
 
-        return removed;
+            return removed;
+        }
     }
 }

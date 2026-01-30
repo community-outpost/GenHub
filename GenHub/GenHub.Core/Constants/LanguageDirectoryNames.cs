@@ -16,7 +16,7 @@ public static class LanguageDirectoryNames
     public const string DataLang = "Data/lang";
 
     /// <summary>
-    /// Directory path for INI data: "Data/INI/".
+    /// Directory path for INI data: "Data/INI".
     /// </summary>
     public const string DataIni = "Data/INI";
 

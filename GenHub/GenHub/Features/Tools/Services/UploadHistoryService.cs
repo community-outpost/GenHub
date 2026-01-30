@@ -77,6 +77,14 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
+    public async Task RecordUploadAsync(long fileSizeBytes, string url, string fileName)
+    {
+        // Make this method truly async by yielding before the work
+        await Task.Yield();
+        RecordUpload(fileSizeBytes, url, fileName);
+    }
+
+    /// <inheritdoc />
     public void RecordUpload(long fileSizeBytes, string url, string fileName)
     {
         lock (FileLock)

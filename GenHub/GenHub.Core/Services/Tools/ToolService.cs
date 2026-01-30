@@ -162,7 +162,7 @@ public class ToolService(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while loading saved tool plugins.");
-            return await Task.FromResult(OperationResult<List<IToolPlugin>>.CreateFailure("An error occurred while loading saved tool plugins."));
+            return await Task.FromResult(OperationResult<List<IToolPlugin>>.CreateFailure($"An error occurred while loading saved tool plugins: {ex.Message}"));
         }
     }
 

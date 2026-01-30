@@ -139,8 +139,6 @@ public class WorkspaceCasIntegrationTests : IDisposable
         {
             // Ignore cleanup errors
         }
-
-        GC.SuppressFinalize(this);
     }
 
     /// <summary>

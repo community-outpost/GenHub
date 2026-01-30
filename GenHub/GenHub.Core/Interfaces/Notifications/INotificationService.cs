@@ -1,6 +1,4 @@
 using System;
-using System.Collections.ObjectModel;
-using System.Linq;
 using GenHub.Core.Models.Notifications;
 
 namespace GenHub.Core.Interfaces.Notifications;

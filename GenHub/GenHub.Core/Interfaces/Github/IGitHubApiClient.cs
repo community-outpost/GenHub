@@ -19,8 +19,8 @@ public interface IGitHubApiClient
     /// <param name="owner">The repository owner.</param>
     /// <param name="repositoryName">The repository name.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The latest GitHub release.</returns>
-    Task<GitHubRelease> GetLatestReleaseAsync(
+    /// <returns>The latest GitHub release, or null if not found.</returns>
+    Task<GitHubRelease?> GetLatestReleaseAsync(
         string owner,
         string repositoryName,
         CancellationToken cancellationToken = default);
@@ -32,8 +32,8 @@ public interface IGitHubApiClient
     /// <param name="repositoryName">The repository name.</param>
     /// <param name="tag">The release tag.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The GitHub release with the specified tag.</returns>
-    Task<GitHubRelease> GetReleaseByTagAsync(
+    /// <returns>The GitHub release with the specified tag, or null if not found.</returns>
+    Task<GitHubRelease?> GetReleaseByTagAsync(
         string owner,
         string repositoryName,
         string tag,

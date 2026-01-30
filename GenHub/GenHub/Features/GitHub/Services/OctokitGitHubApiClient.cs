@@ -186,7 +186,7 @@ public class OctokitGitHubApiClient(
     /// <param name="repositoryName">The repository name.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The latest <see cref="GitHubRelease"/> or null if not found.</returns>
-    public async Task<GitHubRelease> GetLatestReleaseAsync(
+    public async Task<GitHubRelease?> GetLatestReleaseAsync(
         string owner,
         string repositoryName,
         CancellationToken cancellationToken = default)
@@ -208,12 +208,12 @@ public class OctokitGitHubApiClient(
         }
         catch (Octokit.NotFoundException)
         {
-            return null!;
+            return null;
         }
         catch (RateLimitExceededException ex)
         {
             logger.LogWarning("Rate limit exceeded when fetching latest release for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repositoryName, ex.Reset);
-            return null!;
+            return null;
         }
         catch (Exception ex)
         {
@@ -230,7 +230,7 @@ public class OctokitGitHubApiClient(
     /// <param name="tag">The release tag.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The <see cref="GitHubRelease"/> with the specified tag or null if not found.</returns>
-    public async Task<GitHubRelease> GetReleaseByTagAsync(
+    public async Task<GitHubRelease?> GetReleaseByTagAsync(
         string owner,
         string repositoryName,
         string tag,
@@ -254,12 +254,12 @@ public class OctokitGitHubApiClient(
         catch (Octokit.NotFoundException)
         {
             logger.LogDebug("Release with tag '{Tag}' not found for {Owner}/{Repo}", tag, owner, repositoryName);
-            return null!;
+            return null;
         }
         catch (RateLimitExceededException ex)
         {
             logger.LogWarning("Rate limit exceeded when fetching release by tag '{Tag}' for {Owner}/{Repo}. Reset at: {ResetTime}", tag, owner, repositoryName, ex.Reset);
-            return null!;
+            return null;
         }
         catch (Exception ex)
         {

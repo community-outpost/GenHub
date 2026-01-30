@@ -48,16 +48,16 @@ public partial class UploadHistoryItemViewModel(UploadHistoryItem item) : Observ
     /// <summary>
     /// Gets a value indicating whether the upload is still active (file exists in storage).
     /// </summary>
-    public bool IsActive => IsVerified ? FileExists : (DateTime.UtcNow - item.Timestamp).TotalDays < 14;
+    public bool IsActive => IsVerified ? FileExists : (DateTimeOffset.UtcNow - item.Timestamp).TotalDays < 14;
 
     /// <summary>
     /// Gets the status color based on activity.
     /// </summary>
     public string StatusColor => IsActive ? "#4CAF50" : "#888888";
 
-    private static string GetTimeAgo(DateTime timestamp)
+    private static string GetTimeAgo(DateTimeOffset timestamp)
     {
-        var span = DateTime.UtcNow - timestamp;
+        var span = DateTimeOffset.UtcNow - timestamp;
         if (span.TotalDays > 1)
         {
             return $"{(int)span.TotalDays}d ago";

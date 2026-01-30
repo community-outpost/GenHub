@@ -65,7 +65,7 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
     private readonly string userProvidersDirectory;
     private readonly ConcurrentDictionary<string, ProviderDefinition> providers = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim loadLock = new(1, 1);
-    private bool isInitialized;
+    private volatile bool isInitialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProviderDefinitionLoader"/> class.
@@ -177,8 +177,8 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
         await this.loadLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            this.providers.Clear();
             this.isInitialized = false;
+            this.providers.Clear();
 
             var result = await this.LoadAllProvidersInternalAsync(cancellationToken).ConfigureAwait(false);
             if (!result.Success)

@@ -149,7 +149,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Default author name used when an author cannot be parsed from the page.
     /// </summary>
-    public const string DefaultAuthorName = GameClientConstants.UnknownVersion;
+    public const string DefaultAuthorName = PublisherInfoConstants.UnknownDisplayName;
 
     /// <summary>
     /// Error message used when <c>ContentSearchQuery.SearchTerm</c> is null, empty, or whitespace.
@@ -326,7 +326,7 @@ public static class CNCLabsConstants
     public const string ZeroHourReplaysPagePath = "zerohour-replays.aspx";
 
     /// <summary>Version string used when version information is missing.</summary>
-    public const string UnknownVersion = "unknown";
+    public const string UnknownVersion = "Unknown";
 
     /// <summary>Display name for the 'Any' player option.</summary>
     public const string PlayerOptionAny = "Any";

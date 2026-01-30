@@ -8,7 +8,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.Services.CommunityOutpost;
@@ -50,18 +52,17 @@ public class SetupWizardService(
         var shLatestVersion = await GetLatestVersionAsync(PublisherTypeConstants.TheSuperHackers);
 
         // Initialize default actions (Decline/None)
-        result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
-        result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
-        result.SuperHackersAction = GameClientConstants.WizardActionTypes.Decline;
+        result.CommunityPatchAction = WizardActionType.Decline;
+        result.GeneralsOnlineAction = WizardActionType.Decline;
+        result.SuperHackersAction = WizardActionType.Decline;
 
         // Helper to check for managed/up-to-date client for a specific global list
-        async Task<(bool SkipWizard, string FinalAction)> ProcessComponentAsync(
+        async Task<(bool SkipWizard, WizardActionType FinalAction)> ProcessComponentAsync(
             System.Collections.IEnumerable componentGlobalEnu,
             string latestVersion,
             string title,
             string missingDescription,
-            string iconPath,
-            string metadata)
+            string iconPath)
         {
             var componentGlobal = componentGlobalEnu.Cast<dynamic>().ToList();
 
@@ -84,12 +85,12 @@ public class SetupWizardService(
                 if (profileExists)
                 {
                     // Everything is perfect. Skip wizard, no action.
-                    return (true, GameClientConstants.WizardActionTypes.Decline);
+                    return (true, WizardActionType.Decline);
                 }
                 else
                 {
                     // Content is there, just needs a profile. Skip wizard, auto-accept.
-                    return (true, GameClientConstants.WizardActionTypes.CreateProfile);
+                    return (true, WizardActionType.CreateProfile);
                 }
             }
 
@@ -113,7 +114,6 @@ public class SetupWizardService(
                 Title = title,
                 IsSelected = true,
                 IconPath = iconPath,
-                Metadata = metadata,
                 Version = latestVersion,
             };
 
@@ -123,7 +123,7 @@ public class SetupWizardService(
                 item.Status = "Installed";
                 item.Description = $"Update existing {title} profiles to v{latestVersion}.";
                 item.ActionLabel = "Update / Reinstall";
-                item.ActionType = GameClientConstants.WizardActionTypes.Update;
+                item.ActionType = WizardActionType.Update;
             }
             else if (isDetected)
             {
@@ -131,7 +131,7 @@ public class SetupWizardService(
                 item.Status = "Detected";
                 item.Description = $"Detected installed {title}. Install managed v{latestVersion} and create profiles?";
                 item.ActionLabel = "Create Profile";
-                item.ActionType = GameClientConstants.WizardActionTypes.CreateProfile;
+                item.ActionType = WizardActionType.CreateProfile;
             }
             else
             {
@@ -139,7 +139,7 @@ public class SetupWizardService(
                 item.Status = "Missing";
                 item.Description = missingDescription;
                 item.ActionLabel = "Download & Install";
-                item.ActionType = GameClientConstants.WizardActionTypes.Install;
+                item.ActionType = WizardActionType.Install;
                 item.IsSelected = title == "Community Patch"; // Defaults
             }
 
@@ -153,17 +153,15 @@ public class SetupWizardService(
             cpLatestVersion,
             "Community Patch",
             $"Download and install Community Patch v{cpLatestVersion} (Highly Recommended). Includes fixes, maps, and GenTool.",
-            CommunityOutpostConstants.LogoSource,
-            CommunityOutpostConstants.PublisherType);
+            CommunityOutpostConstants.LogoSource);
         result.CommunityPatchAction = cpRes.FinalAction;
 
         var goRes = await ProcessComponentAsync(
             goGlobal,
             goLatestVersion,
             "Generals Online",
-            $"Download and install Generals Online v{goLatestVersion} for multiplayer support.",
-            UriConstants.GeneralsOnlineLogoUri,
-            PublisherTypeConstants.GeneralsOnline);
+            "Download and install Generals Online v" + goLatestVersion + " for multiplayer support.",
+            UriConstants.GeneralsOnlineLogoUri);
         result.GeneralsOnlineAction = goRes.FinalAction;
 
         var shRes = await ProcessComponentAsync(
@@ -171,8 +169,7 @@ public class SetupWizardService(
             shLatestVersion,
             "The Super Hackers",
             "Install The Super Hackers for advanced modding and features.",
-            UriConstants.SuperHackersLogoUri,
-            PublisherTypeConstants.TheSuperHackers);
+            UriConstants.SuperHackersLogoUri);
         result.SuperHackersAction = shRes.FinalAction;
 
         // 3. Presentation Phase: Show Wizard
@@ -204,20 +201,20 @@ public class SetupWizardService(
         }
 
         // 4. Final decisions: If item was in wizard, override with user selection
-        string FinalizeAction(string metadata, string currentAction)
+        WizardActionType FinalizeAction(string title, WizardActionType currentAction)
         {
-            var item = wizardItems.FirstOrDefault(x => x.Metadata as string == metadata);
+            var item = wizardItems.FirstOrDefault(x => x.Title == title);
             if (item != null)
             {
-                return (result.Confirmed && item.IsSelected) ? item.ActionType : GameClientConstants.WizardActionTypes.Decline;
+                return (result.Confirmed && item.IsSelected) ? item.ActionType : WizardActionType.Decline;
             }
 
             return currentAction;
         }
 
-        result.CommunityPatchAction = FinalizeAction(CommunityOutpostConstants.PublisherType, result.CommunityPatchAction);
-        result.GeneralsOnlineAction = FinalizeAction(PublisherTypeConstants.GeneralsOnline, result.GeneralsOnlineAction);
-        result.SuperHackersAction = FinalizeAction(PublisherTypeConstants.TheSuperHackers, result.SuperHackersAction);
+        result.CommunityPatchAction = FinalizeAction("Community Patch", result.CommunityPatchAction);
+        result.GeneralsOnlineAction = FinalizeAction("Generals Online", result.GeneralsOnlineAction);
+        result.SuperHackersAction = FinalizeAction("The Super Hackers", result.SuperHackersAction);
 
         return result;
     }

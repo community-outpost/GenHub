@@ -37,6 +37,12 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                     return (false, "ZIP contains directories. Only a single layer of files is allowed.");
                 }
 
+                // Explicit Zip Slip check
+                if (entry.FullName.Contains("..", StringComparison.Ordinal))
+                {
+                    return (false, "ZIP entry contains illegal path traversal characters (..).");
+                }
+
                 // Check for nested files (FullName should equal Name for root files)
                 // Normalize slashes just in case
                 var normalizedFullName = entry.FullName.Replace('\\', '/');

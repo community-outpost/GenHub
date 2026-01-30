@@ -13,6 +13,7 @@ namespace GenHub.Core.Models.Tools.MapManager;
 public class MapFile : INotifyPropertyChanged
 {
     private Bitmap? _thumbnailBitmap;
+    private string? _displayName;
 
     /// <summary>
     /// Event for property change notifications.
@@ -68,7 +69,23 @@ public class MapFile : INotifyPropertyChanged
     /// <summary>
     /// Gets or sets the display name for this map (parsed from file or directory).
     /// </summary>
-    public string? DisplayName { get; set; }
+    public string? DisplayName
+    {
+        get => _displayName;
+        set
+        {
+            if (value != _displayName)
+            {
+                if (value != null && string.IsNullOrWhiteSpace(value))
+                {
+                    throw new ArgumentException("Display name cannot be empty or whitespace.", nameof(value));
+                }
+
+                _displayName = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets the path to the thumbnail image file (.tga).

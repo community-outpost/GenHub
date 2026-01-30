@@ -38,46 +38,66 @@ public class Program
         // Create lockfile to guarantee that only one instance is running on linux
         var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
         Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
+        FileStream? lockFile = null;
         try
         {
-            using var lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-
-            // If we get here, we have the lock
+            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
         catch (IOException)
         {
             // Another instance is running
             return;
         }
-
-        using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
-        var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
-        try
-        {
-            bootstrapLogger.LogInformation("Starting GenHub Linux application");
-
-            var services = new ServiceCollection();
-
-            try
-            {
-                // Register shared services and Linux-specific services
-                services.ConfigureApplicationServices(s => s.AddLinuxServices());
-            }
-            catch (Exception configEx)
-            {
-                bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
-                throw;
-            }
-
-            var serviceProvider = services.BuildServiceProvider();
-            AppLocator.Services = serviceProvider;
-
-            BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
-        }
         catch (Exception ex)
         {
-            bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
-            throw;
+            // Write error to stderr since bootstrap logger isn't available yet
+            Console.Error.WriteLine($"Failed to create lock file at {lockFilePath}: {ex}");
+            Environment.Exit(1);
+            return; // Unreachable, but keeps compiler happy
+        }
+
+        using (lockFile)
+        {
+            using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
+            var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
+            try
+            {
+                bootstrapLogger.LogInformation("Starting GenHub Linux application");
+
+                var services = new ServiceCollection();
+
+                try
+                {
+                    // Register shared services and Linux-specific services
+                    services.ConfigureApplicationServices(s => s.AddLinuxServices());
+                }
+                catch (Exception configEx)
+                {
+                    bootstrapLogger.LogCritical(configEx, "Failed to configure application services");
+                    throw;
+                }
+
+                var serviceProvider = services.BuildServiceProvider();
+                AppLocator.Services = serviceProvider;
+
+                try
+                {
+                    BuildAvaloniaApp(serviceProvider).StartWithClassicDesktopLifetime(args);
+                }
+                finally
+                {
+                    // Ensure ServiceProvider is disposed to release resources
+                    if (serviceProvider is IDisposable disposableProvider)
+                    {
+                        disposableProvider.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                bootstrapLogger.LogCritical(ex, "Application terminated unexpectedly");
+                throw;
+            }
         }
     }
 
