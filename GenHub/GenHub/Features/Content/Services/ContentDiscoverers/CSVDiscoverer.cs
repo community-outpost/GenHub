@@ -211,9 +211,9 @@ public class CSVDiscoverer : IContentDiscoverer
         // Construct contentName to include version and language, e.g., "generals-1.08-en"
         var contentName = $"{entry.GameType}-{entry.Version}-{language}";
 
-        // We act as the publisher 'csvregistry'
+        // We act as the publisher theSuperHackers
         var id = ManifestIdGenerator.GeneratePublisherContentId(
-            CsvConstants.PublisherId,
+            PublisherTypeConstants.TheSuperHackers,
             ContentType.GameInstallation,
             contentName); // Version 0 for the manifest ID
 
