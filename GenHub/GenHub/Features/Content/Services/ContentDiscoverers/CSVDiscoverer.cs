@@ -176,7 +176,7 @@ public class CSVDiscoverer : IContentDiscoverer
                         GameType = c.GameType,
                         Version = c.Version,
                         SupportedLanguages = c.SupportedLanguages,
-                        FileCount = c.FileCount,
+                        FileCount = c.FileCount, // Preserve null if FileCount is unknown
                     }).ToList();
 
                     _logger.LogInformation("Loaded {Count} CSV catalog entries from configuration fallback", loadedEntries.Count);

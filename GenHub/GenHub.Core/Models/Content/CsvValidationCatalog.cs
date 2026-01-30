@@ -31,5 +31,5 @@ public class CsvValidationCatalog
     /// <summary>
     /// Gets or sets the file count.
     /// </summary>
-    public int FileCount { get; set; }
+    public int? FileCount { get; set; }
 }
