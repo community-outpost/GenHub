@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 
@@ -155,4 +156,10 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The logs directory path.</returns>
     string GetLogsPath();
+
+    /// <summary>
+    /// Gets the CSV catalog configuration.
+    /// </summary>
+    /// <returns>The CSV catalog configuration.</returns>
+    CsvCatalogConfiguration GetCsvCatalogConfiguration();
 }

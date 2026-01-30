@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -81,4 +82,10 @@ public interface IAppConfiguration
     /// <summary>Gets the maximum allowed download buffer size in bytes.</summary>
     /// <returns>The maximum buffer size in bytes.</returns>
     int GetMaxDownloadBufferSizeBytes();
+
+    /// <summary>
+    /// Gets the CSV catalog configuration.
+    /// </summary>
+    /// <returns>The CSV catalog configuration.</returns>
+    CsvCatalogConfiguration GetCsvCatalogConfiguration();
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
@@ -341,6 +342,9 @@ public class ConfigurationProviderService(
             AppConstants.AppName,
             DirectoryNames.Logs.ToLowerInvariant());
     }
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration() => _appConfig.GetCsvCatalogConfiguration();
 
     private void MigrateContentDirectory()
     {
