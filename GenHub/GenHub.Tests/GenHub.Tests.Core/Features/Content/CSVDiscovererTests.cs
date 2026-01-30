@@ -90,6 +90,4 @@ public class CSVDiscovererTests
         result.Data.Should().NotBeNull();
         result.Data!.Items.Should().BeEmpty();
     }
-
 }
-
