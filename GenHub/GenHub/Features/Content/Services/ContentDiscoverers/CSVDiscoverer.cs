@@ -152,7 +152,7 @@ public class CSVDiscoverer : IContentDiscoverer
                         PropertyNameCaseInsensitive = true,
                     });
 
-                    if (index?.Entries != null)
+                    if (index?.Entries != null && index.Entries.Count > 0)
                     {
                         loadedEntries = index.Entries;
                         loadedFromIndex = true;
