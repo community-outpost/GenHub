@@ -124,6 +124,9 @@ public class SharedViewModelModuleTests
         services.AddUserDataServices();
         services.AddLaunchingServices();
         services.AddToolsServices();
+        services.AddUploadThingServices();
+        services.AddReplayManagerServices();
+        services.AddMapManager();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService

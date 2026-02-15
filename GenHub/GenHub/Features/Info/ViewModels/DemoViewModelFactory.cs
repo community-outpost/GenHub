@@ -11,6 +11,7 @@ using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.Services;
 using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ReplayManager.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
@@ -224,12 +225,15 @@ public static class DemoViewModelFactory
             // Use the provided notification service or fall back to mock
             var mockNotify = notificationService ?? new MockNotificationService();
             var mockLogger = new MockLogger<ReplayManagerViewModel>();
+            var mockParserLogger = new MockLogger<ReplayParserService>();
+            var mockParser = new ReplayParserService(mockParserLogger);
 
             var vm = new ReplayManagerViewModel(
                 mockDir,
                 mockImport,
                 mockExport,
                 mockHistory,
+                mockParser,
                 mockNotify,
                 mockLogger);
 

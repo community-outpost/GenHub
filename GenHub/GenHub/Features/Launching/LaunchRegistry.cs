@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfile;
 using Microsoft.Extensions.Logging;
@@ -21,6 +23,7 @@ public class LaunchRegistry : ILaunchRegistry
     private readonly ILogger<LaunchRegistry> _logger;
     private readonly IWorkspaceManager? _workspaceManager;
     private readonly IGameProcessManager? _processManager;
+    private readonly IReplayMonitorService? _replayMonitorService;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
 
     /// <summary>
@@ -29,14 +32,17 @@ public class LaunchRegistry : ILaunchRegistry
     /// <param name="logger">The logger instance.</param>
     /// <param name="workspaceManager">Optional workspace manager for cleanup.</param>
     /// <param name="processManager">Optional process manager for tracking game processes.</param>
+    /// <param name="replayMonitorService">Optional replay monitor service for auto-save cleanup.</param>
     public LaunchRegistry(
         ILogger<LaunchRegistry> logger,
         IWorkspaceManager? workspaceManager = null,
-        IGameProcessManager? processManager = null)
+        IGameProcessManager? processManager = null,
+        IReplayMonitorService? replayMonitorService = null)
     {
         _logger = logger;
         _workspaceManager = workspaceManager;
         _processManager = processManager;
+        _replayMonitorService = replayMonitorService;
 
         if (_processManager != null)
         {
@@ -134,6 +140,30 @@ public class LaunchRegistry : ILaunchRegistry
             }
 
             launch.ProcessInfo.IsRunning = false;
+
+            // Stop replay monitoring for this profile after a grace period
+            // The ReplayMonitor needs ~6s (3 checks × 2s) after the file stops changing
+            // Capture session ID to avoid canceling a newer session if profile is relaunched
+            if (_replayMonitorService != null && _replayMonitorService.IsMonitoring(launch.ProfileId))
+            {
+                var sessionId = _replayMonitorService.GetSessionId(launch.ProfileId);
+                if (sessionId != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(ReplayManagerConstants.StopMonitoringGracePeriodSeconds));
+                            await _replayMonitorService.StopMonitoringAsync(launch.ProfileId, sessionId);
+                            _logger.LogInformation("[LaunchRegistry] Stopped replay monitoring for profile {ProfileId}", launch.ProfileId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[LaunchRegistry] Error stopping replay monitoring for profile {ProfileId}", launch.ProfileId);
+                        }
+                    });
+                }
+            }
         }
     }
 

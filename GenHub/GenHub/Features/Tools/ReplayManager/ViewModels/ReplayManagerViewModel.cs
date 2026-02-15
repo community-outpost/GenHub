@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Features.Tools.ReplayManager.Services;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using System;
@@ -30,6 +31,7 @@ namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 /// <param name="importService">The import service.</param>
 /// <param name="exportService">The export service.</param>
 /// <param name="uploadHistoryService">The upload history and rate limit service.</param>
+/// <param name="parserService">The replay parser service.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="logger">The logger instance.</param>
 public partial class ReplayManagerViewModel(
@@ -37,6 +39,7 @@ public partial class ReplayManagerViewModel(
     IReplayImportService importService,
     IReplayExportService exportService,
     IUploadHistoryService uploadHistoryService,
+    ReplayParserService parserService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger) : ObservableObject
 {
@@ -822,5 +825,62 @@ public partial class ReplayManagerViewModel(
 
         // Load replays for the new tab
         _ = LoadReplaysAsync();
+    }
+
+    /// <summary>
+    /// Command to parse and view a replay file.
+    /// </summary>
+    /// <param name="replay">The replay file to parse.</param>
+    [RelayCommand]
+    private async Task ParseReplayAsync(ReplayFile? replay)
+    {
+        if (replay == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "Parsing replay...";
+
+            var metadata = await parserService.ParseReplayAsync(replay.FullPath, SelectedTab);
+
+            if (metadata == null || !metadata.IsParsed)
+            {
+                notificationService.ShowWarning("Parse Failed", "Could not parse replay file. The file may be corrupted or in an unsupported format.");
+                StatusMessage = "Parse failed.";
+                return;
+            }
+
+            // Get main window
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var mainWindow = desktop.MainWindow;
+                if (mainWindow != null)
+                {
+                    var viewModel = new ReplayViewerViewModel(metadata, replay.FullPath);
+                    var window = new Views.ReplayViewerWindow
+                    {
+                        DataContext = viewModel,
+                        WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner,
+                    };
+
+                    await window.ShowDialog(mainWindow);
+                }
+            }
+
+            StatusMessage = "Ready";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse replay: {FullPath}", replay.FullPath);
+            notificationService.ShowError("Parse Error", $"Failed to parse replay: {ex.Message}");
+            StatusMessage = "Parse error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 }

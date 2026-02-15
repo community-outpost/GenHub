@@ -158,6 +158,7 @@ public partial class GameProfileSettingsViewModel
             SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             _originalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
+            AutoSaveReplays = profile.AutoSaveReplays;
 
             LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");
             GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;

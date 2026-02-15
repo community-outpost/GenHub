@@ -43,6 +43,11 @@ public static class ReplayManagerModule
         services.AddSingleton<GenHub.Core.Interfaces.Common.IUploadHistoryService, GenHub.Features.Tools.Services.UploadHistoryService>();
         services.AddSingleton<IZipValidationService, ZipValidationService>();
 
+        // Auto-save services
+        services.AddSingleton<ReplayParserService>();
+        services.AddSingleton<ReplaySaveService>();
+        services.AddSingleton<IReplayMonitorService, ReplayMonitoringService>();
+
         // ViewModel (Singleton to persist state across tool activations)
         services.AddSingleton<ReplayManagerViewModel>();
 

@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -44,6 +45,7 @@ public class GameLauncherTests
     private readonly Mock<IStorageLocationService> _storageLocationServiceMock = new();
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
+    private readonly Mock<IReplayMonitorService> _replayMonitorServiceMock = new();
     private readonly GameLauncher _gameLauncher;
 
     /// <summary>
@@ -131,7 +133,8 @@ public class GameLauncherTests
             _gameSettingsServiceMock.Object,
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
-            _configurationProviderServiceMock.Object);
+            _configurationProviderServiceMock.Object,
+            _replayMonitorServiceMock.Object);
     }
 
     /// <summary>
@@ -796,6 +799,76 @@ public class GameLauncherTests
         _gameSettingsServiceMock.Verify(
             x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that replay monitoring is started when AutoSaveReplays is enabled.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithAutoSaveReplaysEnabled_ShouldStartMonitoring()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.AutoSaveReplays = true;
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", ExecutablePath = @"C:\workspace\generals.exe" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        _replayMonitorServiceMock.Verify(
+            x => x.StartMonitoringAsync(profile.Id, GameType.Generals),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that replay monitoring is not started when AutoSaveReplays is disabled.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithAutoSaveReplaysDisabled_ShouldNotStartMonitoring()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        profile.AutoSaveReplays = false;
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", ExecutablePath = @"C:\workspace\generals.exe" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        _replayMonitorServiceMock.Verify(
+            x => x.StartMonitoringAsync(It.IsAny<string>(), It.IsAny<GameType>()),
+            Times.Never);
     }
 
     /// <summary>

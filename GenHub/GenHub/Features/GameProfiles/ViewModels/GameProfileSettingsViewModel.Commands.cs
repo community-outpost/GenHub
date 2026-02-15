@@ -368,6 +368,7 @@ public partial class GameProfileSettingsViewModel
                     WorkspaceStrategy = SelectedWorkspaceStrategy,
                     EnabledContentIds = enabledContentIds,
                     CommandLineArguments = CommandLineArguments,
+                    AutoSaveReplays = AutoSaveReplays,
                     IconPath = IconPath,
                     CoverPath = CoverPath,
                     ThemeColor = ColorValue,
@@ -413,6 +414,7 @@ public partial class GameProfileSettingsViewModel
                         : null,
                     EnabledContentIds = enabledContentIds,
                     CommandLineArguments = CommandLineArguments,
+                    AutoSaveReplays = AutoSaveReplays,
                     IconPath = IconPath,
                     CoverPath = CoverPath,
                 };

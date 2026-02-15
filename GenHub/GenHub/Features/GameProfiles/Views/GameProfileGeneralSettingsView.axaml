@@ -198,6 +198,12 @@
                             <TextBlock Classes="form-label" Text="Command Line Arguments" />
                             <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" Watermark="-win -quickstart -mod GenEvo" />
                         </StackPanel>
+                        <StackPanel Spacing="8">
+                            <CheckBox IsChecked="{Binding AutoSaveReplays, Mode=TwoWay}">
+                                <TextBlock Text="Automatically Save Replays" />
+                            </CheckBox>
+                            <TextBlock Text="Automatically saves replay files when games end. Replays are saved to the Saved folder with timestamps." FontSize="11" Opacity="0.5" TextWrapping="Wrap" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

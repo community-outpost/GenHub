@@ -53,6 +53,9 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the command line arguments to pass to the game executable.</summary>
     public string? CommandLineArguments { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether to automatically save replays for this profile.</summary>
+    public bool AutoSaveReplays { get; set; }
+
     /// <summary>Gets or sets the IP address for GameSpy/Networking services.</summary>
     public string? GameSpyIPAddress { get; set; }
 

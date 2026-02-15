@@ -1,0 +1,120 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+        x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayViewerWindow"
+        x:DataType="vm:ReplayViewerViewModel"
+        Title="Replay Viewer"
+        Width="600"
+        Height="500"
+        MinWidth="500"
+        MinHeight="400"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <Design.DataContext>
+        <!-- Design-time data provided at runtime via DataContext binding -->
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="Border.section">
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Content -->
+        <ScrollViewer Grid.Row="0" Padding="20">
+            <StackPanel Spacing="16">
+                <!-- File Info Section -->
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="File Information" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+
+                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="File Path:" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding FilePath}" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="File Size:" Margin="0,8,10,0" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding FormattedFileSize}" Margin="0,8,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Parsed:" Margin="0,8,10,0" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding Metadata.IsParsed}" Margin="0,8,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Game Info Section -->
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Game Information" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+
+                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Map Name:" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Metadata.MapName}" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Game Type:" Margin="0,8,10,0" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding Metadata.GameType}" Margin="0,8,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Duration:" Margin="0,8,10,0" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding FormattedDuration}" Margin="0,8,0,0" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Game Date:" Margin="0,8,10,0" />
+                            <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding FormattedGameDate}" Margin="0,8,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Players Section -->
+                <Border Classes="section">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding PlayerCount, StringFormat='Players ({0})'}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+
+                        <ItemsControl ItemsSource="{Binding Players}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                            CornerRadius="4"
+                                            Padding="8,4"
+                                            Margin="0,0,0,4">
+                                        <TextBlock Text="{Binding}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Empty state -->
+                        <TextBlock Text="No player information available"
+                                   IsVisible="{Binding !PlayerCount}"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                   FontStyle="Italic" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer Buttons -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <Button Content="Close"
+                    Command="{Binding CloseCommand}"
+                    HorizontalAlignment="Right"
+                    MinWidth="100" />
+        </Border>
+    </Grid>
+</Window>
