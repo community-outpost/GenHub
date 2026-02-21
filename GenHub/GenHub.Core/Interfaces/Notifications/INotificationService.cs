@@ -100,7 +100,12 @@ public interface INotificationService
     /// <summary>
     /// Mutes notifications for the current session only (resets on app restart).
     /// </summary>
-    void MuteSession();
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous operation.
+    /// The task completes when the session mute state has been successfully saved.
+    /// </returns>
+    Task MuteSession(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Mutes notifications persistently by saving the mute state to user settings.

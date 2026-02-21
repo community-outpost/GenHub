@@ -95,9 +95,7 @@ public class MockNotificationService : INotificationService
     public NotificationMuteState MuteState => NotificationMuteState.None;
 
     /// <inheritdoc/>
-    public void MuteSession()
-    {
-    }
+    public Task MuteSession(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public Task MutePersistent(CancellationToken cancellationToken = default) => Task.CompletedTask;

@@ -224,9 +224,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Mutes notifications for this session only.
     /// </summary>
     [RelayCommand]
-    private void MuteSession()
+    private async Task MuteSession()
     {
-        _notificationService.MuteSession();
+        await _notificationService.MuteSession();
         NotifyMuteStateChanged();
         _logger.LogInformation("Notifications muted for session");
     }

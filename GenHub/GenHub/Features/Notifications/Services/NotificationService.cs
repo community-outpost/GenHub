@@ -176,11 +176,17 @@ public class NotificationService : INotificationService, IDisposable
     }
 
     /// <inheritdoc/>
-    public void MuteSession()
+    public async Task MuteSession(CancellationToken cancellationToken = default)
     {
         lock (_muteLock)
         {
             _muteState = NotificationMuteState.Session;
+        }
+
+        if (_userSettingsService != null)
+        {
+            _userSettingsService.Update(s => s.IsNotificationMuted = false);
+            await _userSettingsService.SaveAsync(cancellationToken);
         }
 
         _logger.LogInformation("Notifications muted for current session");
