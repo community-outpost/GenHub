@@ -90,7 +90,7 @@ public class GameProfile : IGameProfile
     public string BuildInfo { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the command line arguments to pass to the game executable.</summary>
-    /// <example>-win -quicklaunch.</example>
+    /// <example>-win -quickstart.</example>
     public string CommandLineArguments { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the video resolution width for this profile.</summary>
