@@ -75,7 +75,7 @@
 								  VerticalAlignment="Center"
 								  Stroke="White"
 								  StrokeThickness="3"
-								  IsVisible="{Binding ShowNotificationMuteStrike}" />
+								  IsVisible="{Binding NotificationFeed.ShowMuteStrike}" />
 							<!-- Red circle notification counter; hides when user opens feed (bell clicked) -->
 							<Border Background="#EF4444"
 									CornerRadius="10"
@@ -86,8 +86,8 @@
 									HorizontalAlignment="Right"
 									VerticalAlignment="Top"
 									Margin="-4,-4,-4,0"
-									IsVisible="{Binding ShowNotificationBadge}">
-								<TextBlock Text="{Binding NotificationCountDisplay}"
+									IsVisible="{Binding NotificationFeed.HasUnreadNotifications}">
+								<TextBlock Text="{Binding NotificationFeed.NotificationCountDisplay}"
 										   Foreground="White"
 										   FontSize="10"
 										   FontWeight="Bold"
