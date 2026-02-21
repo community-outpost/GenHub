@@ -196,15 +196,15 @@ public class NotificationService : INotificationService, IDisposable
     public async Task MutePersistent(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        lock (_muteLock)
-        {
-            _muteState = NotificationMuteState.Persistent;
-        }
-
         if (_userSettingsService != null)
         {
             _userSettingsService.Update(s => s.IsNotificationMuted = true);
             await _userSettingsService.SaveAsync(cancellationToken);
+        }
+
+        lock (_muteLock)
+        {
+            _muteState = NotificationMuteState.Persistent;
         }
 
         _logger.LogInformation("Notifications muted persistently");

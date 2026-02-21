@@ -13,8 +13,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-#pragma warning disable SA1202, SA1507, SA1508
-
 namespace GenHub.Features.Notifications.ViewModels;
 
 /// <summary>
@@ -22,24 +20,6 @@ namespace GenHub.Features.Notifications.ViewModels;
 /// </summary>
 public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 {
-    private readonly INotificationService _notificationService;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<NotificationFeedViewModel> _logger;
-    private readonly IDisposable _historySubscription;
-    private readonly object _stateLock = new();
-    private bool _disposed;
-
-    [ObservableProperty]
-    private bool _isFeedOpen;
-
-    [ObservableProperty]
-    private int _unreadCount;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnreadNotifications))]
-    [NotifyPropertyChangedFor(nameof(NotificationCountDisplay))]
-    private int _badgeCount;
-
     /// <summary>
     /// Gets a value indicating whether there are unread notifications that should be shown in the badge.
     /// </summary>
@@ -79,18 +59,6 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Gets a value indicating whether notifications are muted persistently.
     /// </summary>
     public bool IsPersistentMuted => MuteState == NotificationMuteState.Persistent;
-
-    /// <summary>
-    /// Gets or sets whether to show the strike (diagonal line) over the bell icon (true when muted).
-    /// Stored so UI bindings update reliably when mute state changes.
-    /// </summary>
-    [ObservableProperty]
-    private bool _showMuteStrike;
-
-    /// <summary>
-    /// Raised when mute state changes so the title bar bell can update (avoids relying on messenger).
-    /// </summary>
-    public event Action? MuteStrikeChanged;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationFeedViewModel"/> class.
@@ -193,6 +161,31 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         Dispatcher.UIThread.InvokeAsync(action);
     }
 
+    private readonly INotificationService _notificationService;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<NotificationFeedViewModel> _logger;
+    private readonly IDisposable _historySubscription;
+    private readonly object _stateLock = new();
+    private bool _disposed;
+
+    [ObservableProperty]
+    private bool _isFeedOpen;
+
+    [ObservableProperty]
+    private int _unreadCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnreadNotifications))]
+    [NotifyPropertyChangedFor(nameof(NotificationCountDisplay))]
+    private int _badgeCount;
+
+    /// <summary>
+    /// Gets or sets whether to show the strike (diagonal line) over the bell icon (true when muted).
+    /// Stored so UI bindings update reliably when mute state changes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showMuteStrike;
+
     /// <summary>
     /// Toggles the notification feed visibility.
     /// When opening the feed, resets the badge count.
@@ -252,23 +245,16 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Updates mute-related properties and notifies listeners when the notification mute state changes.
+    /// Updates mute-related properties when the notification mute state changes.
     /// </summary>
-    /// <remarks>
-    /// Refreshes binding properties and raises <see cref="MuteStrikeChanged"/> so UI elements,
-    /// such as the notification bell, update immediately. Must be called on the UI thread.
-    /// </remarks>
+    /// <remarks>Must be called on the UI thread. Bell icon updates via <see cref="ShowMuteStrike"/> binding.</remarks>
     private void NotifyMuteStateChanged()
     {
-        // Update stored strike state so bell icon binding updates (already on UI thread from menu click)
         ShowMuteStrike = _notificationService.MuteState != NotificationMuteState.None;
         OnPropertyChanged(nameof(MuteState));
         OnPropertyChanged(nameof(IsUnmuted));
         OnPropertyChanged(nameof(IsSessionMuted));
         OnPropertyChanged(nameof(IsPersistentMuted));
-
-        // Direct callback so title bar bell updates (does not rely on messenger)
-        MuteStrikeChanged?.Invoke();
     }
 
     /// <summary>
