@@ -100,14 +100,10 @@ public class MockNotificationService : INotificationService
     }
 
     /// <inheritdoc/>
-    public async Task MutePersistent()
-    {
-    }
+    public Task MutePersistent(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc/>
-    public async Task Unmute()
-    {
-    }
+    public Task Unmute(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 /// <summary>

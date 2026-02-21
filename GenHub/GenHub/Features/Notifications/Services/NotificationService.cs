@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Subjects;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Notifications.Services;
@@ -184,8 +185,9 @@ public class NotificationService : INotificationService, IDisposable
     }
 
     /// <inheritdoc/>
-    public async Task MutePersistent()
+    public async Task MutePersistent(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_muteLock)
         {
             _muteState = NotificationMuteState.Persistent;
@@ -201,8 +203,9 @@ public class NotificationService : INotificationService, IDisposable
     }
 
     /// <inheritdoc/>
-    public async Task Unmute()
+    public async Task Unmute(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         lock (_muteLock)
         {
             _muteState = NotificationMuteState.None;

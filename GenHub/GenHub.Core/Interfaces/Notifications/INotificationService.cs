@@ -105,18 +105,20 @@ public interface INotificationService
     /// <summary>
     /// Mutes notifications persistently by saving the mute state to user settings.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
     /// <returns>
     /// A <see cref="Task"/> that represents the asynchronous operation.
     /// The task completes when the mute state has been successfully saved.
     /// </returns>
-    Task MutePersistent();
+    Task MutePersistent(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Unmutes notifications.
+    /// Unmutes notifications and persists the state to user settings.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
     /// <returns>
     /// A <see cref="Task"/> that represents the asynchronous unmute operation.
     /// The task completes when notifications have been successfully unmuted.
     /// </returns>
-    Task Unmute();
+    Task Unmute(CancellationToken cancellationToken = default);
 }
