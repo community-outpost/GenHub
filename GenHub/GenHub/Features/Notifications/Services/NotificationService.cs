@@ -178,15 +178,20 @@ public class NotificationService : INotificationService, IDisposable
     /// <inheritdoc/>
     public async Task MuteSession(CancellationToken cancellationToken = default)
     {
+        if (_userSettingsService != null)
+        {
+            bool saved = await _userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.IsNotificationMuted = false;
+                return true;
+            });
+            if (!saved)
+                return;
+        }
+
         lock (_muteLock)
         {
             _muteState = NotificationMuteState.Session;
-        }
-
-        if (_userSettingsService != null)
-        {
-            _userSettingsService.Update(s => s.IsNotificationMuted = false);
-            await _userSettingsService.SaveAsync(cancellationToken);
         }
 
         _logger.LogInformation("Notifications muted for current session");
@@ -198,8 +203,13 @@ public class NotificationService : INotificationService, IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         if (_userSettingsService != null)
         {
-            _userSettingsService.Update(s => s.IsNotificationMuted = true);
-            await _userSettingsService.SaveAsync(cancellationToken);
+            bool saved = await _userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.IsNotificationMuted = true;
+                return true;
+            });
+            if (!saved)
+                return;
         }
 
         lock (_muteLock)
@@ -214,15 +224,20 @@ public class NotificationService : INotificationService, IDisposable
     public async Task Unmute(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (_userSettingsService != null)
+        {
+            bool saved = await _userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.IsNotificationMuted = false;
+                return true;
+            });
+            if (!saved)
+                return;
+        }
+
         lock (_muteLock)
         {
             _muteState = NotificationMuteState.None;
-        }
-
-        if (_userSettingsService != null)
-        {
-            _userSettingsService.Update(s => s.IsNotificationMuted = false);
-            await _userSettingsService.SaveAsync(cancellationToken);
         }
 
         _logger.LogInformation("Notifications unmuted");
