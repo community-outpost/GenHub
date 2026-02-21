@@ -1,6 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using GenHub.Common.ViewModels;
+using System;
 
 namespace GenHub.Common.Views;
 
@@ -9,12 +12,31 @@ namespace GenHub.Common.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private bool _muteStrikeSubscribed;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
     /// </summary>
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_muteStrikeSubscribed || DataContext is not MainViewModel main)
+            return;
+        var feed = main.NotificationFeed;
+        if (feed == null)
+            return;
+        _muteStrikeSubscribed = true;
+        feed.MuteStrikeChanged += () =>
+        {
+            var show = feed.ShowMuteStrike;
+            Dispatcher.UIThread.Post(() => main.ShowNotificationMuteStrike = show);
+        };
+        main.ShowNotificationMuteStrike = feed.ShowMuteStrike;
     }
 
     /// <summary>

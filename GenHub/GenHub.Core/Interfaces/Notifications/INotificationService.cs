@@ -1,6 +1,4 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 
 namespace GenHub.Core.Interfaces.Notifications;
@@ -93,4 +91,32 @@ public interface INotificationService
     /// Clears all notification history.
     /// </summary>
     void ClearHistory();
+
+    /// <summary>
+    /// Gets the current notification mute state.
+    /// </summary>
+    NotificationMuteState MuteState { get; }
+
+    /// <summary>
+    /// Mutes notifications for the current session only (resets on app restart).
+    /// </summary>
+    void MuteSession();
+
+    /// <summary>
+    /// Mutes notifications persistently by saving the mute state to user settings.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous operation.
+    /// The task completes when the mute state has been successfully saved.
+    /// </returns>
+    Task MutePersistent();
+
+    /// <summary>
+    /// Unmutes notifications.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous unmute operation.
+    /// The task completes when notifications have been successfully unmuted.
+    /// </returns>
+    Task Unmute();
 }

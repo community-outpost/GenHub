@@ -1,13 +1,14 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 #pragma warning disable SA1202, SA1507, SA1508
 
@@ -33,12 +34,18 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUnreadNotifications))]
+    [NotifyPropertyChangedFor(nameof(NotificationCountDisplay))]
     private int _badgeCount;
 
     /// <summary>
     /// Gets a value indicating whether there are unread notifications that should be shown in the badge.
     /// </summary>
     public bool HasUnreadNotifications => BadgeCount > 0;
+
+    /// <summary>
+    /// Gets the text to show in the notification badge (number or "99+").
+    /// </summary>
+    public string NotificationCountDisplay => BadgeCount > 99 ? "99+" : BadgeCount.ToString();
 
     /// <summary>
     /// Gets the collection of notification history items.
@@ -49,6 +56,34 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Gets a value indicating whether there are any notifications.
     /// </summary>
     public bool HasNotifications => NotificationHistory?.Any() == true;
+
+    /// <summary>
+    /// Gets the current notification mute state from the service.
+    /// </summary>
+    public NotificationMuteState MuteState => _notificationService.MuteState;
+
+    /// <summary>
+    /// Gets or sets whether to show the strike (diagonal line) over the bell icon (true when muted).
+    /// Stored so UI bindings update reliably when mute state changes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showMuteStrike;
+
+    /// <summary>
+    /// Raised when mute state changes so the title bar bell can update (avoids relying on messenger).
+    /// </summary>
+    public event Action? MuteStrikeChanged;
+
+    /// <summary>
+    /// Gets the label for the mute toggle button (Off / Session / Persistent).
+    /// </summary>
+    public string MuteStateLabel => MuteState switch
+    {
+        NotificationMuteState.None => "Mute",
+        NotificationMuteState.Session => "Session",
+        NotificationMuteState.Persistent => "Persistent",
+        _ => "Mute",
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationFeedViewModel"/> class.
@@ -67,6 +102,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         NotificationHistory = [];
         UnreadCount = 0;
+        _showMuteStrike = notificationService.MuteState != NotificationMuteState.None;
 
         // Subscribe to notification history
         _historySubscription = notificationService.NotificationHistory.Subscribe(OnNotificationAdded);
@@ -175,6 +211,49 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
+    /// Turns notifications on (unmute).
+    /// </summary>
+    [RelayCommand]
+    private void Unmute()
+    {
+        _notificationService.Unmute();
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications turned on");
+    }
+
+    /// <summary>
+    /// Mutes notifications for this session only.
+    /// </summary>
+    [RelayCommand]
+    private void MuteSession()
+    {
+        _notificationService.MuteSession();
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications muted for session");
+    }
+
+    /// <summary>
+    /// Mutes notifications persistently (until user turns on again).
+    /// </summary>
+    [RelayCommand]
+    private async System.Threading.Tasks.Task MutePersistent()
+    {
+        await _notificationService.MutePersistent();
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications muted always");
+    }
+
+    private void NotifyMuteStateChanged()
+    {
+        // Update stored strike state so bell icon binding updates (already on UI thread from menu click)
+        ShowMuteStrike = _notificationService.MuteState != NotificationMuteState.None;
+        OnPropertyChanged(nameof(MuteState));
+        OnPropertyChanged(nameof(MuteStateLabel));
+        // Direct callback so title bar bell updates (does not rely on messenger)
+        MuteStrikeChanged?.Invoke();
+    }
+
+    /// <summary>
     /// Clears all notifications from the history.
     /// </summary>
     [RelayCommand]
@@ -188,7 +267,10 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
             {
                 NotificationHistory.Clear();
                 UnreadCount = 0;
+                BadgeCount = 0;
                 OnPropertyChanged(nameof(HasNotifications));
+                OnPropertyChanged(nameof(HasUnreadNotifications));
+                OnPropertyChanged(nameof(NotificationCountDisplay));
             }
         });
 

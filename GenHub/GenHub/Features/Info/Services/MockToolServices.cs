@@ -90,6 +90,26 @@ public class MockNotificationService : INotificationService
     public void ClearHistory()
     {
     }
+
+    /// <inheritdoc/>
+    public NotificationMuteState MuteState => NotificationMuteState.None;
+
+    public int NotificationsCount => throw new NotImplementedException();
+
+    /// <inheritdoc/>
+    public void MuteSession()
+    {
+    }
+
+    /// <inheritdoc/>
+    public async Task MutePersistent()
+    {
+    }
+
+    /// <inheritdoc/>
+    public async Task Unmute()
+    {
+    }
 }
 
 /// <summary>

@@ -59,6 +59,13 @@ public partial class MainViewModel(
     private readonly CancellationTokenSource _initializationCts = new();
 
     /// <summary>
+    /// Whether the notification bell should show the mute strike (true when notifications are muted).
+    /// Mirrored from feed so title bar binding updates reliably.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showNotificationMuteStrike;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
     public MainViewModel()
