@@ -65,7 +65,7 @@
 
     <Border Classes="item-container" Padding="0">
         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
-            <!-- Title row: icon + title + time on left, Clear button on right -->
+            <!-- Title row: icon + title, time on left -->
             <Grid Grid.Column="0" Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,12,12,0">
                 <Path Grid.Column="0"
                       Data="{Binding IconPath}"
@@ -80,12 +80,6 @@
                     <TextBlock Text="{Binding Title}" Classes="item-title" />
                     <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
                 </StackPanel>
-
-                <Button Grid.Column="2"
-                        Classes="dismiss-button"
-                        Command="{Binding DismissCommand}"
-                        Content="Clear"
-                        VerticalAlignment="Center" />
             </Grid>
 
             <!-- Message -->
@@ -123,6 +117,20 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
+
+            <!-- Dismiss Button Area -->
+            <Button Grid.Column="1" Grid.Row="0"
+                    Command="{Binding DismissCommand}"
+                    Classes="dismiss-button"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,8,8,0">
+                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                          Fill="#808080"
+                          Width="12"
+                          Height="12"
+                          Stretch="Uniform" />
+            </Button>
         </Grid>
     </Border>
 </UserControl>

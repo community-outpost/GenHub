@@ -66,6 +66,20 @@ public partial class MainViewModel(
     private bool _showNotificationMuteStrike;
 
     /// <summary>
+    /// Whether to show the red circle notification counter (true when there are unread notifications).
+    /// Mirrored from feed so title bar binding updates reliably; hides when user opens feed.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showNotificationBadge;
+
+    /// <summary>
+    /// Text to show in the red circle (count or "99+").
+    /// Mirrored from feed so title bar binding updates reliably.
+    /// </summary>
+    [ObservableProperty]
+    private string _notificationCountDisplay = "0";
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
     public MainViewModel()

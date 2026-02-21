@@ -29,6 +29,9 @@ public partial class NotificationFeedView : UserControl
             flyout.Hide();
     }
 
+    /// <summary>
+    /// Handles the Unmute action and executes the corresponding view-model command.
+    /// </summary>
     private void OnUnmuteClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is NotificationFeedViewModel vm)
@@ -38,6 +41,9 @@ public partial class NotificationFeedView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the Mute for Session action and executes the corresponding view-model command.
+    /// </summary>
     private void OnMuteSessionClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is NotificationFeedViewModel vm)
@@ -47,6 +53,9 @@ public partial class NotificationFeedView : UserControl
         }
     }
 
+    /// <summary>
+    /// Handles the Persistent Mute action and executes the corresponding view-model command.
+    /// </summary>
     private void OnMutePersistentClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is NotificationFeedViewModel vm)

@@ -75,15 +75,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     public event Action? MuteStrikeChanged;
 
     /// <summary>
-    /// Gets the label for the mute toggle button (Off / Session / Persistent).
+    /// Raised when badge count changes so the title bar red circle can update.
     /// </summary>
-    public string MuteStateLabel => MuteState switch
-    {
-        NotificationMuteState.None => "Mute",
-        NotificationMuteState.Session => "Session",
-        NotificationMuteState.Persistent => "Persistent",
-        _ => "Mute",
-    };
+    public event Action? BadgeCountChanged;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationFeedViewModel"/> class.
@@ -158,14 +152,16 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 {
                     UnreadCount++;
 
-                    // Only increment badge count if ShowInBadge is true
-                    if (message.ShowInBadge)
+                    // Count notification for badge if explicitly allowed, or if muted while feed is closed
+                    // so unseen notifications are reflected in the badge indicator.
+                    if (message.ShowInBadge || (MuteState != NotificationMuteState.None && !IsFeedOpen))
                     {
                         BadgeCount++;
                     }
                 }
 
                 OnPropertyChanged(nameof(HasNotifications));
+                BadgeCountChanged?.Invoke();
             }
         });
 
@@ -196,10 +192,11 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         IsFeedOpen = !IsFeedOpen;
 
-        // Reset badge count when opening the feed
+        // Reset badge count when opening the feed (hides red circle)
         if (IsFeedOpen)
         {
             BadgeCount = 0;
+            BadgeCountChanged?.Invoke();
             _logger.LogInformation("Feed opened, badge count reset to 0");
         }
         else
@@ -243,12 +240,19 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         _logger.LogInformation("Notifications muted always");
     }
 
+    /// <summary>
+    /// Updates mute-related properties and notifies listeners when the notification mute state changes.
+    /// </summary>
+    /// <remarks>
+    /// Refreshes binding properties and raises <see cref="MuteStrikeChanged"/> so UI elements,
+    /// such as the notification bell, update immediately. Must be called on the UI thread.
+    /// </remarks>
     private void NotifyMuteStateChanged()
     {
         // Update stored strike state so bell icon binding updates (already on UI thread from menu click)
         ShowMuteStrike = _notificationService.MuteState != NotificationMuteState.None;
         OnPropertyChanged(nameof(MuteState));
-        OnPropertyChanged(nameof(MuteStateLabel));
+
         // Direct callback so title bar bell updates (does not rely on messenger)
         MuteStrikeChanged?.Invoke();
     }
@@ -271,6 +275,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(HasNotifications));
                 OnPropertyChanged(nameof(HasUnreadNotifications));
                 OnPropertyChanged(nameof(NotificationCountDisplay));
+                BadgeCountChanged?.Invoke();
             }
         });
 
@@ -337,7 +342,8 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         {
             var items = NotificationHistory.ToList();
             UnreadCount = items.Count(n => !n.IsRead);
-            BadgeCount = items.Count(n => !n.IsRead && n.ShowInBadge);
+            BadgeCount = items.Count(n => !n.IsRead);
+            BadgeCountChanged?.Invoke();
         }
     }
 

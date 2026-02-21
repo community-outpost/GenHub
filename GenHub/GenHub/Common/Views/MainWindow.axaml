@@ -86,8 +86,8 @@
 									HorizontalAlignment="Right"
 									VerticalAlignment="Top"
 									Margin="-4,-4,-4,0"
-									IsVisible="{Binding NotificationFeed.HasUnreadNotifications}">
-								<TextBlock Text="{Binding NotificationFeed.NotificationCountDisplay}"
+									IsVisible="{Binding ShowNotificationBadge}">
+								<TextBlock Text="{Binding NotificationCountDisplay}"
 										   Foreground="White"
 										   FontSize="10"
 										   FontWeight="Bold"

@@ -12,6 +12,9 @@ namespace GenHub.Common.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// Tracks whether the window has already subscribed to notification feed events.
+    /// </summary>
     private bool _muteStrikeSubscribed;
 
     /// <summary>
@@ -37,6 +40,17 @@ public partial class MainWindow : Window
             Dispatcher.UIThread.Post(() => main.ShowNotificationMuteStrike = show);
         };
         main.ShowNotificationMuteStrike = feed.ShowMuteStrike;
+
+        feed.BadgeCountChanged += () =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                main.ShowNotificationBadge = feed.HasUnreadNotifications;
+                main.NotificationCountDisplay = feed.NotificationCountDisplay;
+            });
+        };
+        main.ShowNotificationBadge = feed.HasUnreadNotifications;
+        main.NotificationCountDisplay = feed.NotificationCountDisplay;
     }
 
     /// <summary>
