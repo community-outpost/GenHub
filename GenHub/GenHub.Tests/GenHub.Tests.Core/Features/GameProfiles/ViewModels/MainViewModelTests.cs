@@ -3,6 +3,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameReplays;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Info;
@@ -22,6 +23,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GameReplays.ViewModels;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -56,22 +58,24 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationItemViewModel>>());
 
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+        var mockDialogService = new Mock<IDialogService>();
 
         // Act
         var vm = new MainViewModel(
-            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
-            toolsViewModel: toolsVm,
-            settingsViewModel: settingsVm,
-            notificationManager: mockNotificationManager.Object,
-            configurationProvider: configProvider,
-            userSettingsService: userSettingsMock.Object,
-            velopackUpdateManager: mockVelopackUpdateManager.Object,
-            notificationService: mockNotificationService.Object,
-            dialogService: new Mock<IDialogService>().Object,
-            notificationFeedViewModel: notificationFeedVm,
-            infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object);
+            CreateGameProfileLauncherViewModel(),
+            CreateDownloadsViewModel(),
+            toolsVm,
+            settingsVm,
+            mockNotificationManager.Object,
+            CreateGameReplaysViewModel(),
+            configProvider,
+            userSettingsMock.Object,
+            mockVelopackUpdateManager.Object,
+            mockNotificationService.Object,
+            mockDialogService.Object,
+            notificationFeedVm,
+            CreateInfoViewModel(),
+            mockLogger.Object);
 
         // Assert
         Assert.NotNull(vm);
@@ -86,6 +90,7 @@ public class MainViewModelTests
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
     [InlineData(NavigationTab.Tools)]
+    [InlineData(NavigationTab.GameReplays)]
     [InlineData(NavigationTab.Settings)]
     [InlineData(NavigationTab.Info)]
     public void SelectTabCommand_SetsSelectedTab(NavigationTab tab)
@@ -101,21 +106,23 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+        var mockDialogService = new Mock<IDialogService>();
 
         var vm = new MainViewModel(
-            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
-            toolsViewModel: toolsVm,
-            settingsViewModel: settingsVm,
-            notificationManager: mockNotificationManager.Object,
-            configurationProvider: configProvider,
-            userSettingsService: userSettingsMock.Object,
-            velopackUpdateManager: mockVelopackUpdateManager.Object,
-            notificationService: mockNotificationService.Object,
-            dialogService: new Mock<IDialogService>().Object,
-            notificationFeedViewModel: notificationFeedVm,
-            infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object);
+            CreateGameProfileLauncherViewModel(),
+            CreateDownloadsViewModel(),
+            toolsVm,
+            settingsVm,
+            mockNotificationManager.Object,
+            CreateGameReplaysViewModel(),
+            configProvider,
+            userSettingsMock.Object,
+            mockVelopackUpdateManager.Object,
+            mockNotificationService.Object,
+            mockDialogService.Object,
+            notificationFeedVm,
+            CreateInfoViewModel(),
+            mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
         Assert.Equal(tab, vm.SelectedTab);
     }
@@ -141,21 +148,23 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+        var mockDialogService = new Mock<IDialogService>();
 
         var vm = new MainViewModel(
-            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
-            toolsViewModel: toolsVm,
-            settingsViewModel: settingsVm,
-            notificationManager: mockNotificationManager.Object,
-            configurationProvider: configProvider,
-            userSettingsService: userSettingsMock.Object,
-            velopackUpdateManager: mockVelopackUpdateManager.Object,
-            notificationService: mockNotificationService.Object,
-            dialogService: new Mock<IDialogService>().Object,
-            notificationFeedViewModel: notificationFeedVm,
-            infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object);
+            CreateGameProfileLauncherViewModel(),
+            CreateDownloadsViewModel(),
+            toolsVm,
+            settingsVm,
+            mockNotificationManager.Object,
+            CreateGameReplaysViewModel(),
+            configProvider,
+            userSettingsMock.Object,
+            mockVelopackUpdateManager.Object,
+            mockNotificationService.Object,
+            mockDialogService.Object,
+            notificationFeedVm,
+            CreateInfoViewModel(),
+            mockLogger.Object);
         await vm.InitializeAsync(); // Should not throw
         Assert.True(true);
     }
@@ -168,6 +177,7 @@ public class MainViewModelTests
     [InlineData(NavigationTab.GameProfiles)]
     [InlineData(NavigationTab.Downloads)]
     [InlineData(NavigationTab.Tools)]
+    [InlineData(NavigationTab.GameReplays)]
     [InlineData(NavigationTab.Settings)]
     [InlineData(NavigationTab.Info)]
     public void CurrentTabViewModel_ReturnsCorrectViewModel(NavigationTab tab)
@@ -183,23 +193,29 @@ public class MainViewModelTests
             Mock.Of<ILogger<NotificationManagerViewModel>>(),
             Mock.Of<ILogger<NotificationItemViewModel>>());
         var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+        var mockDialogService = new Mock<IDialogService>();
 
         var vm = new MainViewModel(
-            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
-            toolsViewModel: toolsVm,
-            settingsViewModel: settingsVm,
-            notificationManager: mockNotificationManager.Object,
-            configurationProvider: configProvider,
-            userSettingsService: userSettingsMock.Object,
-            velopackUpdateManager: mockVelopackUpdateManager.Object,
-            notificationService: mockNotificationService.Object,
-            dialogService: new Mock<IDialogService>().Object,
-            notificationFeedViewModel: notificationFeedVm,
-            infoViewModel: CreateInfoViewModel(),
-            logger: mockLogger.Object);
+            CreateGameProfileLauncherViewModel(),
+            CreateDownloadsViewModel(),
+            toolsVm,
+            settingsVm,
+            mockNotificationManager.Object,
+            CreateGameReplaysViewModel(),
+            configProvider,
+            userSettingsMock.Object,
+            mockVelopackUpdateManager.Object,
+            mockNotificationService.Object,
+            mockDialogService.Object,
+            notificationFeedVm,
+            CreateInfoViewModel(),
+            mockLogger.Object);
         vm.SelectTabCommand.Execute(tab);
+
+        // Act
         var currentViewModel = vm.CurrentTabViewModel;
+
+        // Assert
         Assert.NotNull(currentViewModel);
         switch (tab)
         {
@@ -212,6 +228,9 @@ public class MainViewModelTests
             case NavigationTab.Tools:
                 Assert.IsType<ToolsViewModel>(currentViewModel);
                 break;
+            case NavigationTab.GameReplays:
+                Assert.IsType<GameReplaysViewModel>(currentViewModel);
+                break;
             case NavigationTab.Settings:
                 Assert.IsType<SettingsViewModel>(currentViewModel);
                 break;
@@ -219,6 +238,24 @@ public class MainViewModelTests
                 Assert.IsType<InfoViewModel>(currentViewModel);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Creates a default GameReplaysViewModel with mocked services for reuse.
+    /// </summary>
+    private static GameReplaysViewModel CreateGameReplaysViewModel()
+    {
+        var mockService = new Mock<IGameReplaysService>();
+        var mockLogger = new Mock<ILogger<GameReplaysViewModel>>();
+        return new GameReplaysViewModel(mockService.Object, mockLogger.Object);
+    }
+
+    /// <summary>
+    /// Creates a default InfoViewModel for reuse.
+    /// </summary>
+    private static InfoViewModel CreateInfoViewModel()
+    {
+        return new InfoViewModel([]);
     }
 
     /// <summary>
@@ -288,9 +325,8 @@ public class MainViewModelTests
         var mockLogger = new Mock<ILogger<DownloadsViewModel>>();
         var mockNotificationService = new Mock<INotificationService>();
 
-        // Create the three required dependencies for the discoverer
-        var mockGitHubClient = new Mock<IGitHubApiClient>();
         var mockDiscovererLogger = new Mock<ILogger<GitHubTopicsDiscoverer>>();
+        var mockGitHubClient = new Mock<IGitHubApiClient>();
 
         // Instantiate the real class with the two mocks
         var realGitHubDiscoverer = new GitHubTopicsDiscoverer(
@@ -370,10 +406,5 @@ public class MainViewModelTests
         var mockLoggerFactory = new Mock<ILoggerFactory>();
         var mockLogger = new Mock<ILogger<NotificationFeedViewModel>>();
         return new NotificationFeedViewModel(notificationService, mockLoggerFactory.Object, mockLogger.Object);
-    }
-
-    private static InfoViewModel CreateInfoViewModel()
-    {
-        return new InfoViewModel([]);
     }
 }

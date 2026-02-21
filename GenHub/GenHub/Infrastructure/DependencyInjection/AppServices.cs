@@ -1,4 +1,3 @@
-using GenHub.Features.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
@@ -46,6 +45,9 @@ public static class AppServices
         services.AddUploadThingServices(); // Shared cloud upload service
         services.AddReplayManagerServices();
         services.AddMapManager();
+
+        // Register GameReplays services
+        GameReplaysModule.RegisterGameReplaysServices(services);
 
         // Register Notification services
         services.AddNotificationModule();

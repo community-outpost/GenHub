@@ -37,6 +37,7 @@
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
+    <PackageVersion Include="HtmlAgilityPack" Version="1.11.72" />
     <!-- Test packages -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.11" />

@@ -1,0 +1,240 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.GameReplays.ViewModels"
+             xmlns:grEnums="using:GenHub.Core.Models.Enums"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.GameReplays.Views.GameReplaysView"
+             x:DataType="vm:GameReplaysViewModel">
+
+    <UserControl.Styles>
+        <!-- Modern RadioButton Filter Tab -->
+        <Style Selector="RadioButton.filter-tab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#DDDDDD" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="24,12" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="RadioButton.filter-tab:pointerover">
+            <Setter Property="Background" Value="#20FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="RadioButton.filter-tab:checked">
+            <Setter Property="Background" Value="#608A2BE2" /> <!-- Purple tint -->
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#8A2BE2" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+
+        <Style Selector="RadioButton.filter-tab:checked /template/ Border">
+             <Setter Property="BoxShadow" Value="0 0 8 0 #408A2BE2" />
+        </Style>
+
+        <!-- Glass Panel Style -->
+        <Style Selector="Border.glass-panel">
+            <Setter Property="Background" Value="#CC050510" /> <!-- 80% Opaque Dark -->
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="BoxShadow" Value="0 4 16 0 #60000000" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Transparent Background to show user wallpaper -->
+    <Grid Background="Transparent">
+
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+            <!-- Header Section -->
+            <Grid Grid.Row="0" Margin="0,0,0,24" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Tournaments"
+                               FontSize="32"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               Effect="drop-shadow(0 2 10 #80000000)">
+                        <TextBlock.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                <GradientStop Color="#FFFFFF" Offset="0" />
+                                <GradientStop Color="#CEA0F8" Offset="1" />
+                            </LinearGradientBrush>
+                        </TextBlock.Background>
+                    </TextBlock>
+                    <TextBlock Text="Competitions hosted on GameReplays.org"
+                               FontSize="14"
+                               Foreground="#AAAAAA"
+                               Margin="2,4,0,0"/>
+                </StackPanel>
+
+                <!-- Filter Pills -->
+                <Border Grid.Column="1"
+                        Background="#40000000"
+                        CornerRadius="12"
+                        Padding="4">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Content="Signups Open"
+                                     Classes="filter-tab"
+                                     IsChecked="{Binding IsSignupsOpenSelected, Mode=OneWay}"
+                                     Command="{Binding SelectFilterCommand}"
+                                     CommandParameter="{x:Static grEnums:TournamentStatus.SignupsOpen}"
+                                     GroupName="Filters"/>
+                        <RadioButton Content="Upcoming"
+                                     Classes="filter-tab"
+                                     IsChecked="{Binding IsUpcomingSelected, Mode=OneWay}"
+                                     Command="{Binding SelectFilterCommand}"
+                                     CommandParameter="{x:Static grEnums:TournamentStatus.Upcoming}"
+                                     GroupName="Filters"/>
+                        <RadioButton Content="Active"
+                                     Classes="filter-tab"
+                                     IsChecked="{Binding IsActiveSelected, Mode=OneWay}"
+                                     Command="{Binding SelectFilterCommand}"
+                                     CommandParameter="{x:Static grEnums:TournamentStatus.Active}"
+                                     GroupName="Filters"/>
+                        <RadioButton Content="Finished"
+                                     Classes="filter-tab"
+                                     IsChecked="{Binding IsFinishedSelected, Mode=OneWay}"
+                                     Command="{Binding SelectFilterCommand}"
+                                     CommandParameter="{x:Static grEnums:TournamentStatus.Finished}"
+                                     GroupName="Filters"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Main Content: Tournament List -->
+            <Border Grid.Row="1" Classes="glass-panel" ClipToBounds="True">
+                <Panel>
+                    <!-- List -->
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20">
+                        <ItemsControl ItemsSource="{Binding FilteredTournaments}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Spacing="16" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TournamentItemViewModel">
+                                    <Border Background="#20FFFFFF"
+                                            CornerRadius="12"
+                                            Padding="20"
+                                            BorderBrush="#40FFFFFF"
+                                            BorderThickness="1">
+
+                                         <Border.Transitions>
+                                            <Transitions>
+                                                <BrushTransition Property="Background" Duration="0:0:0.2" />
+                                            </Transitions>
+                                        </Border.Transitions>
+                                        <Border.Styles>
+                                            <Style Selector="Border:pointerover">
+                                                <Setter Property="Background" Value="#30FFFFFF" />
+                                            </Style>
+                                        </Border.Styles>
+
+                                        <Grid ColumnDefinitions="*,Auto">
+
+                                            <!-- Info -->
+                                            <StackPanel Grid.Column="0">
+                                                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+                                                    <!-- Status Dot -->
+                                                    <Border Width="8" Height="8"
+                                                            CornerRadius="4"
+                                                            Background="{Binding StatusColor}"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,10,0"
+                                                            BoxShadow="0 0 8 0 #80FFFFFF"/>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding DisplayName}"
+                                                               FontSize="18"
+                                                               FontWeight="Bold"
+                                                               Foreground="White"/>
+                                                </Grid>
+
+                                                <StackPanel Orientation="Horizontal" Spacing="16" Opacity="0.7">
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="👤" FontSize="12"/>
+                                                        <TextBlock Text="{Binding HostDisplay}" FontSize="13" Foreground="#DDDDDD"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="📅" FontSize="12"/>
+                                                        <TextBlock Text="{Binding DateDisplay}" FontSize="13" Foreground="#DDDDDD"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- Actions -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                                <Button Content="View Details"
+                                                        Command="{Binding OpenTournamentCommand}"
+                                                        Background="#408A2BE2"
+                                                        Foreground="#CEA0F8"
+                                                        BorderBrush="#8A2BE2"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6"
+                                                        Padding="16,8"
+                                                        FontWeight="SemiBold"
+                                                        Cursor="Hand"/>
+
+                                                <Button Content="Copy Link"
+                                                        Command="{Binding CopyTournamentUrlCommand}"
+                                                        Background="Transparent"
+                                                        Foreground="#AAAAAA"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </Border>
+
+            <!-- Footer / Status Bar -->
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TotalCount, StringFormat='{}{0} TOURNAMENTS FOUND'}"
+                               Foreground="#AAAAAA"
+                               FontSize="12"
+                               FontWeight="Bold"
+                               LetterSpacing="1"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16">
+                    <Button Content="REFRESH DATA"
+                            Command="{Binding RefreshTournamentsCommand}"
+                            Background="Transparent"
+                            Foreground="#8A2BE2"
+                            FontSize="12"
+                            FontWeight="Bold"
+                            Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -17,6 +17,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GameReplays.ViewModels;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
@@ -33,6 +34,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="toolsViewModel">Tools view model.</param>
 /// <param name="settingsViewModel">Settings view model.</param>
 /// <param name="notificationManager">Notification manager view model.</param>
+/// <param name="gameReplaysViewModel">GameReplays view model.</param>
 /// <param name="configurationProvider">Configuration provider service.</param>
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
 /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
@@ -47,6 +49,7 @@ public partial class MainViewModel(
     ToolsViewModel toolsViewModel,
     SettingsViewModel settingsViewModel,
     NotificationManagerViewModel notificationManager,
+    GameReplaysViewModel gameReplaysViewModel,
     IConfigurationProviderService configurationProvider,
     IUserSettingsService userSettingsService,
     IVelopackUpdateManager velopackUpdateManager,
@@ -59,13 +62,9 @@ public partial class MainViewModel(
     private readonly CancellationTokenSource _initializationCts = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// Gets the collection of detected game installations.
     /// </summary>
-    public MainViewModel()
-        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
-    {
-        // Parameterless constructor for XAML tools if needed, though usually handled by DI
-    }
+    public ObservableCollection<string> GameInstallations { get; } = [];
 
     /// <summary>
     /// Gets the info view model.
@@ -103,9 +102,9 @@ public partial class MainViewModel(
     public NotificationManagerViewModel NotificationManager { get; } = notificationManager;
 
     /// <summary>
-    /// Gets the collection of detected game installations.
+    /// Gets the GameReplays view model.
     /// </summary>
-    public ObservableCollection<string> GameInstallations { get; } = [];
+    public GameReplaysViewModel GameReplaysViewModel { get; } = gameReplaysViewModel;
 
     /// <summary>
     /// Gets the available navigation tabs.
@@ -114,6 +113,7 @@ public partial class MainViewModel(
     [
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
+        NavigationTab.GameReplays,
         NavigationTab.Tools,
         NavigationTab.Settings,
         NavigationTab.Info,
@@ -126,6 +126,7 @@ public partial class MainViewModel(
     {
         NavigationTab.GameProfiles => GameProfilesViewModel,
         NavigationTab.Downloads => DownloadsViewModel,
+        NavigationTab.GameReplays => GameReplaysViewModel,
         NavigationTab.Tools => ToolsViewModel,
         NavigationTab.Settings => SettingsViewModel,
         NavigationTab.Info => InfoViewModel,
@@ -144,6 +145,7 @@ public partial class MainViewModel(
     {
         NavigationTab.GameProfiles => "Game Profiles",
         NavigationTab.Downloads => "Downloads",
+        NavigationTab.GameReplays => "Game Replays",
         NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
         NavigationTab.Info => "Info",
@@ -176,6 +178,7 @@ public partial class MainViewModel(
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
+        await GameReplaysViewModel.InitializeAsync();
         await InfoViewModel.InitializeAsync();
         logger?.LogInformation("MainViewModel initialized");
 
@@ -393,6 +396,10 @@ public partial class MainViewModel(
     {
         OnPropertyChanged(nameof(CurrentTabViewModel));
 
+        // Log the current tab view model type
+        var viewModelType = CurrentTabViewModel?.GetType().Name ?? "null";
+        logger?.LogInformation("Switching to tab {Tab}. ViewModel Type: {ViewModelType}", value, viewModelType);
+
         // Notify SettingsViewModel when it becomes visible/invisible
         SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
 
@@ -404,6 +411,10 @@ public partial class MainViewModel(
         else if (value == NavigationTab.Downloads)
         {
             _ = DownloadsViewModel.OnTabActivatedAsync();
+        }
+        else if (value == NavigationTab.GameReplays)
+        {
+            _ = GameReplaysViewModel.OnTabActivatedAsync();
         }
         else if (value == NavigationTab.Tools)
         {
