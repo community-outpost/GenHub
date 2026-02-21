@@ -132,7 +132,6 @@ public class NotificationService : INotificationService, IDisposable
     /// <inheritdoc/>
     public void Show(NotificationMessage notification)
     {
-
         if (_disposed)
         {
             _logger.LogWarning("Attempted to show notification after service disposal");
