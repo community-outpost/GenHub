@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -45,9 +46,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     public bool HasUnreadNotifications => BadgeCount > 0;
 
     /// <summary>
-    /// Gets the text to show in the notification badge (number or "99+").
+    /// Gets the text to show in the notification badge (number or <see cref="NotificationConstants.MaxBadgeDisplayText"/>).
     /// </summary>
-    public string NotificationCountDisplay => BadgeCount > 99 ? "99+" : BadgeCount.ToString();
+    public string NotificationCountDisplay => BadgeCount > NotificationConstants.MaxBadgeCount ? NotificationConstants.MaxBadgeDisplayText : BadgeCount.ToString();
 
     /// <summary>
     /// Gets the collection of notification history items.
@@ -75,11 +76,6 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Raised when mute state changes so the title bar bell can update (avoids relying on messenger).
     /// </summary>
     public event Action? MuteStrikeChanged;
-
-    /// <summary>
-    /// Raised when badge count changes so the title bar red circle can update.
-    /// </summary>
-    public event Action? BadgeCountChanged;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationFeedViewModel"/> class.
@@ -163,7 +159,6 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 }
 
                 OnPropertyChanged(nameof(HasNotifications));
-                BadgeCountChanged?.Invoke();
             }
         });
 
@@ -198,7 +193,6 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         if (IsFeedOpen)
         {
             BadgeCount = 0;
-            BadgeCountChanged?.Invoke();
             _logger.LogInformation("Feed opened, badge count reset to 0");
         }
         else
@@ -275,9 +269,6 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 UnreadCount = 0;
                 BadgeCount = 0;
                 OnPropertyChanged(nameof(HasNotifications));
-                OnPropertyChanged(nameof(HasUnreadNotifications));
-                OnPropertyChanged(nameof(NotificationCountDisplay));
-                BadgeCountChanged?.Invoke();
             }
         });
 
@@ -337,6 +328,8 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Updates the unread count based on current history.
+    /// Badge count includes only unread items that contribute to the badge (ShowInBadge, or muted with feed closed),
+    /// consistent with <see cref="AddNotification"/>.
     /// </summary>
     private void UpdateUnreadCount()
     {
@@ -344,8 +337,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         {
             var items = NotificationHistory.ToList();
             UnreadCount = items.Count(n => !n.IsRead);
-            BadgeCount = items.Count(n => !n.IsRead);
-            BadgeCountChanged?.Invoke();
+            BadgeCount = items.Count(n => !n.IsRead && (n.ShowInBadge || (MuteState != NotificationMuteState.None && !IsFeedOpen)));
         }
     }
 
