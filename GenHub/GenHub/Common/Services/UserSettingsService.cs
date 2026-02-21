@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -141,8 +142,9 @@ public class UserSettingsService : IUserSettingsService
     /// <summary>
     /// Saves the current settings asynchronously.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>
-    public async Task SaveAsync()
+    public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         UserSettings settingsToSave;
         string pathToSave;
@@ -162,7 +164,7 @@ public class UserSettingsService : IUserSettingsService
             }
 
             var json = JsonSerializer.Serialize(settingsToSave, JsonOptions);
-            await File.WriteAllTextAsync(pathToSave, json);
+            await File.WriteAllTextAsync(pathToSave, json, cancellationToken);
             _logger.LogInformation("Settings saved successfully to {Path}", pathToSave);
         }
         catch (IOException ex)

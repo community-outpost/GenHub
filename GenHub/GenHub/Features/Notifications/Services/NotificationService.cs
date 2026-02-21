@@ -142,16 +142,18 @@ public class NotificationService : INotificationService, IDisposable
         ArgumentNullException.ThrowIfNull(notification);
 
         bool muted;
+        NotificationMuteState state;
         lock (_muteLock)
         {
-            muted = _muteState != NotificationMuteState.None;
+            state = _muteState;
+            muted = state != NotificationMuteState.None;
         }
 
         if (muted)
         {
             _logger.LogDebug(
                 "Notification muted ({MuteState}), adding to history only: {Title}",
-                _muteState,
+                state,
                 notification.Title);
         }
         else
@@ -196,7 +198,7 @@ public class NotificationService : INotificationService, IDisposable
         if (_userSettingsService != null)
         {
             _userSettingsService.Update(s => s.IsNotificationMuted = true);
-            await _userSettingsService.SaveAsync();
+            await _userSettingsService.SaveAsync(cancellationToken);
         }
 
         _logger.LogInformation("Notifications muted persistently");
@@ -214,7 +216,7 @@ public class NotificationService : INotificationService, IDisposable
         if (_userSettingsService != null)
         {
             _userSettingsService.Update(s => s.IsNotificationMuted = false);
-            await _userSettingsService.SaveAsync();
+            await _userSettingsService.SaveAsync(cancellationToken);
         }
 
         _logger.LogInformation("Notifications unmuted");

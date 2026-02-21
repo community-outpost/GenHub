@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
@@ -22,7 +23,7 @@ public class MockUserSettingsService : IUserSettingsService
     public UserSettings Get() => _settings;
 
     /// <inheritdoc/>
-    public Task SaveAsync() => Task.CompletedTask;
+    public Task SaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     /// <inheritdoc/>
     public void Update(Action<UserSettings> updateAction) => updateAction(_settings);
