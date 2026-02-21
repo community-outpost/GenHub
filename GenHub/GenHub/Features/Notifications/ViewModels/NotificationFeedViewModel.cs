@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 
 #pragma warning disable SA1202, SA1507, SA1508
 
@@ -211,9 +212,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Turns notifications on (unmute).
     /// </summary>
     [RelayCommand]
-    private void Unmute()
+    private async Task Unmute()
     {
-        _notificationService.Unmute();
+        await _notificationService.Unmute();
         NotifyMuteStateChanged();
         _logger.LogInformation("Notifications turned on");
     }
@@ -233,7 +234,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Mutes notifications persistently (until user turns on again).
     /// </summary>
     [RelayCommand]
-    private async System.Threading.Tasks.Task MutePersistent()
+    private async Task MutePersistent()
     {
         await _notificationService.MutePersistent();
         NotifyMuteStateChanged();

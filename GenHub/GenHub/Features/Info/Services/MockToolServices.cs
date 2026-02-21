@@ -94,8 +94,6 @@ public class MockNotificationService : INotificationService
     /// <inheritdoc/>
     public NotificationMuteState MuteState => NotificationMuteState.None;
 
-    public int NotificationsCount => throw new NotImplementedException();
-
     /// <inheritdoc/>
     public void MuteSession()
     {
