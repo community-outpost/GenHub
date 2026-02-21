@@ -66,6 +66,21 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     public NotificationMuteState MuteState => _notificationService.MuteState;
 
     /// <summary>
+    /// Gets a value indicating whether notifications are enabled (not muted).
+    /// </summary>
+    public bool IsUnmuted => MuteState == NotificationMuteState.None;
+
+    /// <summary>
+    /// Gets a value indicating whether notifications are muted for this session only.
+    /// </summary>
+    public bool IsSessionMuted => MuteState == NotificationMuteState.Session;
+
+    /// <summary>
+    /// Gets a value indicating whether notifications are muted persistently.
+    /// </summary>
+    public bool IsPersistentMuted => MuteState == NotificationMuteState.Persistent;
+
+    /// <summary>
     /// Gets or sets whether to show the strike (diagonal line) over the bell icon (true when muted).
     /// Stored so UI bindings update reliably when mute state changes.
     /// </summary>
@@ -248,6 +263,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         // Update stored strike state so bell icon binding updates (already on UI thread from menu click)
         ShowMuteStrike = _notificationService.MuteState != NotificationMuteState.None;
         OnPropertyChanged(nameof(MuteState));
+        OnPropertyChanged(nameof(IsUnmuted));
+        OnPropertyChanged(nameof(IsSessionMuted));
+        OnPropertyChanged(nameof(IsPersistentMuted));
 
         // Direct callback so title bar bell updates (does not rely on messenger)
         MuteStrikeChanged?.Invoke();

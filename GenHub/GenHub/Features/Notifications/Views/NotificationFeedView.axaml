@@ -192,40 +192,49 @@
 							<Button.Flyout>
 								<Flyout Placement="Bottom" ShowMode="Transient">
 									<StackPanel MinWidth="220" Spacing="2">
-										<Button Click="OnUnmuteClicked"
+										<Button Command="{Binding UnmuteCommand}"
+												Click="CloseOptionsFlyout"
 												Classes="feed-button"
 												Background="Transparent"
 												BorderThickness="0"
 												Padding="12,10"
 												HorizontalContentAlignment="Stretch"
 												Cursor="Hand">
-											<Grid ColumnDefinitions="Auto,*">
-												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0"/>
+											<Grid ColumnDefinitions="Auto,*,Auto">
+												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
 												<TextBlock Grid.Column="1" Text="Enable Notifications" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+												<TextBlock Grid.Column="2" Text="✓" Foreground="#10B981" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+														   IsVisible="{Binding IsUnmuted}"/>
 											</Grid>
 										</Button>
-										<Button Click="OnMuteSessionClicked"
+										<Button Command="{Binding MuteSessionCommand}"
+												Click="CloseOptionsFlyout"
 												Classes="feed-button"
 												Background="Transparent"
 												BorderThickness="0"
 												Padding="12,10"
 												HorizontalContentAlignment="Stretch"
 												Cursor="Hand">
-											<Grid ColumnDefinitions="Auto,*">
-												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0"/>
+											<Grid ColumnDefinitions="Auto,*,Auto">
+												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
 												<TextBlock Grid.Column="1" Text="Mute for this session" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+												<TextBlock Grid.Column="2" Text="✓" Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+														   IsVisible="{Binding IsSessionMuted}"/>
 											</Grid>
 										</Button>
-										<Button Click="OnMutePersistentClicked"
+										<Button Command="{Binding MutePersistentCommand}"
+												Click="CloseOptionsFlyout"
 												Classes="feed-button"
 												Background="Transparent"
 												BorderThickness="0"
 												Padding="12,10"
 												HorizontalContentAlignment="Stretch"
 												Cursor="Hand">
-											<Grid ColumnDefinitions="Auto,*">
-												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0"/>
+											<Grid ColumnDefinitions="Auto,*,Auto">
+												<Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
 												<TextBlock Grid.Column="1" Text="Mute permanently" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+												<TextBlock Grid.Column="2" Text="✓" Foreground="#EF4444" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+														   IsVisible="{Binding IsPersistentMuted}"/>
 											</Grid>
 										</Button>
 									</StackPanel>
@@ -245,7 +254,8 @@
 			</Border>
 
 			<!-- Content -->
-			<ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto">
+			<ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto"
+						 IsVisible="{Binding HasNotifications}">
 				<ItemsControl ItemsSource="{Binding NotificationHistory}" Margin="12,8">
 					<ItemsControl.ItemsPanel>
 						<ItemsPanelTemplate>

@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
-using GenHub.Features.Notifications.ViewModels;
 
 namespace GenHub.Features.Notifications.Views;
 
@@ -16,6 +15,15 @@ public partial class NotificationFeedView : UserControl
     public NotificationFeedView()
     {
         InitializeComponent();
+        var optionsButton = this.FindControl<Button>("OptionsButton");
+        if (optionsButton?.Flyout is Flyout flyout)
+        {
+            flyout.Opened += (_, _) =>
+            {
+                if (flyout.Content is Control content)
+                    content.DataContext = DataContext;
+            };
+        }
     }
 
     private void InitializeComponent()
@@ -23,45 +31,12 @@ public partial class NotificationFeedView : UserControl
         AvaloniaXamlLoader.Load(this);
     }
 
-    private void CloseOptionsFlyout()
-    {
-        if (this.FindControl<Button>("OptionsButton")?.Flyout is Flyout flyout)
-            flyout.Hide();
-    }
-
     /// <summary>
-    /// Handles the Unmute action and executes the corresponding view-model command.
+    /// Closes the options flyout after a mute option is chosen (Command binding handles the action).
     /// </summary>
-    private void OnUnmuteClicked(object? sender, RoutedEventArgs e)
+    private void CloseOptionsFlyout(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is NotificationFeedViewModel vm)
-        {
-            vm.UnmuteCommand.Execute(null);
-            CloseOptionsFlyout();
-        }
-    }
-
-    /// <summary>
-    /// Handles the Mute for Session action and executes the corresponding view-model command.
-    /// </summary>
-    private void OnMuteSessionClicked(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is NotificationFeedViewModel vm)
-        {
-            vm.MuteSessionCommand.Execute(null);
-            CloseOptionsFlyout();
-        }
-    }
-
-    /// <summary>
-    /// Handles the Persistent Mute action and executes the corresponding view-model command.
-    /// </summary>
-    private void OnMutePersistentClicked(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is NotificationFeedViewModel vm)
-        {
-            vm.MutePersistentCommand.Execute(null);
-            CloseOptionsFlyout();
-        }
+        if (this.FindControl<Button>("OptionsButton")?.Flyout is Flyout f)
+            f.Hide();
     }
 }
