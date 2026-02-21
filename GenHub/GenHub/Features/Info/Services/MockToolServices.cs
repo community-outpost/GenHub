@@ -90,6 +90,18 @@ public class MockNotificationService : INotificationService
     public void ClearHistory()
     {
     }
+
+    /// <inheritdoc/>
+    public NotificationMuteState MuteState => NotificationMuteState.None;
+
+    /// <inheritdoc/>
+    public Task MuteSession(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    /// <inheritdoc/>
+    public Task MutePersistent(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    /// <inheritdoc/>
+    public Task Unmute(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 /// <summary>

@@ -17,7 +17,9 @@
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="BoxShadow" Value="0 12 30 0 #80000000" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="MaxWidth" Value="380" />
+            <Setter Property="MinWidth" Value="360" />
+            <Setter Property="MinHeight" Value="320" />
+            <Setter Property="MaxWidth" Value="460" />
             <Setter Property="MaxHeight" Value="520" />
         </Style>
 
@@ -165,24 +167,100 @@
         <Grid RowDefinitions="Auto,Auto,*">
             <!-- Header -->
             <Border Grid.Row="0" Classes="feed-header">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <TextBlock Grid.Column="0" Classes="feed-title" Text="Notifications" VerticalAlignment="Center" />
+                <Grid RowDefinitions="Auto,Auto">
+                    <!-- Row 0: Title + three-dots menu -->
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Classes="feed-title" Text="Notifications"  />
+                        <Button x:Name="OptionsButton"
+                                Grid.Column="2"
+                                Width="32"
+                                Height="32"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Classes="feed-button"
+                                ToolTip.Tip="Notification options"
+                                Background="Transparent"
+                                >
+                            <Path Data="M14,12c0,1.1-0.9,2-2,2s-2-0.9-2-2s0.9-2,2-2S14,10.9,14,12z M20,12c0,1.1-0.9,2-2,2s-2-0.9-2-2s0.9-2,2-2S20,10.9,20,12z M8,12c0,1.1-0.9,2-2,2S4,13.1,4,12s0.9-2,2-2S8,10.9,8,12z"
+                                  Fill="#B0B0B0"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
 
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <Button Classes="clear-button"
-                                Command="{Binding ClearAllCommand}"
-                                Content="Clear All" />
-                    </StackPanel>
+                            <Button.Flyout>
+                                <Flyout Placement="Bottom" ShowMode="Transient">
+                                    <StackPanel MinWidth="220" Spacing="2">
+                                        <Button Command="{Binding UnmuteCommand}"
+                                                Click="CloseOptionsFlyout"
+                                                Classes="feed-button"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="12,10"
+                                                HorizontalContentAlignment="Stretch"
+                                                Cursor="Hand">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="Enable Notifications" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#10B981" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           IsVisible="{Binding IsUnmuted}"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button Command="{Binding MuteSessionCommand}"
+                                                Click="CloseOptionsFlyout"
+                                                Classes="feed-button"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="12,10"
+                                                HorizontalContentAlignment="Stretch"
+                                                Cursor="Hand">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="Mute for this session" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           IsVisible="{Binding IsSessionMuted}"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button Command="{Binding MutePersistentCommand}"
+                                                Click="CloseOptionsFlyout"
+                                                Classes="feed-button"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="12,10"
+                                                HorizontalContentAlignment="Stretch"
+                                                Cursor="Hand">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="Mute permanently" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#EF4444" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                           IsVisible="{Binding IsPersistentMuted}"/>
+                                            </Grid>
+                                        </Button>
+                                    </StackPanel>
+
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+                    <!-- Row 1: Clear All below -->
+                    <Button Grid.Row="1"
+                            Classes="clear-button"
+                            Command="{Binding ClearAllCommand}"
+                            Content="Clear All"
+                            HorizontalAlignment="Left"
+                            Margin="0,8,0,0" />
                 </Grid>
             </Border>
 
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto"
+                         IsVisible="{Binding HasNotifications}">
                 <ItemsControl ItemsSource="{Binding NotificationHistory}" Margin="12,8">
                     <ItemsControl.ItemsPanel>
-                       <ItemsPanelTemplate>
-                           <StackPanel Spacing="8" />
-                       </ItemsPanelTemplate>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:NotificationFeedItemViewModel">
@@ -192,12 +270,12 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- Empty State -->
+            <!-- Empty State: give feed a good size when no notifications -->
             <Border IsVisible="{Binding !HasNotifications}"
-                   Classes="empty-state"
-                   Grid.Row="1"
-                   Grid.RowSpan="2"
-                   MinHeight="150">
+                    Classes="empty-state"
+                    Grid.Row="1"
+                    Grid.RowSpan="2"
+                    MinHeight="220">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
                     <PathIcon Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"
                               Foreground="#30A855F7" Width="32" Height="32" />

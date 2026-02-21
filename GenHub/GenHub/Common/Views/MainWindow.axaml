@@ -38,56 +38,64 @@
                     <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
                            Width="24" Height="24" />
                     <TextBlock Text="GenHub"
-                              VerticalAlignment="Center"
-                              FontSize="14" FontWeight="SemiBold"
-                              Foreground="White" />
+                               VerticalAlignment="Center"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="White" />
                 </StackPanel>
 
-                <!-- Spacer -->
-                <Panel Grid.Column="1" />
-
-                <!-- Notification Bell Icon -->
-                <Button Grid.Column="2"
-                        Command="{Binding NotificationFeed.ToggleFeedCommand}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Padding="8"
-                        Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        Cursor="Hand"
-                        ToolTip.Tip="Notifications">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#2A2A2A" />
-                        </Style>
-                    </Button.Styles>
-                    <Grid>
-                        <!-- Bell Icon -->
-                        <Path Fill="#A855F7"
-                              Width="18"
-                              Height="18"
-                              Stretch="Uniform"
-                              Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z" />
-
-                        <!-- Unread Badge -->
-                        <Border Background="#EF4444"
-                                CornerRadius="10"
-                                MinWidth="16"
-                                Height="16"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Top"
-                                Margin="-4,-4,-4,0"
-                                IsVisible="{Binding NotificationFeed.HasUnreadNotifications}">
-                            <TextBlock Text="{Binding NotificationFeed.BadgeCount}"
-                                       Foreground="White"
-                                       FontSize="10"
-                                       FontWeight="Bold"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Padding="4,0" />
-                        </Border>
-                    </Grid>
-                </Button>
+                <!-- Notification Bell + Mute Toggle -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <Button Command="{Binding NotificationFeed.ToggleFeedCommand}"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            VerticalAlignment="Center"
+                            Cursor="Hand"
+                            ToolTip.Tip="Notifications">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#2A2A2A" />
+                            </Style>
+                        </Button.Styles>
+                        <Grid Width="26" Height="26">
+                            <!-- Bell Icon -->
+                            <Path Fill="#A855F7"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z" />
+                            <!-- Muted: diagonal strike over bell (clearly visible) -->
+                            <Path Data="M0,0 L18,18"
+                                  Width="18"
+                                  Height="18"
+                                  Stretch="None"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="White"
+                                  StrokeThickness="3"
+                                  IsVisible="{Binding NotificationFeed.ShowMuteStrike}" />
+                            <!-- Red circle notification counter; hides when user opens feed (bell clicked). Min size + Padding allow "99+" to fit. -->
+                            <Border Background="#EF4444"
+                                    CornerRadius="10"
+                                    MinWidth="18"
+                                    MinHeight="18"
+                                    Padding="4,2"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Margin="-4,-4,-4,0"
+                                    IsVisible="{Binding NotificationFeed.HasUnreadNotifications}">
+                                <TextBlock Text="{Binding NotificationFeed.NotificationCountDisplay}"
+                                           Foreground="White"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Button>
+                </StackPanel>
 
                 <!-- Minimize Button -->
                 <Button Grid.Column="3"
@@ -105,8 +113,7 @@
                           Width="12" Height="12"
                           Stretch="Uniform"
                           VerticalAlignment="Center"
-                          HorizontalAlignment="Center"
-                          Margin="0,8,0,0" />
+                          HorizontalAlignment="Center" />
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
                             <Setter Property="Background" Value="#2A2A2A"/>
@@ -176,7 +183,7 @@
             </Grid>
         </Grid>
 
-        <!-- Notification Feed Overlay -->
+        <!-- Notification Feed Overlay: top margin 45 = TitleBarArea height (40, see Style above) + 5px gap. Update this if TitleBarArea Height changes. -->
         <notifications:NotificationFeedView DataContext="{Binding NotificationFeed}"
                                             ZIndex="2000"
                                             VerticalAlignment="Top"
@@ -184,9 +191,9 @@
                                             Margin="0,45,20,0" />
 
         <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
-                                                ZIndex="3000"
-                                                VerticalAlignment="Top"
-                                                HorizontalAlignment="Right"
-                                                Margin="0,10,10,0" />
+                                                 ZIndex="3000"
+                                                 VerticalAlignment="Top"
+                                                 HorizontalAlignment="Right"
+                                                 Margin="0,10,10,0" />
     </Grid>
 </Window>
