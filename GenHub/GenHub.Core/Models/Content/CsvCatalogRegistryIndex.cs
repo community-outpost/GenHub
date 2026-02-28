@@ -20,7 +20,7 @@ public class CsvCatalogRegistryIndex
     /// Gets or sets when the index was last updated.
     /// </summary>
     [JsonPropertyName("lastUpdated")]
-    public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastUpdatedAt { get; set; }
 
     /// <summary>
     /// Gets or sets the list of available catalog entries.
