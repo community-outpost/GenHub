@@ -24,6 +24,11 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class CSVDiscoverer : IContentDiscoverer, IDisposable
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
     private readonly ILogger<CSVDiscoverer> _logger;
     private readonly CsvCatalogConfiguration _config;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
@@ -173,10 +178,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             try
             {
                 var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
-                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                });
+                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
 
                 if (index?.Entries != null && index.Entries.Count > 0)
                 {
