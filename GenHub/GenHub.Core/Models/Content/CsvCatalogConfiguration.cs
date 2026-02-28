@@ -2,7 +2,8 @@ namespace GenHub.Core.Models.Content;
 
 /// <summary>
 /// Configuration for CSV Catalog discovery.
-/// Binds to "CsvValidationCatalogs" and "CsvCatalogIndexPath" in configuration.
+/// Binds to "CsvValidationCatalogs" and "GenHub:IndexFilePath" in configuration.
+/// Refers to the <see cref="IndexFilePath"/> property.
 /// </summary>
 public class CsvCatalogConfiguration
 {
