@@ -23,7 +23,7 @@ public static class CsvConstants
     /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
-    public const string ResolverId = "CsvCatalogResolver";
+    public const string ResolverId = "CSVResolver";
 
     /// <summary>
     /// Metadata key for the CSV source URL.
