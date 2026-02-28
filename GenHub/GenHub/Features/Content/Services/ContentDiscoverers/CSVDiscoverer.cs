@@ -170,27 +170,24 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
             // Try loading from index.json
             var indexPath = _config.IndexFilePath;
-            if (File.Exists(indexPath))
+            try
             {
-                try
+                var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
+                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, new JsonSerializerOptions
                 {
-                    var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
-                    var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true,
-                    });
+                    PropertyNameCaseInsensitive = true,
+                });
 
-                    if (index?.Entries != null && index.Entries.Count > 0)
-                    {
-                        loadedEntries = index.Entries;
-                        loadedFromIndex = true;
-                        _logger.LogInformation("Loaded {Count} CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
-                    }
-                }
-                catch (Exception ex)
+                if (index?.Entries != null && index.Entries.Count > 0)
                 {
-                    _logger.LogWarning(ex, "Failed to load index.json from {Path}. Falling back to configuration.", indexPath);
+                    loadedEntries = index.Entries;
+                    loadedFromIndex = true;
+                    _logger.LogInformation("Loaded {Count} CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load index.json from {Path}. Falling back to configuration.", indexPath);
             }
 
             // Fallback to configuration if index load failed or returned no entries
