@@ -122,12 +122,19 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the resources used by the <see cref="CSVDiscoverer"/> instance.
+    /// </summary>
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Performs the actual disposal of resources.
+    /// </summary>
+    /// <param name="disposing">Indicates whether the method is being called from the Dispose method (true) or from a finalizer (false).</param>
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)
@@ -144,9 +151,10 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
     private async Task<List<CsvCatalogRegistryEntry>> LoadCatalogEntriesAsync(CancellationToken cancellationToken)
     {
         // Return cached entries if available
-        if (_cachedEntries != null)
+        var cached = Volatile.Read(ref _cachedEntries);
+        if (cached != null)
         {
-            return _cachedEntries;
+            return cached;
         }
 
         await _cacheLock.WaitAsync(cancellationToken);
