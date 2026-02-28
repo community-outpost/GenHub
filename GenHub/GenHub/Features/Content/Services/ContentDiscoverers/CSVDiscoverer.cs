@@ -22,12 +22,13 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// Discovers base game manifests from CSV catalogs.
 /// Supports multi-language discovery for Generals and Zero Hour.
 /// </summary>
-public class CSVDiscoverer : IContentDiscoverer
+public class CSVDiscoverer : IContentDiscoverer, IDisposable
 {
     private readonly ILogger<CSVDiscoverer> _logger;
     private readonly CsvCatalogConfiguration _config;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private List<CsvCatalogRegistryEntry>? _cachedEntries;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CSVDiscoverer"/> class.
@@ -121,6 +122,25 @@ public class CSVDiscoverer : IContentDiscoverer
         }
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _cacheLock.Dispose();
+            }
+
+            _disposed = true;
+        }
+    }
+
     private async Task<List<CsvCatalogRegistryEntry>> LoadCatalogEntriesAsync(CancellationToken cancellationToken)
     {
         // Return cached entries if available
@@ -176,7 +196,7 @@ public class CSVDiscoverer : IContentDiscoverer
                         GameType = c.GameType,
                         Version = c.Version,
                         SupportedLanguages = c.SupportedLanguages,
-                        FileCount = c.FileCount, // Preserve null if FileCount is unknown
+                        FileCount = c.FileCount,
                     }).ToList();
 
                     _logger.LogInformation("Loaded {Count} CSV catalog entries from configuration fallback", loadedEntries.Count);
@@ -204,18 +224,12 @@ public class CSVDiscoverer : IContentDiscoverer
             return null;
         }
 
-        // Generate ID: generals-en, zerohour-all, etc.
-        // Format: schema.userVersion.publisher.contentType.contentName
-        // We use ManifestIdGenerator.GeneratePublisherContentId to control the exact structure
-
-        // Construct contentName to include version and language, e.g., "generals-1.08-en"
         var contentName = $"{entry.GameType}-{entry.Version}-{language}";
 
-        // We act as the publisher theSuperHackers
         var id = ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.TheSuperHackers,
             ContentType.GameInstallation,
-            contentName); // Version 0 for the manifest ID
+            contentName);
 
         var result = new ContentSearchResult
         {
@@ -228,11 +242,10 @@ public class CSVDiscoverer : IContentDiscoverer
             ProviderName = SourceName,
             RequiresResolution = true,
             ResolverId = CsvConstants.ResolverId,
-            SourceUrl = entry.Url, // The CSV URL is the source
-            DownloadSize = 0, // We don't know the size yet until resolved
+            SourceUrl = entry.Url,
+            DownloadSize = 0,
         };
 
-        // Add metadata for the resolver
         result.ResolverMetadata[CsvConstants.CsvUrlMetadataKey] = entry.Url;
         result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = entry.GameType;
         result.ResolverMetadata[CsvConstants.VersionMetadataKey] = entry.Version;
