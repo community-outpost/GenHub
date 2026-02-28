@@ -56,7 +56,7 @@ public class CSVDiscovererTests
                     Url = "https://example.com/generals.csv",
                     GameType = "Generals",
                     Version = "1.08",
-                    SupportedLanguages = new List<string> { "en" },
+                    SupportedLanguages = new List<string> { "EN" },
                     FileCount = 100,
                 },
             },
@@ -128,7 +128,7 @@ public class CSVDiscovererTests
                     Url = "https://example.com/de.csv",
                     GameType = "Generals",
                     Version = "1.0",
-                    SupportedLanguages = new List<string> { "de" },
+                    SupportedLanguages = new List<string> { "DE" },
                 },
             },
         };
@@ -144,7 +144,7 @@ public class CSVDiscovererTests
 
         // Assert
         result.Data!.Items.Should().NotBeEmpty();
-        result.Data.Items.First().ResolverMetadata["language"].Should().Be("de");
+        result.Data.Items.First().ResolverMetadata["language"].Should().Be("DE");
     }
 
     /// <summary>
@@ -199,7 +199,7 @@ public class CSVDiscovererTests
                     Url = "https://example.com/multi.csv",
                     GameType = "Generals",
                     Version = "1.0",
-                    SupportedLanguages = new List<string> { "en", "de", "fr" },
+                    SupportedLanguages = new List<string> { "EN", "DE", "FR" },
                 },
             },
         };
@@ -214,9 +214,9 @@ public class CSVDiscovererTests
 
         // Assert
         result.Data!.Items.Should().HaveCount(3);
-        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "en");
-        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "de");
-        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "fr");
+result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "EN");
+        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "DE");
+        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "FR");
     }
 
     /// <summary>
@@ -287,7 +287,7 @@ public class CSVDiscovererTests
                         Url = "https://index.com/file.csv",
                         GameType = "Generals",
                         Version = "1.0",
-                        SupportedLanguages = new List<string> { "en" },
+                        SupportedLanguages = new List<string> { "EN" },
                     },
                 },
             };
