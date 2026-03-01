@@ -1,6 +1,7 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -23,6 +24,20 @@ public partial class ContentItemViewModel : ObservableObject
 
         // Subscribe to AvailableVariants changes to notify HasVariants
         AvailableVariants.CollectionChanged += (s, e) => OnPropertyChanged(nameof(HasVariants));
+
+        // Subscribe to ResolutionVariants changes to notify resolution properties
+        ResolutionVariants.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(HasResolutionVariants));
+            OnPropertyChanged(nameof(RequiresVariantSelection));
+        };
+
+        // Subscribe to RequiredDependencyNames changes to notify dependency properties
+        RequiredDependencyNames.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(HasRequiredDependencies));
+            OnPropertyChanged(nameof(DependencyWarningText));
+        };
     }
 
     /// <summary>
@@ -53,7 +68,7 @@ public partial class ContentItemViewModel : ObservableObject
     /// <summary>
     /// Gets the version of the content.
     /// </summary>
-    public string Version => Model.Version ?? string.Empty;
+    public string Version => GameVersionHelper.IsDefaultVersion(Model.Version) ? string.Empty : (Model.Version ?? string.Empty);
 
     /// <summary>
     /// Gets the URL for the content's icon.
@@ -142,4 +157,56 @@ public partial class ContentItemViewModel : ObservableObject
     /// Gets a value indicating whether this content has multiple variants to choose from.
     /// </summary>
     public bool HasVariants => AvailableVariants.Count > 0;
+
+    /// <summary>
+    /// Gets the collection of resolution/quality variants for this content.
+    /// </summary>
+    public ObservableCollection<ContentVariant> ResolutionVariants { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether this content has resolution variants to choose from.
+    /// </summary>
+    public bool HasResolutionVariants => ResolutionVariants.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the user must select a variant before downloading.
+    /// </summary>
+    public bool RequiresVariantSelection => HasResolutionVariants;
+
+    /// <summary>
+    /// Gets or sets the selected variant ID.
+    /// </summary>
+    [ObservableProperty]
+    private string? _selectedVariantId;
+
+    /// <summary>
+    /// Gets the list of dependency names required for this content.
+    /// </summary>
+    public ObservableCollection<string> RequiredDependencyNames { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether this content has required dependencies.
+    /// </summary>
+    public bool HasRequiredDependencies => RequiredDependencyNames.Count > 0;
+
+    /// <summary>
+    /// Gets the warning text to display for required dependencies.
+    /// </summary>
+    public string DependencyWarningText
+    {
+        get
+        {
+            if (RequiredDependencyNames.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            if (RequiredDependencyNames.Count == 1)
+            {
+                return $"⚠️ Requires: {RequiredDependencyNames[0]}";
+            }
+
+            return $"⚠️ Requires: {string.Join(", ", RequiredDependencyNames)}";
+        }
+    }
 }

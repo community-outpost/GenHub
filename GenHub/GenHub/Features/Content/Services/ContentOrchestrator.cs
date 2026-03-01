@@ -6,10 +6,13 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -32,7 +35,39 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IDynamicContentCache _cache;
     private readonly IContentValidator _contentValidator;
     private readonly IContentManifestPool _manifestPool;
+    private readonly IGameInstallationService _installationService;
+    private readonly IUserSettingsService _userSettingsService;
     private readonly object _providerLock = new();
+
+    /// <summary>
+    /// Gets the installation path for a game installation.
+    /// </summary>
+    private static string? GetInstallationPath(GenHub.Core.Models.GameInstallations.GameInstallation? installation)
+    {
+        if (installation == null)
+        {
+            return null;
+        }
+
+        // For Zero Hour installations, use the installation path directly
+        // For Generals-only installations, use the Generals path
+        if (!string.IsNullOrEmpty(installation.InstallationPath))
+        {
+            return installation.InstallationPath;
+        }
+
+        if (!string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            return installation.ZeroHourPath;
+        }
+
+        if (!string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            return installation.GeneralsPath;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentOrchestrator"/> class.
@@ -44,6 +79,8 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="cache">The dynamic content cache service for performance optimization.</param>
     /// <param name="contentValidator">The content validator service for manifest and content integrity.</param>
     /// <param name="manifestPool">The manifest pool for acquired content.</param>
+    /// <param name="installationService">The game installation service for detecting installations.</param>
+    /// <param name="userSettingsService">The user settings service for updating CAS configuration.</param>
     public ContentOrchestrator(
         ILogger<ContentOrchestrator> logger,
         IEnumerable<IContentProvider> providers,
@@ -51,7 +88,9 @@ public class ContentOrchestrator : IContentOrchestrator
         IEnumerable<IContentResolver> resolvers,
         IDynamicContentCache cache,
         IContentValidator contentValidator,
-        IContentManifestPool manifestPool)
+        IContentManifestPool manifestPool,
+        IGameInstallationService installationService,
+        IUserSettingsService userSettingsService)
     {
         _logger = logger;
         _providers = [.. providers];
@@ -68,6 +107,8 @@ public class ContentOrchestrator : IContentOrchestrator
         _cache = cache;
         _contentValidator = contentValidator;
         _manifestPool = manifestPool;
+        _installationService = installationService;
+        _userSettingsService = userSettingsService;
 
         _logger.LogInformation("ContentOrchestrator initialized with {ProviderCount} providers, {DiscovererCount} discoverers, {ResolverCount} resolvers", _providers.Count, _discoverers.Count, _resolvers.Count);
     }
@@ -472,6 +513,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
 
                 // Step 5: Full validation (manifest + files)
+                // Always validate to ensure content integrity, even if nominally in CAS
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.ValidatingFiles,
@@ -529,6 +571,19 @@ public class ContentOrchestrator : IContentOrchestrator
                 {
                     // Manifest not yet stored, store it now
                     _logger.LogDebug("Manifest {ManifestId} not yet stored, storing now from staging directory", prepareResult.Data.Id);
+
+                    // For GameClient content, ensure InstallationPoolRootPath is set before storing
+                    // This prevents content from being stored in the wrong CAS pool (e.g., C: drive instead of game-adjacent pool)
+                    if (prepareResult.Data.ContentType == ContentType.GameClient)
+                    {
+                        var success = await EnsureInstallationPoolPathAsync(cancellationToken);
+                        if (!success)
+                        {
+                            return OperationResult<ContentManifest>.CreateFailure(
+                                "Could not ensure InstallationPoolRootPath for GameClient content. A valid game installation is required.");
+                        }
+                    }
+
                     await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken: cancellationToken);
                 }
                 else
@@ -626,5 +681,90 @@ public class ContentOrchestrator : IContentOrchestrator
             ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
             _ => results, // Relevance - keep original order
         };
+    }
+
+    /// <summary>
+    /// Ensures the InstallationPoolRootPath is set before storing GameClient content.
+    /// This prevents content from being stored in the wrong CAS pool.
+    /// </summary>
+    /// <returns>True if the path was successfully ensured or auto-set.</returns>
+    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Force installation detection and reset the path
+            // Even if a path is set, it might be stale (from before user deleted data)
+            // or point to the wrong installation
+            _logger.LogInformation("Forcing installation detection to ensure correct InstallationPoolRootPath");
+            _installationService.InvalidateCache();
+
+            // Get all installations (this will trigger detection if cache is empty)
+            var installationsResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
+            if (!installationsResult.Success || installationsResult.Data == null)
+            {
+                _logger.LogWarning("Failed to get installations for CAS pool path resolution: {Error}", installationsResult.FirstError);
+                return false;
+            }
+
+            var installations = installationsResult.Data.ToList();
+
+            if (installations.Count == 0)
+            {
+                _logger.LogWarning("No installations detected - cannot set InstallationPoolRootPath");
+                return false;
+            }
+
+            // If only one installation, use it
+            if (installations.Count == 1)
+            {
+                var installation = installations[0];
+                var installationPath = GetInstallationPath(installation);
+                if (!string.IsNullOrEmpty(installationPath))
+                {
+                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
+                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to single installation: {Path}", casPoolPath);
+
+                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
+                    {
+                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
+                        s.PreferredStorageInstallationId = installation.Id;
+                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
+                        return true;
+                    });
+                }
+            }
+
+            // If multiple installations, prefer Steam over EA App
+            // Note: Since we verified installations.Count >= 1, this will never be null
+            var preferredInstallation = installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
+                ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
+                ?? installations.First();
+
+            if (preferredInstallation != null)
+            {
+                var installationPath = GetInstallationPath(preferredInstallation);
+                if (!string.IsNullOrEmpty(installationPath))
+                {
+                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
+                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}", preferredInstallation.InstallationType, casPoolPath);
+
+                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
+                    {
+                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
+                        s.PreferredStorageInstallationId = preferredInstallation.Id;
+                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
+                        return true;
+                    });
+                }
+            }
+
+            // Should not be reachable given the checks above
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure InstallationPoolRootPath is set");
+            return false;
+        }
     }
 }

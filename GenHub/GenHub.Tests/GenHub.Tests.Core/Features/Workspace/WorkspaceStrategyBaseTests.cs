@@ -285,7 +285,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
         public long TestCalculateActualTotalSize(WorkspaceConfiguration configuration) => CalculateActualTotalSize(configuration);
 
         /// <inheritdoc/>
-        protected override Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+        protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken)
         {
             // For testing, just simulate a completed task.
             return Task.CompletedTask;

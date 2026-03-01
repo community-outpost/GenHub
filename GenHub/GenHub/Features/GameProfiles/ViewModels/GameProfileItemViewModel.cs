@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -42,14 +43,14 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public Func<GameProfileItemViewModel, Task>? StopProfileAction { get; set; }
 
     /// <summary>
-    /// Gets or sets the action to toggle Steam launch mode.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
-
-    /// <summary>
     /// Gets or sets the action to copy the profile.
     /// </summary>
     public Func<GameProfileItemViewModel, Task>? CopyProfileAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to toggle Steam launch mode.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
 
     /// <summary>
     /// Launches the profile using the injected action.
@@ -72,6 +73,18 @@ public partial class GameProfileItemViewModel : ViewModelBase
         if (EditProfileAction != null)
         {
             await EditProfileAction(this);
+        }
+    }
+
+    /// <summary>
+    /// Copies the profile using the injected action.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyProfile()
+    {
+        if (CopyProfileAction != null)
+        {
+            await CopyProfileAction(this);
         }
     }
 
@@ -124,18 +137,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Copies the profile using the injected action.
-    /// </summary>
-    [RelayCommand]
-    private async Task CopyProfile()
-    {
-        if (CopyProfileAction != null)
-        {
-            await CopyProfileAction(this);
-        }
-    }
-
-    /// <summary>
     /// Toggles the edit mode for this specific profile.
     /// </summary>
     [RelayCommand]
@@ -183,8 +184,20 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <summary>
     /// Gets or sets the game version (e.g., "1.08", "1.04").
     /// </summary>
-    [ObservableProperty]
     private string? _gameVersion;
+
+    /// <summary>
+    /// Gets or sets the game version (e.g., "1.08", "1.04").
+    /// </summary>
+    public string? GameVersion
+    {
+        get => _gameVersion;
+        set
+        {
+            var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+            SetProperty(ref _gameVersion, displayVersion);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the publisher/platform name (e.g., "Steam", "EA App").

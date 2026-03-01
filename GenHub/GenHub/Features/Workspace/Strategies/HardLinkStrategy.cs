@@ -150,7 +150,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         // Use CAS content
-                        await CreateCasLinkAsync(file.Hash, destinationPath, cancellationToken);
+                        await CreateCasLinkAsync(file.Hash, destinationPath, manifest.ContentType, cancellationToken);
                         if (sameVolume)
                         {
                             hardLinkedFiles++;
@@ -299,15 +299,16 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     /// </summary>
     /// <param name="hash">The content-addressable storage (CAS) hash of the file to link or copy.</param>
     /// <param name="targetPath">The destination path where the hard link or copy should be created.</param>
+    /// <param name="contentType">The content type for pool-specific CAS lookup.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
-        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, cancellationToken);
+        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
-            success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+            success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
             if (!success)
             {
                 throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");

@@ -291,13 +291,28 @@ public class CommunityOutpostResolver(
             return "0";
         }
 
-        // Handle date versions like "2025-11-07"
+        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
         if (version.Length == 10 && version[4] == '-' && version[7] == '-')
         {
             var dateDigits = version.Replace("-", string.Empty);
             if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
             {
                 return dateValue.ToString();
+            }
+        }
+
+        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
+        if (version.Length == 10 && version[2] == '-' && version[5] == '-')
+        {
+            // Reorder to YYYYMMDD
+            var parts = version.Split('-');
+            if (parts.Length == 3)
+            {
+                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
+                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+                {
+                    return dateValue.ToString();
+                }
             }
         }
 

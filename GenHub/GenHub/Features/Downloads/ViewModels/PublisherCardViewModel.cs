@@ -52,8 +52,20 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     [ObservableProperty]
     private ObservableCollection<GameProfile> _availableProfiles = [];
 
-    [ObservableProperty]
     private string _latestVersion = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the latest version string.
+    /// </summary>
+    public string LatestVersion
+    {
+        get => _latestVersion;
+        set
+        {
+            var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+            SetProperty(ref _latestVersion, displayVersion);
+        }
+    }
 
     [ObservableProperty]
     private string _releaseNotes = string.Empty;
@@ -372,17 +384,98 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         {
                             item.Model.Id = variant.Id.Value;
                         }
+
+                        // Populate resolution variants from the manifest metadata
+                        if (variant.Metadata?.Variants != null && variant.Metadata.Variants.Count > 0)
+                        {
+                            if (!item.ResolutionVariants.SequenceEqual(variant.Metadata.Variants))
+                            {
+                                item.ResolutionVariants.Clear();
+                                foreach (var resVariant in variant.Metadata.Variants)
+                                {
+                                    item.ResolutionVariants.Add(resVariant);
+                                }
+                            }
+
+                            // Set default variant if not already selected (even if list already matched)
+                            if (string.IsNullOrEmpty(item.SelectedVariantId))
+                            {
+                                var defaultVariant = variant.Metadata.Variants.FirstOrDefault(v => v.IsDefault);
+                                item.SelectedVariantId = defaultVariant?.Id ?? variant.Metadata.Variants.FirstOrDefault()?.Id;
+                            }
+                        }
+                        else
+                        {
+                            item.ResolutionVariants.Clear();
+                            item.SelectedVariantId = null;
+                        }
                     }
 
                     // If we have multiple variants, we don't change the Model.Id arbitrarily
                     // The UI will force the user to choose one from AvailableVariants
+
+                    // Populate dependency information for the item
+                    if (variants.Count > 0)
+                    {
+                        // Get dependencies from the first variant (all variants should have same dependencies)
+                        var manifest = variants[0];
+
+                        // Filter out auto-bundled dependencies and installation/client dependencies
+                        // Only show manual dependencies (e.g., GenTool) that users must explicitly download
+                        var requiredDependencies = manifest.Dependencies?
+                            .Where(d => !d.IsOptional)
+                            .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                                       d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                            .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                            .Select(d => d.Name ?? string.Empty)
+                            .Where(n => !string.IsNullOrEmpty(n))
+                            .ToList() ?? [];
+
+                        // Update dependency names only if they've changed (notifications fire automatically via NotifyPropertyChangedFor)
+                        if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
+                        {
+                            item.RequiredDependencyNames.Clear();
+                            foreach (var dep in requiredDependencies)
+                            {
+                                item.RequiredDependencyNames.Add(dep);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Try to get dependencies from manifest data if available
+                        if (item.Model.Data is Core.Models.Manifest.ContentManifest dataManifest)
+                        {
+                            // Filter out auto-bundled dependencies and installation/client dependencies
+                            // Only show manual dependencies (e.g., GenTool) that users must explicitly download
+                            var requiredDependencies = dataManifest.Dependencies?
+                                .Where(d => !d.IsOptional)
+                                .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                                           d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                                .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                                .Select(d => d.Name ?? string.Empty)
+                                .Where(n => !string.IsNullOrEmpty(n))
+                                .ToList() ?? [];
+
+                            if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
+                            {
+                                item.RequiredDependencyNames.Clear();
+                                foreach (var dep in requiredDependencies)
+                                {
+                                    item.RequiredDependencyNames.Add(dep);
+                                }
+                            }
+                        }
+                    }
+
                     _logger.LogDebug(
-                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}",
+                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}, Dependencies: {DependencyCount}",
                         item.Name,
                         item.Version,
                         item.Model.ContentType,
                         item.IsDownloaded,
-                        item.AvailableVariants.Count);
+                        item.AvailableVariants.Count,
+                        item.RequiredDependencyNames.Count);
                 }
             }
         }
@@ -854,6 +947,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         result.SwappedContentName,
                         contentName,
                         profile.Name);
+
+                    _notificationService.ShowWarning(
+                        "Content Replaced",
+                        $"Replaced '{result.SwappedContentName ?? "conflicting content"}' with '{contentName}' in '{profile.Name}'. Only one of this type can be enabled at a time.");
                 }
                 else
                 {

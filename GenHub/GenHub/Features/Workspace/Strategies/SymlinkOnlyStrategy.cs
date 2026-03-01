@@ -173,13 +173,13 @@ public sealed class SymlinkOnlyStrategy(
     }
 
     /// <inheritdoc/>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
         Logger.LogDebug("Creating CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
         FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         // Use the service method to create the link from CAS
-        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, cancellationToken);
+        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             throw new InvalidOperationException($"Failed to create symlink from CAS hash {hash} to {targetPath}");

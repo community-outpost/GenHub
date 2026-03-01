@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Core" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="AngleSharp" />
         <PackageReference Include="Avalonia" />
         <PackageReference Include="Avalonia.Desktop" />
@@ -45,6 +49,11 @@
         <PackageReference Include="Serilog.Extensions.Logging" />
         <PackageReference Include="SharpCompress" />
         <PackageReference Include="Slugify.Core" />
+        <PackageReference Include="SixLabors.ImageSharp" />
+        <PackageReference Include="HeyRed.ImageSharp.Heif" />
+        <!-- Note: LibHeif.Native currently only provides native assets for win-x64 and linux-x64.
+             Other platforms (win-arm64, linux-arm64, osx) are not yet supported for AVIF conversion. -->
+        <PackageReference Include="LibHeif.Native" />
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="Velopack" />
     </ItemGroup>

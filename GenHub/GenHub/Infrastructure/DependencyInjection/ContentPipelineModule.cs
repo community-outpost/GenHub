@@ -202,12 +202,15 @@ public static class ContentPipelineModule
         // Register Community Outpost resolver
         services.AddTransient<IContentResolver, CommunityOutpostResolver>();
 
+        // Register compressed image converter (AVIF/WebP to TGA) for GenPatcher content
+        services.AddSingleton<CompressedImageToTgaConverter>();
+
         // Register Community Outpost deliverer
         services.AddTransient<IContentDeliverer, CommunityOutpostDeliverer>();
 
         // Register Community Outpost manifest factory
         services.AddTransient<CommunityOutpostManifestFactory>();
-        services.AddTransient<IPublisherManifestFactory, CommunityOutpostManifestFactory>();
+        services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<CommunityOutpostManifestFactory>());
 
         // Register Community Outpost update service
         services.AddSingleton<CommunityOutpostUpdateService>();

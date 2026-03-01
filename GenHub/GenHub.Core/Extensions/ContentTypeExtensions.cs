@@ -74,7 +74,6 @@ public static class ContentTypeExtensions
         {
             ContentType.ModdingTool => true,
             ContentType.Executable => true,
-            ContentType.Addon => true,
             _ => false,
         };
     }

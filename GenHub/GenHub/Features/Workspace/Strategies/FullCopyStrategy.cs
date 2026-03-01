@@ -156,11 +156,10 @@ public sealed class FullCopyStrategy(
 
                         try
                         {
-                            // Handle different source types
                             if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
                             {
                                 // Use CAS content
-                                await CreateCasLinkAsync(item.File.Hash, destinationPath, ct);
+                                await CreateCasLinkAsync(item.File.Hash, destinationPath, item.Manifest.ContentType, ct);
                             }
                             else
                             {
@@ -237,12 +236,13 @@ public sealed class FullCopyStrategy(
     /// </summary>
     /// <param name="hash">The hash of the file in CAS.</param>
     /// <param name="targetPath">The destination path for the copied file.</param>
+    /// <param name="contentType">The content type for pool-specific CAS lookup.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous copy operation.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the copy operation fails.</exception>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
-        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             Logger.LogError("Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, targetPath);

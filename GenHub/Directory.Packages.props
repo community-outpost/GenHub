@@ -48,5 +48,10 @@
     <PackageVersion Include="moq" Version="4.20.72" />
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <PackageVersion Include="SharpCompress" Version="0.42.0" />
+    <PackageVersion Include="System.Management" Version="10.0.2" />
+    <!-- Image processing for AVIF to TGA conversion (GenPatcher content) -->
+    <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageVersion Include="HeyRed.ImageSharp.Heif" Version="2.1.3" />
+    <PackageVersion Include="LibHeif.Native" Version="1.15.1" />
   </ItemGroup>
 </Project>

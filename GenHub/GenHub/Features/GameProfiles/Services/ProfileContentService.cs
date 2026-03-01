@@ -1,19 +1,22 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Results;
+using GenHub.Infrastructure.Exceptions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Extensions;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Notifications;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.Results;
-using GenHub.Infrastructure.Exceptions;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.Services;
 
@@ -26,6 +29,7 @@ public sealed class ProfileContentService(
     IContentManifestPool manifestPool,
     IDependencyResolver dependencyResolver,
     IGameInstallationService installationService,
+    IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
     ILogger<ProfileContentService> logger) : IProfileContentService
 {
@@ -109,6 +113,7 @@ public sealed class ProfileContentService(
             }
 
             // Resolve dependencies
+            var previousIds = new HashSet<string>(enabledContentIds, StringComparer.OrdinalIgnoreCase);
             try
             {
                 var resolvedIds = await dependencyResolver.ResolveDependenciesAsync(enabledContentIds, cancellationToken);
@@ -118,6 +123,56 @@ public sealed class ProfileContentService(
                 if (!enabledContentIds.Contains(manifestId, StringComparer.OrdinalIgnoreCase))
                 {
                     enabledContentIds.Add(manifestId);
+                }
+
+                // Notify user if dependencies were auto-installed
+                var newlyAdded = enabledContentIds
+                    .Where(id => !previousIds.Contains(id))
+                    .ToList();
+
+                if (newlyAdded.Count > 0)
+                {
+                    var dependencyNames = new List<string>();
+                    foreach (var id in newlyAdded)
+                    {
+                        try
+                        {
+                            // Auto-acquire missing dependencies when possible
+                            if (!await TryAcquireDependencyAsync(id, cancellationToken))
+                            {
+                                logger.LogWarning("Dependency {DependencyId} could not be auto-acquired", id);
+                            }
+
+                            var depManifest = await manifestPool.GetManifestAsync(
+                                Core.Models.Manifest.ManifestId.Create(id),
+                                cancellationToken);
+
+                            if (depManifest.Success && depManifest.Data != null)
+                            {
+                                dependencyNames.Add(depManifest.Data.Name ?? "Required dependency");
+                            }
+                            else if (TryParseCommunityOutpostContentCode(id, out var contentCode))
+                            {
+                                var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+                                dependencyNames.Add(!string.IsNullOrEmpty(metadata.DisplayName)
+                                    ? metadata.DisplayName
+                                    : "Required dependency");
+                            }
+                            else
+                            {
+                                dependencyNames.Add("Required dependency");
+                            }
+                        }
+                        catch
+                        {
+                            dependencyNames.Add("Required dependency");
+                        }
+                    }
+
+                    logger.LogInformation("Auto-installed {Count} dependencies for {ManifestId}", newlyAdded.Count, manifestId);
+                    notificationService.ShowInfo(
+                        "Dependencies Added",
+                        $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
                 }
             }
             catch (Exception ex)
@@ -171,12 +226,12 @@ public sealed class ProfileContentService(
         catch (ManifestNotFoundException ex)
         {
             logger.LogWarning("Content {ManifestId} not found: {Message}", manifestId, ex.Message);
-            return AddToProfileResult.CreateFailure($"Content not found: {ex.Message}", sw.Elapsed);
+            return AddToProfileResult.CreateFailure("Content not found. Please download it again and retry.", sw.Elapsed);
         }
         catch (ManifestValidationException ex)
         {
             logger.LogWarning("Content {ManifestId} validation failed: {Message}", manifestId, ex.Message);
-            return AddToProfileResult.CreateFailure($"Validation failed: {ex.Message}", sw.Elapsed);
+            return AddToProfileResult.CreateFailure("Content validation failed. Please re-download and retry.", sw.Elapsed);
         }
         catch (OperationCanceledException)
         {
@@ -186,7 +241,7 @@ public sealed class ProfileContentService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to add content {ManifestId} to profile {ProfileId}", manifestId, profileId);
-            return AddToProfileResult.CreateFailure($"Failed to add content: {ex.Message}", sw.Elapsed);
+            return AddToProfileResult.CreateFailure("Failed to add content. Please try again.", sw.Elapsed);
         }
     }
 
@@ -222,44 +277,90 @@ public sealed class ProfileContentService(
             var newManifest = manifestResult.Data;
 
             // Check if this is an exclusive content type
-            if (!ExclusiveContentTypes.Contains(newManifest.ContentType))
+            if (ExclusiveContentTypes.Contains(newManifest.ContentType))
             {
-                return ContentConflictInfo.NoConflict();
-            }
-
-            // Check for existing content of the same exclusive type
-            foreach (var existingId in profile.EnabledContentIds ?? [])
-            {
-                try
+                // Check for existing content of the same exclusive type
+                foreach (var existingId in profile.EnabledContentIds ?? [])
                 {
-                    var existingResult = await manifestPool.GetManifestAsync(
-                        Core.Models.Manifest.ManifestId.Create(existingId),
-                        cancellationToken);
-
-                    if (existingResult.Success && existingResult.Data != null)
+                    try
                     {
-                        var existingManifest = existingResult.Data;
+                        var existingResult = await manifestPool.GetManifestAsync(
+                            Core.Models.Manifest.ManifestId.Create(existingId),
+                            cancellationToken);
 
-                        if (existingManifest.ContentType == newManifest.ContentType)
+                        if (existingResult.Success && existingResult.Data != null)
                         {
-                            // Same exclusive type - conflict
-                            if (newManifest.ContentType == ContentType.GameClient)
-                            {
-                                return ContentConflictInfo.GameClientConflict(
-                                    existingId,
-                                    existingManifest.Name);
-                            }
+                            var existingManifest = existingResult.Data;
 
-                            return ContentConflictInfo.ExclusiveContentConflict(
-                                existingId,
-                                existingManifest.Name,
-                                existingManifest.ContentType);
+                            if (existingManifest.ContentType == newManifest.ContentType)
+                            {
+                                // Same exclusive type - conflict
+                                if (newManifest.ContentType == ContentType.GameClient)
+                                {
+                                    return ContentConflictInfo.GameClientConflict(
+                                        existingId,
+                                        existingManifest.Name);
+                                }
+
+                                return ContentConflictInfo.ExclusiveContentConflict(
+                                    existingId,
+                                    existingManifest.Name,
+                                    existingManifest.ContentType);
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to check manifest {ExistingId} for conflicts", existingId);
+                    }
                 }
-                catch (Exception ex)
+            }
+
+            // Check for Community Outpost category-specific conflicts (hotkeys, control bars, cameras)
+            // These addons are mutually exclusive within their category
+            var newContentCode = GetContentCodeFromManifest(newManifest);
+            if (!string.IsNullOrEmpty(newContentCode))
+            {
+                var conflictingCodes = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(newContentCode);
+                if (conflictingCodes.Count > 0)
                 {
-                    logger.LogDebug(ex, "Failed to check manifest {ExistingId} for conflicts", existingId);
+                    // Check if any conflicting content is enabled
+                    foreach (var existingId in profile.EnabledContentIds ?? [])
+                    {
+                        try
+                        {
+                            var existingResult = await manifestPool.GetManifestAsync(
+                                Core.Models.Manifest.ManifestId.Create(existingId),
+                                cancellationToken);
+
+                            if (existingResult.Success && existingResult.Data != null)
+                            {
+                                var existingManifest = existingResult.Data;
+                                var existingContentCode = GetContentCodeFromManifest(existingManifest);
+
+                                if (!string.IsNullOrEmpty(existingContentCode) &&
+                                    conflictingCodes.Contains(existingContentCode, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    // Found a conflict - return conflict info
+                                    logger.LogInformation(
+                                        "Content conflict detected: {NewContent} ({NewCode}) conflicts with {ExistingContent} ({ExistingCode})",
+                                        newManifest.Name,
+                                        newContentCode,
+                                        existingManifest.Name,
+                                        existingContentCode);
+
+                                    return ContentConflictInfo.ExclusiveContentConflict(
+                                        existingId,
+                                        existingManifest.Name,
+                                        existingManifest.ContentType);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug(ex, "Failed to check manifest {ExistingId} for category conflicts", existingId);
+                        }
+                    }
                 }
             }
 
@@ -406,12 +507,12 @@ public sealed class ProfileContentService(
         catch (ManifestNotFoundException ex)
         {
             logger.LogWarning("Content {ManifestId} not found: {Message}", manifestId, ex.Message);
-            return ProfileOperationResult<GameProfile>.CreateFailure($"Content not found: {ex.Message}");
+            return ProfileOperationResult<GameProfile>.CreateFailure("Content not found. Please download it again and retry.");
         }
         catch (ManifestValidationException ex)
         {
             logger.LogWarning("Content {ManifestId} validation failed: {Message}", manifestId, ex.Message);
-            return ProfileOperationResult<GameProfile>.CreateFailure($"Validation failed: {ex.Message}");
+            return ProfileOperationResult<GameProfile>.CreateFailure("Content validation failed. Please re-download and retry.");
         }
         catch (OperationCanceledException)
         {
@@ -421,7 +522,190 @@ public sealed class ProfileContentService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to create profile '{ProfileName}' with content {ManifestId}", profileName, manifestId);
-            return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to create profile: {ex.Message}");
+            return ProfileOperationResult<GameProfile>.CreateFailure("Failed to create profile. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Validates a profile's enabled content for conflicts.
+    /// Returns a list of conflict warnings to display to the user.
+    /// </summary>
+    /// <param name="profileId">The profile ID to validate.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>List of conflict warning messages.</returns>
+    public async Task<List<string>> ValidateProfileContentAsync(
+        string profileId,
+        CancellationToken cancellationToken = default)
+    {
+        var warnings = new List<string>();
+
+        try
+        {
+            // Get the profile
+            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+            if (profileResult.Failed || profileResult.Data == null)
+            {
+                return warnings;
+            }
+
+            var profile = profileResult.Data;
+            var enabledIds = profile.EnabledContentIds?.ToList() ?? [];
+
+            // Check each pair of enabled content for conflicts
+            for (int i = 0; i < enabledIds.Count; i++)
+            {
+                for (int j = i + 1; j < enabledIds.Count; j++)
+                {
+                    try
+                    {
+                        var manifest1Result = await manifestPool.GetManifestAsync(
+                            Core.Models.Manifest.ManifestId.Create(enabledIds[i]),
+                            cancellationToken);
+
+                        var manifest2Result = await manifestPool.GetManifestAsync(
+                            Core.Models.Manifest.ManifestId.Create(enabledIds[j]),
+                            cancellationToken);
+
+                        if (manifest1Result.Success && manifest1Result.Data != null &&
+                            manifest2Result.Success && manifest2Result.Data != null)
+                        {
+                            var manifest1 = manifest1Result.Data;
+                            var manifest2 = manifest2Result.Data;
+
+                            // Check exclusive content type conflicts
+                            if (ExclusiveContentTypes.Contains(manifest1.ContentType) &&
+                                manifest1.ContentType == manifest2.ContentType)
+                            {
+                                warnings.Add($"⚠ Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled ({manifest1.ContentType})");
+                            }
+
+                            // Check Community Outpost category conflicts
+                            var code1 = GetContentCodeFromManifest(manifest1);
+                            var code2 = GetContentCodeFromManifest(manifest2);
+
+                            if (!string.IsNullOrEmpty(code1) && !string.IsNullOrEmpty(code2))
+                            {
+                                var conflicting1 = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(code1);
+                                if (conflicting1.Contains(code2, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    warnings.Add($"⚠ Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled. Please remove one.");
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogDebug(ex, "Failed to check conflict between {Id1} and {Id2}", enabledIds[i], enabledIds[j]);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error validating profile content for {ProfileId}", profileId);
+        }
+
+        return warnings;
+    }
+
+    private static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
+    {
+        contentCode = string.Empty;
+        var parts = manifestId.Split('.');
+
+        if (parts.Length < 5 ||
+            !parts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var codePart = parts[4];
+        contentCode = codePart.Length >= 4 ? codePart[..4] : codePart;
+        return !string.IsNullOrEmpty(contentCode);
+    }
+
+    /// <summary>
+    /// Extracts the content code from a manifest's metadata tags.
+    /// Used for Community Outpost content conflict detection.
+    /// </summary>
+    /// <param name="manifest">The manifest to extract the content code from.</param>
+    /// <returns>The content code, or empty string if not found.</returns>
+    private static string GetContentCodeFromManifest(Core.Models.Manifest.ContentManifest manifest)
+    {
+        // Look for contentCode tag in metadata
+        var contentCodeTag = manifest.Metadata?.Tags?
+            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrEmpty(contentCodeTag))
+        {
+            return contentCodeTag["contentCode:".Length..];
+        }
+
+        // Try to extract from manifest ID
+        // Format: 1.version.communityoutpost.contentType.contentName
+        var idParts = manifest.Id.Value?.Split('.') ?? [];
+        if (idParts.Length >= 5)
+        {
+            // Community Outpost uses language suffixes (e.g., hleienglish)
+            if (idParts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+            {
+                var codePart = idParts[4];
+                return codePart.Length >= 4 ? codePart[..4] : codePart;
+            }
+
+            return idParts[4];
+        }
+
+        return string.Empty;
+    }
+
+    private async Task<bool> TryAcquireDependencyAsync(string manifestId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var existing = await manifestPool.GetManifestAsync(
+                Core.Models.Manifest.ManifestId.Create(manifestId),
+                cancellationToken);
+
+            if (existing.Success && existing.Data != null)
+            {
+                return true;
+            }
+
+            if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+            {
+                return false;
+            }
+
+            var query = new ContentSearchQuery
+            {
+                ProviderName = CommunityOutpostConstants.PublisherId,
+                SearchTerm = contentCode,
+                IncludeInstalled = true,
+                Take = 50,
+            };
+
+            var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+            if (searchResult.Failed || searchResult.Data == null)
+            {
+                return false;
+            }
+
+            var match = searchResult.Data.FirstOrDefault(r =>
+                r.Id.EndsWith($".{contentCode}", StringComparison.OrdinalIgnoreCase));
+
+            if (match == null)
+            {
+                return false;
+            }
+
+            var acquireResult = await contentOrchestrator.AcquireContentAsync(match, null, cancellationToken);
+            return acquireResult.Success;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to auto-acquire dependency {ManifestId}", manifestId);
+            return false;
         }
     }
 }

@@ -52,7 +52,7 @@ public class GameClientProfileService(
 
         try
         {
-            var profileName = $"{installation.InstallationType} {gameClient.Name}";
+            var profileName = gameClient.Name;
 
             if (await ProfileExistsAsync(profileName, installation.Id, gameClient.Id, cancellationToken))
             {
@@ -85,7 +85,7 @@ public class GameClientProfileService(
                 GameInstallationId = installation.Id,
                 GameClientId = gameClient.Id,
                 GameClient = gameClient,
-                Description = $"Auto-created profile for {installation.InstallationType} {gameClient.Name}",
+                Description = $"GameProfile for {profileName}",
                 PreferredStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds,
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),

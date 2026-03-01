@@ -31,10 +31,16 @@ public class ContentDisplayItem
     /// </summary>
     public string? Description { get; set; }
 
+    private string? _version;
+
     /// <summary>
     /// Gets or sets the version of this content item.
     /// </summary>
-    public string? Version { get; set; }
+    public string? Version
+    {
+        get => _version;
+        set => _version = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+    }
 
     /// <summary>
     /// Gets or sets the content type (Mod, Patch, Addon, etc.).

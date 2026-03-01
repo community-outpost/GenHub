@@ -34,6 +34,33 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
+    /// Checks if a version string is a "default" version that shouldn't be displayed.
+    /// Matches "0", "0.0", "0.0.0", "1.0", "1.0.0", etc.
+    /// </summary>
+    /// <param name="version">The version string to check.</param>
+    /// <returns>True if it is a default version, false otherwise.</returns>
+    public static bool IsDefaultVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return true;
+        }
+
+        var normalized = version.Trim().ToLowerInvariant();
+
+        // Remove 'v' prefix if present
+        if (normalized.StartsWith("v"))
+        {
+            normalized = normalized.Substring(1);
+        }
+
+        // Common default versions
+        string[] defaultVersions = { "0", "0.0", "0.0.0", "0.0.0.0", "1.0", "1.0.0", "1.0.0.0", "1" };
+
+        return defaultVersions.Contains(normalized);
+    }
+
+    /// <summary>
     /// Converts a version string to a normalized integer format.
     /// Examples: "1.04" -> 104, "1.08" -> 108, "20251226" -> 20251226.
     /// Used primarily for manifest ID components where a simple integer is needed.

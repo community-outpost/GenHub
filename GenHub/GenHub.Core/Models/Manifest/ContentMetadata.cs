@@ -50,4 +50,22 @@ public class ContentMetadata
     /// Used for GameInstallation manifests to persist installation paths across sessions.
     /// </summary>
     public string? SourcePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the available variants for this content.
+    /// Variants allow users to select specific configurations (e.g., resolution, language).
+    /// </summary>
+    public List<ContentVariant>? Variants { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this content requires variant selection.
+    /// If true, user must select a variant before installation.
+    /// </summary>
+    public bool RequiresVariantSelection { get; set; }
+
+    /// <summary>
+    /// Gets or sets the currently selected variant ID.
+    /// Used when creating profile-specific manifests from variant content.
+    /// </summary>
+    public string? SelectedVariantId { get; set; }
 }

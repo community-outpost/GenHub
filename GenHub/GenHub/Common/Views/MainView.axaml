@@ -182,16 +182,16 @@
                         Content="Tools"
                         Name="Tab2Button" />
                     <Button Classes="modern-tab"
-                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
-                        Command="{Binding SelectTabCommand}"
-                        CommandParameter="{x:Static enums:NavigationTab.Settings}"
-                        Content="Settings"
-                        Name="Tab3Button" />
-                    <Button Classes="modern-tab"
                         Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
                         Command="{Binding SelectTabCommand}"
                         CommandParameter="{x:Static enums:NavigationTab.Info}"
                         Content="Info"
+                        Name="Tab3Button" />
+                    <Button Classes="modern-tab"
+                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
+                        Command="{Binding SelectTabCommand}"
+                        CommandParameter="{x:Static enums:NavigationTab.Settings}"
+                        Content="Settings"
                         Name="Tab4Button" />
                 </StackPanel>
 

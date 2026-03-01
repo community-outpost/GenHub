@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Workspace;
@@ -549,22 +550,19 @@ public class FileOperationsService(
         }
     }
 
-    /// <summary>
-    /// Copies a file from CAS to the specified destination path using its hash.
-    /// The destination path determines the final filename and location.
-    /// </summary>
-    /// <param name="hash">The content hash in CAS.</param>
-    /// <param name="destinationPath">The destination file path.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the operation succeeded.</returns>
+    /// <inheritdoc/>
     public async Task<bool> CopyFromCasAsync(
         string hash,
         string destinationPath,
+        ContentType? contentType = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var pathResult = await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = contentType.HasValue
+                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+
             if (!pathResult.Success || pathResult.Data == null)
             {
                 logger.LogError("CAS content not found for hash {Hash}", hash);
@@ -585,24 +583,19 @@ public class FileOperationsService(
         }
     }
 
-    /// <summary>
-    /// Creates a link (hard or symbolic) from CAS to the specified destination path.
-    /// The destination path determines the final filename and location.
-    /// </summary>
-    /// <param name="hash">The content hash in CAS.</param>
-    /// <param name="destinationPath">The destination file path.</param>
-    /// <param name="useHardLink">Whether to use a hard link instead of symbolic link.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if the operation succeeded.</returns>
+    /// <inheritdoc/>
     public async Task<bool> LinkFromCasAsync(
         string hash,
         string destinationPath,
         bool useHardLink = false,
+        ContentType? contentType = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var pathResult = await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+            var pathResult = contentType.HasValue
+                ? await casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                : await casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
             if (!pathResult.Success || pathResult.Data == null)
             {
                 logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);

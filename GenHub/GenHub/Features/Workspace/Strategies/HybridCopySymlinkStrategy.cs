@@ -126,15 +126,35 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                         {
                             if (isEssential)
                             {
-                                await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, cancellationToken);
+                                var success = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                if (!success)
+                                {
+                                    throw new InvalidOperationException($"Failed to copy essential file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                                }
+
                                 copiedFiles++;
                                 totalBytesProcessed += file.Size;
                             }
                             else
                             {
-                                await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, cancellationToken);
-                                symlinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes;
+                                var success = await FileOperations.LinkFromCasAsync(file.Hash, destinationPath, useHardLink: false, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                if (!success)
+                                {
+                                    Logger.LogWarning("CAS Link failed for {RelativePath}, attempting copy from CAS", file.RelativePath);
+                                    var copySuccess = await FileOperations.CopyFromCasAsync(file.Hash, destinationPath, contentType: manifest.ContentType, cancellationToken: cancellationToken);
+                                    if (!copySuccess)
+                                    {
+                                        throw new InvalidOperationException($"Failed to link or copy file from CAS: {file.RelativePath} (Hash: {file.Hash})");
+                                    }
+
+                                    copiedFiles++;
+                                    totalBytesProcessed += file.Size;
+                                }
+                                else
+                                {
+                                    symlinkedFiles++;
+                                    totalBytesProcessed += LinkOverheadBytes;
+                                }
                             }
                         }
                         else
@@ -236,11 +256,12 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     /// </summary>
     /// <param name="hash">CAS hash of the file.</param>
     /// <param name="targetPath">Target path for the file.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Task representing the async operation.</returns>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
-        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, cancellationToken);
+        var success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             throw new InvalidOperationException($"Failed to copy from CAS for hash {hash} to {targetPath}");

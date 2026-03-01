@@ -119,7 +119,10 @@
 
              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
               <TextBlock Text="{Binding Metadata.Name}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
-              <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}" FontSize="12" Opacity="0.7" Foreground="#BBBBBB" VerticalAlignment="Center"/>
+              <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}" 
+                         FontSize="12" Opacity="0.7" Foreground="#BBBBBB" 
+                         VerticalAlignment="Center"
+                         IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
              </StackPanel>
           </Grid>
         </DataTemplate>
@@ -219,7 +222,7 @@
                         <TextBlock Text="Name" FontWeight="Bold" Opacity="0.7"/>
                         <TextBlock Text="{Binding Metadata.Name}" FontSize="16"/>
                     </StackPanel>
-                    <StackPanel>
+                    <StackPanel IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                         <TextBlock Text="Version" FontWeight="Bold" Opacity="0.7"/>
                         <TextBlock Text="{Binding Metadata.Version}"/>
                     </StackPanel>
