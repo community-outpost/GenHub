@@ -230,7 +230,9 @@ public class ContentStorageService : IContentStorageService
         }
 
         // Validate manifest for security issues
-        var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+        // Use sourceDirectory as base for validation to allow importing from external locations
+        var validationBase = sourceDirectory;
+        var securityValidation = ValidateManifestSecurity(manifest, validationBase);
         if (!securityValidation.Success)
         {
             return OperationResult<ContentManifest>.CreateFailure(
@@ -454,7 +456,12 @@ public class ContentStorageService : IContentStorageService
         try
         {
             // Validate manifest for security issues
-            var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+            // Use sourceDirectory if available, otherwise fallback to storage root (though typically sourceDirectory should be provided)
+            var validationBase = !string.IsNullOrEmpty(sourceDirectory) && Directory.Exists(sourceDirectory)
+                ? sourceDirectory
+                : _storageRoot;
+
+            var securityValidation = ValidateManifestSecurity(manifest, validationBase);
             if (!securityValidation.Success)
             {
                 _logger.LogError("Manifest security validation failed for {ManifestId}: {Error}", manifest.Id, securityValidation.FirstError ?? "Unknown error");

@@ -186,6 +186,24 @@ public class CasService(
     {
         try
         {
+            // If pool manager is available, check all pools for the content
+            if (poolManager != null)
+            {
+                poolManager.EnsureAllPoolsInitialized();
+                var allStorages = poolManager.GetAllStorages();
+
+                foreach (var poolStorage in allStorages)
+                {
+                    if (await poolStorage.ObjectExistsAsync(hash, cancellationToken))
+                    {
+                        return OperationResult<bool>.CreateSuccess(true);
+                    }
+                }
+
+                return OperationResult<bool>.CreateSuccess(false);
+            }
+
+            // No pool manager - use default storage only
             var exists = await storage.ObjectExistsAsync(hash, cancellationToken);
             return OperationResult<bool>.CreateSuccess(exists);
         }
@@ -201,13 +219,35 @@ public class CasService(
     {
         try
         {
-            var stream = await storage.OpenObjectStreamAsync(hash, cancellationToken);
-            if (stream == null)
+            // If pool manager is available, check all pools for the content
+            if (poolManager != null)
+            {
+                poolManager.EnsureAllPoolsInitialized();
+                var allStorages = poolManager.GetAllStorages();
+
+                foreach (var poolStorage in allStorages)
+                {
+                    if (await poolStorage.ObjectExistsAsync(hash, cancellationToken))
+                    {
+                        var stream = await poolStorage.OpenObjectStreamAsync(hash, cancellationToken);
+                        if (stream != null)
+                        {
+                            return OperationResult<Stream>.CreateSuccess(stream);
+                        }
+                    }
+                }
+
+                return OperationResult<Stream>.CreateFailure($"Content not found in any CAS pool: {hash}");
+            }
+
+            // No pool manager - use default storage only
+            var defaultStream = await storage.OpenObjectStreamAsync(hash, cancellationToken);
+            if (defaultStream == null)
             {
                 return OperationResult<Stream>.CreateFailure($"Content not found in CAS: {hash}");
             }
 
-            return OperationResult<Stream>.CreateSuccess(stream);
+            return OperationResult<Stream>.CreateSuccess(defaultStream);
         }
         catch (Exception ex)
         {

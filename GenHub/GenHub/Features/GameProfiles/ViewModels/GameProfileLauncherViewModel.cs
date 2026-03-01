@@ -690,7 +690,7 @@ public partial class GameProfileLauncherViewModel(
             }
 
             // Define profile name based on game client name and installation type
-            var profileName = $"{installation.InstallationType} {gameClient.Name}";
+            var profileName = gameClient.Name;
 
             // Check if a profile already exists for this exact name and installation
             var existingProfiles = await gameProfileManager.GetAllProfilesAsync();
@@ -776,7 +776,7 @@ public partial class GameProfileLauncherViewModel(
                 Name = profileName,
                 GameInstallationId = installation.Id, // The actual installation GUID
                 GameClientId = gameClient.Id, // Client manifest ID
-                Description = $"Auto-created profile for {installation.InstallationType} {gameClient.Name}",
+                Description = $"GameProfile for {profileName}",
                 PreferredStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds, // Both GameInstallation and GameClient manifests
                 ThemeColor = GetThemeColorForGameType(gameClient.GameType),
@@ -1416,8 +1416,8 @@ public partial class GameProfileLauncherViewModel(
                 GameClient = sourceProfile.GameClient,
                 PreferredStrategy = sourceProfile.WorkspaceStrategy,
                 EnabledContentIds = sourceProfile.EnabledContentIds != null
-                    ? new List<string>(sourceProfile.EnabledContentIds)
-                    : new List<string>(),
+                    ? [.. sourceProfile.EnabledContentIds]
+                    : [],
                 ThemeColor = sourceProfile.ThemeColor,
                 IconPath = sourceProfile.IconPath,
                 CoverPath = sourceProfile.CoverPath,

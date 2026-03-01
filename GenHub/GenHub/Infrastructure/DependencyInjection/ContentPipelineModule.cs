@@ -202,8 +202,8 @@ public static class ContentPipelineModule
         // Register Community Outpost resolver
         services.AddTransient<IContentResolver, CommunityOutpostResolver>();
 
-        // Register AVIF to TGA converter for GenPatcher content
-        services.AddSingleton<AvifToTgaConverter>();
+        // Register compressed image converter (AVIF/WebP to TGA) for GenPatcher content
+        services.AddSingleton<CompressedImageToTgaConverter>();
 
         // Register Community Outpost deliverer
         services.AddTransient<IContentDeliverer, CommunityOutpostDeliverer>();

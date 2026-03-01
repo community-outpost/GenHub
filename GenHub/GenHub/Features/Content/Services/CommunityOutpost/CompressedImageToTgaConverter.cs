@@ -1,8 +1,6 @@
-// Copyright (c) GenHub Contributors. All rights reserved.
-// Licensed under the MIT License. See LICENSE in the project root for license information.
-
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HeyRed.ImageSharp.Heif.Formats.Avif;
@@ -14,38 +12,43 @@ using SixLabors.ImageSharp.Formats.Tga;
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
 /// <summary>
-/// Converts AVIF images to TGA format for use with Command &amp; Conquer Generals/Zero Hour.
-/// The game requires TGA textures, but GenPatcher dat archives contain AVIF files for compression.
+/// Converts compressed image files (AVIF, WebP) to TGA format for use with Command &amp; Conquer Generals/Zero Hour.
+/// The game requires TGA textures, but GenPatcher dat archives contain AVIF and WebP files for compression.
+/// GenPatcher's ConvertCompressedImageToTGA handles both .webp and .avif (see Util.ahk:206-269).
 /// </summary>
-public class AvifToTgaConverter(ILogger<AvifToTgaConverter> logger)
+public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter> logger)
 {
-    private readonly ILogger<AvifToTgaConverter> _logger = logger;
+    private static readonly string[] SupportedExtensions = [".avif", ".webp"];
 
-    // Configure ImageSharp to support AVIF decoding
-    private readonly Configuration _imageSharpConfig = new(new AvifConfigurationModule());
+    // Configure ImageSharp to support AVIF decoding (WebP is supported natively)
+    private readonly Configuration _avifConfig = new(new AvifConfigurationModule());
 
     /// <summary>
-    /// Converts all AVIF files in a directory (and subdirectories) to TGA format.
-    /// The original AVIF files are replaced with TGA files using the same base filename.
+    /// Converts all supported compressed image files (AVIF, WebP) in a directory to TGA format.
+    /// The original files are replaced with TGA files using the same base filename.
     /// </summary>
-    /// <param name="directory">The directory containing AVIF files.</param>
+    /// <param name="directory">The directory containing image files.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of files converted.</returns>
     public async Task<int> ConvertDirectoryAsync(string directory, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(directory))
         {
-            _logger.LogWarning("Directory does not exist: {Directory}", directory);
+            logger.LogWarning("Directory does not exist: {Directory}", directory);
             return 0;
         }
 
         try
         {
-            var avifFiles = Directory.EnumerateFiles(directory, "*.avif", SearchOption.AllDirectories);
+            var imageFiles = Directory.EnumerateFiles(directory, "*.*", SearchOption.AllDirectories)
+                .Where(f => SupportedExtensions.Contains(
+                    Path.GetExtension(f),
+                    StringComparer.OrdinalIgnoreCase));
+
             int converted = 0;
             int totalFound = 0;
 
-            foreach (var avifFile in avifFiles)
+            foreach (var imageFile in imageFiles)
             {
                 totalFound++;
                 if (cancellationToken.IsCancellationRequested)
@@ -55,47 +58,52 @@ public class AvifToTgaConverter(ILogger<AvifToTgaConverter> logger)
 
                 try
                 {
-                    var tgaFile = Path.ChangeExtension(avifFile, ".tga");
-                    await ConvertFileAsync(avifFile, tgaFile, cancellationToken);
+                    var tgaFile = Path.ChangeExtension(imageFile, ".tga");
+                    await ConvertFileAsync(imageFile, tgaFile, cancellationToken);
 
-                    // Delete the original AVIF file only if TGA exists and has content
+                    // Delete the original file only if TGA exists and has content
                     var tgaInfo = new FileInfo(tgaFile);
                     if (tgaInfo.Exists && tgaInfo.Length > 0)
                     {
-                        File.Delete(avifFile);
+                        File.Delete(imageFile);
                         converted++;
-                        _logger.LogDebug("Converted {AvifFile} to {TgaFile}", avifFile, tgaFile);
+                        logger.LogDebug("Converted {SourceFile} to {TgaFile}", imageFile, tgaFile);
                     }
                     else
                     {
-                        _logger.LogWarning("Conversion produced no output for {AvifFile}", avifFile);
+                        logger.LogWarning("Conversion produced no output for {SourceFile}", imageFile);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to convert {AvifFile}", avifFile);
+                    logger.LogError(ex, "Failed to convert {SourceFile}", imageFile);
                 }
             }
 
-            _logger.LogInformation("Successfully converted {Converted} of {Total} AVIF files to TGA in {Directory}", converted, totalFound, directory);
+            logger.LogInformation(
+                "Successfully converted {Converted} of {Total} compressed image files to TGA in {Directory}",
+                converted,
+                totalFound,
+                directory);
+
             return converted;
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogError(ex, "Access denied to directory or subdirectories: {Directory}", directory);
+            logger.LogError(ex, "Access denied to directory or subdirectories: {Directory}", directory);
             return 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to enumerate files in directory: {Directory}", directory);
+            logger.LogError(ex, "Failed to enumerate files in directory: {Directory}", directory);
             return 0;
         }
     }
 
     /// <summary>
-    /// Converts a single AVIF file to TGA format.
+    /// Converts a single compressed image file (AVIF or WebP) to TGA format.
     /// </summary>
-    /// <param name="sourcePath">The path to the AVIF file.</param>
+    /// <param name="sourcePath">The path to the source image file.</param>
     /// <param name="destinationPath">The path for the output TGA file.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -107,9 +115,13 @@ public class AvifToTgaConverter(ILogger<AvifToTgaConverter> logger)
                 cancellationToken.ThrowIfCancellationRequested();
                 using var inputStream = File.OpenRead(sourcePath);
 
+                // AVIF requires a special configuration module; WebP is natively supported
+                var isAvif = Path.GetExtension(sourcePath)
+                    .Equals(".avif", StringComparison.OrdinalIgnoreCase);
+
                 var decoderOptions = new DecoderOptions
                 {
-                    Configuration = _imageSharpConfig,
+                    Configuration = isAvif ? _avifConfig : Configuration.Default,
                 };
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -125,12 +137,12 @@ public class AvifToTgaConverter(ILogger<AvifToTgaConverter> logger)
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Save as TGA with appropriate settings for Generals
-                // The game expects 32-bit BGRA TGA files with RLE compression
-                // GenPatcher uses RLE compression (TGA type 10) for smaller file sizes
+                // The game expects 32-bit BGRA TGA files without compression (TGA type 2)
+                // GenPatcher uses uncompressed TGA via nconvert.exe -c 1
                 var encoder = new TgaEncoder
                 {
                     BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                    Compression = TgaCompression.RunLength,
+                    Compression = TgaCompression.None,
                 };
 
                 image.SaveAsTga(destinationPath, encoder);

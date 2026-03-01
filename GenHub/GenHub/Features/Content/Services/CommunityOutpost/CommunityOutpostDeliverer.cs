@@ -37,7 +37,7 @@ public class CommunityOutpostDeliverer(
    IGameInstallationService installationService,
    IUserSettingsService userSettingsService,
    ICasPoolManager? casPoolManager,
-   AvifToTgaConverter avifConverter,
+   CompressedImageToTgaConverter avifConverter,
    ILogger<CommunityOutpostDeliverer> logger)
    : IContentDeliverer
 {
@@ -592,17 +592,18 @@ public class CommunityOutpostDeliverer(
                 packSource = preferred;
             }
 
-            // Convert AVIF files to TGA format before packing
-            // GenPatcher dat archives contain AVIF for compression, but the game requires TGA textures
-            var avifCount = Directory.GetFiles(packSource, "*.avif", SearchOption.AllDirectories).Length;
-            if (avifCount > 0)
+            // Convert compressed image files (AVIF, WebP) to TGA format before packing
+            // GenPatcher dat archives contain AVIF/WebP for compression, but the game requires TGA textures
+            var compressedImageCount = Directory.GetFiles(packSource, "*.avif", SearchOption.AllDirectories).Length
+                + Directory.GetFiles(packSource, "*.webp", SearchOption.AllDirectories).Length;
+            if (compressedImageCount > 0)
             {
                 logger.LogInformation(
-                    "Converting {Count} AVIF files to TGA format for game compatibility",
-                    avifCount);
+                    "Converting {Count} compressed image files to TGA format for game compatibility",
+                    compressedImageCount);
 
                 var convertedCount = await avifConverter.ConvertDirectoryAsync(packSource, cancellationToken);
-                logger.LogInformation("Converted {Converted} AVIF files to TGA", convertedCount);
+                logger.LogInformation("Converted {Converted} compressed image files to TGA", convertedCount);
             }
 
             await BigFilePacker.PackAsync(packSource, destinationPath);
