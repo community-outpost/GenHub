@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
@@ -12,6 +13,7 @@ namespace GenHub.Features.Storage.Services;
 /// </summary>
 public class CasPoolResolver(
     IOptions<CasConfiguration> config,
+    IUserSettingsService userSettingsService,
     ILogger<CasPoolResolver> logger) : ICasPoolResolver
 {
     /// <summary>
@@ -21,6 +23,10 @@ public class CasPoolResolver(
     [
         ContentType.GameInstallation,
         ContentType.GameClient,
+        ContentType.Addon,
+        ContentType.Patch,
+        ContentType.Map,
+        ContentType.Mod,
     ];
 
     private readonly CasConfiguration _config = config.Value;
@@ -28,8 +34,11 @@ public class CasPoolResolver(
     /// <inheritdoc/>
     public CasPoolType ResolvePool(ContentType contentType)
     {
+        var isAvailable = IsInstallationPoolAvailable();
+        logger.LogDebug("ResolvePool for {ContentType}: InstallationPoolAvailable={IsAvailable}", contentType, isAvailable);
+
         // GameInstallation and GameClient go to installation pool for hardlink support
-        if (InstallationPoolTypes.Contains(contentType) && IsInstallationPoolAvailable())
+        if (InstallationPoolTypes.Contains(contentType) && isAvailable)
         {
             logger.LogDebug("Resolved {ContentType} to Installation pool", contentType);
             return CasPoolType.Installation;
@@ -46,7 +55,7 @@ public class CasPoolResolver(
         return poolType switch
         {
             CasPoolType.Installation when IsInstallationPoolAvailable()
-                => _config.InstallationPoolRootPath,
+                => GetInstallationPoolRootPath(),
             _ => _config.CasRootPath,
         };
     }
@@ -61,6 +70,17 @@ public class CasPoolResolver(
     /// <inheritdoc/>
     public bool IsInstallationPoolAvailable()
     {
-        return !string.IsNullOrWhiteSpace(_config.InstallationPoolRootPath);
+        var path = GetInstallationPoolRootPath();
+        return !string.IsNullOrWhiteSpace(path);
+    }
+
+    /// <summary>
+    /// Gets the installation pool root path from UserSettings.
+    /// Always reads current value from UserSettings (not cached).
+    /// </summary>
+    private string GetInstallationPoolRootPath()
+    {
+        var userSettings = userSettingsService.Get();
+        return userSettings.CasConfiguration.InstallationPoolRootPath;
     }
 }

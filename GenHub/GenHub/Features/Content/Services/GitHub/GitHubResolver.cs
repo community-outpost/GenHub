@@ -96,7 +96,9 @@ public partial class GitHubResolver(
             // Otherwise, fetch the full release and include all assets
             logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
 
-            var release = string.IsNullOrEmpty(tag)
+            var isLatest = string.IsNullOrEmpty(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase);
+
+            var release = isLatest
                 ? await gitHubApiClient.GetLatestReleaseAsync(
                     owner,
                     repo,
@@ -107,9 +109,18 @@ public partial class GitHubResolver(
                     tag,
                     cancellationToken);
 
+            // Fallback for repositories that only have pre-releases (GetLatestReleaseAsync returns null on GitHub if no stable release)
+            if (release == null && isLatest)
+            {
+                logger.LogInformation("Latest stable release not found for {Owner}/{Repo}. Falling back to most recent release (including pre-releases).", owner, repo);
+                var allReleases = await gitHubApiClient.GetReleasesAsync(owner, repo, cancellationToken);
+                release = allReleases?.OrderByDescending(r => r.PublishedAt ?? r.CreatedAt).FirstOrDefault();
+            }
+
             if (release == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
+                var errorTag = isLatest ? "latest stable" : $"tag '{tag}'";
+                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo} with {errorTag}");
             }
 
             // Generate proper ManifestId using 5-segment format per manifest-id-system.md

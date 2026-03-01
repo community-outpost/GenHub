@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -23,7 +22,7 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class FileSystemDiscoverer : IContentDiscoverer
 {
-    private readonly List<string> _contentDirectories = [];
+    private readonly List<string> _contentDirectories = new();
     private readonly ILogger<FileSystemDiscoverer> _logger;
     private readonly ManifestDiscoveryService _manifestDiscoveryService;
     private readonly IConfigurationProviderService _configurationProvider;
@@ -42,30 +41,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         _logger = logger;
         _manifestDiscoveryService = manifestDiscoveryService;
         _configurationProvider = configurationProvider;
-
         InitializeContentDirectories();
-    }
-
-    private static bool MatchesQuery(ContentManifest manifest, ContentSearchQuery query)
-    {
-        if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
-            !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
-            !manifest.Id.Value.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (query.ContentType.HasValue && manifest.ContentType != query.ContentType.Value)
-        {
-            return false;
-        }
-
-        if (query.TargetGame.HasValue && manifest.TargetGame != query.TargetGame.Value)
-        {
-            return false;
-        }
-
-        return true;
     }
 
     /// <inheritdoc />
@@ -115,7 +91,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
                     ContentType = manifest.ContentType,
                     TargetGame = manifest.TargetGame,
                     ProviderName = SourceName,
-                    AuthorName = manifest.Publisher?.Name ?? GameClientConstants.UnknownVersion,
+                    AuthorName = manifest.Publisher?.Name ?? "Unknown",
                     IconUrl = manifest.Metadata?.IconUrl ?? string.Empty,
                     LastUpdated = manifest.Metadata?.ReleaseDate ?? DateTime.Now,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
@@ -149,11 +125,14 @@ public class FileSystemDiscoverer : IContentDiscoverer
             }
         }
 
-        return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+        _logger.LogInformation("FileSystemDiscoverer found {Count} manifests matching query", discoveredItems.Count);
+        var result = new ContentDiscoveryResult
         {
             Items = discoveredItems,
             HasMoreItems = false,
-        });
+            TotalItems = discoveredItems.Count,
+        };
+        return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
     }
 
     private void InitializeContentDirectories()
@@ -162,5 +141,27 @@ public class FileSystemDiscoverer : IContentDiscoverer
         _contentDirectories.AddRange(userDefinedDirs.Where(Directory.Exists));
 
         _logger.LogInformation("FileSystemDiscoverer initialized with {Count} directories", _contentDirectories.Count);
+    }
+
+    private bool MatchesQuery(ContentManifest manifest, ContentSearchQuery query)
+    {
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm) &&
+            !manifest.Name.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) &&
+            !manifest.Id.Value.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (query.ContentType.HasValue && manifest.ContentType != query.ContentType.Value)
+        {
+            return false;
+        }
+
+        if (query.TargetGame.HasValue && manifest.TargetGame != query.TargetGame.Value)
+        {
+            return false;
+        }
+
+        return true;
     }
 }

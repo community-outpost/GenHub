@@ -264,7 +264,16 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     **Button Guide:**
                     1.  **Play:** Launches the game using this profile's specific mod configuration.
                     2.  **Edit Content (Pencil):** Choose which Mods, Maps, and Patches are active for this profile.
-                    3.  **Settings (Gear):** Configure game options (Resolution, Audio) specifically for this profile.
+                    3.  **Copy (Duplicate):** Creates a new profile with identical settings, content, and workspace configuration.
+                    4.  **Shortcut (Desktop):** Creates a desktop shortcut to launch this profile directly.
+                    5.  **Settings (Gear):** Configure game options (Resolution, Audio) specifically for this profile.
+
+                    **Copy Profile Feature:**
+                    The copy button creates a complete duplicate of the selected profile with all settings preserved:
+                    -   **Same Settings:** Video, audio, and control settings are copied exactly.
+                    -   **Same Content:** All enabled mods, maps, and patches are included in the copy.
+                    -   **New Workspace:** The copied profile generates its own isolated workspace.
+                    -   **Unique Name:** Automatically named "Original Name (Copy)" or "Original Name (Copy 2)" etc.
 
                     **Steam Status:**
                     -   **Gray Icon:** Steam is not connected. Time tracking is off.
@@ -409,6 +418,24 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     **Tool**
                     Standalone executables that perform specific tasks outside the game.
                     *Use Case:* Link "World Builder" to edit maps, or "FinalBig" to inspect game files, making them accessible directly from your profile dashboard.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Cloning Content",
+                    Content = "How copying profiles handles your mods and maps.",
+                    Type = InfoCardType.Concept,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **What gets copied?**
+                    When you use the **Copy Profile** feature, GenHub creates a 'deep copy' of your content configuration.
+
+                    *   **Enabled Manifests:** All Mods, Maps, and Patches currently enabled for the source profile will be automatically enabled for the copy.
+                    *   **Custom Selection:** The copy is independent. After cloning, you can enable or disable content in the copy without affecting the original profile.
+                    *   **Workspace Efficiency:** Thanks to our CAS (Content Addressable Storage) system, copying a profile doesn't duplicate the actual mod files on your disk. Both profiles point to the same files in the central pool, preserving disk space.
+
+                    **Common Use Case:**
+                    Create a base "ShockWave" profile with your favorite map pack, then copy it to test different game patches or resolution settings while keeping your core mod choice consistent.
                     """,
                 },
                 new InfoCard

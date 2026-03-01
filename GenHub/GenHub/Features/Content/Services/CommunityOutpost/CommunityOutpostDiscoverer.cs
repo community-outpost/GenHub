@@ -34,9 +34,6 @@ public partial class CommunityOutpostDiscoverer(
     ICatalogParserFactory catalogParserFactory,
     ILogger<CommunityOutpostDiscoverer> logger) : IContentDiscoverer
 {
-    [GeneratedRegex(@"href=[""']([^""']*generalszh-weekly-(\d{4}-\d{2}-\d{2})[^""']*\.zip)[""']", RegexOptions.IgnoreCase)]
-    private static partial Regex CommunityPatchRegex();
-
     /// <summary>
     /// Gets the provider ID for registration.
     /// </summary>
@@ -164,6 +161,9 @@ public partial class CommunityOutpostDiscoverer(
                 logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
             }
 
+            // Ensure official game clients are present (fallback if missing from catalog)
+            EnsureOfficialClients(results, query, provider);
+
             logger.LogInformation(
                 "Returning {ResultCount} content items from Community Outpost",
                 results.Count);
@@ -180,6 +180,9 @@ public partial class CommunityOutpostDiscoverer(
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
+
+    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
+    internal static partial Regex CommunityPatchRegex();
 
     /// <summary>
     /// Gets tags for a content category.
@@ -200,6 +203,62 @@ public partial class CommunityOutpostDiscoverer(
             GenPatcherContentCategory.Prerequisites => ["prerequisite", "system"],
             _ => CommunityOutpostConstants.AddonTags,
         };
+    }
+
+    /// <summary>
+    /// Ensures that official clients are included in the search results.
+    /// </summary>
+    private void EnsureOfficialClients(List<ContentSearchResult> results, ContentSearchQuery query, ProviderDefinition provider)
+    {
+        var officialCodes = new[] { "10zh", "10gn" };
+        var baseUrl = provider.Endpoints.GetEndpoint(CommunityOutpostCatalogConstants.PatchPageUrlEndpoint) ?? CommunityOutpostCatalogConstants.DefaultBaseUrl;
+
+        foreach (var code in officialCodes)
+        {
+            var metadata = GenPatcherContentRegistry.GetMetadata(code);
+            if (metadata.ContentType == ContentType.UnknownContentType)
+            {
+                continue;
+            }
+
+            // Use the standard 5-segment ID format: schema.version.publisher.type.name
+            var publisher = CommunityOutpostConstants.PublisherType.ToLowerInvariant();
+            var type = metadata.ContentType.ToString().ToLowerInvariant();
+            var id = $"1.0.{publisher}.{type}.{code.ToLowerInvariant()}";
+
+            if (results.Any(r => r.Id == id))
+            {
+                continue;
+            }
+
+            var result = new ContentSearchResult
+            {
+                Id = id,
+                Name = metadata.DisplayName,
+                Description = metadata.Description ?? string.Empty,
+                Version = metadata.Version ?? "1.0",
+                ContentType = metadata.ContentType,
+                TargetGame = metadata.TargetGame,
+                ProviderName = provider.PublisherType,
+                AuthorName = provider.DisplayName,
+                SourceUrl = $"{baseUrl}/{code}.zip", // Default naming convention
+                DownloadSize = 0, // Unknown
+                RequiresResolution = true,
+                ResolverId = provider.ProviderId,
+                LastUpdated = null,
+            };
+
+            // Add tags
+            result.Tags.Add("official");
+            result.Tags.Add("basegame");
+            result.Tags.Add(metadata.Category.ToString().ToLowerInvariant());
+
+            if (MatchesQuery(result, query))
+            {
+                results.Add(result);
+                logger.LogDebug("Added fallback official client: {Code}", code);
+            }
+        }
     }
 
     /// <summary>
@@ -271,18 +330,30 @@ public partial class CommunityOutpostDiscoverer(
     {
         try
         {
-            logger.LogDebug("Fetching Community Patch page from {Url}", patchPageUrl);
+            logger.LogInformation("Fetching Community Patch page from {Url}", patchPageUrl);
 
             var pageContent = await client.GetStringAsync(patchPageUrl, cancellationToken);
+            logger.LogDebug("Page content length: {Length} bytes", pageContent.Length);
 
-            // Look for the download link pattern: generalszh-weekly-YYYY-MM-DD*.zip
             var downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
+            logger.LogDebug("Regex match result: {Success}, Matches count: {Count}", downloadUrlMatch.Success, downloadUrlMatch.Captures.Count);
+
+            // Fallback: try different URL if configured one fails
+            if (!downloadUrlMatch.Success && patchPageUrl != CommunityOutpostConstants.PatchPageUrl)
+            {
+                logger.LogInformation("No match on primary URL, trying fallback: {Url}", CommunityOutpostConstants.PatchPageUrl);
+                pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
+                downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
+                logger.LogDebug("Fallback regex match result: {Success}", downloadUrlMatch.Success);
+            }
 
             if (!downloadUrlMatch.Success)
             {
                 logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
                 return null;
             }
+
+            logger.LogInformation("Community Patch regex matched successfully");
 
             var downloadUrl = downloadUrlMatch.Groups[1].Value;
             var versionDate = downloadUrlMatch.Groups[2].Value;
@@ -299,9 +370,10 @@ public partial class CommunityOutpostDiscoverer(
             var providerId = provider?.ProviderId ?? CommunityOutpostConstants.PublisherId;
             var providerName = provider?.PublisherType ?? CommunityOutpostConstants.PublisherType;
 
+            // Use the standard 5-segment ID format expected by the manifest factory
             var result = new ContentSearchResult
             {
-                Id = $"{providerId}.community-patch",
+                Id = $"1.{versionDate.Replace("-", string.Empty)}.{providerName.ToLowerInvariant()}.gameclient.community-patch",
                 Name = "Community Patch (TheSuperHackers Build)",
                 Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
                 Version = versionDate,
@@ -312,7 +384,7 @@ public partial class CommunityOutpostDiscoverer(
                 SourceUrl = downloadUrl,
                 RequiresResolution = true,
                 ResolverId = providerId,
-                IconUrl = "avares://GenHub/Assets/Logos/communityoutpost-logo.png", // Added missing icon
+                IconUrl = CommunityOutpostConstants.LogoSource,
             };
 
             if (DateTime.TryParse(versionDate, out var date))
@@ -377,6 +449,14 @@ public partial class CommunityOutpostDiscoverer(
                 return null;
             }
 
+            // Skip base dependencies (e.g., cbbs, cben) - these are auto-installed when needed
+            // and showing them in the UI only confuses users
+            if (metadata.IsBaseDependency)
+            {
+                logger.LogDebug("Skipping base dependency {Code} ({Name}) - auto-installed as dependency", item.ContentCode, metadata.DisplayName);
+                return null;
+            }
+
             // Make URL absolute if it's relative (dl.dat URLs are usually relative like "generalszh-xxx.dat")
             // The files are hosted in the /patch/ directory on legi.cc
             if (!preferredUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
@@ -400,7 +480,8 @@ public partial class CommunityOutpostDiscoverer(
 
             var result = new ContentSearchResult
             {
-                Id = $"{CommunityOutpostConstants.PublisherId}.{item.ContentCode}",
+                // Use standard 5-segment ID format: schema.version.publisher.type.name
+                Id = $"1.0.{CommunityOutpostConstants.PublisherType.ToLowerInvariant()}.{metadata.ContentType.ToString().ToLowerInvariant()}.{item.ContentCode.ToLowerInvariant()}",
                 Name = metadata.DisplayName,
                 Description = metadata.Description ?? string.Empty,
                 Version = metadata.Version ?? "1.0",
@@ -415,7 +496,7 @@ public partial class CommunityOutpostDiscoverer(
                 LastUpdated = DateTime.Now, // dl.dat doesn't include timestamps
 
                 // Use publisher logo as default content icon
-                IconUrl = "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                IconUrl = CommunityOutpostConstants.LogoSource,
             };
 
             // Add tags based on content category

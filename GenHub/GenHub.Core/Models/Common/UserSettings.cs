@@ -130,6 +130,11 @@ public class UserSettings : ICloneable
     /// </summary>
     public UpdateStrategy? PreferredUpdateStrategy { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether notifications are muted persistently (until user turns back on).
+    /// </summary>
+    public bool IsNotificationMuted { get; set; }
+
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
     public object Clone()
@@ -156,6 +161,7 @@ public class UserSettings : ICloneable
             CachePath = CachePath,
             ApplicationDataPath = ApplicationDataPath,
             HasSeenQuickStart = HasSeenQuickStart,
+            IsNotificationMuted = IsNotificationMuted,
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,

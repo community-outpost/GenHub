@@ -236,8 +236,9 @@ public static class DemoViewModelFactory
             _ = Task.Run(() => vm.InitializeAsync());
             return vm;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
             // Fail safe with minimal mocks
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
@@ -289,8 +290,9 @@ public static class DemoViewModelFactory
             _ = Task.Run(() => vm.InitializeAsync());
             return vm;
         }
-        catch
+        catch (Exception ex)
         {
+             System.Diagnostics.Debug.WriteLine($"Failed to create full demo map manager: {ex}");
              // Fail safe with minimal mocks
             return new MapManagerViewModel(
                 new MockMapDirectoryService(),

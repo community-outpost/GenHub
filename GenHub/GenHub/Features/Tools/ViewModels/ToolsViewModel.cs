@@ -172,7 +172,9 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     InstalledTools.Add(result.Data);
                     HasTools = true;
                     SelectedTool = result.Data;
-                    ShowStatusMessage($"✓ Tool '{result.Data.Metadata.Name}' v{result.Data.Metadata.Version} installed successfully.", success: true);
+
+                    var versionDisplay = string.IsNullOrEmpty(result.Data.Metadata.Version) ? string.Empty : $" v{result.Data.Metadata.Version}";
+                    ShowStatusMessage($"✓ Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", success: true);
                     logger.LogInformation("Tool {ToolName} added successfully", result.Data.Metadata.Name);
                 }
                 else

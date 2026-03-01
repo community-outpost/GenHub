@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.Enums;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Content;
@@ -111,7 +112,6 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         {
             return string.Empty;
         }
-
         // Try to resolve hash-based versions (e.g., from GameClientHashRegistry)
         var (detectedGameType, hashVersion) = hashRegistry.GetGameInfoFromHash(trimmedVersion);
         if (detectedGameType != GameType.Unknown && !string.IsNullOrEmpty(hashVersion))
@@ -168,6 +168,12 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         var normalizedVersion = NormalizeVersion(version);
 
         if (string.IsNullOrWhiteSpace(normalizedVersion))
+        {
+            return string.Empty;
+        }
+
+        // Don't display default versions like 0, 1.0, etc.
+        if (GameVersionHelper.IsDefaultVersion(normalizedVersion))
         {
             return string.Empty;
         }

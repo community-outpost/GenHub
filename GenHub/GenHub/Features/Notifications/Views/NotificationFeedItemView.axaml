@@ -65,32 +65,32 @@
 
     <Border Classes="item-container" Padding="0">
         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
-            <!-- Main Content Area -->
-            <StackPanel Grid.Column="0" Grid.RowSpan="3" Margin="12">
-                <!-- Icon and Title -->
-                <Grid ColumnDefinitions="Auto,*">
-                    <Path Grid.Column="0"
-                          Data="{Binding IconPath}"
-                          Fill="{Binding BackgroundBrush}"
-                          Width="20"
-                          Height="20"
-                          Stretch="Uniform"
-                          VerticalAlignment="Center"
-                          Margin="0,0,8,0" />
+            <!-- Title row: icon + title, time on left -->
+            <Grid Grid.Column="0" Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,12,12,0">
+                <Path Grid.Column="0"
+                      Data="{Binding IconPath}"
+                      Fill="{Binding BackgroundBrush}"
+                      Width="20"
+                      Height="20"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      Margin="0,0,8,0" />
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Title}" Classes="item-title" />
-                        <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
-                    </StackPanel>
-                </Grid>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Title}" Classes="item-title" />
+                    <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
+                </StackPanel>
+            </Grid>
 
-                <!-- Message -->
+            <!-- Message -->
+            <StackPanel Grid.Column="0" Grid.Row="1" Margin="12,4,12,0">
                 <TextBlock Text="{Binding Message}"
                            Classes="item-message"
-                           TextWrapping="Wrap"
-                           Margin="0,8,0,0" />
+                           TextWrapping="Wrap" />
+            </StackPanel>
 
-                <!-- Actions -->
+            <!-- Actions -->
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Margin="12,8,12,12">
                 <ItemsControl ItemsSource="{Binding Actions}"
                               Classes="actions-panel"
                               IsVisible="{Binding Actions.Count}">

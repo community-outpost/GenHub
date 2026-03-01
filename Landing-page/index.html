@@ -32,6 +32,175 @@
     <link rel="stylesheet" href="./assets/css/footer.css">
     <link rel="stylesheet" href="./assets/css/animations.css">
     <link rel="stylesheet" href="./assets/css/responsive.css">
+
+    <style>
+      /* GitHub Stats Styles */
+      .stats-widget {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: inline-block;
+      }
+
+      .stats-card {
+        background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+        border: 1px solid #3d3d5c;
+        border-radius: 12px;
+        padding: 24px;
+        width: 280px;
+        position: relative;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+      }
+
+      .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      }
+
+      .stats-summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .stat-box {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8b8b9a;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #4dabf7;
+        line-height: 1;
+      }
+
+      /* Hover Breakdown Panel */
+      .stats-tooltip {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        width: 100%;
+        background: #252538;
+        border: 1px solid #3d3d5c;
+        border-radius: 8px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        max-height: 300px;
+        overflow: hidden;
+      }
+
+      .stats-card:hover .stats-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .tooltip-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #3d3d5c;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1e1e2e;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .tooltip-header span {
+        font-weight: 600;
+        font-size: 13px;
+        color: #fff;
+      }
+
+      .tooltip-header small {
+        font-size: 11px;
+        color: #8b8b9a;
+      }
+
+      .tooltip-content {
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      /* Scrollbar styling */
+      .tooltip-content::-webkit-scrollbar {
+        width: 6px;
+      }
+      .tooltip-content::-webkit-scrollbar-track {
+        background: #1e1e2e;
+      }
+      .tooltip-content::-webkit-scrollbar-thumb {
+        background: #4dabf7;
+        border-radius: 3px;
+      }
+
+      .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #3d3d5c33;
+        font-size: 12px;
+        transition: background 0.2s;
+      }
+
+      .breakdown-row:hover {
+        background: #ffffff08;
+        border-radius: 4px;
+      }
+
+      .breakdown-row:last-child {
+        border-bottom: none;
+      }
+
+      .version-tag {
+        font-weight: 600;
+        color: #4dabf7;
+        font-family: "SF Mono", Monaco, monospace;
+        font-size: 11px;
+      }
+
+      .version-stats {
+        display: flex;
+        gap: 12px;
+        color: #8b8b9a;
+      }
+
+      .stat-pill {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .stat-pill b {
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .loading-text, .error-text {
+        text-align: center;
+        padding: 20px;
+        color: #8b8b9a;
+        font-size: 12px;
+      }
+
+      .error-text {
+        color: #ff6b6b;
+      }
+    </style>
 </head>
 
 <body>
@@ -75,7 +244,30 @@
                     View All Releases
                 </a>
             </div>
-            
+            <!-- GitHub Stats Component -->
+            <div id="genhub-stats-widget" class="stats-widget" style="margin-top: 3rem;">
+              <div class="stats-card" style="margin: 0 auto;">
+                <div class="stats-summary">
+                  <div class="stat-box">
+                    <span class="stat-label">Total Installs</span>
+                    <span class="stat-value" id="gh-total-installs">...</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-label">Updates Served</span>
+                    <span class="stat-value" id="gh-total-updates">...</span>
+                  </div>
+                </div>
+                
+                <div class="stats-tooltip">
+                  <div class="tooltip-header">
+                    <span>Release Breakdown</span>
+                  </div>
+                  <div class="tooltip-content" id="gh-breakdown-list">
+                    <div class="loading-text">Loading history...</div>
+                  </div>
+                </div>
+              </div>
+            </div>            
             <div class="platform-info">
                 <span class="platform-badge">
                     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
@@ -147,6 +339,186 @@
     <script>
         // Initialize Feather Icons
         feather.replace();
+
+        // GitHub Stats Tracking
+        (function() {
+          // Configuration
+          const CONFIG = {
+            owner: 'community-outpost',
+            repo: 'GenHub',
+            cacheKey: 'genhub_stats_v1',
+            perPage: 100
+          };
+
+          const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/releases?per_page=${CONFIG.perPage}`;
+
+          // Initialize
+          document.addEventListener('DOMContentLoaded', initStats);
+
+          async function initStats() {
+            // Check cache first (session-only to ensure fresh data per visit)
+            const cached = sessionStorage.getItem(CONFIG.cacheKey);
+            if (cached) {
+              try {
+                renderStats(JSON.parse(cached));
+                return;
+              } catch (parseError) {
+                // Cache is corrupted, clear it and proceed to fetch
+                sessionStorage.removeItem(CONFIG.cacheKey);
+              }
+            }
+
+            try {
+              const data = await fetchGitHubStats();
+              // Cache for this browser session only
+              sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(data));
+              renderStats(data);
+            } catch (error) {
+              handleError(error);
+            }
+          }
+
+          async function fetchGitHubStats() {
+            // Add timeout to prevent indefinite hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const response = await fetch(apiUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (response.status === 403) {
+              throw new Error('Rate limit exceeded. Try again later.');
+            }
+            if (!response.ok) {
+              throw new Error(`API Error: ${response.status}`);
+            }
+
+            const releases = await response.json();
+            
+            let totals = { installs: 0, updates: 0 };
+            let history = [];
+
+            releases.forEach(release => {
+              let releaseInstalls = 0;
+              let releaseUpdates = 0;
+
+              // Categorize assets based on Velopack naming conventions
+              release.assets.forEach(asset => {
+                const name = asset.name.toLowerCase();
+                
+                // Setup.exe = Fresh installs
+                if (name.endsWith('-setup.exe') || (name.endsWith('.exe') && !name.includes('full') && !name.includes('delta'))) {
+                  releaseInstalls += asset.download_count;
+                }
+                // .nupkg = Updates (both full and delta count as update mechanisms)
+                else if (name.endsWith('.nupkg')) {
+                  releaseUpdates += asset.download_count;
+                }
+              });
+
+              totals.installs += releaseInstalls;
+              totals.updates += releaseUpdates;
+
+              // Only add to history if this version had any activity
+              if (releaseInstalls > 0 || releaseUpdates > 0) {
+                history.push({
+                  version: release.tag_name,
+                  date: release.published_at,
+                  installs: releaseInstalls,
+                  updates: releaseUpdates
+                });
+              }
+            });
+
+            // Sort by date (newest first)
+            history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            return { totals, history, lastUpdated: new Date().toISOString() };
+          }
+
+          function renderStats(data) {
+            // Update summary numbers with animation
+            animateNumber('gh-total-installs', data.totals.installs);
+            animateNumber('gh-total-updates', data.totals.updates);
+
+            // Build breakdown list
+            const listContainer = document.getElementById('gh-breakdown-list');
+            if (listContainer) {
+              listContainer.innerHTML = '';
+
+              if (data.history.length === 0) {
+                listContainer.innerHTML = '<div class="loading-text">No release data found</div>';
+                return;
+              }
+
+              data.history.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'breakdown-row';
+                row.innerHTML = `
+                  <span class="version-tag">${escapeHtml(item.version)}</span>
+                  <div class="version-stats">
+                    <span class="stat-pill" title="New Installs">
+                      <b>${formatNumber(item.installs)}</b> installs
+                    </span>
+                    <span class="stat-pill" title="Updates">
+                      <b>${formatNumber(item.updates)}</b> updates
+                    </span>
+                  </div>
+                `;
+                listContainer.appendChild(row);
+              });
+            }
+          }
+
+          function handleError(error) {
+            console.error('[GitHub Stats]', error);
+            const container = document.getElementById('gh-breakdown-list');
+            if (container) {
+              container.innerHTML = `<div class="error-text">Stats unavailable<br><small>${escapeHtml(error.message)}</small></div>`;
+            }
+            const installsElem = document.getElementById('gh-total-installs');
+            const updatesElem = document.getElementById('gh-total-updates');
+            if (installsElem) installsElem.textContent = '-';
+            if (updatesElem) updatesElem.textContent = '-';
+          }
+
+          // Utility: Animate number counting up
+          function animateNumber(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const duration = 1000;
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+              const elapsed = currentTime - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+              const current = Math.floor(start + (targetValue - start) * easeOutQuart);
+              
+              element.textContent = formatNumber(current);
+              
+              if (progress < 1) {
+                requestAnimationFrame(update);
+              }
+            }
+            
+            requestAnimationFrame(update);
+          }
+
+          // Utility: Format large numbers (1,234)
+          function formatNumber(num) {
+            return num.toLocaleString();
+          }
+
+          // Utility: Escape HTML to prevent XSS
+          function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+          }
+        })();
     </script>
 
 </body>

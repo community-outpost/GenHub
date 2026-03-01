@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 
 namespace GenHub.Core.Interfaces.Common;
@@ -38,6 +40,7 @@ public interface IUserSettingsService
     /// <summary>
     /// Asynchronously persists the current settings to disk.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>
-    Task SaveAsync();
+    Task SaveAsync(CancellationToken cancellationToken = default);
 }

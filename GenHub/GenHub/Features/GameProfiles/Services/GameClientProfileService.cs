@@ -52,7 +52,7 @@ public class GameClientProfileService(
 
         try
         {
-            var profileName = $"{installation.InstallationType} {gameClient.Name}";
+            var profileName = gameClient.Name;
 
             if (await ProfileExistsAsync(profileName, installation.Id, gameClient.Id, cancellationToken))
             {
@@ -574,6 +574,6 @@ public class GameClientProfileService(
         return profilesResult.Data.Any(p =>
             p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
             p.GameClient != null &&
-            p.GameClient.Id.Equals(gameClientId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.GameClient.Id, gameClientId, StringComparison.OrdinalIgnoreCase));
     }
 }

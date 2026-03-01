@@ -1,4 +1,6 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
@@ -19,6 +21,8 @@ public class ContentOrchestratorTests
     private readonly Mock<IDynamicContentCache> _cacheMock = default!;
     private readonly Mock<IContentValidator> _contentValidatorMock = default!;
     private readonly Mock<IContentManifestPool> _manifestPoolMock = default!;
+    private readonly Mock<IGameInstallationService> _installationServiceMock = default!;
+    private readonly Mock<IUserSettingsService> _userSettingsServiceMock = default!;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock = default!;
 
     /// <summary>
@@ -29,6 +33,8 @@ public class ContentOrchestratorTests
         _cacheMock = new Mock<IDynamicContentCache>();
         _contentValidatorMock = new Mock<IContentValidator>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
+        _installationServiceMock = new Mock<IGameInstallationService>();
+        _userSettingsServiceMock = new Mock<IUserSettingsService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -63,7 +69,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _userSettingsServiceMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -122,7 +130,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _userSettingsServiceMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);

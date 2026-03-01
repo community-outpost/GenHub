@@ -85,7 +85,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
         }
     }
 
-    [GeneratedRegex(@"^(\w{4})\s+(\d+)\s+(\S+)\s+(.+)$")]
+    [GeneratedRegex(@"^(\w{4,20})\s+(\d+)\s+(\S+)\s+(.+)$")]
     private static partial Regex ContentLineRegex();
 
     [GeneratedRegex(@"^([\d\.]+)\s+;;$")]
@@ -249,13 +249,31 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             // Get metadata from GenPatcherContentRegistry
             var metadata = GenPatcherContentRegistry.GetMetadata(item.ContentCode);
 
-            // Skip unknown content
-            if (metadata.ContentType == ContentType.UnknownContentType)
+            // Filter out unwanted content: official patches and unknown content types
+            // These should not be presented as downloadable content to the user in the cards view
+            // UNLESS it's an OfficialPatch (which we filter later by language)
+            if ((metadata.ContentType == ContentType.Patch && metadata.Category != GenPatcherContentCategory.OfficialPatch) ||
+                metadata.ContentType == ContentType.UnknownContentType)
             {
-                _logger.LogDebug("No metadata found for content code {Code}, skipping", item.ContentCode);
+                _logger.LogDebug("Filtering out content {Code} - restricted content type {Type}", item.ContentCode, metadata.ContentType);
                 return null;
             }
 
+            // Skip base dependencies (e.g., cbbs, cben, cbpc, hlen) - these are auto-installed when needed
+            // and showing them in the UI only confuses users
+            if (metadata.IsBaseDependency)
+            {
+                _logger.LogDebug("Skipping base dependency {Code} ({Name}) - auto-installed as dependency", item.ContentCode, metadata.DisplayName);
+                return null;
+            }
+
+            // Skip language-specific official patches (104*, 108*) except English
+            // These clutter the UI, but English is often desired as a standalone patch.
+            if (metadata.Category == GenPatcherContentCategory.OfficialPatch && metadata.LanguageCode != "en")
+            {
+                _logger.LogDebug("Skipping official patch {Code} ({Language}) - not shown in UI", item.ContentCode, metadata.LanguageCode);
+                return null;
+            }
             // Get download URL with mirror preference from provider
             var preferredUrl = GetPreferredDownloadUrl(item, provider);
             if (string.IsNullOrEmpty(preferredUrl))
@@ -268,9 +286,12 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             var baseUrl = provider.Endpoints.GetEndpoint(CommunityOutpostCatalogConstants.PatchPageUrlEndpoint) ?? CommunityOutpostCatalogConstants.DefaultBaseUrl;
             preferredUrl = MakeUrlAbsolute(preferredUrl, baseUrl);
 
+            // Use the standard 5-segment ID format: schema.user.publisher.type.name
+            var publisherName = provider.PublisherType.ToLowerInvariant();
+            var contentType = metadata.ContentType.ToString().ToLowerInvariant();
             var result = new ContentSearchResult
             {
-                Id = $"{provider.ProviderId}.{item.ContentCode}",
+                Id = $"1.0.{publisherName}.{contentType}.{item.ContentCode.ToLowerInvariant()}",
                 Name = metadata.DisplayName,
                 Description = metadata.Description ?? string.Empty,
                 Version = metadata.Version ?? CommunityOutpostCatalogConstants.DefaultMetadataVersion,

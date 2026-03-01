@@ -31,6 +31,145 @@ public class ContentStorageService : IContentStorageService
     private readonly ICasService _casService;
     private readonly ICasReferenceTracker _referenceTracker;
 
+    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
+    {
+        if (manifest.Files != null)
+        {
+            var normalizedBase = Path.GetFullPath(baseDirectory);
+            foreach (var file in manifest.Files)
+            {
+                if (string.IsNullOrEmpty(file.RelativePath))
+                {
+                    return OperationResult<bool>.CreateFailure("File entries must have a relative path");
+                }
+
+                // path traversal check using normalization
+                try
+                {
+                    var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
+                    if (!fullPath.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
+                }
+
+                // Security check: SourcePath should generally not be set in manifests to avoid
+                // arbitrary file reads, unless explicitly allowed for local ingestion.
+                // For now, we enforce that if SourcePath IS set, it must check for traversal if relative,
+                // and we warn on absolute paths if they look suspicious (though we can't easily distinguish
+                // legitimate local imports from malicious ones without more context).
+                if (!string.IsNullOrEmpty(file.SourcePath))
+                {
+                    try
+                    {
+                        // If SourcePath is absolute, we strictly enforce it must be within baseDirectory
+                        // If it is relative, we combine and check traversal
+                        string fullSource;
+                        if (Path.IsPathRooted(file.SourcePath))
+                        {
+                            fullSource = Path.GetFullPath(file.SourcePath);
+                        }
+                        else
+                        {
+                            fullSource = Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
+                        }
+
+                        if (!fullSource.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return OperationResult<bool>.CreateFailure($"File {file.RelativePath} specifies SourcePath {file.SourcePath} which traverses outside base directory");
+                        }
+                    }
+                    catch (ArgumentException)
+                    {
+                        return OperationResult<bool>.CreateFailure($"Invalid SourcePath in file entry: {file.RelativePath}");
+                    }
+                }
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)
+    {
+        using var sha256 = SHA256.Create();
+        await using var stream = File.OpenRead(filePath);
+        var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
+        return Convert.ToHexString(hashBytes);
+    }
+
+    /// <summary>
+    /// Determines whether a manifest requires physical file storage in the CAS system.
+    /// </summary>
+    /// <param name="manifest">The manifest to check.</param>
+    /// <returns>True if files should be physically stored; false if metadata-only storage is sufficient.</returns>
+    private static bool RequiresPhysicalStorage(ContentManifest manifest)
+    {
+        // GameInstallation content always references external installations - no storage needed
+        if (manifest.ContentType == ContentType.GameInstallation)
+        {
+            return false;
+        }
+
+        // MapPacks created locally MUST be stored in CAS because the source (temp dir) will be deleted
+        if (manifest.ContentType == ContentType.MapPack)
+        {
+            return true;
+        }
+
+        // GameClient content typically references external installations - no storage needed (old behavior)
+        // Only store physically for GitHub content that requires it
+        if (manifest.ContentType == ContentType.GameClient)
+        {
+            // Check if any file requires CAS storage based on its source type
+            // This covers content from any GitHub publisher (thesuperhackers, generalsonline, etc.)
+            return manifest.Files.Any(f =>
+                f.SourceType == ContentSourceType.ContentAddressable ||
+                f.SourceType == ContentSourceType.ExtractedPackage ||
+                f.SourceType == ContentSourceType.LocalFile ||
+                f.SourceType == ContentSourceType.Unknown);
+        }
+
+        // For other content types, check if files have source types that require CAS storage
+        if (manifest.Files.Count == 0)
+        {
+            // No files to store
+            return false;
+        }
+
+        // Check if any file requires CAS storage based on its source type
+        bool hasStorableContent = manifest.Files.Any(f =>
+            f.SourceType == ContentSourceType.ContentAddressable ||
+            f.SourceType == ContentSourceType.ExtractedPackage ||
+            f.SourceType == ContentSourceType.LocalFile ||
+            f.SourceType == ContentSourceType.Unknown);
+
+        return hasStorableContent;
+    }
+
+    private static ManifestFile CloneManifestFileForCas(ManifestFile original, string? hash = null, long? size = null)
+    {
+        return new ManifestFile
+        {
+            RelativePath = original.RelativePath,
+            Size = size ?? original.Size,
+            Hash = hash ?? original.Hash,
+            SourceType = ContentSourceType.ContentAddressable,
+            InstallTarget = original.InstallTarget,
+            IsRequired = original.IsRequired,
+            IsExecutable = original.IsExecutable,
+            DownloadUrl = original.DownloadUrl,
+            SourcePath = null,
+            PatchSourceFile = original.PatchSourceFile,
+            PackageInfo = original.PackageInfo,
+            Permissions = original.Permissions,
+        };
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentStorageService"/> class.
     /// </summary>
@@ -91,7 +230,9 @@ public class ContentStorageService : IContentStorageService
         }
 
         // Validate manifest for security issues
-        var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+        // Use sourceDirectory as base for validation to allow importing from external locations
+        var validationBase = sourceDirectory;
+        var securityValidation = ValidateManifestSecurity(manifest, validationBase);
         if (!securityValidation.Success)
         {
             return OperationResult<ContentManifest>.CreateFailure(
@@ -211,7 +352,7 @@ public class ContentStorageService : IContentStorageService
                     continue;
                 }
 
-                var casPathResult = await _casService.GetContentPathAsync(file.Hash, cancellationToken);
+                var casPathResult = await _casService.GetContentPathAsync(file.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
                 if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
                 {
                     _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
@@ -325,94 +466,6 @@ public class ContentStorageService : IContentStorageService
         }
     }
 
-    private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
-    {
-        if (manifest.Files != null)
-        {
-            var normalizedBase = Path.GetFullPath(baseDirectory);
-            foreach (var file in manifest.Files)
-            {
-                if (string.IsNullOrEmpty(file.RelativePath))
-                {
-                    return OperationResult<bool>.CreateFailure("File entries must have a relative path");
-                }
-
-                // path traversal check using normalization
-                try
-                {
-                    var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
-                    if (!fullPath.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
-                    }
-                }
-                catch (ArgumentException)
-                {
-                    return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
-                }
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)
-    {
-        using var sha256 = SHA256.Create();
-        await using var stream = File.OpenRead(filePath);
-        var hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
-        return Convert.ToHexString(hashBytes);
-    }
-
-    /// <summary>
-    /// Determines whether a manifest requires physical file storage in the CAS system.
-    /// </summary>
-    /// <param name="manifest">The manifest to check.</param>
-    /// <returns>True if files should be physically stored; false if metadata-only storage is sufficient.</returns>
-    private static bool RequiresPhysicalStorage(ContentManifest manifest)
-    {
-        // GameInstallation content always references external installations - no storage needed
-        if (manifest.ContentType == ContentType.GameInstallation)
-        {
-            return false;
-        }
-
-        // MapPacks created locally MUST be stored in CAS because the source (temp dir) will be deleted
-        if (manifest.ContentType == ContentType.MapPack)
-        {
-            return true;
-        }
-
-        // GameClient content typically references external installations - no storage needed (old behavior)
-        // Only store physically for GitHub content that requires it
-        if (manifest.ContentType == ContentType.GameClient)
-        {
-            // Check if any file requires CAS storage based on its source type
-            // This covers content from any GitHub publisher (thesuperhackers, generalsonline, etc.)
-            return manifest.Files.Any(f =>
-                f.SourceType == ContentSourceType.ContentAddressable ||
-                f.SourceType == ContentSourceType.ExtractedPackage ||
-                f.SourceType == ContentSourceType.LocalFile ||
-                f.SourceType == ContentSourceType.Unknown);
-        }
-
-        // For other content types, check if files have source types that require CAS storage
-        if (manifest.Files.Count == 0)
-        {
-            // No files to store
-            return false;
-        }
-
-        // Check if any file requires CAS storage based on its source type
-        bool hasStorableContent = manifest.Files.Any(f =>
-            f.SourceType == ContentSourceType.ContentAddressable ||
-            f.SourceType == ContentSourceType.ExtractedPackage ||
-            f.SourceType == ContentSourceType.LocalFile ||
-            f.SourceType == ContentSourceType.Unknown);
-
-        return hasStorableContent;
-    }
-
     private async Task<OperationResult<ContentManifest>> StoreManifestOnlyAsync(
         ContentManifest manifest,
         string? sourceDirectory,
@@ -423,7 +476,12 @@ public class ContentStorageService : IContentStorageService
         try
         {
             // Validate manifest for security issues
-            var securityValidation = ValidateManifestSecurity(manifest, _storageRoot);
+            // Use sourceDirectory if available, otherwise fallback to storage root (though typically sourceDirectory should be provided)
+            var validationBase = !string.IsNullOrEmpty(sourceDirectory) && Directory.Exists(sourceDirectory)
+                ? sourceDirectory
+                : _storageRoot;
+
+            var securityValidation = ValidateManifestSecurity(manifest, validationBase);
             if (!securityValidation.Success)
             {
                 _logger.LogError("Manifest security validation failed for {ManifestId}: {Error}", manifest.Id, securityValidation.FirstError ?? "Unknown error");
@@ -600,7 +658,7 @@ public class ContentStorageService : IContentStorageService
                 if (manifestFile.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(manifestFile.Hash))
                 {
                     // Verify if it actually exists in CAS
-                    var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, cancellationToken);
+                    var casPathResult = await _casService.GetContentPathAsync(manifestFile.Hash, manifest.ContentType, cancellationToken).ConfigureAwait(false);
                     if (casPathResult.Success && !string.IsNullOrEmpty(casPathResult.Data))
                     {
                         _logger.LogDebug(
@@ -608,8 +666,8 @@ public class ContentStorageService : IContentStorageService
                             manifestFile.RelativePath,
                             manifestFile.Hash);
 
-                        // Add directly to updated files
-                        updatedFiles.Add(manifestFile);
+                        // Add to updated files with SourcePath = null to ensure Hash resolution
+                        updatedFiles.Add(CloneManifestFileForCas(manifestFile));
                         processedCount++;
                         progress?.Report(new ContentStorageProgress
                         {
@@ -651,8 +709,8 @@ public class ContentStorageService : IContentStorageService
 
                 if (manifestFile.SourceType == ContentSourceType.ContentAddressable)
                 {
-                    // For ContentAddressable files, store in CAS by hash
-                    var casResult = await _casService.StoreContentAsync(sourcePath, null, cancellationToken);
+                    // For ContentAddressable files, store in CAS by hash with pool awareness
+                    var casResult = await _casService.StoreContentAsync(sourcePath, manifest.ContentType, null, cancellationToken);
                     if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
                     {
                         _logger.LogWarning(
@@ -674,7 +732,7 @@ public class ContentStorageService : IContentStorageService
                 {
                     // For other source types (ExtractedPackage, LocalFile, etc.), also store in CAS
                     // This ensures all files end up in CAS for proper validation and workspace resolution
-                    var casResult = await _casService.StoreContentAsync(sourcePath, null, cancellationToken);
+                    var casResult = await _casService.StoreContentAsync(sourcePath, manifest.ContentType, null, cancellationToken);
                     if (!casResult.Success || string.IsNullOrEmpty(casResult.Data))
                     {
                         _logger.LogWarning(
@@ -695,23 +753,8 @@ public class ContentStorageService : IContentStorageService
                 }
 
                 // After storing, all files become ContentAddressable since they're now in CAS
-                var updatedFile = new ManifestFile
-                {
-                    RelativePath = manifestFile.RelativePath,
-                    Size = fileSize,
-                    Hash = hash,
-                    SourceType = ContentSourceType.ContentAddressable,
-                    InstallTarget = manifestFile.InstallTarget, // Preserve install target (UserMapsDirectory, etc.)
-                    IsRequired = manifestFile.IsRequired,
-                    IsExecutable = manifestFile.IsExecutable,
-                    DownloadUrl = manifestFile.DownloadUrl,
-                    SourcePath = manifestFile.SourcePath,
-                    PatchSourceFile = manifestFile.PatchSourceFile,
-                    PackageInfo = manifestFile.PackageInfo,
-                    Permissions = manifestFile.Permissions,
-                };
-
-                updatedFiles.Add(updatedFile);
+                // Clear SourcePath for CAS-stored content so workspace preparation uses Hash instead
+                updatedFiles.Add(CloneManifestFileForCas(manifestFile, hash, fileSize));
                 processedCount++;
 
                 // Update progress after completion

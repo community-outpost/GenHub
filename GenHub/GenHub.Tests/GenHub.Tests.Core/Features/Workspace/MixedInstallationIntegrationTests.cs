@@ -353,6 +353,11 @@ public class MixedInstallationIntegrationTests : IDisposable
     [Fact]
     public async Task INT5_ConflictResolution_ModBeatsInstallation_CorrectPriority()
     {
+        // Create different content for each version
+        await CreateTestFile(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
+        await CreateTestFile(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
+        await CreateTestFile(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
+
         // Arrange - Create manifests with overlapping files
         var gameInstallManifest = await CreateManifestAsync(
             "1.104.steam.gameinstallation.zerohour",
@@ -371,11 +376,6 @@ public class MixedInstallationIntegrationTests : IDisposable
             "ShockWave Mod",
             ContentType.Mod,
             [("Data/INI/GameData.ini", Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"))]);
-
-        // Create different content for each version
-        await CreateTestFile(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
-        await CreateTestFile(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
-        await CreateTestFile(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
 
         var config = new WorkspaceConfiguration
         {

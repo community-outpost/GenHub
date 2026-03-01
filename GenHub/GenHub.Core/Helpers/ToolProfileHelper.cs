@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -45,7 +46,7 @@ public static class ToolProfileHelper
             return false;
         }
 
-        return manifestResult.Data.ContentType == ContentType.ModdingTool;
+        return manifestResult.Data.ContentType.IsStandalone();
     }
 
     /// <summary>
@@ -77,7 +78,7 @@ public static class ToolProfileHelper
             var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
             if (manifestResult.Success && manifestResult.Data != null)
             {
-                if (manifestResult.Data.ContentType == ContentType.ModdingTool)
+                if (manifestResult.Data.ContentType.IsStandalone())
                 {
                     moddingToolCount++;
                 }
@@ -121,8 +122,8 @@ public static class ToolProfileHelper
             return false;
         }
 
-        // That one item must be a ModdingTool
-        return contentList[0].ContentType == ContentType.ModdingTool;
+        // That one item must be a standalone tool (ModdingTool, Executable, Addon)
+        return contentList[0].ContentType.IsStandalone();
     }
 
     /// <summary>
@@ -135,7 +136,7 @@ public static class ToolProfileHelper
     {
         var contentList = enabledContent.ToList();
 
-        var moddingToolCount = contentList.Count(c => c.ContentType == ContentType.ModdingTool);
+        var moddingToolCount = contentList.Count(c => c.ContentType.IsStandalone());
         var otherContentCount = contentList.Count - moddingToolCount;
 
         // Tool profiles must have exactly one ModdingTool

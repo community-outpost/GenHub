@@ -53,6 +53,7 @@ public class ProfileLauncherFacade(
     ISuperHackersProfileReconciler superHackersReconciler,
     GenHub.Features.Content.Services.CommunityOutpost.ICommunityOutpostProfileReconciler communityOutpostReconciler,
     IConfigurationProviderService configurationProvider,
+    IGameProcessManager gameProcessManager,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
@@ -200,6 +201,7 @@ public class ProfileLauncherFacade(
 
                 if (toolExecutable == null)
                 {
+                    logger.LogError("[Launch] Tool manifest {ManifestId} does not specify an executable file", toolManifest.Id);
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                         ProfileValidationConstants.ToolManifestMissingExecutable);
                 }
@@ -207,6 +209,7 @@ public class ProfileLauncherFacade(
                 var toolExecutablePath = Path.Combine(toolDirectoryPath, toolExecutable.RelativePath);
                 if (!File.Exists(toolExecutablePath))
                 {
+                    logger.LogError("[Launch] Tool executable not found at path: {Path}", toolExecutablePath);
                     return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                         $"{ProfileValidationConstants.ToolExecutableNotFound}: {toolExecutablePath}");
                 }
@@ -277,6 +280,9 @@ public class ProfileLauncherFacade(
                     // Register the tool launch with the launch registry for process monitoring
                     await launchRegistry.RegisterLaunchAsync(toolLaunchInfo);
                     logger.LogDebug("[Launch] Registered tool launch {LaunchId} with LaunchRegistry", launchId);
+
+                    // Also track it in the process manager to get exit events
+                    gameProcessManager.TrackProcess(process);
 
                     notificationService.ShowSuccess(
                         ProfileValidationConstants.ToolLaunchSuccessTitle,
@@ -791,7 +797,12 @@ public class ProfileLauncherFacade(
             var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
             if (launch == null)
             {
-                return ProfileOperationResult<GameProcessInfo>.CreateFailure($"No active launch found for profile {profileId}");
+                logger.LogDebug("No active launch found for profile {ProfileId}, returning stopped status", profileId);
+                return ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+                {
+                    IsRunning = false,
+                    ProcessId = -1,
+                });
             }
 
             logger.LogDebug("Profile {ProfileId} launch status: {Status}", profileId, launch.ProcessInfo.IsRunning ? "Running" : "Not Running");
@@ -1712,7 +1723,7 @@ public class ProfileLauncherFacade(
             {
                 foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
                 {
-                    var existsResult = await casService.ExistsAsync(file.Hash, cancellationToken);
+                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
                     if (!existsResult.Success || !existsResult.Data)
                     {
                         missingHashes.Add(file.Hash);
@@ -1746,7 +1757,15 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        foreach (var idString in profile.EnabledContentIds)
+        // If the profile is configured as a game profile (has GameInstallation or GameClient),
+        // do not treat it as a tool profile even if it contains mixed content.
+        if (!string.IsNullOrEmpty(profile.GameInstallationId) ||
+            (profile.GameClient != null && !string.IsNullOrEmpty(profile.GameClient.Id)))
+        {
+            return null;
+        }
+
+        foreach (var idString in profile.EnabledContentIds!)
         {
             if (!ManifestId.TryCreate(idString, out var id))
             {
@@ -1755,9 +1774,7 @@ public class ProfileLauncherFacade(
             }
 
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success && manifestResult.Data != null &&
-                (manifestResult.Data.ContentType == ContentType.ModdingTool ||
-                 manifestResult.Data.ContentType == ContentType.Executable))
+            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
             {
                 return idString;
             }

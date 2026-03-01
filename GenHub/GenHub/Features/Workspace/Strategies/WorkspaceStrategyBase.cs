@@ -436,9 +436,10 @@ public abstract class WorkspaceStrategyBase<T>(
     /// </summary>
     /// <param name="hash">The hash of the CAS content.</param>
     /// <param name="targetPath">The target path for the CAS file in the workspace.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected abstract Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken);
+    protected abstract Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken);
 
     /// <summary>
     /// Resolves the target path for a manifest file based on its InstallTarget.
@@ -495,7 +496,7 @@ public abstract class WorkspaceStrategyBase<T>(
         switch (file.SourceType)
         {
             case ContentSourceType.ContentAddressable:
-                await ProcessCasFileAsync(file, targetPath, cancellationToken);
+                await ProcessCasFileAsync(file, manifest.ContentType, targetPath, cancellationToken);
                 break;
             case ContentSourceType.GameInstallation:
                 await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
@@ -515,10 +516,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// Processes a CAS file with fallback logic. Strategies should call this for CAS files.
     /// </summary>
     /// <param name="file">The manifest file representing the CAS content.</param>
+    /// <param name="contentType">The content type of the file.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual async Task ProcessCasFileAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    protected virtual async Task ProcessCasFileAsync(ManifestFile file, ContentType? contentType, string targetPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(file.Hash))
         {
@@ -528,7 +530,7 @@ public abstract class WorkspaceStrategyBase<T>(
         try
         {
             // First try the strategy-specific CAS link creation
-            await CreateCasLinkAsync(file.Hash, targetPath, cancellationToken);
+            await CreateCasLinkAsync(file.Hash, targetPath, contentType, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -537,11 +539,11 @@ public abstract class WorkspaceStrategyBase<T>(
             // Fallback to direct service operations
             try
             {
-                var linked = await FileOperations.LinkFromCasAsync(file.Hash, targetPath, useHardLink: false, cancellationToken);
+                var linked = await FileOperations.LinkFromCasAsync(file.Hash, targetPath, useHardLink: false, contentType: contentType, cancellationToken: cancellationToken);
                 if (!linked)
                 {
                     // Final fallback to copy
-                    var copied = await FileOperations.CopyFromCasAsync(file.Hash, targetPath, cancellationToken);
+                    var copied = await FileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
                     if (!copied)
                     {
                         throw new CasStorageException($"CAS content not available for hash {file.Hash}", ex);

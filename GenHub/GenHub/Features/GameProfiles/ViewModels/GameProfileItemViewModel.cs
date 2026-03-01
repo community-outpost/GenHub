@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -17,7 +18,42 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileItemViewModel : ViewModelBase
 {
     /// <summary>
-    /// Launches profile using the injected action.
+    /// Gets or sets the action to launch the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? LaunchAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to edit the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? EditProfileAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to delete the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? DeleteProfileAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to create a shortcut for the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? CreateShortcutAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to stop the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? StopProfileAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to copy the profile.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? CopyProfileAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to toggle Steam launch mode.
+    /// </summary>
+    public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
+
+    /// <summary>
+    /// Launches the profile using the injected action.
     /// </summary>
     [RelayCommand]
     private async Task LaunchProfile()
@@ -41,7 +77,19 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Deletes profile using the injected action.
+    /// Copies the profile using the injected action.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyProfile()
+    {
+        if (CopyProfileAction != null)
+        {
+            await CopyProfileAction(this);
+        }
+    }
+
+    /// <summary>
+    /// Deletes the profile using the injected action.
     /// </summary>
     [RelayCommand]
     private async Task DeleteProfile()
@@ -136,8 +184,20 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <summary>
     /// Gets or sets the game version (e.g., "1.08", "1.04").
     /// </summary>
-    [ObservableProperty]
     private string? _gameVersion;
+
+    /// <summary>
+    /// Gets or sets the game version (e.g., "1.08", "1.04").
+    /// </summary>
+    public string? GameVersion
+    {
+        get => _gameVersion;
+        set
+        {
+            var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+            SetProperty(ref _gameVersion, displayVersion);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the publisher/platform name (e.g., "Steam", "EA App").
@@ -335,36 +395,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets the underlying game profile.
     /// </summary>
     public IGameProfile Profile { get; }
-
-    /// <summary>
-    /// Gets or sets the action to launch the profile.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? LaunchAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to edit the profile.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? EditProfileAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to delete the profile.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? DeleteProfileAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to create a shortcut for the profile.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? CreateShortcutAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to stop the profile.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? StopProfileAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to toggle Steam launch mode.
-    /// </summary>
-    public Func<GameProfileItemViewModel, Task>? ToggleSteamLaunchAction { get; set; }
 
     /// <summary>
     /// Explicitly notifies that the CanLaunch and CanEdit properties may have changed.

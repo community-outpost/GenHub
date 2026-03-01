@@ -522,6 +522,32 @@ public class GameProcessManager(
     }
 
     /// <inheritdoc/>
+    public void TrackProcess(Process process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+
+        if (process.HasExited)
+        {
+            logger.LogWarning("[Process] Attempted to track already exited process {ProcessId}", process.Id);
+            return;
+        }
+
+        logger.LogInformation("[Process] Registering existing process for tracking: {ProcessId} ({ProcessName})", process.Id, process.ProcessName);
+
+        _managedProcesses[process.Id] = process;
+
+        try
+        {
+            process.EnableRaisingEvents = true;
+            process.Exited += OnProcessExited;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Process] Failed to enable raising events for tracked process {ProcessId}", process.Id);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("[Discover] Attempting to discover and track process: {Name} in {Directory}", processName, workingDirectory);

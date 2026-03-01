@@ -115,8 +115,8 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
         NavigationTab.Tools,
-        NavigationTab.Settings,
         NavigationTab.Info,
+        NavigationTab.Settings,
     ];
 
     /// <summary>

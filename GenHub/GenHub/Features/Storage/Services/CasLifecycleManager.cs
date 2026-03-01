@@ -94,9 +94,8 @@ public class CasLifecycleManager(
 
     /// <summary>
     /// Untracks multiple manifests in bulk.
-    /// Note: Returns Success=true even if individual manifests fail to untrack (partial success).
-    /// Callers MUST check <see cref="BulkUntrackResult.Errors"/> to detect individual failures.
-    /// Failure (Success=false) is reserved for cases where the entire operation could not be executed.
+    /// Note: Returns Success=false if any individual manifests fail to untrack (partial success).
+    /// Callers can check <see cref="BulkUntrackResult.Errors"/> to detect individual failures.
     /// </summary>
     /// <param name="manifestIds">The IDs of the manifests to untrack.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

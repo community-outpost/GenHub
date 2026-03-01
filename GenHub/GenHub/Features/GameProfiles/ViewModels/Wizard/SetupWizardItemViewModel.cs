@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 
 namespace GenHub.Features.GameProfiles.ViewModels.Wizard;
@@ -53,8 +54,20 @@ public partial class SetupWizardItemViewModel : ObservableObject
     /// <summary>
     /// Gets or sets the version string to display.
     /// </summary>
-    [ObservableProperty]
     private string _version = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the version string to display.
+    /// </summary>
+    public string Version
+    {
+        get => _version;
+        set
+        {
+            var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+            SetProperty(ref _version, displayVersion ?? string.Empty);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the type of action to perform (e.g., "Install", "Update", "CreateProfile").

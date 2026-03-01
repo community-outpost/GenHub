@@ -134,7 +134,8 @@ public class UserDataTrackerService(
                         file.Hash,
                         targetPath,
                         useHardLink: true,
-                        cancellationToken);
+                        contentType: null,
+                        cancellationToken: cancellationToken);
 
                     if (linkResult)
                     {
@@ -144,7 +145,7 @@ public class UserDataTrackerService(
                     else
                     {
                         // Fall back to copy
-                        var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, cancellationToken);
+                        var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: null, cancellationToken: cancellationToken);
                         if (!copyResult)
                         {
                             logger.LogError("[UserData] Failed to install file {Path}", targetPath);
@@ -286,12 +287,13 @@ public class UserDataTrackerService(
                             file.CasHash,
                             file.AbsolutePath,
                             useHardLink: true,
-                            cancellationToken);
+                            contentType: null,
+                            cancellationToken: cancellationToken);
 
                         if (!linkResult)
                         {
                             // Fall back to copy
-                            await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, cancellationToken);
+                            await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
                         }
                     }
                 }

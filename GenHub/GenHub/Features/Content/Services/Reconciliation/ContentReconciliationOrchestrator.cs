@@ -125,34 +125,37 @@ public class ContentReconciliationOrchestrator(
 
             // STEP 3: Remove old manifest files from pool
             logger.LogDebug("[Orchestrator:{OpId}] Step 3: Removing old manifests from pool", operationId);
-            if (criticalFailureOccurred)
+            if (request.RemoveOldManifests)
             {
-                logger.LogWarning("[Orchestrator:{OpId}] Skipping manifest removal step due to previous errors", operationId);
-                warnings.Add("Manifest removal step skipped due to previous errors in profile update or untracking.");
-            }
-            else
-            {
-                foreach (var oldId in request.ManifestMapping.Keys)
+                if (criticalFailureOccurred)
                 {
-                    try
+                    logger.LogWarning("[Orchestrator:{OpId}] Skipping manifest removal step due to previous errors", operationId);
+                    warnings.Add("Manifest removal step skipped due to previous errors in profile update or untracking.");
+                }
+                else
+                {
+                    foreach (var oldId in request.ManifestMapping.Keys)
                     {
-                        // Use helper for optimized removal
-                        // Only skip untracking if we are sure everything went well so far
-                        var removeResult = await RemoveManifestWithOptimizedUntrackingAsync(oldId, skipUntrack: true, cancellationToken);
-                        if (removeResult.Success)
+                        try
                         {
-                            manifestsRemoved++;
+                            // Use helper for optimized removal
+                            // Only skip untracking if we are sure everything went well so far
+                            var removeResult = await RemoveManifestWithOptimizedUntrackingAsync(oldId, skipUntrack: true, cancellationToken);
+                            if (removeResult.Success)
+                            {
+                                manifestsRemoved++;
+                            }
+                            else
+                            {
+                                warnings.Add(removeResult.FirstError ?? "Manifest removal failed with unknown error");
+                                criticalFailureOccurred = true;
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            warnings.Add(removeResult.FirstError ?? "Manifest removal failed with unknown error");
+                            warnings.Add($"Error removing manifest {oldId}: {ex.Message}");
                             criticalFailureOccurred = true;
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        warnings.Add($"Error removing manifest {oldId}: {ex.Message}");
-                        criticalFailureOccurred = true;
                     }
                 }
             }
@@ -582,6 +585,31 @@ public class ContentReconciliationOrchestrator(
         {
             stopwatch.Stop();
             logger.LogError(ex, "[Orchestrator:{OpId}] Local content update failed", operationId);
+
+            await auditLog.LogOperationAsync(
+                new ReconciliationAuditEntry
+                {
+                    OperationId = operationId,
+                    OperationType = ReconciliationOperationType.LocalContentUpdate,
+                    Timestamp = DateTime.UtcNow,
+                    AffectedManifestIds = [oldManifestId, newId],
+                    ManifestMapping = new Dictionary<string, string> { [oldManifestId] = newId },
+                    Success = false,
+                    ErrorMessage = $"Update failed: {ex.Message}",
+                    Duration = stopwatch.Elapsed,
+                },
+                cancellationToken);
+
+            // Publish completion event for local update
+            WeakReferenceMessenger.Default.Send(new ReconciliationCompletedEvent(
+                operationId,
+                "LocalContentUpdate",
+                0,
+                idChanged ? 1 : 0,
+                false,
+                $"Update failed: {ex.Message}",
+                stopwatch.Elapsed));
+
             return OperationResult<ContentUpdateResult>.CreateFailure($"Update failed: {ex.Message}");
         }
     }

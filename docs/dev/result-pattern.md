@@ -134,8 +134,8 @@ Result of a content update check operation.
 - `LatestVersion`: Latest available version
 - `DownloadUrl`: URL for the update package
 - `Changelog`: Release notes or changelog content
-- `HasErrors`: Inherited from `ResultBase`, indicates if the check failed
-- `FirstError`: Inherited from `ResultBase`, provides failure reason
+- `HasErrors`: Inherited from `ResultBase`, indicates whether any errors are present
+- `FirstError`: Inherited from `ResultBase`, provides the first error message, if any
 
 **Factory Methods:**
 

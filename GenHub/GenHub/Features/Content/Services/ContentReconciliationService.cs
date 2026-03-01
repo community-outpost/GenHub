@@ -157,11 +157,18 @@ public class ContentReconciliationService(
             if (idChanged)
             {
                 logger.LogInformation("Untracking old manifest references for '{OldId}'", oldId);
-                await referenceTracker.UntrackManifestAsync(oldId!, cancellationToken);
+                var untrackResult = await referenceTracker.UntrackManifestAsync(oldId!, cancellationToken);
 
-                // 4. Remove Old Manifest from pool
-                // We can skip untrack here because we just did it above
-                await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId!), skipUntrack: true, cancellationToken);
+                if (untrackResult.Success)
+                {
+                    // 4. Remove Old Manifest from pool
+                    // We can skip untrack here because we just did it above
+                    await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId!), skipUntrack: true, cancellationToken);
+                }
+                else
+                {
+                    logger.LogWarning("Failed to untrack references for old manifest '{OldId}'. Skipping removal from pool. Error: {Error}", oldId, untrackResult.FirstError);
+                }
             }
 
             stopwatch.Stop();

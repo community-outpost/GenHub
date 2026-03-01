@@ -64,6 +64,19 @@ Built into `GameLauncher.cs`, this process runs immediately before `generals.exe
 
 For the specialized **Generals Online** client, the system also injects settings into `settings.json`, ensuring that unique features of that community client (like 30FPS vs 60FPS toggles) are respected per-profile.
 
+## Copy Profile Feature
+
+The Copy Profile feature allows users to duplicate an existing profile. This is useful for creating variations of a mod setup (e.g., "RotR" and "RotR (No Intro)") without manual reconfiguration.
+
+**Preserved Settings:**
+
+- **Core Config**: Name (suffixed with Copy), Game Installation, and Client.
+- **Content**: All enabled Mod, Map, and Patch manifests.
+- **Game Settings**: Resolutions, UI scaling, and Audio volumes.
+- **Client-Specifics**: Generals Online and TheSuperHackers specific toggles.
+
+The system automatically generates a unique name for the copy and assigns it a new workspace, ensuring complete isolation from the original.
+
 ## Launch Options
 
 Profiles support flexible launch configuration:

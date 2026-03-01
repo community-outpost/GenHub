@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameClients;
@@ -277,6 +278,35 @@ public class GameProfileLauncherViewModelTests
         Assert.Contains("Scan failed", vm.StatusMessage);
     }
 
+    /// <summary>
+    /// Verifies that CopyProfile generates a unique name for the copied profile.
+    /// </summary>
+    [Fact]
+    public void GenerateUniqueProfileName_CreatesUniqueName()
+    {
+        // Arrange
+        var vm = CreateViewModelWithMockDependencies();
+
+        // Add some existing profiles to simulate name conflicts
+        var existingProfile1 = new GameProfileItemViewModel("id1", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
+        {
+            Name = $"Test Profile {ProfileConstants.CopyNameSuffix}",
+        };
+        var existingProfile2 = new GameProfileItemViewModel("id2", new Mock<IGameProfile>().Object, "icon.png", "cover.jpg")
+        {
+            Name = $"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 2)}",
+        };
+
+        vm.Profiles.Add(existingProfile1);
+        vm.Profiles.Add(existingProfile2);
+
+        // Act
+        var uniqueName = vm.GenerateUniqueProfileName("Test Profile");
+
+        // Assert
+        Assert.Equal($"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 3)}", uniqueName);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -304,5 +334,43 @@ public class GameProfileLauncherViewModelTests
             [delivererMock.Object],
             new Mock<GenHub.Core.Interfaces.Content.IContentValidator>().Object,
             NullLogger<SuperHackersProvider>.Instance);
+    }
+
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel with mocked dependencies for testing.
+    /// </summary>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies()
+    {
+        var gameProfileManager = new Mock<IGameProfileManager>();
+
+        return new GameProfileLauncherViewModel(
+            new Mock<IGameInstallationService>().Object,
+            gameProfileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            new GameProfileSettingsViewModel(
+                new Mock<IGameProfileManager>().Object,
+                new Mock<IGameSettingsService>().Object,
+                new Mock<IConfigurationProviderService>().Object,
+                new Mock<IProfileContentLoader>().Object,
+                CreateProfileResourceService(),
+                new Mock<INotificationService>().Object,
+                null,
+                new Mock<IContentStorageService>().Object,
+                null, // ILocalContentService
+                NullLogger<GameProfileSettingsViewModel>.Instance,
+                NullLogger<GameSettingsViewModel>.Instance),
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            new Mock<INotificationService>().Object,
+            new Mock<ISetupWizardService>().Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
     }
 }

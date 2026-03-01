@@ -14,4 +14,14 @@ public static class ProfileConstants
     /// The prefix used for tool workspace IDs.
     /// </summary>
     public const string ToolProfileWorkspaceIdPrefix = "tool";
+
+    /// <summary>
+    /// The suffix used for profile copy names.
+    /// </summary>
+    public const string CopyNameSuffix = "(Copy)";
+
+    /// <summary>
+    /// The format string used for numbered profile copy names.
+    /// </summary>
+    public const string CopyNameNumberedFormat = "(Copy {0})";
 }

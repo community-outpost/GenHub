@@ -14,10 +14,11 @@ namespace GenHub.Tests.Core.Common.Services;
 /// </summary>
 public class UserSettingsServiceTests : IDisposable
 {
-    private static readonly JsonSerializerOptions SerializationOptions = new()
+    private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+        AllowTrailingCommas = true,
     };
 
     private readonly string _tempDirectory;
@@ -85,7 +86,7 @@ public class UserSettingsServiceTests : IDisposable
         await service.SaveAsync();
         Assert.True(File.Exists(settingsPath));
         var json = await File.ReadAllTextAsync(settingsPath);
-        var savedSettings = JsonSerializer.Deserialize<UserSettings>(json, SerializationOptions);
+        var savedSettings = JsonSerializer.Deserialize<UserSettings>(json, SerializerOptions);
         Assert.NotNull(savedSettings);
         Assert.Equal("Light", savedSettings.Theme);
         Assert.Equal(1600.0, savedSettings.WindowWidth);
@@ -139,10 +140,16 @@ public class UserSettingsServiceTests : IDisposable
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
-        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
+        var settingsPath = Path.Combine(testDir, FileTypes.SettingsFileName);
 
         await File.WriteAllTextAsync(settingsPath, "{ invalid json }");
-        var service = CreateServiceWithPath(settingsPath);
+
+        var appConfig = new Mock<IAppConfiguration>();
+        appConfig.Setup(c => c.GetConfiguredDataPath()).Returns(testDir);
+        var logger = new Mock<ILogger<UserSettingsService>>();
+
+        // Initialize service normally - it will load from the mocked path
+        var service = new UserSettingsService(logger.Object, appConfig.Object);
         var settings = service.Get();
 
         // Should return defaults when JSON is corrupted
@@ -192,16 +199,15 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        settingsPathField?.SetValue(service, settingsPath);
+        Assert.NotNull(settingsPathField);
+        settingsPathField.SetValue(service, settingsPath);
         await service.SaveAsync();
         Assert.True(Directory.Exists(nestedPath));
         Assert.True(File.Exists(settingsPath));
     }
 
     /// <summary>
-    /// <summary>
     /// Verifies that UpdateSettings throws ArgumentNullException when called with a null action.
-    /// </summary>
     /// </summary>
     [Fact]
     public void UpdateSettings_WithNullAction_ThrowsArgumentNullException()
@@ -224,7 +230,8 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        settingsPathField?.SetValue(service, settingsPath);
+        Assert.NotNull(settingsPathField);
+        settingsPathField.SetValue(service, settingsPath);
 
         // Act
         await service.SaveAsync();
@@ -384,8 +391,6 @@ public class UserSettingsServiceTests : IDisposable
         {
             // The base constructor with `initialize: false` creates an empty settings object.
             // We then set the path, which will load from the file if it exists.
-            // If `loadFromFile` is false and the file exists, it will still be loaded by `SetSettingsFilePath`,
-            // but the tests are structured to delete the file first in those cases.
             SetSettingsFilePath(settingsFilePath);
         }
     }
