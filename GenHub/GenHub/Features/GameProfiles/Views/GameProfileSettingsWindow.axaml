@@ -1116,7 +1116,9 @@
         </Border>
         <!-- Loading overlay -->
         <Border Grid.RowSpan="3"
+        <Border Grid.RowSpan="3"
                 IsVisible="{Binding IsInitializing}"
+                Background="#DD000000"
                 Background="#DD000000"
                 Background="#DD000000"
                 ZIndex="1001">
