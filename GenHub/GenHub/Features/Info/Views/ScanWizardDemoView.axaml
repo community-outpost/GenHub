@@ -1,0 +1,108 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels.Wizard"
+             xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
+             x:Class="GenHub.Features.Info.Views.ScanWizardDemoView">
+
+    <UserControl.Resources>
+      <conv:StringToImageConverter x:Key="StringToImageConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="CheckBox">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent" Padding="5">
+                        <Grid ColumnDefinitions="30,*">
+                            <Border Grid.Column="0"
+                                    Width="20" Height="20"
+                                    CornerRadius="4"
+                                    BorderBrush="{DynamicResource SystemAccentColor}"
+                                    BorderThickness="1"
+                                    Background="{TemplateBinding Background}">
+                                <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                                          Width="12" Height="12"
+                                          Foreground="White"
+                                          IsVisible="{TemplateBinding IsChecked}"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Margin="10,0,0,0"/>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+    </UserControl.Styles>
+
+    <Border CornerRadius="12" Background="#1E1E1E" ClipToBounds="True" BorderBrush="#33FFFFFF" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Header -->
+            <Border Grid.Row="0" Padding="30,30,30,20">
+                <StackPanel>
+                    <TextBlock Text="Found Game Installations" FontSize="24" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,5"/>
+                    <TextBlock Text="GenHub detected the following installations on your system." FontSize="14" Foreground="#888888"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Items (Mock Data Hardcoded for Visual Demo) -->
+            <ScrollViewer Grid.Row="1" Padding="30,0">
+                <StackPanel Spacing="15">
+                    <!-- Mock Item 1: Generals -->
+                    <Grid ColumnDefinitions="48,*,40">
+                        <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
+                             <Image Source="/Assets/Icons/generals-icon.png" Width="36" Height="36"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Margin="15,-2,10,0" VerticalAlignment="Top">
+                            <TextBlock Text="Command &amp; Conquer: Generals" FontSize="15" FontWeight="Medium" Foreground="White"/>
+                            <TextBlock Text="C:\Program Files (x86)\EA Games\Command and Conquer Generals"
+                                       FontSize="13" Foreground="#888888" TextWrapping="Wrap" MaxLines="2" Margin="0,2,0,0"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
+                                <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="v1.08" FontSize="11" Foreground="#AAAAAA"/>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,5,0"/>
+                    </Grid>
+
+                    <!-- Mock Item 2: Zero Hour -->
+                    <Grid ColumnDefinitions="48,*,40">
+                        <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
+                             <Image Source="/Assets/Icons/zerohour-icon.png" Width="36" Height="36"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Margin="15,-2,10,0" VerticalAlignment="Top">
+                            <TextBlock Text="Command &amp; Conquer: Generals - Zero Hour" FontSize="15" FontWeight="Medium" Foreground="White"/>
+                            <TextBlock Text="C:\Program Files (x86)\EA Games\Command and Conquer Generals Zero Hour"
+                                       FontSize="13" Foreground="#888888" TextWrapping="Wrap" MaxLines="2" Margin="0,2,0,0"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
+                                <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock Text="v1.04" FontSize="11" Foreground="#AAAAAA"/>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <CheckBox Grid.Column="2" IsChecked="True" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,5,0"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" Padding="30" Background="#252525">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Button Grid.Column="0" Content="Cancel"
+                            HorizontalAlignment="Left" Background="Transparent" Foreground="#888888" BorderThickness="0"/>
+
+                    <Button Grid.Column="1" Content="Import Selected"
+                            Background="White" Foreground="Black" CornerRadius="6" FontWeight="Medium" Padding="20,8"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

@@ -27,16 +27,8 @@ public class GameProfileManager(
     IGameInstallationService installationService,
     IContentManifestPool manifestPool,
     IGameSettingsService gameSettingsService,
-    INotificationService? notificationService,
     ILogger<GameProfileManager> logger) : IGameProfileManager
 {
-    private readonly IGameProfileRepository _profileRepository = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
-    private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
-    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-    private readonly IGameSettingsService _gameSettingsService = gameSettingsService ?? throw new ArgumentNullException(nameof(gameSettingsService));
-    private readonly INotificationService? _notificationService = notificationService;
-    private readonly ILogger<GameProfileManager> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> CreateProfileAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)
     {
@@ -56,7 +48,7 @@ public class GameProfileManager(
             // Detect if this is a Tool profile using centralized helper
             bool isToolProfile = await Core.Helpers.ToolProfileHelper.IsToolProfileAsync(
                 request.EnabledContentIds ?? [],
-                _manifestPool,
+                manifestPool,
                 cancellationToken);
 
             string? toolContentId = null;
@@ -66,7 +58,7 @@ public class GameProfileManager(
                 // Validate Tool profile content configuration
                 var validationError = await Core.Helpers.ToolProfileHelper.ValidateToolProfileContentAsync(
                     request.EnabledContentIds!,
-                    _manifestPool,
+                    manifestPool,
                     cancellationToken);
 
                 if (validationError != null)
@@ -77,7 +69,7 @@ public class GameProfileManager(
                 // Set toolContentId to the single ModdingTool content ID
                 toolContentId = request.EnabledContentIds!.First();
 
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Detected Tool profile creation for tool: {ToolContentId}",
                     toolContentId);
             }
@@ -87,7 +79,7 @@ public class GameProfileManager(
             if (isToolProfile)
             {
                 // Tool profile: No GameInstallation or GameClient required
-                _logger.LogDebug("Creating Tool profile, bypassing GameInstallation/GameClient validation");
+                logger.LogDebug("Creating Tool profile, bypassing GameInstallation/GameClient validation");
             }
             else
             {
@@ -97,7 +89,7 @@ public class GameProfileManager(
                     return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required for game profiles");
                 }
 
-                var installationResult = await _installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
+                var installationResult = await installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
                 if (installationResult.Failed)
                 {
                     return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to find game installation with ID: {request.GameInstallationId}");
@@ -111,7 +103,7 @@ public class GameProfileManager(
                 {
                     // Provider-based client: use the resolved game client directly
                     gameClient = request.GameClient;
-                    _logger.LogDebug(
+                    logger.LogDebug(
                         "Using provided GameClient for profile creation: {GameClientId}",
                         gameClient.Id);
                 }
@@ -157,25 +149,25 @@ public class GameProfileManager(
                 GameSettingsMapper.PatchGameProfile(profile, request);
             }
 
-            var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
+            var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
 
             if (saveResult.Success)
             {
-                _logger.LogInformation("Successfully created game profile: {ProfileName}", profile.Name);
+                logger.LogInformation("Successfully created game profile: {ProfileName}", profile.Name);
 
                 // Notify listeners about the new profile
                 WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(profile));
             }
             else
             {
-                _logger.LogError("Failed to create game profile: {ProfileName}", profile.Name);
+                logger.LogError("Failed to create game profile: {ProfileName}", profile.Name);
             }
 
             return saveResult;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while creating a game profile {ProfileName}.", request?.Name);
+            logger.LogError(ex, "An unexpected error occurred while creating a game profile {ProfileName}.", request?.Name);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -190,7 +182,7 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
             }
 
-            var loadResult = await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
+            var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
             if (loadResult.Failed)
             {
                 return loadResult;
@@ -230,21 +222,21 @@ public class GameProfileManager(
             // Update game settings
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
-            var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
+            var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
             if (saveResult.Success)
             {
-                _logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
+                logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
             }
             else
             {
-                _logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
+                logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
             }
 
             return saveResult;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -259,21 +251,21 @@ public class GameProfileManager(
                 return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
-            var deleteResult = await _profileRepository.DeleteProfileAsync(profileId, cancellationToken);
+            var deleteResult = await profileRepository.DeleteProfileAsync(profileId, cancellationToken);
             if (deleteResult.Success)
             {
-                _logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
+                logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
                 return OperationResult<bool>.CreateSuccess(true);
             }
             else
             {
-                _logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
+                logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
                 return OperationResult<bool>.CreateFailure(deleteResult.Errors);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
             return OperationResult<bool>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -283,11 +275,11 @@ public class GameProfileManager(
     {
         try
         {
-            return await _profileRepository.LoadAllProfilesAsync(cancellationToken);
+            return await profileRepository.LoadAllProfilesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting all game profiles.");
+            logger.LogError(ex, "An unexpected error occurred while getting all game profiles.");
             return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -302,11 +294,11 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
             }
 
-            return await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
+            return await profileRepository.LoadProfileAsync(profileId, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while getting game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -321,7 +313,7 @@ public class GameProfileManager(
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("Game client cannot be null");
             }
 
-            var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
+            var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
             if (!manifestsResult.Success)
             {
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
@@ -335,7 +327,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
+            logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -373,9 +365,9 @@ public class GameProfileManager(
     {
         try
         {
-            _logger.LogDebug("Loading existing Options.ini for {GameType} to populate new profile {ProfileName}", gameType, profile.Name);
+            logger.LogDebug("Loading existing Options.ini for {GameType} to populate new profile {ProfileName}", gameType, profile.Name);
 
-            var loadResult = await _gameSettingsService.LoadOptionsAsync(gameType);
+            var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
             if (loadResult.Success && loadResult.Data != null)
             {
                 var options = loadResult.Data;
@@ -383,17 +375,17 @@ public class GameProfileManager(
                 // Map Options.ini settings to profile
                 GameSettingsMapper.ApplyFromOptions(options, profile);
 
-                _logger.LogInformation("Populated profile {ProfileName} with existing Options.ini settings", profile.Name);
+                logger.LogInformation("Populated profile {ProfileName} with existing Options.ini settings", profile.Name);
             }
             else
             {
-                _logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
+                logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
             }
         }
         catch (Exception ex)
         {
             // Don't fail profile creation if settings loading fails
-            _logger.LogWarning(ex, "Failed to load existing Options.ini for profile {ProfileName}, using defaults", profile.Name);
+            logger.LogWarning(ex, "Failed to load existing Options.ini for profile {ProfileName}, using defaults", profile.Name);
         }
     }
 }

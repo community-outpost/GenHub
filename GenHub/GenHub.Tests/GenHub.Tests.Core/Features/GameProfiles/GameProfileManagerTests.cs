@@ -24,7 +24,6 @@ public class GameProfileManagerTests
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
-    private readonly Mock<INotificationService> _notificationServiceMock = new();
     private readonly Mock<ILogger<GameProfileManager>> _loggerMock = new();
     private readonly GameProfileManager _profileManager;
 
@@ -38,7 +37,6 @@ public class GameProfileManagerTests
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
-            _notificationServiceMock.Object,
             _loggerMock.Object);
     }
 

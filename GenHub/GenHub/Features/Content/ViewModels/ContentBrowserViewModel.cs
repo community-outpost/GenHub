@@ -14,8 +14,6 @@ namespace GenHub.Features.Content.ViewModels;
 /// </summary>
 public partial class ContentBrowserViewModel(IContentOrchestrator contentOrchestrator) : ObservableObject
 {
-    private readonly IContentOrchestrator _contentOrchestrator = contentOrchestrator;
-
     [ObservableProperty]
     private string _searchTerm = string.Empty;
 
@@ -55,7 +53,7 @@ public partial class ContentBrowserViewModel(IContentOrchestrator contentOrchest
                 SortOrder = SelectedSortOrder,
                 Take = 50,
             };
-            var result = await _contentOrchestrator.SearchAsync(query);
+            var result = await contentOrchestrator.SearchAsync(query);
             if (result.Success && result.Data != null)
             {
                 foreach (var item in result.Data)

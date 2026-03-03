@@ -1,0 +1,154 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="700"
+             x:Class="GenHub.Features.Info.Views.FaqSectionView"
+             x:DataType="vm:FaqSectionViewModel">
+
+  <UserControl.Styles>
+    <Style Selector="TextBlock.category-header">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="Foreground" Value="{StaticResource SystemAccentColorBrush}"/>
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="0,20,0,15"/>
+    </Style>
+
+    <Style Selector="Expander.faq-item">
+      <Setter Property="Background" Value="#1E1E1E"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="BorderBrush" Value="#333333"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Margin" Value="0,0,0,12"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+
+    <!-- Expander Header Styling -->
+    <Style Selector="Expander.faq-item /template/ ToggleButton#ExpanderHeader">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    </Style>
+
+    <Style Selector="Expander.faq-item:expanded /template/ ToggleButton#ExpanderHeader">
+       <Setter Property="BorderBrush" Value="#333333"/>
+       <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+
+    <Style Selector="Expander.faq-item:pointerover /template/ ToggleButton#ExpanderHeader">
+       <Setter Property="Background" Value="#2A2A2A"/>
+    </Style>
+
+    <Style Selector="TextBlock.faq-question">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#F0F0F0" />
+    </Style>
+
+    <Style Selector="SelectableTextBlock.faq-answer">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="#CCCCCC" />
+      <Setter Property="LineHeight" Value="24"/>
+      <Setter Property="Margin" Value="16"/>
+    </Style>
+
+     <Style Selector="Button.lang-btn">
+       <Setter Property="Background" Value="Transparent"/>
+       <Setter Property="BorderThickness" Value="0"/>
+       <Setter Property="Padding" Value="5"/>
+       <Setter Property="Cursor" Value="Hand"/>
+       <Setter Property="Opacity" Value="0.5"/>
+       <Setter Property="Transitions">
+         <Transitions>
+           <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+         </Transitions>
+       </Setter>
+     </Style>
+
+     <Style Selector="Button.lang-btn:pointerover">
+       <Setter Property="Background" Value="Transparent"/>
+       <Setter Property="Opacity" Value="1.0"/>
+     </Style>
+
+     <Style Selector="Button.lang-btn.selected">
+        <Setter Property="Opacity" Value="1.0"/>
+     </Style>
+  </UserControl.Styles>
+
+  <Grid>
+     <!-- FAQ Content -->
+     <ScrollViewer Padding="0,0,15,0">
+       <StackPanel>
+         <!-- Controls (Language) -->
+         <StackPanel Orientation="Horizontal" Margin="0,0,0,20" Spacing="15">
+            <ItemsControl ItemsSource="{Binding LanguageOptions}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="10"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Classes="lang-btn"
+                                Command="{Binding ((vm:FaqSectionViewModel)DataContext).SelectLanguageCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Classes.selected="{Binding Code, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding ((vm:FaqSectionViewModel)DataContext).SelectedLanguageOption.Code, RelativeSource={RelativeSource AncestorType=UserControl}}}">
+                            <Image Source="{Binding ImagePath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="24"/>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+           <StackPanel Orientation="Horizontal"
+                       IsVisible="{Binding IsLoading}"
+                       Spacing="10"
+                       Margin="20,0,0,0">
+              <TextBlock Text="Loading..." VerticalAlignment="Center" Foreground="#AAAAAA"/>
+           </StackPanel>
+
+           <TextBlock Text="{Binding StatusMessage}"
+                      VerticalAlignment="Center"
+                      Foreground="#FF5555"
+                      Margin="20,0,0,0"
+                      IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+         </StackPanel>
+
+         <ContentControl Content="{Binding SelectedCategory}">
+           <ContentControl.ContentTemplate>
+             <DataTemplate DataType="vm:FaqCategoryViewModel">
+               <StackPanel>
+                <!-- Category Header -->
+                <TextBlock Text="{Binding Title}"
+                           Classes="category-header"/>
+
+                 <!-- Category Items -->
+                 <ItemsControl ItemsSource="{Binding Items}">
+                   <ItemsControl.ItemTemplate>
+                     <DataTemplate>
+                       <Expander HorizontalAlignment="Stretch"
+                                 Classes="faq-item">
+                         <Expander.Header>
+                           <TextBlock Text="{Binding Question}"
+                                      Classes="faq-question"
+                                      TextWrapping="Wrap"/>
+                         </Expander.Header>
+                         <SelectableTextBlock Text="{Binding Answer}"
+                                    Classes="faq-answer"
+                                    TextWrapping="Wrap"/>
+                       </Expander>
+                     </DataTemplate>
+                   </ItemsControl.ItemTemplate>
+                 </ItemsControl>
+               </StackPanel>
+             </DataTemplate>
+           </ContentControl.ContentTemplate>
+         </ContentControl>
+       </StackPanel>
+     </ScrollViewer>
+  </Grid>
+</UserControl>

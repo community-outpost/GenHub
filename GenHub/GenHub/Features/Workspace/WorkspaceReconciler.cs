@@ -23,8 +23,6 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
     /// </summary>
     private const long MaxHashVerificationFileSize = 100 * ConversionConstants.BytesPerMegabyte;
 
-    private readonly ILogger<WorkspaceReconciler> _logger = logger;
-
     /// <summary>
     /// Analyzes workspace and determines what operations are needed to reconcile it with manifests.
     /// </summary>
@@ -44,7 +42,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
 
         foreach (var manifest in configuration.Manifests)
         {
-            foreach (var file in manifest.Files ?? Enumerable.Empty<ManifestFile>())
+            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 var relativePath = file.RelativePath.Replace('/', Path.DirectorySeparatorChar);
 
@@ -83,7 +81,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
 
                 var loserInfo = string.Join(", ", losers.Select(l => $"{l.ContentType}({l.ManifestId})"));
 
-                _logger.LogWarning(
+                logger.LogWarning(
                     "File conflict for '{RelativePath}': using {WinnerType}({WinnerId}, priority {WinnerPriority}) over {Losers}",
                     relativePath,
                     winner.ContentType,
@@ -98,7 +96,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
         // If workspace doesn't exist, all expected files need to be added
         if (workspaceInfo == null || !Directory.Exists(workspacePath))
         {
-            _logger.LogInformation("New workspace detected, {FileCount} files will be added after conflict resolution", expectedFiles.Count);
+            logger.LogInformation("New workspace detected, {FileCount} files will be added after conflict resolution", expectedFiles.Count);
             foreach (var (relativePath, file) in expectedFiles)
             {
                 deltas.Add(new WorkspaceDelta
@@ -187,7 +185,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
         var stats = deltas.GroupBy(d => d.Operation)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Workspace delta analysis: Add={Add}, Update={Update}, Remove={Remove}, Skip={Skip}",
             stats.GetValueOrDefault(WorkspaceDeltaOperation.Add, 0),
             stats.GetValueOrDefault(WorkspaceDeltaOperation.Update, 0),
@@ -224,7 +222,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
                 // Broken symlink needs update
                 if (!File.Exists(targetPath))
                 {
-                    _logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
+                    logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
                     return Task.FromResult(true);
                 }
 
@@ -233,7 +231,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
                 var targetFileInfo = new FileInfo(targetPath);
                 if (manifestFile.Size > 0 && targetFileInfo.Length != manifestFile.Size)
                 {
-                    _logger.LogDebug(
+                    logger.LogDebug(
                         "Symlink target size mismatch for {FilePath}: expected {Expected}, got {Actual}",
                         filePath,
                         manifestFile.Size,
@@ -248,7 +246,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
             // File size mismatch check (fast and reliable for detecting changes)
             if (manifestFile.Size > 0 && fileInfo.Length != manifestFile.Size)
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Size mismatch for {FilePath}: expected {Expected}, got {Actual}",
                     filePath,
                     manifestFile.Size,
@@ -260,7 +258,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
             // to avoid 60-90+ second delays during game launch when processing 400+ files.
             // Size-based comparison is 20-60x faster and sufficient for detecting real changes.
             // Deep hash verification can be added as optional background operation if needed.
-            _logger.LogDebug(
+            logger.LogDebug(
                 "File size matches for {FilePath} ({Size} bytes), trusting size comparison for performance",
                 filePath,
                 fileInfo.Length);
@@ -269,7 +267,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger)
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
+            logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
             return Task.FromResult(true); // Assume needs update if we can't verify
         }
     }

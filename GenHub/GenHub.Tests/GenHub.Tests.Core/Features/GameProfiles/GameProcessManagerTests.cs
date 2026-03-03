@@ -11,7 +11,6 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// </summary>
 public class GameProcessManagerTests
 {
-    private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly Mock<ILogger<GameProcessManager>> _loggerMock = new();
     private readonly GameProcessManager _processManager;
 
@@ -20,7 +19,7 @@ public class GameProcessManagerTests
     /// </summary>
     public GameProcessManagerTests()
     {
-        _processManager = new GameProcessManager(_configProviderMock.Object, _loggerMock.Object);
+        _processManager = new GameProcessManager(_loggerMock.Object);
     }
 
     /// <summary>

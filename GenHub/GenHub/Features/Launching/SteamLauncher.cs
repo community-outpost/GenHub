@@ -19,8 +19,11 @@ namespace GenHub.Features.Launching;
 /// This approach uses a "Proxy Launcher" mechanism:
 /// 1. We start a Workspace as usual (isolated environment).
 /// 2. We drop a sidecar ProxyLauncher.exe next to the original game executables (we do NOT overwrite them).
-/// 3. We write a proxy_config.json telling the Proxy to launch the Workspace executable.
+/// 3. We write a proxy_config.json telling the Proxy to launch the Workspace executable using direct paths.
 /// 4. Steam launch options can point at the sidecar proxy; the proxy then runs the Workspace game.
+///
+/// Each profile uses its own adjacent workspace: {installationRoot}\.genhub-workspace\{profileId}\
+/// The proxy_config.json is regenerated on each launch with the correct workspace paths for that profile.
 /// This keeps the game directory clean (no exe replacement) while maintaining Steam integration.
 /// </summary>
 public class SteamLauncher(
@@ -187,28 +190,13 @@ public class SteamLauncher(
                 ? Path.GetDirectoryName(effectiveTargetExecutable) ?? string.Empty
                 : Path.GetFullPath(targetWorkingDirectory);
 
-            // Strategy: create an install-local junction to the workspace and launch via that path.
-            // This still runs workspace files (isolated) but the *apparent* exe path is under the Steam install.
-            if (OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(effectiveWorkingDirectory))
-            {
-                if (TryEnsureWorkspaceJunction(gameInstallPath, effectiveWorkingDirectory, out var junctionPath))
-                {
-                    var junctionExe = Path.Combine(junctionPath, Path.GetFileName(effectiveTargetExecutable));
-                    if (File.Exists(junctionExe))
-                    {
-                        effectiveWorkingDirectory = junctionPath;
-                        effectiveTargetExecutable = junctionExe;
-                        logger.LogInformation("[SteamLauncher] Using workspace junction at {Junction}", junctionPath);
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "[SteamLauncher] Workspace junction created at {Junction} but target exe not found via junction: {Exe}",
-                            junctionPath,
-                            junctionExe);
-                    }
-                }
-            }
+            // Use direct workspace paths - proxy_config.json is regenerated on each launch with correct paths
+            // Each profile uses its own adjacent workspace: {installationRoot}\.genhub-workspace\{profileId}\
+            // This removes the .genhub-workspace-active junction indirection layer
+            logger.LogInformation(
+                "[SteamLauncher] Using direct workspace paths - Target: {Target}, WorkDir: {WorkDir}",
+                effectiveTargetExecutable,
+                effectiveWorkingDirectory);
 
             // Validate working directory exists
             if (!Directory.Exists(effectiveWorkingDirectory))
@@ -353,13 +341,8 @@ public class SteamLauncher(
                 File.Delete(trackingPath);
             }
 
-            // Remove workspace junction if present
-            var junctionPath = Path.Combine(gameInstallPath, ".genhub-workspace-active");
-            if (Directory.Exists(junctionPath))
-            {
-                _ = TryRunCmd($"rmdir \"{junctionPath}\"");
-            }
-
+            // Note: .genhub-workspace-active junction cleanup removed - no longer using junctions
+            // Each profile uses its own adjacent workspace directly
             logger.LogInformation("[SteamLauncher] Cleaned up game directory artifacts: {Path}", gameInstallPath);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
@@ -367,35 +350,6 @@ public class SteamLauncher(
         {
             logger.LogError(ex, "[SteamLauncher] Failed to cleanup game directory: {Path}", gameInstallPath);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to cleanup: {ex.Message}"));
-        }
-    }
-
-    private static int TryRunCmd(string command)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c {command}",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            using var proc = Process.Start(psi);
-            if (proc == null)
-            {
-                return -1;
-            }
-
-            proc.WaitForExit(5000);
-            return proc.HasExited ? proc.ExitCode : -2;
-        }
-        catch
-        {
-            return -3;
         }
     }
 
@@ -458,44 +412,5 @@ public class SteamLauncher(
         // Yield control occasionally to respect cancellation
         await Task.Yield();
         cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private bool TryEnsureWorkspaceJunction(string gameInstallPath, string workspaceDirectory, out string junctionPath)
-    {
-        junctionPath = Path.Combine(gameInstallPath, ".genhub-workspace-active");
-
-        try
-        {
-            if (!OperatingSystem.IsWindows())
-            {
-                return false;
-            }
-
-            // Remove any existing junction/link. rmdir removes the reparse point (does not delete target contents).
-            if (Directory.Exists(junctionPath))
-            {
-                _ = TryRunCmd($"rmdir \"{junctionPath}\"");
-            }
-
-            var mklinkArgs = $"mklink /J \"{junctionPath}\" \"{workspaceDirectory}\"";
-            var exitCode = TryRunCmd(mklinkArgs);
-
-            if (exitCode != 0)
-            {
-                logger.LogWarning(
-                    "[SteamLauncher] Failed to create workspace junction. ExitCode={ExitCode}, Junction={Junction}, Target={Target}",
-                    exitCode,
-                    junctionPath,
-                    workspaceDirectory);
-                return false;
-            }
-
-            return Directory.Exists(junctionPath);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "[SteamLauncher] Failed to ensure workspace junction at {Path}", junctionPath);
-            return false;
-        }
     }
 }

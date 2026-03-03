@@ -1,6 +1,4 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 
 namespace GenHub.Core.Interfaces.Notifications;
@@ -93,4 +91,39 @@ public interface INotificationService
     /// Clears all notification history.
     /// </summary>
     void ClearHistory();
+
+    /// <summary>
+    /// Gets the current notification mute state.
+    /// </summary>
+    NotificationMuteState MuteState { get; }
+
+    /// <summary>
+    /// Mutes notifications for the current session only (resets on app restart).
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous operation.
+    /// The task completes when the session mute state has been successfully saved.
+    /// </returns>
+    Task MuteSession(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Mutes notifications persistently by saving the mute state to user settings.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous operation.
+    /// The task completes when the mute state has been successfully saved.
+    /// </returns>
+    Task MutePersistent(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unmutes notifications and persists the state to user settings.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the async I/O operation.</param>
+    /// <returns>
+    /// A <see cref="Task"/> that represents the asynchronous unmute operation.
+    /// The task completes when notifications have been successfully unmuted.
+    /// </returns>
+    Task Unmute(CancellationToken cancellationToken = default);
 }

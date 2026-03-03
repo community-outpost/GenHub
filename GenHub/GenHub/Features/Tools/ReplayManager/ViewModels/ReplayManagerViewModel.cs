@@ -24,7 +24,7 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
 /// <summary>
-/// ViewModel for the Replay Manager tool.
+/// ViewModel for Replay Manager tool.
 /// </summary>
 /// <param name="directoryService">The directory service.</param>
 /// <param name="importService">The import service.</param>
@@ -45,6 +45,10 @@ public partial class ReplayManagerViewModel(
         var invalidChars = Path.GetInvalidFileNameChars();
         return string.Concat(fileName.Where(c => !invalidChars.Contains(c)));
     }
+
+    private static bool IsDemoPath(string path) =>
+        path.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/Mock/", StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -84,6 +88,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task ToggleHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Upload History",
+                "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
+            return;
+        }
+
         IsHistoryOpen = !IsHistoryOpen;
         if (IsHistoryOpen)
         {
@@ -146,13 +160,23 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Copies the URL to the clipboard.
+    /// Copies a URL to the clipboard.
     /// </summary>
     /// <param name="url">The URL to copy.</param>
     [RelayCommand]
     private async Task CopyUrlAsync(string url)
     {
         if (string.IsNullOrEmpty(url)) return;
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Copy Link",
+                "Copies the download link of the uploaded file to your clipboard.");
+            return;
+        }
 
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var clipboard = lifetime?.MainWindow?.Clipboard;
@@ -170,6 +194,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Remove From History",
+                "Removes the item from your local history. This frees up your upload quota immediately.");
+            return;
+        }
+
         try
         {
             await uploadHistoryService.RemoveHistoryItemAsync(item.Url);
@@ -189,6 +223,16 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            notificationService.ShowInfo(
+                "Clear History",
+                "Clears your entire local upload history. This frees up all your upload quota.");
+            return;
+        }
+
         try
         {
             await uploadHistoryService.ClearHistoryAsync();
@@ -318,6 +362,17 @@ public partial class ReplayManagerViewModel(
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task ImportFilesAsync(System.Collections.Generic.IEnumerable<string> filePaths)
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Import Replays",
+                "Imports replay files from URLs or by dragging and dropping files into your game's replay directory.");
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = "Importing files...";
         try
@@ -354,6 +409,17 @@ public partial class ReplayManagerViewModel(
     {
         if (string.IsNullOrWhiteSpace(ImportUrl))
         {
+            return;
+        }
+
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Import from URL",
+                "Downloads replays from a provided URL and automatically imports them into your game's replay directory. Supports direct .rep files and zip archives.");
             return;
         }
 
@@ -394,6 +460,17 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private async Task BrowseAndImportAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Browse and Import",
+                "Opens a file picker dialog allowing you to select replay files (.rep) or zip archives from your computer to import into game.");
+            return;
+        }
+
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -425,6 +502,17 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        // Check if any selected replays are demo items (have mock paths)
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Delete Replays",
+                "Permanently deletes selected replays from your game's replay directory. This action cannot be undone.");
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = "Deleting replays...";
         int count = SelectedReplays.Count;
@@ -450,6 +538,17 @@ public partial class ReplayManagerViewModel(
     {
         if (!SelectedReplays.Any())
         {
+            return;
+        }
+
+        // Check if any selected replays are demo items (have mock paths)
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Export to ZIP",
+                "Creates a ZIP archive containing selected replays and saves it to your replay directory. You can then share the ZIP file with others or use it for backup purposes.");
             return;
         }
 
@@ -523,6 +622,17 @@ public partial class ReplayManagerViewModel(
     {
         if (!SelectedReplays.Any())
         {
+            return;
+        }
+
+        // Check if any selected replays are demo items (have mock paths)
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
             return;
         }
 
@@ -604,12 +714,33 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     private void OpenFolder()
     {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Open Replay Folder",
+                "Opens your game's replay directory in Windows Explorer, allowing you to manage your replay files directly.");
+            return;
+        }
+
         directoryService.OpenInExplorer(SelectedTab);
     }
 
     [RelayCommand]
     private void RevealFile(ReplayFile replay)
     {
+        // Check if replay is a demo item (has mock path)
+        if (IsDemoPath(replay.FullPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Reveal Replay File",
+                "Opens Windows Explorer and highlights the selected replay file, making it easy to locate and manage.");
+            return;
+        }
+
         directoryService.RevealInExplorer(replay);
     }
 
@@ -621,6 +752,17 @@ public partial class ReplayManagerViewModel(
             .ToList();
 
         if (zipFiles.Count == 0) return;
+
+        // Check if any selected replays are demo items (have mock paths)
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Uncompress ZIP",
+                "Extracts contents of the selected ZIP archives and imports any contained replays into your game's replay directory.");
+            return;
+        }
 
         IsBusy = true;
         StatusMessage = "Uncompressing ZIP(s)...";

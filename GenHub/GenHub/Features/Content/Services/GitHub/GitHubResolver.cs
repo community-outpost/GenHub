@@ -28,10 +28,6 @@ public partial class GitHubResolver(
     ILogger<GitHubResolver> logger)
     : IContentResolver
 {
-    private readonly IGitHubApiClient _gitHubApiClient = gitHubApiClient ?? throw new ArgumentNullException(nameof(gitHubApiClient));
-    private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-    private readonly ILogger<GitHubResolver> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     // Regex breakdown:
     // ^https://github\.com/
     //   (?<owner>[^/]+) -> owner
@@ -69,7 +65,7 @@ public partial class GitHubResolver(
             // Check if this is a SINGLE ASSET selection (from multi-asset split)
             if (discoveredItem.ResolverMetadata.TryGetValue("asset-name", out var assetName))
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Resolving single asset: {AssetName} from {Owner}/{Repo}:{Tag}",
                     assetName,
                     owner,
@@ -87,7 +83,7 @@ public partial class GitHubResolver(
             // Check if this is a SINGLE RELEASE ASSET selection (legacy path)
             if (discoveredItem.Data is GitHubArtifact singleAsset && singleAsset.IsRelease)
             {
-                _logger.LogInformation(
+                logger.LogInformation(
                     "Resolving single release asset: {AssetName} from {Owner}/{Repo}:{Tag}",
                     singleAsset.Name,
                     owner,
@@ -98,22 +94,33 @@ public partial class GitHubResolver(
             }
 
             // Otherwise, fetch the full release and include all assets
-            _logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
+            logger.LogInformation("Resolving full release: {Owner}/{Repo}:{Tag}", owner, repo, tag);
 
-            var release = string.IsNullOrEmpty(tag)
-                ? await _gitHubApiClient.GetLatestReleaseAsync(
+            var isLatest = string.IsNullOrEmpty(tag) || tag.Equals("latest", StringComparison.OrdinalIgnoreCase);
+
+            var release = isLatest
+                ? await gitHubApiClient.GetLatestReleaseAsync(
                     owner,
                     repo,
                     cancellationToken)
-                : await _gitHubApiClient.GetReleaseByTagAsync(
+                : await gitHubApiClient.GetReleaseByTagAsync(
                     owner,
                     repo,
                     tag,
                     cancellationToken);
 
+            // Fallback for repositories that only have pre-releases (GetLatestReleaseAsync returns null on GitHub if no stable release)
+            if (release == null && isLatest)
+            {
+                logger.LogInformation("Latest stable release not found for {Owner}/{Repo}. Falling back to most recent release (including pre-releases).", owner, repo);
+                var allReleases = await gitHubApiClient.GetReleasesAsync(owner, repo, cancellationToken);
+                release = allReleases?.OrderByDescending(r => r.PublishedAt ?? r.CreatedAt).FirstOrDefault();
+            }
+
             if (release == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo}");
+                var errorTag = isLatest ? "latest stable" : $"tag '{tag}'";
+                return OperationResult<ContentManifest>.CreateFailure($"Release not found for {owner}/{repo} with {errorTag}");
             }
 
             // Generate proper ManifestId using 5-segment format per manifest-id-system.md
@@ -131,7 +138,7 @@ public partial class GitHubResolver(
             var publisherType = DeterminePublisherType(owner);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
@@ -152,12 +159,12 @@ public partial class GitHubResolver(
             // Validate assets collection
             if (release.Assets == null || release.Assets.Count == 0)
             {
-                _logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
+                logger.LogWarning("No assets found for release {Owner}/{Repo}:{Tag}", owner, repo, release.TagName);
                 return OperationResult<ContentManifest>.CreateSuccess(manifest.Build());
             }
 
             // Add files from GitHub assets
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Adding {AssetCount} assets from release {Owner}/{Repo}:{Tag}",
                 release.Assets.Count,
                 owner,
@@ -166,7 +173,7 @@ public partial class GitHubResolver(
 
             foreach (var asset in release.Assets)
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Adding asset: {AssetName} ({AssetUrl})",
                     asset.Name,
                     asset.BrowserDownloadUrl);
@@ -179,12 +186,12 @@ public partial class GitHubResolver(
             }
 
             var builtManifest = manifest.Build();
-            _logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
+            logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
+            logger.LogError(ex, "Failed to resolve GitHub release for {ItemName}", discoveredItem.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
         }
     }
@@ -342,7 +349,7 @@ public partial class GitHubResolver(
             var publisherType = DeterminePublisherType(owner);
 
             // Create a new manifest builder for each resolve operation to ensure clean state
-            var manifestBuilder = _serviceProvider.GetRequiredService<IContentManifestBuilder>();
+            var manifestBuilder = serviceProvider.GetRequiredService<IContentManifestBuilder>();
 
             var manifest = manifestBuilder
                 .WithBasicInfo(
@@ -367,15 +374,15 @@ public partial class GitHubResolver(
                 ContentSourceType.RemoteDownload,
                 isExecutable: GitHubInferenceHelper.IsExecutableFile(asset.Name));
 
-            _logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
+            logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
 
             var builtManifest = manifest.Build();
-            _logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);
+            logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to resolve single release asset: {AssetName}", asset.Name);
+            logger.LogError(ex, "Failed to resolve single release asset: {AssetName}", asset.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to resolve asset: {ex.Message}");
         }
     }

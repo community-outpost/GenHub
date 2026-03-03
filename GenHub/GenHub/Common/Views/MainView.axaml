@@ -15,6 +15,8 @@
              xmlns:toolsViews="clr-namespace:GenHub.Features.Tools.Views"
              xmlns:settingsVM="clr-namespace:GenHub.Features.Settings.ViewModels"
              xmlns:settingsViews="clr-namespace:GenHub.Features.Settings.Views"
+             xmlns:infoVM="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
              xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              xmlns:system="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
@@ -128,6 +130,9 @@
         <DataTemplate DataType="settingsVM:SettingsViewModel">
             <settingsViews:SettingsView />
         </DataTemplate>
+        <DataTemplate DataType="infoVM:InfoViewModel">
+            <infoViews:InfoView />
+        </DataTemplate>
     </UserControl.DataTemplates>
 
     <Grid>
@@ -177,11 +182,17 @@
                         Content="Tools"
                         Name="Tab2Button" />
                     <Button Classes="modern-tab"
+                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
+                        Command="{Binding SelectTabCommand}"
+                        CommandParameter="{x:Static enums:NavigationTab.Info}"
+                        Content="Info"
+                        Name="Tab3Button" />
+                    <Button Classes="modern-tab"
                         Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
                         Command="{Binding SelectTabCommand}"
                         CommandParameter="{x:Static enums:NavigationTab.Settings}"
                         Content="Settings"
-                        Name="Tab3Button" />
+                        Name="Tab4Button" />
                 </StackPanel>
 
                 <!-- Logo and title section - Right side -->

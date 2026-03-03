@@ -35,9 +35,6 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     [GeneratedRegex(@"(\d+)\s*downloads|Downloads:\s*(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex DownloadCountRegex();
 
-    private readonly HttpClient _httpClient = httpClient;
-    private readonly ILogger<CNCLabsMapDiscoverer> _logger = logger;
-
     /// <summary>
     /// Gets the source name for this discoverer.
     /// </summary>
@@ -135,7 +132,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, CNCLabsConstants.DiscoveryFailureLogMessage);
+            logger.LogError(ex, CNCLabsConstants.DiscoveryFailureLogMessage);
             return OperationResult<ContentDiscoveryResult>.CreateFailure(string.Format(CNCLabsConstants.DiscoveryFailedErrorTemplate, ex.Message));
         }
     }
@@ -230,7 +227,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         CancellationToken cancellationToken = default)
     {
         var url = CNCLabsHelper.BuildSearchUrl(query);
-        _logger.LogInformation("[CNCLabs] Fetching from URL: {Url}", url);
+        logger.LogInformation("[CNCLabs] Fetching from URL: {Url}", url);
         if (string.IsNullOrWhiteSpace(url))
         {
             throw new ArgumentNullException(nameof(query));
@@ -243,7 +240,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
         var mapList = new List<MapListItem>();
 
-        var html = await _httpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+        var html = await httpClient.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
 
         var context = BrowsingContext.New(Configuration.Default);
         var document = await context.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
@@ -351,17 +348,17 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
         if (pagingLinks.Length > 0)
         {
-            _logger.LogInformation("[CNCLabs] Found {Count} paging links", pagingLinks.Length);
+            logger.LogInformation("[CNCLabs] Found {Count} paging links", pagingLinks.Length);
             foreach (var link in pagingLinks)
             {
                 var text = link.TextContent.Trim();
                 var href = link.GetAttribute("href");
-                _logger.LogDebug("[CNCLabs] Paging link: Text='{Text}', Href='{Href}'", text, href);
+                logger.LogDebug("[CNCLabs] Paging link: Text='{Text}', Href='{Href}'", text, href);
 
                 // Check for "Next" or "..."
                 if (text.Contains("Next", StringComparison.OrdinalIgnoreCase) || text.Contains("...", StringComparison.Ordinal) || (href != null && href.Contains("page=" + (query.Page + 1))))
                 {
-                    _logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
+                    logger.LogInformation("[CNCLabs] Found Next/Ellipsis link match: {Text} (href: {Href})", text, href);
                     hasMoreItems = true;
 
                     // Don't break, keep logging for debug
@@ -373,7 +370,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                     int currentPage = query.Page ?? 1;
                     if (pNum > currentPage)
                     {
-                        _logger.LogInformation("[CNCLabs] Found page {PageNum} > current {CurrentPage}", pNum, currentPage);
+                        logger.LogInformation("[CNCLabs] Found page {PageNum} > current {CurrentPage}", pNum, currentPage);
                         hasMoreItems = true;
                     }
                 }
@@ -381,7 +378,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         }
         else
         {
-            _logger.LogInformation("[CNCLabs] No paging links found using selectors: .paging a, .pager a, #ctl00_MainContent_Pager1 a, etc.");
+            logger.LogInformation("[CNCLabs] No paging links found using selectors: .paging a, .pager a, #ctl00_MainContent_Pager1 a, etc.");
         }
 
         return (mapList, hasMoreItems);
@@ -427,7 +424,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
             throw new ArgumentException(CNCLabsConstants.UrlRequiredMessage, nameof(detailsPageUrl));
         }
 
-        var html = await _httpClient.GetStringAsync(detailsPageUrl, cancellationToken).ConfigureAwait(false);
+        var html = await httpClient.GetStringAsync(detailsPageUrl, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
         var context = BrowsingContext.New(Configuration.Default);
@@ -627,7 +624,7 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         {
             // Logging failure to parse file size, though it's acceptable to return null
             // and fallback to the display string.
-            _logger.LogWarning("Failed to parse file size '{Size}': {Error}", size, ex.Message);
+            logger.LogWarning("Failed to parse file size '{Size}': {Error}", size, ex.Message);
         }
 
         return null;

@@ -99,7 +99,7 @@ public class FileSystemValidatorTests
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>List of validation issues.</returns>
         public new Task<List<ValidationIssue>> ValidateDirectoriesAsync(string basePath, IEnumerable<string> requiredDirectories, CancellationToken cancellationToken)
-            => FileSystemValidator.ValidateDirectoriesAsync(basePath, requiredDirectories, cancellationToken);
+            => base.ValidateDirectoriesAsync(basePath, requiredDirectories, cancellationToken);
 
         /// <summary>
         /// Exposes base ValidateFilesAsync for testing.

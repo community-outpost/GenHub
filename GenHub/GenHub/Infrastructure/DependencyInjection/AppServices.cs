@@ -53,6 +53,7 @@ public static class AppServices
         // Register UI services last (depends on all business services)
         services.AddAppUpdateModule();
         services.AddSharedViewModelModule();
+        InfoModule.Register(services);
 
         // Register platform-specific services using the factory if provided
         platformModuleFactory?.Invoke(services);

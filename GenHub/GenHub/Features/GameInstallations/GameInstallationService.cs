@@ -731,9 +731,6 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 "[DIAGNOSTIC] TryInitializeCacheAsync: Cache already initialized with {Count} installations",
                 _cachedInstallations.Count);
 
-            var cachedList = _cachedInstallations.ToList();
-            await PopulateGameClientsAndManifestsAsync(cachedList, cancellationToken);
-
             return OperationResult<bool>.CreateSuccess(true);
         }
 

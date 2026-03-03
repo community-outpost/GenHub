@@ -93,7 +93,7 @@ public class AppConfigurationTests
 
         // Assert
         var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GenHub",
             "Data");
         Assert.Equal(expectedPath, result);
@@ -113,7 +113,7 @@ public class AppConfigurationTests
 
         // Assert
         var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GenHub",
             "Data");
         Assert.Equal(expectedPath, result);
@@ -152,7 +152,7 @@ public class AppConfigurationTests
 
         // Assert
         var expectedPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "GenHub",
             "Cache");
         Assert.Equal(expectedPath, result);

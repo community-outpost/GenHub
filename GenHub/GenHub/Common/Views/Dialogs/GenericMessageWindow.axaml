@@ -1,0 +1,237 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Common.ViewModels.Dialogs"
+        xmlns:core="clr-namespace:GenHub.Core.Models.Dialogs;assembly=GenHub.Core"
+        xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+        xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+        xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
+        x:Class="GenHub.Common.Views.Dialogs.GenericMessageWindow"
+        x:DataType="vm:GenericMessageViewModel"
+        Title="{Binding Title}"
+        Width="600" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="None"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome">
+
+    <Window.Styles>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#9333EA" Offset="0" /> <!-- Purple 600 -->
+                        <GradientStop Color="#7C3AED" Offset="1" /> <!-- Violet 600 -->
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.Primary:pointerover">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#A855F7" Offset="0" /> <!-- Purple 500 -->
+                        <GradientStop Color="#8B5CF6" Offset="1" /> <!-- Violet 500 -->
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+
+        <Style Selector="Button.Success">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="#9333EA" Offset="0" />
+                        <GradientStop Color="#7C3AED" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,10"/>
+        </Style>
+
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#100C1F"/> <!-- Deep Navy -->
+            <Setter Property="BorderBrush" Value="#4C1D95"/> <!-- Violet 900 -->
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="24,10"/>
+        </Style>
+        <Style Selector="Button.Secondary:pointerover">
+            <Setter Property="Background" Value="#1E1B4B"/>
+            <Setter Property="BorderBrush" Value="#7C3AED"/>
+        </Style>
+
+        <Style Selector="ScrollBar">
+            <Setter Property="AllowAutoHide" Value="True"/>
+        </Style>
+    </Window.Styles>
+
+    <Border CornerRadius="16" ClipToBounds="True">
+        <Panel>
+            <!-- 1. Acrylic Blur Layer -->
+            <ExperimentalAcrylicBorder IsHitTestVisible="False">
+                <ExperimentalAcrylicBorder.Material>
+                    <ExperimentalAcrylicMaterial
+                        BackgroundSource="Digger"
+                        TintColor="#020617"
+                        TintOpacity="0.85"
+                        MaterialOpacity="0.4" />
+                </ExperimentalAcrylicBorder.Material>
+            </ExperimentalAcrylicBorder>
+
+            <!-- 2. Rich Deep Gradient Background Overlay -->
+            <Border IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#1E1B4B" Offset="0" /> <!-- Indigo 950 -->
+                        <GradientStop Color="#020617" Offset="0.5" /> <!-- Slate 950 -->
+                        <GradientStop Color="#1E1B4B" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.OpacityMask>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="Black" Offset="0.5"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.OpacityMask>
+            </Border>
+
+            <!-- 3. Soft Purple Glow (Top Right) -->
+             <Ellipse Width="400" Height="400" Fill="#4C1D95" Opacity="0.15" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,-150,-150,0">
+                <Ellipse.Effect>
+                    <BlurEffect Radius="100" />
+                </Ellipse.Effect>
+            </Ellipse>
+
+            <!-- 4. Top/Bottom Horizontal Accents (Minimalist) -->
+            <Border Height="1" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="#7C3AED" Offset="0.5"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <Border Height="1" VerticalAlignment="Bottom" IsHitTestVisible="False" Opacity="0.3">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="#4C1D95" Offset="0.5"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Main Content Container -->
+            <Grid RowDefinitions="Auto,*,Auto" Margin="40">
+
+                <!-- Header Section -->
+                <StackPanel Grid.Row="0" Spacing="24" Margin="0,0,0,32">
+                    <Grid ColumnDefinitions="Auto, *">
+                        <!-- GENHUB OFFICIAL ICON -->
+                        <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
+                               Width="48" Height="48" Grid.Column="0" VerticalAlignment="Center" />
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="White"
+                                       LetterSpacing="1.5">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect BlurRadius="10" Opacity="0.5" OffsetX="0" OffsetY="2" Color="Black"/>
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Header Divider Accent -->
+                    <Border Height="1" Margin="0,-12,0,0" Opacity="0.2">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                <GradientStop Color="Transparent" Offset="0"/>
+                                <GradientStop Color="White" Offset="0.5"/>
+                                <GradientStop Color="Transparent" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </StackPanel>
+
+                <!-- Body Text with Markdown support -->
+                <ScrollViewer Grid.Row="1" MaxHeight="500" Margin="0,0,0,32">
+                   <md:MarkdownScrollViewer Markdown="{Binding Content}">
+                        <md:MarkdownScrollViewer.Styles>
+                             <Style Selector="Border.Note">
+                                <Setter Property="BorderBrush" Value="#A855F7"/>
+                                <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                                <Setter Property="Background" Value="#1D1933"/>
+                                <Setter Property="Padding" Value="16,12"/>
+                                <Setter Property="CornerRadius" Value="6"/>
+                            </Style>
+                            <Style Selector="TextBlock">
+                                <Setter Property="Foreground" Value="#CBD5E1"/>
+                                <Setter Property="LineHeight" Value="24"/>
+                            </Style>
+                        </md:MarkdownScrollViewer.Styles>
+                   </md:MarkdownScrollViewer>
+                </ScrollViewer>
+
+                <!-- Footer with Checkbox and Action Buttons -->
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+                    <!-- Do Not Show Again -->
+                    <CheckBox Grid.Column="0"
+                              IsVisible="{Binding ShowDoNotAskAgain}"
+                              IsChecked="{Binding DoNotAskAgain}"
+                              Content="Don't show this again"
+                              Foreground="#64748B"
+                              FontSize="13"
+                              VerticalAlignment="Center"/>
+
+                    <!-- Action Stack -->
+                    <ItemsControl Grid.Column="2" ItemsSource="{Binding Actions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="12"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="core:DialogAction">
+                                <Button x:CompileBindings="False"
+                                        Command="{Binding $parent[Window].DataContext.ExecuteActionCommand}"
+                                        CommandParameter="{Binding}"
+                                        Content="{Binding Text}"
+                                        Classes.Primary="{Binding Style, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationActionStyle.Primary}}"
+                                        Classes.Success="{Binding Style, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationActionStyle.Success}}"
+                                        Classes.Secondary="{Binding Style, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static enums:NotificationActionStyle.Secondary}}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </Grid>
+        </Panel>
+    </Border>
+</Window>

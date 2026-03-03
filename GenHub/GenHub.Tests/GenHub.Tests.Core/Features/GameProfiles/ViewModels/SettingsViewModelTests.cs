@@ -132,7 +132,7 @@ public class SettingsViewModelTests
 
         // Assert
         _mockConfigService.Verify(x => x.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
-        _mockConfigService.Verify(x => x.SaveAsync(), Times.Once);
+        _mockConfigService.Verify(x => x.SaveAsync(default), Times.Once);
     }
 
     /// <summary>
@@ -275,7 +275,7 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_HandlesUserSettingsServiceException()
     {
         // Arrange
-        _mockConfigService.Setup(x => x.SaveAsync()).ThrowsAsync(new IOException("Disk full"));
+        _mockConfigService.Setup(x => x.SaveAsync(default)).ThrowsAsync(new IOException("Disk full"));
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
             _mockLogger.Object,

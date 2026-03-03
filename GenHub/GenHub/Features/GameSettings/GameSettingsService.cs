@@ -23,7 +23,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
     /// <summary>
@@ -215,7 +215,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             }
 
             var json = await File.ReadAllTextAsync(settingsPath);
-            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json);
+            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
 
             if (settings == null)
             {

@@ -184,7 +184,13 @@ public abstract class BaseContentProvider(
 
                 if (!fullResult.IsValid)
                 {
+                    // Log as warning only - content may have been moved to CAS already
+                    // CAS storage validates content hash on store, so this is informational
                     Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+                    foreach (var issue in fullResult.Issues.Take(5))
+                    {
+                        Logger.LogDebug("Validation issue: {Message}", issue.Message);
+                    }
                 }
             }
 

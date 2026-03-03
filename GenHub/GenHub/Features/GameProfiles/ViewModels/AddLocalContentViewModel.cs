@@ -121,7 +121,14 @@ public partial class AddLocalContentViewModel(
     /// Gets or sets a value indicating whether the view model is busy.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLoadingOverlay))]
     private bool _isBusy;
+
+    /// <summary>
+    /// Gets a value indicating whether the loading overlay should be visible.
+    /// Virtual to allow demos to suppress it.
+    /// </summary>
+    public virtual bool ShowLoadingOverlay => IsBusy;
 
     /// <summary>
     /// Gets or sets the status message for the user.
@@ -134,6 +141,12 @@ public partial class AddLocalContentViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _canAdd;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the view model is in demo mode.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isDemoMode;
 
     /// <summary>
     /// Gets or sets the selected executable item (for Executable/ModdingTool content type).

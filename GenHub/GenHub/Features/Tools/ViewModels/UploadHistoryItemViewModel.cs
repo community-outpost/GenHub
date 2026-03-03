@@ -13,27 +13,25 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <param name="item">The upload history item.</param>
 public partial class UploadHistoryItemViewModel(UploadHistoryItem item) : ObservableObject
 {
-    private readonly UploadHistoryItem _item = item;
-
     /// <summary>
     /// Gets the filename.
     /// </summary>
-    public string FileName => _item.FileName;
+    public string FileName => item.FileName;
 
     /// <summary>
     /// Gets the URL.
     /// </summary>
-    public string Url => _item.Url;
+    public string Url => item.Url;
 
     /// <summary>
     /// Gets the formatted timestamp display.
     /// </summary>
-    public string TimestampDisplay => GetTimeAgo(_item.Timestamp);
+    public string TimestampDisplay => GetTimeAgo(item.Timestamp);
 
     /// <summary>
     /// Gets the formatted size display.
     /// </summary>
-    public string SizeDisplay => FormatSize(_item.SizeBytes);
+    public string SizeDisplay => FormatSize(item.SizeBytes);
 
     /// <summary>
     /// Gets or sets a value indicating whether the file existence has been verified.
@@ -50,7 +48,7 @@ public partial class UploadHistoryItemViewModel(UploadHistoryItem item) : Observ
     /// <summary>
     /// Gets a value indicating whether the upload is still active (file exists in storage).
     /// </summary>
-    public bool IsActive => IsVerified ? FileExists : (DateTime.UtcNow - _item.Timestamp).TotalDays < 14;
+    public bool IsActive => IsVerified ? FileExists : (DateTime.UtcNow - item.Timestamp).TotalDays < 14;
 
     /// <summary>
     /// Gets the status color based on activity.

@@ -1,15 +1,17 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
 using Microsoft.Extensions.Logging;
-
-#pragma warning disable SA1202, SA1507, SA1508
+using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Notifications.ViewModels;
 
@@ -18,27 +20,15 @@ namespace GenHub.Features.Notifications.ViewModels;
 /// </summary>
 public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 {
-    private readonly INotificationService _notificationService;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ILogger<NotificationFeedViewModel> _logger;
-    private readonly IDisposable _historySubscription;
-    private readonly object _stateLock = new();
-    private bool _disposed;
-
-    [ObservableProperty]
-    private bool _isFeedOpen;
-
-    [ObservableProperty]
-    private int _unreadCount;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUnreadNotifications))]
-    private int _badgeCount;
-
     /// <summary>
     /// Gets a value indicating whether there are unread notifications that should be shown in the badge.
     /// </summary>
     public bool HasUnreadNotifications => BadgeCount > 0;
+
+    /// <summary>
+    /// Gets the text to show in the notification badge (number or <see cref="NotificationConstants.MaxBadgeDisplayText"/>).
+    /// </summary>
+    public string NotificationCountDisplay => BadgeCount > NotificationConstants.MaxBadgeCount ? NotificationConstants.MaxBadgeDisplayText : BadgeCount.ToString();
 
     /// <summary>
     /// Gets the collection of notification history items.
@@ -49,6 +39,26 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
     /// Gets a value indicating whether there are any notifications.
     /// </summary>
     public bool HasNotifications => NotificationHistory?.Any() == true;
+
+    /// <summary>
+    /// Gets the current notification mute state from the service.
+    /// </summary>
+    public NotificationMuteState MuteState => _notificationService.MuteState;
+
+    /// <summary>
+    /// Gets a value indicating whether notifications are enabled (not muted).
+    /// </summary>
+    public bool IsUnmuted => MuteState == NotificationMuteState.None;
+
+    /// <summary>
+    /// Gets a value indicating whether notifications are muted for this session only.
+    /// </summary>
+    public bool IsSessionMuted => MuteState == NotificationMuteState.Session;
+
+    /// <summary>
+    /// Gets a value indicating whether notifications are muted persistently.
+    /// </summary>
+    public bool IsPersistentMuted => MuteState == NotificationMuteState.Persistent;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NotificationFeedViewModel"/> class.
@@ -67,6 +77,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         NotificationHistory = [];
         UnreadCount = 0;
+        _showMuteStrike = notificationService.MuteState != NotificationMuteState.None;
 
         // Subscribe to notification history
         _historySubscription = notificationService.NotificationHistory.Subscribe(OnNotificationAdded);
@@ -122,8 +133,9 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
                 {
                     UnreadCount++;
 
-                    // Only increment badge count if ShowInBadge is true
-                    if (message.ShowInBadge)
+                    // Count notification for badge if explicitly allowed, or if muted while feed is closed
+                    // so unseen notifications are reflected in the badge indicator.
+                    if (message.ShowInBadge || (MuteState != NotificationMuteState.None && !IsFeedOpen))
                     {
                         BadgeCount++;
                     }
@@ -149,6 +161,31 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         Dispatcher.UIThread.InvokeAsync(action);
     }
 
+    private readonly INotificationService _notificationService;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<NotificationFeedViewModel> _logger;
+    private readonly IDisposable _historySubscription;
+    private readonly object _stateLock = new();
+    private bool _disposed;
+
+    [ObservableProperty]
+    private bool _isFeedOpen;
+
+    [ObservableProperty]
+    private int _unreadCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnreadNotifications))]
+    [NotifyPropertyChangedFor(nameof(NotificationCountDisplay))]
+    private int _badgeCount;
+
+    /// <summary>
+    /// Gets or sets whether to show the strike (diagonal line) over the bell icon (true when muted).
+    /// Stored so UI bindings update reliably when mute state changes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showMuteStrike;
+
     /// <summary>
     /// Toggles the notification feed visibility.
     /// When opening the feed, resets the badge count.
@@ -160,7 +197,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
         IsFeedOpen = !IsFeedOpen;
 
-        // Reset badge count when opening the feed
+        // Reset badge count when opening the feed (hides red circle)
         if (IsFeedOpen)
         {
             BadgeCount = 0;
@@ -172,6 +209,52 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         }
 
         _logger.LogInformation("Feed toggled: {IsOpen}", IsFeedOpen);
+    }
+
+    /// <summary>
+    /// Turns notifications on (unmute).
+    /// </summary>
+    [RelayCommand]
+    private async Task Unmute(CancellationToken cancellationToken = default)
+    {
+        await _notificationService.Unmute(cancellationToken);
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications turned on");
+    }
+
+    /// <summary>
+    /// Mutes notifications for this session only.
+    /// </summary>
+    [RelayCommand]
+    private async Task MuteSession()
+    {
+        await _notificationService.MuteSession();
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications muted for session");
+    }
+
+    /// <summary>
+    /// Mutes notifications persistently (until user turns on again).
+    /// </summary>
+    [RelayCommand]
+    private async Task MutePersistent(CancellationToken cancellationToken = default)
+    {
+        await _notificationService.MutePersistent(cancellationToken);
+        NotifyMuteStateChanged();
+        _logger.LogInformation("Notifications muted always");
+    }
+
+    /// <summary>
+    /// Updates mute-related properties when the notification mute state changes.
+    /// </summary>
+    /// <remarks>Must be called on the UI thread. Bell icon updates via <see cref="ShowMuteStrike"/> binding.</remarks>
+    private void NotifyMuteStateChanged()
+    {
+        ShowMuteStrike = _notificationService.MuteState != NotificationMuteState.None;
+        OnPropertyChanged(nameof(MuteState));
+        OnPropertyChanged(nameof(IsUnmuted));
+        OnPropertyChanged(nameof(IsSessionMuted));
+        OnPropertyChanged(nameof(IsPersistentMuted));
     }
 
     /// <summary>
@@ -188,6 +271,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
             {
                 NotificationHistory.Clear();
                 UnreadCount = 0;
+                BadgeCount = 0;
                 OnPropertyChanged(nameof(HasNotifications));
             }
         });
@@ -248,6 +332,8 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Updates the unread count based on current history.
+    /// Badge count includes only unread items that contribute to the badge (ShowInBadge, or muted with feed closed),
+    /// consistent with <see cref="AddNotification"/>.
     /// </summary>
     private void UpdateUnreadCount()
     {
@@ -255,7 +341,7 @@ public partial class NotificationFeedViewModel : ViewModelBase, IDisposable
         {
             var items = NotificationHistory.ToList();
             UnreadCount = items.Count(n => !n.IsRead);
-            BadgeCount = items.Count(n => !n.IsRead && n.ShowInBadge);
+            BadgeCount = items.Count(n => !n.IsRead && (n.ShowInBadge || (MuteState != NotificationMuteState.None && !IsFeedOpen)));
         }
     }
 

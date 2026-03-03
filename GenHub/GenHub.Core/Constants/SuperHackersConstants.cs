@@ -28,12 +28,12 @@ public static class SuperHackersConstants
     /// <summary>
     /// Cover image source path for Generals variant.
     /// </summary>
-    public const string GeneralsCoverSource = "/Assets/Images/china-poster.png";
+    public const string GeneralsCoverSource = "/Assets/Covers/china-cover.png";
 
     /// <summary>
     /// Cover image source path for Zero Hour variant.
     /// </summary>
-    public const string ZeroHourCoverSource = "/Assets/Images/china-poster.png";
+    public const string ZeroHourCoverSource = "/Assets/Covers/china-cover.png";
 
     /// <summary>
     /// Theme color for Zero Hour variant.

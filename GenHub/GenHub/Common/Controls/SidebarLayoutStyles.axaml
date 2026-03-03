@@ -1,0 +1,178 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls">
+  <Design.PreviewWith>
+    <controls:SidebarLayout />
+  </Design.PreviewWith>
+
+  <Style Selector="controls|SidebarLayout">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid>
+          <SplitView IsPaneOpen="{TemplateBinding IsPaneOpen, Mode=TwoWay}"
+                     DisplayMode="Overlay"
+                     OpenPaneLength="{TemplateBinding OpenPaneLength}"
+                     PanePlacement="Left"
+                     Background="Transparent"
+                     PaneBackground="Transparent"> <!-- Explicitly Transparent PaneBackground -->
+
+            <SplitView.Pane>
+              <!-- PART_SidebarPane is critical for the hover logic -->
+              <!-- PART_SidebarPane is critical for the hover logic -->
+            <Border x:Name="PART_SidebarPane"
+                    Background="Transparent"
+                    BorderBrush="{StaticResource SidebarGlassBorder}"
+                    BorderThickness="0,0,1,0"
+                    CornerRadius="0"
+                    BoxShadow="4 0 24 -2 #4D000000"
+                    ClipToBounds="False"> <!-- Keep False for Shadow, wrap content for Clip -->
+
+                <Panel>
+                    <!-- 1. Blur Layer (Glass) -->
+                    <ExperimentalAcrylicBorder CornerRadius="0" IsHitTestVisible="False">
+                        <ExperimentalAcrylicBorder.Material>
+                            <ExperimentalAcrylicMaterial
+                                BackgroundSource="Digger"
+                                TintColor="Black"
+                                TintOpacity="0.9"
+                                MaterialOpacity="0.5" />
+                        </ExperimentalAcrylicBorder.Material>
+                    </ExperimentalAcrylicBorder>
+
+                    <!-- 2. Creative Gradient Tint Layer -->
+                    <Border CornerRadius="0" IsHitTestVisible="False" Opacity="0.6">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                <GradientStop Offset="0.0" Color="#CC020024" /> <!-- Deepest Blue/Purple -->
+                                <GradientStop Offset="0.5" Color="#E63D004D" /> <!-- Deep Crimson-Purple Accent -->
+                                <GradientStop Offset="1.0" Color="#FF000000" /> <!-- Pure Black -->
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+
+                    <!-- 3. Content Layer -->
+                    <Grid RowDefinitions="Auto,Auto,*,Auto">
+                      <!-- Header title -->
+                      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0" >
+                        <TextBlock Text="{TemplateBinding PaneTitle}"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   Padding="20,25,12,15">
+                             <TextBlock.Effect>
+                                 <DropShadowEffect BlurRadius="15" Color="#80FFFFFF" Opacity="0.3" />
+                             </TextBlock.Effect>
+                        </TextBlock>
+
+                        <!-- Close Button - Improved Hit Area & Visuals -->
+                        <Button Grid.Column="1"
+                                Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                                Background="#1AFFFFFF"
+                                BorderThickness="0"
+                                Width="32" Height="32"
+                                CornerRadius="0"
+                                Padding="0"
+                                Margin="0,20,15,0"
+                                VerticalAlignment="Top"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Foreground="White">
+                             <Button.Styles>
+                                 <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                     <Setter Property="Background" Value="{StaticResource PurpleAccentBright}"/>
+                                     <Setter Property="Foreground" Value="White"/>
+                                 </Style>
+                             </Button.Styles>
+                          <TextBlock Text="✕" FontSize="14" FontWeight="Bold" Margin="0,-1,0,0"/>
+                        </Button>
+                      </Grid>
+
+                      <!-- Pane Header (ComboBox) - Increased Margin for separation -->
+                      <ContentPresenter Grid.Row="1" Content="{TemplateBinding PaneHeader}" Margin="0,15,0,25" />
+
+                      <!-- List - Flush Left w/ internal item padding 12 -->
+                      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15">
+                        <ListBox ItemsSource="{TemplateBinding ItemsSource}"
+                                 SelectedItem="{TemplateBinding SelectedItem, Mode=TwoWay}"
+                                 ItemTemplate="{TemplateBinding ItemTemplate}"
+                                 Background="Transparent">
+                             <ListBox.Styles>
+                <!-- ListBox Item Stying -->
+                <Style Selector="ListBoxItem">
+                  <Setter Property="Padding" Value="16,12"/>
+                  <Setter Property="Margin" Value="0,2"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                  <Setter Property="CornerRadius" Value="0"/>
+                  <Setter Property="Background" Value="Transparent"/>
+                  <Setter Property="Transitions">
+                      <Transitions>
+                          <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                      </Transitions>
+                  </Setter>
+                </Style>
+
+                <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                  <Setter Property="Background" Value="#1AFFFFFF"/>
+                </Style>
+
+                <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                    <Setter Property="Background">
+                        <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                            <GradientStop Offset="0.0" Color="#4D7F6B46"/> <!-- Purple glow start -->
+                            <GradientStop Offset="1.0" Color="#007F6B46"/> <!-- Fade out -->
+                        </LinearGradientBrush>
+                    </Setter>
+                  <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}"/>
+                  <Setter Property="BorderThickness" Value="3,0,0,0"/>
+                </Style>
+                             </ListBox.Styles>
+                        </ListBox>
+                      </ScrollViewer>
+
+                      <!-- Footer -->
+                      <ContentPresenter Grid.Row="3" Content="{TemplateBinding PaneFooter}"/>
+                    </Grid>
+                </Panel>
+            </Border>
+            </SplitView.Pane>
+
+            <SplitView.Content>
+              <Grid>
+                <!-- Main Content -->
+                <ContentPresenter Content="{TemplateBinding Content}" />
+
+                <!-- Click-outside/Blur overlay -->
+                <Panel x:Name="PART_ContentOverlay"
+                       Background="#66000000"
+                       IsVisible="{TemplateBinding IsPaneOpen}">
+                     <Panel.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                        </Transitions>
+                     </Panel.Transitions>
+                </Panel>
+              </Grid>
+            </SplitView.Content>
+          </SplitView>
+
+          <!-- Trigger Zone (Edge Hover Area) -->
+          <Panel x:Name="PART_TriggerZone"
+                 Width="40"
+                 HorizontalAlignment="Left"
+                 Background="Transparent"
+                 IsVisible="{Binding !IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}}">
+             <!-- Visual Hint (Purple Glow Bar) - REMOVED per user feedback ("collapsed line doesn't really fit")
+                  Kept invisible panel for hit testing -->
+             <Panel Background="Transparent" Width="40" />
+
+             <!-- Hover effect handled by visual state or simple triggers if possible,
+                  but the main interaction is handled by code-behind -->
+          </Panel>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+</Styles>

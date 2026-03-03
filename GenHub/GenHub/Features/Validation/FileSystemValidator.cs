@@ -20,13 +20,19 @@ namespace GenHub.Features.Validation;
 public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hashProvider)
 {
     /// <summary>
+    /// Logger for validation events.
+    /// </summary>
+    private readonly ILogger _logger = logger;
+    private readonly IFileHashProvider _hashProvider = hashProvider;
+
+    /// <summary>
     /// Validates that all required directories exist.
     /// </summary>
     /// <param name="basePath">Base path to check from.</param>
     /// <param name="requiredDirectories">Directories to check.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of validation issues.</returns>
-    protected static Task<List<ValidationIssue>> ValidateDirectoriesAsync(string basePath, IEnumerable<string> requiredDirectories, CancellationToken cancellationToken)
+    protected Task<List<ValidationIssue>> ValidateDirectoriesAsync(string basePath, IEnumerable<string> requiredDirectories, CancellationToken cancellationToken)
     {
         var issues = new List<ValidationIssue>();
         foreach (var dir in requiredDirectories)
@@ -50,7 +56,7 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
     /// <returns>SHA256 hash string.</returns>
     protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
     {
-        return await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
+        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
     /// <summary>
@@ -107,7 +113,7 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
                 }
                 catch (IOException ex)
                 {
-                    logger.LogError(ex, "I/O error validating file {FilePath}", absFile);
+                    _logger.LogError(ex, "I/O error validating file {FilePath}", absFile);
                     issues.Add(new ValidationIssue { IssueType = ValidationIssueType.UnexpectedFile, Path = absFile, Message = $"I/O error: {ex.Message}" });
                 }
 
@@ -119,6 +125,6 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
                 }
             });
 
-        return [.. issues];
+        return issues.ToList();
     }
 }

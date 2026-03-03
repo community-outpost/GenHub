@@ -201,6 +201,21 @@
                                                                     IsVisible="{Binding ShouldShowChangelogToggle}" />
                                                         </StackPanel>
 
+                                                        <!-- Dependency Warning - shown prominently for content with required dependencies -->
+                                                        <Border Background="#4D3A1A"
+                                                                BorderBrush="#FFB74D"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="8,6"
+                                                                Margin="0,4,0,0"
+                                                                IsVisible="{Binding HasRequiredDependencies}">
+                                                            <TextBlock Text="{Binding DependencyWarningText}"
+                                                                       FontSize="11"
+                                                                       Foreground="#FFD54F"
+                                                                       FontWeight="SemiBold"
+                                                                       TextWrapping="Wrap" />
+                                                        </Border>
+
                                                         <!-- Progress Bar - visible during installation -->
                                                         <ProgressBar Value="{Binding DownloadProgress}"
                                                                      Maximum="100"

@@ -20,10 +20,10 @@ public class GenPatcherContentRegistryTests
     /// <param name="expectedGame">The expected target game.</param>
     [Theory]
     [InlineData("gent", "GenTool", ContentType.Addon, GameType.ZeroHour)]
-    [InlineData("genl", "GenLauncher", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("gena", "GenAssist", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("10gn", "Generals 1.08", ContentType.GameClient, GameType.Generals)]
     [InlineData("10zh", "Zero Hour 1.04", ContentType.GameClient, GameType.ZeroHour)]
-    [InlineData("cbbs", "Control Bar - Basic", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,
@@ -128,7 +128,7 @@ public class GenPatcherContentRegistryTests
     /// <param name="contentCode">The known content code to test.</param>
     [Theory]
     [InlineData("gent")]
-    [InlineData("genl")]
+    [InlineData("gena")]
     [InlineData("cbbs")]
     [InlineData("10zh")]
     public void IsKnownCode_ReturnsTrueForKnownCodes(string contentCode)
@@ -169,7 +169,7 @@ public class GenPatcherContentRegistryTests
         // Assert
         Assert.NotEmpty(codes);
         Assert.Contains("gent", codes);
-        Assert.Contains("genl", codes);
+        Assert.Contains("gena", codes);
         Assert.Contains("10zh", codes);
     }
 

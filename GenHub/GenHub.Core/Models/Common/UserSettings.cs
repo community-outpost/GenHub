@@ -116,6 +116,16 @@ public class UserSettings : ICloneable
     /// </summary>
     public string? DismissedUpdateVersion { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the user has seen the quickstart guide.
+    /// </summary>
+    public bool HasSeenQuickStart { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether notifications are muted persistently (until user turns back on).
+    /// </summary>
+    public bool IsNotificationMuted { get; set; }
+
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
     public object Clone()
@@ -141,6 +151,8 @@ public class UserSettings : ICloneable
             SettingsFilePath = SettingsFilePath,
             CachePath = CachePath,
             ApplicationDataPath = ApplicationDataPath,
+            HasSeenQuickStart = HasSeenQuickStart,
+            IsNotificationMuted = IsNotificationMuted,
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,

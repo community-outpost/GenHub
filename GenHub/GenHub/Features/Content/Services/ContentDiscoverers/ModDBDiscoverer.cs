@@ -22,9 +22,6 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> logger) : IContentDiscoverer
 {
-    private readonly HttpClient _httpClient = httpClient;
-    private readonly ILogger<ModDBDiscoverer> _logger = logger;
-
     /// <inheritdoc />
     public string SourceName => ModDBConstants.DiscovererSourceName;
 
@@ -45,7 +42,7 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
         try
         {
             var gameType = query.TargetGame ?? GameType.ZeroHour;
-            _logger.LogInformation("Discovering ModDB content for {Game}", gameType);
+            logger.LogInformation("Discovering ModDB content for {Game}", gameType);
 
             List<ContentSearchResult> results = [];
 
@@ -58,7 +55,7 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 results.AddRange(sectionResults);
             }
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Discovered {Count} ModDB items across {Sections} sections",
                 results.Count,
                 sectionsToSearch.Count);
@@ -72,7 +69,7 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to discover ModDB content");
+            logger.LogError(ex, "Failed to discover ModDB content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
@@ -303,9 +300,9 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
             var queryString = filter.ToQueryString();
             var url = baseUrl + queryString;
 
-            _logger.LogDebug("Fetching from URL: {Url}", url);
+            logger.LogDebug("Fetching from URL: {Url}", url);
 
-            var html = await _httpClient.GetStringAsync(url, cancellationToken);
+            var html = await httpClient.GetStringAsync(url, cancellationToken);
             var context = BrowsingContext.New(Configuration.Default);
             var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
 
@@ -327,16 +324,16 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Failed to parse content item");
+                    logger.LogDebug(ex, "Failed to parse content item");
                 }
             }
 
-            _logger.LogDebug("Found {Count} items in {Section} section", results.Count, section);
+            logger.LogDebug("Found {Count} items in {Section} section", results.Count, section);
             return results;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to discover from {Section} section", section);
+            logger.LogWarning(ex, "Failed to discover from {Section} section", section);
             return [];
         }
     }

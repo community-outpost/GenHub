@@ -27,7 +27,7 @@ using System.Threading.Tasks;
 namespace GenHub.Features.Tools.MapManager.ViewModels;
 
 /// <summary>
-/// ViewModel for the Map Manager tool.
+/// ViewModel for Map Manager tool.
 /// </summary>
 public partial class MapManagerViewModel : ObservableObject
 {
@@ -121,7 +121,7 @@ public partial class MapManagerViewModel : ObservableObject
     /// Whether the MapPack panel is open.
     /// </summary>
     [ObservableProperty]
-    private bool isMapPackPanelOpen;
+    private bool isMapPackPanelOpen = false;
 
     partial void OnSearchTextChanged(string value)
     {
@@ -239,18 +239,28 @@ public partial class MapManagerViewModel : ObservableObject
         {
             var maps = await _directoryService.GetMapsAsync(SelectedTab);
 
-            if (SelectedTab == GameType.Generals)
+            // Marshall to UI thread for collection updates
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                GeneralsMaps.Clear();
-                GeneralsMaps.AddRange(maps);
-            }
-            else
-            {
-                ZeroHourMaps.Clear();
-                ZeroHourMaps.AddRange(maps);
-            }
+                if (SelectedTab == GameType.Generals)
+                {
+                    GeneralsMaps.Clear();
+                    foreach (var m in maps)
+                    {
+                        GeneralsMaps.Add(m);
+                    }
+                }
+                else
+                {
+                    ZeroHourMaps.Clear();
+                    foreach (var m in maps)
+                    {
+                        ZeroHourMaps.Add(m);
+                    }
+                }
 
-            ApplyFilter();
+                ApplyFilter();
+            });
 
             StatusMessage = $"Loaded {maps.Count} maps.";
 
@@ -292,12 +302,24 @@ public partial class MapManagerViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Imports files from the specified paths.
+    /// Imports files from specified paths.
     /// </summary>
     /// <param name="filePaths">The paths of the files to import.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task ImportFilesAsync(IEnumerable<string> filePaths)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Import Maps",
+                "Imports map files from URLs or by dragging and dropping files into your game's map directory.");
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = "Importing files...";
         try
@@ -334,6 +356,18 @@ public partial class MapManagerViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(ImportUrl))
         {
+            return;
+        }
+
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Import from URL",
+                "Downloads maps from a provided URL and automatically imports them into your game's map directory. Supports direct map file downloads and zip archives.");
             return;
         }
 
@@ -374,6 +408,18 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task BrowseAndImportAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Browse and Import",
+                "Opens a file picker dialog allowing you to select map files (.map) or zip archives from your computer to import into game.");
+            return;
+        }
+
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -402,6 +448,18 @@ public partial class MapManagerViewModel : ObservableObject
     {
         if (!SelectedMaps.Any())
         {
+            return;
+        }
+
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Delete Maps",
+                "Permanently deletes selected maps from your game's map directory. This action cannot be undone.");
             return;
         }
 
@@ -445,6 +503,18 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Export to ZIP",
+                "Creates a ZIP archive containing selected maps and saves it to your map directory. You can then share the ZIP file with others or use it for backup purposes.");
+            return;
+        }
+
         IsBusy = true;
         StatusMessage = "Creating ZIP...";
         Progress = 0;
@@ -453,8 +523,8 @@ public partial class MapManagerViewModel : ObservableObject
         {
             var directory = _directoryService.GetMapDirectory(SelectedTab);
             var safeZipName = ZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-                 ? ZipName
-                 : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+                ? ZipName
+                : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
 
             var destinationPath = Path.Combine(directory, safeZipName);
 
@@ -477,8 +547,10 @@ public partial class MapManagerViewModel : ObservableObject
                 _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
                 StatusMessage = "ZIP created successfully.";
 
+                // Reload maps to show the new ZIP
                 await LoadMapsAsync();
 
+                // Reveal in Explorer
                 try
                 {
                     System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{result}\"");
@@ -507,61 +579,6 @@ public partial class MapManagerViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelectedZips))]
-    private async Task UncompressSelectedAsync()
-    {
-        if (!SelectedMaps.Any()) return;
-
-        IsBusy = true;
-        Progress = 0;
-        StatusMessage = "Uncompressing...";
-
-        try
-        {
-            var zips = SelectedMaps.Where(m => m.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
-            int successCount = 0;
-            int failCount = 0;
-
-            foreach (var zip in zips)
-            {
-                var result = await _importService.ImportFromZipAsync(zip.FullPath, SelectedTab, new Progress<double>(p => Progress = p));
-                if (result.Success)
-                {
-                    successCount++;
-                }
-                else
-                {
-                    failCount++;
-                    _logger.LogWarning("Failed to uncompress {Zip}: {Error}", zip.FileName, string.Join(", ", result.Errors));
-                }
-            }
-
-            if (successCount > 0)
-            {
-                _notificationService.ShowSuccess("Uncompress Complete", $"Successfully uncompressed {successCount} ZIP(s).");
-                await LoadMapsAsync();
-            }
-
-            if (failCount > 0)
-            {
-                _notificationService.ShowError("Uncompress Failed", $"Failed to uncompress {failCount} ZIP(s).");
-            }
-
-            StatusMessage = "Uncompress complete.";
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to uncompress selected maps");
-            _notificationService.ShowError("Uncompress Error", ex.Message);
-            StatusMessage = "Uncompress error.";
-        }
-        finally
-        {
-            IsBusy = false;
-            Progress = 0;
-        }
-    }
-
     [RelayCommand]
     private async Task UploadAndShareAsync()
     {
@@ -570,13 +587,24 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
-        // Calculate total size of selected maps
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
+            return;
+        }
+
         // Calculate total size of selected maps
         long totalSizeBytes = SelectedMaps.Sum(r => new FileInfo(r.FullPath).Length);
 
         // Check file size limit (10MB max per file/batch typically, but user said "File too large. Maximum upload size is 10MB")
         // Note: The UI says "max 10MB per file". But usually there is a total limit too if zipped.
-        // Let's enforce the 10MB limit based on the total size if it's a ZIP, or per file?
+        // Let's enforce the 10MB limit based on total size if it's a ZIP, or per file?
         // If multiple files are selected, they are zipped. The ZIP must be < 10MB?
         // Start simple: If total > 10MB, warn.
         if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
@@ -652,19 +680,120 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private void OpenFolder()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Open Map Folder",
+                "Opens your game's map directory in Windows Explorer, allowing you to manage your map files directly.");
+            return;
+        }
+
         _directoryService.OpenInExplorer(SelectedTab);
     }
 
     [RelayCommand]
     private void RevealFile(MapFile map)
     {
+        // Check if map is a demo item (has mock path)
+        if (map.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            map.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Reveal Map File",
+                "Opens Windows Explorer and highlights the selected map file, making it easy to locate and manage.");
+            return;
+        }
+
         _directoryService.RevealInExplorer(map);
+    }
+
+    [RelayCommand]
+    private async Task UncompressSelectedAsync()
+    {
+        var zipFiles = SelectedMaps
+            .Where(r => r.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (zipFiles.Count == 0) return;
+
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Uncompress ZIP",
+                "Extracts contents of the selected ZIP archives and imports any contained maps into your game's map directory.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Uncompressing ZIP(s)...";
+        int totalImported = 0;
+
+        try
+        {
+            var errorMessages = new List<string>();
+            foreach (var zip in zipFiles)
+            {
+                var result = await _importService.ImportFromZipAsync(zip.FullPath, SelectedTab, new Progress<double>(p => Progress = p));
+                if (result.Success)
+                {
+                    totalImported += result.FilesImported;
+                }
+
+                if (result.Errors.Any())
+                {
+                    errorMessages.AddRange(result.Errors);
+                }
+            }
+
+            if (totalImported > 0)
+            {
+                _notificationService.ShowSuccess("Uncompress Complete", $"Extracted {totalImported} maps from selected ZIP(s).");
+                StatusMessage = $"Extracted {totalImported} maps from selected ZIP(s).";
+            }
+
+            if (errorMessages.Count > 0)
+            {
+                _notificationService.ShowWarning("Uncompress Warning", string.Join("\n", errorMessages.Take(5)));
+            }
+
+            await LoadMapsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to uncompress selected ZIP files");
+            _notificationService.ShowError("Uncompress Error", ex.Message);
+            StatusMessage = "Uncompress error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     // MapPack Commands
     [RelayCommand]
     private void ToggleMapPackPanel()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "MapPacks",
+                "Create and manage collections of maps (MapPacks) to easily switch between different sets of maps for your game profiles.");
+            return;
+        }
+
         IsMapPackPanelOpen = !IsMapPackPanelOpen;
     }
 
@@ -692,6 +821,18 @@ public partial class MapManagerViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(NewMapPackName) || !SelectedMaps.Any())
         {
             _notificationService.ShowWarning("Invalid Input", "Please provide a name and select maps.");
+            return;
+        }
+
+        // Check if any selected maps are demo items (have mock paths)
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Create MapPack",
+                "Creates a MapPack from the selected maps using CAS (Content Addressable Storage) system. MapPacks can be enabled in your game profiles to load custom maps.");
             return;
         }
 
@@ -739,6 +880,18 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task LoadMapPackAsync(MapPack mapPack)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Load MapPack",
+                "Enables the selected MapPack, making its maps available when launching the game with the associated profile. The maps will be available on next profile launch.");
+            return;
+        }
+
         try
         {
             var success = await _mapPackService.LoadMapPackAsync(mapPack.Id);
@@ -751,13 +904,25 @@ public partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load MapPack");
-            _notificationService.ShowError("Load Failed", ex.Message);
+            _notificationService.ShowError("Load Failed", "Failed to load MapPack.");
         }
     }
 
     [RelayCommand]
     private async Task UnloadMapPackAsync(MapPack mapPack)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Unload MapPack",
+                "Disables the selected MapPack, removing its maps from the available maps when launching the game with the associated profile.");
+            return;
+        }
+
         try
         {
             var success = await _mapPackService.UnloadMapPackAsync(mapPack.Id);
@@ -770,13 +935,25 @@ public partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to unload MapPack");
-            _notificationService.ShowError("Unload Failed", ex.Message);
+            _notificationService.ShowError("Unload Failed", "Failed to unload MapPack.");
         }
     }
 
     [RelayCommand]
     private async Task DeleteMapPackAsync(MapPack mapPack)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            // Show notification toast explaining what the button does
+            _notificationService.ShowInfo(
+                "Delete MapPack",
+                "Permanently deletes the selected MapPack from CAS storage. This action cannot be undone.");
+            return;
+        }
+
         try
         {
             var success = await _mapPackService.DeleteMapPackAsync(mapPack.Id);
@@ -789,7 +966,7 @@ public partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete MapPack");
-            _notificationService.ShowError("Delete Failed", ex.Message);
+            _notificationService.ShowError("Delete Failed", "Failed to delete MapPack.");
         }
     }
 
@@ -797,6 +974,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private void ToggleHistory()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Upload History",
+                "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
+            return;
+        }
+
         IsHistoryOpen = !IsHistoryOpen;
         if (IsHistoryOpen)
         {
@@ -856,15 +1044,26 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task CopyUrlAsync(string url)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Copy Link",
+                "Copies the download link of the uploaded file to your clipboard.");
+            return;
+        }
+
         try
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
             var clipboard = lifetime?.MainWindow?.Clipboard;
             if (clipboard != null)
-            {
-                await clipboard.SetTextAsync(url);
-                _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
-            }
+                {
+                    await clipboard.SetTextAsync(url);
+                    _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
+                }
         }
         catch (Exception ex)
         {
@@ -875,6 +1074,17 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveHistoryItemAsync(UploadHistoryItemViewModel item)
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Remove From History",
+                "Removes the item from your local history. This frees up your upload quota immediately.");
+            return;
+        }
+
         try
         {
             await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
@@ -890,10 +1100,22 @@ public partial class MapManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
+        // Check if current tab is using demo paths
+        var demoPath = _directoryService.GetMapDirectory(SelectedTab);
+        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        {
+            _notificationService.ShowInfo(
+                "Clear History",
+                "Clears your entire local upload history. This frees up all your upload quota.");
+            return;
+        }
+
         try
         {
             await _uploadHistoryService.ClearHistoryAsync();
             await LoadHistoryAsync();
+            _notificationService.ShowSuccess("Cleared", "All upload history cleared.");
         }
         catch (Exception ex)
         {

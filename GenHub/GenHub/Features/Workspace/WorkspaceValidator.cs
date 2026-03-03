@@ -20,8 +20,6 @@ namespace GenHub.Features.Workspace;
 /// </summary>
 public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspaceValidator
 {
-    private readonly ILogger<WorkspaceValidator> _logger = logger;
-
     /// <summary>
     /// Validates a workspace configuration.
     /// </summary>
@@ -184,7 +182,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not check disk space for {DestinationPath}", destinationPath);
+                logger.LogWarning(ex, "Could not check disk space for {DestinationPath}", destinationPath);
             }
         }
 
@@ -273,7 +271,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Could not check execute permissions for {ExecutablePath}", executablePath);
+                            logger.LogWarning(ex, "Could not check execute permissions for {ExecutablePath}", executablePath);
                         }
                     }
                 }
@@ -322,7 +320,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
+            logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
             return OperationResult<ValidationResult>.CreateFailure($"Workspace validation failed: {ex.Message}");
         }
     }
@@ -415,7 +413,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not validate symlinks in workspace {WorkspacePath}", workspacePath);
+            logger.LogWarning(ex, "Could not validate symlinks in workspace {WorkspacePath}", workspacePath);
         }
 
         await Task.CompletedTask;

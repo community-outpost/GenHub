@@ -30,6 +30,9 @@ public partial class GameProfileSettingsWindow : Window
     {
         InitializeComponent();
 
+        // Wire up drag handlers to the header in the shared content view
+        WireUpDragHandlers();
+
         // Subscribe to DataContext changes to handle commands
         DataContextChanged += OnDataContextChanged;
 
@@ -45,7 +48,7 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerPressed(object sender, PointerPressedEventArgs e)
+    public void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (e.ClickCount == 2)
         {
@@ -66,7 +69,7 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerMoved(object sender, PointerEventArgs e)
+    public void OnHeaderPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!_isMouseDown || _pressedEventArgs == null)
         {
@@ -104,10 +107,20 @@ public partial class GameProfileSettingsWindow : Window
     /// </summary>
     /// <param name="sender">The sender.</param>
     /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerReleased(object sender, PointerReleasedEventArgs e)
+    public void OnHeaderPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         _isMouseDown = false;
         _pressedEventArgs = null;
+    }
+
+    /// <summary>
+    /// Handles the toggle fullscreen button click.
+    /// </summary>
+    /// <param name="sender">The sender.</param>
+    /// <param name="e">The event arguments.</param>
+    public void OnToggleFullscreenClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
     /// <summary>
@@ -125,6 +138,20 @@ public partial class GameProfileSettingsWindow : Window
         SaveWindowSize();
 
         base.OnClosed(e);
+    }
+
+    /// <summary>
+    /// Wires up pointer event handlers to the header border in the shared content view.
+    /// </summary>
+    private void WireUpDragHandlers()
+    {
+        // Find the named header border in the shared content view
+        if (this.FindControl<GameProfileSettingsContentView>("ContentView")?.FindControl<Border>("HeaderBorder") is { } headerBorder)
+        {
+            headerBorder.PointerPressed += OnHeaderPointerPressed;
+            headerBorder.PointerMoved += OnHeaderPointerMoved;
+            headerBorder.PointerReleased += OnHeaderPointerReleased;
+        }
     }
 
     private void InitializeComponent()

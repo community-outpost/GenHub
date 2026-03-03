@@ -1,6 +1,7 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
@@ -251,6 +252,45 @@ public class StrategyTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that for all strategies, a file with InstallTarget != Workspace
+    /// does NOT result in a call to file operations for that specific path.
+    /// </summary>
+    /// <param name="strategyType">The strategy type to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    public async Task AllStrategies_NonWorkspaceTarget_ExcludesFromFileOperations(WorkspaceStrategy strategyType)
+    {
+        // Arrange
+        var strategy = CreateStrategy(strategyType);
+        var config = CreateValidConfiguration(strategyType);
+
+        // Add a file that should be ignored by workspace strategies
+        var mapFile = new ManifestFile
+        {
+            RelativePath = "Maps/MyTestMap.map",
+            Size = 5000,
+            InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            SourceType = ContentSourceType.LocalFile,
+        };
+        config.Manifests[0].Files.Add(mapFile);
+
+        // Act
+        await strategy.PrepareAsync(config, null, CancellationToken.None);
+
+        // Assert
+        // The workspace path for the map file should NOT have been touched by any workspace-specific file operations
+        var workspaceMapPath = Path.Combine(_tempDir, "test", mapFile.RelativePath);
+
+        _fileOps.Verify(f => f.CopyFileAsync(It.IsAny<string>(), It.Is<string>(p => p == workspaceMapPath), It.IsAny<CancellationToken>()), Times.Never());
+        _fileOps.Verify(f => f.CreateHardLinkAsync(It.Is<string>(p => p == workspaceMapPath), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never());
+        _fileOps.Verify(f => f.CreateSymlinkAsync(It.Is<string>(p => p == workspaceMapPath), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
+    }
+
+    /// <summary>
     /// Disposes of test resources.
     /// </summary>
     public void Dispose()
@@ -259,6 +299,8 @@ public class StrategyTests : IDisposable
         {
             Directory.Delete(_tempDir, true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>

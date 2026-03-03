@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GitHub;assembly=GenHub.Core"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="GenHub.Features.Info.Views.ChangelogsView"
+             x:DataType="vm:ChangelogsViewModel"
+             x:Name="Root">
+
+  <StackPanel>
+    <!-- Header / Refresh -->
+    <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,20">
+       <StackPanel>
+         <TextBlock Text="Release History" FontSize="20" FontWeight="Bold" Foreground="White"/>
+         <TextBlock Text="Latest updates from GitHub" FontSize="14" Foreground="#888888"/>
+       </StackPanel>
+       <Button Grid.Column="1" Command="{Binding LoadChangelogsCommand}"
+               IsEnabled="{Binding !IsLoading}"
+               Padding="8,4" Background="#33FFFFFF" CornerRadius="4">
+           <StackPanel Orientation="Horizontal" Spacing="6">
+               <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+               <TextBlock Text="Refresh"/>
+           </StackPanel>
+       </Button>
+    </Grid>
+
+    <!-- Loading State -->
+    <ProgressBar IsIndeterminate="True"
+                 IsVisible="{Binding IsLoading}"
+                 Margin="0,20"/>
+
+    <!-- Error State -->
+    <Border Background="#33FF0000"
+            BorderBrush="#FF5555"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="16"
+            IsVisible="{Binding HasError}"
+            Margin="0,0,0,20">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <material:MaterialIcon Kind="AlertCircle" Foreground="#FF5555" Width="24" Height="24"/>
+            <TextBlock Text="{Binding ErrorMessage}" VerticalAlignment="Center" Foreground="#FF5555"/>
+        </StackPanel>
+    </Border>
+
+    <!-- List -->
+    <ItemsControl ItemsSource="{Binding Releases}">
+       <ItemsControl.ItemTemplate>
+          <DataTemplate>
+             <Border Background="#1E1E1E" CornerRadius="8" Padding="16" Margin="0,0,0,12"
+                     BorderBrush="#33FFFFFF" BorderThickness="1">
+                <StackPanel>
+                    <!-- Header -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                            <Border Background="#33FFD700" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsPrerelease}">
+                                <TextBlock Text="PRE-RELEASE" FontSize="10" FontWeight="Bold" Foreground="#FFD700"/>
+                            </Border>
+                             <TextBlock Text="{Binding PublishedAt, StringFormat='{}{0:yyyy-MM-dd}'}"
+                                       FontSize="13" Foreground="#888888" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Button Command="{Binding ((vm:ChangelogsViewModel)DataContext).OpenReleaseUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding HtmlUrl}"
+                                Background="Transparent" Padding="4" ToolTip.Tip="View on GitHub">
+                            <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="#888888"/>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,12" Foreground="#DDDDDD"/>
+
+                    <!-- Separator -->
+                    <Border Height="1" Background="#22FFFFFF" Margin="0,0,0,12"/>
+
+                    <!-- Body -->
+                    <ScrollViewer Height="300" Margin="0,0,0,12">
+                        <controls:MarkdownTextBlock Markdown="{Binding Body}" />
+                    </ScrollViewer>
+                </StackPanel>
+             </Border>
+          </DataTemplate>
+       </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</UserControl>

@@ -13,23 +13,6 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class IsSubscribedConverter : IMultiValueConverter
 {
-    /// <summary>
-    /// Not implemented for this converter.
-    /// </summary>
-    /// <param name="value">The value to convert back.</param>
-    /// <param name="targetTypes">The target types.</param>
-    /// <param name="parameter">The converter parameter.</param>
-    /// <param name="culture">The culture info.</param>
-    /// <returns>An empty array.</returns>
-    public static object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
-    {
-        _ = value;
-        _ = targetTypes;
-        _ = parameter;
-        _ = culture;
-        return [];
-    }
-
     /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -52,5 +35,18 @@ public class IsSubscribedConverter : IMultiValueConverter
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Converts a binding target value to the source binding values.
+    /// </summary>
+    /// <param name="value">The value that the binding target produces.</param>
+    /// <param name="targetTypes">The types to convert to.</param>
+    /// <param name="parameter">The converter parameter to use.</param>
+    /// <param name="culture">The culture to use in the converter.</param>
+    /// <returns>An array of values that have been converted from the target value back to the source values.</returns>
+    public object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
+    {
+        return Array.Empty<object?>();
     }
 }
