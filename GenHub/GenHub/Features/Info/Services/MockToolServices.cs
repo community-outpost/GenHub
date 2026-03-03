@@ -220,13 +220,13 @@ public class MockReplayImportService : IReplayImportService
     /// <inheritdoc/>
     public Task<ReplayImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
     {
-         return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
+        return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
 
     /// <inheritdoc/>
     public Task<ReplayImportResult> ImportFromUrlAsync(string url, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-         return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
+        return Task.FromResult(new ReplayImportResult { Success = true, FilesImported = 0, FilesSkipped = 0 });
     }
 
     /// <inheritdoc/>
@@ -362,20 +362,20 @@ public class MockMapImportService : IMapImportService
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromFilesAsync(IEnumerable<string> filePaths, GameType targetVersion, CancellationToken ct = default)
     {
-         // MapImportResult does NOT have FilesSkipped (unlike ReplayImportResult)
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        // MapImportResult does NOT have FilesSkipped (unlike ReplayImportResult)
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromStreamAsync(Stream stream, string fileName, GameType targetVersion, CancellationToken ct = default)
     {
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>
     public Task<MapImportResult> ImportFromUrlAsync(string url, GameType targetVersion, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-         return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
+        return Task.FromResult(new MapImportResult { Success = true, FilesImported = 0 });
     }
 
     /// <inheritdoc/>
@@ -462,7 +462,7 @@ public class MockLocalContentService : ILocalContentService
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame }));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame }));
     }
 
     /// <inheritdoc/>
@@ -605,6 +605,9 @@ public class MockConfigurationProviderService : IConfigurationProviderService
 
     /// <inheritdoc/>
     public string GetLogsPath() => @"C:\GenHub\Logs";
+
+    /// <inheritdoc/>
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration() => new();
 }
 
 /// <summary>
