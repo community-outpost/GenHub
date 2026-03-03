@@ -14,7 +14,9 @@ public class CsvCatalogConfiguration
     public List<CsvValidationCatalog> CsvValidationCatalogs { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the path to the index.json file relative to the docs directory.
+    /// Gets or sets the path to the index.json file.
+    /// If a relative path is provided, it is resolved relative to the application's working directory;
+    /// absolute paths are used as given. The expected file is index.json.
     /// </summary>
     public string IndexFilePath { get; set; } = "docs/GameInstallationFilesRegistry/index.json";
 }
