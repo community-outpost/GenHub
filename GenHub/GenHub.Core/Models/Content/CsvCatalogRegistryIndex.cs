@@ -23,6 +23,12 @@ public class CsvCatalogRegistryIndex
     public DateTime? LastUpdatedAt { get; set; }
 
     /// <summary>
+    /// Gets or sets the description of this registry index.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the list of available catalog entries.
     /// </summary>
     [JsonPropertyName("registries")]
