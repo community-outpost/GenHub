@@ -81,7 +81,12 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             var filteredEntries = entries;
             if (query.TargetGame.HasValue)
             {
-                var targetGameStr = query.TargetGame.Value == GameType.Generals ? CsvConstants.GeneralsGameType : CsvConstants.ZeroHourGameType;
+                var targetGameStr = query.TargetGame.Value switch
+                {
+                    GameType.Generals => CsvConstants.GeneralsGameType,
+                    GameType.ZeroHour => CsvConstants.ZeroHourGameType,
+                    _ => throw new ArgumentException($"Unsupported game type: {query.TargetGame.Value}"),
+                };
                 filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
