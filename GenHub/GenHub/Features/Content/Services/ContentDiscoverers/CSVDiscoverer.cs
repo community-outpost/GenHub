@@ -100,12 +100,24 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
             foreach (var entry in filteredEntries)
             {
-                // Determine languages to include
-                var languagesToInclude = entry.SupportedLanguages;
-                if (!string.IsNullOrWhiteSpace(query.Language) && !query.Language.Equals(CsvConstants.AllLanguagesFilter, StringComparison.OrdinalIgnoreCase))
+                var normalizedQueryLanguage = !string.IsNullOrWhiteSpace(query.Language)
+                    ? NormalizeLanguage(query.Language)
+                    : null;
+                var normalizedEntryLanguages = entry.SupportedLanguages.Select(NormalizeLanguage).ToList();
+
+                List<string> languagesToInclude;
+                if (string.IsNullOrWhiteSpace(query.Language) || normalizedQueryLanguage == "ALL")
                 {
-                    languagesToInclude = entry.SupportedLanguages
-                        .Where(l => l.Equals(query.Language, StringComparison.OrdinalIgnoreCase))
+                    languagesToInclude = normalizedEntryLanguages;
+                }
+                else if (normalizedEntryLanguages.Contains("ALL"))
+                {
+                    languagesToInclude = [normalizedQueryLanguage!];
+                }
+                else
+                {
+                    languagesToInclude = normalizedEntryLanguages
+                        .Where(l => l == normalizedQueryLanguage)
                         .ToList();
                 }
 
@@ -164,6 +176,13 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
             _disposed = true;
         }
+    }
+
+    private static string NormalizeLanguage(string language)
+    {
+        if (string.Equals(language, "All", StringComparison.OrdinalIgnoreCase))
+            return "ALL";
+        return language.ToUpperInvariant();
     }
 
     private async Task<List<CsvCatalogRegistryEntry>> LoadCatalogEntriesAsync(CancellationToken cancellationToken)
