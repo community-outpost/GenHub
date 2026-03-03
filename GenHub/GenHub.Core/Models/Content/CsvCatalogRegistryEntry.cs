@@ -9,6 +9,12 @@ namespace GenHub.Core.Models.Content;
 public class CsvCatalogRegistryEntry
 {
     /// <summary>
+    /// Gets or sets the unique identifier for this registry entry.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the URL to the CSV file.
     /// </summary>
     [JsonPropertyName("url")]
@@ -37,4 +43,34 @@ public class CsvCatalogRegistryEntry
     /// </summary>
     [JsonPropertyName("fileCount")]
     public int? FileCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total size of the CSV file in bytes.
+    /// </summary>
+    [JsonPropertyName("totalSizeBytes")]
+    public long TotalSizeBytes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the checksum information for integrity verification.
+    /// </summary>
+    [JsonPropertyName("checksum")]
+    public Checksum? Checksum { get; set; }
+
+    /// <summary>
+    /// Gets or sets when this registry entry was generated.
+    /// </summary>
+    [JsonPropertyName("generatedAt")]
+    public DateTime? GeneratedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the version of the generator that created this entry.
+    /// </summary>
+    [JsonPropertyName("generatorVersion")]
+    public string GeneratorVersion { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this registry entry is active.
+    /// </summary>
+    [JsonPropertyName("isActive")]
+    public bool IsActive { get; set; }
 }
