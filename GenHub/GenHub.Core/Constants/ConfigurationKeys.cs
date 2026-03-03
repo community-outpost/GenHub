@@ -106,16 +106,4 @@ public static class ConfigurationKeys
     /// Configuration key for application data path.
     /// </summary>
     public const string AppDataPath = "GenHub:AppDataPath";
-
-    // CSV Catalog configuration keys
-
-    /// <summary>
-    /// Configuration key for the CSV catalog index file path.
-    /// </summary>
-    public const string CsvCatalogIndexPath = "GenHub:IndexFilePath";
-
-    /// <summary>
-    /// Configuration key for the CSV validation catalogs fallback.
-    /// </summary>
-    public const string CsvValidationCatalogs = "GenHub:CsvValidationCatalogs";
 }
