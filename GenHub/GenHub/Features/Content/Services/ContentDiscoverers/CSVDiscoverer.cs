@@ -102,7 +102,10 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                 var normalizedQueryLanguage = !string.IsNullOrWhiteSpace(query.Language)
                     ? NormalizeLanguage(query.Language)
                     : null;
-                var normalizedEntryLanguages = entry.SupportedLanguages.Select(NormalizeLanguage).ToList();
+                var normalizedEntryLanguages = (entry.SupportedLanguages ?? [])
+                    .Where(l => !string.IsNullOrWhiteSpace(l))
+                    .Select(NormalizeLanguage)
+                    .ToList();
 
                 List<string> languagesToInclude;
                 if (string.IsNullOrWhiteSpace(query.Language) || normalizedQueryLanguage == "ALL")
@@ -247,7 +250,9 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                         Url = c.Url,
                         GameType = c.GameType,
                         Version = c.Version,
-                        SupportedLanguages = c.SupportedLanguages,
+                        SupportedLanguages = (c.SupportedLanguages ?? [])
+                            .Where(l => !string.IsNullOrWhiteSpace(l))
+                            .ToList(),
                         FileCount = c.FileCount,
                     }).ToList();
 
@@ -310,4 +315,4 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
         return result;
     }
-}
+}`
