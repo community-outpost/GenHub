@@ -215,19 +215,22 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             var indexPath = _config.IndexFilePath;
             try
             {
-                var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
-                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
-
-                if (index?.Entries != null && index.Entries.Count > 0)
+                if (!string.IsNullOrWhiteSpace(indexPath))
                 {
-                    loadedEntries = index.Entries
-                        .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
-                        .ToList();
+                    var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
+                    var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
 
-                    if (loadedEntries.Count > 0)
+                    if (index?.Entries != null && index.Entries.Count > 0)
                     {
-                        loadedFromIndex = true;
-                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                        loadedEntries = index.Entries
+                            .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
+                            .ToList();
+
+                        if (loadedEntries.Count > 0)
+                        {
+                            loadedFromIndex = true;
+                            _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                        }
                     }
                 }
             }
