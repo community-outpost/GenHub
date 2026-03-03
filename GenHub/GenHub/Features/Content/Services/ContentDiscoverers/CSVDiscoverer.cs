@@ -145,6 +145,10 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                 HasMoreItems = false,
             });
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover CSV catalogs");
@@ -218,6 +222,10 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                     loadedFromIndex = true;
                     _logger.LogInformation("Loaded {Count} CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
