@@ -281,7 +281,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             return null;
         }
 
-        var contentName = $"{entry.GameType}-{entry.Version}-{language}";
+        var contentName = $"{gameType}-{entry.Version}-{language}";
 
         var id = ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.TheSuperHackers,
@@ -304,7 +304,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         };
 
         result.ResolverMetadata[CsvConstants.CsvUrlMetadataKey] = entry.Url;
-        result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = entry.GameType;
+        result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = gameType.ToString();
         result.ResolverMetadata[CsvConstants.VersionMetadataKey] = entry.Version;
         result.ResolverMetadata[CsvConstants.LanguageMetadataKey] = language;
 
@@ -315,4 +315,4 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
         return result;
     }
-}`
+}
