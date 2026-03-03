@@ -45,7 +45,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         IConfigurationProviderService configProvider)
     {
         _logger = logger;
-        _config = configProvider.GetCsvCatalogConfiguration();
+        _config = configProvider.GetCsvCatalogConfiguration() ?? new CsvCatalogConfiguration();
     }
 
     /// <inheritdoc />
