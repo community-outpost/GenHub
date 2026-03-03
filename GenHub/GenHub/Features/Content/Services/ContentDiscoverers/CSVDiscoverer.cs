@@ -81,13 +81,21 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             var filteredEntries = entries;
             if (query.TargetGame.HasValue)
             {
-                var targetGameStr = query.TargetGame.Value switch
+                string? targetGameStr = query.TargetGame.Value switch
                 {
                     GameType.Generals => CsvConstants.GeneralsGameType,
                     GameType.ZeroHour => CsvConstants.ZeroHourGameType,
-                    _ => throw new ArgumentException($"Unsupported game type: {query.TargetGame.Value}"),
+                    _ => null,
                 };
-                filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (targetGameStr != null)
+                {
+                    filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+                else
+                {
+                    _logger.LogWarning("Unsupported game type encountered: {GameType}. Skipping GameType filter.", query.TargetGame.Value);
+                }
             }
 
             foreach (var entry in filteredEntries)
