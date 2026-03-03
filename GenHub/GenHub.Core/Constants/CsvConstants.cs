@@ -16,11 +16,6 @@ public static class CsvConstants
     public const string Description = "Discovers base game manifests from verified CSV catalogs.";
 
     /// <summary>
-    /// Publisher ID for the CSV registry service.
-    /// </summary>
-    public const string PublisherId = "csvregistry";
-
-    /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
     public const string ResolverId = "CSVResolver";
