@@ -218,9 +218,15 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
                 if (index?.Entries != null && index.Entries.Count > 0)
                 {
-                    loadedEntries = index.Entries;
-                    loadedFromIndex = true;
-                    _logger.LogInformation("Loaded {Count} CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                    loadedEntries = index.Entries
+                        .Where(e => e != null && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
+                        .ToList();
+
+                    if (loadedEntries.Count > 0)
+                    {
+                        loadedFromIndex = true;
+                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                    }
                 }
             }
             catch (OperationCanceledException)
