@@ -219,7 +219,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                 if (index?.Entries != null && index.Entries.Count > 0)
                 {
                     loadedEntries = index.Entries
-                        .Where(e => e != null && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
+                        .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
                         .ToList();
 
                     if (loadedEntries.Count > 0)
