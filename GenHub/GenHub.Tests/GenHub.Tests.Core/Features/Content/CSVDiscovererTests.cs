@@ -1,4 +1,4 @@
-// Unit tests for CSVDiscoverer. the whole file is made by AI
+// Unit tests for CSVDiscoverer. The whole file is made by AI
 // Copyright (C) 2026  GenHub & The Super Hackers
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -78,8 +78,8 @@ public class CSVDiscovererTests
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.Items.Should().NotBeEmpty();
-        result.Data.Items.First().ResolverMetadata.Should().ContainKey("csvUrl");
-        result.Data.Items.First().ResolverMetadata["csvUrl"].Should().Be("https://example.com/generals.csv");
+        result.Data.Items.First().ResolverMetadata.Should().ContainKey(CsvConstants.CsvUrlMetadataKey);
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://example.com/generals.csv");
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public class CSVDiscovererTests
 
         // Assert
         result.Data!.Items.Should().NotBeEmpty();
-        result.Data.Items.First().ResolverMetadata["language"].Should().Be("DE");
+        result.Data.Items.First().ResolverMetadata[CsvConstants.LanguageMetadataKey].Should().Be("DE");
     }
 
     /// <summary>
@@ -214,9 +214,9 @@ public class CSVDiscovererTests
 
         // Assert
         result.Data!.Items.Should().HaveCount(3);
-result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "EN");
-        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "DE");
-        result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "FR");
+        result.Data.Items.Should().Contain(i => i.ResolverMetadata[CsvConstants.LanguageMetadataKey] == "EN");
+        result.Data.Items.Should().Contain(i => i.ResolverMetadata[CsvConstants.LanguageMetadataKey] == "DE");
+        result.Data.Items.Should().Contain(i => i.ResolverMetadata[CsvConstants.LanguageMetadataKey] == "FR");
     }
 
     /// <summary>
@@ -263,7 +263,7 @@ result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "EN");
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             discoverer.DiscoverAsync(new ContentSearchQuery(), cts.Token));
     }
 
@@ -312,7 +312,7 @@ result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "EN");
 
             // Assert
             result.Data!.Items.Should().ContainSingle();
-            result.Data.Items.First().ResolverMetadata["csvUrl"].Should().Be("https://index.com/file.csv");
+            result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/file.csv");
         }
         finally
         {
@@ -321,5 +321,144 @@ result.Data.Items.Should().Contain(i => i.ResolverMetadata["language"] == "EN");
                 File.Delete(tempFile);
             }
         }
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> handles Zero Hour game type correctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithZeroHourQuery_ReturnsValidResult()
+    {
+        // Arrange
+        var config = new CsvCatalogConfiguration
+        {
+            CsvValidationCatalogs = new List<CsvValidationCatalog>
+            {
+                new CsvValidationCatalog
+                {
+                    Url = "https://example.com/zerohour.csv",
+                    GameType = "ZeroHour",
+                    Version = "1.04",
+                    SupportedLanguages = new List<string> { "EN" },
+                },
+            },
+        };
+
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+        var query = new ContentSearchQuery { TargetGame = GameType.ZeroHour };
+
+        // Act
+        var result = await discoverer.DiscoverAsync(query);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Items.Should().NotBeEmpty();
+        result.Data.Items.First().TargetGame.Should().Be(GameType.ZeroHour);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns empty when no matching game type is found.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithNonMatchingGameType_ReturnsEmpty()
+    {
+        // Arrange
+        var config = new CsvCatalogConfiguration
+        {
+            CsvValidationCatalogs = new List<CsvValidationCatalog>
+            {
+                new CsvValidationCatalog
+                {
+                    Url = "https://example.com/generals.csv",
+                    GameType = "Generals",
+                    Version = "1.08",
+                    SupportedLanguages = new List<string> { "EN" },
+                },
+            },
+        };
+
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+        var query = new ContentSearchQuery { TargetGame = GameType.ZeroHour };
+
+        // Act
+        var result = await discoverer.DiscoverAsync(query);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Items.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.SourceName"/> returns the correct source name.
+    /// </summary>
+    [Fact]
+    public void SourceName_ReturnsExpectedValue()
+    {
+        // Arrange
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+
+        // Act & Assert
+        discoverer.SourceName.Should().Be(CsvConstants.SourceName);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.Description"/> returns the correct description.
+    /// </summary>
+    [Fact]
+    public void Description_ReturnsExpectedValue()
+    {
+        // Arrange
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+
+        // Act & Assert
+        discoverer.Description.Should().Be(CsvConstants.Description);
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.IsEnabled"/> returns true.
+    /// </summary>
+    [Fact]
+    public void IsEnabled_ReturnsTrue()
+    {
+        // Arrange
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+
+        // Act & Assert
+        discoverer.IsEnabled.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.Capabilities"/> returns DirectSearch.
+    /// </summary>
+    [Fact]
+    public void Capabilities_ReturnsDirectSearch()
+    {
+        // Arrange
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+
+        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+
+        // Act & Assert
+        discoverer.Capabilities.Should().Be(ContentSourceCapabilities.DirectSearch);
     }
 }
