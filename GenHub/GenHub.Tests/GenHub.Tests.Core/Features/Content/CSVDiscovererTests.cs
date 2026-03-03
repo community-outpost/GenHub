@@ -220,11 +220,11 @@ public class CSVDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns a graceful failure when the configuration service returns null.
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns an empty result when the configuration service returns null.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_ReturnsGracefulFailure()
+    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_ReturnsEmptyResult()
     {
         // Arrange
         var mockConfig = new Mock<IConfigurationProviderService>();
@@ -240,8 +240,9 @@ public class CSVDiscovererTests
         var result = await discoverer.DiscoverAsync(query);
 
         // Assert
-        result.Success.Should().BeFalse();
-        result.FirstError.Should().Contain("Discovery failed");
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Items.Should().BeEmpty();
     }
 
     /// <summary>
@@ -288,6 +289,7 @@ public class CSVDiscovererTests
                         GameType = "Generals",
                         Version = "1.0",
                         SupportedLanguages = new List<string> { "EN" },
+                        IsActive = true,
                     },
                 },
             };
