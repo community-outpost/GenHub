@@ -350,14 +350,20 @@ public partial class AddLocalContentViewModel(
             }
             else if (Directory.Exists(path))
             {
-                // FLATTEN: Import contents of directory directly to staging root
-                // previously: var targetSubDir = Path.Combine(_stagingPath, dirName);
-                var targetDir = new DirectoryInfo(_stagingPath);
-                var sourceDir = new DirectoryInfo(path);
+                // Preserve directory structure by copying the folder itself into staging
+                var dirInfo = new DirectoryInfo(path);
+                var dirName = dirInfo.Name;
 
-                logger?.LogDebug("ImportContentAsync: Flattening directory structure. Source: {Source}, Target: {Target}", path, _stagingPath);
+                // Ensure we don't try to copy to the staging root itself if Name is somehow empty
+                if (string.IsNullOrWhiteSpace(dirName))
+                {
+                    dirName = "Imported_Folder";
+                }
 
-                await Task.Run(() => CopyDirectory(sourceDir, targetDir));
+                var targetSubDir = Path.Combine(_stagingPath, dirName);
+                logger?.LogDebug("ImportContentAsync: Preserving directory structure. Source: {Source}, Target: {Target}", path, targetSubDir);
+
+                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)));
             }
 
             // Auto-organization: If we have .map files at the root level, move them into subdirectories

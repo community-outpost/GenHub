@@ -30,7 +30,7 @@ public class ContentReconciliationServiceTests
     private readonly Mock<IGameProfileManager> _profileManagerMock;
     private readonly Mock<IWorkspaceManager> _workspaceManagerMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
-    private readonly Mock<ICasService> _casServiceMock;
+    private readonly Mock<ICasLifecycleManager> _casServiceMock;
     private readonly Mock<ILogger<ContentReconciliationService>> _loggerMock;
     private readonly Mock<ICasReferenceTracker> _casReferenceTrackerMock;
     private readonly ContentReconciliationService _service;
@@ -43,7 +43,7 @@ public class ContentReconciliationServiceTests
         _profileManagerMock = new Mock<IGameProfileManager>();
         _workspaceManagerMock = new Mock<IWorkspaceManager>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
-        _casServiceMock = new Mock<ICasService>();
+        _casServiceMock = new Mock<ICasLifecycleManager>();
         _loggerMock = new Mock<ILogger<ContentReconciliationService>>();
         _casReferenceTrackerMock = new Mock<ICasReferenceTracker>();
 

@@ -274,6 +274,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 _logger.LogDebug("Skipping official patch {Code} ({Language}) - not shown in UI", item.ContentCode, metadata.LanguageCode);
                 return null;
             }
+
             // Get download URL with mirror preference from provider
             var preferredUrl = GetPreferredDownloadUrl(item, provider);
             if (string.IsNullOrEmpty(preferredUrl))

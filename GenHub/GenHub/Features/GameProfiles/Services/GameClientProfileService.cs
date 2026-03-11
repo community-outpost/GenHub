@@ -258,6 +258,7 @@ public class GameClientProfileService(
                 Version = manifest.Version,
                 GameType = manifest.TargetGame,
                 SourceType = ContentType.GameClient,
+                PublisherType = manifest.Publisher?.PublisherType,
                 ExecutablePath = Path.Combine(installationPath, executableFile.RelativePath),
                 WorkingDirectory = installationPath,
                 InstallationId = matchingInstallation.Id,

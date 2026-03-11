@@ -76,17 +76,6 @@
                                TextAlignment="Center" />
                 </StackPanel>
 
-                <Button Grid.Column="1" HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Command="{Binding OpenDownloadFolderCommand}"
-                        ToolTip.Tip="Open Downloads Folder"
-                        Classes="secondary-action">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
-                                  Width="16" Height="16" Foreground="#E0E0E0"/>
-                        <TextBlock Text="Open Downloads Folder" Foreground="#E0E0E0" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
             </Grid>
 
             <!-- Main Content Area -->

@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Serialization;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -56,7 +57,7 @@ public class GameProfile : IGameProfile
     /// Returns null for missing or invalid values. Defaulting is applied by services, not in this converter.
     /// Supports multiple input formats (null, numeric, string).
     /// </summary>
-    [JsonConverter(typeof(WorkspaceStrategyJsonConverter))]
+    [JsonConverter(typeof(JsonWorkspaceStrategyConverter))]
     public WorkspaceStrategy? WorkspaceStrategy { get; set; }
 
     /// <summary>Gets or sets launch options and parameters.</summary>

@@ -32,7 +32,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
 
         // Suppress version display for local content to reduce UI clutter
         var isLocal = manifest.Publisher?.PublisherType?.Equals(LocalContentService.LocalPublisherType, StringComparison.OrdinalIgnoreCase) == true
-            || !string.IsNullOrEmpty(manifest.SourcePath); // Fallback for legacy local content
+            || (string.IsNullOrEmpty(manifest.Publisher?.PublisherType) && !string.IsNullOrEmpty(manifest.SourcePath)); // Fallback only for legacy local content without PublisherType
         var normalizedVersion = isLocal ? string.Empty : NormalizeVersion(manifest.Version);
 
         var displayName = BuildDisplayName(manifest.TargetGame, normalizedVersion, manifest.Name);
@@ -112,6 +112,7 @@ public sealed class ContentDisplayFormatter(IGameClientHashRegistry hashRegistry
         {
             return string.Empty;
         }
+
         // Try to resolve hash-based versions (e.g., from GameClientHashRegistry)
         var (detectedGameType, hashVersion) = hashRegistry.GetGameInfoFromHash(trimmedVersion);
         if (detectedGameType != GameType.Unknown && !string.IsNullOrEmpty(hashVersion))

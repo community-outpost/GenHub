@@ -32,14 +32,12 @@ public class SuperHackersProfileReconciler(
     INotificationService notificationService,
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
-    IGameProfileManager profileManager) : ISuperHackersProfileReconciler
+    IGameProfileManager profileManager) : ISuperHackersProfileReconciler, IPublisherReconciler
 {
-    /// <summary>
-    /// Checks for updates and reconciles profiles if needed.
-    /// </summary>
-    /// <param name="triggeringProfileId">The ID of the profile that triggered the check.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation, returning an operation result indicating if reconciliation was needed and performed.</returns>
+    /// <inheritdoc/>
+    public string PublisherType => PublisherTypeConstants.TheSuperHackers;
+
+    /// <inheritdoc/>
     public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
         CancellationToken cancellationToken = default)
@@ -132,20 +130,20 @@ public class SuperHackersProfileReconciler(
                 }
             }
 
-            // Step 2: Notify user
+            // Notify user that update is being installed
             notificationService.ShowInfo(
                 "SuperHackers Update Found",
                 $"Installing SuperHackers {updateResult.LatestVersion}. Please wait...",
                 NotificationDurations.VeryLong);
 
-            // Step 3: Find existing installed manifests
+            // Find existing installed manifests
             var oldManifests = await FindSuperHackersManifestsAsync(cancellationToken);
 
             logger.LogInformation(
                 "[SH Reconciler] Found {Count} existing SuperHackers manifests to replace",
                 oldManifests.Count);
 
-            // Step 4: Acquire new content
+            // Acquire new content
             var acquireResult = await AcquireLatestVersionAsync(oldManifests, cancellationToken);
             if (!acquireResult.Success)
             {
@@ -160,19 +158,25 @@ public class SuperHackersProfileReconciler(
 
             var newManifests = acquireResult.Data!;
 
-            // Step 5: Update profiles based on strategy
+            // Update profiles based on strategy
             int profilesUpdated = 0;
+            bool anyFailure = false;
 
             if (strategy == UpdateStrategy.CreateNewProfile)
             {
-                // Force keep old versions if creating new profiles
+                // keep old versions when creating new profiles
                 shouldDeleteOldVersions = false;
 
-                // Create new profiles logic (similar to GO)
-                // Note: Requires implementing CreateNewProfilesForUpdateAsync helper in this class
                 var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-                if (createResult.Success) profilesUpdated = createResult.Data;
-                else notificationService.ShowWarning("SuperHackers Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+                if (createResult.Success)
+                {
+                    profilesUpdated = createResult.Data;
+                }
+                else
+                {
+                    anyFailure = true;
+                    notificationService.ShowWarning("SuperHackers Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+                }
             }
             else
             {
@@ -187,29 +191,45 @@ public class SuperHackersProfileReconciler(
                     profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
                     if (bulkUpdateResult.Data.FailedProfilesCount > 0)
                     {
+                        anyFailure = true;
                         notificationService.ShowWarning("SuperHackers Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
                     }
                 }
                 else
                 {
+                    anyFailure = true;
                     notificationService.ShowWarning("SuperHackers Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
                     return OperationResult<bool>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
                 }
             }
 
-            // Step 6: Run garbage collection (only if old versions were deleted)
-            if (shouldDeleteOldVersions)
+            // Run garbage collection only if old versions were deleted AND no failures occurred
+            // If some profiles failed, GC could delete files they still rely on.
+            if (shouldDeleteOldVersions && !anyFailure)
             {
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
             }
+            else if (shouldDeleteOldVersions && anyFailure)
+            {
+                logger.LogWarning("[SH Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
+            }
 
-            // Step 8: Success notification
             notificationService.ShowSuccess(
                 "SuperHackers Updated",
                 $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
                 NotificationDurations.Long);
 
+            logger.LogInformation(
+                "[SH Reconciler] Reconciliation complete. Processed {ProfileCount} profiles with strategy {Strategy}",
+                profilesUpdated,
+                strategy);
+
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("[SH Reconciler] Reconciliation cancelled");
+            throw;
         }
         catch (Exception ex)
         {
@@ -230,7 +250,6 @@ public class SuperHackersProfileReconciler(
 
         foreach (var oldManifest in oldManifests)
         {
-            // Find corresponding new manifest by matching variant
             var newManifest = newManifests
                 .Where(n =>
                     n.ContentType == oldManifest.ContentType &&
@@ -331,15 +350,8 @@ public class SuperHackersProfileReconciler(
 
             if (newManifests.Count == 0)
             {
-                // If we didn't differentiate by ID (e.g. same version re-download, or search didn't return new stuff properly)
-                // We might just return allManifests that are NOT in old list, but if searchResult was 'new', we expect new IDs?
-                // Or maybe the update check used GitHub API but search uses content provider which might be outdated?
-                // This is a risk. But assuming provider is up to date (e.g. dynamic).
-
-                // Fallback: If no *new* manifests, maybe we just return the ones that match the latest version?
-                // But simplified: fail if we expected an update.
                 return OperationResult<List<ContentManifest>>.CreateFailure(
-                     "Acquisition completed but no new SuperHackers manifests were found (or IDs are identical?)");
+                    "Acquisition completed but no new SuperHackers manifests were found");
             }
 
             return OperationResult<List<ContentManifest>>.CreateSuccess(newManifests);
@@ -438,6 +450,10 @@ public class SuperHackersProfileReconciler(
                 {
                     logger.LogError("[SH Reconciler] Failed to create new profile for update: {Error}", createResult.FirstError);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

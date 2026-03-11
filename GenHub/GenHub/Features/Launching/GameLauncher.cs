@@ -563,6 +563,7 @@ public class GameLauncher(
             if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
                 logger.LogError("[GameLauncher] Profile {ProfileId} has no GameInstallationId set", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not configured for this profile.", launchId, profile.Id);
             }
 
@@ -570,6 +571,7 @@ public class GameLauncher(
             if (!installationResult.Success)
             {
                 logger.LogError("[GameLauncher] Failed to retrieve installation {InstallationId}: {Error}", profile.GameInstallationId, installationResult.FirstError);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to retrieve game installation: {installationResult.FirstError}", launchId, profile.Id);
             }
 
@@ -577,6 +579,7 @@ public class GameLauncher(
             if (installation == null)
             {
                 logger.LogError("[GameLauncher] Installation record not found for {InstallationId}", profile.GameInstallationId);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not found.", launchId, profile.Id);
             }
 
@@ -584,6 +587,7 @@ public class GameLauncher(
             if (gameClient == null)
             {
                 logger.LogError("[GameLauncher] GameClient is not set for profile {ProfileId}", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure("GameClient not configured for profile.", launchId, profile.Id);
             }
 

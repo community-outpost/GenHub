@@ -133,6 +133,7 @@ public class WorkspaceManager(
                                 logger.LogWarning(
                                     "[Workspace] Workspace {Id} validation failed, will recreate",
                                     configuration.Id);
+                                configuration.ForceRecreate = true;
                             }
                             else if (!configuration.ForceRecreate && (workspace.FileCount > 0 || Directory.Exists(workspace.WorkspacePath)))
                             {
@@ -140,11 +141,6 @@ public class WorkspaceManager(
                                     "[Workspace] Reusing existing workspace {Id} for fast launch",
                                     configuration.Id);
                                 return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
-                            }
-                            else if (configuration.ForceRecreate)
-                            {
-                                // IMPORTANT: If ForceRecreate was set during checks, do not fall through to reuse
-                                logger.LogInformation("[Workspace] ForceRecreate flag set, skipping reuse");
                             }
                             else
                             {
@@ -219,12 +215,17 @@ public class WorkspaceManager(
         logger.LogInformation("[Workspace] Executing strategy preparation (skipCleanup: {SkipCleanup})", skipCleanup);
         var workspaceInfo = await strategy.PrepareAsync(configuration, progress, cancellationToken);
 
-        if (!workspaceInfo.IsPrepared)
+        if (workspaceInfo == null || !workspaceInfo.IsPrepared)
         {
-            var messages = workspaceInfo.ValidationIssues?.Select(i => i.Message)
-                           ?? ["Workspace preparation failed"];
-            logger.LogError("[Workspace] Strategy preparation failed: {Errors}", string.Join(", ", messages));
-            return OperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", messages));
+            var messages = workspaceInfo?.ValidationIssues?.Select(i => i.Message).ToList();
+            if (messages == null || messages.Count == 0)
+            {
+                messages = ["Workspace preparation failed and returned no information"];
+            }
+
+            var errorMessage = string.Join(", ", messages);
+            logger.LogError("[Workspace] Strategy preparation failed: {Errors}", errorMessage);
+            return OperationResult<WorkspaceInfo>.CreateFailure(errorMessage);
         }
 
         logger.LogDebug("[Workspace] Strategy preparation completed successfully");
@@ -256,9 +257,7 @@ public class WorkspaceManager(
 
         workspaceInfo.ManifestVersions = manifestVersionsDict;
 
-        logger.LogDebug("[Workspace] Saving workspace metadata");
-        await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
-
+        // Track CAS references BEFORE persisting workspace metadata
         logger.LogDebug("[Workspace] Tracking CAS references");
         var trackResult = await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests ?? [], cancellationToken);
         if (!trackResult.Success)
@@ -266,6 +265,9 @@ public class WorkspaceManager(
             logger.LogError("[Workspace] Failed to track CAS references for workspace {Id}: {Error}", configuration.Id, trackResult.FirstError);
             return OperationResult<WorkspaceInfo>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
         }
+
+        logger.LogDebug("[Workspace] Saving workspace metadata");
+        await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
 
         logger.LogInformation("[Workspace] === Workspace {Id} prepared successfully at {Path} ===", workspaceInfo.Id, workspaceInfo.WorkspacePath);
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
@@ -478,9 +480,13 @@ public class WorkspaceManager(
 
     private async Task<OperationResult<bool>> TrackWorkspaceCasReferencesAsync(string workspaceId, IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
+        // Only track CAS files that are actually installed into the workspace
         var casReferences = manifests.SelectMany(m => m.Files ?? [])
-            .Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash))
+            .Where(f => f.SourceType == ContentSourceType.ContentAddressable
+                     && !string.IsNullOrEmpty(f.Hash)
+                     && !string.IsNullOrEmpty(f.RelativePath)) // Only track files with relative paths (workspace-targeted)
             .Select(f => f.Hash!)
+            .Distinct()
             .ToList();
 
         if (casReferences.Count > 0)

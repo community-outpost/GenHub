@@ -43,12 +43,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithSymlinkOnly_ShouldPreserveSymlinkOnly()
     {
-        // Arrange - JSON with explicit SymlinkOnly (0)
+        // Arrange - JSON with explicit SymlinkOnly (1)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 0
+            "WorkspaceStrategy": 1
         }
         """;
 
@@ -68,12 +68,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithExplicitHardLink_ShouldPreserveHardLink()
     {
-        // Arrange - JSON with explicit HardLink
+        // Arrange - JSON with explicit HardLink (0)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 3
+            "WorkspaceStrategy": 0
         }
         """;
 
@@ -91,12 +91,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithCopyStrategy_ShouldPreserveCopy()
     {
-        // Arrange - JSON with explicit Copy strategy
+        // Arrange - JSON with explicit Copy strategy (2)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 1
+            "WorkspaceStrategy": 2
         }
         """;
 

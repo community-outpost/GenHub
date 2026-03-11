@@ -1452,7 +1452,7 @@ public partial class GameProfileLauncherViewModel(
                 GameInstallationId = sourceProfile.GameInstallationId,
                 GameClientId = sourceProfile.GameClient?.Id,
                 GameClient = sourceProfile.GameClient,
-                PreferredStrategy = sourceProfile.WorkspaceStrategy,
+                WorkspaceStrategy = sourceProfile.WorkspaceStrategy,
                 EnabledContentIds = sourceProfile.EnabledContentIds != null
                     ? [.. sourceProfile.EnabledContentIds]
                     : [],

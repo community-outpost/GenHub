@@ -1,3 +1,5 @@
+using System;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager;
@@ -19,9 +21,21 @@ public static class ReplayManagerModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddReplayManagerServices(this IServiceCollection services)
     {
+        // Register HttpClient for UrlParserService with proper headers
+        // This also registers UrlParserService as a transient service
+        services.AddHttpClient<UrlParserService>(client =>
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", ApiConstants.DefaultUserAgent);
+            client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // Register UrlParserService as the interface implementation
+        services.AddTransient<IUrlParserService, UrlParserService>();
+
         // Services
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
-        services.AddSingleton<IUrlParserService, UrlParserService>();
         services.AddSingleton<IReplayImportService, ReplayImportService>();
         services.AddSingleton<IReplayExportService, ReplayExportService>();
         services.AddSingleton<GenHub.Core.Interfaces.Common.IUploadHistoryService, GenHub.Features.Tools.Services.UploadHistoryService>();

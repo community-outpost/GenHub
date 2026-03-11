@@ -333,6 +333,7 @@ public class CasReferenceTracker(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to collect CAS references");
+            throw; // Re-throw to abort GC when reference enumeration fails
         }
 
         return allReferences;
@@ -382,7 +383,7 @@ public class CasReferenceTracker(
 
         foreach (var directory in requiredDirectories)
         {
-            FileOperationsService.EnsureDirectoryExists(directory);
+            Directory.CreateDirectory(directory);
         }
     }
 }

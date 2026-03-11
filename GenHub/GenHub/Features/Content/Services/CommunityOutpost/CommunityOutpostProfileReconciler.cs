@@ -34,8 +34,11 @@ public class CommunityOutpostProfileReconciler(
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
     IGameProfileManager profileManager)
-    : ICommunityOutpostProfileReconciler
+    : ICommunityOutpostProfileReconciler, IPublisherReconciler
 {
+    /// <inheritdoc/>
+    public string PublisherType => CommunityOutpostConstants.PublisherType;
+
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
@@ -166,6 +169,7 @@ public class CommunityOutpostProfileReconciler(
 
             // Step 5: Update affected profiles based on strategy
             int profilesUpdated = 0;
+            bool anyFailure = false;
 
             if (strategy == UpdateStrategy.CreateNewProfile)
             {
@@ -173,8 +177,15 @@ public class CommunityOutpostProfileReconciler(
                 shouldDeleteOldVersions = false;
 
                 var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-                if (createResult.Success) profilesUpdated = createResult.Data;
-                else notificationService.ShowWarning("Community Patch Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+                if (createResult.Success)
+                {
+                    profilesUpdated = createResult.Data;
+                }
+                else
+                {
+                    anyFailure = true;
+                    notificationService.ShowWarning("Community Patch Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+                }
             }
             else
             {
@@ -190,20 +201,27 @@ public class CommunityOutpostProfileReconciler(
                     profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
                     if (bulkUpdateResult.Data.FailedProfilesCount > 0)
                     {
+                        anyFailure = true;
                         notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated. Check logs for details.");
                     }
                 }
                 else
                 {
+                    anyFailure = true;
                     notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}");
                     return OperationResult<bool>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
                 }
             }
 
-            // Step 6: Run garbage collection (only if old versions were deleted)
-            if (shouldDeleteOldVersions)
+            // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
+            // If some profiles failed, GC could delete files they still rely on.
+            if (shouldDeleteOldVersions && !anyFailure)
             {
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+            }
+            else if (shouldDeleteOldVersions && anyFailure)
+            {
+                logger.LogWarning("[CO Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
             }
 
             // Step 7: Show success notification

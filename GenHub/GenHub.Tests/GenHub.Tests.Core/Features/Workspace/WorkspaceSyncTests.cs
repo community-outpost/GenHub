@@ -235,6 +235,6 @@ public class WorkspaceSyncTests
             });
         }
 
-        protected override Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken) => Task.CompletedTask;
+        protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

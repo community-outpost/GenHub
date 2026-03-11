@@ -27,7 +27,7 @@ public class ReconciliationStrategyTests : IDisposable
     private readonly Mock<IGameProfileManager> _profileManagerMock;
     private readonly Mock<IWorkspaceManager> _workspaceManagerMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
-    private readonly Mock<ICasService> _casServiceMock;
+    private readonly Mock<ICasLifecycleManager> _casServiceMock;
     private readonly Mock<ILogger<ContentReconciliationService>> _loggerMock;
     private readonly ContentReconciliationService _service;
     private readonly string _tempCasPath;
@@ -40,7 +40,7 @@ public class ReconciliationStrategyTests : IDisposable
         _profileManagerMock = new Mock<IGameProfileManager>();
         _workspaceManagerMock = new Mock<IWorkspaceManager>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
-        _casServiceMock = new Mock<ICasService>();
+        _casServiceMock = new Mock<ICasLifecycleManager>();
         _loggerMock = new Mock<ILogger<ContentReconciliationService>>();
 
         // Create CasReferenceTracker with required dependencies

@@ -28,7 +28,7 @@ public static class LoggingModule
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
-                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Information)
+                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Information, shared: true)
                 .CreateLogger();
 
             builder.AddSerilog(logger);
@@ -52,7 +52,7 @@ public static class LoggingModule
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
-                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Debug)
+                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Debug, shared: true)
                 .CreateLogger();
 
             builder.AddSerilog(logger);

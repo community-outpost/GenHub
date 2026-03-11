@@ -81,6 +81,9 @@ public class ReconciliationIntegrationTests : IDisposable
         _reconciliationServiceMock.Setup(x => x.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
 
+        _reconciliationServiceMock.Setup(x => x.OrchestrateBulkRemovalAsync(It.IsAny<IEnumerable<ManifestId>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(0, 0)));
+
         _reconciliationServiceMock.Setup(x => x.ScheduleGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateSuccess());
     }
@@ -198,17 +201,35 @@ public class ReconciliationIntegrationTests : IDisposable
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldGameClient, newGameClient, newMapPack]))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldGameClient, newGameClient, newMapPack]));
 
+        _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken ct) =>
+            {
+                ContentManifest? manifest = null;
+                if (id.Value == newGameClient.Id.Value)
+                {
+                    manifest = newGameClient;
+                }
+                else if (id.Value == newMapPack.Id.Value)
+                {
+                    manifest = newMapPack;
+                }
+
+                return manifest != null
+                    ? OperationResult<ContentManifest?>.CreateSuccess(manifest)
+                    : OperationResult<ContentManifest?>.CreateFailure("Manifest not found");
+            });
+
         _orchestratorMock.Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ContentSearchQuery q, CancellationToken t) =>
             {
                 if (q.ContentType == ContentType.GameClient)
                 {
-                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([new ContentSearchResult { Id = newGameClient.Id.Value }]);
+                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([new ContentSearchResult { Id = newGameClient.Id.Value, Version = newGameClient.Version }]);
                 }
 
                 if (q.ContentType == ContentType.MapPack)
                 {
-                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([new ContentSearchResult { Id = newMapPack.Id.Value }]);
+                    return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([new ContentSearchResult { Id = newMapPack.Id.Value, Version = newMapPack.Version }]);
                 }
 
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Not found");
@@ -222,9 +243,11 @@ public class ReconciliationIntegrationTests : IDisposable
                     new ContentManifest
                     {
                         Id = ManifestId.Create(r.Id),
+                        Name = r.Id,
                         Version = r.Version,
                         ContentType = contentTypeName,
                         TargetGame = GameType.ZeroHour,
+                        Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
                     });
             });
 
@@ -232,7 +255,14 @@ public class ReconciliationIntegrationTests : IDisposable
         {
             Id = "go-profile",
             Name = "GO Profile",
-            GameClient = new GameClient { Id = oldGameClient.Id.Value, Name = "Old GO Client", PublisherType = PublisherTypeConstants.GeneralsOnline },
+            GameClient = new GameClient
+            {
+                Id = oldGameClient.Id.Value,
+                Name = "Old GO Client",
+                Version = oldGameClient.Version ?? string.Empty,
+                GameType = GameType.ZeroHour,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
             EnabledContentIds = [],
         };
 

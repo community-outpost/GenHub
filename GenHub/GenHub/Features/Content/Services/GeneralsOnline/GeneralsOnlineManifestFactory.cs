@@ -294,7 +294,7 @@ public class GeneralsOnlineManifestFactory(
                 ReleaseDate = release.ReleaseDate,
                 IconUrl = iconUrl,
                 ThemeColor = GeneralsOnlineConstants.ThemeColor,
-                Tags = [.. GeneralsOnlineConstants.MapPackTags, .. GetVariantTags(GeneralsOnlineConstants.QuickMatchMapPackSuffix)],
+                Tags = [.. GeneralsOnlineConstants.MapPackTags],
                 ChangelogUrl = release.Changelog,
             },
             Files = [], // Files will be populated during extraction

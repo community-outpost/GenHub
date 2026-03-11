@@ -1,3 +1,5 @@
+using GenHub.Core.Models.Enums;
+
 namespace GenHub.Core.Models.Manifest;
 
 /// <summary>
@@ -35,6 +37,11 @@ public class ContentVariant
     /// Gets or sets a value indicating whether this is the default variant.
     /// </summary>
     public bool IsDefault { get; set; }
+
+    /// <summary>
+    /// Gets or sets the target game for this variant if it differs from the parent content.
+    /// </summary>
+    public GameType? TargetGame { get; set; }
 
     /// <summary>
     /// Gets or sets file path patterns to include for this variant.

@@ -88,24 +88,6 @@
                            VerticalAlignment="Center"
                            Margin="0,0,10,0" />
 
-                <!-- Reconcile Button -->
-                <Button Grid.Column="3"
-                        Command="{Binding ReconcileCommand}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Padding="8"
-                        Cursor="Hand"
-                        ToolTip.Tip="Reconcile &amp; Repair Content"
-                        AutomationProperties.Name="Reconcile and Repair Content">
-                    <Button.IsVisible>
-                        <MultiBinding Converter="{x:Static BoolConverters.And}">
-                            <Binding Path="HasContent" />
-                            <Binding Path="!IsLoading" />
-                        </MultiBinding>
-                    </Button.IsVisible>
-                    <PathIcon Data="{StaticResource WrenchIcon}" Foreground="#AAAAAA" Width="16" Height="16" />
-                </Button>
-
                 <!-- Expand/Collapse Button -->
                 <Button Grid.Column="4"
                         Command="{Binding ToggleExpandCommand}"

@@ -60,7 +60,7 @@ public class MainViewModelTests
         // Act
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,

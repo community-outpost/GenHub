@@ -23,9 +23,6 @@
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-            <_Parameter1>GenHub.Tests.Core</_Parameter1>
-        </AssemblyAttribute>
 
         <PackageReference Include="CommunityToolkit.Mvvm" />
 

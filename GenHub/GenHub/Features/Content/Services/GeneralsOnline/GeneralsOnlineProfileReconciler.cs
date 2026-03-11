@@ -35,8 +35,11 @@ public class GeneralsOnlineProfileReconciler(
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
     IGameProfileManager profileManager)
-    : IGeneralsOnlineProfileReconciler
+    : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
+    /// <inheritdoc/>
+    public string PublisherType => GeneralsOnlineConstants.PublisherType;
+
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> CheckAndReconcileIfNeededAsync(
         string triggeringProfileId,
@@ -115,7 +118,7 @@ public class GeneralsOnlineProfileReconciler(
                     logger.LogInformation("[GO Reconciler] Saving user preference for GeneralsOnline updates");
                     await userSettingsService.TryUpdateAndSaveAsync(s =>
                     {
-                        var sub = s.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType);
+                        var sub = s.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType, isSubscribed: true);
                         sub.AutoUpdateEnabled = true;
                         sub.PreferredUpdateStrategy = strategy;
                         return true;
@@ -176,18 +179,22 @@ public class GeneralsOnlineProfileReconciler(
             {
                 // ReplaceCurrent
                 var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+
+                // CRITICAL: Pass removeOld = false to prevent premature deletion
+                // We'll handle deletion after MapPack enforcement succeeds
                 var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
                     manifestMapping,
-                    shouldDeleteOldVersions,
+                    removeOld: false,
                     cancellationToken);
 
                 if (bulkUpdateResult.Success)
                 {
-                    profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
-                    if (bulkUpdateResult.Data.FailedProfilesCount > 0)
+                    profilesUpdated = bulkUpdateResult.Data?.ProfilesUpdated ?? 0;
+                    var failedCount = bulkUpdateResult.Data?.FailedProfilesCount ?? 0;
+                    if (failedCount > 0)
                     {
                         anyFailure = true;
-                        notificationService.ShowWarning("GeneralsOnline Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
+                        notificationService.ShowWarning("Generals Online Update Partial", $"{failedCount} profiles could not be updated.", NotificationDurations.VeryLong);
                     }
                 }
                 else
@@ -205,7 +212,26 @@ public class GeneralsOnlineProfileReconciler(
             var enforceResult = await EnforceMapPackDependencyAsync(newManifests, cancellationToken);
             if (!enforceResult.Success)
             {
-                return OperationResult<bool>.CreateFailure(enforceResult.FirstError ?? "Failed to enforce MapPack dependency");
+                anyFailure = true;
+                notificationService.ShowWarning("GeneralsOnline Update Partial", $"Failed to enforce MapPack dependency: {enforceResult.FirstError}", NotificationDurations.VeryLong);
+                logger.LogWarning("[GO Reconciler] MapPack enforcement failed: {Error}. Skipping old manifest deletion.", enforceResult.FirstError);
+            }
+
+            // Step 6: Delete old manifests only if enforcement succeeded and deletion is enabled
+            if (shouldDeleteOldVersions && !anyFailure)
+            {
+                logger.LogInformation("[GO Reconciler] Deleting old manifests after successful enforcement");
+                var oldManifestIds = oldManifests.Select(m => m.Id).ToList();
+                var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
+                if (!removalResult.Success)
+                {
+                    logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
+                    anyFailure = true;
+                }
+            }
+            else if (shouldDeleteOldVersions && anyFailure)
+            {
+                logger.LogWarning("[GO Reconciler] Skipping old manifest deletion due to previous failures to preserve content integrity.");
             }
 
             // Step 7: Run garbage collection (only if old versions were deleted AND no failures occurred)
@@ -385,7 +411,7 @@ public class GeneralsOnlineProfileReconciler(
                 !m.Id.Value.Contains(".local.", StringComparison.OrdinalIgnoreCase) && // Exclude local content
                 (m.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
                   m.Id.Value.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) ||
-                  m.Name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase)))];
+                  (m.Name?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true)))];
     }
 
     /// <summary>

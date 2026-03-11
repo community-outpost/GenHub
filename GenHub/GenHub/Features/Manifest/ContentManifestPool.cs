@@ -69,17 +69,10 @@ public class ContentManifestPool(
             {
                 logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}. Rolling back manifest.", manifest.Id, trackResult.FirstError);
 
-                // Rollback: Delete metadata file
+                // Rollback: Delete metadata file only - content was pre-existing, do NOT remove it
                 if (File.Exists(manifestPath))
                 {
                     File.Delete(manifestPath);
-                }
-
-                // Rollback: Remove stored content to prevent orphans
-                var removeResult = await storageService.RemoveContentAsync(manifest.Id, skipUntrack: true, cancellationToken);
-                if (!removeResult.Success)
-                {
-                     logger.LogError("Critical: Failed to rollback content for manifest {ManifestId} after tracking failure: {Error}", manifest.Id, removeResult.FirstError);
                 }
 
                 return OperationResult<bool>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
@@ -178,6 +171,7 @@ public class ContentManifestPool(
         if (!Directory.Exists(manifestsDir))
             return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
 
+        // Capture file list before async operations to avoid race conditions
         var manifestFiles = Directory.GetFiles(manifestsDir, FileTypes.ManifestFilePattern);
 
         foreach (var manifestFile in manifestFiles)
@@ -191,6 +185,10 @@ public class ContentManifestPool(
                 {
                     manifests.Add(manifest);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -254,7 +252,7 @@ public class ContentManifestPool(
                 }
             }
 
-            var result = await storageService.RemoveContentAsync(manifestId, skipUntrack, cancellationToken);
+            var result = await storageService.RemoveContentAsync(manifestId, skipUntrack: true, cancellationToken);
             if (!result.Success)
             {
                 return OperationResult<bool>.CreateFailure($"Failed to remove content for manifest {manifestId}: {result.FirstError}");

@@ -57,6 +57,8 @@ public class OperationResult<T> : ResultBase
     /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
     public static OperationResult<T> CreateFailure(string error, T data, TimeSpan elapsed)
     {
+        if (string.IsNullOrWhiteSpace(error))
+            throw new ArgumentException("Error message cannot be null or empty.", nameof(error));
         return new OperationResult<T>(false, data, [error], elapsed);
     }
 

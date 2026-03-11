@@ -76,6 +76,7 @@ public class FileBasedReconciliationAuditLog : IReconciliationAuditLog
     {
         var allEntries = new List<ReconciliationAuditEntry>();
 
+        await _writeLock.WaitAsync(cancellationToken);
         try
         {
             var files = Directory.GetFiles(_auditDirectory, "audit-*.json")
@@ -96,6 +97,10 @@ public class FileBasedReconciliationAuditLog : IReconciliationAuditLog
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get recent audit history");
+        }
+        finally
+        {
+            _writeLock.Release();
         }
 
         return allEntries

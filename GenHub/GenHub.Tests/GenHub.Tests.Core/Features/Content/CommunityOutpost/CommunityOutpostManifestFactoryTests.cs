@@ -36,7 +36,7 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("abc123hash");
 
-        _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object);
+        _factory = new CommunityOutpostManifestFactory(_loggerMock.Object, _hashProviderMock.Object, null!);
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }

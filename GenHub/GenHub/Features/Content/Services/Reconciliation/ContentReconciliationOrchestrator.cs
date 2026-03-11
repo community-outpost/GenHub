@@ -81,40 +81,16 @@ public class ContentReconciliationOrchestrator(
                 logger.LogDebug("[Orchestrator:{OpId}] Step 2: Untracking old manifests", operationId);
 
                 // Untrack CAS references before removal
-                // Untrack CAS references before removal
                 var untrackResult = await casLifecycleManager.UntrackManifestsAsync([.. request.ManifestMapping.Keys], cancellationToken);
 
-                // untrackResult.Success is now TRUE even for partial failures, unless the op crashed
-                if (untrackResult.Success && untrackResult.Data != null)
+                // CasLifecycleManager returns Success=false if ANY manifest fails to untrack
+                if (!untrackResult.Success)
                 {
-                    var stats = untrackResult.Data;
-
-                    // Check for partial success / errors
-                    if (stats.Errors.Count > 0)
-                    {
-                        warnings.Add($"Manifest untracking had errors: {stats.Errors.Count} errors");
-                        foreach(var err in stats.Errors) warnings.Add(err);
-
-                        criticalFailureOccurred = true;
-
-                        if (stats.Untracked < request.ManifestMapping.Count)
-                        {
-                            warnings.Add($"Manifest untracking partial success (during failure): {stats.Untracked}/{request.ManifestMapping.Count} untracked");
-                        }
-                    }
-                    else if (stats.Untracked < request.ManifestMapping.Count)
-                    {
-                         // No errors reported but count mismatch?
-                        warnings.Add($"Manifest untracking partial success: {stats.Untracked}/{request.ManifestMapping.Count} untracked");
-                        criticalFailureOccurred = true;
-                    }
+                    warnings.Add($"Manifest untracking failed: {untrackResult.FirstError}");
+                    criticalFailureOccurred = true;
                 }
-                else
-                {
-                    // Hard failure (exception etc)
-                     warnings.Add($"Manifest untracking failed entirely: {untrackResult.FirstError}");
-                     criticalFailureOccurred = true;
-                }
+
+                // Note: Success=true guarantees all manifests were untracked (UntrackManifestsAsync contract)
 
                 // Publish removing events for each manifest
                 foreach (var oldId in request.ManifestMapping.Keys)
@@ -306,7 +282,7 @@ public class ContentReconciliationOrchestrator(
             int invalidatedWorkspacesCount = 0;
             foreach (var manifestId in ids)
             {
-                var reconcileResult = await reconciliationService.ReconcileManifestRemovalAsync(ManifestId.Create(manifestId), skipUntrack: false, cancellationToken);
+                var reconcileResult = await reconciliationService.ReconcileManifestRemovalAsync(ManifestId.Create(manifestId), skipUntrack: true, cancellationToken);
                 if (reconcileResult.Success && reconcileResult.Data != null)
                 {
                     profilesUpdated += reconcileResult.Data.ProfilesUpdated;
@@ -322,27 +298,13 @@ public class ContentReconciliationOrchestrator(
                 }
             }
 
-            // STEP 2: Untrack all manifests (MUST happen before GC)
+            // STEP 2: Untrack all manifests
+            // CasLifecycleManager.UntrackManifestsAsync guarantees Success=true only when all manifests untrack without errors
             var untrackResult = await casLifecycleManager.UntrackManifestsAsync(ids, cancellationToken);
             if (!untrackResult.Success)
             {
                 logger.LogError("[Orchestrator:{OpId}] Bulk untracking failed entirely: {Error}", operationId, untrackResult.FirstError);
                 criticalFailureOccurred = true;
-            }
-            else if (untrackResult.Data != null)
-            {
-                var stats = untrackResult.Data;
-                if (stats.Errors.Count > 0)
-                {
-                    logger.LogWarning("[Orchestrator:{OpId}] Bulk untracking had {ErrorCount} errors", operationId, stats.Errors.Count);
-                    criticalFailureOccurred = true;
-                }
-
-                if (stats.Untracked < ids.Count)
-                {
-                    logger.LogWarning("[Orchestrator:{OpId}] Bulk untracking partial success: {Count}/{Total}", operationId, stats.Untracked, ids.Count);
-                    criticalFailureOccurred = true;
-                }
             }
 
             foreach (var manifestId in ids)

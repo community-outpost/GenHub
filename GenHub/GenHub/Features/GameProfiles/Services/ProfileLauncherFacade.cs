@@ -49,9 +49,7 @@ public class ProfileLauncherFacade(
     IGameSettingsService gameSettingsService,
     IStorageLocationService storageLocationService,
     INotificationService notificationService,
-    IGeneralsOnlineProfileReconciler generalsOnlineReconciler,
-    ISuperHackersProfileReconciler superHackersReconciler,
-    GenHub.Features.Content.Services.CommunityOutpost.ICommunityOutpostProfileReconciler communityOutpostReconciler,
+    IPublisherReconcilerRegistry reconcilerRegistry,
     IConfigurationProviderService configurationProvider,
     IGameProcessManager gameProcessManager,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
@@ -136,6 +134,7 @@ public class ProfileLauncherFacade(
                 // Try to resolve directory first (for local content)
                 var toolDirectory = await manifestPool.GetContentDirectoryAsync(toolManifest.Id, cancellationToken);
                 string toolWorkspacePath;
+                string? actualWorkspaceId = null; // Track if we created a workspace
 
                 if (toolDirectory.Success && !string.IsNullOrEmpty(toolDirectory.Data))
                 {
@@ -166,12 +165,31 @@ public class ProfileLauncherFacade(
                     var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
                     var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
 
+                    // Determine effective strategy with admin rights check for symlink strategies
+                    var effectiveToolStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+                    var isToolAdmin = false;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        using var identity = WindowsIdentity.GetCurrent();
+                        var principal = new WindowsPrincipal(identity);
+                        isToolAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
+                    }
+
+                    if (!isToolAdmin && (effectiveToolStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveToolStrategy == WorkspaceStrategy.SymlinkOnly))
+                    {
+                        logger.LogInformation(
+                            "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",
+                            effectiveToolStrategy);
+                        effectiveToolStrategy = WorkspaceStrategy.HardLink;
+                    }
+
+                    actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
                     var workspaceConfig = new WorkspaceConfiguration
                     {
-                        Id = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}", // Unique ID for tool workspace
+                        Id = actualWorkspaceId,
                         Manifests = [.. allManifests],
                         GameClient = dummyGameClient,
-                        Strategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy(), // Respect profile setting
+                        Strategy = effectiveToolStrategy,
                         ForceRecreate = false,
                         ValidateAfterPreparation = true,
                         BaseInstallationPath = baseDetails, // Dummy base
@@ -263,7 +281,7 @@ public class ProfileLauncherFacade(
                     {
                         LaunchId = launchId,
                         ProfileId = profile.Id,
-                        WorkspaceId = ProfileConstants.ToolProfileWorkspaceId, // Tool profiles don't use workspaces
+                        WorkspaceId = actualWorkspaceId ?? ProfileConstants.ToolProfileWorkspaceId, // Use actual workspace ID if created, sentinel otherwise
                         ProcessInfo = new GameProcessInfo
                         {
                             ProcessId = process.Id,
@@ -346,95 +364,66 @@ public class ProfileLauncherFacade(
                 }
             }
 
-            // Step 2.5: Check for GeneralsOnline updates if this is a GO profile
-            logger.LogInformation(
-                "Profile Publisher Debug: Client={Client}, Publisher={PublisherType}, IsGO={IsGO}",
+            // Step 2.5: Check for game client updates before launching.
+            // All three publisher game clients block launch on reconciler failure —
+            // the user is prompted via dialog first, so a failure after accepting means
+            // the update process itself broke and launching would use a stale/invalid client.
+            logger.LogDebug(
+                "[Launch] Step 2.5: Publisher check - Client={Client}, Publisher={PublisherType}",
                 profile.GameClient?.Name ?? "null",
-                profile.GameClient?.PublisherType ?? "null",
-                IsGeneralsOnlineProfile(profile));
+                profile.GameClient?.PublisherType ?? "null");
 
-            if (IsGeneralsOnlineProfile(profile))
+            // Try to get reconciler by PublisherType first, then fall back to legacy detection
+            IPublisherReconciler? reconciler = null;
+            string? publisherType = profile.GameClient?.PublisherType;
+
+            if (!string.IsNullOrWhiteSpace(publisherType))
             {
-                logger.LogDebug("[Launch] Step 2.5: Checking for GeneralsOnline updates");
-                var reconcileResult = await generalsOnlineReconciler.CheckAndReconcileIfNeededAsync(
-                    profileId,
-                    cancellationToken);
-
-                if (!reconcileResult.Success)
+                logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
+                reconciler = reconcilerRegistry.GetReconciler(publisherType);
+            }
+            else
+            {
+                // Legacy fallback: detect publisher from profile characteristics
+                if (IsGeneralsOnlineProfile(profile))
                 {
-                    logger.LogError(
-                        "[Launch] GeneralsOnline reconciliation failed: {Error}",
-                        reconcileResult.FirstError);
-                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                        $"GeneralsOnline update failed: {reconcileResult.FirstError}");
+                    publisherType = PublisherTypeConstants.GeneralsOnline;
+                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                    logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
                 }
-
-                if (reconcileResult.Data)
+                else if (IsSuperHackersProfile(profile))
                 {
-                    // Profile was updated, reload it
-                    logger.LogInformation("[Launch] Profile was updated by GeneralsOnline reconciliation, reloading");
-                    profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                    if (profileResult.Failed || profileResult.Data == null)
-                    {
-                        var error = profileResult.Failed ? string.Join(", ", profileResult.Errors) : "Profile data is null after reload";
-                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(error);
-                    }
-
-                    profile = profileResult.Data;
+                    publisherType = PublisherTypeConstants.TheSuperHackers;
+                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                    logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
+                }
+                else if (IsCommunityOutpostProfile(profile))
+                {
+                    publisherType = CommunityOutpostConstants.PublisherType;
+                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                    logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
                 }
             }
-            else if (IsSuperHackersProfile(profile))
-            {
-                logger.LogDebug("[Launch] Step 2.5: Checking for SuperHackers updates");
-                var reconcileResult = await superHackersReconciler.CheckAndReconcileIfNeededAsync(
-                    profileId,
-                    cancellationToken);
 
-                // NOTE: SuperHackers reconciliation failure blocks the launch because
-                // these updates are often critical for game compatibility or online play integrity.
+            if (reconciler != null && publisherType != null)
+            {
+                logger.LogDebug("[Launch] Checking for {PublisherType} updates", publisherType);
+                var reconcileResult = await reconciler.CheckAndReconcileIfNeededAsync(profileId, cancellationToken);
+
                 if (!reconcileResult.Success)
                 {
-                    logger.LogError(
-                        "[Launch] SuperHackers reconciliation failed: {Error}",
-                        reconcileResult.FirstError);
-                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                        $"SuperHackers update failed: {reconcileResult.FirstError}");
-                }
-
-                if (reconcileResult.Data)
-                {
-                    // Profile was updated, reload it
-                    logger.LogInformation("[Launch] Profile was updated by SuperHackers reconciliation, reloading");
-                    profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                    if (profileResult.Failed || profileResult.Data == null)
-                    {
-                        var error = profileResult.Failed ? string.Join(", ", profileResult.Errors) : "Profile data is null after reload";
-                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(error);
-                    }
-
-                    profile = profileResult.Data;
-                }
-            }
-            else if (IsCommunityOutpostProfile(profile))
-            {
-                logger.LogDebug("[Launch] Step 2.5: Checking for Community Outpost updates");
-                var reconcileResult = await communityOutpostReconciler.CheckAndReconcileIfNeededAsync(
-                    profileId,
-                    cancellationToken);
-
-                // NOTE: Community Outpost reconciliation failures only log a warning to avoid blocking launch.
-                // These updates (like Maps or Addons) are often optional and shouldn't prevent offline play
-                // if the legi.cc website or GenPatcher catalog is temporarily unavailable.
-                if (!reconcileResult.Success)
-                {
+                    // Log the error but don't block launch - users should be able to play offline
                     logger.LogWarning(
-                        "[Launch] Community Outpost reconciliation failed: {Error}",
+                        "[Launch] {PublisherType} reconciliation failed (non-blocking): {Error}",
+                        publisherType,
                         reconcileResult.FirstError);
+
+                    // Show a non-blocking notification to the user
+                    // The game will still launch with the currently installed version
                 }
                 else if (reconcileResult.Data)
                 {
-                    // Profile was updated, reload it
-                    logger.LogInformation("[Launch] Profile was updated by Community Outpost reconciliation, reloading");
+                    logger.LogInformation("[Launch] Profile updated by {PublisherType} reconciliation, reloading", publisherType);
                     profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
                     if (profileResult.Failed || profileResult.Data == null)
                     {
@@ -467,16 +456,16 @@ public class ProfileLauncherFacade(
 
             // Admin check for symlink strategies.
             // If not admin and using a symlink-based strategy, permanently switch the profile to HardLink strategy.
-            var isAdmin = false;
+            var isProfileAdmin = false;
             if (OperatingSystem.IsWindows())
             {
                 using var identity = WindowsIdentity.GetCurrent();
                 var principal = new WindowsPrincipal(identity);
-                isAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
+                isProfileAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
                 logger.LogInformation(
                     "Profile {ProfileId} launch - Admin check: IsAdmin={IsAdmin}, User={User}, Strategy={Strategy}",
                     profileId,
-                    isAdmin,
+                    isProfileAdmin,
                     identity.Name,
                     effectiveStrategy);
             }
@@ -488,7 +477,7 @@ public class ProfileLauncherFacade(
                     effectiveStrategy);
             }
 
-            if (!isAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
+            if (!isProfileAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
                 // No admin rights - switch profile to HardLink strategy permanently
                 var originalStrategy = effectiveStrategy;
@@ -503,6 +492,23 @@ public class ProfileLauncherFacade(
                     "Workspace Strategy Changed",
                     $"'{profile.Name}' requires admin for {originalStrategy}. Switching to HardLink strategy.",
                     NotificationDurations.Long);
+
+                // Persist the downgrade only if the profile had an explicit strategy set (not inheriting default)
+                if (profile.WorkspaceStrategy.HasValue)
+                {
+                    var updateRequest = new UpdateProfileRequest
+                    {
+                        WorkspaceStrategy = effectiveStrategy,
+                    };
+                    var strategyUpdateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+                    if (strategyUpdateResult.Success)
+                    {
+                        logger.LogInformation(
+                            "Updated profile {ProfileId} workspace strategy to {Strategy} due to admin rights requirement",
+                            profileId,
+                            effectiveStrategy);
+                    }
+                }
             }
 
             // Use dynamic workspace path based on the game installation location
@@ -518,33 +524,6 @@ public class ProfileLauncherFacade(
                 "Launching Profile",
                 $"Starting '{profile.Name}' with {effectiveStrategy} workspace strategy...",
                 NotificationDurations.Medium);
-
-            // Persist the effective strategy to the profile if it changed due to lack of admin rights
-            if (effectiveStrategy != profile.WorkspaceStrategy)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    WorkspaceStrategy = effectiveStrategy,
-                };
-                var strategyUpdateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (strategyUpdateResult.Success)
-                {
-                    logger.LogInformation(
-                        "Updated profile {ProfileId} workspace strategy to {Strategy} due to admin rights requirement",
-                        profileId,
-                        effectiveStrategy);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "Failed to persist strategy change for profile {ProfileId}: {Error}",
-                        profileId,
-                        strategyUpdateResult.FirstError);
-                }
-
-                // Apply in-memory regardless of persistence success so launch uses correct strategy
-                profile.WorkspaceStrategy = effectiveStrategy;
-            }
 
             // Launch the game using the profile
             logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
@@ -827,7 +806,8 @@ public class ProfileLauncherFacade(
             var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
             if (launch == null)
             {
-                return ProfileOperationResult<bool>.CreateFailure($"No active launch found for profile {profileId}");
+                logger.LogInformation("No active launch found for profile {ProfileId}, considering it already stopped.", profileId);
+                return ProfileOperationResult<bool>.CreateSuccess(true);
             }
 
             var stopResult = await gameLauncher.TerminateGameAsync(launch.LaunchId, cancellationToken);
@@ -1214,6 +1194,11 @@ public class ProfileLauncherFacade(
     /// <returns>True if the profile uses SuperHackers, false otherwise.</returns>
     private static bool IsSuperHackersProfile(GameProfile profile)
     {
+        if (IsCommunityOutpostProfile(profile))
+        {
+            return false;
+        }
+
         // Check PublisherType first
         if (profile.GameClient?.PublisherType?.Equals(
             PublisherTypeConstants.TheSuperHackers,

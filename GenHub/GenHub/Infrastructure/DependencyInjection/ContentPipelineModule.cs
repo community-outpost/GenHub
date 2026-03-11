@@ -129,6 +129,7 @@ public static class ContentPipelineModule
 
         // Reconciliation infrastructure
         services.AddScoped<IContentReconciliationOrchestrator, ContentReconciliationOrchestrator>();
+        services.AddScoped<IPublisherReconcilerRegistry, PublisherReconcilerRegistry>();
         services.AddSingleton<ICasLifecycleManager, CasLifecycleManager>();
 
         // Audit log - needs application data path
@@ -176,6 +177,7 @@ public static class ContentPipelineModule
 
         services.AddScoped<SuperHackersProfileReconciler>();
         services.AddScoped<ISuperHackersProfileReconciler>(sp => sp.GetRequiredService<SuperHackersProfileReconciler>());
+        services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<SuperHackersProfileReconciler>());
 
         // Register GitHub generic manifest factory
         services.AddTransient<GitHubManifestFactory>();
@@ -212,6 +214,7 @@ public static class ContentPipelineModule
         // Register Generals Online profile reconciler
         services.AddScoped<GeneralsOnlineProfileReconciler>();
         services.AddScoped<IGeneralsOnlineProfileReconciler>(sp => sp.GetRequiredService<GeneralsOnlineProfileReconciler>());
+        services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<GeneralsOnlineProfileReconciler>());
     }
 
     /// <summary>
@@ -238,14 +241,14 @@ public static class ContentPipelineModule
 
         // Register Community Outpost manifest factory
         services.AddTransient<CommunityOutpostManifestFactory>();
-        services.AddTransient<IPublisherManifestFactory>(sp => sp.GetRequiredService<CommunityOutpostManifestFactory>());
+        services.AddTransient<IPublisherManifestFactory, CommunityOutpostManifestFactory>();
 
         // Register Community Outpost services
         services.AddScoped<CommunityOutpostUpdateService>();
         services.AddScoped<ICommunityOutpostUpdateService>(sp => sp.GetRequiredService<CommunityOutpostUpdateService>());
-        services.AddScoped<CommunityOutpostProfileReconciler>(); // Register Reconciler
+        services.AddScoped<CommunityOutpostProfileReconciler>();
         services.AddScoped<ICommunityOutpostProfileReconciler>(sp => sp.GetRequiredService<CommunityOutpostProfileReconciler>());
-        services.AddTransient<IPublisherManifestFactory, CommunityOutpostManifestFactory>();
+        services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<CommunityOutpostProfileReconciler>());
     }
 
     /// <summary>

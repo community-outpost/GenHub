@@ -224,8 +224,9 @@ public class UserSettings : ICloneable
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
     /// <param name="publisherName">The publisher display name (optional).</param>
+    /// <param name="isSubscribed">Whether the subscription should be active by default (defaults to false for bookkeeping).</param>
     /// <returns>The existing or newly created publisher subscription.</returns>
-    public PublisherSubscription GetOrCreateSubscription(string publisherId, string? publisherName = null)
+    public PublisherSubscription GetOrCreateSubscription(string publisherId, string? publisherName = null, bool isSubscribed = false)
     {
         var subscription = PublisherSubscriptions.FirstOrDefault(s =>
             string.Equals(s.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase));
@@ -236,7 +237,7 @@ public class UserSettings : ICloneable
             {
                 PublisherId = publisherId,
                 PublisherName = publisherName ?? publisherId,
-                IsSubscribed = true,
+                IsSubscribed = isSubscribed,
             };
             PublisherSubscriptions.Add(subscription);
         }

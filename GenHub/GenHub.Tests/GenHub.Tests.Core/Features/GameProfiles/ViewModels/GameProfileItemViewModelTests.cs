@@ -24,7 +24,6 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
-
     /// Verifies that version display is suppressed for local content even if GameClient has a version.
     /// </summary>
     [Fact]

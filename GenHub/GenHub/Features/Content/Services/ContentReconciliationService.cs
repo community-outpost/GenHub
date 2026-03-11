@@ -28,7 +28,7 @@ public class ContentReconciliationService(
     IWorkspaceManager workspaceManager,
     IContentManifestPool manifestPool,
     ICasReferenceTracker referenceTracker,
-    ICasService casService,
+    ICasLifecycleManager casLifecycleManager,
     ILogger<ContentReconciliationService> logger) : IContentReconciliationService, IDisposable
 {
     private readonly SemaphoreSlim _reconciliationLock = new(1, 1);
@@ -236,14 +236,22 @@ public class ContentReconciliationService(
             if (removeOld)
             {
                 // 2. Untrack old CAS references only for resolved replacements
+                var successfullyUntrackedIds = new List<string>();
                 foreach (var oldId in manifestReplacements.Keys)
                 {
                     logger.LogInformation("Untracking stale CAS references for manifest '{ManifestId}'", oldId);
-                    await referenceTracker.UntrackManifestAsync(oldId, cancellationToken);
+                    var untrackResult = await referenceTracker.UntrackManifestAsync(oldId, cancellationToken);
+                    if (!untrackResult.Success)
+                    {
+                        logger.LogWarning("Failed to untrack manifest '{OldId}': {Error}. Skipping pool removal to preserve CAS integrity.", oldId, untrackResult.FirstError);
+                        continue;
+                    }
+
+                    successfullyUntrackedIds.Add(oldId);
                 }
 
-                // 3. Remove old manifests from pool only for resolved replacements
-                foreach (var oldId in manifestReplacements.Keys)
+                // 3. Remove old manifests from pool only for successfully untracked manifests
+                foreach (var oldId in successfullyUntrackedIds)
                 {
                     logger.LogInformation("Removing stale manifest from pool: '{ManifestId}'", oldId);
                     await manifestPool.RemoveManifestAsync(ManifestId.Create(oldId), skipUntrack: true, cancellationToken: cancellationToken);
@@ -251,6 +259,10 @@ public class ContentReconciliationService(
             }
 
             return reconcileResult;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -289,7 +301,13 @@ public class ContentReconciliationService(
 
                     // 2. Untrack CAS references
                     logger.LogInformation("Untracking CAS references for removed manifest '{ManifestId}'", manifestId.Value);
-                    await referenceTracker.UntrackManifestAsync(manifestId.Value, cancellationToken);
+                    var untrackResult = await referenceTracker.UntrackManifestAsync(manifestId.Value, cancellationToken);
+                    if (!untrackResult.Success)
+                    {
+                        logger.LogWarning("Failed to untrack manifest '{ManifestId}': {Error}. Skipping pool removal to preserve CAS integrity.", manifestId.Value, untrackResult.FirstError);
+                        failedManifests.Add(manifestId.Value);
+                        continue;
+                    }
 
                     // 3. Remove from manifest pool
                     await manifestPool.RemoveManifestAsync(manifestId, skipUntrack: true, cancellationToken: cancellationToken);
@@ -304,6 +322,10 @@ public class ContentReconciliationService(
             // Return success even with partial failures to allow cleanup of old manifests.
             // Failed manifests are logged for visibility.
             return OperationResult<ReconciliationResult>.CreateSuccess(totalResult);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -331,8 +353,14 @@ public class ContentReconciliationService(
             {
                 try
                 {
-                    await casService.RunGarbageCollectionAsync(force, cancellationToken);
-                    return OperationResult.CreateSuccess();
+                    var gcResult = await casLifecycleManager.RunGarbageCollectionAsync(force, lockTimeout: null, cancellationToken);
+                    return gcResult.Success
+                        ? OperationResult.CreateSuccess()
+                        : OperationResult.CreateFailure(gcResult.FirstError ?? "GC failed");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -363,7 +391,12 @@ public class ContentReconciliationService(
         foreach (var profile in affectedProfiles)
         {
             logger.LogDebug("Invalidating workspace for profile '{ProfileName}' due to manifest update", profile.Name);
-            await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId!, cancellationToken);
+            var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId!, cancellationToken);
+            if (!cleanupResult.Success)
+            {
+                logger.LogWarning("Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}", profile.ActiveWorkspaceId, profile.Name, cleanupResult.FirstError);
+            }
+
             var updateResult = await profileManager.UpdateProfileAsync(profile.Id, new UpdateProfileRequest { ActiveWorkspaceId = string.Empty }, cancellationToken);
 
             if (updateResult.Success)
@@ -445,7 +478,7 @@ public class ContentReconciliationService(
                         newGameClient = new GameClient
                         {
                             Id = m.Id.Value,
-                            Name = m.Name,
+                            Name = m.Name ?? m.Id.Value,
                             Version = m.Version ?? string.Empty,
                             GameType = m.TargetGame,
                             SourceType = m.ContentType,
@@ -466,7 +499,12 @@ public class ContentReconciliationService(
                 if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId))
                 {
                     logger.LogDebug("Cleaning up workspace '{WorkspaceId}' for stale profile '{ProfileName}'", profile.ActiveWorkspaceId, profile.Name);
-                    await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                    if (!cleanupResult.Success)
+                    {
+                        logger.LogWarning("Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}", profile.ActiveWorkspaceId, profile.Name, cleanupResult.FirstError);
+                    }
+
                     workspaceInvalidated = true;
                 }
 
@@ -546,7 +584,12 @@ public class ContentReconciliationService(
                 if (!string.IsNullOrEmpty(profile.ActiveWorkspaceId))
                 {
                     logger.LogDebug("Cleaning up workspace '{WorkspaceId}' for deleted content in profile '{ProfileName}'", profile.ActiveWorkspaceId, profile.Name);
-                    await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profile.ActiveWorkspaceId, cancellationToken);
+                    if (!cleanupResult.Success)
+                    {
+                        logger.LogWarning("Failed to cleanup workspace '{WorkspaceId}' for profile '{ProfileName}': {Error}", profile.ActiveWorkspaceId, profile.Name, cleanupResult.FirstError);
+                    }
+
                     workspaceInvalidated = true;
                 }
 

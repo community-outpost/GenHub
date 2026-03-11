@@ -239,6 +239,7 @@ public static class DemoViewModelFactory
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
+
             // Fail safe with minimal mocks
             return new ReplayManagerViewModel(
                 new MockReplayDirectoryService(),
@@ -292,8 +293,9 @@ public static class DemoViewModelFactory
         }
         catch (Exception ex)
         {
-             System.Diagnostics.Debug.WriteLine($"Failed to create full demo map manager: {ex}");
-             // Fail safe with minimal mocks
+            System.Diagnostics.Debug.WriteLine($"Failed to create full demo map manager: {ex}");
+
+            // Fail safe with minimal mocks
             return new MapManagerViewModel(
                 new MockMapDirectoryService(),
                 new MockMapImportService(),
