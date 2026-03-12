@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
         xmlns:models="using:GenHub.Core.Models.Tools.ReplayManager"
+        xmlns:converters="using:GenHub.Features.Tools.ReplayManager.Converters"
         x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayViewerWindow"
         x:DataType="vm:ReplayViewerViewModel"
         Title="Replay Details"
@@ -25,6 +26,11 @@
         <SolidColorBrush x:Key="HumanPlayerColor" Color="#2196F3" />
         <SolidColorBrush x:Key="AIPlayerColor" Color="#FF9800" />
         <SolidColorBrush x:Key="ObserverColor" Color="#9E9E9E" />
+
+        <!-- Converters -->
+        <converters:PlayerTypeToColorConverter x:Key="PlayerTypeToColorConverter"/>
+        <converters:PlayerTypeToIconConverter x:Key="PlayerTypeToIconConverter"/>
+        <converters:ColorNameToBrushConverter x:Key="ColorNameToBrushConverter"/>
     </Window.Resources>
 
     <Window.Styles>
