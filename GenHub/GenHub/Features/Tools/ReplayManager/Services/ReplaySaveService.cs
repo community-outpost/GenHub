@@ -85,7 +85,12 @@ public sealed class ReplaySaveService(
 
             if (metadata.Players != null && metadata.Players.Count > 0)
             {
-                var playerNames = string.Join("-", metadata.Players.Take(4).Select(p => SanitizeFileName(p.Name)));
+                var sanitizedNames = metadata.Players
+                    .Take(4)
+                    .Select(p => SanitizeFileName(p.Name))
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .ToList();
+                var playerNames = string.Join("-", sanitizedNames);
                 if (!string.IsNullOrWhiteSpace(playerNames))
                 {
                     components.Add(playerNames);
