@@ -1,13 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+        xmlns:models="using:GenHub.Core.Models.Tools.ReplayManager"
         x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayViewerWindow"
         x:DataType="vm:ReplayViewerViewModel"
         Title="Replay Details"
-        Width="700"
-        Height="650"
-        MinWidth="600"
-        MinHeight="500"
+        Width="750"
+        Height="700"
+        MinWidth="650"
+        MinHeight="550"
         WindowStartupLocation="CenterOwner"
         CanResize="True"
         Background="{DynamicResource ApplicationPageBackgroundThemeBrush}">
@@ -21,6 +22,9 @@
         <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50" />
         <SolidColorBrush x:Key="ErrorColor" Color="#F44336" />
         <SolidColorBrush x:Key="InfoColor" Color="#2196F3" />
+        <SolidColorBrush x:Key="HumanPlayerColor" Color="#2196F3" />
+        <SolidColorBrush x:Key="AIPlayerColor" Color="#FF9800" />
+        <SolidColorBrush x:Key="ObserverColor" Color="#9E9E9E" />
     </Window.Resources>
 
     <Window.Styles>
@@ -61,10 +65,8 @@
         <Style Selector="Border.player-card">
             <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
             <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Padding" Value="14,10" />
             <Setter Property="Margin" Value="0,0,0,8" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
-            <Setter Property="BorderThickness" Value="0,0,0,2" />
         </Style>
     </Window.Styles>
 
@@ -185,6 +187,51 @@
                                 <TextBlock Text="Duration" Classes="label"/>
                                 <TextBlock Text="{Binding FormattedDuration}" Classes="value"/>
                             </StackPanel>
+
+                            <!-- Game Version -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.GameVersion, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Version" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameVersion}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Build Date -->
+                            <StackPanel Grid.Row="2" Grid.Column="1" IsVisible="{Binding Metadata.BuildDate, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Build Date" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.BuildDate}" Classes="value"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Game Settings -->
+                <Border Classes="card" IsVisible="{Binding HasGameSettings}">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Game Settings" Classes="section-title"/>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                            <!-- Game Mode -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.GameMode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Mode" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameMode}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Speed -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" IsVisible="{Binding Metadata.GameSpeed, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Speed" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameSpeed}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Starting Credits -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.StartingCredits, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Starting Credits" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedStartingCredits}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Fog of War -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" IsVisible="{Binding Metadata.FogOfWar, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Fog of War" Classes="label"/>
+                                <TextBlock Text="{Binding FogOfWarText}" Classes="value"/>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -207,18 +254,80 @@
 
                         <ItemsControl ItemsSource="{Binding Players}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate>
+                                <DataTemplate DataType="models:PlayerInfo">
                                     <Border Classes="player-card">
-                                        <Grid ColumnDefinitions="Auto,*">
-                                            <TextBlock Grid.Column="0"
-                                                       Text="👤"
-                                                       FontSize="16"
-                                                       VerticalAlignment="Center"
-                                                       Margin="0,0,12,0"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding}"
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+                                            <!-- Player Icon and Name -->
+                                            <Border Grid.Column="0" Grid.RowSpan="2"
+                                                    Width="40" Height="40"
+                                                    CornerRadius="20"
+                                                    Background="{Binding Type, Converter={StaticResource PlayerTypeToColorConverter}}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,12,0">
+                                                <TextBlock Text="{Binding Type, Converter={StaticResource PlayerTypeToIconConverter}}"
+                                                           FontSize="20"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="White"/>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Grid.Row="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="15"
+                                                           FontWeight="Bold"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                                <!-- Faction -->
+                                                <Border Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding Faction, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding Faction}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"/>
+                                                </Border>
+
+                                                <!-- Team -->
+                                                <Border Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding Team, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding Team, StringFormat='Team {0}'}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"/>
+                                                </Border>
+
+                                                <!-- AI Difficulty -->
+                                                <Border Background="#33FF9800"
+                                                        BorderBrush="#FF9800"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding AiDifficulty, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding AiDifficulty}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#FF9800"/>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Color Badge -->
+                                            <Border Grid.Column="2" Grid.RowSpan="2"
+                                                    Width="24" Height="24"
+                                                    CornerRadius="12"
+                                                    Background="{Binding Color, Converter={StaticResource ColorNameToBrushConverter}}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="8,0"
+                                                    IsVisible="{Binding Color, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                    ToolTip.Tip="{Binding Color}"/>
+
+                                            <!-- Position -->
+                                            <TextBlock Grid.Column="3" Grid.RowSpan="2"
+                                                       Text="{Binding StartPosition, StringFormat='#{0}'}"
                                                        FontSize="14"
-                                                       FontWeight="SemiBold"
+                                                       FontWeight="Bold"
+                                                       Opacity="0.5"
                                                        VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>

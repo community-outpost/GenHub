@@ -16,13 +16,48 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// <param name="logger">The logger instance.</param>
 public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
 {
+    // Faction mappings for C&C Generals/Zero Hour
+    private static readonly Dictionary<string, string> FactionMap = new()
+    {
+        { "FactionAmerica", "USA" },
+        { "FactionChina", "China" },
+        { "FactionGLA", "GLA" },
+        { "AmericaAirForceGeneral", "USA Air Force" },
+        { "AmericaLaserGeneral", "USA Laser" },
+        { "AmericaSuperweaponGeneral", "USA Superweapon" },
+        { "ChinaInfantryGeneral", "China Infantry" },
+        { "ChinaNukeGeneral", "China Nuke" },
+        { "ChinaTankGeneral", "China Tank" },
+        { "GLADemolitionGeneral", "GLA Demolition" },
+        { "GLAStealthGeneral", "GLA Stealth" },
+        { "GLAToxinGeneral", "GLA Toxin" }
+    };
+
+    private static readonly Dictionary<string, string> ColorMap = new()
+    {
+        { "0", "Orange" },
+        { "1", "Pink" },
+        { "2", "Blue" },
+        { "3", "Green" },
+        { "4", "Red" },
+        { "5", "Yellow" },
+        { "6", "Purple" },
+        { "7", "Teal" }
+    };
+
     /// <summary>
     /// Parses a replay file and extracts metadata.
     /// </summary>
     /// <param name="filePath">The path to the replay file.</param>
     /// <param name="gameType">The game type.</param>
     /// <returns>The extracted metadata.</returns>
-    public async Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
+    public Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
+    {
+        // Offload synchronous I/O to thread pool to avoid blocking
+        return Task.Run(() => ParseReplayCore(filePath, gameType));
+    }
+
+    private ReplayMetadata ParseReplayCore(string filePath, GameType gameType)
     {
         try
         {
@@ -39,7 +74,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 return CreateEmptyMetadata(filePath, fileInfo.Length, gameType);
             }
 
-            await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var reader = new BinaryReader(stream);
 
             var magic = reader.ReadBytes(6);
@@ -50,7 +85,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 return CreateEmptyMetadata(filePath, fileInfo.Length, gameType);
             }
 
-            // Read timestamps per GENREP spec
+            // Read timestamps per GENREP spec (only 2 UInt32 values)
             var beginTimestamp = reader.ReadUInt32();
             var endTimestamp = reader.ReadUInt32();
 
@@ -63,9 +98,9 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             // Skip date_time[8] (8 x uint16 = 16 bytes: year, month, dayOfWeek, day, hour, minute, second, millisecond)
             reader.ReadBytes(16);
 
-            // Read version and build date strings (skip them)
-            ReadNullTerminatedString(reader, Encoding.Unicode);
-            ReadNullTerminatedString(reader, Encoding.Unicode);
+            // Read version and build date strings
+            var gameVersion = ReadNullTerminatedString(reader, Encoding.Unicode);
+            var buildDate = ReadNullTerminatedString(reader, Encoding.Unicode);
 
             // Skip version_minor (2 bytes) + version_major (2 bytes) + magic_hash[8]
             reader.ReadBytes(12);
@@ -73,7 +108,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             // Read match data — null-terminated ASCII metadata string (key=value pairs separated by ;)
             var matchData = ReadNullTerminatedString(reader, Encoding.ASCII);
 
-            var (mapName, players) = ParseMatchData(matchData);
+            var parsedData = ParseMatchData(matchData);
 
             var gameDate = beginTimestamp > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(beginTimestamp).LocalDateTime
@@ -86,20 +121,26 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             logger.LogInformation(
                 "Successfully parsed replay: {FilePath} (Map: {Map}, Players: {PlayerCount}, Duration: {Duration})",
                 filePath,
-                mapName ?? "Unknown",
-                players?.Count ?? 0,
+                parsedData.MapName ?? "Unknown",
+                parsedData.Players?.Count ?? 0,
                 duration);
 
             return new ReplayMetadata
             {
-                MapName = mapName,
-                Players = players,
+                MapName = parsedData.MapName,
+                Players = parsedData.Players,
                 Duration = duration,
                 GameDate = gameDate,
                 GameType = gameType,
                 FileSizeBytes = fileInfo.Length,
                 IsParsed = true,
                 OriginalFilePath = filePath,
+                GameVersion = string.IsNullOrWhiteSpace(gameVersion) ? null : gameVersion,
+                BuildDate = string.IsNullOrWhiteSpace(buildDate) ? null : buildDate,
+                GameMode = parsedData.GameMode,
+                StartingCredits = parsedData.StartingCredits,
+                FogOfWar = parsedData.FogOfWar,
+                GameSpeed = parsedData.GameSpeed
             };
         }
         catch (Exception ex)
@@ -175,15 +216,14 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         return bytes.Length >= 1 && bytes[0] == 0;
     }
 
-    private static (string? MapName, IReadOnlyList<string>? Players) ParseMatchData(string matchData)
+    private static ParsedMatchData ParseMatchData(string matchData)
     {
+        var result = new ParsedMatchData();
+
         if (string.IsNullOrWhiteSpace(matchData))
         {
-            return (null, null);
+            return result;
         }
-
-        string? mapName = null;
-        var players = new List<string>();
 
         var entries = matchData.Split(';', StringSplitOptions.RemoveEmptyEntries);
 
@@ -206,44 +246,142 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             switch (key)
             {
                 case "M":
-                    mapName = value;
+                    result.MapName = value;
+                    break;
+
+                case "MC":
+                    result.StartingCredits = int.TryParse(value, out var credits) ? credits : null;
+                    break;
+
+                case "MS":
+                    result.GameSpeed = value switch
+                    {
+                        "0" => "Slow",
+                        "1" => "Normal",
+                        "2" => "Fast",
+                        _ => value
+                    };
+                    break;
+
+                case "SD":
+                    result.GameMode = value switch
+                    {
+                        "0" => "Skirmish",
+                        "1" => "Online",
+                        _ => value
+                    };
+                    break;
+
+                case "FOG":
+                    result.FogOfWar = value == "1";
                     break;
 
                 case "S":
-                    // S field is colon-separated slots, each slot is comma-separated fields
-                    // Field[0] = player spec: H<name> for human, C[E|M|H|B] for computer, X for empty
-                    var slots = value.Split(':', StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var slot in slots)
-                    {
-                        var trimmedSlot = slot.Trim();
-                        if (string.IsNullOrEmpty(trimmedSlot) || trimmedSlot == "X")
-                        {
-                            continue;
-                        }
-
-                        var fields = trimmedSlot.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                        if (fields.Length == 0)
-                        {
-                            continue;
-                        }
-
-                        var playerSpec = fields[0].Trim();
-                        if (playerSpec.StartsWith('H') && playerSpec.Length > 1)
-                        {
-                            // Human player: name follows 'H' prefix
-                            players.Add(playerSpec[1..]);
-                        }
-                        else if (playerSpec.StartsWith('C') && playerSpec.Length > 1)
-                        {
-                            // Computer player: CE=Easy, CM=Medium, CH=Hard, CB=Brutal
-                            players.Add("CPU");
-                        }
-                    }
-
+                    // S field format: slot records separated by colons
+                    // Each slot: playerSpec,faction,team,color,...
+                    // playerSpec: H<name> for human, C[E|M|H|B] for AI, X for empty
+                    result.Players = ParsePlayerSlots(value);
                     break;
             }
         }
 
-        return (mapName, players.Count > 0 ? players : null);
+        return result;
+    }
+
+    private static List<PlayerInfo>? ParsePlayerSlots(string slotsData)
+    {
+        var players = new List<PlayerInfo>();
+
+        // Split by colon to get individual slot records
+        var slots = slotsData.Split(':', StringSplitOptions.RemoveEmptyEntries);
+
+        for (int slotIndex = 0; slotIndex < slots.Length; slotIndex++)
+        {
+            var slot = slots[slotIndex].Trim();
+            if (string.IsNullOrEmpty(slot) || slot == "X")
+            {
+                continue; // Empty slot
+            }
+
+            // Split slot by comma to get fields
+            var fields = slot.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length == 0)
+            {
+                continue;
+            }
+
+            var playerSpec = fields[0].Trim();
+            string? faction = fields.Length > 1 ? fields[1].Trim() : null;
+            int? team = fields.Length > 2 && int.TryParse(fields[2], out var t) ? t : null;
+            string? colorCode = fields.Length > 3 ? fields[3].Trim() : null;
+
+            PlayerInfo? playerInfo = null;
+
+            if (playerSpec.StartsWith('H') && playerSpec.Length > 1)
+            {
+                // Human player: name follows 'H' prefix
+                var playerName = playerSpec[1..];
+                playerInfo = new PlayerInfo
+                {
+                    Name = playerName,
+                    Type = PlayerType.Human,
+                    Faction = faction != null && FactionMap.TryGetValue(faction, out var factionName) ? factionName : faction,
+                    Team = team,
+                    Color = colorCode != null && ColorMap.TryGetValue(colorCode, out var color) ? color : colorCode,
+                    StartPosition = slotIndex + 1
+                };
+            }
+            else if (playerSpec.StartsWith('C') && playerSpec.Length > 1)
+            {
+                // Computer player: CE=Easy, CM=Medium, CH=Hard, CB=Brutal
+                var difficulty = playerSpec[1] switch
+                {
+                    'E' => "Easy",
+                    'M' => "Medium",
+                    'H' => "Hard",
+                    'B' => "Brutal",
+                    _ => "Unknown"
+                };
+
+                playerInfo = new PlayerInfo
+                {
+                    Name = $"AI ({difficulty})",
+                    Type = PlayerType.Computer,
+                    AiDifficulty = difficulty,
+                    Faction = faction != null && FactionMap.TryGetValue(faction, out var factionName) ? factionName : faction,
+                    Team = team,
+                    Color = colorCode != null && ColorMap.TryGetValue(colorCode, out var color) ? color : colorCode,
+                    StartPosition = slotIndex + 1
+                };
+            }
+            else if (playerSpec.StartsWith('O'))
+            {
+                // Observer
+                var observerName = playerSpec.Length > 1 ? playerSpec[1..] : "Observer";
+                playerInfo = new PlayerInfo
+                {
+                    Name = observerName,
+                    Type = PlayerType.Observer,
+                    StartPosition = slotIndex + 1
+                };
+            }
+
+            if (playerInfo != null)
+            {
+                players.Add(playerInfo);
+            }
+        }
+
+        return players.Count > 0 ? players : null;
+    }
+
+    private sealed class ParsedMatchData
+    {
+        public string? MapName { get; set; }
+        public List<PlayerInfo>? Players { get; set; }
+        public string? GameMode { get; set; }
+        public int? StartingCredits { get; set; }
+        public bool? FogOfWar { get; set; }
+        public string? GameSpeed { get; set; }
     }
 }

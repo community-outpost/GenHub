@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -87,7 +88,7 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
     /// <summary>
     /// Gets the player list.
     /// </summary>
-    public IReadOnlyList<string> Players => Metadata.Players ?? Array.Empty<string>();
+    public IReadOnlyList<PlayerInfo> Players => Metadata.Players ?? Array.Empty<PlayerInfo>();
 
     /// <summary>
     /// Gets the player count.
@@ -128,6 +129,27 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
     public IBrush ParseStatusColor => Metadata.IsParsed
         ? new SolidColorBrush(Color.Parse("#4CAF50"))
         : new SolidColorBrush(Color.Parse("#F44336"));
+
+    /// <summary>
+    /// Gets whether game settings information is available.
+    /// </summary>
+    public bool HasGameSettings => Metadata.GameMode != null || Metadata.StartingCredits != null ||
+                                    Metadata.FogOfWar != null || Metadata.GameSpeed != null;
+
+    /// <summary>
+    /// Gets the formatted starting credits.
+    /// </summary>
+    public string FormattedStartingCredits => Metadata.StartingCredits?.ToString("N0") ?? "Unknown";
+
+    /// <summary>
+    /// Gets the fog of war status text.
+    /// </summary>
+    public string FogOfWarText => Metadata.FogOfWar switch
+    {
+        true => "Enabled",
+        false => "Disabled",
+        null => "Unknown"
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayViewerViewModel"/> class.
