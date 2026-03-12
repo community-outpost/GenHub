@@ -67,8 +67,11 @@ public static class ReplayManagerConstants
 
     /// <summary>
     /// Grace period in seconds to allow stability checks to complete before stopping monitoring.
+    /// Calculated as: (FileStabilityCheckCount × FileStabilityCheckIntervalMs / 1000) + buffer
+    /// = (3 × 2000ms / 1000) + 8s buffer = 14s total
+    /// This accounts for the full stability check cycle plus OS flush delays on slow systems.
     /// </summary>
-    public const int StopMonitoringGracePeriodSeconds = 10;
+    public const int StopMonitoringGracePeriodSeconds = 14;
 
     /// <summary>
     /// Maximum number of retry attempts when saving a replay file encounters an I/O conflict.

@@ -143,6 +143,8 @@ public class LaunchRegistry : ILaunchRegistry
 
             // Stop replay monitoring for this profile after a grace period
             // The ReplayMonitor needs ~6s (3 checks × 2s) after the file stops changing
+            // Add buffer time to account for OS flush delays and slow systems
+            // Grace period = stability checks (6s) + buffer (8s) = 14s total
             // Capture session ID to avoid canceling a newer session if profile is relaunched
             if (_replayMonitorService != null && _replayMonitorService.IsMonitoring(launch.ProfileId))
             {
@@ -153,6 +155,7 @@ public class LaunchRegistry : ILaunchRegistry
                     {
                         try
                         {
+                            // Extended grace period to allow for late file writes and full stability checks
                             await Task.Delay(TimeSpan.FromSeconds(ReplayManagerConstants.StopMonitoringGracePeriodSeconds));
                             await _replayMonitorService.StopMonitoringAsync(launch.ProfileId, sessionId);
                             _logger.LogInformation("[LaunchRegistry] Stopped replay monitoring for profile {ProfileId}", launch.ProfileId);
