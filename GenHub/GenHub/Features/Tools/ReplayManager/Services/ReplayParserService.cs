@@ -303,17 +303,18 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 continue; // Empty slot
             }
 
-            // Split slot by comma to get fields
-            var fields = slot.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            // Split slot by comma to get fields - preserve positions for sparse records
+            var fields = slot.Split(',');
             if (fields.Length == 0)
             {
                 continue;
             }
 
             var playerSpec = fields[0].Trim();
-            string? faction = fields.Length > 1 ? fields[1].Trim() : null;
-            int? team = fields.Length > 2 && int.TryParse(fields[2], out var t) ? t : null;
-            string? colorCode = fields.Length > 3 ? fields[3].Trim() : null;
+            // Handle empty fields explicitly to preserve positional semantics
+            string? faction = fields.Length > 1 && !string.IsNullOrWhiteSpace(fields[1]) ? fields[1].Trim() : null;
+            int? team = fields.Length > 2 && int.TryParse(fields[2].Trim(), out var t) ? t : null;
+            string? colorCode = fields.Length > 3 && !string.IsNullOrWhiteSpace(fields[3]) ? fields[3].Trim() : null;
 
             PlayerInfo? playerInfo = null;
 

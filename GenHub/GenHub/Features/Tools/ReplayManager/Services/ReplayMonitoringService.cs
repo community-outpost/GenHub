@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -164,53 +165,31 @@ public sealed class ReplayMonitoringService(
 
     private void StopMonitoringInternal(string profileId, string expectedSessionId)
     {
-        // Use GetOrAdd pattern to atomically check and conditionally remove
-        // This prevents race conditions where TryRemove+TryAdd could lose a session
-        var shouldRemove = false;
-        MonitoringSession? sessionToDispose = null;
-
-        _activeSessions.AddOrUpdate(
-            profileId,
-            addValueFactory: _ =>
-            {
-                // Key doesn't exist - nothing to stop
-                logger.LogInformation(
-                    "Skipping stop for profile {ProfileId}: session {ExpectedSession} not found",
-                    profileId,
-                    expectedSessionId);
-                return null!; // Will be removed immediately
-            },
-            updateValueFactory: (_, existingSession) =>
-            {
-                if (existingSession.SessionId == expectedSessionId)
-                {
-                    // Session ID matches - mark for removal
-                    shouldRemove = true;
-                    sessionToDispose = existingSession;
-                    return null!; // Placeholder, will be removed
-                }
-                else
-                {
-                    // Session ID mismatch - keep existing session
-                    logger.LogInformation(
-                        "Skipping stop for profile {ProfileId}: session {ExpectedSession} replaced by {ActualSession}",
-                        profileId,
-                        expectedSessionId,
-                        existingSession.SessionId);
-                    return existingSession; // Keep the newer session
-                }
-            });
-
-        // Clean up outside the AddOrUpdate to avoid holding locks during disposal
-        if (shouldRemove)
+        // Optimistic path: only attempt removal if the session matches
+        if (!_activeSessions.TryGetValue(profileId, out var existingSession) ||
+            existingSession?.SessionId != expectedSessionId)
         {
-            _activeSessions.TryRemove(profileId, out _);
-            if (sessionToDispose != null)
-            {
-                sessionToDispose.Monitor.Dispose();
-                logger.LogInformation("Stopped replay monitoring for profile: {ProfileId} session: {SessionId}",
-                    profileId, sessionToDispose.SessionId);
-            }
+            logger.LogInformation(
+                "Skipping stop for profile {ProfileId}: session {ExpectedSession} not found or replaced",
+                profileId, expectedSessionId);
+            return;
+        }
+
+        // TryRemove with KeyValuePair is atomic - only removes if both key and value match
+        // This prevents removing a newer session inserted by concurrent StartMonitoringAsync
+        if (_activeSessions.TryRemove(new KeyValuePair<string, MonitoringSession>(profileId, existingSession)))
+        {
+            existingSession.Monitor.Dispose();
+            logger.LogInformation("Stopped replay monitoring for profile: {ProfileId} session: {SessionId}",
+                profileId, existingSession.SessionId);
+        }
+        else
+        {
+            // Session was replaced between TryGetValue and TryRemove
+            logger.LogInformation(
+                "Skipping stop for profile {ProfileId}: session {ExpectedSession} was replaced during removal",
+                profileId,
+                expectedSessionId);
         }
     }
 
