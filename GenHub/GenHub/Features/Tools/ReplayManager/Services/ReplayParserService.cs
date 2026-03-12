@@ -190,7 +190,8 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     private static string ReadNullTerminatedString(BinaryReader reader, Encoding encoding)
     {
         var bytes = new List<byte>(ReplayManagerConstants.MaxStringReadBytes);
-        var charSize = encoding == Encoding.Unicode ? 2 : 1;
+        // Use CodePage comparison for robust encoding detection
+        var charSize = encoding.CodePage == Encoding.Unicode.CodePage ? 2 : 1;
 
         while (bytes.Count + charSize <= ReplayManagerConstants.MaxStringReadBytes)
         {
