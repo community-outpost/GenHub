@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Models.Tools.ReplayManager;
@@ -63,6 +65,11 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
     public string FilePath { get; }
 
     /// <summary>
+    /// Gets the file name without path.
+    /// </summary>
+    public string FileName => Path.GetFileName(FilePath);
+
+    /// <summary>
     /// Gets the formatted file size.
     /// </summary>
     public string FormattedFileSize => FormatFileSize(Metadata.FileSizeBytes);
@@ -86,6 +93,41 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
     /// Gets the player count.
     /// </summary>
     public int PlayerCount => Players.Count;
+
+    /// <summary>
+    /// Gets the shortened map name for display in stat cards.
+    /// </summary>
+    public string MapNameShort
+    {
+        get
+        {
+            var mapName = Metadata.MapName;
+            if (string.IsNullOrEmpty(mapName))
+            {
+                return "Unknown";
+            }
+
+            // Truncate long map names for the stat card
+            return mapName.Length > 20 ? mapName[..17] + "..." : mapName;
+        }
+    }
+
+    /// <summary>
+    /// Gets the parse status text.
+    /// </summary>
+    public string ParseStatusText => Metadata.IsParsed ? "Parsed" : "Parse Failed";
+
+    /// <summary>
+    /// Gets the parse status icon.
+    /// </summary>
+    public string ParseStatusIcon => Metadata.IsParsed ? "✓" : "✗";
+
+    /// <summary>
+    /// Gets the parse status color.
+    /// </summary>
+    public IBrush ParseStatusColor => Metadata.IsParsed
+        ? new SolidColorBrush(Color.Parse("#4CAF50"))
+        : new SolidColorBrush(Color.Parse("#F44336"));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayViewerViewModel"/> class.

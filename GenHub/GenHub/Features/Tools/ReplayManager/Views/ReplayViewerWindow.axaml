@@ -3,118 +3,300 @@
         xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
         x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayViewerWindow"
         x:DataType="vm:ReplayViewerViewModel"
-        Title="Replay Viewer"
-        Width="600"
-        Height="500"
-        MinWidth="500"
-        MinHeight="400"
+        Title="Replay Details"
+        Width="700"
+        Height="650"
+        MinWidth="600"
+        MinHeight="500"
         WindowStartupLocation="CenterOwner"
-        CanResize="True">
+        CanResize="True"
+        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}">
 
     <Design.DataContext>
         <!-- Design-time data provided at runtime via DataContext binding -->
     </Design.DataContext>
 
+    <Window.Resources>
+        <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
+        <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50" />
+        <SolidColorBrush x:Key="ErrorColor" Color="#F44336" />
+        <SolidColorBrush x:Key="InfoColor" Color="#2196F3" />
+    </Window.Resources>
+
     <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #20000000" />
+        </Style>
+
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+
         <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,10,0" />
-            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,4" />
         </Style>
+
         <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="TextWrapping" Value="Wrap" />
-            <Setter Property="VerticalAlignment" Value="Top" />
-        </Style>
-        <Style Selector="Border.section">
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="12" />
             <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+
+        <Style Selector="Border.stat-card">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style Selector="Border.player-card">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+            <Setter Property="BorderThickness" Value="0,0,0,2" />
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="*,Auto">
-        <!-- Content -->
-        <ScrollViewer Grid.Row="0" Padding="20">
-            <StackPanel Spacing="16">
-                <!-- File Info Section -->
-                <Border Classes="section">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="File Information" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBackground}"
+                Padding="24,20" BoxShadow="0 2 8 0 #20000000">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="🎮" FontSize="24" VerticalAlignment="Center"/>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Replay Details" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding FileName}" FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                </StackPanel>
 
-                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="File Path:" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding FilePath}" />
-
-                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="File Size:" Margin="0,8,10,0" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding FormattedFileSize}" Margin="0,8,0,0" />
-
-                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Parsed:" Margin="0,8,10,0" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding Metadata.IsParsed}" Margin="0,8,0,0" />
-                        </Grid>
+                <!-- Parse Status Badge -->
+                <Border Grid.Column="2"
+                        Background="{Binding ParseStatusColor}"
+                        CornerRadius="12"
+                        Padding="12,6"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding ParseStatusIcon}" FontSize="12"/>
+                        <TextBlock Text="{Binding ParseStatusText}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"/>
                     </StackPanel>
                 </Border>
+            </Grid>
+        </Border>
 
-                <!-- Game Info Section -->
-                <Border Classes="section">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Game Information" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" Padding="24,20">
+            <StackPanel Spacing="0">
+                <!-- Quick Stats Row -->
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <Grid ColumnDefinitions="*,*,*,*">
+                        <Border Grid.Column="0" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="⏱️" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="DURATION" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding FormattedDuration}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
 
-                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Map Name:" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Metadata.MapName}" />
+                        <Border Grid.Column="1" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="👥" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="PLAYERS" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding PlayerCount}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Game Type:" Margin="0,8,10,0" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding Metadata.GameType}" Margin="0,8,0,0" />
+                        <Border Grid.Column="2" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="🗺️" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="MAP" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding MapNameShort}"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="120"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Duration:" Margin="0,8,10,0" />
-                            <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding FormattedDuration}" Margin="0,8,0,0" />
+                        <Border Grid.Column="3" Classes="stat-card" Margin="0">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="💾" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="SIZE" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding FormattedFileSize}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Game Date:" Margin="0,8,10,0" />
-                            <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding FormattedGameDate}" Margin="0,8,0,0" />
+                <!-- Game Information -->
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Game Information" Classes="section-title"/>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <!-- Map Name -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="Map Name" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.MapName}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Type -->
+                            <StackPanel Grid.Row="0" Grid.Column="1">
+                                <TextBlock Text="Game Type" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameType}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Date -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="Game Date" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedGameDate}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Duration -->
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="Duration" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedDuration}" Classes="value"/>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- Players Section -->
-                <Border Classes="section">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="{Binding PlayerCount, StringFormat='Players ({0})'}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8" />
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <StackPanel Spacing="0">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                            <TextBlock Grid.Column="0" Text="Players" Classes="section-title" Margin="0"/>
+                            <Border Grid.Column="1"
+                                    Background="{DynamicResource AccentColor}"
+                                    CornerRadius="12"
+                                    Padding="10,4">
+                                <TextBlock Text="{Binding PlayerCount, StringFormat='{}{0} Players'}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"/>
+                            </Border>
+                        </Grid>
 
                         <ItemsControl ItemsSource="{Binding Players}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                                            CornerRadius="4"
-                                            Padding="8,4"
-                                            Margin="0,0,0,4">
-                                        <TextBlock Text="{Binding}" />
+                                    <Border Classes="player-card">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="👤"
+                                                       FontSize="16"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
                         <!-- Empty state -->
-                        <TextBlock Text="No player information available"
-                                   IsVisible="{Binding !PlayerCount}"
-                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                   FontStyle="Italic" />
+                        <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                CornerRadius="8"
+                                Padding="20"
+                                IsVisible="{Binding !PlayerCount}">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="👥" FontSize="32" HorizontalAlignment="Center" Opacity="0.3"/>
+                                <TextBlock Text="No player information available"
+                                           FontSize="14"
+                                           Opacity="0.6"
+                                           FontStyle="Italic"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- File Information -->
+                <Border Classes="card">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="File Information" Classes="section-title"/>
+
+                        <StackPanel Spacing="0">
+                            <TextBlock Text="File Path" Classes="label"/>
+                            <TextBlock Text="{Binding FilePath}"
+                                       Classes="value"
+                                       FontFamily="Consolas,Courier New,monospace"
+                                       FontSize="12"/>
+
+                            <TextBlock Text="File Size" Classes="label"/>
+                            <TextBlock Text="{Binding FormattedFileSize}" Classes="value"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Error State -->
+                <Border Classes="card"
+                        Background="#33F44336"
+                        BorderBrush="{DynamicResource ErrorColor}"
+                        BorderThickness="2"
+                        IsVisible="{Binding !Metadata.IsParsed}">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                        <TextBlock Text="⚠️" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Failed to Parse Replay"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="The replay file could not be parsed. It may be corrupted or in an unsupported format."
+                                   FontSize="14"
+                                   Opacity="0.8"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="400"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Footer Buttons -->
-        <Border Grid.Row="1"
-                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+        <!-- Footer -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBackground}"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
                 BorderThickness="0,1,0,0"
-                Padding="20,12">
+                Padding="24,16"
+                BoxShadow="0 -2 8 0 #20000000">
             <Button Content="Close"
                     Command="{Binding CloseCommand}"
+                    Classes="Primary"
                     HorizontalAlignment="Right"
-                    MinWidth="100" />
+                    MinWidth="120"
+                    Padding="16,8"/>
         </Border>
     </Grid>
 </Window>
