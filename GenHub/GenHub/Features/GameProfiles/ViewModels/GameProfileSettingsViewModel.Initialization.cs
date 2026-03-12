@@ -41,6 +41,7 @@ public partial class GameProfileSettingsViewModel
             ColorValue = "#1976D2";
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             SelectedContentType = ContentType.GameClient;
+            AutoSaveReplays = false; // Reset to prevent stale state leakage
 
             EnabledContent.Clear();
 

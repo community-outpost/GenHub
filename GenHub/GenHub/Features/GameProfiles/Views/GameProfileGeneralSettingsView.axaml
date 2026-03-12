@@ -198,7 +198,7 @@
                             <TextBlock Classes="form-label" Text="Command Line Arguments" />
                             <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" Watermark="-win -quickstart -mod GenEvo" />
                         </StackPanel>
-                        <StackPanel Spacing="8">
+                        <StackPanel Spacing="8" IsVisible="{Binding !IsToolProfile}">
                             <CheckBox IsChecked="{Binding AutoSaveReplays, Mode=TwoWay}">
                                 <TextBlock Text="Automatically Save Replays" />
                             </CheckBox>
