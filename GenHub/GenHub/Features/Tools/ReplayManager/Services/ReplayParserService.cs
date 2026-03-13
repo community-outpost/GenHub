@@ -337,7 +337,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 ? DateTimeOffset.FromUnixTimeSeconds(beginTimestamp).LocalDateTime
                 : fileInfo.LastWriteTime;
 
-            var duration = endTimestamp > beginTimestamp
+            var duration = endTimestamp > beginTimestamp && beginTimestamp > 0
                 ? TimeSpan.FromSeconds(endTimestamp - beginTimestamp)
                 : (TimeSpan?)null;
 
