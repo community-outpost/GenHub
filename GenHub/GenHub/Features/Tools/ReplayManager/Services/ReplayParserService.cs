@@ -114,7 +114,16 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             // Read match data — null-terminated ASCII metadata string (key=value pairs separated by ;)
             var matchData = ReadNullTerminatedString(reader, Encoding.ASCII);
 
+            logger.LogInformation("Raw match data: {MatchData}", matchData);
+
             var parsedData = ParseMatchData(matchData);
+
+            logger.LogInformation(
+                "Parsed: Map={Map}, Players={PlayerCount}, Mode={Mode}, Credits={Credits}",
+                parsedData.MapName ?? "null",
+                parsedData.Players?.Count ?? 0,
+                parsedData.GameMode ?? "null",
+                parsedData.StartingCredits);
 
             var gameDate = beginTimestamp > 0
                 ? DateTimeOffset.FromUnixTimeSeconds(beginTimestamp).LocalDateTime
@@ -290,7 +299,9 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     // S field format: slot records separated by colons
                     // Each slot: playerSpec,faction,team,color,...
                     // playerSpec: H<name> for human, C[E|M|H|B] for AI, X for empty
+                    logger.LogDebug("Parsing S field: {SField}", value);
                     result.Players = ParsePlayerSlots(value);
+                    logger.LogDebug("Parsed {Count} players", result.Players?.Count ?? 0);
                     break;
             }
         }
