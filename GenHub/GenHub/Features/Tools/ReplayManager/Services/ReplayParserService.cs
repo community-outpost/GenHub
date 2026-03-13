@@ -393,10 +393,15 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     private sealed class ParsedMatchData
     {
         public string? MapName { get; set; }
+
         public List<PlayerInfo>? Players { get; set; }
+
         public string? GameMode { get; set; }
+
         public int? StartingCredits { get; set; }
+
         public bool? FogOfWar { get; set; }
+
         public string? GameSpeed { get; set; }
     }
 }
