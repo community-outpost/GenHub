@@ -18,5 +18,5 @@ public enum PlayerType
     /// <summary>
     /// Observer/spectator.
     /// </summary>
-    Observer
+    Observer,
 }
