@@ -104,9 +104,19 @@ public sealed class ReplaySaveService(
 
         var fileName = string.Join("_", components) + ".rep";
 
+        // Reserve space for potential _counter suffix (e.g., _999 = 4 chars)
+        var maxCounterLength = $"_{ReplayManagerConstants.MaxUniquePathAttempts}".Length;
+        var maxBaseLength = ReplayManagerConstants.MaxFileNameLength - 4 - maxCounterLength; // 4 for ".rep"
+
         if (fileName.Length > ReplayManagerConstants.MaxFileNameLength)
         {
-            fileName = fileName[..ReplayManagerConstants.MaxFileNameLengthBeforeExtension].TrimEnd('_', '-') + ".rep";
+            var baseWithoutExtension = fileName[..^4]; // Remove ".rep"
+            if (baseWithoutExtension.Length > maxBaseLength)
+            {
+                baseWithoutExtension = baseWithoutExtension[..maxBaseLength].TrimEnd('_', '-');
+            }
+
+            fileName = baseWithoutExtension + ".rep";
         }
 
         return fileName;
@@ -129,6 +139,7 @@ public sealed class ReplaySaveService(
 
     /// <summary>
     /// Copies a file to a unique destination path with retry logic to handle TOCTOU races.
+    /// Uses atomic FileMode.CreateNew to avoid race conditions.
     /// </summary>
     private static string CopyWithRetry(string sourceFilePath, string destinationPath)
     {
@@ -137,24 +148,29 @@ public sealed class ReplaySaveService(
             var candidatePath = GetUniqueFilePath(destinationPath);
             try
             {
-                File.Copy(sourceFilePath, candidatePath, overwrite: false);
+                // Use FileMode.CreateNew for atomic file creation (fails if file exists)
+                using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var destStream = new FileStream(candidatePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                sourceStream.CopyTo(destStream);
                 return candidatePath;
             }
             catch (IOException)
             {
                 if (attempt >= ReplayManagerConstants.SaveRetryMaxAttempts - 1)
                 {
-                    // Final attempt: use overwrite as a last resort to avoid losing the replay
+                    // Final attempt: try one more time with a fresh unique path
                     var finalPath = GetUniqueFilePath(destinationPath);
                     try
                     {
-                        File.Copy(sourceFilePath, finalPath, overwrite: true);
+                        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        using var destStream = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                        sourceStream.CopyTo(destStream);
                         return finalPath;
                     }
                     catch (Exception ex)
                     {
                         throw new IOException(
-                            $"Failed to copy replay file after {ReplayManagerConstants.SaveRetryMaxAttempts} attempts, including overwrite attempt",
+                            $"Failed to copy replay file after {ReplayManagerConstants.SaveRetryMaxAttempts} attempts",
                             ex);
                     }
                 }

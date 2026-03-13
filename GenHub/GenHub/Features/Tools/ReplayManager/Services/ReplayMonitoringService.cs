@@ -181,8 +181,10 @@ public sealed class ReplayMonitoringService(
         if (_activeSessions.TryRemove(new KeyValuePair<string, MonitoringSession>(profileId, existingSession)))
         {
             existingSession.Monitor.Dispose();
-            logger.LogInformation("Stopped replay monitoring for profile: {ProfileId} session: {SessionId}",
-                profileId, existingSession.SessionId);
+            logger.LogInformation(
+                "Stopped replay monitoring for profile: {ProfileId} session: {SessionId}",
+                profileId,
+                existingSession.SessionId);
         }
         else
         {

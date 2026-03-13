@@ -16,7 +16,6 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// <param name="logger">The logger instance.</param>
 public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
 {
-
     // Faction mappings for C&C Generals/Zero Hour
     private static readonly Dictionary<string, string> FactionMap = new()
     {
@@ -47,9 +46,6 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     };
 
 
-
-
-
     /// <summary>
     /// Parses a replay file and extracts metadata.
     /// </summary>
@@ -58,7 +54,6 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     /// <returns>The extracted metadata.</returns>
     public Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
     {
-
         // Offload synchronous I/O to thread pool to avoid blocking
         return Task.Run(() => ParseReplayCore(filePath, gameType));
     }
@@ -80,7 +75,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 return CreateEmptyMetadata(filePath, fileInfo.Length, gameType);
             }
 
-            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new BinaryReader(stream);
 
             var magic = reader.ReadBytes(6);
@@ -114,7 +109,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             // Read match data — null-terminated ASCII metadata string (key=value pairs separated by ;)
             var matchData = ReadNullTerminatedString(reader, Encoding.ASCII);
 
-            logger.LogInformation("Raw match data: {MatchData}", matchData);
+            logger.LogDebug("Raw match data: {MatchData}", matchData);
 
             var parsedData = ParseMatchData(matchData);
 
@@ -155,7 +150,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                 GameMode = parsedData.GameMode,
                 StartingCredits = parsedData.StartingCredits,
                 FogOfWar = parsedData.FogOfWar,
-                GameSpeed = parsedData.GameSpeed
+                GameSpeed = parsedData.GameSpeed,
             };
         }
         catch (Exception ex)
@@ -173,7 +168,6 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             }
             catch
             {
-
                 // Path may be invalid; use 0 as fallback
             }
 
@@ -181,7 +175,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         }
     }
 
-    private static ReplayMetadata CreateEmptyMetadata(string filePath, long fileSize, GameType gameType)
+    private ReplayMetadata ParseReplayCore(string filePath, GameType gameType)
     {
         DateTime gameDate;
         try
@@ -277,7 +271,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                         "0" => "Slow",
                         "1" => "Normal",
                         "2" => "Fast",
-                        _ => value
+                        _ => value,
                     };
                     break;
 
@@ -286,7 +280,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     {
                         "0" => "Skirmish",
                         "1" => "Online",
-                        _ => value
+                        _ => value,
                     };
                     break;
 
@@ -299,9 +293,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     // S field format: slot records separated by colons
                     // Each slot: playerSpec,faction,team,color,...
                     // playerSpec: H<name> for human, C[E|M|H|B] for AI, X for empty
-                    logger.LogDebug("Parsing S field: {SField}", value);
                     result.Players = ParsePlayerSlots(value);
-                    logger.LogDebug("Parsed {Count} players", result.Players?.Count ?? 0);
                     break;
             }
         }
@@ -342,7 +334,6 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
 
             if (playerSpec.StartsWith('H') && playerSpec.Length > 1)
             {
-
                 // Human player: name follows 'H' prefix
                 var playerName = playerSpec[1..];
                 playerInfo = new PlayerInfo
@@ -352,12 +343,11 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     Faction = faction != null && FactionMap.TryGetValue(faction, out var factionName) ? factionName : faction,
                     Team = team,
                     Color = colorCode != null && ColorMap.TryGetValue(colorCode, out var color) ? color : colorCode,
-                    StartPosition = slotIndex + 1
+                    StartPosition = slotIndex + 1,
                 };
             }
             else if (playerSpec.StartsWith('C') && playerSpec.Length > 1)
             {
-
                 // Computer player: CE=Easy, CM=Medium, CH=Hard, CB=Brutal
                 var difficulty = playerSpec[1] switch
                 {
@@ -365,7 +355,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     'M' => "Medium",
                     'H' => "Hard",
                     'B' => "Brutal",
-                    _ => "Unknown"
+                    _ => "Unknown",
                 };
 
                 playerInfo = new PlayerInfo
@@ -376,19 +366,18 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     Faction = faction != null && FactionMap.TryGetValue(faction, out var factionName) ? factionName : faction,
                     Team = team,
                     Color = colorCode != null && ColorMap.TryGetValue(colorCode, out var color) ? color : colorCode,
-                    StartPosition = slotIndex + 1
+                    StartPosition = slotIndex + 1,
                 };
             }
             else if (playerSpec.StartsWith('O'))
             {
-
                 // Observer
                 var observerName = playerSpec.Length > 1 ? playerSpec[1..] : "Observer";
                 playerInfo = new PlayerInfo
                 {
                     Name = observerName,
                     Type = PlayerType.Observer,
-                    StartPosition = slotIndex + 1
+                    StartPosition = slotIndex + 1,
                 };
             }
 
