@@ -16,6 +16,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// <param name="logger">The logger instance.</param>
 public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
 {
+
     // Faction mappings for C&C Generals/Zero Hour
     private static readonly Dictionary<string, string> FactionMap = new()
     {
@@ -57,6 +58,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     /// <returns>The extracted metadata.</returns>
     public Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
     {
+
         // Offload synchronous I/O to thread pool to avoid blocking
         return Task.Run(() => ParseReplayCore(filePath, gameType));
     }
@@ -162,6 +164,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             }
             catch
             {
+
                 // Path may be invalid; use 0 as fallback
             }
 
@@ -194,6 +197,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
     private static string ReadNullTerminatedString(BinaryReader reader, Encoding encoding)
     {
         var bytes = new List<byte>(ReplayManagerConstants.MaxStringReadBytes);
+
         // Use CodePage comparison for robust encoding detection
         var charSize = encoding.CodePage == Encoding.Unicode.CodePage ? 2 : 1;
 
@@ -282,6 +286,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
                     break;
 
                 case "S":
+
                     // S field format: slot records separated by colons
                     // Each slot: playerSpec,faction,team,color,...
                     // playerSpec: H<name> for human, C[E|M|H|B] for AI, X for empty
@@ -316,6 +321,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             }
 
             var playerSpec = fields[0].Trim();
+
             // Handle empty fields explicitly to preserve positional semantics
             string? faction = fields.Length > 1 && !string.IsNullOrWhiteSpace(fields[1]) ? fields[1].Trim() : null;
             int? team = fields.Length > 2 && int.TryParse(fields[2].Trim(), out var t) ? t : null;
@@ -325,6 +331,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
 
             if (playerSpec.StartsWith('H') && playerSpec.Length > 1)
             {
+
                 // Human player: name follows 'H' prefix
                 var playerName = playerSpec[1..];
                 playerInfo = new PlayerInfo
@@ -339,6 +346,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             }
             else if (playerSpec.StartsWith('C') && playerSpec.Length > 1)
             {
+
                 // Computer player: CE=Easy, CM=Medium, CH=Hard, CB=Brutal
                 var difficulty = playerSpec[1] switch
                 {
@@ -362,6 +370,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             }
             else if (playerSpec.StartsWith('O'))
             {
+
                 // Observer
                 var observerName = playerSpec.Length > 1 ? playerSpec[1..] : "Observer";
                 playerInfo = new PlayerInfo

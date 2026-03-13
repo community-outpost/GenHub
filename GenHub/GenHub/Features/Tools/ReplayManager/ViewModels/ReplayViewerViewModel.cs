@@ -131,7 +131,7 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
         : new SolidColorBrush(Color.Parse("#F44336"));
 
     /// <summary>
-    /// Gets whether game settings information is available.
+    /// Gets a value indicating whether game settings information is available.
     /// </summary>
     public bool HasGameSettings => Metadata.GameMode != null || Metadata.StartingCredits != null ||
                                     Metadata.FogOfWar != null || Metadata.GameSpeed != null;
@@ -148,7 +148,7 @@ public sealed partial class ReplayViewerViewModel : ObservableObject
     {
         true => "Enabled",
         false => "Disabled",
-        null => "Unknown"
+        null => "Unknown",
     };
 
     /// <summary>

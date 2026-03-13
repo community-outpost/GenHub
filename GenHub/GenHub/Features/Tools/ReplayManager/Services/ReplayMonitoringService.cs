@@ -171,7 +171,8 @@ public sealed class ReplayMonitoringService(
         {
             logger.LogInformation(
                 "Skipping stop for profile {ProfileId}: session {ExpectedSession} not found or replaced",
-                profileId, expectedSessionId);
+                profileId,
+                expectedSessionId);
             return;
         }
 
