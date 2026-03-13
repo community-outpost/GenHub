@@ -845,7 +845,7 @@ public partial class ReplayManagerViewModel(
             StatusMessage = "Parsing replay...";
 
             // Use the replay's own game type context, not the UI tab state
-            var metadata = await parserService.ParseReplayAsync(replay.FullPath, SelectedTab);
+            var metadata = await parserService.ParseReplayAsync(replay.FullPath, replay.GameVersion);
 
             if (metadata == null || !metadata.IsParsed)
             {
