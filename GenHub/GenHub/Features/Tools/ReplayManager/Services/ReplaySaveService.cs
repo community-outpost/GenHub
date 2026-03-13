@@ -80,13 +80,17 @@ public sealed class ReplaySaveService(
         {
             if (!string.IsNullOrWhiteSpace(metadata.MapName))
             {
-                components.Add(SanitizeFileName(metadata.MapName));
+                var sanitizedMapName = SanitizeFileName(metadata.MapName);
+                if (!string.IsNullOrEmpty(sanitizedMapName))
+                {
+                    components.Add(sanitizedMapName);
+                }
             }
 
             if (metadata.Players != null && metadata.Players.Count > 0)
             {
                 var sanitizedNames = metadata.Players
-                    .Take(4)
+                    .Take(ReplayManagerConstants.MaxPlayersInSavedFileName)
                     .Select(p => SanitizeFileName(p.Name))
                     .Where(name => !string.IsNullOrEmpty(name))
                     .ToList();
@@ -100,9 +104,9 @@ public sealed class ReplaySaveService(
 
         var fileName = string.Join("_", components) + ".rep";
 
-        if (fileName.Length > 255)
+        if (fileName.Length > ReplayManagerConstants.MaxFileNameLength)
         {
-            fileName = fileName[..251].TrimEnd('_', '-') + ".rep";
+            fileName = fileName[..ReplayManagerConstants.MaxFileNameLengthBeforeExtension].TrimEnd('_', '-') + ".rep";
         }
 
         return fileName;

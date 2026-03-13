@@ -87,4 +87,19 @@ public static class ReplayManagerConstants
     /// Maximum number of uniqueness suffix attempts when finding a non-colliding file path.
     /// </summary>
     public const int MaxUniquePathAttempts = 1000;
+
+    /// <summary>
+    /// Maximum number of players included in auto-save filename components.
+    /// </summary>
+    public const int MaxPlayersInSavedFileName = 4;
+
+    /// <summary>
+    /// Maximum filename length in bytes (Windows/most POSIX filesystems).
+    /// </summary>
+    public const int MaxFileNameLength = 255;
+
+    /// <summary>
+    /// Maximum filename length before appending file extension (.rep = 4 chars).
+    /// </summary>
+    public const int MaxFileNameLengthBeforeExtension = MaxFileNameLength - 4;
 }

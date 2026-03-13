@@ -30,7 +30,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         { "ChinaTankGeneral", "China Tank" },
         { "GLADemolitionGeneral", "GLA Demolition" },
         { "GLAStealthGeneral", "GLA Stealth" },
-        { "GLAToxinGeneral", "GLA Toxin" }
+        { "GLAToxinGeneral", "GLA Toxin" },
     };
 
     private static readonly Dictionary<string, string> ColorMap = new()
@@ -42,8 +42,12 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         { "4", "Red" },
         { "5", "Yellow" },
         { "6", "Purple" },
-        { "7", "Teal" }
+        { "7", "Teal" },
     };
+
+
+
+
 
     /// <summary>
     /// Parses a replay file and extracts metadata.
