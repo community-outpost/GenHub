@@ -65,7 +65,16 @@ public sealed class ReplayMonitoringService(
             return Task.CompletedTask;
         }
 
-        monitor.StartMonitoring(replayFilePath);
+        try
+        {
+            monitor.StartMonitoring(replayFilePath);
+        }
+        catch
+        {
+            _activeSessions.TryRemove(new KeyValuePair<string, MonitoringSession>(profileId, session));
+            monitor.Dispose();
+            throw;
+        }
 
         logger.LogInformation(
             "Started replay monitoring for profile {ProfileId} ({GameType}) session {SessionId}: {FilePath}",

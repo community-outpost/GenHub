@@ -143,39 +143,28 @@ public sealed class ReplaySaveService(
     /// </summary>
     private static string CopyWithRetry(string sourceFilePath, string destinationPath)
     {
+        // Open source file once outside retry loop - if it fails, propagate immediately
+        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
         for (var attempt = 0; attempt < ReplayManagerConstants.SaveRetryMaxAttempts; attempt++)
         {
             var candidatePath = GetUniqueFilePath(destinationPath);
             try
             {
                 // Use FileMode.CreateNew for atomic file creation (fails if file exists)
-                using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var destStream = new FileStream(candidatePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                sourceStream.Position = 0; // Reset stream position for retry attempts
                 sourceStream.CopyTo(destStream);
                 return candidatePath;
             }
-            catch (IOException)
+            catch (IOException) when (attempt < ReplayManagerConstants.SaveRetryMaxAttempts - 1)
             {
-                if (attempt >= ReplayManagerConstants.SaveRetryMaxAttempts - 1)
-                {
-                    // Final attempt: try one more time with a fresh unique path
-                    var finalPath = GetUniqueFilePath(destinationPath);
-                    try
-                    {
-                        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var destStream = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                        sourceStream.CopyTo(destStream);
-                        return finalPath;
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new IOException(
-                            $"Failed to copy replay file after {ReplayManagerConstants.SaveRetryMaxAttempts} attempts",
-                            ex);
-                    }
-                }
-
-                // Otherwise retry with a new path
+                // Destination collision — retry with a new unique path
+            }
+            catch (IOException) when (attempt >= ReplayManagerConstants.SaveRetryMaxAttempts - 1)
+            {
+                throw new IOException(
+                    $"Failed to copy replay file after {ReplayManagerConstants.SaveRetryMaxAttempts} attempts - destination path collision");
             }
         }
 
