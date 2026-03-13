@@ -81,11 +81,22 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
 
             _watcher.Changed += OnFileChanged;
             _watcher.Error += OnWatcherError;
-            _watcher.EnableRaisingEvents = true;
 
-            IsMonitoring = true;
-
-            logger.LogInformation("Started monitoring replay file: {FilePath}", filePath);
+            try
+            {
+                _watcher.EnableRaisingEvents = true;
+                IsMonitoring = true;
+                logger.LogInformation("Started monitoring replay file: {FilePath}", filePath);
+            }
+            catch
+            {
+                // Clean up watcher if EnableRaisingEvents fails
+                _watcher.Changed -= OnFileChanged;
+                _watcher.Error -= OnWatcherError;
+                _watcher.Dispose();
+                _watcher = null;
+                throw;
+            }
 
             // Don't start stability checks on pre-existing files
             // Wait for FileSystemWatcher to detect actual changes from the game
@@ -99,6 +110,15 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
     {
         lock (_lock)
         {
+            // Always clean up the watcher regardless of IsMonitoring state
+            if (_watcher != null)
+            {
+                _watcher.Changed -= OnFileChanged;
+                _watcher.Error -= OnWatcherError;
+                _watcher.Dispose();
+                _watcher = null;
+            }
+
             if (!IsMonitoring)
             {
                 return;
@@ -108,14 +128,6 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
 
             _stabilityTimer?.Dispose();
             _stabilityTimer = null;
-
-            if (_watcher != null)
-            {
-                _watcher.Changed -= OnFileChanged;
-                _watcher.Error -= OnWatcherError;
-                _watcher.Dispose();
-                _watcher = null;
-            }
 
             logger.LogInformation("Stopped monitoring replay file: {FilePath}", FilePath);
 

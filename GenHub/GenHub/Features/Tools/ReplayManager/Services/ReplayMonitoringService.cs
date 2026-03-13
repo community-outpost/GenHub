@@ -148,7 +148,14 @@ public sealed class ReplayMonitoringService(
 
         foreach (var session in _activeSessions.Values.ToArray())
         {
-            session.Monitor.Dispose();
+            try
+            {
+                session.Monitor.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error disposing monitor for session: {SessionId}", session.SessionId);
+            }
         }
 
         _activeSessions.Clear();
