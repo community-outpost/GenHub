@@ -175,7 +175,7 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         }
     }
 
-    private ReplayMetadata ParseReplayCore(string filePath, GameType gameType)
+    private static ReplayMetadata CreateEmptyMetadata(string filePath, long fileSize, GameType gameType)
     {
         DateTime gameDate;
         try
