@@ -97,9 +97,4 @@ public static class ReplayManagerConstants
     /// Maximum filename length in bytes (Windows/most POSIX filesystems).
     /// </summary>
     public const int MaxFileNameLength = 255;
-
-    /// <summary>
-    /// Maximum filename length before appending file extension (.rep = 4 chars).
-    /// </summary>
-    public const int MaxFileNameLengthBeforeExtension = MaxFileNameLength - 4;
 }
