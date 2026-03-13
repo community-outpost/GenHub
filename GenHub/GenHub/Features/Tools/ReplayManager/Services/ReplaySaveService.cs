@@ -149,7 +149,7 @@ public sealed class ReplaySaveService(
             try
             {
                 // Use FileMode.CreateNew for atomic file creation (fails if file exists)
-                using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var destStream = new FileStream(candidatePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 sourceStream.CopyTo(destStream);
                 return candidatePath;
@@ -162,7 +162,7 @@ public sealed class ReplaySaveService(
                     var finalPath = GetUniqueFilePath(destinationPath);
                     try
                     {
-                        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         using var destStream = new FileStream(finalPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                         sourceStream.CopyTo(destStream);
                         return finalPath;
