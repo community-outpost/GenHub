@@ -208,6 +208,8 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
             catch (Exception restartEx)
             {
                 logger.LogError(restartEx, "Failed to restart FileSystemWatcher for: {FilePath}", FilePath);
+                // Transition to a consistent stopped state so the grace-period cleanup or a caller retry can take over
+                StopMonitoring();
             }
         }
     }
