@@ -196,7 +196,7 @@
                         </StackPanel>
                         <StackPanel Spacing="8">
                             <TextBlock Classes="form-label" Text="Command Line Arguments" />
-                            <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" Watermark="-win -quicklaunch -mod GenEvo" />
+                            <TextBox Text="{Binding CommandLineArguments, Mode=TwoWay}" Watermark="-win -quickstart -mod GenEvo" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
