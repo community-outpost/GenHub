@@ -155,9 +155,15 @@ public class SteamInstallation(ILogger<SteamInstallation>? logger = null) : IGam
                         Path.Combine(lib, GameClientConstants.ZeroHourDirectoryNameAbbreviated), // Abbreviated form
                     };
 
+                    logger?.LogDebug("Checking {Count} possible Zero Hour directory paths", possibleZeroHourPaths.Length);
+
                     foreach (var zhPath in possibleZeroHourPaths)
                     {
-                        if (Directory.Exists(zhPath))
+                        logger?.LogDebug("Checking Zero Hour path: {ZeroHourPath}", zhPath);
+                        var exists = Directory.Exists(zhPath);
+                        logger?.LogDebug("Directory.Exists() returned: {Exists}", exists);
+
+                        if (exists)
                         {
                             // Check for various possible Zero Hour executable names using constants
                             // Case-insensitive file matching provided by FileExistsCaseInsensitive extension method

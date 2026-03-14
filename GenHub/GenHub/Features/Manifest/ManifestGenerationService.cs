@@ -456,7 +456,7 @@ public class ManifestGenerationService(
                 PublisherType = PublisherTypeConstants.GeneralsOnline,
             };
 
-            // Create unique manifest name based on executable to distinguish variants (30Hz, 60Hz, standard)
+            // Create unique manifest name based on executable to distinguish variants (60Hz, standard)
             var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
             var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableFileName.Replace("-", string.Empty).Replace(".", string.Empty)}";
             var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)

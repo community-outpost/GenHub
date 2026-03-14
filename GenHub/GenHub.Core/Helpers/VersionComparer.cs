@@ -84,9 +84,9 @@ public static class VersionComparer
     /// <returns>Comparison result.</returns>
     private static int CompareNumericVersions(string ver1, string ver2)
     {
-        // Trim leading 'v' or 'V' for numeric analysis
-        var v1Clean = ver1.TrimStart('v', 'V');
-        var v2Clean = ver2.TrimStart('v', 'V');
+        // Normalize version strings by removing common prefixes
+        var v1Clean = NormalizeVersionString(ver1);
+        var v2Clean = NormalizeVersionString(ver2);
 
         // Try to parse as long integers for direct comparison (e.g. "20250101")
         bool isNum1 = long.TryParse(v1Clean, out var n1);
@@ -160,6 +160,43 @@ public static class VersionComparer
 
         // Fall back to string comparison
         return string.Compare(ver1, ver2, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Normalizes a version string by removing common prefixes and formatting.
+    /// </summary>
+    /// <param name="version">The version string to normalize.</param>
+    /// <returns>The normalized version string.</returns>
+    private static string NormalizeVersionString(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return string.Empty;
+
+        // Remove common prefixes that publishers use
+        var normalized = version;
+
+        // Remove weekly- prefix (SuperHackers)
+        if (normalized.StartsWith("weekly-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(8); // Remove "weekly-"
+
+        // Remove release- prefix
+        if (normalized.StartsWith("release-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(9); // Remove "release-"
+
+        // Remove version- prefix
+        if (normalized.StartsWith("version-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(9); // Remove "version-"
+
+        // Remove 'v' or 'V' prefix
+        normalized = normalized.TrimStart('v', 'V');
+
+        // Convert date format YYYY-MM-DD to YYYYMMDD
+        if (normalized.Length == 10 && normalized[4] == '-' && normalized[7] == '-')
+        {
+            normalized = normalized.Replace("-", string.Empty);
+        }
+
+        return normalized;
     }
 
     /// <summary>

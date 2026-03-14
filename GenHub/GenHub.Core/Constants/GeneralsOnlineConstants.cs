@@ -81,9 +81,6 @@ public static class GeneralsOnlineConstants
     /// <summary>Content type for GeneralsOnline game clients.</summary>
     public const string ContentType = "gameclient";
 
-    /// <summary>Manifest name suffix for 30Hz variant.</summary>
-    public const string Variant30HzSuffix = "30hz";
-
     /// <summary>Manifest name suffix for 60Hz variant.</summary>
     public const string Variant60HzSuffix = "60hz";
 

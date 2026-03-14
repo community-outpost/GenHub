@@ -410,14 +410,6 @@
                          Classes="setting-description" />
             </StackPanel>
 
-            <!-- Detailed Logging -->
-            <StackPanel Spacing="8">
-              <CheckBox Content="Enable detailed logging"
-                        IsChecked="{Binding EnableDetailedLogging}" />
-              <TextBlock Text="Enable verbose logging for troubleshooting. May impact performance."
-                         Classes="setting-description" Margin="24,0,0,0" />
-            </StackPanel>
-
             <!-- Auto Update Check -->
             <StackPanel Spacing="8">
               <CheckBox Content="Check for updates on startup"
@@ -503,7 +495,15 @@
         </Expander.Header>
         <Border Classes="settings-card">
           <StackPanel Spacing="20">
-            <TextBlock Text="Application Logs" Classes="setting-label" />
+            <!-- Enable Detailed Logging -->
+            <StackPanel Spacing="8">
+              <CheckBox Content="Enable detailed logging"
+                        IsChecked="{Binding EnableDetailedLogging}" />
+              <TextBlock Text="Enable verbose DEBUG logging for troubleshooting. Takes effect immediately."
+                         Classes="setting-description" Margin="24,0,0,0" />
+            </StackPanel>
+
+            <TextBlock Text="Application Logs" Classes="setting-label" Margin="0,10,0,0" />
 
             <TextBlock Text="Access diagnostic logs to help troubleshoot issues or report bugs."
                        Classes="setting-description" />

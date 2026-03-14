@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -830,7 +830,7 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Checks if a profile already exists for a game client.
     /// Handles special matching for publisher clients (e.g., GeneralsOnline)
-    /// when the profile name differs slightly from the detected client name (e.g., "GeneralsOnline" vs "GeneralsOnline 30Hz").
+    /// when the profile name differs slightly from the detected client name (e.g., "GeneralsOnline" vs "GeneralsOnline 60Hz").
     /// </summary>
     private async Task<bool> ProfileExistsAsync(GameInstallation installation, GameClient gameClient)
     {

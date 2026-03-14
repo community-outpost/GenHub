@@ -46,6 +46,26 @@ public static class FileTypes
     public const string ZipFileExtension = ".zip";
 
     /// <summary>
+    /// File extension for 7-Zip archive files.
+    /// </summary>
+    public const string SevenZipFileExtension = ".7z";
+
+    /// <summary>
+    /// File extension for TAR archive files.
+    /// </summary>
+    public const string TarFileExtension = ".tar";
+
+    /// <summary>
+    /// File extension for GZIP compressed files.
+    /// </summary>
+    public const string GzipFileExtension = ".gz";
+
+    /// <summary>
+    /// File extension for RAR archive files.
+    /// </summary>
+    public const string RarFileExtension = ".rar";
+
+    /// <summary>
     /// File extension pattern for replay files.
     /// </summary>
     public const string ReplayFilePattern = "*.rep";

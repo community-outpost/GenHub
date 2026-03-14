@@ -63,17 +63,11 @@ public static class GameClientConstants
 
     // ===== GeneralsOnline Client Detection =====
 
-    /// <summary>GeneralsOnline 30Hz client executable name.</summary>
-    public const string GeneralsOnline30HzExecutable = "generalsonlinezh_30.exe";
-
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>
     public const string GeneralsOnline60HzExecutable = "generalsonlinezh_60.exe";
 
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
-
-    /// <summary>Display name for GeneralsOnline 30Hz variant.</summary>
-    public const string GeneralsOnline30HzDisplayName = "GeneralsOnline 30Hz";
 
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
@@ -192,7 +186,6 @@ public static class GameClientConstants
     /// </summary>
     public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames =
     [
-        GeneralsOnline30HzExecutable,
         GeneralsOnline60HzExecutable,
     ];
 

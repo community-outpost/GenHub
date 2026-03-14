@@ -71,7 +71,7 @@ public static class ProcessConstants
     /// <summary>
     /// Maximum number of attempts to discover a Steam-launched process.
     /// </summary>
-    public const int SteamProcessDiscoveryMaxAttempts = 90;
+    public const int SteamProcessDiscoveryMaxAttempts = 240;
 
     /// <summary>
     /// Delay in milliseconds between Steam process discovery attempts.

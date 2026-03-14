@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -58,10 +59,13 @@ public class GitHubManifestFactory(
 
         logger.LogInformation("Found {FileCount} files in {Directory}", allFiles.Length, extractedDirectory);
 
-        foreach (var filePath in allFiles)
+        // Parallelize hashing for better performance
+        var fileProcessingTasks = allFiles.Select(async filePath =>
         {
             if (cancellationToken.IsCancellationRequested)
-                break;
+            {
+                return null;
+            }
 
             var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
             var fileInfo = new FileInfo(filePath);
@@ -74,7 +78,7 @@ public class GitHubManifestFactory(
                                 filePath.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
                                 filePath.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
 
-            files.Add(new ManifestFile
+            return new ManifestFile
             {
                 RelativePath = relativePath,
                 Size = fileInfo.Length,
@@ -83,8 +87,11 @@ public class GitHubManifestFactory(
                 IsExecutable = isExecutable,
                 SourceType = ContentSourceType.ContentAddressable,
                 SourcePath = filePath,
-            });
-        }
+            };
+        });
+
+        var processedFiles = await Task.WhenAll(fileProcessingTasks);
+        files.AddRange(processedFiles.Where(f => f != null)!);
 
         // Clone the original manifest but replace files
         var manifest = new ContentManifest

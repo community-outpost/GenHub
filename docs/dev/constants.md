@@ -488,9 +488,9 @@ See also: [Manifest ID System Documentation](manifest-id-system.md) for complete
 
 ---
 
-## ProviderEndpointConstants Class
+## PublisherEndpointConstants Class
 
-Constants for provider endpoint names and keys used in JSON serialization and lookup.
+Constants for publisher endpoint names and keys used in JSON serialization and lookup.
 
 | Constant           | Value                | Description                                      |
 | ------------------ | -------------------- | ------------------------------------------------ |
@@ -724,21 +724,21 @@ This ensures type-safe game name handling and prevents typos in display strings.
 
 Installation source type identifiers for game installations. These constants represent WHERE the game was installed from (Steam, EA App, Retail, etc.).
 
-**Content Provider Discovery**:
+**Content Publisher Discovery**:
 
-- Content providers register themselves with `ContentOrchestrator` via dependency injection
-- Each provider implements `IContentProvider` with a unique `SourceName` property
-- Providers can be: Official platforms (EA/Steam), Community sources (GitHub, ModDB, HTTP), Custom sources (any implementation)
-- To add a new publisher: Create an `IContentProvider` implementation and register it in DI (see `ContentPipelineModule.cs`)
+- Content publishers register themselves with `ContentOrchestrator` via dependency injection
+- Each publisher implements `IContentPublisher` with a unique `SourceName` property
+- Publishers can be: Official platforms (EA/Steam), Community sources (GitHub, ModDB, HTTP), Custom sources (any implementation)
+- To add a new publisher: Create an `IContentPublisher` implementation and register it in DI (see `ContentPipelineModule.cs`)
 
-**Examples of IContentProvider Implementations**:
+**Examples of IContentPublisher Implementations**:
 
-- `GitHubContentProvider` (SourceName: "GitHub")
-- `ModDBContentProvider` (SourceName: "ModDB")
-- `LocalFileSystemContentProvider` (SourceName: "Local Files")
-- `CNCLabsContentProvider` (SourceName: "C&C Labs")
+- `GitHubContentPublisher` (SourceName: "GitHub")
+- `ModDBContentPublisher` (SourceName: "ModDB")
+- `LocalFileSystemContentPublisher` (SourceName: "Local Files")
+- `CNCLabsContentPublisher` (SourceName: "C&C Labs")
 
-See [Content Pipeline Architecture](../architecture.md#content-pipeline) for details on dynamic provider registration.
+See [Content Pipeline Architecture](../architecture.md#content-pipeline) for details on dynamic publisher registration.
 
 ### Installation Source Constants
 
@@ -1059,7 +1059,7 @@ The `GeneralsOnline` publisher type is used for the GeneralsOnline community lau
 - `1.0.generalsonline.gameclient.generalsonline_30hz` (GeneralsOnline 30Hz client)
 - `1.0.generalsonline.gameclient.generalsonline_60hz` (GeneralsOnline 60Hz client)
 
-See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details.
+See also: [Manifest ID System Documentation](manifest-id-system.md) for complete ID format details
 ---
 
 ## Configuration and Usage Examples
@@ -1388,9 +1388,9 @@ Predefined resolution options available in the game settings.
 
 ---
 
-## Content Provider Constants
+## Content Publisher Constants
 
-Constants for various community content providers and manifest generation.
+Constants for various community content publishers and manifest generation.
 
 ### CommunityOutpostCatalogConstants Class
 
@@ -1442,6 +1442,7 @@ Constants for The Super Hackers content discovery and manifest creation.
 - `PublisherPrefix`: Publisher prefix string (`"thesuperhackers"`)
 - `PublisherDisplayName`: Display name for the publisher (`"The Super Hackers"`)
 - `VersionDelimiter`: Character used to separate components in version strings (`':'`)
+
 ## ToolConstants Class
 
 Constants for tool plugin metadata and configuration.
@@ -1504,9 +1505,10 @@ Constants specifically for the Map Manager feature.
 | `ToolId`                       | `"map-manager"`                            | Unique identifier for Map Manager                                                     |
 | `ToolName`                     | `"Map Manager"`                            | Display name for Map Manager                                                          |
 | `ToolDescription`              | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool |
-## Content Provider Constants
 
-Constants for various community content providers and manifest generation.
+## Content Publisher Constants
+
+Constants for various community content publishers and manifest generation.
 
 ### CommunityOutpostCatalogConstants Class
 

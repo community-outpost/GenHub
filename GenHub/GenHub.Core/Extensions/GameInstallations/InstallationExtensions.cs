@@ -70,10 +70,13 @@ public static class InstallationExtensions
             "Converting {InstallationType} installation to domain model",
             installation.InstallationType);
 
-        var installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+        // Use the original InstallationPath from the platform detector
+        // This preserves the library root path (e.g., Steam library folder)
+        // Only fall back to game-specific paths if InstallationPath is not set
+        var installationPath = installation.InstallationPath;
         if (string.IsNullOrEmpty(installationPath))
         {
-            installationPath = installation.InstallationPath;
+            installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
         }
 
         var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)

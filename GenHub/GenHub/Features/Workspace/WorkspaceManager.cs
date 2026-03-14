@@ -280,7 +280,7 @@ public class WorkspaceManager(
     /// <returns>An operation result containing all prepared workspaces.</returns>
     public async Task<OperationResult<IEnumerable<WorkspaceInfo>>> GetAllWorkspacesAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Retrieving all workspaces");
+        logger.LogTrace("Retrieving all workspaces");
 
         try
         {

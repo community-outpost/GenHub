@@ -137,7 +137,7 @@ public class GameProfileRepository(
                 }
             }
 
-            _logger.LogDebug("Successfully loaded {Count} profiles", profiles.Count);
+            _logger.LogTrace("Successfully loaded {Count} profiles", profiles.Count);
             return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles.AsReadOnly());
         }
         catch (Exception ex)

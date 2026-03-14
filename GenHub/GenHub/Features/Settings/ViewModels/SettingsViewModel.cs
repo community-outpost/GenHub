@@ -569,6 +569,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             await _userSettingsService.SaveAsync();
 
+            // Apply log level change immediately without restart
+            Infrastructure.DependencyInjection.LoggingModule.SetLogLevel(EnableDetailedLogging);
+
             _logger.LogInformation("Settings saved successfully");
 
             // Show success notification

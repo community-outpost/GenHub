@@ -155,7 +155,7 @@ public class GameClientProfileService(
         {
             // With the new detection pipeline, GameClients are already resolved to valid variants.
             // We no longer need to handle "placeholders" that expand into multiple profiles.
-            // Each content variant (e.g., 30Hz, 60Hz) is detected as a separate GameClient.
+            // Each content variant (e.g., 60Hz) is detected as a separate GameClient.
             var singleResult = await CreateProfileForGameClientAsync(
                 installation,
                 gameClient,

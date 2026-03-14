@@ -322,8 +322,7 @@ public class GeneralsOnlineProfileReconciler(
 
         var lastPart = parts[^1];
 
-        if (lastPart.Equals(GeneralsOnlineConstants.Variant30HzSuffix, StringComparison.OrdinalIgnoreCase) ||
-            lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
+        if (lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return lastPart.ToLowerInvariant();
@@ -335,10 +334,9 @@ public class GeneralsOnlineProfileReconciler(
             return GeneralsOnlineConstants.Variant60HzSuffix;
         }
 
-        if (lastPart.Equals("generalsonlinezh", StringComparison.OrdinalIgnoreCase) ||
-            lastPart.Equals("generalsonlinezh-30", StringComparison.OrdinalIgnoreCase))
+        if (lastPart.Equals("generalsonlinezh", StringComparison.OrdinalIgnoreCase))
         {
-            return GeneralsOnlineConstants.Variant30HzSuffix;
+            return GeneralsOnlineConstants.Variant60HzSuffix;
         }
 
         // Check for map pack variations
@@ -367,11 +365,6 @@ public class GeneralsOnlineProfileReconciler(
         {
             foreach (var tag in manifest.Metadata.Tags)
             {
-                if (tag.Equals(GeneralsOnlineVariantTags.Tag30Hz, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.Variant30HzSuffix;
-                }
-
                 if (tag.Equals(GeneralsOnlineVariantTags.Tag60Hz, StringComparison.OrdinalIgnoreCase))
                 {
                     return GeneralsOnlineConstants.Variant60HzSuffix;

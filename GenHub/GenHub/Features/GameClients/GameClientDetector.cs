@@ -661,7 +661,6 @@ public class GameClientDetector(
                 // Determine the variant name from the executable
                 var variantName = executableName switch
                 {
-                    GameClientConstants.GeneralsOnline30HzExecutable => GameClientConstants.GeneralsOnline30HzDisplayName,
                     GameClientConstants.GeneralsOnline60HzExecutable => GameClientConstants.GeneralsOnline60HzDisplayName,
                     _ => null, // Skip unknown variants
                 };
