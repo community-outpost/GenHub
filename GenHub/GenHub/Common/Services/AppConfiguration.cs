@@ -1,8 +1,9 @@
-using System;
-using System.IO;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using System;
+using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -225,5 +226,11 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         return !string.IsNullOrEmpty(configured)
             ? configured
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
+    }
+
+    /// <inheritdoc />
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        return _configuration?.GetSection("GenHub").Get<CsvCatalogConfiguration>() ?? new CsvCatalogConfiguration();
     }
 }
