@@ -1,0 +1,242 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Core.Models.GameProfile;assembly=GenHub.Core"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="280" d:DesignHeight="320"
+             x:Class="GenHub.Features.Downloads.Views.ContentCardView"
+             x:DataType="vm:ContentGridItemViewModel"
+             x:Name="Root">
+
+    <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:StringToImageConverter x:Key="StringToImageConverter" />
+        <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <converters:IntToBoolConverter x:Key="IntToBoolConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="Border.content-card">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Width" Value="260" />
+            <Setter Property="MinHeight" Value="280" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #30000000" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.content-card:pointerover">
+            <Setter Property="BorderBrush" Value="#666666" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <Style Selector="Button.card-button">
+            <Setter Property="Background" Value="#9C27B0" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.2" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.card-button:pointerover">
+            <Setter Property="Background" Value="#AB47BC" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+
+        <Style Selector="Button.card-button:pressed">
+            <Setter Property="Background" Value="#BA68C8" />
+        </Style>
+
+        <Style Selector="Button.card-button:disabled">
+            <Setter Property="Background" Value="#404040" />
+            <Setter Property="Foreground" Value="#888888" />
+        </Style>
+
+        <Style Selector="Border.type-badge">
+            <Setter Property="Background" Value="#404040" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+
+        <Style Selector="Button.update-button">
+            <Setter Property="Background" Value="#FF9800" />
+        </Style>
+
+        <Style Selector="Button.update-button:pointerover">
+            <Setter Property="Background" Value="#FFB74D" />
+        </Style>
+
+        <Style Selector="Button.add-profile-button">
+            <Setter Property="Background" Value="#4CAF50" />
+        </Style>
+
+        <Style Selector="Button.add-profile-button:pointerover">
+            <Setter Property="Background" Value="#66BB6A" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="content-card">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <!-- Thumbnail / Icon Area -->
+            <Border Grid.Row="0"
+                    Height="120"
+                    CornerRadius="12,12,0,0"
+                    Background="#333333"
+                    ClipToBounds="True">
+                <Panel>
+                    <!-- Thumbnail image -->
+                    <Image Source="{Binding IconBitmap}"
+                           Stretch="UniformToFill"
+                           IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+                    <!-- Placeholder when no icon -->
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                        <TextBlock Text="📦"
+                                   FontSize="32"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Content type badge overlay -->
+                    <Border Classes="type-badge"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="8">
+                        <TextBlock Text="{Binding ContentTypeDisplay}"
+                                   FontSize="10"
+                                   Foreground="#CCCCCC" />
+                    </Border>
+                </Panel>
+            </Border>
+
+            <!-- Content Info -->
+            <StackPanel Grid.Row="1" Spacing="6" Margin="16,12">
+                <!-- Title -->
+                <TextBlock Text="{Binding Name}"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="2"
+                           TextWrapping="Wrap" />
+
+                <!-- Author & Date -->
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="{Binding AuthorName}"
+                               FontSize="12"
+                               Foreground="#888888"
+                               IsVisible="{Binding HasAuthor}" />
+                    <TextBlock Text="•"
+                               FontSize="12"
+                               Foreground="#555555"
+                               IsVisible="{Binding HasAuthorAndDate}" />
+                    <TextBlock Text="{Binding LastUpdatedDisplay}"
+                               FontSize="12"
+                               Foreground="#888888"
+                               IsVisible="{Binding IsLastUpdatedVisible}" />
+                </StackPanel>
+
+                <!-- Description -->
+                <TextBlock Text="{Binding ShortDescription}"
+                           FontSize="12"
+                           Foreground="#AAAAAA"
+                           TextWrapping="Wrap"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="3"
+                           LineHeight="18" />
+
+                <!-- Version badge -->
+                <StackPanel Orientation="Horizontal" Spacing="8"
+                            IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <Border Background="#333333" CornerRadius="4" Padding="6,2">
+                        <!-- Removed StringFormat 'v{0}' -->
+                        <TextBlock Text="{Binding Version}"
+                                   FontSize="10"
+                                   Foreground="#CCCCCC" />
+                    </Border>
+
+                    <Border Background="#333333"
+                            CornerRadius="4"
+                            Padding="6,2"
+                            IsVisible="{Binding IsDownloadSizeVisible}">
+                        <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
+                                   FontSize="10"
+                                   Foreground="#CCCCCC" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Action Area -->
+            <StackPanel Grid.Row="2" Margin="16,0,16,16" Spacing="8">
+                <!-- Download Progress -->
+                <ProgressBar Value="{Binding DownloadProgress}"
+                             Maximum="100"
+                             Height="4"
+                             IsVisible="{Binding IsDownloading}"
+                             Foreground="#4CAF50"
+                             Background="#333333" />
+
+                <!-- Status Text -->
+                <TextBlock Text="{Binding DownloadStatus}"
+                           FontSize="11"
+                           Foreground="#AAAAAA"
+                           HorizontalAlignment="Center"
+                           IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                <!-- Download Button (visible when not downloaded) -->
+                <Button Classes="card-button"
+                        Content="Download"
+                        Command="{Binding DownloadContentCommand}"
+                        IsVisible="{Binding ShowDownloadButton}"
+                        IsEnabled="{Binding !IsDownloading}">
+                    <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
+                </Button>
+
+                <!-- Update Button (visible when update is available) -->
+                <Button Classes="card-button update-button"
+                        Content="Update Available"
+                        Command="{Binding UpdateContentCommand}"
+                        IsVisible="{Binding ShowUpdateButton}"
+                        IsEnabled="{Binding !IsDownloading}">
+                    <ToolTip.Tip>A newer version is available. Click to update.</ToolTip.Tip>
+                </Button>
+
+                <!-- Add to Profile Button (visible when downloaded) -->
+                <Button Classes="card-button add-profile-button"
+                        Content="Add to Profile"
+                        Command="{Binding AddToProfileCommand}"
+                        IsVisible="{Binding ShowAddToProfileButton}">
+                    <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

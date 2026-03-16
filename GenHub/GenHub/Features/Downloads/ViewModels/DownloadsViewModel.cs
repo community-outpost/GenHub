@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -29,8 +30,10 @@ public partial class DownloadsViewModel(
     ILogger<DownloadsViewModel> logger,
     INotificationService notificationService,
     GitHubTopicsDiscoverer gitHubTopicsDiscoverer,
-    IConfigurationProviderService configurationProvider) : ViewModelBase
+    IConfigurationProviderService configurationProvider) : ViewModelBase, IRecipient<GenHub.Core.Messages.OpenPublisherDetailsMessage>, IRecipient<GenHub.Core.Messages.ClosePublisherDetailsMessage>
 {
+    private bool _isPublisherContentPopulated;
+
     [ObservableProperty]
     private string _title = "Downloads";
 
@@ -96,6 +99,24 @@ public partial class DownloadsViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task OnTabActivatedAsync()
     {
+        // Ensure we are registered for messages
+        if (!WeakReferenceMessenger.Default.IsRegistered<Core.Messages.OpenPublisherDetailsMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<Core.Messages.OpenPublisherDetailsMessage>(this);
+        }
+
+        if (!WeakReferenceMessenger.Default.IsRegistered<Core.Messages.ClosePublisherDetailsMessage>(this))
+        {
+            WeakReferenceMessenger.Default.Register<Core.Messages.ClosePublisherDetailsMessage>(this);
+        }
+
+        // Lazy-load publisher card content if not already populated
+        if (!_isPublisherContentPopulated)
+        {
+            _isPublisherContentPopulated = true;
+            _ = PopulatePublisherCardsAsync();
+        }
+
         try
         {
             foreach (var card in PublisherCards)
@@ -131,6 +152,8 @@ public partial class DownloadsViewModel(
 
     private void InitializePublisherCards()
     {
+        var publishers = new System.Collections.Generic.List<PublisherCardViewModel>();
+
         // Create Generals Online publisher card (Feature 2)
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel generalsOnlineCard)
         {
@@ -139,7 +162,7 @@ public partial class DownloadsViewModel(
             generalsOnlineCard.LogoSource = GeneralsOnlineConstants.LogoSource;
             generalsOnlineCard.ReleaseNotes = GeneralsOnlineConstants.ShortDescription;
             generalsOnlineCard.IsLoading = true;
-            PublisherCards.Add(generalsOnlineCard);
+            publishers.Add(generalsOnlineCard);
         }
 
         // Create TheSuperHackers publisher card
@@ -150,7 +173,7 @@ public partial class DownloadsViewModel(
             superHackersCard.LogoSource = SuperHackersConstants.LogoSource;
             superHackersCard.ReleaseNotes = SuperHackersConstants.ProviderDescription;
             superHackersCard.IsLoading = true;
-            PublisherCards.Add(superHackersCard);
+            publishers.Add(superHackersCard);
         }
 
         // Create Community Outpost publisher card
@@ -161,7 +184,7 @@ public partial class DownloadsViewModel(
             communityOutpostCard.LogoSource = CommunityOutpostConstants.LogoSource;
             communityOutpostCard.ReleaseNotes = CommunityOutpostConstants.ProviderDescription;
             communityOutpostCard.IsLoading = true;
-            PublisherCards.Add(communityOutpostCard);
+            publishers.Add(communityOutpostCard);
         }
 
         // Create GitHub publisher card (topic-based discovery)
@@ -172,7 +195,7 @@ public partial class DownloadsViewModel(
             githubCard.LogoSource = GitHubTopicsConstants.LogoSource;
             githubCard.ReleaseNotes = GitHubTopicsConstants.ProviderDescription;
             githubCard.IsLoading = true;
-            PublisherCards.Add(githubCard);
+            publishers.Add(githubCard);
         }
 
         // Create CNC Labs publisher card
@@ -183,7 +206,7 @@ public partial class DownloadsViewModel(
             cncLabsCard.LogoSource = CNCLabsConstants.LogoSource;
             cncLabsCard.ReleaseNotes = CNCLabsConstants.ShortDescription;
             cncLabsCard.IsLoading = true;
-            PublisherCards.Add(cncLabsCard);
+            publishers.Add(cncLabsCard);
         }
 
         // Create ModDB publisher card
@@ -194,11 +217,10 @@ public partial class DownloadsViewModel(
             modDBCard.LogoSource = ModDBConstants.LogoSource;
             modDBCard.ReleaseNotes = ModDBConstants.ShortDescription;
             modDBCard.IsLoading = true;
-            PublisherCards.Add(modDBCard);
+            publishers.Add(modDBCard);
         }
 
-        // Populate cards with real content asynchronously
-        _ = PopulatePublisherCardsAsync();
+        PublisherCards = new ObservableCollection<PublisherCardViewModel>(publishers);
     }
 
     private async Task PopulatePublisherCardsAsync()
@@ -222,7 +244,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GeneralsOnlineDiscoverer)) is not GeneralsOnlineDiscoverer discoverer) return;
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Items.Any() == true)
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 var releases = result.Data.Items.ToList();
 
@@ -288,7 +310,7 @@ public partial class DownloadsViewModel(
             var searchQuery = new ContentSearchQuery();
 
             var result = await gitHubDiscoverer.DiscoverAsync(searchQuery);
-            if (result.Success && result.Data?.Items.Any() == true)
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 // Filter for SuperHackers content if the discoverer returns more (though config should limit it)
                 // And patch the ProviderName to ensure we use the SuperHackersProvider
@@ -354,12 +376,19 @@ public partial class DownloadsViewModel(
         try
         {
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == CommunityOutpostConstants.PublisherType);
-            if (card == null) return;
+            if (card == null)
+            {
+                return;
+            }
 
-            if (serviceProvider.GetService(typeof(Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) is not Content.Services.CommunityOutpost.CommunityOutpostDiscoverer discoverer) return;
+            if (serviceProvider.GetService(typeof(GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer)) is not GenHub.Features.Content.Services.CommunityOutpost.CommunityOutpostDiscoverer discoverer)
+            {
+                return;
+            }
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Items.Any() == true)
+
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 var releases = result.Data.Items.ToList();
 
@@ -414,7 +443,7 @@ public partial class DownloadsViewModel(
         try
         {
             var result = await gitHubTopicsDiscoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Items.Any() == true)
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 var repositories = result.Data.Items.ToList();
 
@@ -480,7 +509,7 @@ public partial class DownloadsViewModel(
             }
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Items.Any() == true)
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 var releases = result.Data.Items.ToList();
 
@@ -546,7 +575,7 @@ public partial class DownloadsViewModel(
             }
 
             var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-            if (result.Success && result.Data?.Items.Any() == true)
+            if (result.Success && result.Data?.Items?.Any() == true)
             {
                 var releases = result.Data.Items.ToList();
 
@@ -604,7 +633,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GeneralsOnlineDiscoverer)) is GeneralsOnlineDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Items.Any() == true)
+                if (result.Success && result.Data?.Items?.Any() == true)
                 {
                     var firstResult = result.Data.Items.First();
                     GeneralsOnlineVersion = $"v{firstResult.Version}";
@@ -626,7 +655,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(GitHubReleasesDiscoverer)) is GitHubReleasesDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Items.Any() == true)
+                if (result.Success && result.Data?.Items?.Any() == true)
                 {
                     // Filter for SuperHackers content if needed, similar to PopulateSuperHackersCardAsync
                     // For now, assuming the discoverer returns relevant releases based on config
@@ -653,7 +682,7 @@ public partial class DownloadsViewModel(
             if (serviceProvider.GetService(typeof(CommunityOutpostDiscoverer)) is CommunityOutpostDiscoverer discoverer)
             {
                 var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
-                if (result.Success && result.Data?.Items.Any() == true)
+                if (result.Success && result.Data?.Items?.Any() == true)
                 {
                     var firstResult = result.Data.Items.First();
                     CommunityPatchVersion = firstResult.Version;
@@ -787,5 +816,50 @@ public partial class DownloadsViewModel(
             logger.LogError(ex, "Failed to open download folder");
             notificationService.ShowError("Error", $"Failed to open download folder: {ex.Message}", 5000);
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the browser view model.
+    /// </summary>
+    [ObservableProperty]
+    private DownloadsBrowserViewModel? _browserViewModel;
+
+    [ObservableProperty]
+    private bool _isBrowserVisible;
+
+    /// <summary>
+    /// Receives message to open publisher details/browser.
+    /// </summary>
+    /// <param name="message">The message containing the publisher id to open.</param>
+    public void Receive(Core.Messages.OpenPublisherDetailsMessage message)
+    {
+        BrowserViewModel ??= serviceProvider.GetService(typeof(DownloadsBrowserViewModel)) as DownloadsBrowserViewModel;
+
+        if (BrowserViewModel != null)
+        {
+            var publisher = BrowserViewModel.Publishers.FirstOrDefault(p => p.PublisherId == message.Value);
+            if (publisher != null)
+            {
+                BrowserViewModel.SelectedPublisher = publisher;
+                IsBrowserVisible = true;
+                Title = "Browser"; // Temporarily change title or keep context?
+            }
+        }
+    }
+
+    /// <summary>
+    /// Receives message to close publisher details/browser.
+    /// </summary>
+    /// <param name="message">The message indicating the publisher details view should be closed.</param>
+    public void Receive(Core.Messages.ClosePublisherDetailsMessage message)
+    {
+        GoToDashboard();
+    }
+
+    [RelayCommand]
+    private void GoToDashboard()
+    {
+        IsBrowserVisible = false;
+        Title = "Downloads";
     }
 }

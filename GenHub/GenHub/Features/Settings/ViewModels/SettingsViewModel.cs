@@ -20,12 +20,14 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -59,6 +61,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
     private readonly IVelopackUpdateManager _updateManager;
+    private readonly IGitHubApiClient _githubClient;
+    private readonly IPublisherSubscriptionStore _subscriptionStore;
+    private readonly IPublisherCatalogRefreshService _catalogRefreshService;
     private readonly INotificationService _notificationService;
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
@@ -201,6 +206,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ObservableCollection<ArtifactUpdateInfo> _availableArtifacts = [];
 
+    [ObservableProperty]
+    private ObservableCollection<PublisherSubscription> _subscriptions = [];
+
+    [ObservableProperty]
+    private bool _isLoadingSubscriptions;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -211,6 +222,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="workspaceManager">The workspace manager.</param>
     /// <param name="manifestPool">The content manifest pool.</param>
     /// <param name="updateManager">The update manager service.</param>
+    /// <param name="subscriptionStore">The publisher subscription store.</param>
+    /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
+    /// <param name="githubClient">The GitHub API client.</param>
     /// <param name="notificationService">Notification service.</param>
     /// <param name="configurationProvider">Configuration provider.</param>
     /// <param name="installationService">Game installation service.</param>
@@ -225,6 +239,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IWorkspaceManager workspaceManager,
         IContentManifestPool manifestPool,
         IVelopackUpdateManager updateManager,
+        IPublisherSubscriptionStore subscriptionStore,
+        IPublisherCatalogRefreshService catalogRefreshService,
+        IGitHubApiClient githubClient,
         INotificationService notificationService,
         IConfigurationProviderService configurationProvider,
         IGameInstallationService installationService,
@@ -239,6 +256,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _workspaceManager = workspaceManager ?? throw new ArgumentNullException(nameof(workspaceManager));
         _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
         _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
+        _subscriptionStore = subscriptionStore ?? throw new ArgumentNullException(nameof(subscriptionStore));
+        _catalogRefreshService = catalogRefreshService ?? throw new ArgumentNullException(nameof(catalogRefreshService));
+        _githubClient = githubClient ?? throw new ArgumentNullException(nameof(githubClient));
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
@@ -1673,6 +1693,112 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy latest log file");
             _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadSubscriptionsAsync()
+    {
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _subscriptionStore.GetSubscriptionsAsync();
+            if (result.Success && result.Data != null)
+            {
+                Subscriptions.Clear();
+                foreach (var sub in result.Data.OrderBy(s => s.PublisherName))
+                {
+                    Subscriptions.Add(sub);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load subscriptions");
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RemoveSubscriptionAsync(GenHub.Core.Models.Providers.PublisherSubscription subscription)
+    {
+        if (subscription == null) return;
+
+        try
+        {
+            var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId);
+            if (result.Success)
+            {
+                Subscriptions.Remove(subscription);
+                _notificationService.ShowSuccess("Subscription Removed", $"Unsubscribed from {subscription.PublisherName}");
+            }
+            else
+            {
+                _notificationService.ShowError("Error", $"Failed to remove subscription: {result.FirstError}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove subscription");
+            _notificationService.ShowError("Error", "Failed to remove subscription");
+        }
+    }
+
+    [RelayCommand]
+    private async Task ToggleSubscriptionTrustAsync(PublisherSubscription subscription)
+    {
+        if (subscription == null) return;
+
+        try
+        {
+            var newTrust = subscription.TrustLevel == TrustLevel.Trusted
+                ? TrustLevel.Untrusted
+                : TrustLevel.Trusted;
+
+            var result = await _subscriptionStore.UpdateTrustLevelAsync(subscription.PublisherId, newTrust);
+            if (result.Success)
+            {
+                subscription.TrustLevel = newTrust;
+
+                // Force UI update if needed (PublisherSubscription should implement INotifyPropertyChanged)
+                // If it doesn't, we might need a wrapper VM or manual notification
+                OnPropertyChanged(nameof(Subscriptions));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update trust level");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshAllCatalogsAsync()
+    {
+        try
+        {
+            IsLoadingSubscriptions = true;
+            var result = await _catalogRefreshService.RefreshAllAsync();
+            if (result.Success)
+            {
+                await LoadSubscriptionsAsync();
+                _notificationService.ShowSuccess("Catalogs Refreshed", "Successfully updated all subscribed catalogs.");
+            }
+            else
+            {
+                _notificationService.ShowError("Refresh Failed", result.FirstError ?? "Unknown error");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh catalogs");
+            _notificationService.ShowError("Error", "An unexpected error occurred during refresh.");
+        }
+        finally
+        {
+            IsLoadingSubscriptions = false;
         }
     }
 }

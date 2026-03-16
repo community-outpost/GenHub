@@ -113,7 +113,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
+<<<<<<< HEAD
     /// Stops profile using the injected action.
+=======
+    /// Stops the profile using the injected action.
+>>>>>>> c75615b2 (feat: ui-downloads)
     /// </summary>
     [RelayCommand]
     private async Task StopProfile()
@@ -137,7 +141,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
+<<<<<<< HEAD
     /// Toggles edit mode for this specific profile.
+=======
+    /// Toggles the edit mode for this specific profile.
+>>>>>>> c75615b2 (feat: ui-downloads)
     /// </summary>
     [RelayCommand]
     private void ToggleEditMode()
@@ -397,6 +405,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     public IGameProfile Profile { get; }
 
     /// <summary>
+<<<<<<< HEAD
     /// Explicitly notifies that the CanLaunch and CanEdit properties may have changed.
     /// </summary>
     public void NotifyCanLaunchChanged()
@@ -406,6 +415,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
+=======
+>>>>>>> c75615b2 (feat: ui-downloads)
     /// Initializes a new instance of the <see cref="GameProfileItemViewModel"/> class.
     /// </summary>
     /// <param name="profileId">The profile ID.</param>
@@ -649,8 +660,39 @@ public partial class GameProfileItemViewModel : ViewModelBase
             }
 
             // Update description
+<<<<<<< HEAD
             // Update description layout
             UpdateDescription(gameProfile);
+=======
+            if (!string.IsNullOrEmpty(gameProfile.Description))
+            {
+                Description = gameProfile.Description;
+            }
+
+            // Update workspace info
+            ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
+            UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
+
+            // Update visuals
+            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
+            {
+                ColorValue = gameProfile.ThemeColor;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.IconPath))
+            {
+                IconPath = gameProfile.IconPath;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.CoverPath))
+            {
+                var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
+                CoverPath = normalizedCoverPath;
+                CoverImagePath = normalizedCoverPath;
+            }
+
+            CommandLineArguments = gameProfile.CommandLineArguments;
+>>>>>>> c75615b2 (feat: ui-downloads)
         }
 
         // Notify UI of all property changes
@@ -752,9 +794,13 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private static string NormalizeCoverPath(string coverPath)
     {
         if (string.IsNullOrEmpty(coverPath))
+<<<<<<< HEAD
         {
             return coverPath;
         }
+=======
+            return coverPath;
+>>>>>>> c75615b2 (feat: ui-downloads)
 
         // Map old paths to new paths for backward compatibility
         // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
@@ -778,6 +824,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
+<<<<<<< HEAD
     private void UpdateDescription(GameProfile gameProfile)
     {
         // Use actual profile description if available
@@ -841,6 +888,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
         Description = string.Join(" • ", parts);
     }
 
+=======
+>>>>>>> c75615b2 (feat: ui-downloads)
     /// <summary>
     /// Extracts version, publisher, and content type information from a manifest ID.
     /// Expected format: schemaVersion.userVersion.publisher.contentType.contentName.
@@ -871,7 +920,10 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 PublisherTypeConstants.GeneralsOnline => "Generals Online",
                 PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
                 CommunityOutpostConstants.PublisherType => "Community Outpost",
+<<<<<<< HEAD
                 "local" => "Local",
+=======
+>>>>>>> c75615b2 (feat: ui-downloads)
                 _ => segments[2].ToUpperInvariant(),
             };
 

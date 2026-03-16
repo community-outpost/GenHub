@@ -36,7 +36,10 @@ public class AODMapsContentProvider(
         ?? throw new InvalidOperationException("HTTP deliverer not found");
 
     /// <inheritdoc />
-    public override string SourceName => AODMapsConstants.PublisherType;
+    /// <remarks>
+    /// Must match the ProviderName set by AODMapsDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => AODMapsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides content from AODMaps";

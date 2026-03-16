@@ -1,0 +1,235 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Downloads.Views.DownloadsBrowserView"
+             x:DataType="vm:DownloadsBrowserViewModel"
+             Background="#1A1A1A">
+
+    <UserControl.Styles>
+        <!-- Header style -->
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="24" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Search box style -->
+        <Style Selector="TextBox.search-box">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Watermark" Value="Search..." />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Sidebar -->
+            <ColumnDefinition Width="Auto" />
+            <!-- Main content -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Publisher Sidebar -->
+        <Border Grid.Column="0"
+                Width="220"
+                Background="#222222"
+                BorderBrush="#333333"
+                BorderThickness="0,0,1,0"
+                Padding="12"
+                IsVisible="{Binding IsSidebarVisible}">
+            <views:PublisherSidebarView DataContext="{Binding}" />
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="1" Margin="20">
+            <!-- Browser View (Grid + Filters) -->
+            <Grid IsVisible="{Binding !IsDetailViewVisible}">
+                <Grid.RowDefinitions>
+                    <!-- Search Bar -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Filter Panel -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Content Grid -->
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" /> <!-- Back Button -->
+                        <ColumnDefinition Width="Auto" /> <!-- Sidebar Toggle -->
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Content="←"
+                            Command="{Binding GoBackCommand}"
+                            Background="Transparent"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            FontSize="18"
+                            Padding="12,8"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="Return to Dashboard" />
+
+                    <ToggleButton Grid.Column="1"
+                                  Content="☰"
+                                  IsChecked="{Binding IsSidebarVisible}"
+                                  Background="Transparent"
+                                  Foreground="White"
+                                  Padding="12,8"
+                                  Margin="0,0,8,0"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="Toggle Sidebar" />
+
+                    <TextBox Grid.Column="2"
+                             Classes="search-box"
+                             Text="{Binding SearchTerm}"
+                             Watermark="Search content..."
+                             VerticalAlignment="Center" />
+
+                    <Button Grid.Column="3"
+                            Content="Search"
+                            Command="{Binding SearchCommand}"
+                            Background="#404040"
+                            Foreground="White"
+                            CornerRadius="6"
+                            Padding="16,8"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center" />
+
+                    <!-- Older Versions Toggle (Removed) -->
+
+                    <ToggleButton Grid.Column="5"
+                                  Content="Filters"
+                                  IsChecked="{Binding IsFilterPanelVisible}"
+                                  IsVisible="{Binding CanShowFilters}"
+                                  Background="#2A2A2A"
+                                  Foreground="White"
+                                  BorderBrush="#404040"
+                                  BorderThickness="1"
+                                  CornerRadius="6"
+                                  Padding="16,8"
+                                  Margin="8,0,0,0"
+                                  VerticalAlignment="Center">
+                        <ToggleButton.Styles>
+                            <Style Selector="ToggleButton:checked">
+                                <Setter Property="Background" Value="#9C27B0" />
+                                <Setter Property="BorderBrush" Value="#9C27B0" />
+                            </Style>
+                        </ToggleButton.Styles>
+                    </ToggleButton>
+                </Grid>
+
+                <!-- Filter Panel (Collapsible) -->
+                <Border Grid.Row="1"
+                        Background="#252525"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,0,0,16"
+                        IsVisible="{Binding IsFilterPanelVisible}">
+                    <views:FilterPanelView DataContext="{Binding CurrentFilterViewModel}" />
+                </Border>
+
+                <!-- Content Grid with Load More -->
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding ContentItems}" HorizontalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <!-- Bind view content command from parent ViewModel -->
+                                    <Button Background="Transparent"
+                                            Padding="0"
+                                            BorderThickness="0"
+                                            Margin="8"
+                                            Command="{Binding $parent[UserControl].((vm:DownloadsBrowserViewModel)DataContext).ViewContentCommand}"
+                                            CommandParameter="{Binding}">
+                                        <views:ContentCardView DataContext="{Binding}" />
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Load More Button -->
+                        <Button Content="Load More"
+                                Command="{Binding LoadMoreCommand}"
+                                IsEnabled="{Binding !IsLoading}"
+                                HorizontalAlignment="Center"
+                                Margin="0,20,0,40"
+                                Padding="30,10"
+                                Background="#333333"
+                                Foreground="White"
+                                FontSize="16"
+                                CornerRadius="8"
+                                BorderBrush="#555555"
+                                BorderThickness="1">
+                            <Button.IsVisible>
+                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                    <Binding Path="CanLoadMore" />
+                                    <Binding Path="SelectedPublisher.PublisherId" Converter="{x:Static converters:ComparisonConverters.IsNotEqualTo}" ConverterParameter="thesuperhackers"/>
+                                </MultiBinding>
+                            </Button.IsVisible>
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#444444" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- Loading Indicator (Bottom) -->
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    Margin="0,10,0,40"
+                                    IsVisible="{Binding IsLoading}">
+                            <TextBlock Text="⟳"
+                                       FontSize="24"
+                                       Foreground="#9C27B0"
+                                       Margin="0,0,10,0">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock">
+                                        <Style.Animations>
+                                            <Animation Duration="0:0:1" IterationCount="Infinite">
+                                                <KeyFrame KeyTime="0:0:0">
+                                                    <Setter Property="RotateTransform.Angle" Value="0"/>
+                                                </KeyFrame>
+                                                <KeyFrame KeyTime="0:0:1">
+                                                    <Setter Property="RotateTransform.Angle" Value="360"/>
+                                                </KeyFrame>
+                                            </Animation>
+                                        </Style.Animations>
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
+                            <TextBlock Text="Loading details..."
+                                       FontSize="16"
+                                       Foreground="#AAAAAA"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Detail View Overlay -->
+            <Grid IsVisible="{Binding IsDetailViewVisible}" Background="#1A1A1A">
+                <views:ContentDetailView DataContext="{Binding SelectedContent}" />
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

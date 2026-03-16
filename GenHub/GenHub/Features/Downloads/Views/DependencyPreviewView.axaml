@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+        x:Class="GenHub.Features.Downloads.Views.DependencyPreviewView"
+        x:DataType="vm:DependencyPreviewViewModel"
+        Title="Dependency Preview"
+        Width="600" Height="500"
+        MinWidth="500" MinHeight="400"
+        Background="#1E1E1E"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+            <TextBlock Text="Review Dependencies" FontSize="24" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="{Binding ContentName, StringFormat='Adding: {0}'}" FontSize="14" Foreground="#AAAAAA"/>
+            <TextBlock Text="{Binding TotalDependencyCount, StringFormat='{}{0} dependencies will be enabled'}"
+                       FontSize="13" Foreground="#888888"/>
+        </StackPanel>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <!-- Resolved Dependencies Section -->
+                <StackPanel Spacing="12" IsVisible="{Binding !!ResolvedDependencies.Count}">
+                    <TextBlock Text="Dependencies to Add" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                    <TextBlock Text="The following content will be enabled in your profile:"
+                               FontSize="13" Foreground="#888888" Margin="0,0,0,8"/>
+
+                    <ItemsControl ItemsSource="{Binding ResolvedDependencies}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#252525" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <!-- Success Icon -->
+                                        <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                                                Background="#4CAF50" Margin="0,0,12,0">
+                                            <PathIcon Data="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"
+                                                      Width="16" Height="16" Foreground="White"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
+                                                       TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Missing Dependencies Section -->
+                <StackPanel Spacing="12" IsVisible="{Binding HasMissingDependencies}">
+                    <TextBlock Text="Missing Dependencies" FontSize="16" FontWeight="SemiBold" Foreground="#FF5252"/>
+                    <Border Background="#3D1F1F" BorderBrush="#FF5252" BorderThickness="1" CornerRadius="8" Padding="12">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="⚠ Warning: Some required dependencies are missing"
+                                       FontWeight="SemiBold" Foreground="#FF5252"/>
+                            <TextBlock Text="The following dependencies are required but not available in your library. The content may not work correctly without them."
+                                       FontSize="12" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding MissingDependencies}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#252525" BorderBrush="#FF5252" BorderThickness="1"
+                                        CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <!-- Error Icon -->
+                                        <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                                                Background="#FF5252" Margin="0,0,12,0">
+                                            <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                                      Width="16" Height="16" Foreground="White"/>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Accept Risk Checkbox -->
+                    <CheckBox IsChecked="{Binding UserAcceptedRisk}" Margin="0,8,0,0">
+                        <TextBlock Text="I understand the risks and want to proceed anyway"
+                                   Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                    </CheckBox>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,24,0,0">
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                <Button Content="Cancel"
+                        Command="{Binding CancelCommand}"
+                        Width="100" Height="36"
+                        Background="Transparent"
+                        BorderBrush="#555555"
+                        BorderThickness="1"
+                        Foreground="White"
+                        CornerRadius="4"/>
+
+                <Button Content="Proceed"
+                        Command="{Binding ProceedCommand}"
+                        Width="100" Height="36"
+                        Background="#9C27B0"
+                        Foreground="White"
+                        CornerRadius="4"
+                        IsEnabled="{Binding CanProceed}"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

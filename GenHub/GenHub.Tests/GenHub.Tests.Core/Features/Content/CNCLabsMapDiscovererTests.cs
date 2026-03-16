@@ -196,6 +196,49 @@ public class CNCLabsMapDiscovererTests
         Assert.Equal("3239", item.ResolverMetadata[CNCLabsConstants.MapIdMetadataKey]);
     }
 
+    /// <summary>
+    /// Verifies that <see cref="CNCLabsMapDiscoverer.DiscoverAsync(ContentSearchQuery, CancellationToken)"/>
+    /// correctly identifies more items when the "Next" link is present.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithNextLink_SetsHasMoreItemsTrue()
+    {
+        // Arrange
+        var query = new ContentSearchQuery
+        {
+            TargetGame = GameType.Generals,
+            ContentType = GenHub.Core.Models.Enums.ContentType.Map,
+            Page = 1,
+        };
+
+        var html = @"
+<html><body>
+  <div class=""DownloadItem"">
+    <input type=""hidden"" value=""123"">
+    <a class=""DisplayName"" href=""#"">Test Map</a>
+  </div>
+  <div style=""float: right;"">
+    <a id=""ctl00_Main_NextPageLink"" href=""/maps/generals/zerohour-maps.aspx?page=2"">Next » </a>
+  </div>
+</body></html>";
+
+        using var http = CreateHttpClient(_ =>
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(html),
+            });
+
+        var sut = CreateSut(http);
+
+        // Act
+        var result = await sut.DiscoverAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data!.HasMoreItems);
+    }
+
     // ---- helpers ----------------------------------------------------------
 
     /// <summary>

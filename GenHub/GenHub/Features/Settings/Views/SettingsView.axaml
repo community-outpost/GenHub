@@ -3,7 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
-             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
@@ -12,6 +12,7 @@
   <UserControl.Resources>
     <converters:NullableIntConverter x:Key="NullableIntConverter" />
     <converters:NullableDoubleConverter x:Key="NullableDoubleConverter" />
+    <converters:TrustLevelToColorConverter x:Key="TrustLevelToColorConverter" />
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -834,6 +835,80 @@
           </StackPanel>
         </StackPanel>
       </Border>
+      </Expander>
+      <!-- Subscriptions Settings -->
+      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+        <Expander.Header>
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+              <PathIcon Data="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"
+                        Width="16" Height="16" Foreground="#E0E0E0"/>
+              <TextBlock Text="Catalog Subscriptions" Classes="section-header" Margin="0" VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Content="Refresh All"
+                    Command="{Binding RefreshAllCatalogsCommand}"
+                    IsEnabled="{Binding !IsLoadingSubscriptions}"
+                    Classes="secondary-button"
+                    Padding="12,4"
+                    FontSize="12"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"/>
+          </Grid>
+        </Expander.Header>
+        <Border Classes="settings-card">
+          <StackPanel Spacing="20">
+            <TextBlock Text="Manage your subscribed content catalogs." Classes="setting-description" />
+
+            <ItemsControl ItemsSource="{Binding Subscriptions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="#1E1E1E" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="#333333" BorderThickness="1">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <!-- Publisher Icon/Avatar -->
+                      <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" ClipToBounds="True" Background="#333333" Margin="0,0,12,0">
+                         <Image Source="{Binding AvatarUrl, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" />
+                      </Border>
+
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding PublisherName}" FontWeight="SemiBold" Foreground="White" FontSize="14"/>
+                        <TextBlock Text="{Binding CatalogUrl}" Foreground="#888888" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <!-- Trust Toggle Button -->
+                        <Button Content="{Binding TrustLevel}"
+                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).ToggleSubscriptionTrustCommand}"
+                                CommandParameter="{Binding}"
+                                Classes="secondary-button"
+                                Padding="8,4"
+                                FontSize="12">
+                          <Button.Styles>
+                            <Style Selector="Button">
+                              <Setter Property="Foreground" Value="{Binding TrustLevel, Converter={x:Static converters:TrustLevelToColorConverter.Instance}}" />
+                            </Style>
+                          </Button.Styles>
+                        </Button>
+
+                        <!-- Remove Button -->
+                        <Button Content="Remove"
+                                Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveSubscriptionCommand}"
+                                CommandParameter="{Binding}"
+                                Classes="danger-button"
+                                Padding="8,4"
+                                FontSize="12"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="No active subscriptions found. You can subscribe to catalogs via 'genhub://subscribe' links."
+                       IsVisible="{Binding !Subscriptions.Count}"
+                       Foreground="#888888" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,10"/>
+          </StackPanel>
+        </Border>
       </Expander>
 
       <!-- Danger Zone -->

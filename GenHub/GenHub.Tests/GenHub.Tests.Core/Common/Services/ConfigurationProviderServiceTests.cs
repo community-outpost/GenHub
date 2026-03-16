@@ -706,7 +706,7 @@ public class ConfigurationProviderServiceTests
     {
         // Arrange
         var appDataPath = "/app/data/path";
-        var userSettings = new UserSettings { ContentDirectories = [] };
+        var userSettings = new UserSettings { ContentDirectories = new() };
         _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
         _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
 
@@ -749,7 +749,7 @@ public class ConfigurationProviderServiceTests
     public void GetGitHubDiscoveryRepositories_WithNullUserSetting_ReturnsDefaults()
     {
         // Arrange
-        var userSettings = new UserSettings { GitHubDiscoveryRepositories = [] };
+        var userSettings = new UserSettings { GitHubDiscoveryRepositories = new() };
         _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
 
         var provider = CreateProvider();

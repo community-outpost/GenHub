@@ -1,0 +1,157 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Content.ViewModels.Catalog"
+        mc:Ignorable="d" d:DesignWidth="450" d:DesignHeight="550"
+        x:Class="GenHub.Features.Downloads.Views.SubscriptionConfirmationDialog"
+        x:DataType="vm:SubscriptionConfirmationViewModel"
+        Title="Subscription Confirmation"
+        Width="450" Height="550"
+        WindowStartupLocation="CenterOwner"
+        Background="Transparent"
+        TransparencyLevelHint="AcrylicBlur"
+        ExtendClientAreaToDecorationsHint="True"
+        SystemDecorations="Full">
+
+    <Panel>
+        <!-- Background Overlay for Glassmorphism -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="Black"
+                    TintOpacity="0.8"
+                    MaterialOpacity="0.65" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <Border BorderBrush="#444444" BorderThickness="1" CornerRadius="12" Margin="10">
+            <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+                <!-- Header -->
+                <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,10,0,20">
+                    <TextBlock Text="Confirm Subscription"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               Foreground="White"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="Do you want to add this publisher to your library?"
+                               FontSize="14"
+                               Foreground="#AAAAAA"
+                               HorizontalAlignment="Center"
+                               Margin="0,5,0,0" />
+                </StackPanel>
+
+                <!-- Content -->
+                <Panel Grid.Row="1">
+                    <!-- Loading State -->
+                    <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True"
+                                     Foreground="#9C27B0"
+                                     Width="200"
+                                     Height="4"
+                                     HorizontalAlignment="Center" />
+                        <TextBlock Text="Fetching publisher details..."
+                                   Foreground="#AAAAAA"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,10,0,0" />
+                    </StackPanel>
+
+                    <!-- Error State -->
+                    <StackPanel IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                VerticalAlignment="Center"
+                                Margin="10">
+                        <TextBlock Text="⚠ Error"
+                                   Foreground="#FF5252"
+                                   FontWeight="Bold"
+                                   FontSize="18"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="#EEAAAA"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   Margin="0,10,0,0" />
+                    </StackPanel>
+
+                    <!-- Details State -->
+                    <ScrollViewer IsVisible="{Binding !IsLoading}">
+                        <StackPanel Spacing="15" Margin="10">
+                            <!-- Avatar/Logo -->
+                            <Border Width="120" Height="120"
+                                    CornerRadius="60"
+                                    BorderBrush="#9C27B0"
+                                    BorderThickness="2"
+                                    ClipToBounds="True"
+                                    HorizontalAlignment="Center"
+                                    Background="#333333">
+                                <Image Source="{Binding PublisherAvatarUrl, TargetNullValue={x:Null}}"
+                                       Stretch="UniformToFill" />
+                            </Border>
+
+                            <!-- Info -->
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="{Binding PublisherName}"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding PublisherWebsite}"
+                                           FontSize="13"
+                                           Foreground="#9C27B0"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+
+                            <Separator Background="#333333" Margin="0,10" />
+
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="Catalog URL"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="#888888" />
+                                <TextBlock Text="{Binding CatalogUrlDisplay}"
+                                           FontSize="12"
+                                           Foreground="#AAAAAA"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <Border Background="#332211" BorderBrush="#664422" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,10,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="⚠" Foreground="#FFB74D" FontSize="20" VerticalAlignment="Center" />
+                                    <TextBlock Text="Trust notice: Only subscribe to publishers you trust. Catalogs can contain external download links."
+                                               Foreground="#FFB74D"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               Width="280" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Panel>
+
+                <!-- Footer Buttons -->
+                <UniformGrid Grid.Row="2" Columns="2" Margin="0,20,0,0">
+                    <Button Content="Cancel"
+                            Command="{Binding CancelCommand}"
+                            Background="#404040"
+                            Foreground="White"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Margin="0,0,5,0"
+                            Padding="12"
+                            CornerRadius="8" />
+                    <Button Content="Subscribe"
+                            Command="{Binding ConfirmCommand}"
+                            IsEnabled="{Binding CanConfirm}"
+                            Background="#9C27B0"
+                            Foreground="White"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Margin="5,0,0,0"
+                            Padding="12"
+                            CornerRadius="8" />
+                </UniformGrid>
+            </Grid>
+        </Border>
+    </Panel>
+</Window>

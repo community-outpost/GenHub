@@ -122,7 +122,7 @@ public class GameProfileManager(
                 Name = request.Name,
                 Description = request.Description ?? string.Empty,
                 GameInstallationId = request.GameInstallationId ?? string.Empty,
-                GameClient = gameClient,
+                GameClient = gameClient ?? new(),
                 WorkspaceStrategy = request.WorkspaceStrategy,
                 EnabledContentIds = request.EnabledContentIds ?? [],
                 ToolContentId = toolContentId, // Set for Tool profiles

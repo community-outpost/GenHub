@@ -309,6 +309,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <returns>A task representing the asynchronous operation.</returns>
     protected internal async Task RefreshFiltersAndContentAsync()
     {
+=======
+
+    /// <summary>
+    /// Refreshes the visible filters and available content based on the current game type filter.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected internal async Task RefreshFiltersAndContentAsync()
+    {
+>>>>>>> c75615b2 (feat: ui-downloads)
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
     }

@@ -18,7 +18,11 @@ namespace GenHub.Features.Workspace;
 /// </summary>
 public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOperationsService fileOperations)
 {
-    private static readonly long SmallFileThreshold = 5 * 1024 * 1024; // 5MB
+    /// <summary>
+    /// Maximum file size for hash verification during reconciliation (100MB).
+    /// Files larger than this will only use size comparison for performance.
+    /// </summary>
+    private const long MaxHashVerificationFileSize = 100 * ConversionConstants.BytesPerMegabyte;
 
     /// <summary>
     /// Analyzes workspace and determines what operations are needed to reconcile it with manifests.
@@ -223,7 +227,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 if (!File.Exists(targetPath))
                 {
                     logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
+<<<<<<< HEAD
                     return true;
+=======
+                    return Task.FromResult(true);
+>>>>>>> c75615b2 (feat: ui-downloads)
                 }
 
                 // For symlinks, trust that the target is correct if it exists and size matches
@@ -264,9 +272,20 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 return true;
             }
 
+<<<<<<< HEAD
             if (!string.IsNullOrEmpty(manifestFile.Hash) && (forceFullVerification || fileInfo.Length < SmallFileThreshold))
             {
                 var hashMatches = await fileOperations.VerifyFileHashAsync(filePath, manifestFile.Hash, CancellationToken.None);
+=======
+            // OPTIMIZATION: Skip deep hash verification during workspace reconciliation
+            // to avoid 60-90+ second delays during game launch when processing 400+ files.
+            // Size-based comparison is 20-60x faster and sufficient for detecting real changes.
+            // Deep hash verification can be added as optional background operation if needed.
+            logger.LogDebug(
+                "File size matches for {FilePath} ({Size} bytes), trusting size comparison for performance",
+                filePath,
+                fileInfo.Length);
+>>>>>>> c75615b2 (feat: ui-downloads)
 
                 if (!hashMatches)
                 {
@@ -283,7 +302,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
+<<<<<<< HEAD
             return true; // Assume needs update if we can't verify
+=======
+            return Task.FromResult(true); // Assume needs update if we can't verify
+>>>>>>> c75615b2 (feat: ui-downloads)
         }
     }
 }

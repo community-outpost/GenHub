@@ -58,6 +58,37 @@ public static partial class ManifestIdGenerator
     }
 
     /// <summary>
+    /// Generates a manifest ID for publisher-provided content using release date as version.
+    /// Used for publishers like ModDB, CNCLabs, AODMaps that don't have semantic versioning.
+    /// Format: schemaVersion.dateVersion.publisher.contentType.contentName (exactly 5 segments).
+    /// </summary>
+    /// <param name="publisherId">Publisher identifier (e.g., 'moddb', 'cnclabs').</param>
+    /// <param name="contentType">The type of content being identified.</param>
+    /// <param name="contentName">Human readable content name.</param>
+    /// <param name="releaseDate">The release date to use as version (formatted as yyyyMMdd).</param>
+    /// <returns>A normalized manifest identifier.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="publisherId"/> or <paramref name="contentName"/> is empty or whitespace.</exception>
+    public static string GeneratePublisherContentId(
+        string publisherId,
+        ContentType contentType,
+        string contentName,
+        DateTime releaseDate)
+    {
+        if (string.IsNullOrWhiteSpace(publisherId))
+            throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
+        if (string.IsNullOrWhiteSpace(contentName))
+            throw new ArgumentException("Content name cannot be empty", nameof(contentName));
+
+        var safePublisher = Normalize(publisherId);
+        var contentTypeString = contentType.ToManifestIdString();
+        var safeName = Normalize(contentName);
+        var dateVersion = releaseDate.ToString("yyyyMMdd");
+        var fullVersion = $"{ManifestConstants.DefaultManifestFormatVersion}.{dateVersion}";
+
+        return $"{fullVersion}.{safePublisher}.{contentTypeString}.{safeName}";
+    }
+
+    /// <summary>
     /// Generates a manifest ID for a game installation.
     /// Format: schemaVersion.userVersion.publisher.contentType.contentName (exactly 5 segments).
     /// This 5-segment structure enables:

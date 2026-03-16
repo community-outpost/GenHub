@@ -45,6 +45,12 @@ public class CNCLabsMapResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
+        // [TEMP] DEBUG: ResolveAsync entry point
+        logger.LogInformation(
+            "[TEMP] CNCLabsMapResolver.ResolveAsync called - Item: {Name}, SourceUrl: {Url}",
+            discoveredItem?.Name,
+            discoveredItem?.SourceUrl);
+
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -94,8 +100,8 @@ public class CNCLabsMapResolver(
 
             if (!mapId.HasValue)
             {
-                logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
-                return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
+                 logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
+                 return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
             }
 
             // Use factory to create manifest

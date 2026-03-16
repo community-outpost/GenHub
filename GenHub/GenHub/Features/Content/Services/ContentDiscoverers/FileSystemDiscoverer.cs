@@ -41,6 +41,7 @@ public class FileSystemDiscoverer : IContentDiscoverer
         _logger = logger;
         _manifestDiscoveryService = manifestDiscoveryService;
         _configurationProvider = configurationProvider;
+
         InitializeContentDirectories();
     }
 

@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="600"
+             x:Class="GenHub.Features.Downloads.Views.PublisherSidebarView"
+             x:DataType="vm:DownloadsBrowserViewModel">
+
+    <UserControl.Resources>
+        <converters:StringToImageConverter x:Key="StringToImageConverter" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <!-- Publisher item style -->
+        <Style Selector="Button.publisher-item">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#CCCCCC" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.publisher-item:pointerover">
+            <Setter Property="Background" Value="#333333" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Button.publisher-item:pressed">
+            <Setter Property="Background" Value="#3A3A3A" />
+        </Style>
+
+        <Style Selector="Button.publisher-item.selected">
+            <Setter Property="Background" Value="#404040" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- Header -->
+        <TextBlock Text="Publishers"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   Foreground="#888888"
+                   Margin="12,0,0,12" />
+
+        <!-- Publisher List -->
+        <ItemsControl ItemsSource="{Binding Publishers}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Classes="publisher-item"
+                            Classes.selected="{Binding IsSelected}"
+                            Command="{Binding $parent[ItemsControl].((vm:DownloadsBrowserViewModel)DataContext).SelectPublisherCommand}"
+                            CommandParameter="{Binding}">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <!-- Publisher Logo -->
+                            <Panel Width="20" Height="20" VerticalAlignment="Center">
+                                <Image Source="{Binding LogoSource, Converter={StaticResource StringToImageConverter}}"
+                                       Width="20" Height="20"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <Image.Clip>
+                                        <EllipseGeometry Center="10,10" RadiusX="10" RadiusY="10" />
+                                    </Image.Clip>
+                                </Image>
+                                <!-- Fallback icon -->
+                                <Border Width="20" Height="20"
+                                        CornerRadius="10"
+                                        Background="#555555"
+                                        IsVisible="{Binding LogoSource, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                    <TextBlock Text="●"
+                                               FontSize="10"
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                            </Panel>
+
+                            <!-- Publisher Name -->
+                            <TextBlock Text="{Binding DisplayName}"
+                                       FontSize="13"
+                                       VerticalAlignment="Center" />
+
+                            <!-- Content count badge -->
+                            <Border Background="#505050"
+                                    CornerRadius="8"
+                                    Padding="6,2"
+                                    IsVisible="{Binding ContentCount, Converter={x:Static converters:ComparisonConverters.IsPositive}}"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ContentCount}"
+                                           FontSize="10"
+                                           Foreground="#AAAAAA" />
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

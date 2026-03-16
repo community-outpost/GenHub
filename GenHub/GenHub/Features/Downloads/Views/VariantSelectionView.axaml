@@ -1,0 +1,192 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="500"
+        x:Class="GenHub.Features.Downloads.Views.VariantSelectionView"
+        x:DataType="vm:VariantSelectionViewModel"
+        Title="Select Variant"
+        Width="550" Height="500"
+        MinWidth="450" MinHeight="400"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,24">
+            <Grid ColumnDefinitions="Auto,*">
+                <PathIcon Grid.Column="0"
+                          Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"
+                          Foreground="#AB47BC"
+                          Width="32" Height="32"
+                          Margin="0,0,16,0"
+                          VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Select Game Variant"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               Foreground="White" />
+                    <TextBlock Text="{Binding ContentName, StringFormat='Choose which variant of {0} to add'}"
+                               FontSize="14"
+                               Foreground="#AAAAAA"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Separator -->
+            <Border Height="1" Background="#333333" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <!-- Variant List -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Variants}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:VariantOptionViewModel">
+                        <Border Background="{Binding IsSelected, Converter={StaticResource BoolToBackgroundConverter}}"
+                                BorderBrush="{Binding IsSelected, Converter={StaticResource BoolToBorderConverter}}"
+                                BorderThickness="2"
+                                CornerRadius="12"
+                                Padding="20"
+                                Margin="0,0,0,12"
+                                Cursor="Hand">
+                            <Border.Styles>
+                                <Style Selector="Border">
+                                    <Setter Property="Background" Value="#252525"/>
+                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                </Style>
+                                <Style Selector="Border:pointerover">
+                                    <Setter Property="Background" Value="#2D2D2D"/>
+                                    <Setter Property="BorderBrush" Value="#444444"/>
+                                </Style>
+                            </Border.Styles>
+
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <!-- Icon/Badge -->
+                                <Border Grid.Column="0"
+                                        Width="56" Height="56"
+                                        CornerRadius="28"
+                                        Background="#AB47BC"
+                                        Margin="0,0,16,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding GameType, Converter={StaticResource GameTypeInitialConverter}}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Content Info -->
+                                <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="18"
+                                               FontWeight="SemiBold"
+                                               Foreground="White" />
+
+                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                        <Border Background="#AB47BC"
+                                                CornerRadius="4"
+                                                Padding="8,4">
+                                            <TextBlock Text="{Binding GameType}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                        </Border>
+
+                                        <TextBlock Text="{Binding Version, StringFormat='v{0}'}"
+                                                   FontSize="13"
+                                                   Foreground="#888888"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="{Binding Description}"
+                                               FontSize="13"
+                                               Foreground="#AAAAAA"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <!-- Select Button -->
+                                <Button Grid.Column="2"
+                                        Content="Select"
+                                        Command="{Binding $parent[Window].((vm:VariantSelectionViewModel)DataContext).SelectVariantCommand}"
+                                        CommandParameter="{Binding}"
+                                        Background="#AB47BC"
+                                        Foreground="White"
+                                        CornerRadius="8"
+                                        Padding="24,12"
+                                        FontSize="14"
+                                        FontWeight="SemiBold"
+                                        VerticalAlignment="Center"
+                                        Cursor="Hand">
+                                    <Button.Styles>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Background" Value="#BA68C8" />
+                                        </Style>
+                                        <Style Selector="Button:pressed">
+                                            <Setter Property="Background" Value="#9C27B0" />
+                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                        </Style>
+                                    </Button.Styles>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Spacing="12" Margin="0,24,0,0">
+            <Button Content="Continue with Selected Variant"
+                    Command="{Binding SelectCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="48"
+                    Background="#AB47BC"
+                    Foreground="White"
+                    CornerRadius="8"
+                    FontSize="15"
+                    FontWeight="SemiBold"
+                    Cursor="Hand">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#BA68C8" />
+                    </Style>
+                    <Style Selector="Button:pressed">
+                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                    </Style>
+                    <Style Selector="Button:disabled">
+                        <Setter Property="Background" Value="#333333" />
+                        <Setter Property="Foreground" Value="#666666" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="44"
+                    Background="Transparent"
+                    BorderBrush="#444444"
+                    BorderThickness="1"
+                    Foreground="#AAAAAA"
+                    CornerRadius="8"
+                    FontSize="14"
+                    Cursor="Hand">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#252525" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="BorderBrush" Value="#666666" />
+                    </Style>
+                    <Style Selector="Button:pressed">
+                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

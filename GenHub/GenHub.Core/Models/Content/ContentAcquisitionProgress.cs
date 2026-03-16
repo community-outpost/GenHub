@@ -50,4 +50,59 @@ public class ContentAcquisitionProgress
     /// Gets or sets the estimated time remaining for the current phase.
     /// </summary>
     public TimeSpan EstimatedTimeRemaining { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current stage number (1-based).
+    /// </summary>
+    public int CurrentStage { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the total number of stages in the acquisition process.
+    /// </summary>
+    public int TotalStages { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets the progress within the current stage (0-100).
+    /// </summary>
+    public double StageProgress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the description of the current stage.
+    /// </summary>
+    public string StageDescription { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the time elapsed since the last progress update.
+    /// Used to detect stalled operations and provide feedback.
+    /// </summary>
+    public TimeSpan TimeSinceLastUpdate { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the current operation is a bottleneck (e.g., hash calculation).
+    /// </summary>
+    public bool IsBottleneck { get; set; }
+
+    /// <summary>
+    /// Gets or sets a message explaining why the operation is slow (if IsBottleneck is true).
+    /// </summary>
+    public string? BottleneckReason { get; set; }
+
+    /// <summary>
+    /// Gets the formatted stage indicator (e.g., "2/5").
+    /// </summary>
+    public string StageIndicator => $"{CurrentStage}/{TotalStages}";
+
+    /// <summary>
+    /// Gets a formatted progress string combining stage and percentage.
+    /// </summary>
+    public string FormattedProgress
+    {
+        get
+        {
+            var stagePart = $"{CurrentStage}/{TotalStages}";
+            var percentPart = StageProgress > 0 ? $" ({StageProgress:F0}%)" : string.Empty;
+            var description = !string.IsNullOrEmpty(StageDescription) ? $" - {StageDescription}" : string.Empty;
+            return $"{stagePart}{description}{percentPart}";
+        }
+    }
 }

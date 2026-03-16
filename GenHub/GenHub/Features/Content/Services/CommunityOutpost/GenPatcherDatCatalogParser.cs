@@ -301,6 +301,7 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
                 ProviderName = provider.PublisherType,
                 AuthorName = provider.DisplayName,
                 SourceUrl = preferredUrl,
+                IconUrl = CommunityOutpostConstants.LogoSource,
                 DownloadSize = item.FileSize,
                 RequiresResolution = true,
                 ResolverId = provider.ProviderId,

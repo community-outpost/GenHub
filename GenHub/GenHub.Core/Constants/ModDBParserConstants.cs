@@ -245,4 +245,18 @@ public static class ModDBParserConstants
 
     /// <summary>Pattern for games URLs.</summary>
     public const string GamesUrlPattern = "/games/";
+
+    // ===== Mod Detail Page Selectors =====
+
+    /// <summary>Selector for the downloads section on mod pages.</summary>
+    public const string DownloadsSectionSelector = "#downloads, .downloads, .files";
+
+    /// <summary>Selector for the addons section on mod pages.</summary>
+    public const string AddonsSectionSelector = "#addons, .addons";
+
+    /// <summary>Selector for the tabs/navigation on mod pages.</summary>
+    public const string TabsSelector = ".tabs, .navigation, nav";
+
+    /// <summary>Selector for individual tab links.</summary>
+    public const string TabLinkSelector = "a[href*='/downloads'], a[href*='/addons']";
 }

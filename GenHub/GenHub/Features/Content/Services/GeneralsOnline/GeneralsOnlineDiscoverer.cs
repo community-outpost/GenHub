@@ -119,12 +119,10 @@ public class GeneralsOnlineDiscoverer(
                     (r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            var list = results.ToList();
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
-                Items = list,
-                TotalItems = list.Count,
-                HasMoreItems = false,
+                Items = results,
+                HasMoreItems = false, // API returns all items at once
             });
         }
         catch (Exception ex)

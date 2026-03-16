@@ -262,7 +262,7 @@ public class GameProcessManager(
                         }
                     }
 
-                    logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
+                    logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode} (User likely closed it)", process.Id, exitCode);
 
                     process.Dispose();
 

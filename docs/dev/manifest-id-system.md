@@ -68,6 +68,64 @@ This normalization ensures the manifest ID schema remains valid (dots separate s
 
 **Publisher Attribution**: Community publisher name (e.g., "genhub", "generalsonline", "cnclabs")
 
+### ModDB Format
+
+**Format**: `{schemaVersion}.{dateVersion}.{publisher}.{contentType}.{contentName}`
+
+**Examples**:
+
+- ModDB Addon (release date 2025-01-20): `1.20250120.moddb.addon.supercolors-newcolors`
+- ModDB Mod (release date 2024-12-15): `1.20241215.moddb.mod.contra-007`
+- ModDB Map Pack (release date 2025-01-10): `1.20250110.moddb.mappack.desert-storm-collection`
+
+**Key Points**:
+
+- **Date-based versioning**: Uses the release date (YYYYMMDD format) as the version component
+- **No semantic version parsing**: ModDB content titles are not parsed for semantic versions (v1.0, etc.)
+- **Deterministic**: Same content + same release date = same manifest ID
+- **Publisher identifier**: Always uses "moddb" as the publisher
+- **Date source**: Extracted from the ModDB page's release date metadata during content discovery
+
+**Version Fallback Priority**:
+
+When generating manifest IDs for content, the version is determined by the following priority order:
+
+1. **Semantic version** (when explicitly provided by the publisher or detected in release tags like "v2.3")
+2. **Release date** (default for ModDB, CNCLabs, and AODMaps)
+3. **Upload date** (when release date is unavailable)
+4. **Discovery date** (fallback when no other date information is available)
+
+This fallback hierarchy ensures that content always has a valid version component for the manifest ID, with preference given to publisher-provided semantic versions when available.
+
+## ModDB Manifest IDs
+
+ModDB content uses a deterministic ID format based on release dates.
+
+### Format
+
+```text
+{schemaVersion}.{dateVersion}.{publisher}.{contentType}.{contentName}
+```
+
+### Example
+
+```text
+1.20250120.moddb.addon.supercolors-newcolors
+```
+
+### Components
+
+- **schemaVersion**: Always `1`
+- **dateVersion**: Release date in `YYYYMMDD` format
+- **publisher**: Always `moddb`
+- **contentType**: Content type (mod, addon, map, etc.)
+- **contentName**: Normalized content name
+
+### Key Points
+
+- Release date is extracted from ModDB's "Added" field
+- No semantic version parsing from titles (conservative approach)
+- Deterministic: same content + same date = same ID
 
 ## API Reference
 
@@ -201,6 +259,20 @@ if (clientResult.Success)
 {
     ManifestId id = clientResult.Data; // 1.0.generalsonline.gameclient.generalsonline_30hz
 }
+
+// Generate ID for ModDB content with date-based version
+var moddbResult = _manifestIdService.GeneratePublisherContentId("moddb", ContentType.Addon, "supercolors-newcolors", 20250120);
+if (moddbResult.Success)
+{
+    ManifestId id = moddbResult.Data; // 1.20250120.moddb.addon.supercolors-newcolors
+}
+
+// Generate ID for ModDB modpack with date version
+var moddbModResult = _manifestIdService.GeneratePublisherContentId("moddb", ContentType.Mod, "contra-007", 20241215);
+if (moddbModResult.Success)
+{
+    ManifestId id = moddbModResult.Data; // 1.20241215.moddb.mod.contra-007
+}
 ```
 
 ### Validation
@@ -230,7 +302,7 @@ The `NormalizeVersionString()` method processes version values as follows:
 ### Examples
 
 | Input Version | Normalized Output | Resulting Manifest ID |
-|--------------|-------------------|----------------------|
+| :--- | :--- | :--- |
 | `0` | `"0"` | `1.0.steam.gameinstallation.generals` |
 | `1` | `"1"` | `1.1.steam.gameinstallation.generals` |
 | `"1.08"` | `"108"` | `1.108.steam.gameinstallation.generals` |
@@ -298,6 +370,109 @@ NormalizeVersionString("v1.08"); // ❌ Contains letters
 NormalizeVersionString("1..08"); // ❌ Results in "108" but has invalid format
 ```
 
+## ContentState Integration
+
+The Manifest ID system is deeply integrated with the ContentState tracking system to detect content updates and manage installation states.
+
+### State Detection through Manifest IDs
+
+ContentState uses manifest IDs as the primary key for tracking content across different publishers. The system supports:
+
+- **Installed state**: Content that has been downloaded and installed
+- **UpdateAvailable state**: A newer version of existing content is available
+- **Available state**: Content that can be installed but is not currently installed
+
+### Prefix Matching for Update Detection
+
+The system uses prefix matching to detect updates for content with date-based versioning (like ModDB):
+
+```csharp
+// Example: Detecting updates for ModDB content
+// Installed: 1.20250110.moddb.addon.supercolors-newcolors
+// Available:  1.20250120.moddb.addon.supercolors-newcolors
+
+// The system compares:
+// - Schema version (1) - must match
+// - Publisher (moddb) - must match
+// - Content type (addon) - must match
+// - Content name (supercolors-newcolors) - must match
+// - Version (20250110 vs 20250120) - used to determine if newer
+
+// Since the base ID (excluding version) matches and the available version
+// is newer (higher date), the state is set to UpdateAvailable
+```
+
+### ID Comparison Logic
+
+The manifest ID comparison for update detection follows this logic:
+
+1. **Extract base ID**: Remove the version component to get the content signature
+   - From `1.20250110.moddb.addon.supercolors-newcolors`
+   - Base: `moddb.addon.supercolors-newcolors`
+
+2. **Compare signatures**: Check if installed and available content have the same base
+   - If base IDs match → same content, compare versions
+   - If base IDs differ → different content entirely
+
+3. **Version comparison**: For matching base IDs, determine if update available
+   - **Date-based versions** (YYYYMMDD): Higher numeric value = newer version
+   - **Semantic versions** (normalized): Standard semantic version comparison
+   - **Integer versions**: Higher integer value = newer version
+
+### Practical Example
+
+```csharp
+// Scenario: ModDB content update detection
+
+// 1. User installs "Super Colors" addon on January 10, 2025
+var installedId = "1.20250110.moddb.addon.supercolors-newcolors";
+var manifest = new ContentManifest
+{
+    Id = installedId,
+    State = ContentState.Installed,
+    // ... other properties
+};
+
+// 2. System discovers updated version released on January 20, 2025
+var availableId = "1.20250120.moddb.addon.supercolors-newcolors";
+var discoveredManifest = new ContentManifest
+{
+    Id = availableId,
+    State = ContentState.Available,
+    // ... other properties
+};
+
+// 3. ContentStateService detects update:
+//    - Base IDs match: "moddb.addon.supercolors-newcolors"
+//    - Version comparison: 20250120 > 20250110
+//    - Result: State set to ContentState.UpdateAvailable
+
+// 4. UI shows "Update Available" indicator on the content card
+//    User can click to download and install the newer version
+```
+
+### Publisher-Specific Behavior
+
+Different publishers interact with the ContentState system differently:
+
+**ModDB (Date-based versioning)**:
+
+- Each new release date creates a new manifest ID
+- Updates detected when same content has newer release date
+- Historical versions tracked separately (different IDs)
+
+**GitHub (Semantic versioning)**:
+
+- Explicit version tags (v1.0, v2.0) used in manifest ID
+- Updates follow semantic version rules
+- Pre-release handling supported (beta, alpha tags)
+
+**Creator Publishing (User-specified versions)**:
+
+- Publisher defines version in catalog JSON
+- Semantic or date-based at publisher discretion
+- System respects publisher's version scheme
+
 ## Validation Rules
 
 ### All Content (5-Segment Format)
@@ -308,6 +483,7 @@ NormalizeVersionString("1..08"); // ❌ Results in "108" but has invalid format
 - **ContentType**: Must be valid content type (gameinstallation, gameclient, mod, patch, addon, mappack, languagepack, moddingtool, etc.)
 - **ContentName**: Alphanumeric with dashes (e.g., "generals", "custom-mod")
 - **Total Segments**: Exactly 5 segments required
+
 ## Error Handling
 
 Uses **ResultBase pattern** for robust error handling:

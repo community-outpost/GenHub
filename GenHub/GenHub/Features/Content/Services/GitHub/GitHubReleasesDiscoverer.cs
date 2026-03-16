@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
@@ -18,6 +19,7 @@ namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// Discovers content from GitHub releases.
+/// Optimized to minimize API calls by loading only the latest release by default.
 /// </summary>
 public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<GitHubReleasesDiscoverer> logger, IConfigurationProviderService configurationProvider) : IContentDiscoverer
 {
@@ -54,7 +56,14 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
 
                 return (Owner: parts[0].Trim(), Repo: parts[1].Trim());
             })
-            .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo));
+            .Where(t => !string.IsNullOrEmpty(t.Owner) && !string.IsNullOrEmpty(t.Repo))
+            .ToList();
+
+        // Determine whether to load all releases or just the latest
+        // Page 1 with default Take = load only latest releases (1 per repo) to conserve API calls
+        // LoadMore (page > 1 or explicitly requesting all) = load additional releases
+        bool loadOnlyLatest = (query.Page ?? 1) == 1 && query.Take <= relevantRepos.Count;
+
         foreach (var (owner, repo) in relevantRepos)
         {
             try
@@ -64,54 +73,76 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                 var topics = repository?.Topics ?? [];
 
                 // Get all releases from GitHub
-                var releases = await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken);
+                IEnumerable<GitHubRelease> releases;
 
-                if (releases != null)
+                if (loadOnlyLatest)
                 {
-                    foreach (var release in releases)
+                    // Only fetch the latest release to conserve API calls
+                    logger.LogDebug("Fetching only latest release for {Owner}/{Repo}", owner, repo);
+                    var latestRelease = await gitHubClient.GetLatestReleaseAsync(owner, repo, cancellationToken);
+                    releases = latestRelease != null ? [latestRelease] : [];
+                }
+                else
+                {
+                    // Fetch all releases when explicitly requested (Load More)
+                    logger.LogDebug("Fetching all releases for {Owner}/{Repo}", owner, repo);
+                    releases = (await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken)) ?? [];
+                }
+
+                foreach (var release in releases)
+                {
+                    if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
+                        release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
-                            release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
+                        // Calculate total size from release assets
+                        var totalSize = release.Assets?.Sum(a => a.Size) ?? 0;
+
+                        // Count variants (assets) for grouping display
+                        var variantCount = release.Assets?.Count ?? 0;
+
+                        // Infer content type from topics first, then fall back to name-based inference
+                        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(topics);
+                        if (!isTypeInferred)
                         {
-                            // Infer content type from topics first, then fall back to name-based inference
-                            var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(topics);
-                            if (isTypeInferred)
-                            {
-                                var nameInference = GitHubInferenceHelper.InferContentType(repo, release.Name);
-                                contentType = nameInference.Type;
-                            }
-
-                            // Infer game type
-                            var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(topics);
-                            if (isGameInferred)
-                            {
-                                var nameInference = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
-                                gameType = nameInference.Type;
-                            }
-
-                            results.Add(new ContentSearchResult
-                            {
-                                Id = $"github.{owner}.{repo}.{release.TagName}",
-                                Name = release.Name ?? $"{repo} {release.TagName}",
-                                Description = release.Body ?? "GitHub release - full details available after resolution",
-                                Version = release.TagName,
-                                AuthorName = release.Author,
-                                ContentType = contentType,
-                                TargetGame = gameType,
-                                IsInferred = isTypeInferred || isGameInferred,
-                                ProviderName = SourceName,
-                                RequiresResolution = true,
-                                ResolverId = ContentSourceNames.GitHubResolverId,
-                                SourceUrl = release.HtmlUrl,
-                                LastUpdated = release.PublishedAt?.DateTime ?? release.CreatedAt.DateTime,
-                                ResolverMetadata =
-                                {
-                                    [GitHubConstants.OwnerMetadataKey] = owner,
-                                    [GitHubConstants.RepoMetadataKey] = repo,
-                                    [GitHubConstants.TagMetadataKey] = release.TagName,
-                                },
-                            });
+                            var nameInference = GitHubInferenceHelper.InferContentType(repo, release.Name);
+                            contentType = nameInference.Type;
+                            isTypeInferred = nameInference.IsInferred;
                         }
+
+                        // Infer game type
+                        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(topics);
+                        if (!isGameInferred)
+                        {
+                            var nameInference = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
+                            gameType = nameInference.Type;
+                            isGameInferred = nameInference.IsInferred;
+                        }
+
+                        results.Add(new ContentSearchResult
+                        {
+                            Id = $"github.{owner}.{repo}.{release.TagName}",
+                            Name = release.Name ?? $"{repo} {release.TagName}",
+                            Description = release.Body ?? "GitHub release - full details available after resolution",
+                            Version = release.TagName.TrimStart('v', 'V'),
+                            AuthorName = release.Author,
+                            ContentType = contentType,
+                            TargetGame = gameType,
+                            IsInferred = isTypeInferred || isGameInferred,
+                            ProviderName = SourceName,
+                            RequiresResolution = true,
+                            ResolverId = ContentSourceNames.GitHubResolverId,
+                            SourceUrl = release.HtmlUrl,
+                            IconUrl = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
+                            LastUpdated = release.PublishedAt?.DateTime ?? release.CreatedAt.DateTime,
+                            DownloadSize = totalSize,
+                            ResolverMetadata =
+                            {
+                                [GitHubConstants.OwnerMetadataKey] = owner,
+                                [GitHubConstants.RepoMetadataKey] = repo,
+                                [GitHubConstants.TagMetadataKey] = release.TagName,
+                                ["VariantCount"] = variantCount.ToString(),
+                            },
+                        });
                     }
                 }
             }
@@ -127,13 +158,37 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             logger.LogWarning("Encountered {ErrorCount} errors during discovery: {Errors}", errors.Count, string.Join("; ", errors));
         }
 
-        return errors.Count > 0 && results.Count == 0
+        // Sort by date descending (newest first)
+        results = results.OrderByDescending(r => r.LastUpdated).ToList();
+
+        // Apply pagination
+        var totalItems = results.Count;
+        int pageSize = query.Take > 0 ? query.Take : 24;
+        int currentPage = query.Page ?? 1;
+        if (currentPage < 1) currentPage = 1;
+        int skip = (currentPage - 1) * pageSize;
+
+        var paginatedResults = results.Skip(skip).Take(pageSize).ToList();
+
+        // HasMoreItems is true if we loaded only latest releases (user can request more)
+        // or if there are more items in the paginated results
+        var hasMoreItems = loadOnlyLatest || (skip + paginatedResults.Count < totalItems);
+
+        logger.LogInformation(
+            "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}, LoadedOnlyLatest: {LoadedOnlyLatest}",
+            query.Page,
+            paginatedResults.Count,
+            totalItems,
+            hasMoreItems,
+            loadOnlyLatest);
+
+        return errors.Count > 0 && paginatedResults.Count == 0
             ? OperationResult<ContentDiscoveryResult>.CreateFailure(errors)
             : OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
-                Items = results,
-                TotalItems = results.Count,
-                HasMoreItems = false,
+                Items = paginatedResults,
+                TotalItems = loadOnlyLatest ? -1 : totalItems, // -1 indicates unknown total when only latest loaded
+                HasMoreItems = hasMoreItems,
             });
     }
 }

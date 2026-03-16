@@ -209,15 +209,12 @@ public class GeneralsOnlineUpdateService(
                 return null;
             }
 
-            using (response)
-            {
-                var content = await response.Content.ReadAsStringAsync(cancellationToken);
-                var version = content?.Trim().Trim('"');
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var version = content?.Trim().Trim('"');
 
-                logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
+            logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
 
-                return version;
-            }
+            return version;
         }
         catch (Exception ex)
         {

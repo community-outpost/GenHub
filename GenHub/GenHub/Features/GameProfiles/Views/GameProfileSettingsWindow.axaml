@@ -510,7 +510,11 @@
                 <!-- Tab Content Panels -->
                 <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
                     <!-- Content Tab Panel (Index 0) -->
+<<<<<<< HEAD
                     <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+=======
+                    <views:GameProfileContentSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+>>>>>>> c75615b2 (feat: ui-downloads)
 
                     <!-- Profile Settings Panel (Index 1) -->
                     <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
@@ -651,6 +655,7 @@
             </StackPanel>
         </Border>
 
+<<<<<<< HEAD
             </Grid>
 
             <!-- Notification Container - Outside Grid for proper positioning -->
@@ -659,6 +664,14 @@
                                                    VerticalAlignment="Top"
                                                    Margin="0,90,10,0"
                                                    ZIndex="2000" />
+=======
+        <notifications:NotificationContainerView Grid.RowSpan="2"
+                                               DataContext="{Binding NotificationManager}"
+                                               ZIndex="2000" />
+
+
+            </Grid>
+>>>>>>> c75615b2 (feat: ui-downloads)
 
             <!-- Floating Action Button for Global Save -->
             <Border ZIndex="500"

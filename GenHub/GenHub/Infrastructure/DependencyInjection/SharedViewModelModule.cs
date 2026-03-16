@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -37,7 +38,7 @@ public static class SharedViewModelModule
 
         // Register tab ViewModels
         services.AddSingleton<GameProfileLauncherViewModel>();
-        services.AddSingleton<DownloadsViewModel>();
+        services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),
@@ -47,6 +48,9 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IWorkspaceManager>(),
             sp.GetRequiredService<IContentManifestPool>(),
             sp.GetRequiredService<IVelopackUpdateManager>(),
+            sp.GetRequiredService<IPublisherSubscriptionStore>(),
+            sp.GetRequiredService<IPublisherCatalogRefreshService>(),
+            sp.GetRequiredService<IGitHubApiClient>(),
             sp.GetRequiredService<INotificationService>(),
             sp.GetRequiredService<IConfigurationProviderService>(),
             sp.GetRequiredService<IGameInstallationService>(),
@@ -55,11 +59,11 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IGitHubTokenStorage>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
-        // Register PublisherCardViewModel as transient
-        services.AddTransient<PublisherCardViewModel>();
+        // Register PublisherCardViewModel as transient (no longer used in new UI)
+        // services.AddTransient<PublisherCardViewModel>();
 
-        // Register NotificationFeedViewModel
-        services.AddSingleton<NotificationFeedViewModel>();
+        // Register ProfileSelectionViewModel as transient for profile selection scenarios
+        services.AddTransient<ProfileSelectionViewModel>();
 
         // Register factory for GameProfileItemViewModel (has required constructor parameters)
         services.AddTransient<Func<string, IGameProfile, string, string, GameProfileItemViewModel>>(sp =>
