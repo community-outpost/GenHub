@@ -74,19 +74,21 @@ public partial class App : Application
 
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
     {
-        var mainViewModel = mainWindow.DataContext as MainViewModel;
-        if (mainViewModel?.GameProfilesViewModel == null)
+        if (mainWindow?.DataContext is not MainViewModel mainViewModel || mainViewModel.GameProfilesViewModel == null)
         {
             return;
         }
 
-        var targetProfile = mainViewModel.GameProfilesViewModel.Profiles
-            .FirstOrDefault(p => p.ProfileId.Equals(profileId, StringComparison.OrdinalIgnoreCase));
-
-        if (targetProfile != null)
+        if (mainViewModel.GameProfilesViewModel.Profiles != null)
         {
-            targetProfile.IsProcessRunning = true;
-            targetProfile.ProcessId = processId;
+            var targetProfile = mainViewModel.GameProfilesViewModel.Profiles
+                .FirstOrDefault(p => p.ProfileId.Equals(profileId, StringComparison.OrdinalIgnoreCase));
+
+            if (targetProfile != null)
+            {
+                targetProfile.IsProcessRunning = true;
+                targetProfile.ProcessId = processId;
+            }
         }
 
         mainViewModel.GameProfilesViewModel.StatusMessage = $"Profile launched (Process ID: {processId})";
@@ -94,12 +96,13 @@ public partial class App : Application
 
     private static void UpdateViewModelWithError(MainWindow mainWindow, string error)
     {
-        var mainViewModel = mainWindow.DataContext as MainViewModel;
-        if (mainViewModel?.GameProfilesViewModel != null)
+        if (mainWindow?.DataContext is not MainViewModel mainViewModel || mainViewModel.GameProfilesViewModel == null)
         {
-            mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
-            mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+            return;
         }
+
+        mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
+        mainViewModel.GameProfilesViewModel.ErrorMessage = error;
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)

@@ -1,0 +1,409 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.MapManager.ViewModels"
+             xmlns:vm_tools="using:GenHub.Features.Tools.ViewModels"
+             xmlns:models="using:GenHub.Core.Models.Tools.MapManager"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.MapManager.Views.MapManagerView"
+             x:DataType="vm:MapManagerViewModel"
+             x:Name="Root"
+             xmlns:converters="using:GenHub.Infrastructure.Converters"
+             DragDrop.AllowDrop="True">
+
+  <UserControl.Resources>
+    <converters:FileSizeConverter x:Key="FileSizeConverter" />
+    <converters:BoolToTypeConverter x:Key="BoolToTypeConverter" />
+    <converters:AssetCountConverter x:Key="AssetCountConverter" />
+    <converters:MapTypeDisplayConverter x:Key="MapTypeDisplayConverter" />
+    <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+    <converters:EqualityConverter x:Key="EqualsToConverter" />
+    <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
+  </UserControl.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinWidth="600"
+        VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+    <!-- Header/Tabs -->
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="0,0,0,16" Padding="6" BoxShadow="0 4 12 0 #20000000">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+          <RadioButton Content="Generals"
+                       IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
+                       GroupName="GameTabs"
+                       Classes="TabButton"/>
+          <RadioButton Content="Zero Hour"
+                       IsChecked="{Binding SelectedTab, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
+                       GroupName="GameTabs"
+                       Classes="TabButton"/>
+        </StackPanel>
+
+        <!-- Import Bar Integrated -->
+        <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="24,0">
+          <TextBox Grid.Column="0" Watermark="Paste Map URL..."
+                   Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                   HorizontalAlignment="Stretch"/>
+          <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
+                  Classes="Primary" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="Import from URL">
+            <TextBlock Text="📥"/>
+          </Button>
+          <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
+                  Classes="Secondary" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="Browse for files">
+            <TextBlock Text="📎"/>
+          </Button>
+        </Grid>
+
+        <!-- Search Bar -->
+        <TextBox Grid.Column="2" Watermark="Search..."
+                 Text="{Binding SearchText}"
+                 Width="180"
+                 VerticalAlignment="Center">
+          <TextBox.InnerLeftContent>
+            <TextBlock Text="🔍" VerticalAlignment="Center" Margin="8,0,0,0" Opacity="0.5"/>
+          </TextBox.InnerLeftContent>
+        </TextBox>
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
+          <Button Content="↻" Command="{Binding LoadMapsCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Refresh list"/>
+          <Button Content="📁" Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Open folder"/>
+          <Button Content="Pack" Command="{Binding ToggleMapPackPanelCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="MapPack Manager"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Row 1 is now empty/hidden -->
+    <Grid Grid.Row="1" IsVisible="False"/>
+
+    <!-- Map List -->
+    <Panel Grid.Row="2">
+      <Border Background="{DynamicResource CardBackground}" CornerRadius="12" ClipToBounds="True" BoxShadow="0 4 12 0 #20000000">
+        <DataGrid Name="MapsGrid"
+                  ItemsSource="{Binding CurrentMaps}"
+                  SelectionMode="Extended"
+                  HeadersVisibility="Column"
+                  CanUserResizeColumns="True"
+                  GridLinesVisibility="Horizontal"
+                  BorderThickness="0"
+                  RowHeight="48"
+                  IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="48">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate x:DataType="models:MapFile">
+                                    <Image Source="{Binding ThumbnailBitmap}"
+                                           Width="32" Height="32"
+                                           Stretch="Uniform"
+                                           Margin="4"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="2*" />
+                        <DataGridTextColumn Header="Size" Width="Auto">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="SizeBytes" Converter="{StaticResource FileSizeConverter}" Mode="OneWay" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Type" Width="160">
+                            <DataGridTextColumn.Binding>
+                                <Binding Path="." Converter="{StaticResource MapTypeDisplayConverter}" Mode="OneWay" />
+                            </DataGridTextColumn.Binding>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat='{}{0:g}'}" Width="150" />
+                    </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+      <!-- Drag & Drop Overlay -->
+      <Border Name="DragDropOverlay"
+              Background="#CC000000"
+              IsVisible="False"
+              IsHitTestVisible="False"
+              CornerRadius="12"
+              Opacity="0">
+        <Border.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
+          </Transitions>
+        </Border.Transitions>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+          <TextBlock Text="📥" FontSize="64" HorizontalAlignment="Center" Opacity="0.8"/>
+          <TextBlock Text="Drop maps or ZIPs to import" Classes="H2" HorizontalAlignment="Center"/>
+          <TextBlock Text="Single .map files or ZIP archives only" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Loading Overlay -->
+      <Border Background="#66000000" IsVisible="{Binding IsBusy}" CornerRadius="12">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+          <ProgressBar Value="{Binding Progress, Mode=OneWay}" Minimum="0" Maximum="1" Width="240" Height="4"
+                       IsIndeterminate="{Binding Progress, Converter={StaticResource EqualsToConverter}, ConverterParameter=0.0}"/>
+          <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- Action Bar -->
+    <Border Grid.Row="3" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="0,16,0,0" Padding="12" BoxShadow="0 4 12 0 #20000000">
+      <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="400">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="Selected:" Opacity="0.7"/>
+            <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+          </StackPanel>
+          <Button Command="{Binding DeleteSelectedCommand}"
+                  Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
+                  ToolTip.Tip="Permanently delete the selected maps from your computer.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="🗑️"/>
+              <TextBlock Text="Delete"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Opacity="0.7" FontStyle="Italic" Margin="12,0"/>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button Command="{Binding UncompressSelectedCommand}"
+                  Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
+                  ToolTip.Tip="Extract maps from the selected ZIP archives.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="📦🔓"/>
+              <TextBlock Text="Uncompress"/>
+            </StackPanel>
+          </Button>
+          <TextBox MinWidth="100" MaxWidth="180" Watermark="ZIP Name (.zip added)" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive. The .zip extension will be added automatically."/>
+          <Button Command="{Binding ExportToZipCommand}"
+                  Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
+                  ToolTip.Tip="Create a new ZIP archive containing the selected maps.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="📦"/>
+              <TextBlock Text="Zip"/>
+            </StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="0">
+            <Button Command="{Binding UploadAndShareCommand}"
+                    Classes="Primary" IsEnabled="{Binding SelectedMaps.Count}"
+                    CornerRadius="4,0,0,4"
+                    ToolTip.Tip="Upload the selected maps to the cloud (UploadThing) and copy the shareable link to your clipboard.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="☁️"/>
+                <TextBlock Text="Upload"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ToggleHistoryCommand}"
+                    Classes="Primary"
+                    CornerRadius="0,4,4,0"
+                    Padding="8,0"
+                    ToolTip.Tip="View the history of your uploaded maps.">
+              <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"/>
+            </Button>
+            <TextBlock Text="(max 10MB per file)" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+            <Popup IsOpen="{Binding IsHistoryOpen}"
+                   Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
+                   IsLightDismissEnabled="True">
+              <Border Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="8"
+                      Padding="12" MinWidth="300" MaxHeight="400" BoxShadow="0 4 12 0 #40000000">
+                <Grid RowDefinitions="Auto,*">
+                  <Grid Grid.Row="1">
+                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}">
+                      <ItemsControl ItemsSource="{Binding UploadHistory}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm_tools:UploadHistoryItemViewModel">
+                            <Border BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="0,8">
+                              <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                  <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                  <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding TimestampDisplay}" FontSize="11" Opacity="0.6"/>
+                                    <TextBlock Text="{Binding SizeDisplay}" FontSize="11" Opacity="0.6"/>
+                                    <Border Background="Transparent" BorderBrush="{Binding StatusColor}" BorderThickness="1" CornerRadius="4" Padding="4,0" Margin="4,0,0,0">
+                                      <Panel>
+                                        <TextBlock Text="Active" FontSize="10" Foreground="{Binding StatusColor}"
+                                                   IsVisible="{Binding IsActive}"/>
+                                        <TextBlock Text="Expired" FontSize="10" Foreground="{Binding StatusColor}"
+                                                   IsVisible="{Binding !IsActive}"/>
+                                      </Panel>
+                                    </Border>
+                                  </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Classes="Secondary"
+                                        Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyUrlCommand}"
+                                        CommandParameter="{Binding Url}"
+                                        Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Copy the download link for this map.">
+                                  <TextBlock Text="📋"/>
+                                </Button>
+
+                                <Button Grid.Column="2" Classes="Danger"
+                                        Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).RemoveHistoryItemCommand}"
+                                        CommandParameter="{Binding}"
+                                        Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Remove this item from your local history check.">
+                                  <TextBlock Text="🗑️"/>
+                                </Button>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Text="No history yet" IsVisible="{Binding !UploadHistory.Count}"
+                               HorizontalAlignment="Center" Opacity="0.5" Margin="0,20"/>
+                  </Grid>
+
+                <!-- Clear All Button -->
+                <Button Command="{Binding ClearHistoryCommand}"
+                        Classes="Danger"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,8,0,0"
+                        IsVisible="{Binding UploadHistory.Count}"
+                        ToolTip.Tip="Clear all items from your upload history.">
+                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="🗑️"/>
+                    <TextBlock Text="Clear All History"/>
+                  </StackPanel>
+                </Button>
+                </Grid>
+              </Border>
+            </Popup>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Footer Storage Notice -->
+    <TextBlock Grid.Row="4" Text="Files are maintained for up to 14 days or until storage is full. Maximum 1MB per file."
+               FontSize="11" Opacity="0.4" HorizontalAlignment="Left" Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="600"/>
+
+    <!-- MapPack Modal Overlay -->
+    <Grid Grid.Row="0" Grid.RowSpan="5"
+          Background="#AA000000"
+          IsVisible="{Binding IsMapPackPanelOpen}">
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource DividerColor}"
+              BorderThickness="1"
+              CornerRadius="12"
+              Width="450"
+              MaxHeight="700"
+              VerticalAlignment="Center"
+              HorizontalAlignment="Center"
+              BoxShadow="0 8 32 0 #40000000">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+          <!-- Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="MapPack Manager" Classes="H2"/>
+                <TextBlock Text="Create and manage your map collections" Opacity="0.6" FontSize="12"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="✕" Command="{Binding ToggleMapPackPanelCommand}"
+                    Classes="Secondary" Padding="8" VerticalAlignment="Top"/>
+          </Grid>
+
+          <ScrollViewer Grid.Row="1" Margin="0,0,0,16">
+            <StackPanel Spacing="20">
+              <!-- Create New Section -->
+              <StackPanel Spacing="12">
+                <TextBlock Text="Create New" FontWeight="Bold" Opacity="0.8"/>
+
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="12">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Selected Maps" FontSize="11" Opacity="0.6"/>
+                        <ItemsControl ItemsSource="{Binding SelectedMaps}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:MapFile">
+                              <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                                  <TextBlock Text="•" Opacity="0.5" Margin="0,0,8,0"/>
+                                  <TextBlock Grid.Column="1" Text="{Binding DisplayName}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="No maps selected" IsVisible="{Binding !SelectedMaps.Count}"
+                                   FontSize="12" FontStyle="Italic" Opacity="0.5"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Pack Name" FontSize="12" FontWeight="SemiBold"/>
+                    <TextBox Watermark="e.g., Tournament Maps 2024" Text="{Binding NewMapPackName}"/>
+                </StackPanel>
+
+                <Button Content="Create MapPack" Command="{Binding CreateMapPackCommand}"
+                        Classes="Primary" HorizontalAlignment="Stretch"/>
+              </StackPanel>
+
+              <Separator Background="{DynamicResource DividerColor}"/>
+
+              <!-- Existing MapPacks Section -->
+              <StackPanel Spacing="12">
+                <TextBlock Text="Existing MapPacks" FontWeight="Bold" Opacity="0.8"/>
+                <ItemsControl ItemsSource="{Binding MapPacks}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:MapPack">
+                      <Border Background="#10FFFFFF" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel Grid.Column="0" Spacing="4">
+                              <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto">
+                                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                  <Border Grid.Column="1" Background="{DynamicResource AccentColor}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
+                                      <TextBlock Text="LOADED" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                  </Border>
+                              </Grid>
+                              <TextBlock Text="{Binding CreatedDate, StringFormat='Created: {0:d}'}" FontSize="11" Opacity="0.5"/>
+                              <TextBlock Text="{Binding MapFilePaths.Count, StringFormat='{}{0} Maps'}" FontSize="11" Opacity="0.6"/>
+                          </StackPanel>
+
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <!-- Toggle Load/Unload - Assuming commands exist or will be added, for now just delete as per old UI.
+                                 Wait, old UI only had Delete. I'll stick to Delete. -->
+                            <!-- <Button Content="{Binding IsLoaded, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Unload|Load'}" ... /> -->
+                            <Button Content="🗑️" Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).DeleteMapPackCommand}"
+                                    CommandParameter="{Binding}" Classes="Danger" Padding="6" ToolTip.Tip="Delete this MapPack."/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No MapPacks found" IsVisible="{Binding !MapPacks.Count}"
+                           FontSize="12" Opacity="0.5" HorizontalAlignment="Center" Margin="0,10"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+  <UserControl.Styles>
+    <Style Selector="RadioButton.TabButton">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Root" CornerRadius="8" Padding="16,8" Background="Transparent">
+            <TextBlock Text="{TemplateBinding Content}" FontWeight="SemiBold"
+                       Foreground="{TemplateBinding Foreground}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.TabButton:pointerover /template/ Border#Root">
+      <Setter Property="Background" Value="#10FFFFFF" />
+    </Style>
+    <Style Selector="RadioButton.TabButton:checked /template/ Border#Root">
+      <Setter Property="Background" Value="{DynamicResource AccentColor}" />
+    </Style>
+    <Style Selector="RadioButton.TabButton:checked">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </UserControl.Styles>
+</UserControl>

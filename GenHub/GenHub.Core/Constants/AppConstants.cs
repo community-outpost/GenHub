@@ -103,6 +103,21 @@ public static class AppConstants
     public const string GitHubRepositoryName = "GenHub";
 
     /// <summary>
+    /// The default branch name for the GitHub repository.
+    /// </summary>
+    public const string GitHubDefaultBranch = "main";
+
+    /// <summary>
+    /// The folder path where the CSV registry files are stored.
+    /// </summary>
+    public const string RegistryFolderPath = "docs\\GameInstallationFilesRegistry";
+
+    /// <summary>
+    /// Length of the git short hash used in versioning (7 characters).
+    /// </summary>
+    public const int GitShortHashLength = 7;
+
+    /// <summary>
     /// The default UI theme for the application.
     /// </summary>
     public const Theme DefaultTheme = Theme.Dark;

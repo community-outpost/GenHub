@@ -16,40 +16,22 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// ModDB content provider that orchestrates discovery→resolution→delivery pipeline
 /// for ModDB-hosted content.
 /// </summary>
-public class ModDBContentProvider : BaseContentProvider
+public class ModDBContentProvider(
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    ILogger<ModDBContentProvider> logger,
+    IContentValidator contentValidator)
+    : BaseContentProvider(contentValidator, logger)
 {
-    private readonly IContentDiscoverer _moddbDiscoverer;
-    private readonly IContentResolver _moddbResolver;
-    private readonly IContentDeliverer _httpDeliverer;
+    private readonly IContentDiscoverer _moddbDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.ModDBDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("ModDB discoverer not found", nameof(discoverers));
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ModDBContentProvider"/> class.
-    /// </summary>
-    /// <param name="discoverers">Available content discoverers.</param>
-    /// <param name="resolvers">Available content resolvers.</param>
-    /// <param name="deliverers">Available content deliverers.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="contentValidator">The content validator.</param>
-    public ModDBContentProvider(
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        ILogger<ModDBContentProvider> logger,
-        IContentValidator contentValidator)
-        : base(contentValidator, logger)
-    {
-        _moddbDiscoverer = discoverers?.FirstOrDefault(d =>
-            string.Equals(d.SourceName, ContentSourceNames.ModDBDiscoverer, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("ModDB discoverer not found");
+    private readonly IContentResolver _moddbResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.ModDBResolverId, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("ModDB resolver not found", nameof(resolvers));
 
-        _moddbResolver = resolvers?.FirstOrDefault(r =>
-            string.Equals(r.ResolverId, ContentSourceNames.ModDBResolverId, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("ModDB resolver not found");
-
-        _httpDeliverer = deliverers?.FirstOrDefault(d =>
-            string.Equals(d.SourceName, ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("HTTP deliverer not found");
-    }
+    private readonly IContentDeliverer _httpDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.HttpDeliverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
 
     /// <inheritdoc />
     public override string SourceName => "ModDB";

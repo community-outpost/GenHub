@@ -20,8 +20,6 @@ namespace GenHub.Features.Manifest;
 public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, IManifestCache manifestCache)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private readonly ILogger<ManifestDiscoveryService> _logger = logger;
-    private readonly IManifestCache _manifestCache = manifestCache;
 
     /// <summary>
     /// Gets manifests by content type.
@@ -62,7 +60,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         var manifests = new Dictionary<string, ContentManifest>();
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
-            _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
+            logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
             var manifestFiles = Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories);
             foreach (var manifestFile in manifestFiles)
             {
@@ -74,7 +72,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                     if (manifest != null)
                     {
                         manifests[manifest.Id] = manifest;
-                        _logger.LogDebug(
+                        logger.LogDebug(
                             "Discovered manifest: {ManifestId} ({ContentType})",
                             manifest.Id,
                             manifest.ContentType);
@@ -82,12 +80,12 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
+                    logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
                 }
             }
         }
 
-        _logger.LogInformation("Discovery completed. Found {ManifestCount} manifests", manifests.Count);
+        logger.LogInformation("Discovery completed. Found {ManifestCount} manifests", manifests.Count);
         return manifests;
     }
 
@@ -98,7 +96,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task InitializeCacheAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Initializing manifest cache...");
+        logger.LogInformation("Initializing manifest cache...");
 
         // First discover embedded manifests
         await DiscoverEmbeddedManifestsAsync(cancellationToken);
@@ -117,7 +115,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
 
-        _logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", _manifestCache.GetAllManifests().Count());
+        logger.LogInformation("Manifest cache initialization complete. Loaded {Count} manifests.", manifestCache.GetAllManifests().Count());
     }
 
     /// <summary>
@@ -134,7 +132,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         {
             if (!availableManifests.TryGetValue(dependency.Id, out ContentManifest? dependencyManifest))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Missing required dependency {DependencyId} for manifest {ManifestId}",
                     dependency.Id,
                     manifest.Id);
@@ -146,7 +144,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 dependency.MinVersion ?? string.Empty,
                 dependency.MaxVersion ?? string.Empty))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Dependency {DependencyId} version {Version} is not compatible with required range {MinVersion}-{MaxVersion}",
                     dependency.Id,
                     dependencyManifest.Version,
@@ -190,7 +188,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
     {
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
-            _logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
+            logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
 
             // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
             var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.ManifestFilePattern, SearchOption.AllDirectories)
@@ -205,13 +203,13 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                     var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
-                        _manifestCache.AddOrUpdateManifest(manifest);
-                        _logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
+                        manifestCache.AddOrUpdateManifest(manifest);
+                        logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
+                    logger.LogWarning(ex, "Failed to load manifest from {ManifestFile}", manifestFile);
                 }
             }
         }
@@ -219,7 +217,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
 
     private async Task DiscoverEmbeddedManifestsAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Scanning for embedded manifests...");
+        logger.LogInformation("Scanning for embedded manifests...");
         var assembly = Assembly.GetExecutingAssembly();
         var manifestResourceNames = assembly.GetManifestResourceNames()
             .Where(r => r.StartsWith("GenHub.Manifests.") && r.EndsWith(FileTypes.JsonFileExtension));
@@ -234,13 +232,13 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
-                    _manifestCache.AddOrUpdateManifest(manifest);
-                    _logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
+                    manifestCache.AddOrUpdateManifest(manifest);
+                    logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to load embedded manifest from {ResourceName}", resourceName);
+                logger.LogWarning(ex, "Failed to load embedded manifest from {ResourceName}", resourceName);
             }
         }
     }

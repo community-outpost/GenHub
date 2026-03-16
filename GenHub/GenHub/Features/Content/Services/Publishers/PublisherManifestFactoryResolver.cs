@@ -1,8 +1,9 @@
+using System.Collections.Generic;
+using System.Linq;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -27,14 +28,14 @@ public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFact
                 "Resolved {FactoryType} for manifest {ManifestId} (Publisher: {Publisher})",
                 factory.GetType().Name,
                 manifest.Id,
-                manifest.Publisher?.PublisherType ?? "Unknown");
+                manifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion);
             return factory;
         }
 
         logger.LogWarning(
             "No factory found for manifest {ManifestId} (Publisher: {Publisher}, ContentType: {ContentType})",
             manifest.Id,
-            manifest.Publisher?.PublisherType ?? "Unknown",
+            manifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion,
             manifest.ContentType);
 
         return null;

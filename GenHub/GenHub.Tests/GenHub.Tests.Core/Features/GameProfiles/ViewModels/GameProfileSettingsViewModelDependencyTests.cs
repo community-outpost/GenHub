@@ -314,4 +314,228 @@ public class GameProfileSettingsViewModelDependencyTests
         _mockGameProfileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.DoesNotMatch("Error: Missing required dependencies", _viewModel.StatusMessage);
     }
+
+    /// <summary>
+    /// Verifies that enabling content requiring a different Game Installation automatically switches the selected installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_AutoSwitches_GameInstallation_When_Dependency_Requires_Different_Type()
+    {
+        // Arrange
+        var modManifestId = new ManifestId("1.0.0.mod.generalsonline");
+        var zeroHourInstallId = new ManifestId("1.0.0.gameinstallation.zerohour");
+        var generalsInstallId = new ManifestId("1.0.0.gameinstallation.generals");
+
+        var modManifest = new ContentManifest
+        {
+            Id = modManifestId,
+            Name = "Generals Online",
+            ContentType = ContentType.GameClient, // Treating as GameClient for this test as per requirement
+            Dependencies =
+            [
+                new()
+                {
+                    Id = zeroHourInstallId, // Specifically requires Zero Hour
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+
+        // Setup manifest pool
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == modManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+
+        // Available installations
+        var generalsInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = generalsInstallId,
+            DisplayName = "Generals",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.Steam, // Added required property
+            IsEnabled = true, // Initially selected/enabled
+        };
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Steam, // Added required property
+            IsEnabled = false,
+        };
+
+        _viewModel.AvailableGameInstallations = [generalsInstall, zeroHourInstall];
+        _viewModel.SelectedGameInstallation = generalsInstall;
+        _viewModel.EnabledContent.Add(generalsInstall); // Simulate initial state
+
+        var modDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = modManifestId,
+            DisplayName = "Generals Online",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour, // Added required property (assuming match)
+            InstallationType = GameInstallationType.Unknown, // Added required property
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(modDisplayItem);
+
+        // Act
+        // We use the command directly or the method if public. EnableContent is private but called via RelayCommand.
+        _viewModel.EnableContentCommand.Execute(modDisplayItem);
+
+        // Wait for async background operation
+        await Task.Delay(50);
+
+        // Assert
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == generalsInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that enabling a standard GameClient (no persistent manifest) automatically switches the installation
+    /// by creating a synthetic manifest dependency on its SourceId.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_AutoSwitches_Installation_For_Standard_GameClient_Missing_Manifest()
+    {
+        // Arrange
+        var standardClientId = new ManifestId("1.04.eaapp.gameclient.zerohour");
+        var zeroHourInstallId = new ManifestId("1.04.eaapp.gameinstallation.zerohour");
+        var generalsInstallId = new ManifestId("1.08.eaapp.gameinstallation.generals");
+
+        // NOTE: We do NOT setup the manifest pool for standardClientId.
+        // It should default to Failure (as set in constructor) or we enforce it here:
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == standardClientId.Value), It.IsAny<CancellationToken>()))
+             .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Not found"));
+
+        // Available installations
+        var generalsInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = generalsInstallId,
+            DisplayName = "Generals 1.08",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.Generals,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = true,
+        };
+
+        var zeroHourInstall = new ViewModelContentDisplayItem
+        {
+            ManifestId = zeroHourInstallId,
+            DisplayName = "Zero Hour 1.04",
+            ContentType = ContentType.GameInstallation,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+            IsEnabled = false,
+        };
+
+        _viewModel.AvailableGameInstallations = [generalsInstall, zeroHourInstall];
+        _viewModel.SelectedGameInstallation = generalsInstall;
+        _viewModel.EnabledContent.Add(generalsInstall);
+
+        // Standard Game Client Item (e.g. detected from runtime)
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = standardClientId,
+            DisplayName = "Zero Hour 1.04 Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.EaApp,
+
+            // CRITICAL: SourceId must point to the installation
+            SourceId = zeroHourInstallId.Value,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(clientDisplayItem);
+
+        // Act
+        _viewModel.EnableContentCommand.Execute(clientDisplayItem);
+
+        // Wait for async background operation
+        await Task.Delay(50);
+
+        // Assert
+        Assert.Equal(zeroHourInstall, _viewModel.SelectedGameInstallation);
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == zeroHourInstallId.Value);
+        Assert.DoesNotContain(_viewModel.EnabledContent, c => c.ManifestId.Value == generalsInstallId.Value);
+        Assert.True(zeroHourInstall.IsEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that enabling content with a strictly required dependent content (e.g. MapPack) automatically enables it if found.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task EnableContent_AutoEnables_DependentContent()
+    {
+        // Arrange
+        var clientManifestId = new ManifestId("1.0.0.gameclient.generalsonline");
+        var mapPackId = new ManifestId("1.0.0.mappack.quickmatch");
+
+        var clientManifest = new ContentManifest
+        {
+            Id = clientManifestId,
+            Name = "Generals Online Client",
+            ContentType = ContentType.GameClient,
+            Dependencies =
+            [
+                new()
+                {
+                    Id = mapPackId,
+                    DependencyType = ContentType.MapPack,
+                    IsOptional = false,
+                    Name = "QuickMatch MapPack",
+                },
+            ],
+        };
+
+        // Setup manifest pool
+        _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == clientManifestId.Value), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        // Setup mocked content loader response for the specific dependency lookup
+        var mapPackCoreItem = new CoreContentDisplayItem
+        {
+            Id = mapPackId.Value,
+            ManifestId = mapPackId.Value,
+            DisplayName = "QuickMatch MapPack",
+            ContentType = ContentType.MapPack,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+        };
+
+        _mockContentLoader.Setup(x => x.LoadAvailableContentAsync(
+                ContentType.MapPack,
+                It.IsAny<ObservableCollection<CoreContentDisplayItem>>(),
+                It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([mapPackCoreItem]);
+
+        var clientDisplayItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = clientManifestId,
+            DisplayName = "Generals Online Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour, // Added required property
+            InstallationType = GameInstallationType.Unknown, // Added required property
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(clientDisplayItem);
+
+        // Act
+        _viewModel.EnableContentCommand.Execute(clientDisplayItem);
+
+        // Assert
+        // Need to wait slightly because ResolveDependenciesAsync is fire-and-forget void async
+        await Task.Delay(50);
+
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackId.Value);
+        Assert.True(_viewModel.EnabledContent.First(c => c.ManifestId.Value == mapPackId.Value).IsEnabled);
+    }
 }

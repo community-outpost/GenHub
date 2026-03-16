@@ -43,7 +43,10 @@ public class WorkspaceManagerTests : IDisposable
 
         // Create WorkspaceReconciler
         var mockReconcilerLogger = new Mock<ILogger<WorkspaceReconciler>>();
-        _reconciler = new WorkspaceReconciler(mockReconcilerLogger.Object);
+        var mockFileOps = new Mock<IFileOperationsService>();
+        mockFileOps.Setup(x => x.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _reconciler = new WorkspaceReconciler(mockReconcilerLogger.Object, mockFileOps.Object);
 
         _manager = new WorkspaceManager(_strategies, _mockConfigProvider.Object, _mockLogger.Object, _casReferenceTracker, _mockWorkspaceValidator.Object, _reconciler);
     }

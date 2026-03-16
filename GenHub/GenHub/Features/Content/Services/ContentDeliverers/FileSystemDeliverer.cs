@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -19,12 +20,16 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers local file system content.
 /// Pure delivery - no discovery logic.
 /// </summary>
-public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigurationProviderService configProvider, IFileHashProvider hashProvider) : IContentDeliverer
+/// <param name="logger">The logger instance.</param>
+/// <param name="configProvider">The configuration provider service.</param>
+/// <param name="hashProvider">The file hash provider.</param>
+/// <param name="downloadService">The download service.</param>
+public class FileSystemDeliverer(
+    ILogger<FileSystemDeliverer> logger,
+    IConfigurationProviderService configProvider,
+    IFileHashProvider hashProvider,
+    IDownloadService downloadService) : IContentDeliverer
 {
-    private readonly ILogger<FileSystemDeliverer> _logger = logger;
-    private readonly IConfigurationProviderService _configProvider = configProvider;
-    private readonly IFileHashProvider _hashProvider = hashProvider;
-
     /// <inheritdoc />
     public string SourceName => "Local File System Deliverer";
 
@@ -97,16 +102,16 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
                 processedFiles++;
             }
 
-            // Use ContentManifestBuilder to create delivered manifest
             var manifestBuilder = new ContentManifestBuilder(
                 LoggerFactory.Create(builder => { }).CreateLogger<ContentManifestBuilder>(),
-                _hashProvider,
-                null!);
+                hashProvider,
+                null!,
+                downloadService,
+                configProvider);
 
-            int manifestVersionInt;
-            if (!int.TryParse(packageManifest.Version, out manifestVersionInt))
+            if (!int.TryParse(packageManifest.Version, out var manifestVersionInt))
             {
-                _logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
+                logger.LogError("Invalid manifest version format: {Version}", packageManifest.Version);
                 return OperationResult<ContentManifest>.CreateFailure("Invalid manifest version format");
             }
 
@@ -163,7 +168,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
             }
 
             // Add required directories
-            manifestBuilder.AddRequiredDirectories(packageManifest.RequiredDirectories.ToArray());
+            manifestBuilder.AddRequiredDirectories([..packageManifest.RequiredDirectories]);
 
             // Add installation instructions if present
             if (packageManifest.InstallationInstructions != null)
@@ -177,7 +182,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deliver local content for manifest {ManifestId}", packageManifest.Id);
+            logger.LogError(ex, "Failed to deliver local content for manifest {ManifestId}", packageManifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -201,7 +206,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
+            logger.LogError(ex, "Validation failed for local content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
@@ -218,7 +223,7 @@ public class FileSystemDeliverer(ILogger<FileSystemDeliverer> logger, IConfigura
     private string ResolveLocalPath(ManifestFile file, string manifestId)
     {
         // Priority: SourcePath > DownloadUrl > RelativePath
-        var basePath = _configProvider.GetWorkspacePath();
+        var basePath = configProvider.GetWorkspacePath();
         var localPath = file.SourcePath ?? file.DownloadUrl ?? file.RelativePath;
 
         if (string.IsNullOrEmpty(localPath))

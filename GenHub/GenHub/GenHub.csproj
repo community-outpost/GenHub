@@ -4,7 +4,12 @@
         <Nullable>enable</Nullable>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.Core" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="AngleSharp" />
@@ -12,12 +17,22 @@
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="Avalonia.Themes.Fluent" />
         <PackageReference Include="Avalonia.Fonts.Inter" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
+
         <PackageReference Include="CommunityToolkit.Mvvm" />
+
+
+
+        <PackageReference Include="Markdig" />
+
+
+
+        <PackageReference Include="Markdown.Avalonia" />
         <PackageReference Include="Material.Icons.Avalonia" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -29,9 +44,16 @@
         <PackageReference Include="Microsoft.Playwright" />
         <PackageReference Include="Octokit" />
         <PackageReference Include="ReactiveUI" />
-        <PackageReference Include="Serilog.Extensions.Logging.File" />
+        <PackageReference Include="Serilog" />
+        <PackageReference Include="Serilog.Sinks.File" />
+        <PackageReference Include="Serilog.Extensions.Logging" />
         <PackageReference Include="SharpCompress" />
         <PackageReference Include="Slugify.Core" />
+        <PackageReference Include="SixLabors.ImageSharp" />
+        <PackageReference Include="HeyRed.ImageSharp.Heif" />
+        <!-- Note: LibHeif.Native currently only provides native assets for win-x64 and linux-x64.
+             Other platforms (win-arm64, linux-arm64, osx) are not yet supported for AVIF conversion. -->
+        <PackageReference Include="LibHeif.Native" />
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="Velopack" />
     </ItemGroup>
@@ -53,5 +75,12 @@
 
     <ItemGroup>
       <AvaloniaResource Include="Assets\**\*.*" />
+    </ItemGroup>
+
+    <!-- Copy provider definition files to output directory -->
+    <ItemGroup>
+      <Content Include="Providers\*.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 </Project>

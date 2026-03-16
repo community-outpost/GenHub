@@ -1,5 +1,5 @@
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
 using Xunit;
 
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -176,6 +176,25 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
+    /// Verifies that Leikeze's and Legionnaire's hotkeys require the indicators pack (hlen).
+    /// </summary>
+    /// <param name="contentCode">The hotkey content code.</param>
+    [Theory]
+    [InlineData("hlei")]
+    [InlineData("hleg")]
+    public void GetDependencies_Hotkeys_RequiresIndicatorsPack(string contentCode)
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
+
+        // Assert
+        Assert.Contains(dependencies, d => d.Id.Value.EndsWith(".hlen") && d.DependencyType == ContentType.Addon);
+    }
+
+    /// <summary>
     /// Verifies that control bars are marked as exclusive (conflict with each other).
     /// </summary>
     [Fact]
@@ -234,14 +253,11 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_ControlBar_ReturnsOtherControlBars()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbbs");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbpr");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("cbbs", conflicts); // Should not conflict with itself
-        Assert.Contains("cben", conflicts);
-        Assert.Contains("cbpc", conflicts);
-        Assert.Contains("cbpr", conflicts);
+        Assert.DoesNotContain("cbpr", conflicts); // Should not conflict with itself
         Assert.Contains("cbpx", conflicts);
     }
 
@@ -252,12 +268,13 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_Hotkeys_ReturnsOtherHotkeys()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hlen");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hleg");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("hlen", conflicts); // Should not conflict with itself
+        Assert.DoesNotContain("hleg", conflicts); // Should not conflict with itself
         Assert.Contains("hlde", conflicts);
+        Assert.Contains("hlei", conflicts);
         Assert.Contains("ewba", conflicts);
     }
 
@@ -334,7 +351,7 @@ public class GenPatcherDependencyBuilderTests
 
         // Assert
         Assert.Equal(ContentType.Addon, dependency.DependencyType);
-        Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+        Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
         Assert.False(dependency.IsOptional);
 
         // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)

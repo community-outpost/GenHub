@@ -3,6 +3,17 @@ namespace GenHub.Core.Constants;
 /// <summary>GitHub-related constants for API interactions, parsing, and UI.</summary>
 public static class GitHubConstants
 {
+    // Rate limit constants
+
+    /// <summary>Default rate limit warning threshold (90%).</summary>
+    public const double DefaultRateLimitWarningThreshold = 0.9;
+
+    /// <summary>Default GitHub unauthenticated rate limit (Core API is 60, but 5000 is used as a safe high default until first update).</summary>
+    public const int DefaultRateLimit = 5000;
+
+    /// <summary>Default rate limit reset period in hours.</summary>
+    public const int DefaultRateLimitResetHours = 1;
+
     // Build parsing constants
 
     /// <summary>String identifier for Zero Hour game variant.</summary>
@@ -224,7 +235,7 @@ public static class GitHubConstants
     public const string WorkflowRunItemType = "Workflow Run";
 
     /// <summary>Text for unknown item types.</summary>
-    public const string UnknownItemType = "Unknown";
+    public const string UnknownItemType = GameClientConstants.UnknownVersion;
 
     /// <summary>Text indicating capability is available.</summary>
     public const string CapabilityYes = "Yes";

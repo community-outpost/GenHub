@@ -21,10 +21,10 @@ public class BoolToExpandIconConverter : IValueConverter
     {
         if (value is bool isExpanded)
         {
-            return isExpanded ? "▲" : "▼";
+            return isExpanded ? Material.Icons.MaterialIconKind.ChevronUp : Material.Icons.MaterialIconKind.ChevronDown;
         }
 
-        return "▼";
+        return Material.Icons.MaterialIconKind.ChevronDown;
     }
 
     /// <summary>

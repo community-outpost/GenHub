@@ -169,5 +169,5 @@ _NCrunch*
 **/.idea/**/modules.xml
 
 # Velopack releases
-/releases/
-/Releases/
+releases/
+Releases/

@@ -1,15 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -17,18 +21,31 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// <summary>
 /// Resolves Community Outpost content into manifests.
 /// Supports the GenPatcher dl.dat catalog format with multiple download mirrors.
+/// Uses <see cref="GenPatcherContentRegistry"/> for content metadata.
 /// </summary>
 /// <param name="manifestBuilderFactory">Factory to create new manifest builders per resolve operation.</param>
+/// <param name="providerLoader">Provider definition loader for endpoint configuration.</param>
 /// <param name="logger">The logger.</param>
 public class CommunityOutpostResolver(
     Func<IContentManifestBuilder> manifestBuilderFactory,
+    IProviderDefinitionLoader providerLoader,
     ILogger<CommunityOutpostResolver> logger) : IContentResolver
 {
     /// <inheritdoc/>
     public string ResolverId => CommunityOutpostConstants.PublisherId;
 
     /// <inheritdoc/>
-    public async Task<OperationResult<ContentManifest>> ResolveAsync(
+    public Task<OperationResult<ContentManifest>> ResolveAsync(
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken = default)
+    {
+        // Call the provider-aware overload with null (uses defaults from constants)
+        return ResolveAsync(provider: null, discoveredItem, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> ResolveAsync(
+        ProviderDefinition? provider,
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
@@ -39,13 +56,30 @@ public class CommunityOutpostResolver(
                 discoveredItem.Name,
                 discoveredItem.Version);
 
-            // Extract metadata from resolver metadata
+            // Get provider definition if not provided
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            if (provider == null)
+            {
+                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
+                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists."));
+            }
+
+            // Get configuration from provider definition
+            var websiteUrl = provider.Endpoints.WebsiteUrl ?? provider.Endpoints.GetEndpoint("websiteUrl") ?? string.Empty;
+            var patchPageUrl = provider.Endpoints.GetEndpoint("patchPageUrl") ?? string.Empty;
+
+            logger.LogDebug(
+                "Using endpoints - WebsiteUrl: {WebsiteUrl}, PatchPageUrl: {PatchPageUrl}",
+                websiteUrl,
+                patchPageUrl);
+
+            // Extract metadata from resolver metadata (set by the discoverer/parser)
             var contentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
             var catalogVersion = GetMetadataValue(discoveredItem, "catalogVersion", "unknown");
             var category = GetMetadataValue(discoveredItem, "category", "Other");
             var fileSize = GetMetadataValueLong(discoveredItem, "fileSize", 0);
 
-            // Get content metadata from registry
+            // Get content metadata from GenPatcherContentRegistry (static, hardcoded metadata)
             var contentMetadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
             // Determine filename from URL or content code
@@ -64,13 +98,9 @@ public class CommunityOutpostResolver(
                 fileSize);
 
             // Generate a deterministic content name from the content code
-            // For patches like "104p", create name like "patch104polish"
-            // For addons like "cbbs", use the content code directly
             var contentName = GenerateContentName(contentCode, contentMetadata);
 
             // Extract version number for manifest ID
-            // For patches like "1.04", extract as 104
-            // For content with dynamic versions (like community-patch), use the discovered version
             var versionSource = !string.IsNullOrEmpty(contentMetadata.Version)
                 ? contentMetadata.Version
                 : discoveredItem.Version;
@@ -83,12 +113,10 @@ public class CommunityOutpostResolver(
                 contentName,
                 manifestVersion);
 
-            // Create a fresh manifest builder instance for each resolve operation
-            // Using factory pattern ensures we get a new Transient instance each time
+            // Create a new manifest builder for each resolve operation to ensure clean state
             var manifestBuilder = manifestBuilderFactory();
 
             // Build manifest with correct parameters
-            // Use PublisherType (e.g., "communityoutpost") as the publisher ID, NOT combined with content code
             var manifest = manifestBuilder
                 .WithBasicInfo(
                     CommunityOutpostConstants.PublisherType,
@@ -97,15 +125,15 @@ public class CommunityOutpostResolver(
                 .WithContentType(contentMetadata.ContentType, contentMetadata.TargetGame)
                 .WithPublisher(
                     name: CommunityOutpostConstants.PublisherName,
-                    website: CommunityOutpostConstants.PublisherWebsite,
-                    supportUrl: CommunityOutpostConstants.PatchPageUrl,
+                    website: websiteUrl,
+                    supportUrl: patchPageUrl,
                     contactEmail: string.Empty,
                     publisherType: CommunityOutpostConstants.PublisherType)
                 .WithMetadata(
                     contentMetadata.Description,
                     tags: BuildTags(discoveredItem, contentMetadata),
-                    changelogUrl: CommunityOutpostConstants.PatchPageUrl)
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                    changelogUrl: patchPageUrl)
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Add dependencies based on content type and category
             var dependencies = contentMetadata.GetDependencies();
@@ -130,15 +158,15 @@ public class CommunityOutpostResolver(
             }
 
             // Add the file as a remote download
-            // Note: .dat files are actually .7z archives that need extraction
-            await manifest.AddRemoteFileAsync(
+            manifest.AddRemoteFileAsync(
                 filename,
                 downloadUrl,
                 ContentSourceType.RemoteDownload,
-                isExecutable: false);
+                isExecutable: false).Wait(cancellationToken);
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
+            builtManifest.ManifestVersion = manifestVersion;
 
             // Store the install target from content metadata
             builtManifest.InstallationInstructions ??= new InstallationInstructions();
@@ -149,13 +177,12 @@ public class CommunityOutpostResolver(
             // Store mirror URLs in metadata for fallback support during delivery
             if (mirrorUrls.Count > 1)
             {
-                // Store as custom tag since Metadata doesn't have arbitrary storage
-                builtManifest.Metadata.Tags ??= new List<string>();
+                builtManifest.Metadata.Tags ??= [];
                 builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
             }
 
             // Store the content code for the factory to use
-            builtManifest.Metadata.Tags ??= new List<string>();
+            builtManifest.Metadata.Tags ??= [];
             builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
             builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
 
@@ -166,11 +193,7 @@ public class CommunityOutpostResolver(
                 {
                     if (file.RelativePath == filename)
                     {
-                        // Store the archive type in SourcePath temporarily
-                        // The deliverer will use this to know to extract as 7z
                         file.SourcePath = "archive:7z";
-
-                        // Set the install target from content metadata
                         file.InstallTarget = contentMetadata.InstallTarget;
                     }
                 }
@@ -184,9 +207,19 @@ public class CommunityOutpostResolver(
 
             // Override the display name to be more user-friendly
             builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
-            builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
-                ? contentMetadata.Version
-                : discoveredItem.Version;
+
+            // For community-patch, prioritize discoveredItem.Version (dynamic date from legi.cc/patch)
+            // over static metadata version which may be null/empty
+            if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
+            {
+                builtManifest.Version = discoveredItem.Version;
+            }
+            else
+            {
+                builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
+                    ? contentMetadata.Version
+                    : discoveredItem.Version;
+            }
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -194,28 +227,25 @@ public class CommunityOutpostResolver(
                 contentCode,
                 category);
 
-            return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
+            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(builtManifest));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to resolve Community Outpost content");
-            return OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}");
+            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}"));
         }
     }
 
     /// <summary>
     /// Generates a deterministic content name for manifest ID generation.
     /// </summary>
-    /// <param name="contentCode">The 4-character content code.</param>
-    /// <param name="metadata">The content metadata.</param>
-    /// <returns>A normalized content name suitable for manifest IDs.</returns>
     private static string GenerateContentName(string contentCode, GenPatcherContentMetadata metadata)
     {
         // For official patches like "104p" -> "patch104polish"
         if (metadata.Category == GenPatcherContentCategory.OfficialPatch && !string.IsNullOrEmpty(metadata.LanguageCode))
         {
             var languageName = GetLanguageDisplayName(metadata.LanguageCode);
-            var codePrefix = contentCode.Length >= 3 ? contentCode.Substring(0, 3) : contentCode;
+            var codePrefix = contentCode.Length >= 3 ? contentCode[..3] : contentCode;
             return $"patch{codePrefix}{languageName}".ToLowerInvariant();
         }
 
@@ -254,8 +284,6 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Extracts a numeric version suitable for manifest ID.
     /// </summary>
-    /// <param name="version">The version string (e.g., "1.04", "1.08", "1.0", "2025-11-07").</param>
-    /// <returns>A numeric version string (e.g., "104", "108", "20251107").</returns>
     private static string ExtractManifestVersion(string version)
     {
         if (string.IsNullOrEmpty(version))
@@ -263,7 +291,7 @@ public class CommunityOutpostResolver(
             return "0";
         }
 
-        // Handle date versions like "2025-11-07" - exact format check for YYYY-MM-DD
+        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
         if (version.Length == 10 && version[4] == '-' && version[7] == '-')
         {
             var dateDigits = version.Replace("-", string.Empty);
@@ -273,11 +301,24 @@ public class CommunityOutpostResolver(
             }
         }
 
+        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
+        if (version.Length == 10 && version[2] == '-' && version[5] == '-')
+        {
+            // Reorder to YYYYMMDD
+            var parts = version.Split('-');
+            if (parts.Length == 3)
+            {
+                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
+                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+                {
+                    return dateValue.ToString();
+                }
+            }
+        }
+
         // Remove dots and leading zeros to get numeric version
-        // "1.04" -> "104", "1.08" -> "108", "1.0" -> "10"
         var digits = version.Replace(".", string.Empty);
 
-        // Try to parse as integer to normalize
         if (int.TryParse(digits, out var numericVersion))
         {
             return numericVersion.ToString();
@@ -293,13 +334,11 @@ public class CommunityOutpostResolver(
     {
         var tags = new List<string>(item.Tags);
 
-        // Add language tag if present
         if (!string.IsNullOrEmpty(metadata.LanguageCode))
         {
             tags.Add(metadata.LanguageCode);
         }
 
-        // Add category tag
         tags.Add(metadata.Category.ToString().ToLowerInvariant());
 
         return tags;
@@ -348,7 +387,6 @@ public class CommunityOutpostResolver(
             // Fall through to default filename
         }
 
-        // Generate filename from content code
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
     }
 
@@ -361,12 +399,12 @@ public class CommunityOutpostResolver(
 
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? new List<string>();
+            return JsonSerializer.Deserialize<List<string>>(mirrorUrlsJson) ?? [];
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to deserialize mirror URLs");
-            return new List<string>();
+            return [];
         }
     }
 }

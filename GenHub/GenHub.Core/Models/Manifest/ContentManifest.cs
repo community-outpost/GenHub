@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -32,6 +33,24 @@ public class ContentManifest
 
     /// <summary>Gets or sets the content metadata and descriptions.</summary>
     public ContentMetadata Metadata { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the name of the provider that originally supplied this manifest.
+    /// Used for cache invalidation.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OriginalProviderName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ID of the content from the original provider.
+    /// Used for cache invalidation.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OriginalContentId { get; set; }
+
+    /// <summary>Gets or sets the original source path for local content.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourcePath { get; set; }
 
     /// <summary>Gets or sets the dependencies required for this content to function.</summary>
     public List<ContentDependency> Dependencies { get; set; } = [];

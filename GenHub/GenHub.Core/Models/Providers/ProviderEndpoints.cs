@@ -1,4 +1,6 @@
+using System;
 using System.Text.Json.Serialization;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.Providers;
 
@@ -10,37 +12,37 @@ public class ProviderEndpoints
     /// <summary>
     /// Gets or sets the catalog/API URL for discovering content.
     /// </summary>
-    [JsonPropertyName("catalogUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.CatalogUrl)]
     public string? CatalogUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the base URL for downloads.
     /// </summary>
-    [JsonPropertyName("downloadBaseUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.DownloadBaseUrl)]
     public string? DownloadBaseUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the website URL for attribution.
     /// </summary>
-    [JsonPropertyName("websiteUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.WebsiteUrl)]
     public string? WebsiteUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the support/contact URL.
     /// </summary>
-    [JsonPropertyName("supportUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.SupportUrl)]
     public string? SupportUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the latest version URL (for single-release providers).
     /// </summary>
-    [JsonPropertyName("latestVersionUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.LatestVersionUrl)]
     public string? LatestVersionUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the manifest API URL (for JSON API providers).
     /// </summary>
-    [JsonPropertyName("manifestApiUrl")]
+    [JsonPropertyName(ProviderEndpointConstants.ManifestApiUrl)]
     public string? ManifestApiUrl { get; set; }
 
     /// <summary>
@@ -48,13 +50,13 @@ public class ProviderEndpoints
     /// Allows providers to define custom endpoints beyond the standard ones.
     /// </summary>
     [JsonPropertyName("custom")]
-    public Dictionary<string, string> Custom { get; set; } = new();
+    public Dictionary<string, string> Custom { get; set; } = [];
 
     /// <summary>
     /// Gets or sets additional mirror base URLs.
     /// </summary>
     [JsonPropertyName("mirrors")]
-    public List<MirrorEndpoint> Mirrors { get; set; } = new();
+    public List<MirrorEndpoint> Mirrors { get; set; } = [];
 
     /// <summary>
     /// Gets an endpoint URL by name, checking both standard properties and custom endpoints.
@@ -64,32 +66,70 @@ public class ProviderEndpoints
     public string? GetEndpoint(string name)
     {
         // Check standard endpoints first
-        var result = name.ToLowerInvariant() switch
+        if (string.Equals(name, ProviderEndpointConstants.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.Catalog, StringComparison.OrdinalIgnoreCase))
         {
-            "catalogurl" or "catalog" => this.CatalogUrl,
-            "downloadbaseurl" or "downloadbase" => this.DownloadBaseUrl,
-            "websiteurl" or "website" => this.WebsiteUrl,
-            "supporturl" or "support" => this.SupportUrl,
-            "latestversionurl" or "latestversion" => this.LatestVersionUrl,
-            "manifestapiurl" or "manifestapi" => this.ManifestApiUrl,
-            _ => null,
-        };
+            if (!string.IsNullOrEmpty(CatalogUrl))
+            {
+                return CatalogUrl;
+            }
+        }
 
-        if (result != null)
+        if (string.Equals(name, ProviderEndpointConstants.DownloadBaseUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.DownloadBase, StringComparison.OrdinalIgnoreCase))
         {
-            return result;
+            if (!string.IsNullOrEmpty(DownloadBaseUrl))
+            {
+                return DownloadBaseUrl;
+            }
+        }
+
+        if (string.Equals(name, ProviderEndpointConstants.WebsiteUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.Website, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(WebsiteUrl))
+            {
+                return WebsiteUrl;
+            }
+        }
+
+        if (string.Equals(name, ProviderEndpointConstants.SupportUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.Support, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(SupportUrl))
+            {
+                return SupportUrl;
+            }
+        }
+
+        if (string.Equals(name, ProviderEndpointConstants.LatestVersionUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.LatestVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(LatestVersionUrl))
+            {
+                return LatestVersionUrl;
+            }
+        }
+
+        if (string.Equals(name, ProviderEndpointConstants.ManifestApiUrl, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, ProviderEndpointConstants.ManifestApi, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrEmpty(ManifestApiUrl))
+            {
+                return ManifestApiUrl;
+            }
         }
 
         // Check custom endpoints
-        if (this.Custom.TryGetValue(name, out var customValue))
+        if (Custom.TryGetValue(name, out var customValue))
         {
             return customValue;
         }
 
         // Case-insensitive search in custom endpoints
-        foreach (var kvp in this.Custom)
+        foreach (var kvp in Custom)
         {
-            if (kvp.Key.Equals(name, System.StringComparison.OrdinalIgnoreCase))
+            if (kvp.Key.Equals(name, StringComparison.OrdinalIgnoreCase))
             {
                 return kvp.Value;
             }

@@ -1,12 +1,13 @@
-using System;
-using System.Linq;
 using Avalonia;
+using DotNetEnv;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Velopack;
 
@@ -32,6 +33,16 @@ public class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Load environment variables (locally)
+        try
+        {
+            Env.TraversePath().Load();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to load environment variables: {ex}");
+        }
+
         // Initialize Velopack - must be first to handle install/update hooks
         VelopackApp.Build().Run();
 
@@ -41,24 +52,46 @@ public class Program
         // Extract profile ID from args if present (for IPC forwarding)
         var profileId = CommandLineParser.ExtractProfileId(args);
 
-        // Initialize single-instance manager
-        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+        // Extract subscription URL from args if present (for IPC forwarding)
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
 
-        if (!_singleInstanceManager.IsFirstInstance)
+        // Check for multi-instance mode (useful for debugging with multiple instances)
+        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
+
+        if (!multiInstance)
         {
-            // Forward launch command to primary instance if we have a profile ID
-            if (!string.IsNullOrEmpty(profileId))
+            // Initialize single-instance manager
+            _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+
+            if (!_singleInstanceManager.IsFirstInstance)
             {
-                bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                // Forward launch command to primary instance if we have a profile ID
+                if (!string.IsNullOrEmpty(profileId))
+                {
+                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+                }
+
+                // Forward subscribe command to primary instance if we have a subscription URL
+                if (!string.IsNullOrEmpty(subscriptionUrl))
+                {
+                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+                }
+
+                // Focus the existing instance
+                SingleInstanceManager.FocusPrimaryInstance();
+
+                // Exit this secondary instance
+                _singleInstanceManager.Dispose();
+                return;
             }
-
-            // Focus the existing instance
-            SingleInstanceManager.FocusPrimaryInstance();
-
-            // Exit this secondary instance
-            _singleInstanceManager.Dispose();
-            return;
+        }
+        else
+        {
+            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
         }
 
         try

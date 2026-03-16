@@ -7,7 +7,9 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
 
@@ -21,7 +23,7 @@ public abstract class BaseContentProvider(
     ILogger logger
 ) : IContentProvider
 {
-    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly ILogger logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
 
     /// <inheritdoc />
@@ -38,31 +40,6 @@ public abstract class BaseContentProvider(
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
-    /// <summary>
-    /// Gets the logger for this provider.
-    /// </summary>
-    protected ILogger Logger => _logger;
-
-    /// <summary>
-    /// Gets the content validator for manifest validation.
-    /// </summary>
-    protected IContentValidator ContentValidator => _contentValidator;
-
-    /// <summary>
-    /// Gets the discoverer for this provider.
-    /// </summary>
-    protected abstract IContentDiscoverer Discoverer { get; }
-
-    /// <summary>
-    /// Gets the resolver for this provider.
-    /// </summary>
-    protected abstract IContentResolver Resolver { get; }
-
-    /// <summary>
-    /// Gets the deliverer for this provider.
-    /// </summary>
-    protected abstract IContentDeliverer Deliverer { get; }
-
     /// <inheritdoc />
     public virtual async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
@@ -70,8 +47,11 @@ public abstract class BaseContentProvider(
     {
         Logger.LogDebug("Starting {ProviderName} search for: {SearchTerm}", SourceName, query.SearchTerm);
 
-        // Step 1: Discovery
-        var discoveryResult = await Discoverer.DiscoverAsync(query, cancellationToken);
+        // Get provider definition for data-driven configuration (if available)
+        var providerDefinition = GetProviderDefinition();
+
+        // Step 1: Discovery - use provider-aware overload if definition is available
+        var discoveryResult = await Discoverer.DiscoverAsync(providerDefinition, query, cancellationToken);
         if (!discoveryResult.Success || discoveryResult.Data == null)
         {
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
@@ -81,11 +61,11 @@ public abstract class BaseContentProvider(
         var resolvedResults = new List<ContentSearchResult>();
 
         // Step 2: Resolution & Validation
-        foreach (var discovered in discoveryResult.Data)
+        foreach (var discovered in discoveryResult.Data.Items)
         {
             if (discovered.RequiresResolution)
             {
-                var resolutionResult = await Resolver.ResolveAsync(discovered, cancellationToken);
+                var resolutionResult = await Resolver.ResolveAsync(providerDefinition, discovered, cancellationToken);
                 if (resolutionResult.Success && resolutionResult.Data != null)
                 {
                     var validationResult = await ContentValidator.ValidateManifestAsync(
@@ -153,7 +133,7 @@ public abstract class BaseContentProvider(
             if (!validationResult.IsValid)
             {
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
-                if (errors.Any())
+                if (errors.Count > 0)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
                         errors.Select(e => $"Manifest validation failed: {e.Message}"));
@@ -204,7 +184,13 @@ public abstract class BaseContentProvider(
 
                 if (!fullResult.IsValid)
                 {
+                    // Log as warning only - content may have been moved to CAS already
+                    // CAS storage validates content hash on store, so this is informational
                     Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+                    foreach (var issue in fullResult.Issues.Take(5))
+                    {
+                        Logger.LogDebug("Validation issue: {Message}", issue.Message);
+                    }
                 }
             }
 
@@ -216,6 +202,38 @@ public abstract class BaseContentProvider(
             return OperationResult<ContentManifest>.CreateFailure($"Content preparation failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Gets the logger for this provider.
+    /// </summary>
+    protected ILogger Logger => logger;
+
+    /// <summary>
+    /// Gets the content validator for manifest validation.
+    /// </summary>
+    protected IContentValidator ContentValidator => _contentValidator;
+
+    /// <summary>
+    /// Gets the discoverer for this provider.
+    /// </summary>
+    protected abstract IContentDiscoverer Discoverer { get; }
+
+    /// <summary>
+    /// Gets the resolver for this provider.
+    /// </summary>
+    protected abstract IContentResolver Resolver { get; }
+
+    /// <summary>
+    /// Gets the deliverer for this provider.
+    /// </summary>
+    protected abstract IContentDeliverer Deliverer { get; }
+
+    /// <summary>
+    /// Gets the provider definition for data-driven configuration.
+    /// Override this method to provide a ProviderDefinition loaded from JSON configuration.
+    /// </summary>
+    /// <returns>The provider definition, or null if the provider uses hardcoded configuration.</returns>
+    protected virtual ProviderDefinition? GetProviderDefinition() => null;
 
     /// <summary>
     /// Implementation-specific content preparation logic.

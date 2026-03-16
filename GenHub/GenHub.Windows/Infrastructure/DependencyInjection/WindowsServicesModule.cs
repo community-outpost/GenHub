@@ -1,5 +1,5 @@
 using System;
-using GenHub.Core.Interfaces.Common;
+using System.Runtime.Versioning;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -12,7 +12,6 @@ using GenHub.Windows.Features.Workspace;
 using GenHub.Windows.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Runtime.Versioning;
 
 namespace GenHub.Windows.Infrastructure.DependencyInjection;
 

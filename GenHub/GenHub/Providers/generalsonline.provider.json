@@ -1,0 +1,34 @@
+{
+    "providerId": "generalsonline",
+    "publisherType": "generalsonline",
+    "displayName": "Generals Online",
+    "description": "Community-driven multiplayer service for C&C Generals Zero Hour. Features 60Hz tick rate, automatic updates, and improved stability.",
+    "iconColor": "#4CAF50",
+    "providerType": "Static",
+    "catalogFormat": "generalsonline-json-api",
+    "endpoints": {
+        "catalogUrl": "https://cdn.playgenerals.online/manifest.json",
+        "websiteUrl": "https://www.playgenerals.online/",
+        "supportUrl": "https://discord.playgenerals.online/",
+        "custom": {
+            "cdnBaseUrl": "https://cdn.playgenerals.online",
+            "latestVersionUrl": "https://cdn.playgenerals.online/latest.txt",
+            "releasesUrl": "https://cdn.playgenerals.online/releases",
+            "downloadPageUrl": "https://www.playgenerals.online/#download",
+            "iconUrl": "https://www.playgenerals.online/logo.png"
+        }
+    },
+    "mirrorPreference": [],
+    "targetGame": "ZeroHour",
+    "defaultTags": [
+        "multiplayer",
+        "online",
+        "community",
+        "enhancement"
+    ],
+    "timeouts": {
+        "catalogTimeoutSeconds": 30,
+        "contentTimeoutSeconds": 600
+    },
+    "enabled": true
+}

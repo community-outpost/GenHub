@@ -20,7 +20,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
     private readonly IDisposable _notificationSubscription;
     private readonly IDisposable _dismissSubscription;
     private readonly IDisposable _dismissAllSubscription;
-    private readonly object _lock = new object();
+    private readonly object _lock = new();
     private bool _disposed;
 
     /// <summary>
@@ -43,7 +43,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
         _logger = logger;
         _itemLogger = itemLogger;
 
-        ActiveNotifications = new ObservableCollection<NotificationItemViewModel>();
+        ActiveNotifications = [];
 
         _notificationSubscription = _notificationService.Notifications.Subscribe(HandleNotificationReceived);
         _dismissSubscription = _notificationService.DismissRequests.Subscribe(HandleDismissRequest);

@@ -16,10 +16,38 @@ public static class GameSettingsConstants
         public const int MaxQuality = 3;
 
         /// <summary>
-        /// Offset used to convert between TextureQuality (0-3) and TextureReduction (-1 to 3).
-        /// VeryHigh (3) maps to TextureReduction -1 (TheSuperHackers only).
+        /// Offset used to convert between TextureQuality (0-3) and TextureReduction (0 to 2).
+        /// VeryHigh (3) maps to TextureReduction 0.
+        /// High (2) maps to TextureReduction 0.
+        /// Medium (1) maps to TextureReduction 1.
+        /// Low (0) maps to TextureReduction 2.
         /// </summary>
-        public const int ReductionOffset = 3;
+        /// <remarks>
+        /// TextureQuality value 3 (VeryHigh) maps to TextureReduction 0.
+        /// Any TextureQuality value above 3 will also be mapped to TextureReduction 0.
+        /// Note: MaxQuality is 3, so valid values are 0 (Low), 1 (Medium), 2 (High), and 3 (VeryHigh).
+        /// </remarks>
+        public const int ReductionOffset = 2;
+
+        /// <summary>
+        /// Texture reduction value for low quality.
+        /// </summary>
+        public const int TextureReductionLow = 2;
+
+        /// <summary>
+        /// Texture reduction value for medium quality.
+        /// </summary>
+        public const int TextureReductionMedium = 1;
+
+        /// <summary>
+        /// Texture reduction value for high quality.
+        /// </summary>
+        public const int TextureReductionHigh = 0;
+
+        /// <summary>
+        /// Texture reduction value for very high quality (clamped from -1).
+        /// </summary>
+        public const int TextureReductionVeryHigh = 0;
     }
 
     /// <summary>

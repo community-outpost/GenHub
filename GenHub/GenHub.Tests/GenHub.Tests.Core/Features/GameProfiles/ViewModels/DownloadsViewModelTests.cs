@@ -1,12 +1,10 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Downloads.ViewModels;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -23,18 +21,30 @@ public class DownloadsViewModelTests
     public async Task InitializeAsync_CompletesSuccessfully()
     {
         // Arrange
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        var loggerMock = new Mock<ILogger<DownloadsViewModel>>();
+        var mockServiceProvider = new Mock<IServiceProvider>();
+        var mockLogger = new Mock<ILogger<DownloadsViewModel>>();
         var mockNotificationService = new Mock<INotificationService>();
-        var mockGitHubDiscoverer = new Mock<GitHubTopicsDiscoverer>(
-            It.IsAny<IGitHubApiClient>(),
-            It.IsAny<ILogger<GitHubTopicsDiscoverer>>(),
-            It.IsAny<IMemoryCache>());
+
+        // Create a real instance of the discoverer with mocked dependencies to avoid Moq proxy issues
+        var discoverer = new GitHubTopicsDiscoverer(
+            new Mock<IGitHubApiClient>().Object,
+            new Mock<ILogger<GitHubTopicsDiscoverer>>().Object);
+
+        var mockConfigProvider = new Mock<IConfigurationProviderService>();
+        mockConfigProvider.Setup(x => x.GetApplicationDataPath()).Returns(Path.GetTempPath());
+        mockConfigProvider.Setup(x => x.GetWorkspacePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubWorkspaces"));
+
+        var vm = new DownloadsViewModel(
+            mockServiceProvider.Object,
+            mockLogger.Object,
+            mockNotificationService.Object,
+            discoverer,
+            mockConfigProvider.Object);
 
         // Act
-        var vm = new DownloadsViewModel(serviceProviderMock.Object, loggerMock.Object, mockNotificationService.Object, mockGitHubDiscoverer.Object);
+        await vm.InitializeAsync();
 
         // Assert
-        await vm.InitializeAsync();
+        Assert.NotNull(vm);
     }
 }

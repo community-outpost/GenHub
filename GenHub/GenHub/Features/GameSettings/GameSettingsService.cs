@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -19,7 +20,11 @@ namespace GenHub.Features.GameSettings;
 /// </summary>
 public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider? pathProvider = null) : IGameSettingsService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
 
     /// <summary>
     /// Static semaphore to serialize Options.ini writes across all game launches.
@@ -50,6 +55,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" });
 
+        // Acquire semaphore to prevent reading while writing
+        await _optionsIniWriteSemaphore.WaitAsync();
         try
         {
             var filePath = GetOptionsFilePath(gameType);
@@ -74,6 +81,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             _logger.LogError(ex, "Failed to load Options.ini for {GameType}", gameType);
             return OperationResult<IniOptions>.CreateFailure($"Failed to load options: {ex.Message}");
         }
+        finally
+        {
+            _optionsIniWriteSemaphore.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -95,6 +106,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 _logger.LogDebug("Creating directory: {Directory}", directory);
                 Directory.CreateDirectory(directory);
                 _logger.LogInformation("Created directory {Directory}", directory);
+            }
+
+            // Safety check: Don't overwrite existing non-empty file with empty options
+            // This prevents data loss if a load failed but Save was called with defaults
+            if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+            {
+                bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
+                if (isDefault)
+                {
+                    _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
+                    return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                }
             }
 
             _logger.LogDebug("Serializing options");
@@ -192,7 +215,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             }
 
             var json = await File.ReadAllTextAsync(settingsPath);
-            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json);
+            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
 
             if (settings == null)
             {
@@ -243,8 +266,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         var options = new IniOptions();
         var currentSection = string.Empty;
-        var currentDict = new Dictionary<string, string>();
-        var rootDict = new Dictionary<string, string>(); // For flat format
+        Dictionary<string, string> currentDict = [];
+        Dictionary<string, string> rootDict = []; // For flat format
 
         foreach (var rawLine in lines)
         {
@@ -274,6 +297,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             {
                 var key = line[..separatorIndex].Trim();
                 var value = line[(separatorIndex + 1)..].Trim();
+
+                // Sanitize key (remove BOM and other invisible characters)
+                key = SanitizeKey(key);
 
                 if (string.IsNullOrEmpty(currentSection))
                 {
@@ -319,7 +345,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
-            "IdealStaticGameLOD", "StaticGameLOD",
+            "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
+            "BuildingOcclusion", "ShowProps",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -330,22 +357,20 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ArchiveReplays", "BuildingOcclusion", "CursorCaptureEnabledInFullscreenGame",
-            "CursorCaptureEnabledInFullscreenMenu", "CursorCaptureEnabledInWindowedGame",
-            "CursorCaptureEnabledInWindowedMenu", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", "HeatEffects", "LanguageFilter", "MaxParticleCount",
+            "CursorCaptureEnabledInWindowedMenu", "CursorCaptureEnabledInWindowedGame", "DrawScrollAnchor", "DynamicLOD",
+            "GameTimeFontSize", "LanguageFilter", "MaxParticleCount",
             "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
             "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
             "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
             "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
             "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseAlternateMouse", "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
         };
 
-        var audioDict = new Dictionary<string, string>();
-        var videoDict = new Dictionary<string, string>();
-        var networkDict = new Dictionary<string, string>();
-        var theSuperHackersDict = new Dictionary<string, string>();
+        Dictionary<string, string> audioDict = [];
+        Dictionary<string, string> videoDict = [];
+        Dictionary<string, string> networkDict = [];
+        Dictionary<string, string> theSuperHackersDict = [];
 
         foreach (var kvp in rootDict)
         {
@@ -467,6 +492,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
+            "AlternateMouseSetup", "HeatEffects", "BuildingOcclusion", "ShowProps",
         };
 
         foreach (var kvp in values)
@@ -512,6 +538,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "Gamma" when int.TryParse(kvp.Value, out var g):
                     video.Gamma = g;
                     break;
+                case "AlternateMouseSetup":
+                    video.AlternateMouseSetup = ParseBool(kvp.Value);
+                    break;
+                case "HeatEffects":
+                    video.HeatEffects = ParseBool(kvp.Value);
+                    break;
+                case "BuildingOcclusion":
+                    video.BuildingOcclusion = ParseBool(kvp.Value);
+                    break;
+                case "ShowProps":
+                    video.ShowProps = ParseBool(kvp.Value);
+                    break;
             }
         }
     }
@@ -542,7 +580,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static string[] SerializeOptionsIni(IniOptions options)
     {
-        var lines = new List<string>();
+        List<string> lines = [];
 
         // Write all settings in flat format (no sections) as the game expects
         // Audio settings
@@ -568,6 +606,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"UseShadowDecals={BoolToString(options.Video.UseShadowDecals)}");
         lines.Add($"ExtraAnimations={BoolToString(options.Video.ExtraAnimations)}");
         lines.Add($"Gamma={options.Video.Gamma}");
+        lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
+        lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
+        lines.Add($"BuildingOcclusion={BoolToString(options.Video.BuildingOcclusion)}");
+        lines.Add($"ShowProps={BoolToString(options.Video.ShowProps)}");
 
         // Add additional video properties
         foreach (var kvp in options.Video.AdditionalProperties)
@@ -575,12 +617,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
-        // TheSuperHackers/GeneralsOnline settings (flat, no section header)
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings))
+        // TheSuperHackers settings
+        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings) && tshSettings.Count > 0)
         {
+            lines.Add(string.Empty);
+            lines.Add("[TheSuperHackers]");
             foreach (var kvp in tshSettings)
             {
-                lines.Add($"{kvp.Key}={kvp.Value}");
+                lines.Add($"{kvp.Key} = {kvp.Value}");
             }
         }
 
@@ -597,12 +641,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections)
+        foreach (var section in options.AdditionalSections.Where(s => s.Key != "TheSuperHackers"))
         {
-            // Skip TheSuperHackers - already written flat above
-            if (section.Key.Equals("TheSuperHackers", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
             foreach (var kvp in section.Value)
@@ -688,5 +728,19 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
         var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
         return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
+
+    private static string SanitizeKey(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key;
+
+        // Remove BOM if present
+        if (key.StartsWith('\uFEFF'))
+        {
+            key = key[1..];
+        }
+
+        // Remove any other control characters or non-printable chars if needed
+        return key.Trim();
     }
 }

@@ -3,8 +3,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -91,17 +93,20 @@ public partial class TestFileOperationsService(
         => _innerService.StoreInCasAsync(sourcePath, expectedHash, cancellationToken);
 
     /// <inheritdoc/>
-    public Task<bool> CopyFromCasAsync(string hash, string destinationPath, CancellationToken cancellationToken = default)
-        => _innerService.CopyFromCasAsync(hash, destinationPath, cancellationToken);
+    public Task<bool> CopyFromCasAsync(string hash, string destinationPath, ContentType? contentType = null, CancellationToken cancellationToken = default)
+        => _innerService.CopyFromCasAsync(hash, destinationPath, contentType, cancellationToken);
 
     /// <inheritdoc/>
-    public async Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, CancellationToken cancellationToken = default)
+    public async Task<bool> LinkFromCasAsync(string hash, string destinationPath, bool useHardLink = false, ContentType? contentType = null, CancellationToken cancellationToken = default)
     {
         if (useHardLink)
         {
             try
             {
-                var pathResult = await _casService.GetContentPathAsync(hash, cancellationToken).ConfigureAwait(false);
+                var pathResult = contentType.HasValue
+                    ? await _casService.GetContentPathAsync(hash, contentType.Value, cancellationToken).ConfigureAwait(false)
+                    : await _casService.GetContentPathAsync(hash, GenHub.Core.Models.Enums.ContentType.UnknownContentType, cancellationToken).ConfigureAwait(false);
+
                 if (!pathResult.Success || pathResult.Data == null)
                 {
                     _logger.LogError("CAS content not found for hash {Hash}: {Error}", hash, pathResult.FirstError);
@@ -128,7 +133,7 @@ public partial class TestFileOperationsService(
             }
         }
 
-        return await _innerService.LinkFromCasAsync(hash, destinationPath, useHardLink, cancellationToken);
+        return await _innerService.LinkFromCasAsync(hash, destinationPath, useHardLink, contentType, cancellationToken);
     }
 
     /// <inheritdoc/>

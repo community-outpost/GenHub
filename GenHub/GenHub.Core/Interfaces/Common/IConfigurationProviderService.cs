@@ -127,6 +127,24 @@ public interface IConfigurationProviderService
     string GetApplicationDataPath();
 
     /// <summary>
+    /// Gets the root application data directory path.
+    /// </summary>
+    /// <returns>The root application data path.</returns>
+    string GetRootAppDataPath();
+
+    /// <summary>
+    /// Gets the directory path where game profiles are stored.
+    /// </summary>
+    /// <returns>The profiles directory path.</returns>
+    string GetProfilesPath();
+
+    /// <summary>
+    /// Gets the directory path where manifests are stored.
+    /// </summary>
+    /// <returns>The manifests directory path.</returns>
+    string GetManifestsPath();
+
+    /// <summary>
     /// Gets the CAS configuration settings.
     /// </summary>
     /// <returns>The CAS configuration.</returns>

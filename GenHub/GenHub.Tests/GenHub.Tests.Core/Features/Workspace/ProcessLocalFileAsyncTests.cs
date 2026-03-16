@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -281,12 +282,12 @@ public class ProcessLocalFileAsyncTests : IDisposable
             WorkspaceRootPath = _tempWorkspaceDir,
             BaseInstallationPath = _tempSourceDir, // This should NOT be used for GameInstallation files
             GameClient = new GameClient { Id = "test" },
-            Manifests = new List<ContentManifest>
-            {
-                new ContentManifest
+            Manifests =
+            [
+                new()
                 {
-                    Files = new List<ManifestFile>
-                    {
+                    Files =
+                    [
                         new()
                         {
                             RelativePath = "generals.exe",
@@ -294,9 +295,9 @@ public class ProcessLocalFileAsyncTests : IDisposable
                             Size = 1000,
                             SourceType = ContentSourceType.GameInstallation,
                         },
-                    },
+                    ],
                 },
-            },
+            ],
         };
 
         try
@@ -384,6 +385,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         try
         {
             if (Directory.Exists(_tempSourceDir))
@@ -421,21 +423,21 @@ public class ProcessLocalFileAsyncTests : IDisposable
             WorkspaceRootPath = _tempWorkspaceDir,
             BaseInstallationPath = _tempSourceDir,
             GameClient = new GameClient { Id = "test" },
-            Manifests = new List<ContentManifest>
-            {
-                new ContentManifest
+            Manifests =
+            [
+                new()
                 {
-                    Files = new List<ManifestFile>
-                    {
+                    Files =
+                    [
                         new()
                         {
                             RelativePath = "test.exe",
                             Size = 1000,
                             SourceType = ContentSourceType.LocalFile,
                         },
-                    },
+                    ],
                 },
-            },
+            ],
         };
     }
 

@@ -4,13 +4,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
-using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -27,16 +25,8 @@ public class GameProfileManager(
     IGameInstallationService installationService,
     IContentManifestPool manifestPool,
     IGameSettingsService gameSettingsService,
-    INotificationService? notificationService,
     ILogger<GameProfileManager> logger) : IGameProfileManager
 {
-    private readonly IGameProfileRepository _profileRepository = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
-    private readonly IGameInstallationService _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
-    private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
-    private readonly IGameSettingsService _gameSettingsService = gameSettingsService ?? throw new ArgumentNullException(nameof(gameSettingsService));
-    private readonly INotificationService? _notificationService = notificationService;
-    private readonly ILogger<GameProfileManager> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> CreateProfileAsync(CreateProfileRequest request, CancellationToken cancellationToken = default)
     {
@@ -53,48 +43,89 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Profile name cannot be empty");
             }
 
-            if (string.IsNullOrWhiteSpace(request.GameInstallationId))
+            // Detect if this is a Tool profile using centralized helper
+            bool isToolProfile = await Core.Helpers.ToolProfileHelper.IsToolProfileAsync(
+                request.EnabledContentIds ?? [],
+                manifestPool,
+                cancellationToken);
+
+            string? toolContentId = null;
+
+            if (isToolProfile)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required");
+                // Validate Tool profile content configuration
+                var validationError = await Core.Helpers.ToolProfileHelper.ValidateToolProfileContentAsync(
+                    request.EnabledContentIds!,
+                    manifestPool,
+                    cancellationToken);
+
+                if (validationError != null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(validationError);
+                }
+
+                // Set toolContentId to the single ModdingTool content ID
+                toolContentId = request.EnabledContentIds!.First();
+
+                logger.LogInformation(
+                    "Detected Tool profile creation for tool: {ToolContentId}",
+                    toolContentId);
             }
 
-            var installationResult = await _installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
-            if (installationResult.Failed)
+            // Validate based on profile type
+            GameClient? gameClient = null;
+            if (isToolProfile)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to find game installation with ID: {request.GameInstallationId}");
-            }
-
-            var gameInstallation = installationResult.Data!;
-
-            // Use GameClient from request if provided (for provider-based clients like GeneralsOnline/SuperHackers)
-            // Otherwise, look it up from AvailableGameClients (for standard installation-detected clients)
-            GameClient? gameClient;
-            if (request.GameClient != null)
-            {
-                // Provider-based client: use the resolved game client directly
-                gameClient = request.GameClient;
-                _logger.LogDebug(
-                    "Using provided GameClient for profile creation: {GameClientId}",
-                    gameClient.Id);
+                // Tool profile: No GameInstallation or GameClient required
+                logger.LogDebug("Creating Tool profile, bypassing GameInstallation/GameClient validation");
             }
             else
             {
-                // Standard client: look up from AvailableGameClients
-                gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
-                if (gameClient == null)
+                // Regular profile: Require GameInstallation and GameClient
+                if (string.IsNullOrWhiteSpace(request.GameInstallationId))
                 {
-                    return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                    return ProfileOperationResult<GameProfile>.CreateFailure("Game installation ID is required for game profiles");
+                }
+
+                var installationResult = await installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
+                if (installationResult.Failed)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure($"Failed to find game installation with ID: {request.GameInstallationId}");
+                }
+
+                var gameInstallation = installationResult.Data!;
+
+                // Use GameClient from request if provided (for provider-based clients like GeneralsOnline/SuperHackers)
+                // Otherwise, look it up from AvailableGameClients (for standard installation-detected clients)
+                if (request.GameClient != null)
+                {
+                    // Provider-based client: use the resolved game client directly
+                    gameClient = request.GameClient;
+                    logger.LogDebug(
+                        "Using provided GameClient for profile creation: {GameClientId}",
+                        gameClient.Id);
+                }
+                else
+                {
+                    // Standard client: look up from AvailableGameClients
+                    gameClient = gameInstallation.AvailableGameClients.FirstOrDefault(v => v.Id == request.GameClientId);
+                    if (gameClient == null)
+                    {
+                        return ProfileOperationResult<GameProfile>.CreateFailure($"Game client not found in installation: {request.GameClientId}");
+                    }
                 }
             }
 
             var profile = new GameProfile
             {
+                Id = Guid.NewGuid().ToString("N"),
                 Name = request.Name,
                 Description = request.Description ?? string.Empty,
-                GameInstallationId = gameInstallation.Id,
+                GameInstallationId = request.GameInstallationId ?? string.Empty,
                 GameClient = gameClient,
-                WorkspaceStrategy = request.PreferredStrategy,
+                WorkspaceStrategy = request.WorkspaceStrategy,
                 EnabledContentIds = request.EnabledContentIds ?? [],
+                ToolContentId = toolContentId, // Set for Tool profiles
                 ThemeColor = request.ThemeColor,
                 IconPath = request.IconPath,
                 CoverPath = request.CoverPath,
@@ -102,35 +133,39 @@ public class GameProfileManager(
                 GameSpyIPAddress = request.GameSpyIPAddress,
             };
 
-            // Load existing Options.ini settings and populate the profile
-            // This ensures new profiles inherit existing TheSuperHackers/GeneralsOnline settings
-            await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType);
+            // Load settings only for regular game profiles (Tool profiles don't have game settings)
+            if (!isToolProfile && gameClient != null)
+            {
+                // Populate settings into new profile
+                GameSettingsMapper.PopulateGameProfile(profile, request);
 
-            var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
+                // Load existing Options.ini settings only if they weren't explicitly provided in the request
+                // This ensures we still have a baseline for unset fields but respect wizard selections.
+                await LoadExistingSettingsIntoProfileAsync(profile, gameClient.GameType);
+
+                // Re-apply request settings over the loaded ones (in case LoadExistingSettingsIntoProfileAsync overwrote them)
+                GameSettingsMapper.PatchGameProfile(profile, request);
+            }
+
+            var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
 
             if (saveResult.Success)
             {
-                _logger.LogInformation("Successfully created game profile: {ProfileName}", profile.Name);
+                logger.LogInformation("Successfully created game profile: {ProfileName}", profile.Name);
 
                 // Notify listeners about the new profile
                 WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(profile));
-
-                // Emit success notification for profile creation
-                _notificationService?.ShowSuccess(
-                    "Profile Created",
-                    $"Successfully created profile '{profile.Name}'",
-                    autoDismissMs: NotificationDurations.Medium);
             }
             else
             {
-                _logger.LogError("Failed to create game profile: {ProfileName}", profile.Name);
+                logger.LogError("Failed to create game profile: {ProfileName}", profile.Name);
             }
 
             return saveResult;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while creating a game profile {ProfileName}.", request?.Name);
+            logger.LogError(ex, "An unexpected error occurred while creating a game profile {ProfileName}.", request?.Name);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -145,13 +180,15 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
             }
 
-            var loadResult = await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
+            var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
             if (loadResult.Failed)
             {
                 return loadResult;
             }
 
             var profile = loadResult.Data!;
+            var previousEnabledContentIds = profile.EnabledContentIds?.ToList() ?? [];
+            var previousGameClientId = profile.GameClient?.Id;
 
             if (request.Name != null)
             {
@@ -164,74 +201,73 @@ public class GameProfileManager(
             }
 
             profile.Description = request.Description ?? profile.Description;
-            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds;
-            profile.WorkspaceStrategy = request.PreferredStrategy ?? profile.WorkspaceStrategy;
-            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions;
+            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
+            profile.GameClient = request.GameClient ?? profile.GameClient;
+            profile.WorkspaceStrategy = request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
+            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
             profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
             profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
             profile.IconPath = request.IconPath ?? profile.IconPath;
             profile.CoverPath = request.CoverPath ?? profile.CoverPath;
             profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
             profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
+            profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
             profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
 
-            // Only update ActiveWorkspaceId if explicitly provided (not null or empty)
-            if (!string.IsNullOrEmpty(request.ActiveWorkspaceId))
+            // Detect if content changed and invalidate workspace if needed
+            bool contentChanged = false;
+            if (request.EnabledContentIds != null)
+            {
+                var newContentIds = request.EnabledContentIds.ToList();
+                contentChanged = !previousEnabledContentIds.SequenceEqual(newContentIds, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (request.GameClient != null)
+            {
+                var newGameClientId = request.GameClient.Id;
+                contentChanged = contentChanged || !string.Equals(previousGameClientId, newGameClientId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // If content changed, clear the ActiveWorkspaceId to force workspace rebuild on next launch
+            // This is critical - without this, the workspace will continue using the old content
+            if (contentChanged && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
+            {
+                logger.LogDebug(
+                    "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",
+                    profile.Name,
+                    profile.ActiveWorkspaceId);
+                profile.ActiveWorkspaceId = string.Empty;
+            }
+
+            // Only update ActiveWorkspaceId if explicitly provided (not null)
+            // We allow empty strings because that's how we clear the active workspace to force a rebuild
+            if (request.ActiveWorkspaceId != null)
             {
                 profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
             }
 
             // Update game settings
-            if (request.VideoResolutionWidth.HasValue)
-                profile.VideoResolutionWidth = request.VideoResolutionWidth;
-            if (request.VideoResolutionHeight.HasValue)
-                profile.VideoResolutionHeight = request.VideoResolutionHeight;
-            if (request.VideoWindowed.HasValue)
-                profile.VideoWindowed = request.VideoWindowed;
-            if (request.VideoTextureQuality.HasValue)
-                profile.VideoTextureQuality = request.VideoTextureQuality;
-            if (request.EnableVideoShadows.HasValue)
-                profile.EnableVideoShadows = request.EnableVideoShadows;
-            if (request.VideoParticleEffects.HasValue)
-                profile.VideoParticleEffects = request.VideoParticleEffects;
-            if (request.VideoExtraAnimations.HasValue)
-                profile.VideoExtraAnimations = request.VideoExtraAnimations;
-            if (request.VideoBuildingAnimations.HasValue)
-                profile.VideoBuildingAnimations = request.VideoBuildingAnimations;
-            if (request.VideoGamma.HasValue)
-                profile.VideoGamma = request.VideoGamma;
-            if (request.AudioSoundVolume.HasValue)
-                profile.AudioSoundVolume = request.AudioSoundVolume;
-            if (request.AudioThreeDSoundVolume.HasValue)
-                profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume;
-            if (request.AudioSpeechVolume.HasValue)
-                profile.AudioSpeechVolume = request.AudioSpeechVolume;
-            if (request.AudioMusicVolume.HasValue)
-                profile.AudioMusicVolume = request.AudioMusicVolume;
-            if (request.AudioEnabled.HasValue)
-                profile.AudioEnabled = request.AudioEnabled;
-            if (request.AudioNumSounds.HasValue)
-                profile.AudioNumSounds = request.AudioNumSounds;
-            if (request.UseSteamLaunch.HasValue)
-                profile.UseSteamLaunch = request.UseSteamLaunch;
-            if (request.GameSpyIPAddress != null)
-                profile.GameSpyIPAddress = request.GameSpyIPAddress;
+            GameSettingsMapper.UpdateFromRequest(profile, request);
 
-            var saveResult = await _profileRepository.SaveProfileAsync(profile, cancellationToken);
+            var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
             if (saveResult.Success)
             {
-                _logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
+                logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
+
+                // Send notification after successful update so UI can refresh
+                // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
+                WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
             }
             else
             {
-                _logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
+                logger.LogError("Failed to update game profile: {ProfileName}", profile.Name);
             }
 
             return saveResult;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -246,21 +282,21 @@ public class GameProfileManager(
                 return OperationResult<bool>.CreateFailure("Profile ID cannot be empty");
             }
 
-            var deleteResult = await _profileRepository.DeleteProfileAsync(profileId, cancellationToken);
+            var deleteResult = await profileRepository.DeleteProfileAsync(profileId, cancellationToken);
             if (deleteResult.Success)
             {
-                _logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
+                logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
                 return OperationResult<bool>.CreateSuccess(true);
             }
             else
             {
-                _logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
+                logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
                 return OperationResult<bool>.CreateFailure(deleteResult.Errors);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while deleting game profile {ProfileId}.", profileId);
             return OperationResult<bool>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -270,11 +306,11 @@ public class GameProfileManager(
     {
         try
         {
-            return await _profileRepository.LoadAllProfilesAsync(cancellationToken);
+            return await profileRepository.LoadAllProfilesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting all game profiles.");
+            logger.LogError(ex, "An unexpected error occurred while getting all game profiles.");
             return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -289,11 +325,11 @@ public class GameProfileManager(
                 return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
             }
 
-            return await _profileRepository.LoadProfileAsync(profileId, cancellationToken);
+            return await profileRepository.LoadProfileAsync(profileId, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting game profile {ProfileId}.", profileId);
+            logger.LogError(ex, "An unexpected error occurred while getting game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -308,7 +344,7 @@ public class GameProfileManager(
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("Game client cannot be null");
             }
 
-            var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
+            var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
             if (!manifestsResult.Success)
             {
                 return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure(string.Join(", ", manifestsResult.Errors));
@@ -322,7 +358,7 @@ public class GameProfileManager(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
+            logger.LogError(ex, "An unexpected error occurred while getting available content for {GameType}.", gameClient?.GameType);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateFailure("An unexpected error occurred.");
         }
     }
@@ -360,9 +396,9 @@ public class GameProfileManager(
     {
         try
         {
-            _logger.LogDebug("Loading existing Options.ini for {GameType} to populate new profile {ProfileName}", gameType, profile.Name);
+            logger.LogDebug("Loading existing Options.ini for {GameType} to populate new profile {ProfileName}", gameType, profile.Name);
 
-            var loadResult = await _gameSettingsService.LoadOptionsAsync(gameType);
+            var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
             if (loadResult.Success && loadResult.Data != null)
             {
                 var options = loadResult.Data;
@@ -370,17 +406,17 @@ public class GameProfileManager(
                 // Map Options.ini settings to profile
                 GameSettingsMapper.ApplyFromOptions(options, profile);
 
-                _logger.LogInformation("Populated profile {ProfileName} with existing Options.ini settings", profile.Name);
+                logger.LogInformation("Populated profile {ProfileName} with existing Options.ini settings", profile.Name);
             }
             else
             {
-                _logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
+                logger.LogDebug("No existing Options.ini found for {GameType}, profile {ProfileName} will use defaults", gameType, profile.Name);
             }
         }
         catch (Exception ex)
         {
             // Don't fail profile creation if settings loading fails
-            _logger.LogWarning(ex, "Failed to load existing Options.ini for profile {ProfileName}, using defaults", profile.Name);
+            logger.LogWarning(ex, "Failed to load existing Options.ini for profile {ProfileName}, using defaults", profile.Name);
         }
     }
 }

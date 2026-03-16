@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -87,17 +88,30 @@ public class ProfileEditorFacade(
             // If content changed, refresh the workspace
             if (request.EnabledContentIds != null)
             {
+                // Validate GameClient is present before creating workspace configuration
+                if (profile.GameClient == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        "Profile must have a GameClient configured to refresh workspace");
+                }
+
                 var workspaceConfig = new WorkspaceConfiguration
                 {
                     Id = profileId,
-                    Manifests = new List<ContentManifest>(),
+                    Manifests = [],
                     GameClient = profile.GameClient,
-                    Strategy = profile.WorkspaceStrategy,
+                    Strategy = profile.WorkspaceStrategy ?? _config.GetDefaultWorkspaceStrategy(),
                     ForceRecreate = true, // Force recreate since content changed
                     ValidateAfterPreparation = true,
                 };
 
                 // resolve installation path and workspace root
+                if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        "Profile must have a GameInstallationId to refresh workspace");
+                }
+
                 var install = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
                 if (install.Failed || install.Data == null)
                 {
@@ -109,7 +123,7 @@ public class ProfileEditorFacade(
                 workspaceConfig.WorkspaceRootPath = _config.GetWorkspacePath();
 
                 // Build manifests from enabled content IDs
-                if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
+                if (profile.EnabledContentIds != null && profile.EnabledContentIds.Count > 0)
                 {
                     var resolutionResult = await _dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds, cancellationToken);
                     if (!resolutionResult.Success)
@@ -117,8 +131,8 @@ public class ProfileEditorFacade(
                         return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                     }
 
-                    workspaceConfig.Manifests = resolutionResult.ResolvedManifests.ToList();
-                    profile.EnabledContentIds = resolutionResult.ResolvedContentIds.ToList();
+                    workspaceConfig.Manifests = [..resolutionResult.ResolvedManifests];
+                    profile.EnabledContentIds = [..resolutionResult.ResolvedContentIds];
 
                     // Resolve source paths for all manifests
                     var manifestSourcePaths = new Dictionary<string, string>();
@@ -243,7 +257,7 @@ public class ProfileEditorFacade(
             // TODO: Implement proper mapping of GameClientId to GameType.
             // This requires retrieving the GameClient by ID from a service and extracting its GameType.
             // For now, return all manifests as a temporary measure until the service is implemented.
-            var relevantContent = manifestsResult.Data?.ToList() ?? new List<ContentManifest>();
+            var relevantContent = manifestsResult.Data?.ToList() ?? [];
 
             _logger.LogInformation("Discovered {Count} content items for game version {GameClientId}", relevantContent.Count, gameClientId);
             return ProfileOperationResult<IReadOnlyList<ContentManifest>>.CreateSuccess(relevantContent);
@@ -270,23 +284,32 @@ public class ProfileEditorFacade(
                 errors.Add("Profile name is required");
             }
 
-            if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+            // Tool profiles don't require GameInstallationId
+            if (!profile.IsToolProfile)
             {
-                errors.Add("Game installation is required");
-            }
-
-            // Validate that the game installation exists
-            if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
-            {
-                var installationResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-                if (installationResult.Failed)
+                if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
                 {
-                    errors.Add($"Game installation not found: {profile.GameInstallationId}");
+                    errors.Add("Game installation is required for game profiles");
                 }
+
+                // Validate that the game installation exists
+                if (!string.IsNullOrWhiteSpace(profile.GameInstallationId))
+                {
+                    var installationResult = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+                    if (installationResult.Failed)
+                    {
+                        errors.Add($"Game installation not found: {profile.GameInstallationId}");
+                    }
+                }
+            }
+            else
+            {
+                // Tool profile validation
+                _logger.LogDebug("Validating Tool profile {ProfileId}, skipping GameInstallation validation", profile.Id);
             }
 
             // Validate content manifests exist
-            if (profile.EnabledContentIds != null && profile.EnabledContentIds.Any())
+            if (profile.EnabledContentIds != null && profile.EnabledContentIds.Count > 0)
             {
                 var manifestsResult = await _manifestPool.GetAllManifestsAsync(cancellationToken);
                 if (manifestsResult.Success && manifestsResult.Data != null)
@@ -294,14 +317,14 @@ public class ProfileEditorFacade(
                     var availableManifestIds = manifestsResult.Data.Select(m => m.Id.ToString()).ToHashSet();
                     var missingContent = profile.EnabledContentIds.Where(id => !availableManifestIds.Contains(id)).ToList();
 
-                    if (missingContent.Any())
+                    if (missingContent.Count > 0)
                     {
                         errors.Add($"Content manifests not found: {string.Join(", ", missingContent)}");
                     }
                 }
             }
 
-            if (errors.Any())
+            if (errors.Count > 0)
             {
                 _logger.LogWarning("Profile {ProfileId} validation failed: {Errors}", profile.Id, string.Join(", ", errors));
                 return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));

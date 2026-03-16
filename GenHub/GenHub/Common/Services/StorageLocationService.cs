@@ -56,7 +56,7 @@ public class StorageLocationService(
             var appDataPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 AppConstants.AppName,
-                "Workspaces");
+                DirectoryNames.Workspaces);
             logger.LogDebug("Using centralized workspace path: {WorkspacePath} (installation-adjacent disabled)", appDataPath);
             return appDataPath;
         }

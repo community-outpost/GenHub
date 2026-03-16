@@ -4,9 +4,16 @@
       Alpha versioning: 0.0.X format
       CI will override with: 0.0.{runNumber} or 0.0.{runNumber}-pr{prNumber}
     -->
-    <Version>0.0.1</Version>
-    <AssemblyVersion>0.0.1.0</AssemblyVersion>
-    <FileVersion>0.0.1.0</FileVersion>
+    <Version Condition="'$(Version)' == ''">0.0.1</Version>
+
+    <!--
+      AssemblyVersion and FileVersion must be strictly numeric (x.y.z.w)
+      Strip any prerelease suffix (e.g., -pr238) from Version for these properties
+    -->
+    <_NumericVersion Condition="$(Version.Contains('-'))">$(Version.Substring(0, $(Version.IndexOf('-'))))</_NumericVersion>
+    <_NumericVersion Condition="!$(Version.Contains('-'))">$(Version)</_NumericVersion>
+    <AssemblyVersion>$(_NumericVersion)</AssemblyVersion>
+    <FileVersion>$(_NumericVersion)</FileVersion>
 
     <!-- Make version available to source generators / build-time code -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -15,15 +22,16 @@
       Build info for CI - these are overridden by CI workflow via MSBuild properties:
       dotnet build -p:GitShortHash=abc1234 -p:PullRequestNumber=42 -p:BuildChannel=PR
     -->
-    <GitShortHash></GitShortHash>
-    <PullRequestNumber></PullRequestNumber>
-    <BuildChannel>Dev</BuildChannel>
+    <GitShortHash Condition="'$(GitShortHash)' == ''"></GitShortHash>
+    <PullRequestNumber Condition="'$(PullRequestNumber)' == ''"></PullRequestNumber>
+    <BuildChannel Condition="'$(BuildChannel)' == ''">Dev</BuildChannel>
 
     <!--
       Include git hash in InformationalVersion for display
       Results in: "0.0.150+abc1234" for CI builds
     -->
     <InformationalVersion Condition="'$(GitShortHash)' != ''">$(Version)+$(GitShortHash)</InformationalVersion>
+    <InformationalVersion Condition="'$(GitShortHash)' == ''">$(Version)</InformationalVersion>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->

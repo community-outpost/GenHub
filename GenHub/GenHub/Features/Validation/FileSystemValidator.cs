@@ -26,17 +26,6 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
     private readonly IFileHashProvider _hashProvider = hashProvider;
 
     /// <summary>
-    /// Computes the SHA256 hash of a file asynchronously.
-    /// </summary>
-    /// <param name="filePath">File path.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>SHA256 hash string.</returns>
-    protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
-    {
-        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
-    }
-
-    /// <summary>
     /// Validates that all required directories exist.
     /// </summary>
     /// <param name="basePath">Base path to check from.</param>
@@ -57,6 +46,17 @@ public abstract class FileSystemValidator(ILogger logger, IFileHashProvider hash
         }
 
         return Task.FromResult(issues);
+    }
+
+    /// <summary>
+    /// Computes the SHA256 hash of a file asynchronously.
+    /// </summary>
+    /// <param name="filePath">File path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>SHA256 hash string.</returns>
+    protected async Task<string> ComputeSha256Async(string filePath, CancellationToken cancellationToken)
+    {
+        return await _hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
     }
 
     /// <summary>

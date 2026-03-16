@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="DotNetEnv" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
@@ -28,8 +29,52 @@
         <EmbeddedResource Include="Resources\update_genhub.ps1" />
     </ItemGroup>
 
+    <!-- Copy .env file to output directory for local debugging if it exists -->
+    <ItemGroup Condition="Exists('..\..\.env')">
+        <None Include="..\..\.env">
+            <Link>.env</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\GenHub\GenHub.csproj" />
         <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
     </ItemGroup>
+
+    <!-- Ensure Proxy Launcher is PUBLISHED as SingleFile and copied to build output -->
+    <Target Name="BuildProxyLauncher" BeforeTargets="Build">
+        <Exec Command="dotnet publish &quot;..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj&quot; -c $(Configuration) -f $(TargetFramework) -r win-x64 --self-contained false -p:PublishSingleFile=true -p:Version=$(Version) -p:GitShortHash=$(GitShortHash) -p:PullRequestNumber=$(PullRequestNumber) -p:BuildChannel=$(BuildChannel) -o &quot;$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)&quot;" />
+    </Target>
+
+    <Target Name="CopyProxyLauncher" AfterTargets="Build">
+        <PropertyGroup>
+            <ProxySourceDir>$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)</ProxySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.exe" />
+            <!-- With SingleFile, we mainly need the exe. But copying pdb/config is safe too if they exist -->
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.pdb" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.pdb')" />
+            <ProxyLauncherFiles Include="$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json')" />
+        </ItemGroup>
+        <Message Importance="High" Text="[CopyProxyLauncher] Copying SingleFile from $(ProxySourceDir) to $(TargetDir)" />
+        <Copy SourceFiles="@(ProxyLauncherFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- Ensure Proxy Launcher is included in Publish output for Velopack -->
+    <Target Name="PublishProxyLauncher" AfterTargets="ComputeFilesToPublish">
+        <PropertyGroup>
+            <ProxySourceDir>$(MSBuildProjectDirectory)\..\GenHub.ProxyLauncher\bin\Publish\$(Configuration)</ProxySourceDir>
+        </PropertyGroup>
+        <ItemGroup>
+            <ResolvedFileToPublish Include="$(ProxySourceDir)\GenHub.ProxyLauncher.exe">
+                <RelativePath>GenHub.ProxyLauncher.exe</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+            <ResolvedFileToPublish Include="$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json" Condition="Exists('$(ProxySourceDir)\GenHub.ProxyLauncher.runtimeconfig.json')">
+                <RelativePath>GenHub.ProxyLauncher.runtimeconfig.json</RelativePath>
+                <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            </ResolvedFileToPublish>
+        </ItemGroup>
+    </Target>
 </Project>

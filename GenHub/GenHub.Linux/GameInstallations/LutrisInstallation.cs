@@ -17,10 +17,13 @@ namespace GenHub.Linux.GameInstallations;
 /// <summary>
 /// Lutris installation detector and manager for Linux.
 /// </summary>
-public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
+public partial class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IGameInstallation
 {
-    private readonly Regex lutrisVersionRegex = new Regex(@"^lutris-([\d\.]*)$");
-    private readonly Regex lutrisGamesRegex = new Regex(@"\[[\s\S]*\]");
+    [GeneratedRegex(@"^lutris-([\d\.]*)$")]
+    private static partial Regex LutrisVersionRegex();
+
+    [GeneratedRegex(@"\[[\s\S]*\]")]
+    private static partial Regex LutrisGamesRegex();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LutrisInstallation"/> class.
@@ -58,7 +61,7 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
     public string ZeroHourPath { get; private set; } = string.Empty;
 
     /// <inheritdoc/>
-    public List<GameClient> AvailableGameClients { get; private set; } = new();
+    public List<GameClient> AvailableGameClients { get; private set; } = [];
 
     /// <summary>
     /// Gets a value indicating whether Lutris is installed successfully.
@@ -149,18 +152,20 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         AvailableGameClients.AddRange(clients);
     }
 
-    private bool TryLutris(string installationPath, out string lutrisVersion)
+    private static bool TryLutris(string installationPath, out string lutrisVersion)
     {
         lutrisVersion = string.Empty;
-        var process = new Process();
-        process.StartInfo = new ProcessStartInfo()
+        var process = new Process
         {
-            WindowStyle = ProcessWindowStyle.Hidden,
-            FileName = installationPath,
-            Arguments = "-v",
-            RedirectStandardOutput = true,
-            RedirectStandardError = false,
-            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            StartInfo = new ProcessStartInfo
+            {
+                WindowStyle = ProcessWindowStyle.Hidden,
+                FileName = installationPath,
+                Arguments = "-v",
+                RedirectStandardOutput = true,
+                RedirectStandardError = false,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            },
         };
 
         if (!process.Start())
@@ -173,8 +178,8 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
                 continue;
 
             // check for lutris, if installed version is printed
-            var match = lutrisVersionRegex.Match(item);
-            if (match is { Success: true, Groups.Count: > 1 })
+            var match = LutrisVersionRegex().Match(item);
+            if (match.Success && match.Groups.Count > 1)
                 lutrisVersion = match.Groups[1].Value;
 
             return true;
@@ -183,25 +188,27 @@ public class LutrisInstallation(ILogger<LutrisInstallation>? logger = null) : IG
         return false;
     }
 
-    private bool TryLutrisHasZH(string installationPath, out string directory)
+    private static bool TryLutrisHasZH(string installationPath, out string directory)
     {
         directory = string.Empty;
-        var process = new Process();
-        process.StartInfo = new ProcessStartInfo()
+        var process = new Process
         {
-            WindowStyle = ProcessWindowStyle.Hidden,
-            FileName = installationPath,
-            ArgumentList = { "-l", "-j" },
-            RedirectStandardOutput = true,
-            RedirectStandardError = false,
-            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            StartInfo = new ProcessStartInfo
+            {
+                WindowStyle = ProcessWindowStyle.Hidden,
+                FileName = installationPath,
+                ArgumentList = { "-l", "-j" },
+                RedirectStandardOutput = true,
+                RedirectStandardError = false,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            },
         };
 
         if (!process.Start())
             return false;
         process.WaitForExit();
         var output = process.StandardOutput.ReadToEnd();
-        var jsonOutput = lutrisGamesRegex.Match(output).Value;
+        var jsonOutput = LutrisGamesRegex().Match(output).Value;
 
         // check for games on lutris, it's a json array
         var jsonOutputParsed = JsonSerializer.Deserialize<List<LutrisGame>>(jsonOutput);

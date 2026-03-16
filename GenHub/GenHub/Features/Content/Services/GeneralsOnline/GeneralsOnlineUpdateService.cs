@@ -1,47 +1,38 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Models.Results.Content;
-using Microsoft.Extensions.Logging;
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results.Content;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
 /// Background service for checking Generals Online updates.
 /// Polls CDN for new releases and notifies when updates are available.
+/// Uses data-driven configuration from provider.json for endpoints.
 /// </summary>
-public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
+public class GeneralsOnlineUpdateService(
+    ILogger<GeneralsOnlineUpdateService> logger,
+    IContentManifestPool manifestPool,
+    IHttpClientFactory httpClientFactory,
+    IProviderDefinitionLoader providerLoader) : ContentUpdateServiceBase(logger), IGeneralsOnlineUpdateService
 {
-    private readonly ILogger<GeneralsOnlineUpdateService> _logger;
-    private readonly IContentManifestPool _manifestPool;
-    private readonly HttpClient _httpClient;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="GeneralsOnlineUpdateService"/> class.
-    /// </summary>
-    /// <param name="logger">The logger for diagnostic information.</param>
-    /// <param name="manifestPool">The content manifest pool.</param>
-    /// <param name="httpClientFactory">Factory for creating HTTP clients.</param>
-    public GeneralsOnlineUpdateService(
-        ILogger<GeneralsOnlineUpdateService> logger,
-        IContentManifestPool manifestPool,
-        IHttpClientFactory httpClientFactory)
-        : base(logger)
-    {
-        _logger = logger;
-        _manifestPool = manifestPool;
-        _httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
-    }
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
 
     /// <inheritdoc />
     public override void Dispose()
     {
         _httpClient?.Dispose();
         base.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -55,7 +46,7 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
     public override async Task<ContentUpdateCheckResult>
         CheckForUpdatesAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Checking for Generals Online updates");
+        logger.LogInformation("Checking for Generals Online updates");
 
         try
         {
@@ -67,7 +58,7 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
 
             if (string.IsNullOrEmpty(latestVersion))
             {
-                _logger.LogWarning("Could not retrieve latest version from CDN");
+                logger.LogWarning("Could not retrieve latest version from CDN");
                 return ContentUpdateCheckResult.CreateFailure(
                     "Could not retrieve latest version from CDN",
                     currentVersion);
@@ -88,69 +79,31 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check for Generals Online updates");
+            logger.LogError(ex, "Failed to check for Generals Online updates");
             throw;
         }
     }
 
-    private async Task<string?> GetInstalledVersionAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var manifests = await _manifestPool.GetAllManifestsAsync(cancellationToken);
-            if (!manifests.Success || manifests.Data == null)
-            {
-                return null;
-            }
-
-            var goManifest = manifests.Data.FirstOrDefault(m =>
-                m.Publisher?.PublisherType?.Equals(GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) == true);
-
-            return goManifest?.Version;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to get installed Generals Online version");
-            return null;
-        }
-    }
-
-    private async Task<string?> GetLatestVersionFromCdnAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            // Try to get version from latest.txt
-            var response = await _httpClient.GetAsync(GeneralsOnlineConstants.LatestVersionUrl, cancellationToken);
-
-            if (response.IsSuccessStatusCode)
-            {
-                var version = await response.Content.ReadAsStringAsync(cancellationToken);
-                return version?.Trim();
-            }
-
-            _logger.LogWarning("latest.txt not available, status code: {StatusCode}", response.StatusCode);
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to get latest version from CDN");
-            return null;
-        }
-    }
-
-    private bool IsNewerVersion(string latestVersion, string? currentVersion)
+    private static bool IsNewerVersion(string latestVersion, string? currentVersion)
     {
         if (string.IsNullOrEmpty(currentVersion))
         {
             return true; // Any version is newer than nothing
         }
 
-        // Parse DDMMYY_QFE# format
-        var latest = ParseVersion(latestVersion);
-        var current = ParseVersion(currentVersion);
+        // Parse MMddyy_QFE# format
+        var latest = GameVersionHelper.ParseGeneralsOnlineVersion(latestVersion);
+        var current = GameVersionHelper.ParseGeneralsOnlineVersion(currentVersion);
 
         if (latest == null || current == null)
         {
+            // Fallback: If parsing fails, try simple integer comparison
+            // This handles cases where CDN returns plain integers like "011526" instead of "MMDDYY_QFE#"
+            if (int.TryParse(latestVersion, out var latestInt) && int.TryParse(currentVersion, out var currentInt))
+            {
+                return latestInt > currentInt;
+            }
+
             return false;
         }
 
@@ -169,35 +122,106 @@ public class GeneralsOnlineUpdateService : ContentUpdateServiceBase
         return false;
     }
 
-    private (DateTime Date, int Qfe)? ParseVersion(string version)
+    private async Task<string?> GetInstalledVersionAsync(CancellationToken cancellationToken)
     {
         try
         {
-            // Format: DDMMYY_QFE#
-            var parts = version.Split('_');
-            if (parts.Length != 2)
+            var manifests = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (!manifests.Success || manifests.Data == null)
             {
                 return null;
             }
 
-            var datePart = parts[0];
-            var qfePart = parts[1].Replace("QFE", string.Empty);
+            var goManifest = manifests.Data.FirstOrDefault(m =>
+                m.Publisher?.PublisherType?.Equals(GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) == true);
 
-            if (datePart.Length != 6 || !int.TryParse(qfePart, out var qfe))
-            {
-                return null;
-            }
-
-            var month = int.Parse(datePart.Substring(0, 2));
-            var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart.Substring(4, 2));
-
-            var date = new DateTime(year, month, day);
-            return (date, qfe);
+            return goManifest?.Version;
         }
-        catch
+        catch (Exception ex)
         {
-            _logger.LogWarning("Failed to parse version: {Version}", version);
+            logger.LogWarning(ex, "Failed to get installed Generals Online version");
+            return null;
+        }
+    }
+
+    private async Task<string?> GetLatestVersionFromCdnAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Get provider definition
+            var provider = providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType);
+            if (provider == null)
+            {
+                logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
+                return null;
+            }
+
+            var latestVersionUrl = provider.Endpoints.GetEndpoint(ProviderEndpointConstants.LatestVersionUrl);
+            if (string.IsNullOrEmpty(latestVersionUrl))
+            {
+                // Fallback to standard endpoint name lookup
+                latestVersionUrl = provider.Endpoints.GetEndpoint("latestVersionUrl");
+            }
+
+            if (string.IsNullOrEmpty(latestVersionUrl))
+            {
+                logger.LogError("latestVersionUrl not configured in provider definition (checked both 'custom.latestVersionUrl' and 'latestVersionUrl')");
+                return null;
+            }
+
+            // Add cache-busting to prevent HTTP caching of old version
+            var cacheBuster = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var urlWithCacheBuster = latestVersionUrl.Contains('?')
+                ? $"{latestVersionUrl}&nocache={cacheBuster}"
+                : $"{latestVersionUrl}?nocache={cacheBuster}";
+
+            logger.LogDebug("Fetching latest version from CDN with cache-busting: {Url}", urlWithCacheBuster);
+
+            // Try to get version from latest.txt with retries
+            HttpResponseMessage? response = null;
+            for (int i = 0; i < 3; i++)
+            {
+                HttpResponseMessage? currentResponse = null;
+                try
+                {
+                    currentResponse = await _httpClient.GetAsync(urlWithCacheBuster, cancellationToken);
+                    if (currentResponse.IsSuccessStatusCode)
+                    {
+                        response = currentResponse;
+                        currentResponse = null; // Prevent disposal in finally
+                        break;
+                    }
+                }
+                catch (Exception ex) when (i < 2)
+                {
+                    logger.LogWarning(ex, "Attempt {Attempt} failed to fetch latest version", i + 1);
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                }
+                finally
+                {
+                    currentResponse?.Dispose();
+                }
+            }
+
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to fetch latest version after 3 attempts");
+                return null;
+            }
+
+            using (response)
+            {
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var version = content?.Trim().Trim('"');
+
+                logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
+
+                return version;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to get latest version from CDN");
             return null;
         }
     }

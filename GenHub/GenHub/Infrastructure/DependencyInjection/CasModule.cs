@@ -26,6 +26,7 @@ public static class CasModule
         services.AddSingleton<ICasService, CasService>();
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Configuration
         services.AddOptions<CasConfiguration>().Configure<IConfigurationProviderService>((config, configProvider) =>

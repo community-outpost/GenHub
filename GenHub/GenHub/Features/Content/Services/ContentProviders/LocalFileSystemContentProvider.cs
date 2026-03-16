@@ -18,39 +18,25 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// Local file system provider that uses FileSystemDiscoverer for content discovery.
 /// This eliminates duplication with ManifestDiscoveryService.
 /// </summary>
-public class LocalFileSystemContentProvider : BaseContentProvider
+public class LocalFileSystemContentProvider(
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    ILogger<LocalFileSystemContentProvider> logger,
+    IContentValidator contentValidator,
+    IConfigurationProviderService configurationProvider)
+    : BaseContentProvider(contentValidator, logger)
 {
-    private readonly IContentDiscoverer _fileSystemDiscoverer;
-    private readonly IContentResolver _localResolver;
-    private readonly IContentDeliverer _fileSystemDeliverer;
-    private readonly IConfigurationProviderService _configurationProvider;
+    private readonly IContentDiscoverer _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No FileSystem discoverer found");
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LocalFileSystemContentProvider"/> class.
-    /// </summary>
-    /// <param name="discoverers">Available content discoverers.</param>
-    /// <param name="resolvers">Available content resolvers.</param>
-    /// <param name="deliverers">Available content deliverers.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="contentValidator">The content validator.</param>
-    /// <param name="configurationProvider">The configuration provider.</param>
-    public LocalFileSystemContentProvider(
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        ILogger<LocalFileSystemContentProvider> logger,
-        IContentValidator contentValidator,
-        IConfigurationProviderService configurationProvider)
-        : base(contentValidator, logger)
-    {
-        _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No FileSystem discoverer found");
-        _localResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.LocalResolverId, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No Local resolver found");
-        _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-            ?? throw new InvalidOperationException("No FileSystem deliverer found");
-        _configurationProvider = configurationProvider;
-    }
+    private readonly IContentResolver _localResolver = resolvers.FirstOrDefault(r => r.ResolverId?.Equals(ContentSourceNames.LocalResolverId, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No Local resolver found");
+
+    private readonly IContentDeliverer _fileSystemDeliverer = deliverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDeliverer, StringComparison.OrdinalIgnoreCase) == true)
+        ?? throw new InvalidOperationException("No FileSystem deliverer found");
+
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     /// <inheritdoc />
     public override string SourceName => "LocalFileSystem";

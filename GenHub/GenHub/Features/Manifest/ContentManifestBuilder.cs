@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -18,12 +20,15 @@ namespace GenHub.Features.Manifest;
 public partial class ContentManifestBuilder(
     ILogger<ContentManifestBuilder> logger,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService) : IContentManifestBuilder
+    IManifestIdService manifestIdService,
+    IDownloadService downloadService,
+    IConfigurationProviderService configurationProvider) : IContentManifestBuilder
 {
-    private readonly ILogger<ContentManifestBuilder> _logger = logger;
     private readonly ContentManifest _manifest = new();
     private readonly IFileHashProvider _hashProvider = hashProvider;
     private readonly IManifestIdService _manifestIdService = manifestIdService;
+    private readonly IDownloadService _downloadService = downloadService;
+    private readonly IConfigurationProviderService _configurationProvider = configurationProvider;
 
     // Temporary storage for ID generation
     private string? _publisherId;
@@ -49,25 +54,25 @@ public partial class ContentManifestBuilder(
         tempInstallation.SetPaths(null, gameType == GameType.ZeroHour ? "dummy" : null);
 
         // Use ManifestIdService for consistent ID generation with ResultBase pattern
-        int manifestVersionInt = int.TryParse(manifestVersion, out var v) ? v : 0;
-        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersionInt);
+        logger.LogDebug("DEBUG: Calling GenerateGameInstallationId with {InstallationType}, {GameType}, {ManifestVersion}", tempInstallation.InstallationType, gameType, manifestVersion ?? "null");
+        var idResult = _manifestIdService.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion);
         if (idResult.Success)
         {
             _manifest.Id = idResult.Data;
         }
         else
         {
-            _logger.LogWarning("Failed to generate game installation manifest ID: {Error}. Using fallback.", idResult.FirstError);
+            logger.LogWarning("Failed to generate game installation manifest ID: {Error}. Using fallback.", idResult.FirstError);
 
             // Fallback to direct generation if service fails
             _manifest.Id = ManifestId.Create(
-                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersionInt));
+                ManifestIdGenerator.GenerateGameInstallationId(tempInstallation, gameType, manifestVersion));
         }
 
         _manifest.Name = gameType.ToString().ToLowerInvariant();
         _manifest.Version = manifestVersion ?? "0";
 
-        _logger.LogDebug(
+        logger.LogDebug(
             "Set basic info for game installation: ID={Id}, Name={Name}, ManifestVersion={ManifestVersion}, InstallType={InstallType}, GameType={GameType}",
             _manifest.Id,
             _manifest.Name,
@@ -113,7 +118,7 @@ public partial class ContentManifestBuilder(
         _manifest.Version = manifestVersion ?? "0";
         _manifest.ContentType = ContentType.Mod;
 
-        _logger.LogDebug(
+        logger.LogDebug(
             "Set basic info for publisher content: Name={Name}, ManifestVersion={ManifestVersion}, Publisher={Publisher}",
             _manifest.Name,
             _manifest.Version,
@@ -183,7 +188,7 @@ public partial class ContentManifestBuilder(
         // Generate ID now that we have all required information
         if (_publisherId != null && _contentName != null && _manifestVersion.HasValue)
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Generating manifest ID with: Publisher={Publisher}, ContentType={ContentType}, ContentName={ContentName}, Version={Version}",
                 _publisherId,
                 contentType,
@@ -194,22 +199,22 @@ public partial class ContentManifestBuilder(
             if (idResult.Success)
             {
                 _manifest.Id = idResult.Data;
-                _logger.LogDebug("Generated manifest ID (from service): {ManifestId}", _manifest.Id);
+                logger.LogDebug("Generated manifest ID (from service): {ManifestId}", _manifest.Id);
             }
             else
             {
-                _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+                logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
 
                 // Fallback to direct generation if service fails
                 _manifest.Id = ManifestId.Create(
                     ManifestIdGenerator.GeneratePublisherContentId(_publisherId, contentType, _contentName, _manifestVersion.Value));
-                _logger.LogDebug("Generated manifest ID (fallback): {ManifestId}", _manifest.Id);
+                logger.LogDebug("Generated manifest ID (fallback): {ManifestId}", _manifest.Id);
             }
 
             // Ensure the generated ID conforms to the project's validation rules.
             ManifestIdValidator.EnsureValid(_manifest.Id);
 
-            _logger.LogDebug("Generated ID for publisher content: {Id}", _manifest.Id);
+            logger.LogDebug("Generated ID for publisher content: {Id}", _manifest.Id);
 
             // Clear the stored values to prevent regeneration in Build()
             _publisherId = null;
@@ -217,7 +222,7 @@ public partial class ContentManifestBuilder(
             _manifestVersion = null;
         }
 
-        _logger.LogDebug("Set content type: {ContentType}, Target game: {TargetGame}", contentType, targetGame);
+        logger.LogDebug("Set content type: {ContentType}, Target game: {TargetGame}", contentType, targetGame);
         return this;
     }
 
@@ -245,7 +250,7 @@ public partial class ContentManifestBuilder(
             ContactEmail = contactEmail,
             PublisherType = publisherType,
         };
-        _logger.LogDebug("Set publisher: {PublisherName} (Type: {PublisherType})", name, publisherType);
+        logger.LogDebug("Set publisher: {PublisherName} (Type: {PublisherType})", name, publisherType);
         return this;
     }
 
@@ -274,7 +279,7 @@ public partial class ContentManifestBuilder(
             ChangelogUrl = changelogUrl,
             ReleaseDate = DateTime.UtcNow,
         };
-        _logger.LogDebug("Set metadata with description length: {DescriptionLength}", description.Length);
+        logger.LogDebug("Set metadata with description length: {DescriptionLength}", description.Length);
         return this;
     }
 
@@ -315,7 +320,7 @@ public partial class ContentManifestBuilder(
             InstallBehavior = installBehavior,
         };
         _manifest.Dependencies.Add(dependency);
-        _logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
+        logger.LogDebug("Added dependency: {DependencyId} (InstallBehavior: {InstallBehavior}, Exclusive: {IsExclusive})", id, installBehavior, isExclusive);
         return this;
     }
 
@@ -345,7 +350,7 @@ public partial class ContentManifestBuilder(
         };
 
         _manifest.ContentReferences.Add(reference);
-        _logger.LogDebug(
+        logger.LogDebug(
             "Added content reference: {ContentId} from publisher {PublisherId}",
             contentId,
             publisherId);
@@ -368,7 +373,7 @@ public partial class ContentManifestBuilder(
     {
         if (!Directory.Exists(sourceDirectory))
         {
-            _logger.LogWarning("Source directory does not exist: {Directory}", sourceDirectory);
+            logger.LogWarning("Source directory does not exist: {Directory}", sourceDirectory);
             return this;
         }
 
@@ -379,7 +384,7 @@ public partial class ContentManifestBuilder(
         // For now, we skip hashing for GameInstallation files to improve performance.
         var shouldComputeHash = sourceType != ContentSourceType.GameInstallation;
 
-        _logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
+        logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
         var searchPattern = fileFilter == "*" ? "*.*" : fileFilter;
         var files = Directory.EnumerateFiles(sourceDirectory, searchPattern, SearchOption.AllDirectories);
 
@@ -417,7 +422,7 @@ public partial class ContentManifestBuilder(
             _manifest.Files.Add(manifestFile);
         }
 
-        _logger.LogInformation("Added {FileCount} files from directory: {Directory} (Hashed: {Hashed})", _manifest.Files.Count, sourceDirectory, shouldComputeHash);
+        logger.LogInformation("Added {FileCount} files from directory: {Directory} (Hashed: {Hashed})", _manifest.Files.Count, sourceDirectory, shouldComputeHash);
         return this;
     }
 
@@ -513,7 +518,7 @@ public partial class ContentManifestBuilder(
         };
 
         _manifest.Files.Add(manifestFile);
-        _logger.LogDebug("Added content-addressable file: {RelativePath} (Hash: {Hash})", relativePath, hash);
+        logger.LogDebug("Added content-addressable file: {RelativePath} (Hash: {Hash})", relativePath, hash);
         return Task.FromResult(this as IContentManifestBuilder);
     }
 
@@ -565,7 +570,7 @@ public partial class ContentManifestBuilder(
         }
 
         _manifest.Files.Add(manifestFile);
-        _logger.LogDebug(
+        logger.LogDebug(
             "Added extracted package file: {RelativePath} from {PackagePath}:{InternalPath}",
             relativePath,
             packagePath,
@@ -577,7 +582,7 @@ public partial class ContentManifestBuilder(
     public IContentManifestBuilder AddFile(ManifestFile file)
     {
         _manifest.Files.Add(file);
-        _logger.LogDebug("Added pre-existing file: {RelativePath} (Source: {SourceType})", file.RelativePath, file.SourceType);
+        logger.LogDebug("Added pre-existing file: {RelativePath} (Source: {SourceType})", file.RelativePath, file.SourceType);
         return this;
     }
 
@@ -596,7 +601,7 @@ public partial class ContentManifestBuilder(
             }
         }
 
-        _logger.LogDebug("Added {DirectoryCount} required directories", directories.Length);
+        logger.LogDebug("Added {DirectoryCount} required directories", directories.Length);
         return this;
     }
 
@@ -606,13 +611,13 @@ public partial class ContentManifestBuilder(
     /// <param name="workspaceStrategy">Workspace strategy.</param>
     /// <returns>The builder instance.</returns>
     public IContentManifestBuilder WithInstallationInstructions(
-        WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink)
+        WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy)
     {
         _manifest.InstallationInstructions = new InstallationInstructions
         {
             WorkspaceStrategy = workspaceStrategy,
         };
-        _logger.LogDebug("Set workspace strategy: {Strategy}", workspaceStrategy);
+        logger.LogDebug("Set workspace strategy: {Strategy}", workspaceStrategy);
         return this;
     }
 
@@ -641,7 +646,7 @@ public partial class ContentManifestBuilder(
             RequiresElevation = requiresElevation,
         };
         _manifest.InstallationInstructions.PreInstallSteps.Add(step);
-        _logger.LogDebug("Added pre-install step: {StepName}", name);
+        logger.LogDebug("Added pre-install step: {StepName}", name);
         return this;
     }
 
@@ -670,7 +675,7 @@ public partial class ContentManifestBuilder(
             RequiresElevation = requiresElevation,
         };
         _manifest.InstallationInstructions.PostInstallSteps.Add(step);
-        _logger.LogDebug("Added post-install step: {StepName}", name);
+        logger.LogDebug("Added post-install step: {StepName}", name);
         return this;
     }
 
@@ -685,7 +690,7 @@ public partial class ContentManifestBuilder(
         };
 
         _manifest.Files.Add(manifestFile);
-        _logger.LogDebug("Added patch for {TargetFile} with source {PatchFile}", targetRelativePath, patchSourceFile);
+        logger.LogDebug("Added patch for {TargetFile} with source {PatchFile}", targetRelativePath, patchSourceFile);
         return this;
     }
 
@@ -705,7 +710,7 @@ public partial class ContentManifestBuilder(
             }
             else
             {
-                _logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
+                logger.LogWarning("Failed to generate publisher content manifest ID: {Error}. Using fallback.", idResult.FirstError);
 
                 // Fallback to direct generation if service fails
                 _manifest.Id = ManifestId.Create(
@@ -715,10 +720,10 @@ public partial class ContentManifestBuilder(
             // Ensure the generated ID conforms to the project's validation rules.
             ManifestIdValidator.EnsureValid(_manifest.Id);
 
-            _logger.LogDebug("Generated ID during build: {Id}", _manifest.Id);
+            logger.LogDebug("Generated ID during build: {Id}", _manifest.Id);
         }
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Built manifest for '{ContentName}' with {FileCount} files and {DependencyCount} dependencies",
             _manifest.Name,
             _manifest.Files.Count,
@@ -730,6 +735,20 @@ public partial class ContentManifestBuilder(
     {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return (extension == ".exe" || extension == ".dll" || extension == ".so" || extension == string.Empty) && File.Exists(filePath);
+    }
+
+    /// <returns>The normalized version string.</returns>
+    private static string NormalizeVersion(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return "unknown";
+
+        // Lowercase and remove any non-alphanumeric characters to produce a
+        // single-token publisher id (no dots). This avoids creating extra
+        // dot-separated segments when the ID is constructed.
+        var lower = version.ToLowerInvariant().Trim();
+        var cleaned = PublisherIdRegex().Replace(lower, string.Empty);
+        return string.IsNullOrEmpty(cleaned) ? "unknown" : cleaned;
     }
 
     private static string NormalizePublisherName(string? input)
@@ -753,8 +772,15 @@ public partial class ContentManifestBuilder(
     /// </summary>
     /// <param name="relativePath">The relative path of the file.</param>
     /// <returns>The determined installation target.</returns>
-    private static ContentInstallTarget DetermineInstallTarget(string relativePath)
+    private ContentInstallTarget DetermineInstallTarget(string relativePath)
     {
+        // If this is a Map or MapPack, all files should go to the UserMapsDirectory
+        // to comply with userdata.md and ensure proper linking by IProfileContentLinker.
+        if (_manifest.ContentType == ContentType.Map || _manifest.ContentType == ContentType.MapPack)
+        {
+            return ContentInstallTarget.UserMapsDirectory;
+        }
+
         var extension = Path.GetExtension(relativePath).ToLowerInvariant();
 
         if (extension == ".map" ||
@@ -826,7 +852,7 @@ public partial class ContentManifestBuilder(
         // Check for duplicate relative paths before adding
         if (_manifest.Files.Any(f => f.RelativePath.Equals(relativePath, StringComparison.OrdinalIgnoreCase)))
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Skipping duplicate file: {RelativePath} (Source: {SourceType}). File already exists in manifest.",
                 relativePath,
                 sourceType);
@@ -834,7 +860,7 @@ public partial class ContentManifestBuilder(
         }
 
         _manifest.Files.Add(manifestFile);
-        _logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hashed: {Hashed})", relativePath, sourceType, shouldComputeHash);
+        logger.LogDebug("Added file: {RelativePath} (Source: {SourceType}, Hashed: {Hashed})", relativePath, sourceType, shouldComputeHash);
         return this;
     }
 }

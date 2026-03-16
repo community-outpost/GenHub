@@ -58,6 +58,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
         // Register CAS storage and reference tracker
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Register CasService with all dependencies
         services.AddSingleton<ICasService, CasService>();
@@ -139,6 +140,8 @@ public class WorkspaceCasIntegrationTests : IDisposable
         {
             // Ignore cleanup errors
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -172,8 +175,8 @@ public class WorkspaceCasIntegrationTests : IDisposable
         var manifest = new ContentManifest
         {
             Id = "1.0.genhub.mod.testmod",
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
                 new ManifestFile
                 {
                     RelativePath = "data/mymod.big",
@@ -181,13 +184,13 @@ public class WorkspaceCasIntegrationTests : IDisposable
                     SourceType = ContentSourceType.ContentAddressable,
                     Size = 16,
                 },
-            },
+            ],
         };
 
         var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest> { manifest },
+            Manifests = [manifest],
             Strategy = WorkspaceStrategy.SymlinkOnly,
             WorkspaceRootPath = _testWorkspacePath,
             BaseInstallationPath = _testWorkspacePath,

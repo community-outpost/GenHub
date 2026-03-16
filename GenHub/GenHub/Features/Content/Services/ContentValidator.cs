@@ -61,10 +61,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
 
@@ -104,10 +101,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
         var totalFiles = manifest.Files.Count;
@@ -192,10 +186,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
 
@@ -280,10 +271,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
     private static List<ValidationIssue> ValidateManifestStructure(ContentManifest manifest)
     {
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
 

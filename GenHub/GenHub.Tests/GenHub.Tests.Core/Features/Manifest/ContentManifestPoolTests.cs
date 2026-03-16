@@ -1,11 +1,14 @@
 using GenHub.Core.Interfaces.Content;
-
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
 using GenHub.Features.Manifest;
+using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -17,6 +20,7 @@ namespace GenHub.Tests.Core.Features.Manifest;
 public class ContentManifestPoolTests : IDisposable
 {
     private readonly Mock<IContentStorageService> _storageServiceMock;
+    private readonly Mock<ICasReferenceTracker> _referenceTrackerMock;
     private readonly Mock<ILogger<ContentManifestPool>> _loggerMock;
     private readonly ContentManifestPool _manifestPool;
     private readonly string _tempDirectory;
@@ -28,7 +32,14 @@ public class ContentManifestPoolTests : IDisposable
     {
         _storageServiceMock = new Mock<IContentStorageService>();
         _loggerMock = new Mock<ILogger<ContentManifestPool>>();
-        _manifestPool = new ContentManifestPool(_storageServiceMock.Object, _loggerMock.Object);
+
+        _referenceTrackerMock = new Mock<ICasReferenceTracker>();
+        _referenceTrackerMock.Setup(x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+        _referenceTrackerMock.Setup(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        _manifestPool = new ContentManifestPool(_storageServiceMock.Object, _referenceTrackerMock.Object, _loggerMock.Object);
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
     }
@@ -238,24 +249,48 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
-    /// Should remove manifest successfully.
+    /// Should remove manifest successfully and trigger cleanup by default.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_ShouldSucceed()
+    public async Task RemoveManifestAsync_ShouldSucceedAndCleanupByDefault()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
-        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _referenceTrackerMock.Setup(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
 
         // Act
         var result = await _manifestPool.RemoveManifestAsync(manifestId);
 
         // Assert
+        Assert.True(result.Success, $"RemoveManifestAsync failed: {result.FirstError}");
+        Assert.True(result.Data);
+        _referenceTrackerMock.Verify(x => x.UntrackManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _storageServiceMock.Verify(x => x.RemoveContentAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Should remove manifest successfully and skip cleanup when requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RemoveManifestAsync_WithSkipCleanup_ShouldSucceed()
+    {
+        // Arrange
+        var manifestId = "1.0.genhub.mod.publisher";
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _manifestPool.RemoveManifestAsync(manifestId, skipUntrack: true);
+
+        // Assert
         Assert.True(result.Success);
         Assert.True(result.Data);
-        _storageServiceMock.Verify(x => x.RemoveContentAsync(manifestId, default), Times.Once);
+        _storageServiceMock.Verify(x => x.RemoveContentAsync(manifestId, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -267,7 +302,7 @@ public class ContentManifestPoolTests : IDisposable
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
-        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, default))
+        _storageServiceMock.Setup(x => x.RemoveContentAsync(manifestId, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateFailure("Storage error"));
 
         // Act

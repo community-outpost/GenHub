@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
@@ -22,6 +23,8 @@ public class ConfigurationProviderService(
     private readonly IAppConfiguration _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
     private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
     private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly object _migrationLock = new();
+    private bool _migrated;
 
     /// <inheritdoc />
     public string GetWorkspacePath()
@@ -92,9 +95,7 @@ public class ConfigurationProviderService(
     public bool GetAllowBackgroundDownloads()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads))
-            ? settings.AllowBackgroundDownloads
-            : true; // App default
+        return !settings.IsExplicitlySet(nameof(UserSettings.AllowBackgroundDownloads)) || settings.AllowBackgroundDownloads; // App default
     }
 
     /// <inheritdoc />
@@ -133,25 +134,21 @@ public class ConfigurationProviderService(
         var settings = _userSettings.Get();
         return settings.IsExplicitlySet(nameof(UserSettings.DefaultWorkspaceStrategy))
             ? settings.DefaultWorkspaceStrategy
-            : _appConfig.GetDefaultWorkspaceStrategy();
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <inheritdoc />
     public bool GetAutoCheckForUpdatesOnStartup()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup))
-            ? settings.AutoCheckForUpdatesOnStartup
-            : true; // App default
+        return !settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesOnStartup)) || settings.AutoCheckForUpdatesOnStartup; // App default
     }
 
     /// <inheritdoc />
     public bool GetEnableDetailedLogging()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging))
-            ? settings.EnableDetailedLogging
-            : false; // App default
+        return settings.IsExplicitlySet(nameof(UserSettings.EnableDetailedLogging)) && settings.EnableDetailedLogging; // App default
     }
 
     /// <inheritdoc />
@@ -191,9 +188,7 @@ public class ConfigurationProviderService(
     public bool GetIsWindowMaximized()
     {
         var settings = _userSettings.Get();
-        return settings.IsExplicitlySet(nameof(UserSettings.IsMaximized))
-            ? settings.IsMaximized
-            : false; // App default
+        return settings.IsExplicitlySet(nameof(UserSettings.IsMaximized)) && settings.IsMaximized; // App default
     }
 
     /// <inheritdoc />
@@ -270,6 +265,19 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public string GetApplicationDataPath()
     {
+        if (!_migrated)
+        {
+            lock (_migrationLock)
+            {
+                if (!_migrated)
+                {
+                    // Double-check
+                    MigrateContentDirectory();
+                    _migrated = true;
+                }
+            }
+        }
+
         var settings = _userSettings.Get();
         if (settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) &&
             !string.IsNullOrWhiteSpace(settings.ApplicationDataPath))
@@ -277,8 +285,17 @@ public class ConfigurationProviderService(
             return settings.ApplicationDataPath;
         }
 
-        return Path.Combine(_appConfig.GetConfiguredDataPath(), "Content");
+        return _appConfig.GetConfiguredDataPath();
     }
+
+    /// <inheritdoc />
+    public string GetRootAppDataPath() => _appConfig.GetConfiguredDataPath();
+
+    /// <inheritdoc />
+    public string GetProfilesPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), DirectoryNames.Profiles);
+
+    /// <inheritdoc />
+    public string GetManifestsPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory);
 
     /// <inheritdoc />
     /// <remarks>
@@ -323,5 +340,101 @@ public class ConfigurationProviderService(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
             DirectoryNames.Logs.ToLowerInvariant());
+    }
+
+    private void MigrateContentDirectory()
+    {
+        try
+        {
+            var rootPath = _appConfig.GetConfiguredDataPath();
+            var contentPath = Path.Combine(rootPath, "Content");
+
+            if (!Directory.Exists(contentPath))
+            {
+                return;
+            }
+
+            _logger.LogInformation("Migrating content from {ContentPath} to root {RootPath}", contentPath, rootPath);
+
+            // 1. Move Manifests
+            MigrateDirectory(Path.Combine(contentPath, "Manifests"), Path.Combine(rootPath, "Manifests"));
+
+            // 2. Move UserData
+            MigrateDirectory(Path.Combine(contentPath, "UserData"), Path.Combine(rootPath, "UserData"));
+
+            // 3. Move workspaces.json
+            var sourceWorkspaces = Path.Combine(contentPath, "workspaces.json");
+            var destWorkspaces = Path.Combine(rootPath, "workspaces.json");
+            if (File.Exists(sourceWorkspaces))
+            {
+                if (!File.Exists(destWorkspaces))
+                {
+                    File.Move(sourceWorkspaces, destWorkspaces);
+                    _logger.LogInformation("Moved workspaces.json to root");
+                }
+                else
+                {
+                    _logger.LogWarning("workspaces.json already exists in root, keeping original in Content (backup)");
+                }
+            }
+
+            // 4. Try to delete Content if empty
+            try
+            {
+                if (Directory.GetFiles(contentPath).Length == 0 && Directory.GetDirectories(contentPath).Length == 0)
+                {
+                    Directory.Delete(contentPath);
+                    _logger.LogInformation("Deleted empty Content directory");
+                }
+            }
+            catch
+            {
+                // Ignore if not empty
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate Content directory");
+        }
+    }
+
+    private void MigrateDirectory(string sourceDir, string destDir)
+    {
+        if (!Directory.Exists(sourceDir)) return;
+
+        if (!Directory.Exists(destDir))
+        {
+            Directory.Move(sourceDir, destDir);
+            _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
+            return;
+        }
+
+        // Destination exists, move content
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(destFile))
+            {
+                File.Move(file, destFile);
+            }
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var destSubDir = Path.Combine(destDir, Path.GetFileName(subDir));
+            MigrateDirectory(subDir, destSubDir);
+        }
+
+        // Try delete source if empty
+        try
+        {
+            if (!Directory.EnumerateFileSystemEntries(sourceDir).Any())
+            {
+                Directory.Delete(sourceDir);
+            }
+        }
+        catch
+        {
+        }
     }
 }

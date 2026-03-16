@@ -11,8 +11,8 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
@@ -24,8 +24,7 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public partial class GitHubTopicsDiscoverer(
     IGitHubApiClient gitHubApiClient,
-    ILogger<GitHubTopicsDiscoverer> logger,
-    IMemoryCache cache) : IContentDiscoverer
+    ILogger<GitHubTopicsDiscoverer> logger) : IContentDiscoverer
 {
     [System.Text.RegularExpressions.GeneratedRegex(@"[^\d]")]
     private static partial System.Text.RegularExpressions.Regex NonDigitRegex();
@@ -111,7 +110,7 @@ public partial class GitHubTopicsDiscoverer(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc />
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -126,7 +125,7 @@ public partial class GitHubTopicsDiscoverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var searchResponse = await SearchRepositoriesByTopicWithCacheAsync(
+                var searchResponse = await gitHubApiClient.SearchRepositoriesByTopicAsync(
                     topic,
                     perPage: GitHubTopicsConstants.DefaultPerPage,
                     page: 1,
@@ -202,7 +201,12 @@ public partial class GitHubTopicsDiscoverer(
             }
 
             logger.LogInformation("GitHub Topics discovery found {Count} repositories", results.Count);
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = results,
+                TotalItems = results.Count,
+                HasMoreItems = false,
+            });
         }
         catch (OperationCanceledException)
         {
@@ -212,97 +216,8 @@ public partial class GitHubTopicsDiscoverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "GitHub Topics discovery failed");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"GitHub Topics discovery failed: {ex.Message}");
         }
-    }
-
-    [System.Text.RegularExpressions.GeneratedRegex(@"(\d{3,4}x\d{3,4})")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
-
-    /// <summary>
-    /// Infers ContentType from repository topics.
-    /// </summary>
-    private static (ContentType Type, bool IsInferred) InferContentTypeFromTopics(List<string> topics)
-    {
-        // Check for explicit type topics
-        if (topics.Contains(GitHubTopicsConstants.GameClientTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.GameClient, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.ModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mod, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapPackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.MapPack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.AddonTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Addon, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.PatchTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Patch, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.LanguagePackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.LanguagePack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MissionTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mission, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Map, false);
-        }
-
-        // No explicit type found, will need inference
-        return (ContentType.Addon, true);
-    }
-
-    /// <summary>
-    /// Infers GameType from repository topics.
-    /// </summary>
-    private static (GameType Type, bool IsInferred) InferGameTypeFromTopics(List<string> topics)
-    {
-        // Check for game-specific topics
-        if (topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            // Check if also has ZH topic - use exact matching instead of substring matching
-            if (topics.Any(t => t.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zero-hour", StringComparison.OrdinalIgnoreCase)))
-            {
-                return (GameType.ZeroHour, false);
-            }
-
-            return (GameType.Generals, false);
-        }
-
-        // Generals Online content is typically for Zero Hour
-        if (topics.Contains(GitHubTopicsConstants.GeneralsOnlineTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        // Default to ZeroHour (most common) with inference flag
-        return (GameType.ZeroHour, true);
     }
 
     /// <summary>
@@ -511,24 +426,6 @@ public partial class GitHubTopicsDiscoverer(
     }
 
     /// <summary>
-    /// Searches for repositories by topic with caching to reduce API calls.
-    /// </summary>
-    private async Task<GitHubRepositorySearchResponse> SearchRepositoriesByTopicWithCacheAsync(
-        string topic,
-        int perPage,
-        int page,
-        CancellationToken cancellationToken)
-    {
-        var cacheKey = $"github_topic_{topic}_{perPage}_{page}";
-        var result = await cache.GetOrCreateAsync(cacheKey, async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(GitHubTopicsConstants.CacheDurationMinutes);
-            return await gitHubApiClient.SearchRepositoriesByTopicAsync(topic, perPage, page, cancellationToken).ConfigureAwait(false);
-        }).ConfigureAwait(false);
-        return result ?? new GitHubRepositorySearchResponse();
-    }
-
-    /// <summary>
     /// Creates ContentSearchResults from a repository and optional release.
     /// Detects multi-asset releases and creates separate results for each variant.
     /// </summary>
@@ -579,7 +476,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, release.Name);
@@ -587,7 +484,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, release.Name);
@@ -671,7 +568,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, latestRelease?.Name);
@@ -679,7 +576,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, latestRelease?.Name);

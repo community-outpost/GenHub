@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -69,14 +70,19 @@ public static class InstallationExtensions
             "Converting {InstallationType} installation to domain model",
             installation.InstallationType);
 
-        var installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
+        // Use the original InstallationPath from the platform detector
+        // This preserves the library root path (e.g., Steam library folder)
+        // Only fall back to game-specific paths if InstallationPath is not set
+        var installationPath = installation.InstallationPath;
         if (string.IsNullOrEmpty(installationPath))
         {
-            installationPath = installation.InstallationPath;
+            installationPath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
         }
 
-        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>);
-        gameInstallation.Id = installation.Id;
+        var gameInstallation = new GameInstallation(installationPath, installation.InstallationType, logger as ILogger<GameInstallation>)
+        {
+            Id = installation.Id,
+        };
         gameInstallation.SetPaths(installation.GeneralsPath, installation.ZeroHourPath);
         gameInstallation.PopulateGameClients(installation.AvailableGameClients);
 
@@ -104,7 +110,7 @@ public static class InstallationExtensions
             GameInstallationType.CDISO => "CD/ISO",
             GameInstallationType.Wine => "Wine/Proton",
             GameInstallationType.Retail => "Retail",
-            GameInstallationType.Unknown => "Unknown",
+            GameInstallationType.Unknown => GameClientConstants.UnknownVersion,
             _ => installationType.ToString(),
         };
     }

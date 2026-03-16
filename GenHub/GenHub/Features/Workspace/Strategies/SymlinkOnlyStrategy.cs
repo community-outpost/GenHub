@@ -81,7 +81,7 @@ public sealed class SymlinkOnlyStrategy(
             Directory.CreateDirectory(workspacePath);
 
             var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
-            var totalFiles = allFiles.Count();
+            var totalFiles = allFiles.Count;
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
@@ -108,7 +108,8 @@ public sealed class SymlinkOnlyStrategy(
             // Deduplicate files by RelativePath - multiple manifests may contain the same file
             // (e.g., GameClient and GameInstallation both contain the executable)
             // Group by path and take the first occurrence to avoid parallel creation conflicts
-            var manifestFiles = configuration.GetAllUniqueFiles()
+            // include files where InstallTarget is Workspace.
+            var manifestFiles = configuration.GetWorkspaceUniqueFiles()
                 .Select(f => new { Manifest = configuration.Manifests.First(m => m.Files.Contains(f)), File = f })
                 .ToList();
 
@@ -172,13 +173,13 @@ public sealed class SymlinkOnlyStrategy(
     }
 
     /// <inheritdoc/>
-    protected override async Task CreateCasLinkAsync(string hash, string targetPath, CancellationToken cancellationToken)
+    protected override async Task CreateCasLinkAsync(string hash, string targetPath, ContentType? contentType, CancellationToken cancellationToken)
     {
         Logger.LogDebug("Creating CAS symlink for hash {Hash} to {TargetPath}", hash, targetPath);
         FileOperationsService.EnsureDirectoryExists(Path.GetDirectoryName(targetPath)!);
 
         // Use the service method to create the link from CAS
-        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, cancellationToken);
+        var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
             throw new InvalidOperationException($"Failed to create symlink from CAS hash {hash} to {targetPath}");
@@ -233,12 +234,7 @@ public sealed class SymlinkOnlyStrategy(
     {
         // For game installation files, treat them the same as local files
         // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file));
-        if (manifest == null)
-        {
-            throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        }
-
+        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

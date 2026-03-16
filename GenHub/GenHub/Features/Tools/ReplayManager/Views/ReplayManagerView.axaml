@@ -1,0 +1,288 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+             xmlns:models="using:GenHub.Core.Models.Tools.ReplayManager"
+             xmlns:enums="using:GenHub.Core.Models.Enums"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayManagerView"
+             x:DataType="vm:ReplayManagerViewModel"
+             DragDrop.AllowDrop="True">
+
+  <Design.DataContext>
+    <!-- Placeholder for design time -->
+  </Design.DataContext>
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
+  </UserControl.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinWidth="600"
+        VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+    <!-- Header/Tabs -->
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="0,0,0,16" Padding="6" BoxShadow="0 4 12 0 #20000000">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+          <RadioButton Content="Generals"
+                       IsChecked="{Binding SelectedTab, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:GameType.Generals}}"
+                       GroupName="GameTabs"
+                       Classes="TabButton"/>
+          <RadioButton Content="Zero Hour"
+                       IsChecked="{Binding SelectedTab, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:GameType.ZeroHour}}"
+                       GroupName="GameTabs"
+                       Classes="TabButton"/>
+        </StackPanel>
+
+        <!-- Import Bar Integrated -->
+        <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="24,0">
+          <TextBox Grid.Column="0" Watermark="Paste Replay URL or Match ID..."
+                   Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                   HorizontalAlignment="Stretch"
+                   ToolTip.Tip="Supported formats:&#x0a;• Generals Online URL or Match ID (e.g. 151553)&#x0a;• GenTool Replay URL&#x0a;• GenHub / UploadThing Link&#x0a;• Direct download link (.rep/.zip)"/>
+          <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
+                  Classes="Primary" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="Import from URL">
+            <TextBlock Text="📥"/>
+          </Button>
+          <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
+                  Classes="Secondary" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="Browse for files">
+            <TextBlock Text="📎"/>
+          </Button>
+        </Grid>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button Content="↻" Command="{Binding LoadReplaysCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Refresh list"/>
+          <Button Content="📁" Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Open folder"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Row 1 is now empty/hidden -->
+    <Grid Grid.Row="1" IsVisible="False"/>
+
+    <!-- Replay List -->
+    <Panel Grid.Row="2">
+      <Border Background="{DynamicResource CardBackground}" CornerRadius="12" ClipToBounds="True" BoxShadow="0 4 12 0 #20000000">
+        <DataGrid Name="ReplaysGrid"
+                  ItemsSource="{Binding CurrentReplays}"
+                  SelectionMode="Extended"
+                  CellEditEnded="OnCellEditEnded"
+                  HeadersVisibility="Column"
+                  CanUserResizeColumns="True"
+                  GridLinesVisibility="Horizontal"
+                  BorderThickness="0"
+                  RowHeight="40">
+          <DataGrid.Columns>
+            <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" MinWidth="100" />
+            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="80" IsReadOnly="True" />
+            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="130" IsReadOnly="True" />
+            <DataGridTemplateColumn Width="140" Header="Actions">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <Button IsEnabled="False"
+                          Classes="Link" Padding="4" HorizontalAlignment="Center"
+                          ToolTip.Tip="Parse replay details (Coming Soon)">
+                    <!-- TODO: Attach Parse Replay Command -->
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="⚙️" FontSize="12"/>
+                      <TextBlock Text="PARSE" FontSize="10"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+          </DataGrid.Columns>
+        </DataGrid>
+      </Border>
+
+      <!-- Drag & Drop Overlay -->
+      <Border Name="DragDropOverlay"
+              Background="#CC000000"
+              IsVisible="False"
+              IsHitTestVisible="False"
+              CornerRadius="12"
+              Opacity="0">
+        <Border.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
+          </Transitions>
+        </Border.Transitions>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+          <TextBlock Text="📥" FontSize="64" HorizontalAlignment="Center" Opacity="0.8"/>
+          <TextBlock Text="Drop replays or ZIPs to import" Classes="H2" HorizontalAlignment="Center"/>
+          <TextBlock Text="Single .rep files or ZIP archives only (max 1MB)" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Loading Overlay -->
+      <Border Background="#66000000" IsVisible="{Binding IsBusy}" CornerRadius="12">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+          <ProgressBar Value="{Binding Progress, Mode=OneWay}" Minimum="0" Maximum="1" Width="240" Height="4"
+                       IsIndeterminate="{Binding Progress, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"/>
+          <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+        </StackPanel>
+      </Border>
+    </Panel>
+
+    <!-- Action Bar -->
+    <Border Grid.Row="3" Background="{DynamicResource CardBackground}" CornerRadius="12" Margin="0,16,0,0" Padding="12" BoxShadow="0 4 12 0 #20000000">
+      <Grid ColumnDefinitions="Auto,*,Auto" MinWidth="400">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="Selected:" Opacity="0.7"/>
+            <TextBlock Text="{Binding SelectedReplays.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+          </StackPanel>
+          <Button Command="{Binding DeleteSelectedCommand}"
+                  Classes="Danger" IsEnabled="{Binding SelectedReplays.Count}"
+                  ToolTip.Tip="Permanently delete the selected replay files from your computer.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="🗑️"/>
+              <TextBlock Text="Delete"/>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Opacity="0.7" FontStyle="Italic" Margin="12,0"/>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+          <Button Command="{Binding UncompressSelectedCommand}"
+                  Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
+                  ToolTip.Tip="Extract replay files from the selected ZIP archives.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="📦🔓"/>
+              <TextBlock Text="Uncompress"/>
+            </StackPanel>
+          </Button>
+          <TextBox MinWidth="100" MaxWidth="150" Watermark="ZIP Name" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="Filename for the new ZIP archive"/>
+          <Button Command="{Binding ExportToZipCommand}"
+                  Classes="Secondary" IsEnabled="{Binding SelectedReplays.Count}"
+                  ToolTip.Tip="Create a new ZIP archive containing the selected replay files.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="📦"/>
+              <TextBlock Text="Zip"/>
+            </StackPanel>
+          </Button>
+          <StackPanel Orientation="Horizontal" Spacing="0">
+            <Button Command="{Binding UploadAndShareCommand}"
+                    Classes="Primary" IsEnabled="{Binding SelectedReplays.Count}"
+                    CornerRadius="4,0,0,4"
+                    ToolTip.Tip="Upload the selected replays to the cloud (UploadThing) and copy the shareable link to your clipboard.">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="☁️"/>
+                <TextBlock Text="Upload"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding ToggleHistoryCommand}"
+                    Classes="Primary"
+                    CornerRadius="0,4,4,0"
+                    Padding="8,0"
+                    ToolTip.Tip="View the history of your uploaded replays.">
+              <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"/>
+            </Button>
+            <TextBlock Text="(max 10MB per file)" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+            <Popup IsOpen="{Binding IsHistoryOpen}"
+                   Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
+                   IsLightDismissEnabled="True">
+              <Border Background="#252525" BorderBrush="#333333" BorderThickness="1" CornerRadius="8"
+                      Padding="12" MinWidth="300" MaxHeight="400" BoxShadow="0 4 12 0 #40000000">
+                <Grid RowDefinitions="Auto,*">
+                  <Grid Grid.Row="1">
+                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}">
+                      <ItemsControl ItemsSource="{Binding UploadHistory}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="0,8">
+                              <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                  <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                  <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding TimestampDisplay}" FontSize="11" Opacity="0.6"/>
+                                    <TextBlock Text="{Binding SizeDisplay}" FontSize="11" Opacity="0.6"/>
+                                    <Border Background="Transparent" BorderBrush="{Binding StatusColor}" BorderThickness="1" CornerRadius="4" Padding="4,0" Margin="4,0,0,0">
+                                      <Panel>
+                                        <TextBlock Text="Active" FontSize="10" Foreground="{Binding StatusColor}"
+                                                   IsVisible="{Binding IsActive}"/>
+                                        <TextBlock Text="Expired" FontSize="10" Foreground="{Binding StatusColor}"
+                                                   IsVisible="{Binding !IsActive}"/>
+                                      </Panel>
+                                    </Border>
+                                  </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Classes="Secondary"
+                                        Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CopyUrlCommand}"
+                                        CommandParameter="{Binding Url}"
+                                        Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Copy the download link for this replay.">
+                                  <TextBlock Text="📋"/>
+                                </Button>
+
+                                <Button Grid.Column="2" Classes="Danger"
+                                        Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).RemoveHistoryItemCommand}"
+                                        CommandParameter="{Binding}"
+                                        Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="Remove this item from your local history check.">
+                                  <TextBlock Text="🗑️"/>
+                                </Button>
+                              </Grid>
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </ScrollViewer>
+
+                    <TextBlock Text="No history yet" IsVisible="{Binding !UploadHistory.Count}"
+                               HorizontalAlignment="Center" Opacity="0.5" Margin="0,20"/>
+                  </Grid>
+
+                <!-- Clear All Button -->
+                <Button Command="{Binding ClearHistoryCommand}"
+                        Classes="Danger"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,8,0,0"
+                        IsVisible="{Binding UploadHistory.Count}"
+                        ToolTip.Tip="Clear all items from your upload history.">
+                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="🗑️"/>
+                    <TextBlock Text="Clear All History"/>
+                  </StackPanel>
+                </Button>
+                </Grid>
+              </Border>
+            </Popup>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Footer Storage Notice -->
+    <TextBlock Grid.Row="4" Text="Files are maintained for up to 14 days or until storage is full. Maximum 1MB per file."
+               FontSize="11" Opacity="0.4" HorizontalAlignment="Left" Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="600"/>
+  </Grid>
+
+  <UserControl.Styles>
+    <Style Selector="RadioButton.TabButton">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Root" CornerRadius="8" Padding="16,8" Background="Transparent">
+            <TextBlock Text="{TemplateBinding Content}" FontWeight="SemiBold"
+                       Foreground="{TemplateBinding Foreground}"/>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.TabButton:pointerover /template/ Border#Root">
+      <Setter Property="Background" Value="#10FFFFFF" />
+    </Style>
+    <Style Selector="RadioButton.TabButton:checked /template/ Border#Root">
+      <Setter Property="Background" Value="{DynamicResource AccentColor}" />
+    </Style>
+    <Style Selector="RadioButton.TabButton:checked">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </UserControl.Styles>
+</UserControl>

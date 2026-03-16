@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -10,10 +12,13 @@ public static class GameClientConstants
     /// <summary>Generals executable filename.</summary>
     public const string GeneralsExecutable = "generals.exe";
 
-    /// <summary>Zero Hour executable filename.</summary>
+    /// <summary>Zero Hour executable filename (EA App/Retail installations).</summary>
     public const string ZeroHourExecutable = "generals.exe";
 
-    /// <summary>Steam game.dat executable (alternative to generals.exe for Steam-free launch).</summary>
+    /// <summary>Game engine executable filename.</summary>
+    public const string GameExecutable = "game.exe";
+
+    /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
     // ===== SuperHackers Client Detection =====
@@ -47,19 +52,22 @@ public static class GameClientConstants
     /// <summary>Zero Hour directory name abbreviated form.</summary>
     public const string ZeroHourDirectoryNameAbbreviated = "C&C Generals Zero Hour";
 
-    // ===== GeneralsOnline Client Detection =====
+    /// <summary>EA Games parent directory name.</summary>
+    public const string EaGamesParentDirectoryName = "EA Games";
 
-    /// <summary>GeneralsOnline 30Hz client executable name.</summary>
-    public const string GeneralsOnline30HzExecutable = "generalsonlinezh_30.exe";
+    /// <summary>Standard retail Generals directory name.</summary>
+    public const string GeneralsRetailDirectoryName = "Command & Conquer Generals";
+
+    /// <summary>Standard retail Zero Hour directory name.</summary>
+    public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
+
+    // ===== GeneralsOnline Client Detection =====
 
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>
     public const string GeneralsOnline60HzExecutable = "generalsonlinezh_60.exe";
 
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
-
-    /// <summary>Display name for GeneralsOnline 30Hz variant.</summary>
-    public const string GeneralsOnline30HzDisplayName = "GeneralsOnline 30Hz";
 
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
@@ -78,7 +86,7 @@ public static class GameClientConstants
     // ===== Version Strings =====
 
     /// <summary>Version string used for automatically detected clients.</summary>
-    public const string AutoDetectedVersion = "Automatically added";
+    public const string AutoDetectedVersion = GameClientConstants.UnknownVersion;
 
     /// <summary>Version string used for unknown/unrecognized clients.</summary>
     public const string UnknownVersion = "Unknown";
@@ -113,24 +121,26 @@ public static class GameClientConstants
     /// </summary>
     public const string ZeroHourShortName = "Zero Hour";
 
-    // ===== Required DLLs =====
-
     /// <summary>
     /// DLLs required for standard game installations.
     /// </summary>
-    public static readonly string[] RequiredDlls = new[]
-    {
+    public static readonly string[] RequiredDlls =
+    [
         "steam_api.dll",      // Steam integration
         "binkw32.dll",        // Bink video codec
         "mss32.dll",          // Miles Sound System
         "eauninstall.dll",    // EA App integration
-    };
+        "P2XDLL.DLL",         // EA/Steam wrapper DLL
+        "patchw32.dll",       // Update/Patch engine DLL
+        "dbghelp.dll",        // Debugging help (often included)
+    ];
 
     /// <summary>
     /// DLLs specific to GeneralsOnline installations.
     /// </summary>
-    public static readonly string[] GeneralsOnlineDlls = new[]
-    {
+    public static readonly string[] GeneralsOnlineDlls =
+    [
+
         // Core runtime DLLs (required for GeneralsOnline client)
         "abseil_dll.dll",          // Abseil C++ library for networking
         "GameNetworkingSockets.dll", // Valve networking library
@@ -145,38 +155,83 @@ public static class GameClientConstants
         "binkw32.dll",             // Bink video codec
         "mss32.dll",               // Miles Sound System
         "wsock32.dll",             // Network socket library
-    };
+    ];
+
+    /// <summary>Common registry value names for installation paths.</summary>
+    public static readonly string[] InstallationPathRegistryValues =
+    [
+        "Install Dir",
+        "InstallPath",
+        "Install Path",
+        "Folder",
+        "Path"
+    ];
 
     // ===== Configuration Files =====
 
     /// <summary>
     /// Configuration files used by game installations.
     /// </summary>
-    public static readonly string[] ConfigFiles = new[]
-    {
+    public static readonly string[] ConfigFiles =
+    [
         "options.ini",     // Legacy game options
         "skirmish.ini",    // Skirmish settings
         "network.ini",     // Network configuration
-    };
+    ];
 
     /// <summary>
     /// List of GeneralsOnline executable names to detect.
     /// Only includes 30Hz and 60Hz variants as these are the primary clients.
     /// GeneralsOnline provides auto-updated clients for Command &amp; Conquer Generals and Zero Hour.
     /// </summary>
-    public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames = new[]
-    {
-        GeneralsOnline30HzExecutable,
+    public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames =
+    [
         GeneralsOnline60HzExecutable,
-    };
+    ];
 
     /// <summary>
     /// List of SuperHackers executable names to detect.
     /// SuperHackers releases weekly game client builds for Generals and Zero Hour.
     /// </summary>
-    public static readonly IReadOnlyList<string> SuperHackersExecutableNames = new[]
-    {
+    public static readonly IReadOnlyList<string> SuperHackersExecutableNames =
+    [
         SuperHackersGeneralsExecutable,  // generalsv.exe
         SuperHackersZeroHourExecutable,  // generalszh.exe
-    };
+    ];
+
+    /// <summary>
+    /// Action types used in the Setup Wizard.
+    /// </summary>
+    public static class WizardActionTypes
+    {
+        /// <summary>Update an existing component.</summary>
+        public const string Update = "Update";
+
+        /// <summary>Install a new component.</summary>
+        public const string Install = "Install";
+
+        /// <summary>Create a profile for an existing installation.</summary>
+        public const string CreateProfile = "CreateProfile";
+
+        /// <summary>Decline the component.</summary>
+        public const string Decline = "Decline";
+
+        /// <summary>No action taken.</summary>
+        public const string None = "None";
+    }
+
+    /// <summary>
+    /// Deterministic IDs for synthetic game clients used during initial setup.
+    /// </summary>
+    public static class SyntheticClientIds
+    {
+        /// <summary>Synthetic ID for Community Patch.</summary>
+        public const string CommunityPatch = "cp.synth";
+
+        /// <summary>Synthetic ID for Generals Online.</summary>
+        public const string GeneralsOnline = "go.synth";
+
+        /// <summary>Synthetic ID for Super Hackers.</summary>
+        public const string SuperHackers = "sh.synth";
+    }
 }

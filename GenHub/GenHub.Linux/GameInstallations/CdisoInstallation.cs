@@ -294,56 +294,84 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
                 Path.Combine(winePrefix, "user.reg"),
             };
 
+            // Registry value names to look for
+            var valueNames = GameClientConstants.InstallationPathRegistryValues;
+
             foreach (var regFile in registryFiles.Where(File.Exists))
             {
                 logger?.LogDebug("Searching Wine registry file: {RegFile}", regFile);
 
                 var lines = File.ReadAllLines(regFile);
                 bool inEaGamesSection = false;
+                var foundValues = new List<string>();
 
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
 
                     // Look for the EA Games registry section
-                    if (line.Contains("EA Games\\\\Command and Conquer Generals Zero Hour", StringComparison.OrdinalIgnoreCase))
+                    if (line.Contains($"{GameClientConstants.EaGamesParentDirectoryName}\\\\{GameClientConstants.ZeroHourRetailDirectoryName}", StringComparison.OrdinalIgnoreCase))
                     {
                         inEaGamesSection = true;
                         logger?.LogDebug("Found EA Games section in Wine registry");
                         continue;
                     }
 
-                    // If we're in the EA Games section, look for Install Dir
+                    // If we're in the EA Games section, look for installation path values
                     if (inEaGamesSection)
                     {
                         if (line.StartsWith('[') && !line.Contains("EA Games", StringComparison.OrdinalIgnoreCase))
                         {
                             // We've moved to a different section
+                            if (foundValues.Count > 0)
+                            {
+                                logger?.LogDebug("EA Games section contained values: {Values}", string.Join(", ", foundValues));
+                            }
+
                             inEaGamesSection = false;
                             continue;
                         }
 
-                        if (line.Contains("\"Install Dir\"", StringComparison.OrdinalIgnoreCase))
+                        // Check for any of the possible value names
+                        foreach (var valueName in valueNames)
                         {
-                            // Extract the path value
-                            var parts = line.Split('=');
-                            if (parts.Length >= 2)
+                            if (line.Contains($"\"{valueName}\"", StringComparison.OrdinalIgnoreCase))
                             {
-                                var pathValue = parts[1].Trim().Trim('"');
+                                foundValues.Add(valueName);
 
-                                // Convert Windows path to Wine path
-                                if (pathValue.StartsWith("C:\\\\", StringComparison.OrdinalIgnoreCase) || pathValue.StartsWith("C:/", StringComparison.OrdinalIgnoreCase))
+                                // Extract the path value
+                                var parts = line.Split('=');
+                                if (parts.Length >= 2)
                                 {
-                                    // Remove C:\ or C:/ and replace backslashes with forward slashes
-                                    pathValue = pathValue[3..].Replace("\\\\", "/").Replace("\\", "/");
-                                    installPath = Path.Combine(winePrefix, "drive_c", pathValue);
+                                    var pathValue = parts[1].Trim().Trim('"');
 
-                                    logger?.LogDebug("Extracted CD/ISO path from Wine registry: {InstallPath}", installPath);
-                                    return !string.IsNullOrEmpty(installPath) && Directory.Exists(installPath);
+                                    // Convert Windows path to Wine path
+                                    if (pathValue.StartsWith("C:\\\\", StringComparison.OrdinalIgnoreCase) || pathValue.StartsWith("C:/", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        // Remove C:\ or C:/ and replace backslashes with forward slashes
+                                        pathValue = pathValue[3..].Replace("\\\\", "/").Replace("\\", "/");
+                                        installPath = Path.Combine(winePrefix, "drive_c", pathValue);
+
+                                        if (!string.IsNullOrEmpty(installPath) && Directory.Exists(installPath))
+                                        {
+                                            logger?.LogInformation("CD/ISO path found in Wine registry using value '{ValueName}': {InstallPath}", valueName, installPath);
+                                            return true;
+                                        }
+                                        else
+                                        {
+                                            logger?.LogDebug("Found registry value '{ValueName}' but path does not exist: {InstallPath}", valueName, installPath);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
+                }
+
+                // Log if we found the section but no valid paths
+                if (foundValues.Count > 0)
+                {
+                    logger?.LogWarning("Found EA Games section in Wine registry with values {Values} but no valid installation path", string.Join(", ", foundValues));
                 }
             }
         }

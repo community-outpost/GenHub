@@ -19,7 +19,7 @@ Welcome to the **GeneralsHub** development team! This guide will get you up to s
 
 ## **1️⃣ Project Overview**
 
-GeneralsHub is a **cross-platform desktop application** for managing, launching, and customizing *Command & Conquer: Generals / Zero Hour*.  
+GeneralsHub is a **cross-platform desktop application** for managing, launching, and customizing *Command & Conquer: Generals / Zero Hour*.
 It solves the problem of **ecosystem fragmentation** by detecting game installations, managing multiple versions, and integrating mods/maps/patches from multiple sources into isolated, conflict-free workspaces.
 
 The architecture is **modular** and **service-driven**, with a **three-tier content pipeline**:
@@ -33,6 +33,7 @@ The architecture is **modular** and **service-driven**, with a **three-tier cont
 - **🎮 Game Profile Management**: Custom configurations combining base games with mods and patches
 - **🔍 Content Discovery**: Automated discovery from GitHub, ModDB, CNC Labs, and local sources
 - **📁 Isolated Workspaces**: Each profile runs in its own workspace to prevent conflicts
+- **🛠️ Tool Support**: Specialized support for modding utilities and standalone game tools
 - **🌐 Cross-Platform**: Native Windows and Linux support
 
 ---
@@ -43,12 +44,12 @@ We follow a **GitHub-first workflow**:
 
 ### 1. Find or Create an Issue
 
-- All work starts with a GitHub Issue.  
+- All work starts with a GitHub Issue.
 - If you have an idea, create an issue and label it appropriately.
 
 ### 2. Branching Strategy
 
-Create a branch from `main` using the format:  
+Create a branch from `development` using the format:
 
 ```bash
 feature/<short-description>
@@ -56,21 +57,23 @@ fix/<short-description>
 refactor/<short-description>
 ```
 
+**Important:** The `development` branch is our primary working branch. The `main` branch is reserved for stable releases and has automatic release deployment configured. When `development` is merged into `main`, a new release is automatically created and published.
+
 ### 3. Code Standards
 
-- **StyleCop** is enforced — your code must pass style checks before merging.  
-- Follow **C# naming conventions** and keep methods/classes small and focused.  
+- **StyleCop** is enforced — your code must pass style checks before merging.
+- Follow **C# naming conventions** and keep methods/classes small and focused.
 - XML documentation is required for **all public classes, methods, and properties**.
 
 ### 4. Testing Requirements
 
-- All new code must have **xUnit tests**.  
-- Tests live in the **GenHub.Tests** project, mirroring the folder structure of the main code.  
+- All new code must have **xUnit tests**.
+- Tests live in the **GenHub.Tests** project, mirroring the folder structure of the main code.
 - Run tests locally before pushing.
 
 ### 5. Pull Request Process
 
-- Open a PR linked to the issue.  
+- Open a PR linked to the issue.
 - GitHub Actions will run:
   - Build on Windows & Linux
   - Run all tests
@@ -79,8 +82,16 @@ refactor/<short-description>
 
 ### 6. Code Review
 
-- At least **one approval** from a reviewer is required before merging.  
+- At least **one approval** from a reviewer is required before merging.
 - Be open to feedback and iterate quickly.
+
+### 7. Release Process
+
+- **Development Branch**: All feature branches merge into `development` after PR approval.
+- **Main Branch**: Reserved for stable releases with automatic deployment configured.
+- **Release Workflow**: When `development` is merged into `main`, an automatic release is triggered and published to GitHub Releases.
+- **Version Management**: Version numbers are managed in `Directory.Build.props` and follow [Semantic Versioning](https://semver.org/).
+- For detailed release instructions, see the [Release Process Documentation](./releases.md).
 
 ---
 
@@ -106,8 +117,8 @@ GenHub.Tests/     → Unit & integration tests (xUnit)
 
 ### Inside GenHub.Tests
 
-- Mirrors the structure of `GenHub.Core` and `GenHub`  
-- Each service/class has a corresponding test file  
+- Mirrors the structure of `GenHub.Core` and `GenHub`
+- Each service/class has a corresponding test file
 - Uses **xUnit** + **Moq** for mocking dependencies
 
 ---
@@ -215,39 +226,39 @@ public async Task ShouldDownloadContent()
 
 ### Setup Instructions
 
-1. **Clone the repository**  
+1. **Clone the repository**
 
    ```bash
    git clone https://github.com/community-outpost/GenHub.git
    cd GenHub
    ```
 
-2. **Restore dependencies**  
+2. **Restore dependencies**
 
    ```bash
    dotnet restore
    ```
 
-3. **Build the solution**  
+3. **Build the solution**
 
    ```bash
    dotnet build
    ```
 
-4. **Run tests**  
+4. **Run tests**
 
    ```bash
    dotnet test
    ```
 
-5. **Run the application**  
+5. **Run the application**
    - Set `GenHub` as the startup project
    - Press F5 or run: `dotnet run --project GenHub`
 
 ### Development Environment
 
 - **Windows**: Full development and testing capabilities
-- **Linux**: Full development and testing capabilities  
+- **Linux**: Full development and testing capabilities
 - **macOS**: Limited support (builds but not officially tested)
 
 ---
@@ -291,15 +302,17 @@ For a comprehensive understanding of the system architecture, see our [Architect
 
 1. **Three-Tier Content Pipeline**
    - **Tier 1**: Content Orchestrator (system-wide coordination)
-   - **Tier 2**: Content Providers (source-specific orchestration)  
+   - **Tier 2**: Content Providers (source-specific orchestration)
    - **Tier 3**: Pipeline Components (specialized operations)
 
-2. **Five Architectural Pillars**
-   - **GameInstallation**: Physical game detection
-   - **GameClient**: Executable identification
-   - **GameManifest**: Declarative content packaging
-   - **GameProfile**: User configuration
-   - **Workspace**: Isolated execution environment
+2. **Six Architectural Pillars**
+
+1. **GameInstallation**: Physical game detection
+2. **GameClient**: Executable identification
+3. **GameManifest**: Declarative content packaging
+4. **GameProfile**: User configuration (including **Tool Profiles**)
+5. **Workspace**: Isolated execution environment
+6. **GameLaunching**: Runtime orchestration & monitoring
 
 3. **Service-Oriented Design**
    - Dependency injection throughout

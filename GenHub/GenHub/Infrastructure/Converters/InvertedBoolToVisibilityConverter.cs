@@ -24,7 +24,7 @@ public class InvertedBoolToVisibilityConverter : IValueConverter
         }
 
         // For other cases, return string (legacy support)
-        return value is bool boolValue ? (!boolValue ? "Visible" : "Collapsed") : "Visible";
+        return value is bool boolValue ? (boolValue ? "Collapsed" : "Visible") : "Visible";
     }
 
     /// <inheritdoc />

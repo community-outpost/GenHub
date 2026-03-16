@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -18,18 +19,21 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Manifest;
 
 /// <summary>
-/// Persistent storage and management of acquired ContentManifests using the content storage service.
+/// Manages a pool of content manifests, handling their storage, retrieval, and validation.
 /// </summary>
-public class ContentManifestPool(IContentStorageService storageService, ILogger<ContentManifestPool> logger) : IContentManifestPool
+/// <param name="storageService">The service for storing content.</param>
+/// <param name="referenceTracker">The tracker for CAS references.</param>
+/// <param name="logger">The logger instance.</param>
+public class ContentManifestPool(
+    IContentStorageService storageService,
+    ICasReferenceTracker referenceTracker,
+    ILogger<ContentManifestPool> logger) : IContentManifestPool
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter(), new ManifestIdJsonConverter() },
     };
-
-    private readonly IContentStorageService _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
-    private readonly ILogger<ContentManifestPool> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, CancellationToken cancellationToken = default)
@@ -43,7 +47,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
                 return OperationResult<bool>.CreateFailure($"Manifest validation failed: {validationResult.FirstError}");
             }
 
-            var isStoredResult = await _storageService.IsContentStoredAsync(manifest.Id, cancellationToken);
+            var isStoredResult = await storageService.IsContentStoredAsync(manifest.Id, cancellationToken);
             if (!isStoredResult.Success || !isStoredResult.Data)
             {
                 return OperationResult<bool>.CreateFailure(
@@ -51,7 +55,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
             }
 
             // Update the manifest metadata even if content already exists
-            var manifestPath = _storageService.GetManifestStoragePath(manifest.Id);
+            var manifestPath = storageService.GetManifestStoragePath(manifest.Id);
             var manifestDir = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDir))
                 Directory.CreateDirectory(manifestDir);
@@ -59,12 +63,27 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
             var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
-            _logger.LogDebug("Updated manifest {ManifestId} in storage", manifest.Id);
+            // Ensure CAS references are tracked even for metadata-only updates
+            var trackResult = await referenceTracker.TrackManifestReferencesAsync(manifest.Id, manifest, cancellationToken);
+            if (!trackResult.Success)
+            {
+                logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}. Rolling back manifest.", manifest.Id, trackResult.FirstError);
+
+                // Rollback: Delete metadata file only - content was pre-existing, do NOT remove it
+                if (File.Exists(manifestPath))
+                {
+                    File.Delete(manifestPath);
+                }
+
+                return OperationResult<bool>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+            }
+
+            logger.LogDebug("Updated manifest {ManifestId} in storage and refreshed CAS tracking", manifest.Id);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add manifest {ManifestId}", manifest.Id);
+            logger.LogError(ex, "Failed to add manifest {ManifestId}", manifest.Id);
             return OperationResult<bool>.CreateFailure($"Failed to add manifest: {ex.Message}");
         }
     }
@@ -74,17 +93,18 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     /// </summary>
     /// <param name="manifest">The game manifest to store.</param>
     /// <param name="sourceDirectory">The directory containing the content files.</param>
+    /// <param name="progress">Optional progress reporter for storage operations.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, string sourceDirectory, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> AddManifestAsync(ContentManifest manifest, string sourceDirectory, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Adding manifest {ManifestId} to pool with content from {SourceDirectory}", manifest.Id, sourceDirectory);
+            logger.LogInformation("Adding manifest {ManifestId} to pool with content from {SourceDirectory}", manifest.Id, sourceDirectory);
 
             // Validate manifest before processing
             var validationResult = ValidateManifest(manifest);
-            _logger.LogDebug("Manifest validation result for {ManifestId}: success={Success} firstError={FirstError}", manifest.Id, validationResult.Success, validationResult.FirstError);
+            logger.LogDebug("Manifest validation result for {ManifestId}: success={Success} firstError={FirstError}", manifest.Id, validationResult.Success, validationResult.FirstError);
             if (!validationResult.Success)
             {
                 return OperationResult<bool>.CreateFailure($"Manifest validation failed: {validationResult.FirstError}");
@@ -93,24 +113,24 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
             // Validate source directory
             if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
             {
-                _logger.LogDebug("Source directory '{SourceDirectory}' exists: {Exists}", sourceDirectory, Directory.Exists(sourceDirectory));
+                logger.LogDebug("Source directory '{SourceDirectory}' exists: {Exists}", sourceDirectory, Directory.Exists(sourceDirectory));
                 return OperationResult<bool>.CreateFailure($"Source directory {sourceDirectory} does not exist");
             }
 
             // Delegate content storage to the storage service which may perform its own validation
-            var result = await _storageService.StoreContentAsync(manifest, sourceDirectory, null, cancellationToken);
-            _logger.LogDebug("Storage service returned for {ManifestId}: success={Success} firstError={FirstError}", manifest.Id, result?.Success, result?.FirstError);
+            var result = await storageService.StoreContentAsync(manifest, sourceDirectory, progress, cancellationToken);
+            logger.LogDebug("Storage service returned for {ManifestId}: success={Success} firstError={FirstError}", manifest.Id, result?.Success, result?.FirstError);
             if (result == null || !result.Success)
             {
                 return OperationResult<bool>.CreateFailure($"Failed to store content for manifest {manifest.Id}: {result?.FirstError}");
             }
 
-            _logger.LogDebug("Successfully added manifest {ManifestId} to pool", manifest.Id);
+            logger.LogDebug("Successfully added manifest {ManifestId} to pool", manifest.Id);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add manifest {ManifestId} with source directory", manifest.Id);
+            logger.LogError(ex, "Failed to add manifest {ManifestId} with source directory", manifest.Id);
             return OperationResult<bool>.CreateFailure($"Failed to add manifest: {ex.Message}");
         }
     }
@@ -120,7 +140,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     {
         try
         {
-            var manifestPath = _storageService.GetManifestStoragePath(manifestId);
+            var manifestPath = storageService.GetManifestStoragePath(manifestId);
 
             if (!File.Exists(manifestPath))
                 return OperationResult<ContentManifest?>.CreateSuccess(null);
@@ -129,7 +149,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
             if (manifest == null)
             {
-                _logger.LogWarning("Manifest file {ManifestPath} exists but deserialization returned null", manifestPath);
+                logger.LogWarning("Manifest file {ManifestPath} exists but deserialization returned null", manifestPath);
                 return OperationResult<ContentManifest?>.CreateFailure("Manifest file is corrupted or invalid");
             }
 
@@ -137,7 +157,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to read manifest {ManifestId} from storage", manifestId);
+            logger.LogError(ex, "Failed to read manifest {ManifestId} from storage", manifestId);
             return OperationResult<ContentManifest?>.CreateFailure($"Failed to read manifest: {ex.Message}");
         }
     }
@@ -146,11 +166,12 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     public async Task<OperationResult<IEnumerable<ContentManifest>>> GetAllManifestsAsync(CancellationToken cancellationToken = default)
     {
         var manifests = new List<ContentManifest>();
-        var manifestsDir = Path.Combine(_storageService.GetContentStorageRoot(), FileTypes.ManifestsDirectory);
+        var manifestsDir = Path.Combine(storageService.GetContentStorageRoot(), FileTypes.ManifestsDirectory);
 
         if (!Directory.Exists(manifestsDir))
             return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests);
 
+        // Capture file list before async operations to avoid race conditions
         var manifestFiles = Directory.GetFiles(manifestsDir, FileTypes.ManifestFilePattern);
 
         foreach (var manifestFile in manifestFiles)
@@ -165,9 +186,13 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
                     manifests.Add(manifest);
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to read manifest from {ManifestFile}", manifestFile);
+                logger.LogWarning(ex, "Failed to read manifest from {ManifestFile}", manifestFile);
             }
         }
 
@@ -204,30 +229,41 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to search manifests");
+            logger.LogError(ex, "Failed to search manifests");
             return OperationResult<IEnumerable<ContentManifest>>.CreateFailure($"Failed to search manifests: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, bool skipUntrack = false, CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Removing manifest {ManifestId} from pool", manifestId);
+            logger.LogInformation("Removing manifest {ManifestId} from pool (skipUntrack={SkipUntrack})", manifestId, skipUntrack);
 
-            var result = await _storageService.RemoveContentAsync(manifestId, cancellationToken);
+            // Untrack CAS references first and check result
+            if (!skipUntrack)
+            {
+                var untrackResult = await referenceTracker.UntrackManifestAsync(manifestId.Value, cancellationToken);
+                if (!untrackResult.Success)
+                {
+                    logger.LogWarning("Failed to untrack CAS references for manifest {ManifestId}: {Error}", manifestId, untrackResult.FirstError);
+                    return OperationResult<bool>.CreateFailure($"Failed to untrack CAS references: {untrackResult.FirstError}");
+                }
+            }
+
+            var result = await storageService.RemoveContentAsync(manifestId, skipUntrack: true, cancellationToken);
             if (!result.Success)
             {
                 return OperationResult<bool>.CreateFailure($"Failed to remove content for manifest {manifestId}: {result.FirstError}");
             }
 
-            _logger.LogDebug("Successfully removed manifest {ManifestId} from pool", manifestId);
+            logger.LogDebug("Successfully removed manifest {ManifestId} from pool", manifestId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to remove manifest {ManifestId}", manifestId);
+            logger.LogError(ex, "Failed to remove manifest {ManifestId}", manifestId);
             return OperationResult<bool>.CreateFailure($"Failed to remove manifest: {ex.Message}");
         }
     }
@@ -237,7 +273,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     {
         try
         {
-            var result = await _storageService.IsContentStoredAsync(manifestId, cancellationToken);
+            var result = await storageService.IsContentStoredAsync(manifestId, cancellationToken);
             if (!result.Success)
                 return OperationResult<bool>.CreateFailure($"Failed to check if manifest is acquired: {result.FirstError}");
 
@@ -245,7 +281,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check if manifest {ManifestId} is acquired", manifestId);
+            logger.LogError(ex, "Failed to check if manifest {ManifestId} is acquired", manifestId);
             return OperationResult<bool>.CreateFailure($"Failed to check if manifest is acquired: {ex.Message}");
         }
     }
@@ -255,7 +291,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
     {
         try
         {
-            var contentDir = Path.Combine(_storageService.GetContentStorageRoot(), DirectoryNames.Data, manifestId.Value);
+            var contentDir = Path.Combine(storageService.GetContentStorageRoot(), DirectoryNames.Data, manifestId.Value);
 
             // If a mapping file exists, return its value (this points to the original source directory)
             var mappingFile = Path.Combine(contentDir, "source.path");
@@ -271,7 +307,7 @@ public class ContentManifestPool(IContentStorageService storageService, ILogger<
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get content directory for manifest {ManifestId}", manifestId);
+            logger.LogError(ex, "Failed to get content directory for manifest {ManifestId}", manifestId);
             return OperationResult<string?>.CreateFailure($"Failed to get content directory: {ex.Message}");
         }
     }

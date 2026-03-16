@@ -8,22 +8,30 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
+using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
 /// <summary>
 /// Discovers content from Community Outpost (legi.cc) using the GenPatcher dl.dat catalog.
-/// The catalog contains official patches, tools, addons, and other game content.
+/// Uses data-driven configuration from provider.json for endpoints, timeouts, and mirrors.
+/// Metadata is sourced from <see cref="GenPatcherContentRegistry"/>.
 /// </summary>
 /// <param name="httpClientFactory">HTTP client factory.</param>
+/// <param name="providerLoader">Provider definition loader.</param>
+/// <param name="catalogParserFactory">Factory for getting catalog parsers.</param>
 /// <param name="logger">Logger instance.</param>
 public partial class CommunityOutpostDiscoverer(
     IHttpClientFactory httpClientFactory,
+    IProviderDefinitionLoader providerLoader,
+    ICatalogParserFactory catalogParserFactory,
     ILogger<CommunityOutpostDiscoverer> logger) : IContentDiscoverer
 {
     /// <summary>
@@ -46,68 +54,135 @@ public partial class CommunityOutpostDiscoverer(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc/>
-    public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
+    public Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+        ContentSearchQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        // Call the provider-aware overload with null provider (uses defaults from constants)
+        return DiscoverAsync(provider: null, query, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
+        ProviderDefinition? provider,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            logger.LogInformation("Discovering content from Community Outpost...");
+            logger.LogInformation(
+                "Discovering content from Community Outpost (Search: '{Search}', Type: {Type}, Game: {Game})",
+                query.SearchTerm,
+                query.ContentType,
+                query.TargetGame);
+
+            // Get provider definition if not provided
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            if (provider == null)
+            {
+                logger.LogError("Provider definition not found for {ProviderId}", CommunityOutpostConstants.PublisherId);
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
+                    $"Provider definition '{CommunityOutpostConstants.PublisherId}' not found. Ensure communityoutpost.provider.json exists.");
+            }
+
+            // Get configuration from provider definition
+            var catalogUrl = provider.Endpoints.CatalogUrl;
+            var patchPageUrl = provider.Endpoints.GetEndpoint("patchPageUrl");
+            var catalogTimeout = provider.Timeouts.CatalogTimeoutSeconds;
+
+            if (string.IsNullOrEmpty(catalogUrl))
+            {
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
+                    "CatalogUrl not configured in provider definition.");
+            }
+
+            if (string.IsNullOrEmpty(patchPageUrl))
+            {
+                return OperationResult<ContentDiscoveryResult>.CreateFailure(
+                    "PatchPageUrl not configured in provider definition.");
+            }
+
+            logger.LogInformation(
+                "Using provider configuration - CatalogUrl: {CatalogUrl}, CatalogFormat: {Format}",
+                catalogUrl,
+                provider.CatalogFormat);
 
             var results = new List<ContentSearchResult>();
 
             using var client = httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(CommunityOutpostConstants.CatalogDownloadTimeoutSeconds);
+            client.Timeout = TimeSpan.FromSeconds(catalogTimeout);
 
             // First, discover the Community Patch GameClient from legi.cc/patch
-            var communityPatchResult = await DiscoverCommunityPatchAsync(client, cancellationToken);
+            var communityPatchResult = await DiscoverCommunityPatchAsync(client, patchPageUrl, provider, cancellationToken);
             if (communityPatchResult != null && MatchesQuery(communityPatchResult, query))
             {
                 results.Add(communityPatchResult);
                 logger.LogInformation("Discovered Community Patch: {Version}", communityPatchResult.Version);
             }
 
-            // Then, fetch the GenPatcher dl.dat catalog for other content
+            // Then, fetch and parse the catalog using the appropriate parser
             try
             {
-                var catalogContent = await client.GetStringAsync(CommunityOutpostConstants.CatalogUrl, cancellationToken);
-                var parser = new GenPatcherDatParser(logger);
-                var catalog = parser.Parse(catalogContent);
+                var catalogContent = await client.GetStringAsync(catalogUrl, cancellationToken);
 
-                if (catalog.Items.Count > 0)
+                // Get the catalog parser for this provider's format
+                var parser = catalogParserFactory.GetParser(provider.CatalogFormat);
+                if (parser == null)
                 {
-                    logger.LogInformation(
-                        "Found {ItemCount} content items in GenPatcher catalog (version {Version})",
-                        catalog.Items.Count,
-                        catalog.CatalogVersion);
+                    logger.LogError("No parser found for catalog format '{Format}'", provider.CatalogFormat);
 
-                    foreach (var item in catalog.Items)
+                    // Return success with just community patch if parser fails
+                    return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
                     {
-                        var searchResult = ConvertToContentSearchResult(item, catalog.CatalogVersion);
-                        if (searchResult != null && MatchesQuery(searchResult, query))
-                        {
-                            results.Add(searchResult);
-                        }
-                    }
+                        Items = results,
+                        HasMoreItems = false,
+                    });
+                }
+
+                // Parse the catalog - the parser uses GenPatcherContentRegistry for metadata
+                var parseResult = await parser.ParseAsync(catalogContent, provider, cancellationToken);
+                if (parseResult.Success && parseResult.Data != null)
+                {
+                    var catalogResults = parseResult.Data.Where(r => MatchesQuery(r, query)).ToList();
+                    results.AddRange(catalogResults);
+
+                    logger.LogInformation(
+                        "Found {ItemCount} content items from catalog (after filtering: {FilteredCount})",
+                        parseResult.Data.Count(),
+                        catalogResults.Count);
+                }
+                else
+                {
+                    logger.LogWarning("Failed to parse catalog: {Error}", parseResult.FirstError);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to fetch GenPatcher catalog, continuing with Community Patch only");
+                logger.LogWarning(ex, "Failed to fetch/parse GenPatcher catalog, returning Community Patch only");
             }
+
+            // Ensure official game clients are present (fallback if missing from catalog)
+            EnsureOfficialClients(results, query, provider);
 
             logger.LogInformation(
                 "Returning {ResultCount} content items from Community Outpost",
                 results.Count);
 
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+            return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = results,
+                HasMoreItems = false, // Catalog based, all items returned at once
+            });
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover Community Outpost content");
-            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Discovery failed: {ex.Message}");
+            return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
+
+    [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
+    internal static partial Regex CommunityPatchRegex();
 
     /// <summary>
     /// Gets tags for a content category.
@@ -131,9 +206,65 @@ public partial class CommunityOutpostDiscoverer(
     }
 
     /// <summary>
+    /// Ensures that official clients are included in the search results.
+    /// </summary>
+    private void EnsureOfficialClients(List<ContentSearchResult> results, ContentSearchQuery query, ProviderDefinition provider)
+    {
+        var officialCodes = new[] { "10zh", "10gn" };
+        var baseUrl = provider.Endpoints.GetEndpoint(CommunityOutpostCatalogConstants.PatchPageUrlEndpoint) ?? CommunityOutpostCatalogConstants.DefaultBaseUrl;
+
+        foreach (var code in officialCodes)
+        {
+            var metadata = GenPatcherContentRegistry.GetMetadata(code);
+            if (metadata.ContentType == ContentType.UnknownContentType)
+            {
+                continue;
+            }
+
+            // Use the standard 5-segment ID format: schema.version.publisher.type.name
+            var publisher = CommunityOutpostConstants.PublisherType.ToLowerInvariant();
+            var type = metadata.ContentType.ToString().ToLowerInvariant();
+            var id = $"1.0.{publisher}.{type}.{code.ToLowerInvariant()}";
+
+            if (results.Any(r => r.Id == id))
+            {
+                continue;
+            }
+
+            var result = new ContentSearchResult
+            {
+                Id = id,
+                Name = metadata.DisplayName,
+                Description = metadata.Description ?? string.Empty,
+                Version = metadata.Version ?? "1.0",
+                ContentType = metadata.ContentType,
+                TargetGame = metadata.TargetGame,
+                ProviderName = provider.PublisherType,
+                AuthorName = provider.DisplayName,
+                SourceUrl = $"{baseUrl}/{code}.zip", // Default naming convention
+                DownloadSize = 0, // Unknown
+                RequiresResolution = true,
+                ResolverId = provider.ProviderId,
+                LastUpdated = null,
+            };
+
+            // Add tags
+            result.Tags.Add("official");
+            result.Tags.Add("basegame");
+            result.Tags.Add(metadata.Category.ToString().ToLowerInvariant());
+
+            if (MatchesQuery(result, query))
+            {
+                results.Add(result);
+                logger.LogDebug("Added fallback official client: {Code}", code);
+            }
+        }
+    }
+
+    /// <summary>
     /// Checks if a search result matches the query filters.
     /// </summary>
-    private static bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
+    private bool MatchesQuery(ContentSearchResult result, ContentSearchQuery query)
     {
         // If no filters specified, include all
         if (string.IsNullOrWhiteSpace(query.SearchTerm) &&
@@ -153,6 +284,7 @@ public partial class CommunityOutpostDiscoverer(
 
             if (!nameMatches && !descMatches && !tagMatches)
             {
+                LogFilterMismatch(result, query, "Search term");
                 return false;
             }
         }
@@ -160,78 +292,123 @@ public partial class CommunityOutpostDiscoverer(
         // Check content type filter
         if (query.ContentType.HasValue && result.ContentType != query.ContentType.Value)
         {
+            LogFilterMismatch(result, query, "Content Type");
             return false;
         }
 
         // Check target game filter
         if (query.TargetGame.HasValue && result.TargetGame != query.TargetGame.Value)
         {
+            LogFilterMismatch(result, query, "Target Game");
             return false;
         }
 
         return true;
     }
 
-    [GeneratedRegex(@"href=[""']([^""']*generalszh-weekly-(\d{4}-\d{2}-\d{2})[^""']*\.zip)[""']", RegexOptions.IgnoreCase)]
-    private static partial Regex CommunityPatchRegex();
+    private void LogFilterMismatch(ContentSearchResult result, ContentSearchQuery query, string reason)
+    {
+        logger.LogTrace(
+            "Filtered out {Name} ({Code}): {Reason}. Query: Type={QType}, Game={QGame}. Item: Type={IType}, Game={IGame}",
+            result.Name,
+            result.Id,
+            reason,
+            query.ContentType,
+            query.TargetGame,
+            result.ContentType,
+            result.TargetGame);
+    }
 
     /// <summary>
     /// Discovers the Community Patch (TheSuperHackers Patch Build) from legi.cc/patch.
     /// </summary>
     private async Task<ContentSearchResult?> DiscoverCommunityPatchAsync(
         HttpClient client,
+        string patchPageUrl,
+        ProviderDefinition? provider,
         CancellationToken cancellationToken)
     {
         try
         {
-            logger.LogDebug("Fetching Community Patch page from {Url}", CommunityOutpostConstants.PatchPageUrl);
+            logger.LogInformation("Fetching Community Patch page from {Url}", patchPageUrl);
 
-            var pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
+            var pageContent = await client.GetStringAsync(patchPageUrl, cancellationToken);
+            logger.LogDebug("Page content length: {Length} bytes", pageContent.Length);
 
-            // Look for the download link pattern: generalszh-weekly-YYYY-MM-DD*.zip
             var downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
+            logger.LogDebug("Regex match result: {Success}, Matches count: {Count}", downloadUrlMatch.Success, downloadUrlMatch.Captures.Count);
+
+            // Fallback: try different URL if configured one fails
+            if (!downloadUrlMatch.Success && patchPageUrl != CommunityOutpostConstants.PatchPageUrl)
+            {
+                logger.LogInformation("No match on primary URL, trying fallback: {Url}", CommunityOutpostConstants.PatchPageUrl);
+                pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
+                downloadUrlMatch = CommunityPatchRegex().Match(pageContent);
+                logger.LogDebug("Fallback regex match result: {Success}", downloadUrlMatch.Success);
+            }
 
             if (!downloadUrlMatch.Success)
             {
-                logger.LogWarning("Could not find Community Patch download link on {Url}", CommunityOutpostConstants.PatchPageUrl);
+                logger.LogWarning("Could not find Community Patch download link on {Url}", patchPageUrl);
                 return null;
             }
+
+            logger.LogInformation("Community Patch regex matched successfully");
 
             var downloadUrl = downloadUrlMatch.Groups[1].Value;
             var versionDate = downloadUrlMatch.Groups[2].Value;
 
             // Make the URL absolute if it's relative
-            // Relative URLs should be resolved against the page URL (legi.cc/patch/)
             if (!downloadUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                // The file is hosted in the same directory as the page (patch/)
-                var baseUrl = CommunityOutpostConstants.PatchPageUrl.TrimEnd('/');
+                var baseUrl = patchPageUrl.TrimEnd('/');
                 downloadUrl = $"{baseUrl}/{downloadUrl.TrimStart('/')}";
             }
 
             logger.LogDebug("Found Community Patch download: {Url} (version {Version})", downloadUrl, versionDate);
 
+            var providerId = provider?.ProviderId ?? CommunityOutpostConstants.PublisherId;
+            var providerName = provider?.PublisherType ?? CommunityOutpostConstants.PublisherType;
+
+            // Use the standard 5-segment ID format expected by the manifest factory
             var result = new ContentSearchResult
             {
-                Id = $"{CommunityOutpostConstants.PublisherId}.community-patch",
+                Id = $"1.{versionDate.Replace("-", string.Empty)}.{providerName.ToLowerInvariant()}.gameclient.community-patch",
                 Name = "Community Patch (TheSuperHackers Build)",
                 Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
                 Version = versionDate,
                 ContentType = ContentType.GameClient,
                 TargetGame = GameType.ZeroHour,
-                ProviderName = SourceName,
+                ProviderName = providerName,
                 AuthorName = "TheSuperHackers",
                 SourceUrl = downloadUrl,
                 RequiresResolution = true,
-                ResolverId = CommunityOutpostConstants.PublisherId,
-                LastUpdated = DateTime.Now,
+                ResolverId = providerId,
+                IconUrl = CommunityOutpostConstants.LogoSource,
             };
+
+            if (DateTime.TryParse(versionDate, out var date))
+            {
+                result.LastUpdated = date;
+            }
 
             // Add tags
             result.Tags.Add("community-patch");
             result.Tags.Add("thesuperhackers");
             result.Tags.Add("weekly");
             result.Tags.Add("game-client");
+
+            // Add default tags from provider
+            if (provider != null)
+            {
+                foreach (var tag in provider.DefaultTags)
+                {
+                    if (!result.Tags.Contains(tag))
+                    {
+                        result.Tags.Add(tag);
+                    }
+                }
+            }
 
             // Store metadata for resolver
             result.ResolverMetadata["contentCode"] = "community-patch";
@@ -242,7 +419,7 @@ public partial class CommunityOutpostDiscoverer(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", CommunityOutpostConstants.PatchPageUrl);
+            logger.LogWarning(ex, "Failed to discover Community Patch from {Url}", patchPageUrl);
             return null;
         }
     }
@@ -255,7 +432,7 @@ public partial class CommunityOutpostDiscoverer(
         try
         {
             var metadata = GenPatcherContentRegistry.GetMetadata(item.ContentCode);
-            var preferredUrl = GenPatcherDatParser.GetPreferredDownloadUrl(item);
+            var preferredUrl = providerLoader.GetProvider(CommunityOutpostConstants.PublisherId)?.Endpoints.GetPreferredDownloadUrl(item);
             var allUrls = GenPatcherDatParser.GetOrderedDownloadUrls(item);
 
             if (string.IsNullOrEmpty(preferredUrl))
@@ -269,6 +446,14 @@ public partial class CommunityOutpostDiscoverer(
             if (metadata.Category == GenPatcherContentCategory.OfficialPatch)
             {
                 logger.LogDebug("Skipping official patch {Code} - not shown in UI", item.ContentCode);
+                return null;
+            }
+
+            // Skip base dependencies (e.g., cbbs, cben) - these are auto-installed when needed
+            // and showing them in the UI only confuses users
+            if (metadata.IsBaseDependency)
+            {
+                logger.LogDebug("Skipping base dependency {Code} ({Name}) - auto-installed as dependency", item.ContentCode, metadata.DisplayName);
                 return null;
             }
 
@@ -295,10 +480,11 @@ public partial class CommunityOutpostDiscoverer(
 
             var result = new ContentSearchResult
             {
-                Id = $"{CommunityOutpostConstants.PublisherId}.{item.ContentCode}",
+                // Use standard 5-segment ID format: schema.version.publisher.type.name
+                Id = $"1.0.{CommunityOutpostConstants.PublisherType.ToLowerInvariant()}.{metadata.ContentType.ToString().ToLowerInvariant()}.{item.ContentCode.ToLowerInvariant()}",
                 Name = metadata.DisplayName,
-                Description = metadata.Description,
-                Version = metadata.Version,
+                Description = metadata.Description ?? string.Empty,
+                Version = metadata.Version ?? "1.0",
                 ContentType = metadata.ContentType,
                 TargetGame = metadata.TargetGame,
                 ProviderName = SourceName,
@@ -308,6 +494,9 @@ public partial class CommunityOutpostDiscoverer(
                 RequiresResolution = true,
                 ResolverId = CommunityOutpostConstants.PublisherId,
                 LastUpdated = DateTime.Now, // dl.dat doesn't include timestamps
+
+                // Use publisher logo as default content icon
+                IconUrl = CommunityOutpostConstants.LogoSource,
             };
 
             // Add tags based on content category

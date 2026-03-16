@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -20,6 +21,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
@@ -47,11 +49,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public static IEnumerable<WorkspaceStrategy> AvailableWorkspaceStrategies => Enum.GetValues<WorkspaceStrategy>();
 
     /// <summary>
-    /// Gets the available update channels for selection in the UI.
-    /// </summary>
-    public static IEnumerable<UpdateChannel> AvailableUpdateChannels => Enum.GetValues<UpdateChannel>();
-
-    /// <summary>
     /// Gets the current application version for display.
     /// </summary>
     public static string CurrentVersion => AppConstants.FullDisplayVersion;
@@ -69,6 +66,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly Timer _dangerZoneUpdateTimer;
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IGameInstallationService _installationService;
+    private readonly IStorageLocationService _storageLocationService;
+    private readonly IUserDataTracker _userDataTracker;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -136,7 +135,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _enableDetailedLogging = false;
 
     [ObservableProperty]
-    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceStrategy.SymlinkOnly;
+    private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
 
     [ObservableProperty]
     private bool _isSaving = false;
@@ -177,9 +176,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private int _autoGcIntervalDays = StorageConstants.AutoGcIntervalDays;
 
-    // Update settings properties
     [ObservableProperty]
-    private UpdateChannel _selectedUpdateChannel = UpdateChannel.Prerelease;
+    private string _subscribedBranchInput = string.Empty;
 
     [ObservableProperty]
     private string _gitHubPatInput = string.Empty;
@@ -213,10 +211,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="workspaceManager">The workspace manager.</param>
     /// <param name="manifestPool">The content manifest pool.</param>
     /// <param name="updateManager">The update manager service.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="configurationProvider">The configuration provider service.</param>
-    /// <param name="installationService">The game installation service.</param>
-    /// <param name="gitHubTokenStorage">Optional GitHub token storage for PAT management.</param>
+    /// <param name="notificationService">Notification service.</param>
+    /// <param name="configurationProvider">Configuration provider.</param>
+    /// <param name="installationService">Game installation service.</param>
+    /// <param name="storageLocationService">Storage location service.</param>
+    /// <param name="userDataTracker">User data tracker service.</param>
+    /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -228,6 +228,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         INotificationService notificationService,
         IConfigurationProviderService configurationProvider,
         IGameInstallationService installationService,
+        IStorageLocationService storageLocationService,
+        IUserDataTracker userDataTracker,
         IGitHubTokenStorage? gitHubTokenStorage = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
@@ -240,6 +242,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
+        _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
+        _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
         _gitHubTokenStorage = gitHubTokenStorage;
 
         LoadSettings();
@@ -497,7 +501,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             // Load CAS settings
             CasRootPath = settings.CasConfiguration.CasRootPath;
             EnableAutomaticGc = settings.CasConfiguration.EnableAutomaticGc;
-            SelectedUpdateChannel = settings.UpdateChannel;
+
+            SubscribedBranchInput = settings.SubscribedBranch ?? string.Empty;
             MaxCacheSizeGB = settings.CasConfiguration.MaxCacheSizeBytes / ConversionConstants.BytesPerGigabyte;
             CasMaxConcurrentOperations = settings.CasConfiguration.MaxConcurrentOperations;
             CasVerifyIntegrity = settings.CasConfiguration.VerifyIntegrity;
@@ -538,7 +543,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
-                settings.UpdateChannel = SelectedUpdateChannel;
+
+                settings.SubscribedBranch = string.IsNullOrWhiteSpace(SubscribedBranchInput) ? null : SubscribedBranchInput;
                 settings.DownloadBufferSize = (int)(DownloadBufferSizeKB * ConversionConstants.BytesPerKilobyte); // Convert KB to bytes
                 settings.DownloadTimeoutSeconds = DownloadTimeoutSeconds;
                 settings.DownloadUserAgent = DownloadUserAgent;
@@ -562,6 +568,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             });
 
             await _userSettingsService.SaveAsync();
+
+            // Apply log level change immediately without restart
+            Infrastructure.DependencyInjection.LoggingModule.SetLogLevel(EnableDetailedLogging);
 
             _logger.LogInformation("Settings saved successfully");
 
@@ -593,7 +602,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             AutoCheckForUpdatesOnStartup = true;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
-            DefaultWorkspaceStrategy = WorkspaceStrategy.HybridCopySymlink;
+            DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
             DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
             DownloadUserAgent = ApiConstants.DefaultUserAgent;
@@ -809,12 +818,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 PatStatusMessage = "GitHub PAT configured ✓";
                 IsPatValid = true;
-
-                // If Artifacts channel is selected and we have a PAT, load available artifacts
-                if (SelectedUpdateChannel == UpdateChannel.Artifacts && _updateManager != null)
-                {
-                    await LoadArtifactsAsync();
-                }
             }
             else
             {
@@ -875,7 +878,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                ManifestsInfo = "Unknown";
+                ManifestsInfo = GameClientConstants.UnknownVersion;
             }
 
             // Update Workspaces count
@@ -887,7 +890,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                WorkspacesInfo = "Unknown";
+                WorkspacesInfo = GameClientConstants.UnknownVersion;
             }
 
             // Update Profiles count
@@ -899,7 +902,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                ProfilesInfo = "Unknown";
+                ProfilesInfo = GameClientConstants.UnknownVersion;
             }
         }
         catch (Exception ex)
@@ -1005,12 +1008,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             IsPatValid = false;
             PatStatusMessage = "GitHub PAT removed";
             AvailableArtifacts.Clear();
-
-            // Switch to Prerelease channel if on Artifacts
-            if (SelectedUpdateChannel == UpdateChannel.Artifacts)
-            {
-                SelectedUpdateChannel = UpdateChannel.Prerelease;
-            }
         }
         catch (Exception ex)
         {
@@ -1084,11 +1081,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         await DeleteProfiles();
         await DeleteWorkspaces();
         await DeleteManifests();
-
-        // Force CAS deletion when deleting all data to ensure immediate UI feedback
-        _logger.LogInformation("Forcing CAS storage cleanup as part of DeleteAllData");
-        var result = await _casService.RunGarbageCollectionAsync(force: true, CancellationToken.None);
-        _logger.LogInformation("CAS cleanup completed: {Deleted} objects deleted", result.ObjectsDeleted);
+        await DeleteCasStorage();
+        await DeleteUserData();
 
         // Invalidate installation cache to force re-generation of manifests on next scan
         _installationService.InvalidateCache();
@@ -1176,16 +1170,32 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger.LogWarning("Deleting all workspaces");
+
+            // First, clean up all tracked workspaces
             var workspacesResult = await _workspaceManager.GetAllWorkspacesAsync();
+            int totalDeleted = 0;
+
             if (workspacesResult.Success && workspacesResult.Data != null)
             {
-                var count = workspacesResult.Data.Count();
+                totalDeleted += workspacesResult.Data.Count();
                 foreach (var workspace in workspacesResult.Data)
                 {
                     await _workspaceManager.CleanupWorkspaceAsync(workspace.Id);
                 }
+            }
 
-                _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {count} workspace(s) successfully.", 3000);
+            // Additionally, clean up any orphaned installation-adjacent workspace directories
+            // that might not be tracked (e.g., if installations were deleted first)
+            var orphanedCount = await CleanupOrphanedWorkspaceDirectoriesAsync();
+            totalDeleted += orphanedCount;
+
+            if (totalDeleted > 0)
+            {
+                _notificationService.ShowSuccess("Workspaces Deleted", $"Deleted {totalDeleted} workspace(s) successfully.", 3000);
+            }
+            else
+            {
+                _notificationService.ShowInfo("Workspaces Clean", "No workspaces found to delete.", 3000);
             }
 
             await UpdateDangerZoneDataAsync();
@@ -1194,6 +1204,113 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to delete workspaces");
             _notificationService.ShowError("Deletion Failed", $"Failed to delete workspaces: {ex.Message}", 5000);
+        }
+    }
+
+    /// <summary>
+    /// Cleans up orphaned workspace directories that might not be tracked by the workspace manager.
+    /// This handles cases where installations are deleted first, leaving behind installation-adjacent workspaces.
+    /// </summary>
+    private async Task<int> CleanupOrphanedWorkspaceDirectoriesAsync()
+    {
+        var deletedCount = 0;
+
+        try
+        {
+            // Re-fetch workspaces to check which directories are still referenced
+            var workspacesResult = await _workspaceManager.GetAllWorkspacesAsync();
+            var trackedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (workspacesResult.Success && workspacesResult.Data != null)
+            {
+                foreach (var workspace in workspacesResult.Data)
+                {
+                    trackedPaths.Add(workspace.WorkspacePath);
+                }
+            }
+
+            // Try to get installations to find their adjacent workspace directories
+            var installationsResult = await _installationService.GetAllInstallationsAsync();
+            if (installationsResult.Success && installationsResult.Data != null)
+            {
+                foreach (var installation in installationsResult.Data)
+                {
+                    try
+                    {
+                        var workspacePath = _storageLocationService.GetWorkspacePath(installation);
+                        if (Directory.Exists(workspacePath) && !trackedPaths.Contains(workspacePath))
+                        {
+                            _logger.LogInformation("Deleting orphaned workspace directory: {Path}", workspacePath);
+                            try
+                            {
+                                Directory.Delete(workspacePath, true);
+                                deletedCount++;
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", workspacePath);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to cleanup adjacent workspace for installation {InstallationId}", installation.Id);
+                    }
+                }
+            }
+
+            // Also check the centralized workspace directory for any remaining folders
+            var centralizedPath = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Workspaces);
+            if (Directory.Exists(centralizedPath))
+            {
+                var subdirectories = Directory.GetDirectories(centralizedPath);
+                foreach (var dir in subdirectories)
+                {
+                    try
+                    {
+                        if (!trackedPaths.Contains(dir))
+                        {
+                            _logger.LogInformation("Deleting orphaned centralized workspace directory: {Path}", dir);
+                            try
+                            {
+                                Directory.Delete(dir, true);
+                                deletedCount++;
+                            }
+                            catch (Exception deleteEx)
+                            {
+                                _logger.LogDebug(deleteEx, "Failed to delete workspace directory {Path}", dir);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to cleanup centralized workspace directory {Path}", dir);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during orphaned workspace cleanup");
+        }
+
+        return deletedCount;
+    }
+
+    [RelayCommand]
+    private async Task DeleteUserData()
+    {
+        try
+        {
+            _logger.LogWarning("Deleting all user data");
+            await _userDataTracker.DeleteAllUserDataAsync();
+            _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+
+            await UpdateDangerZoneDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete user data");
+            _notificationService.ShowError("Deletion Failed", $"Failed to delete user data: {ex.Message}", 5000);
         }
     }
 
@@ -1257,24 +1374,205 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
-            if (Directory.Exists(logsPath))
+            _logger.LogInformation("Opening logs directory: {Path}", logsPath);
+
+            if (!Directory.Exists(logsPath))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = logsPath,
-                    UseShellExecute = true,
-                    Verb = "open",
-                });
+                _logger.LogWarning("Logs directory not found at {Path}, creating it", logsPath);
+                Directory.CreateDirectory(logsPath);
             }
-            else
+
+            Process.Start(new ProcessStartInfo
             {
-                _notificationService.ShowError("Error", "Logs directory not found.", 3000);
-            }
+                FileName = logsPath,
+                UseShellExecute = true,
+                Verb = "open",
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open logs directory");
-            _notificationService.ShowError("Error", "Failed to open logs directory.", 3000);
+            _notificationService.ShowError("Error", $"Failed to open logs directory: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenAppDataDirectory()
+    {
+        try
+        {
+            var path = _configurationProvider.GetRootAppDataPath();
+            _logger.LogInformation("Opening AppData directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                _logger.LogWarning("AppData directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open AppData directory");
+            _notificationService.ShowError("Error", $"Failed to open AppData directory: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenProfilesDirectory()
+    {
+        try
+        {
+            var path = _configurationProvider.GetProfilesPath();
+            _logger.LogInformation("Opening profiles directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                _logger.LogWarning("Profiles directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open profiles directory");
+            _notificationService.ShowError("Error", $"Failed to open profiles directory: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenManifestsDirectory()
+    {
+        try
+        {
+            var path = _configurationProvider.GetManifestsPath();
+            _logger.LogInformation("Opening manifests directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                _logger.LogWarning("Manifests directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open manifests directory");
+            _notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenWorkspacesDirectory()
+    {
+        try
+        {
+            var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
+            string path;
+
+            if (preferredInstallation != null)
+            {
+                path = _storageLocationService.GetWorkspacePath(preferredInstallation);
+            }
+            else
+            {
+                // Fallback to try to find any installation
+                var installations = await _installationService.GetAllInstallationsAsync();
+                if (installations.Success && installations.Data?.Any() == true)
+                {
+                    path = _storageLocationService.GetWorkspacePath(installations.Data[0]);
+                }
+                else
+                {
+                    path = Path.Combine(_configurationProvider.GetApplicationDataPath(), DirectoryNames.Workspaces);
+                }
+            }
+
+            _logger.LogInformation("Opening workspaces directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                _logger.LogWarning("Workspaces directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open workspaces directory");
+            _notificationService.ShowError("Error", $"Failed to open workspaces directory: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenCasPoolDirectory()
+    {
+        try
+        {
+            var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
+            string path;
+
+            if (preferredInstallation != null)
+            {
+                path = _storageLocationService.GetCasPoolPath(preferredInstallation);
+            }
+            else
+            {
+                // Fallback to try to find any installation
+                var installations = await _installationService.GetAllInstallationsAsync();
+                if (installations.Success && installations.Data?.Any() == true)
+                {
+                    path = _storageLocationService.GetCasPoolPath(installations.Data[0]);
+                }
+                else
+                {
+                    path = _configurationProvider.GetCasConfiguration().CasRootPath;
+                }
+            }
+
+            _logger.LogInformation("Opening CAS pool directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                _logger.LogWarning("CAS pool directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open CAS pool directory");
+            _notificationService.ShowError("Error", $"Failed to open CAS pool directory: {ex.Message}", 5000);
         }
     }
 
@@ -1284,8 +1582,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var logsPath = _configurationProvider.GetLogsPath();
+            _logger.LogInformation("Opening latest log from: {Path}", logsPath);
+
             if (!Directory.Exists(logsPath))
             {
+                _logger.LogWarning("Logs directory not found at {Path}", logsPath);
                 _notificationService.ShowError("Error", "Logs directory not found.", 3000);
                 return;
             }
@@ -1297,6 +1598,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             if (latestLog != null)
             {
+                _logger.LogInformation("Opening log file: {LogFile}", latestLog.FullName);
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = latestLog.FullName,
@@ -1305,13 +1607,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
+                _logger.LogInformation("No log files found in {Path}", logsPath);
                 _notificationService.ShowInfo("Info", "No log files found.", 3000);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open latest log file");
-            _notificationService.ShowError("Error", "Failed to open latest log file.", 3000);
+            _notificationService.ShowError("Error", $"Failed to open latest log file: {ex.Message}", 5000);
         }
     }
 

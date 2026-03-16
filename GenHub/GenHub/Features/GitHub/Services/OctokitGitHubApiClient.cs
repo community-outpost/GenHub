@@ -7,8 +7,10 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.GitHub;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Octokit;
 
@@ -20,10 +22,13 @@ namespace GenHub.Features.GitHub.Services;
 public class OctokitGitHubApiClient(
    IGitHubClient gitHubClient,
    IHttpClientFactory httpClientFactory,
-   ILogger<OctokitGitHubApiClient> logger)
+   ILogger<OctokitGitHubApiClient> logger,
+   IMemoryCache cache)
    : IGitHubApiClient
 {
     private const int MaxPerPage = 100;
+    private static readonly TimeSpan DefaultCacheDuration = TimeSpan.FromHours(1);
+    private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromHours(4);
     private SecureString? token;
 
     /// <summary>
@@ -186,11 +191,20 @@ public class OctokitGitHubApiClient(
         string repositoryName,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_LatestRelease_{owner}_{repositoryName}";
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease))
+        {
+            return cachedRelease!;
+        }
+
         try
         {
             var octo = await gitHubClient.Repository.Release.GetLatest(owner, repositoryName)
                 .ConfigureAwait(false);
-            return MapToGitHubRelease(octo);
+            var release = MapToGitHubRelease(octo);
+
+            cache.Set(cacheKey, release, DefaultCacheDuration);
+            return release;
         }
         catch (Octokit.NotFoundException)
         {
@@ -222,11 +236,20 @@ public class OctokitGitHubApiClient(
         string tag,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_ReleaseByTag_{owner}_{repositoryName}_{tag}";
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease))
+        {
+            return cachedRelease!;
+        }
+
         try
         {
             var octo = await gitHubClient.Repository.Release.Get(owner, repositoryName, tag)
                 .ConfigureAwait(false);
-            return MapToGitHubRelease(octo);
+            var release = MapToGitHubRelease(octo);
+
+            cache.Set(cacheKey, release, DefaultCacheDuration);
+            return release;
         }
         catch (Octokit.NotFoundException)
         {
@@ -257,11 +280,20 @@ public class OctokitGitHubApiClient(
         string repo,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_Releases_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out IEnumerable<GitHubRelease>? cachedReleases))
+        {
+            return cachedReleases!;
+        }
+
         try
         {
             var releases = await gitHubClient.Repository.Release.GetAll(owner, repo)
                 .ConfigureAwait(false);
-            return releases.Select(MapToGitHubRelease);
+            var mappedReleases = releases.Select(MapToGitHubRelease).ToList();
+
+            cache.Set(cacheKey, mappedReleases, DefaultCacheDuration);
+            return mappedReleases;
         }
         catch (RateLimitExceededException ex)
         {
@@ -543,15 +575,21 @@ public class OctokitGitHubApiClient(
         int page = 1,
         CancellationToken cancellationToken = default)
     {
+        var topicList = topics.ToList();
+        if (topicList.Count == 0)
+        {
+            logger.LogWarning("No topics provided for repository search");
+            return new GitHubRepositorySearchResponse();
+        }
+
+        var cacheKey = $"GitHub_SearchTopics_{string.Join("_", topicList)}_{perPage}_{page}";
+        if (cache.TryGetValue(cacheKey, out GitHubRepositorySearchResponse? cachedResponse))
+        {
+            return cachedResponse!;
+        }
+
         try
         {
-            var topicList = topics.ToList();
-            if (topicList.Count == 0)
-            {
-                logger.LogWarning("No topics provided for repository search");
-                return new GitHubRepositorySearchResponse();
-            }
-
             // Build query: topic:genhub topic:generalsonline etc.
             // Add fork:true to include forks (we filter them later in the discoverer to ensure they have the relevant topic)
             var topicQuery = string.Join(" ", topicList.Select(t => $"topic:{t}")) + " fork:true";
@@ -574,6 +612,8 @@ public class OctokitGitHubApiClient(
                 Items = [.. result.Items.Select(MapToSearchItem)],
             };
 
+            cache.Set(cacheKey, response, SearchCacheDuration);
+
             logger.LogInformation("Found {Count} repositories for topics: {Topics}", response.TotalCount, string.Join(", ", topicList));
             return response;
         }
@@ -590,10 +630,16 @@ public class OctokitGitHubApiClient(
         string repo,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_Repository_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out GitHubRepository? cachedRepo))
+        {
+            return cachedRepo;
+        }
+
         try
         {
             var repository = await gitHubClient.Repository.Get(owner, repo).ConfigureAwait(false);
-            return new GitHubRepository
+            var mappedRepo = new GitHubRepository
             {
                 Id = repository.Id,
                 RepoOwner = repository.Owner?.Login ?? owner,
@@ -605,6 +651,9 @@ public class OctokitGitHubApiClient(
                 ForkCount = repository.ForksCount,
                 DisplayName = repository.Name,
             };
+
+            cache.Set(cacheKey, mappedRepo, DefaultCacheDuration);
+            return mappedRepo;
         }
         catch (NotFoundException)
         {
@@ -730,7 +779,7 @@ public class OctokitGitHubApiClient(
             Workflow = new GitHubWorkflow
             {
                 Id = octokitRun.WorkflowId,
-                Name = octokitRun.Name ?? octokitRun.Path ?? "Unknown",
+                Name = octokitRun.Name ?? octokitRun.Path ?? GameClientConstants.UnknownVersion,
             },
             CreatedAt = octokitRun.CreatedAt,
             UpdatedAt = octokitRun.UpdatedAt,

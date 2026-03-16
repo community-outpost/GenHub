@@ -1,13 +1,17 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CsvHelper;
+using CsvHelper.Configuration;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -24,13 +28,17 @@ namespace GenHub.Features.Manifest;
 public class ManifestGenerationService(
     ILogger<ManifestGenerationService> logger,
     IFileHashProvider hashProvider,
-    IManifestIdService manifestIdService) : IManifestGenerationService
+    IManifestIdService manifestIdService,
+    IDownloadService downloadService,
+    IConfigurationProviderService configurationProvider) : IManifestGenerationService
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+
+    private static readonly string[] SupportedLanguages = ["EN", "DE", "FR", "ES", "IT", "KO", "PL", "PT-BR", "ZH-CN", "ZH-TW"];
 
     private int _fileCount = 0;
 
@@ -56,7 +64,7 @@ public class ManifestGenerationService(
                 gameInstallationPath);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(installationType, gameType, manifestVersion)
                 .WithContentType(ContentType.GameInstallation, gameType);
 
@@ -140,7 +148,7 @@ public class ManifestGenerationService(
                 publisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisherId, contentName, manifestVersion.ToString())
                 .WithContentType(contentType, targetGame);
 
@@ -242,7 +250,7 @@ public class ManifestGenerationService(
                 targetPublisherId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
 
                 // Note: Publisher referrals are typically game-agnostic, but we default to ZeroHour for compatibility
@@ -289,7 +297,7 @@ public class ManifestGenerationService(
                 targetContentId);
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisherId, referralName, manifestVersion.ToString())
                 .WithContentType(ContentType.ContentReferral, GameType.ZeroHour) // Default to ZeroHour
                 .WithMetadata(description);
@@ -346,13 +354,15 @@ public class ManifestGenerationService(
     /// <param name="clientName">The name of the game client.</param>
     /// <param name="clientVersion">The version of the game client.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="publisherInfo">Optional publisher info. If provided, overrides detection from name.</param>
     /// <returns>A <see cref="Task"/> that returns a configured manifest builder.</returns>
     public async Task<IContentManifestBuilder> CreateGameClientManifestAsync(
         string installationPath,
         GameType gameType,
         string clientName,
         string clientVersion,
-        string executablePath)
+        string executablePath,
+        PublisherInfo? publisherInfo = null)
     {
         try
         {
@@ -371,17 +381,27 @@ public class ManifestGenerationService(
 
             var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
 
-            // Determine publisher name using user-friendly display format matching InstallationTypeDisplayConverter
-            var publisherName = clientName.Contains("steam", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.Steam.Name :
-                                clientName.Contains("ea", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.EaApp.Name :
-                                PublisherInfoConstants.Retail.Name;
-            var publisher = new PublisherInfo { Name = publisherName };
+            // Determine publisher name: Use provided info, or fall back to name inference
+            PublisherInfo publisher;
+            if (publisherInfo != null)
+            {
+                publisher = publisherInfo;
+            }
+            else
+            {
+                // Legacy/Fallback detection
+                var publisherName = clientName.Contains("steam", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.Steam.Name :
+                                    clientName.Contains("ea", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.EaApp.Name :
+                                    PublisherInfoConstants.Retail.Name;
+                publisher = new PublisherInfo { Name = publisherName };
+            }
+
             var contentName = gameType.ToString().ToLowerInvariant();
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType);
 
-            await AddClientFilesToManifest(builder, installationPath, gameType, executablePath);
+            await AddClientFilesToManifest(builder, installationPath, gameType, executablePath, publisher.Name);
 
             logger.LogInformation("Created GameClient manifest for {ClientName} (Publisher: {PublisherName})", clientName, publisher.Name);
 
@@ -436,10 +456,10 @@ public class ManifestGenerationService(
                 PublisherType = PublisherTypeConstants.GeneralsOnline,
             };
 
-            // Create unique manifest name based on executable to distinguish variants (30Hz, 60Hz, standard)
+            // Create unique manifest name based on executable to distinguish variants (60Hz, standard)
             var executableFileName = Path.GetFileNameWithoutExtension(executablePath).ToLowerInvariant();
             var contentName = $"{gameType.ToString().ToLowerInvariant()}{executableFileName.Replace("-", string.Empty).Replace(".", string.Empty)}";
-            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService)
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
                 .WithBasicInfo(publisher, contentName, clientVersion)
                 .WithContentType(ContentType.GameClient, gameType)
                 .WithMetadata(
@@ -467,22 +487,12 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
-    /// Determines if a directory should be skipped during manifest generation.
+    /// Determines if a file should be skipped during manifest generation.
     /// </summary>
-    /// <param name="directoryName">The directory name to check.</param>
-    /// <returns>True if the directory should be skipped, false otherwise.</returns>
-    private static bool ShouldSkipDirectory(string directoryName)
+    private static bool ShouldSkipFile(string relativePath)
     {
-        // Directories that are definitely not needed for game execution
-        var skipDirectories = new[]
-        {
-            "RedistInstallers", // Redistributable installers (VC++ runtime, etc.)
-            "Manuals",           // PDF/HTML game manuals
-            "launcher",          // Third-party launcher files (not needed in isolated workspace)
-            ".GenLauncherFolder", // GenTool launcher-specific folder
-        };
-
-        return skipDirectories.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+        return relativePath.EndsWith(SteamConstants.BackupExtension, StringComparison.OrdinalIgnoreCase) ||
+               relativePath.EndsWith(SteamConstants.ProxyLauncherFileName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -512,7 +522,8 @@ public class ManifestGenerationService(
 
             if (File.Exists(executablePath))
             {
-                await builder.AddGameInstallationFileAsync(executableName, executablePath, true);
+                var sourcePath = ResolveSourcePathWithBackup(executablePath, executableName);
+                await builder.AddGameInstallationFileAsync(executableName, sourcePath, isExecutable: true);
             }
 
             // Add common game files including DLLs and .big archives which are required for the game to run
@@ -524,6 +535,7 @@ public class ManifestGenerationService(
                 "*.ini",
                 "*.cfg",
                 "*.big", // Essential: Archive files containing game assets, textures, audio, etc.
+                "*.txt", // Essential: Text files like steam_appid.txt
             };
 
             foreach (var pattern in commonFiles)
@@ -534,6 +546,19 @@ public class ManifestGenerationService(
                     foreach (var file in files)
                     {
                         var relativePath = Path.GetFileName(file);
+
+                        // Skip backup files and the proxy launcher itself
+                        if (ShouldSkipFile(relativePath))
+                        {
+                            continue;
+                        }
+
+                        // Skip the main executable as it was already added with backup handling
+                        if (relativePath.Equals(executableName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
                         await builder.AddGameInstallationFileAsync(relativePath, file);
                     }
                 }
@@ -544,7 +569,8 @@ public class ManifestGenerationService(
             }
 
             // Add all subdirectories except known non-game directories
-            await AddAllGameSubdirectoriesAsync(builder, installationPath);
+            // PRIORITY: Use CSV-based manifest generation if available
+            var csvAdded = await AddFilesFromCsvAsync(builder, installationPath, gameType);
 
             logger.LogInformation("Completed manifest generation for {GameType}: {TotalFiles} files added", gameType, _fileCount);
             logger.LogDebug("Added game files to manifest for {GameType} at {InstallationPath}", gameType, installationPath);
@@ -552,47 +578,6 @@ public class ManifestGenerationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error adding game files to manifest");
-        }
-    }
-
-    /// <summary>
-    /// Adds all game subdirectories to the manifest, excluding known non-game directories.
-    /// </summary>
-    /// <param name="builder">The manifest builder.</param>
-    /// <param name="installationPath">The installation path.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddAllGameSubdirectoriesAsync(IContentManifestBuilder builder, string installationPath)
-    {
-        try
-        {
-            var allDirectories = Directory.GetDirectories(installationPath, "*", SearchOption.TopDirectoryOnly);
-            logger.LogDebug("Found {DirectoryCount} subdirectories to process in {InstallationPath}", allDirectories.Length, installationPath);
-
-            foreach (var dirPath in allDirectories)
-            {
-                var dirName = Path.GetFileName(dirPath);
-
-                // Skip directories that are definitely not needed for game execution
-                if (ShouldSkipDirectory(dirName))
-                {
-                    logger.LogDebug("Skipping non-game directory: {DirectoryName}", dirName);
-                    continue;
-                }
-
-                try
-                {
-                    await AddDirectoryFilesRecursivelyAsync(builder, installationPath, dirPath);
-                    logger.LogDebug("Successfully added files from directory: {DirectoryName}", dirName);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to add files from directory {Directory}", dirName);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to enumerate subdirectories in {InstallationPath}", installationPath);
         }
     }
 
@@ -612,6 +597,13 @@ public class ManifestGenerationService(
             foreach (var file in files)
             {
                 var relativePath = Path.GetRelativePath(installationPath, file);
+
+                // Skip backup files and the proxy launcher itself
+                if (ShouldSkipFile(relativePath))
+                {
+                    continue;
+                }
+
                 await builder.AddGameInstallationFileAsync(relativePath, file);
 
                 // Report progress every 50 files
@@ -765,8 +757,9 @@ public class ManifestGenerationService(
     /// <param name="installationPath">The installation path.</param>
     /// <param name="gameType">The game type.</param>
     /// <param name="executablePath">The full path to the game executable.</param>
+    /// <param name="publisherName">The publisher name.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task AddClientFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType, string executablePath)
+    private async Task AddClientFilesToManifest(IContentManifestBuilder builder, string installationPath, GameType gameType, string executablePath, string publisherName)
     {
         try
         {
@@ -774,8 +767,9 @@ public class ManifestGenerationService(
             if (File.Exists(executablePath))
             {
                 var executableFileName = Path.GetFileName(executablePath);
-                await builder.AddGameInstallationFileAsync(executableFileName, executablePath, isExecutable: true);
-                logger.LogDebug("Added executable {ExecutableName} to GameClient manifest", executableFileName);
+
+                var sourcePath = ResolveSourcePathWithBackup(executablePath, executableFileName);
+                await builder.AddGameInstallationFileAsync(executableFileName, sourcePath, isExecutable: true);
             }
             else
             {
@@ -798,6 +792,29 @@ public class ManifestGenerationService(
                         logger.LogDebug("Added required DLL {DllName} to GameClient manifest", dllName);
                     }
                 }
+
+                // For EA App/Steam clients, also include all OTHER DLLs in the same directory
+                // This ensures we don't miss any obfuscated or version-specific wrappers like P2XDLL.DLL
+                if (publisherName == PublisherInfoConstants.Steam.Name || publisherName == PublisherInfoConstants.EaApp.Name)
+                {
+                    try
+                    {
+                        var allDlls = Directory.GetFiles(executableDirectory, "*.dll", SearchOption.TopDirectoryOnly);
+                        foreach (var dllPath in allDlls)
+                        {
+                            var dllName = Path.GetFileName(dllPath);
+                            if (!requiredDlls.Contains(dllName, StringComparer.OrdinalIgnoreCase))
+                            {
+                                await builder.AddGameInstallationFileAsync(dllName, dllPath);
+                                logger.LogDebug("Added auxiliary DLL {DllName} (publisher-specific) to GameClient manifest", dllName);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to collect auxiliary DLLs for {PublisherName} client", publisherName);
+                    }
+                }
             }
 
             // Add client-specific configuration files
@@ -813,13 +830,20 @@ public class ManifestGenerationService(
                 }
             }
 
-            // For Steam installations, also add game.dat as an alternative executable
-            // This allows launching without Steam integration
+            // For Steam/EA installations, also add game.dat and Generals.dat as alternative executables
+            // This allows launching without Steam integration or via specific entry points
             var gameDatPath = Path.Combine(installationPath, GameClientConstants.SteamGameDatExecutable);
-            if (File.Exists(gameDatPath))
+            if (File.Exists(gameDatPath) && !executablePath.EndsWith(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase))
             {
                 await builder.AddGameInstallationFileAsync(GameClientConstants.SteamGameDatExecutable, gameDatPath, isExecutable: false);
                 logger.LogDebug("Added game.dat to GameClient manifest (non-executable, for Steam-free launch)");
+            }
+
+            var generalsDatPath = Path.Combine(installationPath, "Generals.dat");
+            if (File.Exists(generalsDatPath) && !executablePath.EndsWith("Generals.dat", StringComparison.OrdinalIgnoreCase))
+            {
+                await builder.AddGameInstallationFileAsync("Generals.dat", generalsDatPath, isExecutable: false);
+                logger.LogDebug("Added Generals.dat to GameClient manifest");
             }
 
             var gameDatExists = File.Exists(Path.Combine(installationPath, GameClientConstants.SteamGameDatExecutable));
@@ -829,11 +853,150 @@ public class ManifestGenerationService(
                 requiredDlls.Count(dll => File.Exists(Path.Combine(executableDirectory ?? string.Empty, dll))),
                 configFiles.Count(cfg => File.Exists(Path.Combine(installationPath, cfg))),
                 gameDatExists ? " + game.dat" : string.Empty);
+
+            // For modern installations using game.exe, ensure it's included correctly
+            var gameExePath = Path.Combine(installationPath, GameClientConstants.GameExecutable);
+            if (File.Exists(gameExePath) && !executablePath.EndsWith(GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                await builder.AddGameInstallationFileAsync(GameClientConstants.GameExecutable, gameExePath, isExecutable: true);
+                logger.LogDebug("Added game.exe engine to GameClient manifest");
+            }
+
+            // Ensure steam_appid.txt is included if present (critical for Steam launch)
+            var steamAppIdPath = Path.Combine(installationPath, "steam_appid.txt");
+            if (File.Exists(steamAppIdPath))
+            {
+                await builder.AddGameInstallationFileAsync("steam_appid.txt", steamAppIdPath);
+                logger.LogDebug("Added steam_appid.txt to GameClient manifest");
+            }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error adding client files to manifest");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Adds files to the manifest using a CSV source of truth.
+    /// </summary>
+    private async Task<bool> AddFilesFromCsvAsync(IContentManifestBuilder builder, string installationPath, GameType gameType)
+    {
+        try
+        {
+            var csvResourceName = gameType == GameType.Generals ? "GenHub.Core.Assets.Manifests.generals.csv" : "GenHub.Core.Assets.Manifests.zerohour.csv";
+            var assembly = Assembly.Load("GenHub.Core");
+            using var stream = assembly.GetManifestResourceStream(csvResourceName);
+
+            if (stream == null)
+            {
+                logger.LogWarning("Embedded resource {ResourceName} not found", csvResourceName);
+                return false;
+            }
+
+            using var reader = new StreamReader(stream);
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true,
+            };
+            using var csv = new CsvReader(reader, config);
+
+            var records = csv.GetRecords<ManifestFileEntry>().ToList();
+            var installationFiles = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(installationPath, f))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            logger.LogInformation("Processing {Count} entries from CSV for {GameType}", records.Count, gameType);
+
+            foreach (var record in records)
+            {
+                if (string.IsNullOrEmpty(record.RelativePath)) continue;
+
+                var finalPath = record.RelativePath;
+                var found = false;
+
+                // 1. Check if the exact file exists
+                if (installationFiles.Contains(finalPath))
+                {
+                    found = true;
+                }
+
+                // 2. If it's language-specific and exact file NOT found, try to resolve other language variants
+                else if (!string.IsNullOrEmpty(record.Language))
+                {
+                    // Attempt to find any language-pivoted version of this file
+                    foreach (var lang in SupportedLanguages)
+                    {
+                        var pivotedPath = record.RelativePath.Replace(record.Language, lang, StringComparison.OrdinalIgnoreCase);
+                        if (installationFiles.Contains(pivotedPath))
+                        {
+                            finalPath = pivotedPath;
+                            found = true;
+                            logger.LogDebug("Resolved language file {Original} to {Pivoted}", record.RelativePath, pivotedPath);
+                            break;
+                        }
+                    }
+                }
+
+                if (found)
+                {
+                    var fullPath = Path.Combine(installationPath, finalPath);
+
+                    fullPath = ResolveSourcePathWithBackup(fullPath, finalPath);
+
+                    var isExecutable = finalPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                                       finalPath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase);
+
+                    await builder.AddGameInstallationFileAsync(finalPath, fullPath, isExecutable);
+                    _fileCount++;
+                }
+                else
+                {
+                    // If it's a core file (no language), log as missing
+                    if (string.IsNullOrEmpty(record.Language))
+                    {
+                        logger.LogDebug("Core file {File} missing from installation", finalPath);
+                    }
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to add files from CSV for {GameType}", gameType);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the source path for a file, checking for a backup (.bak) version first.
+    /// </summary>
+    private string ResolveSourcePathWithBackup(string filePath, string manifestFileName)
+    {
+        var backupPath = filePath + SteamConstants.BackupExtension;
+        if (File.Exists(backupPath))
+        {
+            logger.LogInformation("Using backup file {Backup} as source for {File} in manifest", Path.GetFileName(backupPath), manifestFileName);
+            return backupPath;
+        }
+
+        return filePath;
+    }
+
+    /// <summary>
+    /// Represents a file entry in the manifest CSV.
+    /// </summary>
+    private class ManifestFileEntry
+    {
+        /// <summary>
+        /// Gets or sets the relative path of the file.
+        /// </summary>
+        public string RelativePath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the language of the file (optional).
+        /// </summary>
+        public string Language { get; set; } = string.Empty;
     }
 }

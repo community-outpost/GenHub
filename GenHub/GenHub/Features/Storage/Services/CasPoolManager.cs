@@ -1,12 +1,14 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace GenHub.Features.Storage.Services;
 
@@ -21,6 +23,7 @@ public class CasPoolManager : ICasPoolManager
     private readonly ILoggerFactory _loggerFactory;
     private readonly CasConfiguration _config;
     private readonly ConcurrentDictionary<CasPoolType, ICasStorage> _storages = new();
+    private readonly object _initLock = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CasPoolManager"/> class.
@@ -61,17 +64,39 @@ public class CasPoolManager : ICasPoolManager
     {
         if (_storages.TryGetValue(poolType, out var storage))
         {
+            _logger.LogDebug("Returning existing {PoolType} pool storage", poolType);
             return storage;
         }
 
-        // Fall back to primary pool if requested pool is not available
-        if (poolType == CasPoolType.Installation && !_poolResolver.IsInstallationPoolAvailable())
+        _logger.LogInformation("Requested {PoolType} pool not in cache, checking availability", poolType);
+
+        // For Installation pool: check if it has become available since construction
+        // This handles the case where InstallationPoolRootPath is set after CasPoolManager was created
+        if (poolType == CasPoolType.Installation)
         {
-            _logger.LogDebug("Installation pool not available, falling back to primary pool");
-            return _storages[CasPoolType.Primary];
+            var isAvailable = _poolResolver.IsInstallationPoolAvailable();
+            _logger.LogInformation("Installation pool availability check: {IsAvailable}", isAvailable);
+
+            if (isAvailable)
+            {
+                _logger.LogInformation("Installation pool has become available, initializing now");
+                InitializePool(CasPoolType.Installation);
+
+                // Try to get it again after initialization
+                if (_storages.TryGetValue(poolType, out storage))
+                {
+                    return storage;
+                }
+            }
+            else
+            {
+                _logger.LogWarning("Installation pool requested but not available, falling back to primary pool");
+                return _storages[CasPoolType.Primary];
+            }
         }
 
         // Initialize the pool on-demand if not already initialized
+        _logger.LogInformation("Initializing {PoolType} pool on-demand", poolType);
         InitializePool(poolType);
         return _storages[poolType];
     }
@@ -89,39 +114,108 @@ public class CasPoolManager : ICasPoolManager
         return _storages.Values.ToList().AsReadOnly();
     }
 
+    /// <summary>
+    /// Ensures both primary and installation pools are initialized and ready to use.
+    /// This method should be called before operations that might span both pools.
+    /// </summary>
+    public void EnsureAllPoolsInitialized()
+    {
+        _logger.LogDebug("Ensuring all CAS pools are initialized");
+
+        // Always ensure Primary pool is initialized
+        if (!_storages.ContainsKey(CasPoolType.Primary))
+        {
+            _logger.LogInformation("Primary pool not initialized, initializing now");
+            InitializePool(CasPoolType.Primary);
+        }
+
+        // Try to initialize Installation pool if available
+        if (!_storages.ContainsKey(CasPoolType.Installation) && _poolResolver.IsInstallationPoolAvailable())
+        {
+            _logger.LogInformation("Installation pool not initialized but is available, initializing now");
+            InitializePool(CasPoolType.Installation);
+        }
+    }
+
+    /// <summary>
+    /// Reinitializes the Installation CAS pool. This removes any existing Installation pool
+    /// and recreates it if the pool path is available.
+    /// </summary>
+    public void ReinitializeInstallationPool()
+    {
+        _logger.LogInformation("Force reinitializing Installation CAS pool");
+
+        // Remove existing Installation pool if present
+        if (_storages.TryRemove(CasPoolType.Installation, out _))
+        {
+            _logger.LogDebug("Removed existing Installation pool for reinitialization");
+        }
+
+        // Reinitialize if path is available
+        if (_poolResolver.IsInstallationPoolAvailable())
+        {
+            InitializePool(CasPoolType.Installation);
+        }
+        else
+        {
+            _logger.LogWarning("Installation pool path not available, cannot reinitialize");
+        }
+    }
+
     private void InitializePool(CasPoolType poolType)
     {
+        // Double-check locking to ensure thread safety
         if (_storages.ContainsKey(poolType))
         {
             return;
         }
 
-        var rootPath = _poolResolver.GetPoolRootPath(poolType);
-        if (string.IsNullOrWhiteSpace(rootPath))
+        lock (_initLock)
         {
-            _logger.LogWarning("Cannot initialize {PoolType} pool: root path is not configured", poolType);
-            return;
-        }
+                if (_storages.ContainsKey(poolType))
+                {
+                    _logger.LogDebug("Pool {PoolType} already initialized (race condition prevented)", poolType);
+                    return;
+                }
 
-        // Create a configuration specific to this pool
-        var poolConfig = new CasConfiguration
-        {
-            CasRootPath = rootPath,
-            HashAlgorithm = _config.HashAlgorithm,
-            GcGracePeriod = _config.GcGracePeriod,
-            MaxCacheSizeBytes = _config.MaxCacheSizeBytes,
-            AutoGcInterval = _config.AutoGcInterval,
-            MaxConcurrentOperations = _config.MaxConcurrentOperations,
-            VerifyIntegrity = _config.VerifyIntegrity,
-            EnableAutomaticGc = _config.EnableAutomaticGc,
-        };
+                var rootPath = _poolResolver.GetPoolRootPath(poolType);
+                if (string.IsNullOrWhiteSpace(rootPath))
+                {
+                    _logger.LogWarning("Cannot initialize {PoolType} pool: root path is not configured", poolType);
+                    return;
+                }
 
-        var poolConfigOptions = Options.Create(poolConfig);
-        var storageLogger = _loggerFactory.CreateLogger<CasStorage>();
+                // Security Guard: Prevent initializing CAS in the application directory or an empty path
+                var appBaseDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+                var normalizedRootPath = Path.TrimEndingDirectorySeparator(rootPath);
 
-        var storage = new CasStorage(poolConfigOptions, storageLogger, _hashProvider);
-        _storages[poolType] = storage;
+                if (normalizedRootPath.Equals(appBaseDir, StringComparison.OrdinalIgnoreCase) ||
+                    normalizedRootPath.StartsWith(appBaseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogError("Security Block: Attempted to initialize {PoolType} CAS pool at or inside the application directory: {Path}. This is not allowed.", poolType, rootPath);
+                    return;
+                }
 
-        _logger.LogInformation("Initialized {PoolType} CAS pool at {RootPath}", poolType, rootPath);
+                // Create a configuration specific to this pool
+                var poolConfig = new CasConfiguration
+                {
+                    CasRootPath = rootPath,
+                    HashAlgorithm = _config.HashAlgorithm,
+                    GcGracePeriod = _config.GcGracePeriod,
+                    MaxCacheSizeBytes = _config.MaxCacheSizeBytes,
+                    AutoGcInterval = _config.AutoGcInterval,
+                    MaxConcurrentOperations = _config.MaxConcurrentOperations,
+                    VerifyIntegrity = _config.VerifyIntegrity,
+                    EnableAutomaticGc = _config.EnableAutomaticGc,
+                };
+
+                var poolConfigOptions = Options.Create(poolConfig);
+                var storageLogger = _loggerFactory.CreateLogger<CasStorage>();
+
+                var storage = new CasStorage(poolConfigOptions, storageLogger, _hashProvider);
+                _storages.TryAdd(poolType, storage);
+
+                _logger.LogInformation("Initialized {PoolType} CAS pool at {RootPath}", poolType, rootPath);
+            }
     }
 }

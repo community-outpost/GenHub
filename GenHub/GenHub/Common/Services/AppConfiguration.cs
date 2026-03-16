@@ -27,12 +27,12 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             var configured = _configuration?.GetValue<string>(ConfigurationKeys.AppDataPath);
             return !string.IsNullOrEmpty(configured)
                 ? configured
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Failed to get configured AppDataPath, using default");
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GenHub");
         }
     }
 
@@ -126,7 +126,7 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.WorkspaceDefaultStrategy];
         return !string.IsNullOrEmpty(configured) && Enum.TryParse(configured, out WorkspaceStrategy strategy)
             ? strategy
-            : WorkspaceStrategy.SymlinkOnly;
+            : WorkspaceConstants.DefaultWorkspaceStrategy;
     }
 
     /// <summary>
@@ -218,12 +218,12 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
     {
         if (_configuration == null)
         {
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
         }
 
         var configured = _configuration[ConfigurationKeys.AppDataPath];
         return !string.IsNullOrEmpty(configured)
             ? configured
-            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
     }
 }

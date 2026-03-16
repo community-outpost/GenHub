@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -42,6 +43,7 @@ public class GameLauncherTests
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
     private readonly Mock<IStorageLocationService> _storageLocationServiceMock = new();
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
+    private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
     private readonly GameLauncher _gameLauncher;
 
     /// <summary>
@@ -52,6 +54,7 @@ public class GameLauncherTests
         // Setup configuration provider mock
         _configurationProviderServiceMock.Setup(x => x.GetWorkspacePath()).Returns(@"C:\Workspaces");
         _configurationProviderServiceMock.Setup(x => x.GetApplicationDataPath()).Returns(@"C:\Content");
+        _configurationProviderServiceMock.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
 
         // Setup game installation service mock
         var testInstallation = new GameInstallation(@"C:\Games\CommandAndConquer", GameInstallationType.Steam);
@@ -126,7 +129,9 @@ public class GameLauncherTests
             _casServiceMock.Object,
             _storageLocationServiceMock.Object,
             _gameSettingsServiceMock.Object,
-            _profileContentLinkerMock.Object);
+            _profileContentLinkerMock.Object,
+            _steamLauncherMock.Object,
+            _configurationProviderServiceMock.Object);
     }
 
     /// <summary>

@@ -23,14 +23,9 @@ public class GameInstallationValidator(
     IManifestProvider manifestProvider,
     IContentValidator contentValidator,
     IFileHashProvider hashProvider)
-    : FileSystemValidator(logger ?? throw new ArgumentNullException(nameof(logger)), hashProvider ?? throw new ArgumentNullException(nameof(hashProvider))),
+    : FileSystemValidator(logger, hashProvider),
       IGameInstallationValidator, IValidator<GameInstallation>
 {
-    private readonly ILogger<GameInstallationValidator> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IManifestProvider _manifestProvider = manifestProvider ?? throw new ArgumentNullException(nameof(manifestProvider));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-    private readonly IFileHashProvider _hashProvider = hashProvider ?? throw new ArgumentNullException(nameof(hashProvider));
-
     /// <summary>
     /// Validates the specified game installation.
     /// </summary>
@@ -52,7 +47,7 @@ public class GameInstallationValidator(
     public async Task<ValidationResult> ValidateAsync(GameInstallation installation, IProgress<ValidationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
+        logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
         var issues = new List<ValidationIssue>();
 
         // Calculate total steps dynamically based on installation
@@ -65,7 +60,7 @@ public class GameInstallationValidator(
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Fetching manifest"));
 
         // Fetch manifest for this installation type
-        var manifest = await _manifestProvider.GetManifestAsync(installation, cancellationToken);
+        var manifest = await manifestProvider.GetManifestAsync(installation, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (manifest == null)
         {
@@ -76,8 +71,7 @@ public class GameInstallationValidator(
 
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
 
-        // Use ContentValidator for core validation
-        var manifestValidationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
+        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
         progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
@@ -85,12 +79,12 @@ public class GameInstallationValidator(
         // Use ContentValidator for full content validation (integrity + extraneous files)
         try
         {
-            var fullValidation = await _contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
+            var fullValidation = await contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
             issues.AddRange(fullValidation.Issues);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Content validation failed for installation '{Path}'", installation.InstallationPath);
+            logger.LogError(ex, "Content validation failed for installation '{Path}'", installation.InstallationPath);
             issues.Add(new ValidationIssue
             {
                 IssueType = ValidationIssueType.CorruptedFile,
@@ -119,7 +113,7 @@ public class GameInstallationValidator(
 
         progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
 
-        _logger.LogInformation("Installation validation for '{Path}' completed with {Count} issues.", installation.InstallationPath, issues.Count);
+        logger.LogInformation("Installation validation for '{Path}' completed with {Count} issues.", installation.InstallationPath, issues.Count);
         return new ValidationResult(installation.InstallationPath, issues);
     }
 }

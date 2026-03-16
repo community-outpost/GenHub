@@ -1,5 +1,3 @@
-using System.Runtime.Versioning;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -11,4 +9,9 @@ public static class IpcCommands
     /// Command prefix used to launch a profile via IPC.
     /// </summary>
     public const string LaunchProfilePrefix = "launch-profile:";
+
+    /// <summary>
+    /// Command prefix used to subscribe to a catalog via IPC.
+    /// </summary>
+    public const string SubscribePrefix = "subscribe:";
 }

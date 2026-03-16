@@ -5,10 +5,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 
@@ -19,17 +23,14 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Discovers and delivers game client releases from TheSuperHackers GitHub repositories.
 /// </summary>
 public class SuperHackersProvider(
-    IEnumerable<IContentDiscoverer> discoverers,
+    IProviderDefinitionLoader providerDefinitionLoader,
+    IGitHubApiClient gitHubApiClient,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
     ILogger<SuperHackersProvider> logger)
     : BaseContentProvider(contentValidator, logger)
 {
-    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
-            d.SourceName.Contains("GitHub", StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GitHub discoverer found for SuperHackers");
-
     private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
             r.ResolverId?.Equals(SuperHackersConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub resolver found for SuperHackers");
@@ -37,6 +38,8 @@ public class SuperHackersProvider(
     private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
             d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
+
+    private ProviderDefinition? _cachedProviderDefinition;
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
@@ -53,7 +56,7 @@ public class SuperHackersProvider(
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
     /// <inheritdoc/>
-    protected override IContentDiscoverer Discoverer => _discoverer;
+    protected override IContentDiscoverer Discoverer => null!;
 
     /// <inheritdoc/>
     protected override IContentResolver Resolver => _resolver;
@@ -66,37 +69,67 @@ public class SuperHackersProvider(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
-        var baseResult = await base.SearchAsync(query, cancellationToken);
-        if (!baseResult.Success || baseResult.Data == null)
+        try
         {
-            return baseResult;
-        }
+            var results = new List<ContentSearchResult>();
 
-        // Filter results to only include TheSuperHackers publisher content
-        var filteredResults = baseResult.Data
-            .Where(r =>
+            // Directly fetch latest release from TheSuperHackers/GeneralsGameCode
+            var latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
+                SuperHackersConstants.GeneralsGameCodeOwner,
+                SuperHackersConstants.GeneralsGameCodeRepo,
+                cancellationToken);
+
+            if (latestRelease != null)
             {
-                var manifest = r.GetData<ContentManifest>();
-                if (manifest?.Publisher?.PublisherType != null)
+                // Verify it matches the search query if provided
+                if ((string.IsNullOrWhiteSpace(query.AuthorName) ||
+                     query.AuthorName.Equals(SuperHackersConstants.GeneralsGameCodeOwner, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(query.SearchTerm) ||
+                     latestRelease.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
+                     SuperHackersConstants.GeneralsGameCodeRepo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase)))
                 {
-                    return manifest.Publisher.PublisherType.Equals(
-                        PublisherTypeConstants.TheSuperHackers,
-                        StringComparison.OrdinalIgnoreCase);
+                    // Generate manifest ID
+                    var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
+                        SuperHackersConstants.GeneralsGameCodeOwner,
+                        SuperHackersConstants.GeneralsGameCodeRepo,
+                        ContentType.GameClient,
+                        latestRelease.TagName);
+
+                    var result = new ContentSearchResult
+                    {
+                        Id = manifestId,
+                        Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
+                        Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
+                        Version = latestRelease.TagName ?? "latest",
+                        AuthorName = SuperHackersConstants.GeneralsGameCodeOwner,
+                        ContentType = ContentType.GameClient,
+                        TargetGame = GameType.Generals, // Simplification, could infer
+                        IsInferred = false,
+                        ProviderName = SourceName,
+                        RequiresResolution = true,
+                        ResolverId = SuperHackersConstants.ResolverId,
+                        SourceUrl = latestRelease.HtmlUrl,
+                        LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
+                        ResolverMetadata =
+                        {
+                            [GitHubConstants.OwnerMetadataKey] = SuperHackersConstants.GeneralsGameCodeOwner,
+                            [GitHubConstants.RepoMetadataKey] = SuperHackersConstants.GeneralsGameCodeRepo,
+                            [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
+                        },
+                    };
+
+                    result.SetData(latestRelease);
+                    results.Add(result);
                 }
+            }
 
-                // Fallback to source URL check for unresolved content
-                var sourceUrl = r.SourceUrl ?? string.Empty;
-                return sourceUrl.Contains("/thesuperhackers/", StringComparison.OrdinalIgnoreCase)
-                    || sourceUrl.Contains("/genpatcher", StringComparison.OrdinalIgnoreCase);
-            })
-            .ToList();
-
-        logger.LogInformation(
-            "Filtered {OriginalCount} results to {FilteredCount} TheSuperHackers results",
-            baseResult.Data.Count(),
-            filteredResults.Count);
-
-        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(filteredResults);
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to search SuperHackers content");
+            return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Search failed: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>
@@ -135,6 +168,38 @@ public class SuperHackersProvider(
         }
 
         return manifestResult;
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the TheSuperHackers provider definition loaded from JSON configuration.
+    /// The definition contains GitHub repository info, endpoints, and other configuration.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        // Use cached definition if available
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        // Try to get from the loader (it should already be loaded at startup)
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
+
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                SuperHackersConstants.PublisherId);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                SuperHackersConstants.PublisherId);
+        }
+
+        return _cachedProviderDefinition;
     }
 
     /// <inheritdoc/>

@@ -11,7 +11,6 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// </summary>
 public class GameProcessManagerTests
 {
-    private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly Mock<ILogger<GameProcessManager>> _loggerMock = new();
     private readonly GameProcessManager _processManager;
 
@@ -20,7 +19,7 @@ public class GameProcessManagerTests
     /// </summary>
     public GameProcessManagerTests()
     {
-        _processManager = new GameProcessManager(_configProviderMock.Object, _loggerMock.Object);
+        _processManager = new GameProcessManager(_loggerMock.Object);
     }
 
     /// <summary>
@@ -143,74 +142,6 @@ public class GameProcessManagerTests
 
             // Assert
             Assert.True(terminateResult.Success);
-        }
-        finally
-        {
-            File.Delete(tempExe);
-        }
-    }
-
-    /// <summary>
-    /// Tests that GetActiveProcessesAsync returns running processes.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task GetActiveProcessesAsync_WithRunningProcess_ShouldReturnNonEmptyList()
-    {
-        // Arrange - Use cross-platform approach
-        string tempExe;
-        string scriptContent;
-
-        if (OperatingSystem.IsWindows())
-        {
-            tempExe = Path.GetTempFileName() + ".bat";
-            scriptContent = "@echo off\nping -n 6 127.0.0.1 >nul\n";
-        }
-        else
-        {
-            tempExe = Path.GetTempFileName() + ".sh";
-            scriptContent = "#!/bin/bash\nping -c 5 127.0.0.1 > /dev/null\n";
-        }
-
-        await File.WriteAllTextAsync(tempExe, scriptContent);
-
-        if (!OperatingSystem.IsWindows())
-        {
-            // Make script executable on Unix systems
-            var chmod = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "chmod",
-                    Arguments = "+x " + tempExe,
-                    UseShellExecute = false,
-                },
-            };
-            chmod.Start();
-            chmod.WaitForExit();
-        }
-
-        var config = new GameLaunchConfiguration
-        {
-            ExecutablePath = tempExe,
-        };
-
-        try
-        {
-            var startResult = await _processManager.StartProcessAsync(config);
-            Assert.True(startResult.Success);
-            Assert.NotNull(startResult.Data);
-
-            // Act
-            var activeResult = await _processManager.GetActiveProcessesAsync();
-
-            // Assert
-            Assert.True(activeResult.Success);
-            Assert.NotNull(activeResult.Data);
-            Assert.Contains(activeResult.Data, p => p.ProcessId == startResult.Data!.ProcessId);
-
-            // Cleanup
-            await _processManager.TerminateProcessAsync(startResult.Data.ProcessId);
         }
         finally
         {

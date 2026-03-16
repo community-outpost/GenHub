@@ -18,7 +18,7 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
 /// Specialized deliverer for Generals Online content.
-/// Downloads ZIP packages, extracts files, and creates dual variant manifests (30Hz/60Hz).
+/// Downloads ZIP packages, extracts files, and creates variant manifests (60Hz).
 /// </summary>
 public class GeneralsOnlineDeliverer(
    IDownloadService downloadService,
@@ -111,16 +111,16 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Creating manifests for all variants",
             });
 
-            logger.LogInformation("Creating manifests for GeneralsOnline variants (30Hz, 60Hz, QuickMatch MapPack)");
+            logger.LogInformation("Creating manifests for GeneralsOnline variants (60Hz, QuickMatch MapPack)");
             var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
                 cancellationToken);
 
-            if (manifests.Count != 3)
+            if (manifests.Count == 0)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Expected 3 manifests (30Hz, 60Hz, MapPack) but got {manifests.Count}");
+                    $"Got 0 Manifests");
             }
 
             // Step 4: Register all variant manifests to CAS
@@ -132,26 +132,11 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            logger.LogInformation("Registering all variant manifests (30Hz, 60Hz, QuickMatch MapPack) in pool");
-
-            // Register 30Hz manifest first
-            var hz30Manifest = manifests[0];
-            var add30Result = await manifestPool.AddManifestAsync(hz30Manifest, extractPath, cancellationToken);
-            if (!add30Result.Success)
-            {
-                logger.LogWarning(
-                    "Failed to register 30Hz manifest {ManifestId}: {Error}",
-                    hz30Manifest.Id,
-                    add30Result.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("Successfully registered 30Hz manifest: {ManifestId}", hz30Manifest.Id);
-            }
+            logger.LogInformation("Registering all variant manifests (60Hz, QuickMatch MapPack) in pool");
 
             // Register 60Hz manifest
-            var hz60Manifest = manifests[1];
-            var add60Result = await manifestPool.AddManifestAsync(hz60Manifest, extractPath, cancellationToken);
+            var hz60Manifest = manifests[0];
+            var add60Result = await manifestPool.AddManifestAsync(hz60Manifest, extractPath, cancellationToken: cancellationToken);
             if (!add60Result.Success)
             {
                 logger.LogWarning(
@@ -165,8 +150,8 @@ public class GeneralsOnlineDeliverer(
             }
 
             // Register QuickMatch MapPack manifest
-            var mapPackManifest = manifests[2];
-            var addMapPackResult = await manifestPool.AddManifestAsync(mapPackManifest, extractPath, cancellationToken);
+            var mapPackManifest = manifests[1];
+            var addMapPackResult = await manifestPool.AddManifestAsync(mapPackManifest, extractPath, cancellationToken: cancellationToken);
             if (!addMapPackResult.Success)
             {
                 logger.LogWarning(
@@ -224,7 +209,7 @@ public class GeneralsOnlineDeliverer(
 
             var primaryManifest = manifests[0];
             logger.LogInformation(
-                "Successfully delivered Generals Online content: 3 manifests created, all registered to pool");
+                "Successfully delivered Generals Online content: 2 manifests created, all registered to pool");
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }

@@ -53,7 +53,7 @@ public partial class UpdateNotificationWindow : Window
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
-        if (DataContext is UpdateNotificationViewModel viewModel)
+        if (DataContext is UpdateNotificationViewModel)
         {
             // Add any initialization logic here
             await Task.CompletedTask;

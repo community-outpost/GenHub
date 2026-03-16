@@ -4,6 +4,10 @@ namespace GenHub.Core.Constants;
 /// Constants for the Community Outpost content provider.
 /// Supports the GenPatcher dl.dat catalog format from legi.cc.
 /// </summary>
+/// <remarks>
+/// Endpoint URLs and timeouts are configured via data-driven configuration.
+/// See <c>Providers/communityoutpost.provider.json</c> for runtime-configurable values.
+/// </remarks>
 public static class CommunityOutpostConstants
 {
     /// <summary>
@@ -29,44 +33,17 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "avares://GenHub/Assets/Covers/generals-cover.png";
+    public const string CoverSource = "/Assets/Covers/gla-cover.png";
 
     /// <summary>
-    /// The URL where the patch page is hosted.
+    /// Theme color for Community Outpost content.
     /// </summary>
-    public const string PatchPageUrl = "https://legi.cc/patch";
-
-    /// <summary>
-    /// The URL for the GenPatcher dl.dat catalog file.
-    /// This file contains the list of all available content with mirrors.
-    /// Format: [4-char-code] [file-size] [mirror-name] [download-url].
-    /// </summary>
-    public const string CatalogUrl = "https://legi.cc/gp2/dl.dat";
+    public const string ThemeColor = "#2D5A27";
 
     /// <summary>
     /// Description for the content provider.
     /// </summary>
     public const string ProviderDescription = "Official patches, tools, and addons from GenPatcher (Community Outpost)";
-
-    /// <summary>
-    /// Default filename for the downloaded patch zip.
-    /// </summary>
-    public const string DefaultPatchFilename = "community-patch.zip";
-
-    /// <summary>
-    /// Publisher website URL.
-    /// </summary>
-    public const string PublisherWebsite = "https://legi.cc";
-
-    /// <summary>
-    /// GenTool website URL (also hosts mirrors).
-    /// </summary>
-    public const string GentoolWebsite = "https://gentool.net";
-
-    /// <summary>
-    /// Template for the content description.
-    /// </summary>
-    public const string DescriptionTemplate = "Community Patch - Weekly Build {0}";
 
     /// <summary>
     /// The name of the content.
@@ -84,6 +61,16 @@ public static class CommunityOutpostConstants
     public const string DelivererDescription = "Delivers Community Outpost content via 7z extraction and CAS storage";
 
     /// <summary>
+    /// Default filename for the downloaded patch zip.
+    /// </summary>
+    public const string DefaultPatchFilename = "community-patch.zip";
+
+    /// <summary>
+    /// Template for the content description.
+    /// </summary>
+    public const string DescriptionTemplate = "Community Patch - Weekly Build {0}";
+
+    /// <summary>
     /// Regex pattern to find the patch zip link (for legacy scraping).
     /// </summary>
     public const string PatchZipLinkPattern = @"href=[""']([^""']*\.zip)[""']";
@@ -94,17 +81,21 @@ public static class CommunityOutpostConstants
     public const string DatFileExtension = ".dat";
 
     /// <summary>
-    /// Timeout in seconds for downloading the catalog file.
+    /// The URL for the patch page (used for relative URL resolution).
     /// </summary>
-    public const int CatalogDownloadTimeoutSeconds = 30;
+    public const string PatchPageUrl = "https://legi.cc/downloads/genpatcher/";
 
-    /// <summary>
-    /// Timeout in seconds for downloading content files.
-    /// Set to 5 minutes (300s) to accommodate large content downloads (.dat files can be 100+ MB).
-    /// This is intentionally longer than CatalogDownloadTimeoutSeconds (30s) which only downloads
-    /// the small dl.dat catalog file (~few KB).
-    /// </summary>
-    public const int ContentDownloadTimeoutSeconds = 300;
+    /// <summary>Display name for Game Clients content type.</summary>
+    public const string ContentTypeGameClients = "Game Clients";
+
+    /// <summary>Display name for Addons content type.</summary>
+    public const string ContentTypeAddons = "Addons";
+
+    /// <summary>Display name for Tools content type.</summary>
+    public const string ContentTypeTools = "Tools";
+
+    /// <summary>Display name for Maps content type.</summary>
+    public const string ContentTypeMaps = "Maps";
 
     /// <summary>
     /// Tags associated with the patch content.

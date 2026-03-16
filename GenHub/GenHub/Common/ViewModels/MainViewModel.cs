@@ -3,19 +3,21 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Core.Constants;
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Messages;
+using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
-using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
@@ -24,111 +26,81 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Common.ViewModels;
 
 /// <summary>
-/// Main view model for the application.
+/// Initializes a new instance of <see cref="MainViewModel"/> class.
 /// </summary>
-public partial class MainViewModel : ObservableObject, IDisposable
+/// <param name="gameProfilesViewModel">Game profiles view model.</param>
+/// <param name="downloadsViewModel">Downloads view model.</param>
+/// <param name="toolsViewModel">Tools view model.</param>
+/// <param name="settingsViewModel">Settings view model.</param>
+/// <param name="notificationManager">Notification manager view model.</param>
+/// <param name="configurationProvider">Configuration provider service.</param>
+/// <param name="userSettingsService">User settings service for persistence operations.</param>
+/// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
+/// <param name="notificationService">Service for showing notifications.</param>
+/// <param name="dialogService">Dialog service for showing message boxes.</param>
+/// <param name="notificationFeedViewModel">Notification feed view model.</param>
+/// <param name="infoViewModel">Info view model.</param>
+/// <param name="logger">Logger instance.</param>
+public partial class MainViewModel(
+    GameProfileLauncherViewModel gameProfilesViewModel,
+    DownloadsViewModel downloadsViewModel,
+    ToolsViewModel toolsViewModel,
+    SettingsViewModel settingsViewModel,
+    NotificationManagerViewModel notificationManager,
+    IConfigurationProviderService configurationProvider,
+    IUserSettingsService userSettingsService,
+    IVelopackUpdateManager velopackUpdateManager,
+    INotificationService notificationService,
+    IDialogService dialogService,
+    NotificationFeedViewModel notificationFeedViewModel,
+    InfoViewModel infoViewModel,
+    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
 {
-    private readonly ILogger<MainViewModel>? _logger;
-    private readonly IGameInstallationDetectionOrchestrator _gameInstallationDetectionOrchestrator;
-    private readonly IConfigurationProviderService _configurationProvider;
-    private readonly IUserSettingsService _userSettingsService;
-    private readonly IProfileEditorFacade _profileEditorFacade;
-    private readonly IVelopackUpdateManager _velopackUpdateManager;
-    private readonly ProfileResourceService _profileResourceService;
     private readonly CancellationTokenSource _initializationCts = new();
 
-    [ObservableProperty]
-    private NavigationTab _selectedTab = NavigationTab.GameProfiles;
-
-    [ObservableProperty]
-    private bool _hasUpdateAvailable;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
+    /// </summary>
+    [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
+    public MainViewModel()
+        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
+    {
+    }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// Gets the info view model.
     /// </summary>
-    /// <param name="gameProfilesViewModel">Game profiles view model.</param>
-    /// <param name="downloadsViewModel">Downloads view model.</param>
-    /// <param name="toolsViewModel">Tools view model.</param>
-    /// <param name="settingsViewModel">Settings view model.</param>
-    /// <param name="notificationManager">Notification manager view model.</param>
-    /// <param name="gameInstallationDetectionOrchestrator">Game installation orchestrator.</param>
-    /// <param name="configurationProvider">Configuration provider service.</param>
-    /// <param name="userSettingsService">User settings service for persistence operations.</param>
-    /// <param name="profileEditorFacade">Profile editor facade for automatic profile creation.</param>
-    /// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
-    /// <param name="profileResourceService">Service for accessing profile resources.</param>
-    /// <param name="logger">Logger instance.</param>
-    public MainViewModel(
-        GameProfileLauncherViewModel gameProfilesViewModel,
-        DownloadsViewModel downloadsViewModel,
-        ToolsViewModel toolsViewModel,
-        SettingsViewModel settingsViewModel,
-        NotificationManagerViewModel notificationManager,
-        IGameInstallationDetectionOrchestrator gameInstallationDetectionOrchestrator,
-        IConfigurationProviderService configurationProvider,
-        IUserSettingsService userSettingsService,
-        IProfileEditorFacade profileEditorFacade,
-        IVelopackUpdateManager velopackUpdateManager,
-        ProfileResourceService profileResourceService,
-        ILogger<MainViewModel>? logger = null)
-    {
-        GameProfilesViewModel = gameProfilesViewModel;
-        DownloadsViewModel = downloadsViewModel;
-        ToolsViewModel = toolsViewModel;
-        SettingsViewModel = settingsViewModel;
-        NotificationManager = notificationManager;
-        _gameInstallationDetectionOrchestrator = gameInstallationDetectionOrchestrator;
-        _configurationProvider = configurationProvider;
-        _userSettingsService = userSettingsService;
-        _profileEditorFacade = profileEditorFacade ?? throw new ArgumentNullException(nameof(profileEditorFacade));
-        _velopackUpdateManager = velopackUpdateManager ?? throw new ArgumentNullException(nameof(velopackUpdateManager));
-        _profileResourceService = profileResourceService ?? throw new ArgumentNullException(nameof(profileResourceService));
-        _logger = logger;
+    public InfoViewModel InfoViewModel { get; } = infoViewModel;
 
-        // Load initial settings using unified configuration
-        try
-        {
-            _selectedTab = _configurationProvider.GetLastSelectedTab();
-            if (_selectedTab == NavigationTab.Tools)
-            {
-                _selectedTab = NavigationTab.GameProfiles;
-            }
-
-            _logger?.LogDebug("Initial settings loaded, selected tab: {Tab}", _selectedTab);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to load initial settings");
-            _selectedTab = NavigationTab.GameProfiles;
-        }
-
-        // Tab change handled by ObservableProperty partial method
-    }
+    /// <summary>
+    /// Gets the notification feed view model.
+    /// </summary>
+    public NotificationFeedViewModel NotificationFeed => notificationFeedViewModel;
 
     /// <summary>
     /// Gets the game profiles view model.
     /// </summary>
-    public GameProfileLauncherViewModel GameProfilesViewModel { get; }
+    public GameProfileLauncherViewModel GameProfilesViewModel { get; } = gameProfilesViewModel;
 
     /// <summary>
     /// Gets the downloads view model.
     /// </summary>
-    public DownloadsViewModel DownloadsViewModel { get; }
+    public DownloadsViewModel DownloadsViewModel { get; } = downloadsViewModel;
 
     /// <summary>
     /// Gets the tools view model.
     /// </summary>
-    public ToolsViewModel ToolsViewModel { get; }
+    public ToolsViewModel ToolsViewModel { get; } = toolsViewModel;
 
     /// <summary>
     /// Gets the settings view model.
     /// </summary>
-    public SettingsViewModel SettingsViewModel { get; }
+    public SettingsViewModel SettingsViewModel { get; } = settingsViewModel;
 
     /// <summary>
     /// Gets the notification manager view model.
     /// </summary>
-    public NotificationManagerViewModel NotificationManager { get; }
+    public NotificationManagerViewModel NotificationManager { get; } = notificationManager;
 
     /// <summary>
     /// Gets the collection of detected game installations.
@@ -142,6 +114,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
+        NavigationTab.Tools,
+        NavigationTab.Info,
         NavigationTab.Settings,
     ];
 
@@ -154,8 +128,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavigationTab.Downloads => DownloadsViewModel,
         NavigationTab.Tools => ToolsViewModel,
         NavigationTab.Settings => SettingsViewModel,
+        NavigationTab.Info => InfoViewModel,
         _ => GameProfilesViewModel,
     };
+
+    [ObservableProperty]
+    private NavigationTab _selectedTab = LoadInitialTab(configurationProvider, logger);
 
     /// <summary>
     /// Gets the display name for a navigation tab.
@@ -168,8 +146,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         NavigationTab.Downloads => "Downloads",
         NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
+        NavigationTab.Info => "Info",
         _ => tab.ToString(),
     };
+
+    /// <inheritdoc/>
+    public void Receive(NavigationMessage message)
+    {
+        Dispatcher.UIThread.Post(() => SelectTab(message.Tab));
+    }
 
     /// <summary>
     /// Selects the specified navigation tab.
@@ -182,167 +167,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Shows the update notification dialog.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task ShowUpdateDialogAsync()
-    {
-        try
-        {
-            var mainWindow = GetMainWindow();
-            if (mainWindow != null)
-            {
-                await GenHub.Features.AppUpdate.Views.UpdateNotificationWindow.ShowAsync(mainWindow);
-            }
-            else
-            {
-                _logger?.LogWarning("Cannot show update dialog - main window not found");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Failed to show update dialog");
-        }
-    }
-
-    /// <summary>
     /// Performs asynchronous initialization for the shell and all tabs.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        RegisterMessages();
         await GameProfilesViewModel.InitializeAsync();
         await DownloadsViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
-        _logger?.LogInformation("MainViewModel initialized");
+        await InfoViewModel.InitializeAsync();
+        logger?.LogInformation("MainViewModel initialized");
 
         // Start background check with cancellation support
         _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
 
-        await Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Scans for game installations and automatically creates profiles.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task ScanAndCreateProfilesAsync()
-    {
-        _logger?.LogInformation("Starting automatic profile creation from game installations");
-
-        try
-        {
-            // First scan for installations
-            var scanResult = await _gameInstallationDetectionOrchestrator.DetectAllInstallationsAsync();
-
-            if (!scanResult.Success)
-            {
-                _logger?.LogWarning("Game installation scan failed: {Errors}", string.Join(", ", scanResult.Errors));
-                return;
-            }
-
-            if (scanResult.Items.Count == 0)
-            {
-                _logger?.LogInformation("No game installations found");
-                return;
-            }
-
-            _logger?.LogInformation("Found {Count} game installations, creating profiles", scanResult.Items.Count);
-
-            int createdCount = 0;
-            int failedCount = 0;
-
-            foreach (var installation in scanResult.Items)
-            {
-                if (installation == null) continue;
-
-                try
-                {
-                    // Skip installations that don't have available game clients
-                    if (installation.AvailableGameClients.Count == 0)
-                    {
-                        _logger?.LogWarning("Skipping installation {InstallationId} - no available GameClients found", installation.Id);
-                        continue;
-                    }
-
-                    // Create profiles for ALL available game clients (standard, GeneralsOnline, SuperHackers, etc.)
-                    foreach (var gameClient in installation.AvailableGameClients)
-                    {
-                        if (!gameClient.IsValid)
-                        {
-                            _logger?.LogWarning("Skipping GameClient {ClientId} in installation {InstallationId} - not valid", gameClient.Id, installation.Id);
-                            continue;
-                        }
-
-                        var gameClientId = gameClient.Id;
-
-                        // Determine assets based on game type using ProfileResourceService
-                        var gameTypeStr = gameClient.GameType.ToString();
-                        var iconPath = _profileResourceService.GetDefaultIconPath(gameTypeStr);
-                        var coverPath = _profileResourceService.GetDefaultCoverPath(gameTypeStr);
-
-                        // Create a profile request for this game client
-                        var createRequest = new CreateProfileRequest
-                        {
-                            Name = $"{installation.InstallationType} {gameClient.Name}",
-                            GameInstallationId = installation.Id,
-                            GameClientId = gameClientId,
-                            Description = $"Auto-created profile for {gameClient.Name} in {installation.InstallationType} installation",
-                            PreferredStrategy = WorkspaceStrategy.HybridCopySymlink,
-                            IconPath = iconPath,
-                            CoverPath = coverPath,
-                        };
-
-                        var profileResult = await _profileEditorFacade.CreateProfileWithWorkspaceAsync(createRequest);
-
-                        if (profileResult.Success)
-                        {
-                            createdCount++;
-                            _logger?.LogInformation(
-                                "Created profile '{ProfileName}' for {GameClientName}",
-                                profileResult.Data?.Name,
-                                gameClient.Name);
-                        }
-                        else
-                        {
-                            // Profile might already exist - don't count as failure
-                            var errors = string.Join(", ", profileResult.Errors);
-                            if (errors.Contains("already exists", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger?.LogDebug("Profile already exists for {GameClientName}", gameClient.Name);
-                            }
-                            else
-                            {
-                                failedCount++;
-                                _logger?.LogWarning(
-                                    "Failed to create profile for {GameClientName}: {Errors}",
-                                    gameClient.Name,
-                                    errors);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    _logger?.LogError(ex, "Error creating profile for installation {InstallationId}", installation.Id);
-                }
-            }
-
-            _logger?.LogInformation(
-                "Profile creation complete: {Created} created, {Failed} failed",
-                createdCount,
-                failedCount);
-
-            // Refresh the game profiles view model to show new profiles
-            await GameProfilesViewModel.InitializeAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error occurred during automatic profile creation");
-        }
+        CheckForQuickStart();
     }
 
     /// <summary>
@@ -355,12 +195,30 @@ public partial class MainViewModel : ObservableObject, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private static Window? GetMainWindow()
+    private static NavigationTab LoadInitialTab(IConfigurationProviderService configurationProvider, ILogger<MainViewModel>? logger)
     {
-        return Avalonia.Application.Current?.ApplicationLifetime
-            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime dt
-            ? dt.MainWindow
-            : null;
+        try
+        {
+            var tab = configurationProvider.GetLastSelectedTab();
+            if (tab == NavigationTab.Tools)
+            {
+                tab = NavigationTab.GameProfiles;
+            }
+
+            logger?.LogDebug("Initial settings loaded, selected tab: {Tab}", tab);
+            return tab;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to load initial settings");
+            return NavigationTab.GameProfiles;
+        }
+    }
+
+    // Register for messages
+    private void RegisterMessages()
+    {
+        WeakReferenceMessenger.Default.Register(this);
     }
 
     /// <summary>
@@ -368,119 +226,79 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
-        _logger?.LogDebug("Starting background update check");
+        logger?.LogDebug("Starting background update check");
 
         try
         {
-            // Check if subscribed to a PR - if so, check for PR artifact updates instead
-            var settings = _userSettingsService.Get();
+            var settings = userSettingsService.Get();
+
+            // Push settings to update manager (important context for other components)
             if (settings.SubscribedPrNumber.HasValue)
             {
-                _logger?.LogDebug("User subscribed to PR #{PrNumber}, checking for PR artifact updates", settings.SubscribedPrNumber);
-                _velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
-
-                // Fetch PR list to populate artifact info
-                var prs = await _velopackUpdateManager.GetOpenPullRequestsAsync(cancellationToken);
-                var subscribedPr = prs.FirstOrDefault(p => p.Number == settings.SubscribedPrNumber);
-
-                if (subscribedPr?.LatestArtifact != null)
-                {
-                    // Compare versions (strip build metadata)
-                    var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
-                    var prVersionBase = subscribedPr.LatestArtifact.Version.Split('+')[0];
-
-                    if (!string.Equals(prVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Check if this PR version was dismissed
-                        var dismissedVersionBase = settings.DismissedUpdateVersion?.Split('+')[0];
-
-                        if (string.IsNullOrEmpty(dismissedVersionBase) ||
-                            !string.Equals(prVersionBase, dismissedVersionBase, StringComparison.OrdinalIgnoreCase))
-                        {
-                            _logger?.LogInformation("PR #{PrNumber} artifact update available: {Version}", subscribedPr.Number, prVersionBase);
-                            HasUpdateAvailable = true;
-                            return;
-                        }
-                        else
-                        {
-                            _logger?.LogDebug("PR #{PrNumber} artifact update {Version} was dismissed", subscribedPr.Number, prVersionBase);
-                            HasUpdateAvailable = false;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        _logger?.LogDebug("Already on latest PR #{PrNumber} artifact version", subscribedPr.Number);
-                        HasUpdateAvailable = false;
-                        return;
-                    }
-                }
-                else
-                {
-                    _logger?.LogDebug("PR #{PrNumber} has no artifacts or PR not found", settings.SubscribedPrNumber);
-
-                    // Fall through to check main branch updates
-                }
+                velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
             }
 
-            // Check main branch updates (if not subscribed to PR or PR has no artifacts)
-            var updateInfo = await _velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
-
-            // Check both UpdateInfo (from installed app) and GitHub API flag (works in debug too)
-            var hasUpdate = updateInfo != null || _velopackUpdateManager.HasUpdateAvailableFromGitHub;
-
-            if (hasUpdate)
+            // 1. Check for standard GitHub releases (Default)
+            if (string.IsNullOrEmpty(settings.SubscribedBranch))
             {
-                string? latestVersion = null;
-
+                var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
                 if (updateInfo != null)
                 {
-                    latestVersion = updateInfo.TargetFullRelease.Version.ToString();
-                    _logger?.LogInformation("Update available: {Current} → {Latest}", AppConstants.AppVersion, latestVersion);
-                }
-                else if (_velopackUpdateManager.LatestVersionFromGitHub != null)
-                {
-                    latestVersion = _velopackUpdateManager.LatestVersionFromGitHub;
-                    _logger?.LogInformation("Update available from GitHub API: {Version}", latestVersion);
-                }
-
-                // Strip build metadata for comparison (everything after '+')
-                var latestVersionBase = latestVersion?.Split('+')[0];
-                var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
-
-                // Check if this version was dismissed by the user
-                var settings2 = _userSettingsService.Get();
-                var dismissedVersionBase = settings2.DismissedUpdateVersion?.Split('+')[0];
-
-                if (!string.IsNullOrEmpty(latestVersionBase) &&
-                    string.Equals(latestVersionBase, dismissedVersionBase, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger?.LogDebug("Update {Version} was dismissed by user, hiding notification", latestVersionBase);
-                    HasUpdateAvailable = false;
-                }
-
-                // Also check if we're already on this version (ignoring build metadata)
-                else if (!string.IsNullOrEmpty(latestVersionBase) &&
-                         string.Equals(latestVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger?.LogDebug("Already on version {Version} (ignoring build metadata), hiding notification", latestVersionBase);
-                    HasUpdateAvailable = false;
-                }
-                else
-                {
-                    HasUpdateAvailable = true;
+                    logger?.LogInformation("GitHub release update available: {Version}", updateInfo.TargetFullRelease.Version);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        notificationService.Show(new NotificationMessage(
+                            NotificationType.Info,
+                            "Update Available",
+                            $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
+                            null, // Persistent
+                            actions:
+                            [
+                                new NotificationAction(
+                                    "View Updates",
+                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ]));
+                    });
+                    return;
                 }
             }
             else
             {
-                _logger?.LogDebug("No updates available");
-                HasUpdateAvailable = false;
+                // 2. Check for Subscribed Branch Artifacts
+                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.SubscribedBranch);
+                velopackUpdateManager.SubscribedBranch = settings.SubscribedBranch;
+                velopackUpdateManager.SubscribedPrNumber = null; // Clear PR to avoid ambiguity
+
+                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+
+                if (artifactUpdate != null)
+                {
+                    var newVersionBase = artifactUpdate.Version.Split('+')[0];
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        notificationService.Show(new NotificationMessage(
+                            NotificationType.Info,
+                            "Branch Update Available",
+                            $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
+                            null, // Persistent
+                            actions:
+                            [
+                                new NotificationAction(
+                                    "View Updates",
+                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ]));
+                    });
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
-            HasUpdateAvailable = false;
+            logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
         }
     }
 
@@ -496,7 +314,60 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Unhandled exception in background update check");
+            logger?.LogError(ex, "Unhandled exception in background update check");
+        }
+    }
+
+    private void CheckForQuickStart()
+    {
+        var settings = userSettingsService.Get();
+        if (!settings.HasSeenQuickStart)
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                var actions = new[]
+                {
+                    new DialogAction
+                    {
+                        Text = "Open Quickstart",
+                        Style = NotificationActionStyle.Primary, // Switched to Primary (Purple)
+                        Action = () =>
+                        {
+                             SelectTab(NavigationTab.Info);
+
+                             // Programmatic navigation to the quickstart section
+                             InfoViewModel.OpenSection("quickstart");
+                        },
+                    },
+                    new DialogAction
+                    {
+                        Text = "Close",
+                        Style = NotificationActionStyle.Secondary,
+                    },
+                };
+
+                var content = """
+                **Welcome to GenHub!**
+
+                Your modern, community-focused command center for **C&C: Generals & Zero Hour** is ready. The **Quickstart Guide** will help you get started with:
+
+                *   Managing profiles
+                *   Setting up downloads
+                *   Adding your own mods and content
+                """;
+
+                var result = await dialogService.ShowMessageAsync(
+                    "Getting Started",
+                    content,
+                    actions,
+                    showDoNotAskAgain: true);
+
+                if (result.DoNotAskAgain)
+                {
+                    userSettingsService.Update(s => s.HasSeenQuickStart = true);
+                    _ = userSettingsService.SaveAsync();
+                }
+            });
         }
     }
 
@@ -504,17 +375,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            _userSettingsService.Update(settings =>
+            userSettingsService.Update(settings =>
             {
                 settings.LastSelectedTab = selectedTab;
             });
 
-            _ = _userSettingsService.SaveAsync();
-            _logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
+            _ = userSettingsService.SaveAsync();
+            logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to update selected tab setting");
+            logger?.LogError(ex, "Failed to update selected tab setting");
         }
     }
 
@@ -525,10 +396,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Notify SettingsViewModel when it becomes visible/invisible
         SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
 
-        // Refresh Downloads tab when it becomes visible
-        if (value == NavigationTab.Downloads)
+        // Refresh Tabs when they become visible
+        if (value == NavigationTab.GameProfiles)
+        {
+            GameProfilesViewModel.OnTabActivated();
+        }
+        else if (value == NavigationTab.Downloads)
         {
             _ = DownloadsViewModel.OnTabActivatedAsync();
+        }
+        else if (value == NavigationTab.Tools)
+        {
+            ToolsViewModel.IsPaneOpen = true;
+        }
+        else if (value == NavigationTab.Info)
+        {
+            InfoViewModel.IsPaneOpen = true;
         }
 
         SaveSelectedTab(value);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
@@ -31,7 +32,8 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         _testDirectory = Path.Combine(Path.GetTempPath(), $"GenHubTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDirectory);
         _mockLogger = new Mock<ILogger<WorkspaceReconciler>>();
-        _reconciler = new WorkspaceReconciler(_mockLogger.Object);
+        var mockFileOps = new Mock<IFileOperationsService>();
+        _reconciler = new WorkspaceReconciler(_mockLogger.Object, mockFileOps.Object);
     }
 
     /// <summary>
@@ -55,7 +57,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -86,7 +88,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -117,7 +119,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -149,7 +151,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -180,7 +182,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        var result = await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         Assert.NotEmpty(result);
@@ -208,7 +210,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         };
 
         // Act
-        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config, CancellationToken.None);
+        await _reconciler.AnalyzeWorkspaceDeltaAsync(null, config);
 
         // Assert
         _mockLogger.Verify(

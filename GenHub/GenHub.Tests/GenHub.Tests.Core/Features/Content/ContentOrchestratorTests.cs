@@ -1,8 +1,11 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
@@ -15,10 +18,12 @@ namespace GenHub.Tests.Core.Features.Content;
 /// </summary>
 public class ContentOrchestratorTests
 {
-    private readonly Mock<IDynamicContentCache> _cacheMock;
-    private readonly Mock<IContentValidator> _contentValidatorMock;
-    private readonly Mock<IContentManifestPool> _manifestPoolMock;
-    private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock;
+    private readonly Mock<IDynamicContentCache> _cacheMock = default!;
+    private readonly Mock<IContentValidator> _contentValidatorMock = default!;
+    private readonly Mock<IContentManifestPool> _manifestPoolMock = default!;
+    private readonly Mock<IGameInstallationService> _installationServiceMock = default!;
+    private readonly Mock<IUserSettingsService> _userSettingsServiceMock = default!;
+    private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock = default!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentOrchestratorTests"/> class.
@@ -28,6 +33,8 @@ public class ContentOrchestratorTests
         _cacheMock = new Mock<IDynamicContentCache>();
         _contentValidatorMock = new Mock<IContentValidator>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
+        _installationServiceMock = new Mock<IGameInstallationService>();
+        _userSettingsServiceMock = new Mock<IUserSettingsService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -62,7 +69,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _userSettingsServiceMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -111,7 +120,7 @@ public class ContentOrchestratorTests
         _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
 
-        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         var orchestrator = new ContentOrchestrator(
@@ -121,7 +130,9 @@ public class ContentOrchestratorTests
             [],
             _cacheMock.Object,
             _contentValidatorMock.Object,
-            _manifestPoolMock.Object);
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _userSettingsServiceMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
@@ -129,7 +140,7 @@ public class ContentOrchestratorTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal(manifest, result.Data);
-        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

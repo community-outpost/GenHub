@@ -15,11 +15,23 @@ public class CasConfiguration : ICloneable
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
     private int _maxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
     private long _maxCacheSizeBytes = CasDefaults.MaxCacheSizeBytes;
+    private TimeSpan _gcLockTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Gets or sets a value indicating whether automatic garbage collection is enabled.
     /// </summary>
     public bool EnableAutomaticGc { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the timeout for acquiring the GC lock.
+    /// </summary>
+    public TimeSpan GcLockTimeout
+    {
+        get => _gcLockTimeout;
+        set => _gcLockTimeout = value > TimeSpan.Zero
+            ? value
+            : throw new ArgumentOutOfRangeException(nameof(value), "Must be positive");
+    }
 
     /// <summary>
     /// Gets or sets the root path for the CAS pool.
@@ -127,6 +139,7 @@ public class CasConfiguration : ICloneable
             AutoGcInterval = AutoGcInterval,
             MaxConcurrentOperations = MaxConcurrentOperations,
             VerifyIntegrity = VerifyIntegrity,
+            GcLockTimeout = GcLockTimeout,
         };
     }
 }

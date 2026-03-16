@@ -74,7 +74,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = string.Empty,
             BaseInstallationPath = string.Empty,
             WorkspaceRootPath = string.Empty,
-            Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, },
+            Manifests = [new() { Files = [], }],
         };
 
         // Act
@@ -111,7 +111,7 @@ public class WorkspaceValidatorTests : IDisposable
     {
         // Arrange
         var config = CreateValidConfiguration();
-        config.Manifests = new List<ContentManifest> { new() { Files = new List<ManifestFile>(), }, };
+        config.Manifests = [new() { Files = [], }];
 
         // Act
         var result = await _validator.ValidateConfigurationAsync(config);
@@ -145,7 +145,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = Path.GetFileName(_workspaceDir),
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
-            Manifests = new List<ContentManifest>(), // Empty for this test
+            Manifests = [], // Empty for this test
             GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.FullCopy,
         };
@@ -183,7 +183,7 @@ public class WorkspaceValidatorTests : IDisposable
             Id = Path.GetFileName(destPath),
             BaseInstallationPath = sourcePath,
             WorkspaceRootPath = Path.GetDirectoryName(destPath) ?? destPath,
-            Manifests = new List<ContentManifest>(), // Empty for this test
+            Manifests = [], // Empty for this test
             GameClient = new GameClient { Id = "test" },
             Strategy = WorkspaceStrategy.HardLink,
         };
@@ -218,16 +218,16 @@ public class WorkspaceValidatorTests : IDisposable
         // Create a configuration with large files to trigger disk space warning
         var largeFileManifest = new ContentManifest
         {
-            Files = new List<ManifestFile>
-            {
+            Files =
+            [
                 new() { RelativePath = "huge.bin", Size = long.MaxValue / 2 },
-            },
+            ],
         };
 
         var config = new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest> { largeFileManifest },
+            Manifests = [largeFileManifest],
             Strategy = WorkspaceStrategy.FullCopy,
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = Path.GetDirectoryName(_workspaceDir) ?? _workspaceDir,
@@ -260,6 +260,8 @@ public class WorkspaceValidatorTests : IDisposable
         {
             Directory.Delete(_tempDir, true);
         }
+
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -271,17 +273,17 @@ public class WorkspaceValidatorTests : IDisposable
         return new WorkspaceConfiguration
         {
             Id = "test-workspace",
-            Manifests = new List<ContentManifest>
-            {
+            Manifests =
+            [
                 new()
                 {
-                    Files = new List<ManifestFile>
-                    {
+                    Files =
+                    [
                         new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
                         new() { RelativePath = "config.ini", Size = 500 },
-                    },
+                    ],
                 },
-            },
+            ],
             BaseInstallationPath = _sourceDir,
             WorkspaceRootPath = _workspaceDir,
             GameClient = new GameClient { Id = "test-version" },

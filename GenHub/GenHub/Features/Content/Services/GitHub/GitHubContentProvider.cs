@@ -10,21 +10,22 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Features.Content.Services.ContentProviders;
+namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// GitHub content provider that orchestrates discovery→resolution→delivery pipeline
 /// for GitHub-hosted content (releases, repositories).
 /// </summary>
 public class GitHubContentProvider(
-   IEnumerable<IContentDiscoverer> discoverers,
-   IEnumerable<IContentResolver> resolvers,
-   IEnumerable<IContentDeliverer> deliverers,
-   ILogger<GitHubContentProvider> logger,
-   IContentValidator contentValidator)
-   : BaseContentProvider(contentValidator, logger)
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    ILogger<GitHubContentProvider> logger,
+    IContentValidator contentValidator)
+    : BaseContentProvider(contentValidator, logger)
 {
     /// <inheritdoc />
     public override string SourceName => "GitHub";

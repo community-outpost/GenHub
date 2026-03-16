@@ -6,42 +6,9 @@
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="GenHub.Features.Downloads.Views.DownloadsView"
-             x:DataType="vm:DownloadsViewModel"
-             Background="#1A1A1A">
+             x:DataType="vm:DownloadsViewModel">
 
     <UserControl.Styles>
-        <Style Selector="Button.github-button">
-            <Setter Property="Background" Value="#333333" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#555555" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="20,16" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="MinWidth" Value="200" />
-            <Setter Property="MinHeight" Value="80" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <BrushTransition Property="Background" Duration="0:0:0.2" />
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
-                        <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        
-        <Style Selector="Button.github-button:pointerover">
-            <Setter Property="Background" Value="#444444" />
-            <Setter Property="BorderBrush" Value="#666666" />
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
-        </Style>
-        
-        <Style Selector="Button.github-button:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.98)" />
-        </Style>
-
         <!-- Placeholder button styles -->
         <Style Selector="Button.placeholder-button">
             <Setter Property="Background" Value="#2A2A2A" />
@@ -67,8 +34,17 @@
             <Setter Property="MinHeight" Value="120" />
             <Setter Property="BoxShadow" Value="0 2 8 0 #20000000" />
         </Style>
+
+        <!-- Secondary Action Button -->
+        <Style Selector="Button.secondary-action">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
     </UserControl.Styles>
-    
+
     <ScrollViewer>
         <Grid Margin="20">
             <Grid.RowDefinitions>
@@ -77,49 +53,35 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            
+
             <!-- Header Section -->
-            <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,30">
-                <TextBlock Text="{Binding Title}" 
-                           FontSize="28" 
-                           FontWeight="SemiBold"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,10" />
-                <TextBlock Text="{Binding Description}"
-                           FontSize="16"
-                           Foreground="#AAAAAA"
-                           HorizontalAlignment="Center" />
-                
-                <!-- Installation Progress -->
-                <StackPanel IsVisible="{Binding IsInstallingGeneralsOnline}"
-                            Margin="0,20,0,0"
-                            HorizontalAlignment="Center"
-                            MinWidth="400">
-                    <TextBlock Text="{Binding InstallationStatus}"
-                               FontSize="14"
+            <Grid Grid.Row="0" Margin="0,0,0,30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,20">
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="32"
+                               FontWeight="SemiBold"
                                Foreground="White"
                                HorizontalAlignment="Center"
-                               Margin="0,0,0,10" />
-                    <ProgressBar Value="{Binding InstallationProgress}"
-                                 Minimum="0"
-                                 Maximum="100"
-                                 Height="6"
-                                 Foreground="#4CAF50"
-                                 Background="#333333"
-                                 BorderThickness="0" />
-                    <TextBlock Text="{Binding InstallationProgress, StringFormat={}{0:F0}%}"
-                               FontSize="12"
+                               TextAlignment="Center"
+                               Margin="0,0,0,12" />
+                    <TextBlock Text="{Binding Description}"
+                               FontSize="16"
                                Foreground="#AAAAAA"
                                HorizontalAlignment="Center"
-                               Margin="0,5,0,0" />
+                               TextAlignment="Center" />
                 </StackPanel>
-            </StackPanel>
-            
+
+            </Grid>
+
             <!-- Main Content Area -->
             <ScrollViewer Grid.Row="1">
                 <StackPanel Margin="0,0,0,20">
-                    
+
                     <!-- Unified Publisher Catalog -->
                     <ItemsControl ItemsSource="{Binding PublisherCards}" HorizontalAlignment="Center">
                         <ItemsControl.ItemsPanel>

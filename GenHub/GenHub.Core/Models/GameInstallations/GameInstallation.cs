@@ -28,7 +28,7 @@ public class GameInstallation : IGameInstallation
         InstallationPath = installationPath;
         InstallationType = installationType;
         DetectedAt = DateTime.UtcNow;
-        AvailableClientsInternal = new List<GameClient>();
+        AvailableClientsInternal = [];
         _logger = logger;
 
         _logger?.LogDebug(
@@ -46,7 +46,7 @@ public class GameInstallation : IGameInstallation
     public GameInstallationType InstallationType { get; set; }
 
     /// <summary>Gets or sets the available game clients for this installation.</summary>
-    public List<GameClient> AvailableGameClients { get; set; } = new List<GameClient>();
+    public List<GameClient> AvailableGameClients { get; set; } = [];
 
     /// <summary>Gets the base installation directory path.</summary>
     public string InstallationPath { get; private set; } = string.Empty;
@@ -154,7 +154,10 @@ public class GameInstallation : IGameInstallation
             _logger?.LogDebug("Initializing installation scan - Current state: HasGenerals={HasGenerals}, HasZeroHour={HasZeroHour}", HasGenerals, HasZeroHour);
             _logger?.LogDebug("Fetching game installations for {InstallationPath}", InstallationPath);
 
-            // Check for Generals installation
+            bool foundGenerals = false;
+            bool foundZeroHour = false;
+
+            // 1. Check strict subdirectories first (standard structure)
             var generalsPath = Path.Combine(InstallationPath, "Command and Conquer Generals");
             if (Directory.Exists(generalsPath))
             {
@@ -163,15 +166,11 @@ public class GameInstallation : IGameInstallation
                 {
                     HasGenerals = true;
                     GeneralsPath = generalsPath;
+                    foundGenerals = true;
                     _logger?.LogDebug("Found Generals installation at {GeneralsPath}", GeneralsPath);
-                }
-                else
-                {
-                    _logger?.LogWarning("Generals directory found at {GeneralsPath} but {ExecutableName} missing", generalsPath, GameClientConstants.GeneralsExecutable);
                 }
             }
 
-            // Check for Zero Hour installation
             var zeroHourPath = Path.Combine(InstallationPath, GameClientConstants.ZeroHourDirectoryName);
             if (Directory.Exists(zeroHourPath))
             {
@@ -180,12 +179,76 @@ public class GameInstallation : IGameInstallation
                 {
                     HasZeroHour = true;
                     ZeroHourPath = zeroHourPath;
+                    foundZeroHour = true;
                     _logger?.LogDebug("Found Zero Hour installation at {ZeroHourPath}", ZeroHourPath);
                 }
-                else
+            }
+
+            // 2. If not found in subdirectories, check the root path (common for manual installs/repacks)
+            if (!foundGenerals)
+            {
+                var rootGeneralsExe = Path.Combine(InstallationPath, GameClientConstants.GeneralsExecutable);
+
+                // Note: Zero Hour also has a generals.exe, so we need to be careful.
+                // If checking for valid installation, presence of generals.exe usually implies Generals capability.
+                if (rootGeneralsExe.FileExistsCaseInsensitive())
                 {
-                    _logger?.LogWarning("Zero Hour directory found at {ZeroHourPath} but {ExecutableName} missing", zeroHourPath, GameClientConstants.ZeroHourExecutable);
+                    HasGenerals = true;
+                    GeneralsPath = InstallationPath;
+                    foundGenerals = true;
+                    _logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
                 }
+            }
+
+            if (!foundZeroHour && string.IsNullOrEmpty(ZeroHourPath))
+            {
+                // Zero Hour usually has generals.exe AND specific files like "generals.zh.exe" (sometimes) or just "generals.exe" with different hash/version.
+                // Detection primarily relies on folder name or presence of expansion files.
+                // Checking for generals.exe in root can map to both if the user selected a merged directory.
+                var rootGeneralsExe = Path.Combine(InstallationPath, GameClientConstants.GeneralsExecutable);
+
+                if (rootGeneralsExe.FileExistsCaseInsensitive())
+                {
+                    // Check if Generals is already set to this path to avoid duplicate detection
+                    // This prevents setting both GeneralsPath and ZeroHourPath to the same directory
+                    // when platform-specific detectors (Steam/EA/etc) have already identified Generals here
+                    bool isGeneralsAlreadySetToRoot =
+                        !string.IsNullOrEmpty(GeneralsPath) &&
+                        Path.GetFullPath(GeneralsPath).Equals(
+                            Path.GetFullPath(InstallationPath),
+                            StringComparison.OrdinalIgnoreCase);
+
+                    if (!isGeneralsAlreadySetToRoot)
+                    {
+                        // If we are in root and found generals.exe, it could be ZH.
+                        // Check for something specific to ZH if possible, or just assume if user pointed here it might be combined.
+                        // For safety, let's treat root install as potentially containing both if we can't distinguish.
+
+                        // Ideally we check for a ZH specific file, but standard detection often just looks for exe.
+                        // Let's assume if the user pointed us here and it has the exe, it's valid.
+                        // Standard Retail ZH has "generals.exe" but also usually lives in its own folder.
+                        // If user pointed to "C:\Games\ZH", it has generals.exe.
+                        HasZeroHour = true;
+                        ZeroHourPath = InstallationPath;
+                        foundZeroHour = true;
+                        _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath}", ZeroHourPath);
+                    }
+                    else
+                    {
+                        _logger?.LogDebug(
+                            "Skipping Zero Hour detection at root {InstallationPath} - Generals already detected here",
+                            InstallationPath);
+                    }
+                }
+            }
+
+            // Logic improvement: If we found generals.exe in root, we might have set BOTH to true/root.
+            // This is acceptable for some "All in One" repacks or if the user manually merged them.
+
+            // Log warnings only if absolutely nothing found
+            if (!foundGenerals && !foundZeroHour)
+            {
+                _logger?.LogWarning("No game executables found in {InstallationPath} or standard subdirectories", InstallationPath);
             }
 
             _logger?.LogInformation(
@@ -220,9 +283,9 @@ public class GameInstallation : IGameInstallation
         return Id?.GetHashCode() ?? 0;
     }
 
-    private bool HasValidExecutable(string path)
+    private static bool HasValidExecutable(string path)
     {
-        var possibleExes = new[] { GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
+        var possibleExes = new[] { GameClientConstants.SteamGameDatExecutable, GameClientConstants.GeneralsExecutable, GameClientConstants.ZeroHourExecutable };
         return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
     }
 }

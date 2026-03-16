@@ -47,13 +47,24 @@ public abstract class ContentUpdateServiceBase(ILogger<ContentUpdateServiceBase>
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            TimeSpan nextDelay = UpdateCheckInterval;
+
             try
             {
                 logger.LogDebug("[{ServiceName}] Starting update check", ServiceName);
 
                 var result = await CheckForUpdatesAsync(stoppingToken);
 
-                if (result.IsUpdateAvailable)
+                if (!result.Success)
+                {
+                    nextDelay = TimeSpan.FromMinutes(30); // Retry sooner on failure
+                    logger.LogWarning(
+                        "[{ServiceName}] Update check failed: {Error}. Will retry in {Interval}",
+                        ServiceName,
+                        result.FirstError ?? "Unknown error",
+                        nextDelay);
+                }
+                else if (result.IsUpdateAvailable)
                 {
                     logger.LogInformation(
                         "[{ServiceName}] Update available: {LatestVersion} (current: {CurrentVersion})",
@@ -77,17 +88,18 @@ public abstract class ContentUpdateServiceBase(ILogger<ContentUpdateServiceBase>
             }
             catch (Exception ex)
             {
+                nextDelay = TimeSpan.FromMinutes(30); // Retry sooner on failure
                 logger.LogError(
                     ex,
-                    "[{ServiceName}] Update check failed. Will retry in {Interval}",
+                    "[{ServiceName}] Update check failed with exception. Will retry in {Interval}",
                     ServiceName,
-                    UpdateCheckInterval);
+                    nextDelay);
             }
 
             // Wait for the configured interval before next check
             try
             {
-                await Task.Delay(UpdateCheckInterval, stoppingToken);
+                await Task.Delay(nextDelay, stoppingToken);
             }
             catch (OperationCanceledException)
             {

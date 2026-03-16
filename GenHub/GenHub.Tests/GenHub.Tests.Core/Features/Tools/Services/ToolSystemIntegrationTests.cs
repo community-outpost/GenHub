@@ -18,8 +18,8 @@ public class ToolSystemIntegrationTests
     private readonly Mock<IUserSettingsService> _mockSettingsService;
     private readonly UserSettings _testSettings;
     private readonly IToolPluginLoader _pluginLoader;
-    private readonly IToolRegistry _registry;
-    private readonly IToolManager _toolService;
+    private readonly ToolRegistry _registry;
+    private readonly ToolService _toolService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ToolSystemIntegrationTests"/> class.
@@ -32,7 +32,7 @@ public class ToolSystemIntegrationTests
 
         _testSettings = new UserSettings
         {
-            InstalledToolAssemblyPaths = new List<string>(),
+            InstalledToolAssemblyPaths = [],
         };
 
         _mockSettingsService.Setup(x => x.Get()).Returns(_testSettings);
@@ -44,6 +44,7 @@ public class ToolSystemIntegrationTests
             _pluginLoader,
             _registry,
             _mockSettingsService.Object,
+            [],
             _mockServiceLogger.Object);
     }
 
@@ -67,6 +68,7 @@ public class ToolSystemIntegrationTests
             mockLoader.Object,
             _registry,
             _mockSettingsService.Object,
+            [],
             _mockServiceLogger.Object);
 
         Action<UserSettings>? capturedUpdateAction = null;
@@ -126,7 +128,7 @@ public class ToolSystemIntegrationTests
         var plugin2 = new MockToolPlugin("test.tool2", "Test Tool 2", "1.0.0", "Author 2");
         var plugin3 = new MockToolPlugin("test.tool3", "Test Tool 3", "1.0.0", "Author 3");
 
-        _testSettings.InstalledToolAssemblyPaths = new List<string> { path1, path2, path3 };
+        _testSettings.InstalledToolAssemblyPaths = [path1, path2, path3];
 
         var mockLoader = new Mock<IToolPluginLoader>();
         mockLoader.Setup(x => x.LoadPluginFromAssembly(path1)).Returns(plugin1);
@@ -137,6 +139,7 @@ public class ToolSystemIntegrationTests
             mockLoader.Object,
             _registry,
             _mockSettingsService.Object,
+            [],
             _mockServiceLogger.Object);
 
         // Act
@@ -179,6 +182,7 @@ public class ToolSystemIntegrationTests
             mockLoader.Object,
             _registry,
             _mockSettingsService.Object,
+            [],
             _mockServiceLogger.Object);
 
         // Act
@@ -220,6 +224,7 @@ public class ToolSystemIntegrationTests
             mockLoader.Object,
             _registry,
             _mockSettingsService.Object,
+            [],
             _mockServiceLogger.Object);
 
         // Act - Add first version

@@ -8,6 +8,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -32,6 +33,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private readonly IProfileContentService _profileContentService;
     private readonly IGameProfileManager _profileManager;
     private readonly INotificationService _notificationService;
+    private readonly IContentReconciliationService _reconciliationService;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _profileLock = new(1, 1);
 
@@ -51,8 +53,20 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     [ObservableProperty]
     private ObservableCollection<GameProfile> _availableProfiles = [];
 
-    [ObservableProperty]
     private string _latestVersion = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the latest version string.
+    /// </summary>
+    public string LatestVersion
+    {
+        get => _latestVersion;
+        set
+        {
+            var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+            SetProperty(ref _latestVersion, displayVersion);
+        }
+    }
 
     [ObservableProperty]
     private string _releaseNotes = string.Empty;
@@ -103,6 +117,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="profileContentService">The profile content service.</param>
     /// <param name="profileManager">The profile manager.</param>
     /// <param name="notificationService">The notification service.</param>
+    /// <param name="reconciliationService">The reconciliation service.</param>
     public PublisherCardViewModel(
         ILogger<PublisherCardViewModel> logger,
         IContentOrchestrator contentOrchestrator,
@@ -110,7 +125,8 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         IGameClientProfileService profileService,
         IProfileContentService profileContentService,
         IGameProfileManager profileManager,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IContentReconciliationService reconciliationService)
     {
         _logger = logger;
         _contentOrchestrator = contentOrchestrator;
@@ -119,6 +135,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         _profileContentService = profileContentService;
         _profileManager = profileManager;
         _notificationService = notificationService;
+        _reconciliationService = reconciliationService;
 
         ContentTypes.CollectionChanged += ContentTypes_CollectionChanged;
 
@@ -328,6 +345,41 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     item.IsDownloaded = isDownloaded;
                     item.IsInstalled = isDownloaded;
 
+                    // Check if a newer version is available
+                    if (isDownloaded && !string.IsNullOrEmpty(item.Version))
+                    {
+                        // Find the highest version among installed variants
+                        var highestInstalledVersion = variants
+                            .Select(v => v.Version ?? string.Empty)
+                            .OrderByDescending(v => v)
+                            .FirstOrDefault();
+
+                        if (!string.IsNullOrEmpty(highestInstalledVersion))
+                        {
+                            var isNewer = IsVersionNewer(item.Version, highestInstalledVersion);
+                            item.IsUpdateAvailable = isNewer;
+
+                            if (isNewer)
+                            {
+                                item.UpdateAvailableVersion = item.Version;
+                                _logger.LogDebug(
+                                    "Update available for {Name}: installed={InstalledVersion}, available={AvailableVersion}",
+                                    item.Name,
+                                    highestInstalledVersion,
+                                    item.Version);
+                            }
+                            else
+                            {
+                                item.UpdateAvailableVersion = null;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        item.IsUpdateAvailable = false;
+                        item.UpdateAvailableVersion = null;
+                    }
+
                     // If we have a single variant, ensure the Model ID matches it
                     if (variants.Count == 1)
                     {
@@ -336,17 +388,98 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         {
                             item.Model.Id = variant.Id.Value;
                         }
+
+                        // Populate resolution variants from the manifest metadata
+                        if (variant.Metadata?.Variants != null && variant.Metadata.Variants.Count > 0)
+                        {
+                            if (!item.ResolutionVariants.SequenceEqual(variant.Metadata.Variants))
+                            {
+                                item.ResolutionVariants.Clear();
+                                foreach (var resVariant in variant.Metadata.Variants)
+                                {
+                                    item.ResolutionVariants.Add(resVariant);
+                                }
+                            }
+
+                            // Set default variant if not already selected (even if list already matched)
+                            if (string.IsNullOrEmpty(item.SelectedVariantId))
+                            {
+                                var defaultVariant = variant.Metadata.Variants.FirstOrDefault(v => v.IsDefault);
+                                item.SelectedVariantId = defaultVariant?.Id ?? variant.Metadata.Variants.FirstOrDefault()?.Id;
+                            }
+                        }
+                        else
+                        {
+                            item.ResolutionVariants.Clear();
+                            item.SelectedVariantId = null;
+                        }
                     }
 
                     // If we have multiple variants, we don't change the Model.Id arbitrarily
                     // The UI will force the user to choose one from AvailableVariants
+
+                    // Populate dependency information for the item
+                    if (variants.Count > 0)
+                    {
+                        // Get dependencies from the first variant (all variants should have same dependencies)
+                        var manifest = variants[0];
+
+                        // Filter out auto-bundled dependencies and installation/client dependencies
+                        // Only show manual dependencies (e.g., GenTool) that users must explicitly download
+                        var requiredDependencies = manifest.Dependencies?
+                            .Where(d => !d.IsOptional)
+                            .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                                       d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                            .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                            .Select(d => d.Name ?? string.Empty)
+                            .Where(n => !string.IsNullOrEmpty(n))
+                            .ToList() ?? [];
+
+                        // Update dependency names only if they've changed (notifications fire automatically via NotifyPropertyChangedFor)
+                        if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
+                        {
+                            item.RequiredDependencyNames.Clear();
+                            foreach (var dep in requiredDependencies)
+                            {
+                                item.RequiredDependencyNames.Add(dep);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Try to get dependencies from manifest data if available
+                        if (item.Model.Data is Core.Models.Manifest.ContentManifest dataManifest)
+                        {
+                            // Filter out auto-bundled dependencies and installation/client dependencies
+                            // Only show manual dependencies (e.g., GenTool) that users must explicitly download
+                            var requiredDependencies = dataManifest.Dependencies?
+                                .Where(d => !d.IsOptional)
+                                .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                                           d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                                .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                                .Select(d => d.Name ?? string.Empty)
+                                .Where(n => !string.IsNullOrEmpty(n))
+                                .ToList() ?? [];
+
+                            if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
+                            {
+                                item.RequiredDependencyNames.Clear();
+                                foreach (var dep in requiredDependencies)
+                                {
+                                    item.RequiredDependencyNames.Add(dep);
+                                }
+                            }
+                        }
+                    }
+
                     _logger.LogDebug(
-                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}",
+                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}, Dependencies: {DependencyCount}",
                         item.Name,
                         item.Version,
                         item.Model.ContentType,
                         item.IsDownloaded,
-                        item.AvailableVariants.Count);
+                        item.AvailableVariants.Count,
+                        item.RequiredDependencyNames.Count);
                 }
             }
         }
@@ -366,7 +499,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             return string.Empty;
         }
 
-        var numericVersion = VersionHelper.ExtractVersionFromVersionString(version);
+        var numericVersion = GameVersionHelper.ExtractVersionFromVersionString(version);
         return numericVersion > 0 ? numericVersion.ToString() : string.Empty;
     }
 
@@ -387,6 +520,11 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             _ => "Processing",
         };
 
+        if (!string.IsNullOrEmpty(progress.CurrentOperation))
+        {
+            return $"{phaseName}: {progress.CurrentOperation}";
+        }
+
         // Format with percentage and phase
         var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
 
@@ -406,12 +544,28 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
         }
 
-        if (!string.IsNullOrEmpty(progress.CurrentOperation))
+        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
+    }
+
+    /// <summary>
+    /// Determines if the available version is newer than the installed version.
+    /// Uses GameVersionHelper for consistent version parsing across the application.
+    /// </summary>
+    /// <param name="availableVersion">The available version string (e.g., "010326" or "010326_QFE1").</param>
+    /// <param name="installedVersion">The installed version string (e.g., "122025_QFE1").</param>
+    /// <returns>True if available version is newer; otherwise, false.</returns>
+    private static bool IsVersionNewer(string availableVersion, string installedVersion)
+    {
+        if (string.IsNullOrEmpty(availableVersion) || string.IsNullOrEmpty(installedVersion))
         {
-            return $"{phaseName}: {progress.CurrentOperation}";
+            return false;
         }
 
-        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
+        // Use the centralized helper to get sortable version numbers
+        var availableSortable = GameVersionHelper.GetGeneralsOnlineSortableVersion(availableVersion);
+        var installedSortable = GameVersionHelper.GetGeneralsOnlineSortableVersion(installedVersion);
+
+        return availableSortable > installedSortable;
     }
 
     /// <summary>
@@ -444,7 +598,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             // Downloaded content has ID like: 1.1215251.generalsonline.gameclient.30hz
             // We only want downloaded content as variants for the add-to-profile dropdown
             var manifestIdParts = manifest.Id.Value.Split('.');
-            if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0")
+            if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0" && manifest.ContentType == ContentType.GameClient)
             {
                 continue;
             }
@@ -472,7 +626,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             // For variants, the name often contains the variant suffix (e.g. "Generals", "Zero Hour", "30Hz").
             // But strict name matching might filter out variants if their names differ too much.
             // For SuperHackers: Item="weekly-2025-12-12", Manifest="TheSuperHackers-GeneralsGameCode - Generals"
-            //   -> Names don't match, but they ARE the same release (same publisher + version).
+            //   -> Names don't match, but they are the same release (same publisher + version).
             // So we check names, but if names don't match, we still proceed to version check.
             // If publisher matches AND version matches, that's sufficient for variant detection.
             var itemName = item.Name?.ToLowerInvariant() ?? string.Empty;
@@ -569,25 +723,33 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
             var result = await _contentOrchestrator.AcquireContentAsync(item.Model, progress);
 
-            if (result.Success && result.Data != null)
+            if (result.Success && result.Data is Core.Models.Manifest.ContentManifest manifest)
             {
                 item.DownloadStatus = "✓ Downloaded";
                 item.DownloadProgress = 100;
                 item.IsDownloaded = true;
 
                 // Update the Model.Id with the resolved manifest ID
-                if (result.Data != null)
-                {
-                    item.Model.Id = result.Data.Id.Value;
-                    _logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
+                item.Model.Id = manifest.Id.Value;
+                _logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
 
-                    // Refresh installation status to populate variants
-                    await RefreshInstallationStatusAsync();
-                }
+                // Refresh installation status to populate variants
+                await RefreshInstallationStatusAsync();
 
                 _logger.LogInformation("Successfully downloaded {ItemName}", item.Name);
 
-                if (result.Data!.ContentType == Core.Models.Enums.ContentType.GameClient)
+                // Notify other components that content was acquired
+                try
+                {
+                    var message = new Core.Models.Content.ContentAcquiredMessage(manifest);
+                    WeakReferenceMessenger.Default.Send(message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
+                }
+
+                if (manifest.ContentType == ContentType.GameClient)
                 {
                     // For multi-variant content (GeneralsOnline, SuperHackers), we need to create profiles
                     // for all variants that were just installed, not just the primary one returned.
@@ -603,7 +765,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         var justInstalledGameClients = allManifests.Data.Where(m =>
                             m.Version == installedVersion &&
                             m.Publisher?.PublisherType == publisherType &&
-                            m.ContentType == Core.Models.Enums.ContentType.GameClient).ToList();
+                            m.ContentType == ContentType.GameClient).ToList();
 
                         _logger.LogInformation(
                             "Found {Count} GameClient variants for {Publisher} v{Version}",
@@ -611,9 +773,9 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                             publisherType,
                             installedVersion);
 
-                        foreach (var manifest in justInstalledGameClients)
+                        foreach (var m in justInstalledGameClients)
                         {
-                            var profileResult = await _profileService.CreateProfileFromManifestAsync(manifest);
+                            var profileResult = await _profileService.CreateProfileFromManifestAsync(m);
                             if (profileResult.Success)
                             {
                                 _logger.LogInformation(
@@ -736,7 +898,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         {
             // Manifest passed directly (from variant selection) - use its ID
             contentId = manifest.Id.Value;
-            contentName = manifest.Name ?? "Unknown";
+            contentName = manifest.Name ?? GameClientConstants.UnknownVersion;
             isDownloading = false;
         }
         else
@@ -784,15 +946,15 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                 if (result.WasContentSwapped)
                 {
-                    _notificationService.ShowInfo(
-                        "Content Replaced",
-                        $"Replaced '{result.SwappedContentName}' with '{contentName}' in profile '{profile.Name}'");
-
                     _logger.LogInformation(
                         "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
                         result.SwappedContentName,
                         contentName,
                         profile.Name);
+
+                    _notificationService.ShowWarning(
+                        "Content Replaced",
+                        $"Replaced '{result.SwappedContentName ?? "conflicting content"}' with '{contentName}' in '{profile.Name}'. Only one of this type can be enabled at a time.");
                 }
                 else
                 {
@@ -867,7 +1029,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         {
             // Handle ContentManifest directly from variant selection
             contentId = manifest.Id.Value;
-            contentName = manifest.Name ?? "Unknown";
+            contentName = manifest.Name ?? GameClientConstants.UnknownVersion;
         }
         else
         {

@@ -23,7 +23,7 @@ contributing to the project.
 
 ## How to Contribute
 
-1. **Fork** the repository and create your branch from `main`.
+1. **Fork** the repository and create your branch from `development`.
 2. **Clone** your fork locally.
 3. **Make your changes** in a logically named branch.
 4. **Test** your changes thoroughly.
@@ -60,7 +60,7 @@ you agree to uphold a welcoming and inclusive environment for all contributors.
 
 ## Pull Requests
 
-- Ensure your branch is up to date with `main`.
+- Ensure your branch is up to date with `development`.
 - Provide a clear, descriptive title and summary.
 - Reference related issues (e.g., `Fixes #123`).
 - Include tests for new features or bug fixes.

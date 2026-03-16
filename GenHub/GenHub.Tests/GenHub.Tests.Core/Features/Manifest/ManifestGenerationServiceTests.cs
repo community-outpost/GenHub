@@ -1,9 +1,7 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Manifest;
@@ -23,6 +21,8 @@ public class ManifestGenerationServiceTests : IDisposable
 {
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<IManifestIdService> _manifestIdServiceMock;
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+    private readonly Mock<IConfigurationProviderService> _configProviderServiceMock;
     private readonly ManifestGenerationService _service;
     private readonly string _tempDirectory;
 
@@ -33,6 +33,8 @@ public class ManifestGenerationServiceTests : IDisposable
     {
         _hashProviderMock = new Mock<IFileHashProvider>();
         _manifestIdServiceMock = new Mock<IManifestIdService>();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderServiceMock = new Mock<IConfigurationProviderService>();
 
         // Setup hash provider to return deterministic hashes
         _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), default))
@@ -41,6 +43,12 @@ public class ManifestGenerationServiceTests : IDisposable
         // Setup manifest ID service to return properly formatted IDs
         // Format: version.userversion.publisher.contenttype.contentname
         // Publisher names need to be normalized (lowercase, no spaces)
+        _manifestIdServiceMock.Setup(x => x.GenerateGameInstallationId(
+                It.IsAny<GameInstallation>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>()))
+            .Returns((GameInstallation inst, GameType gt, string? v) => OperationResult<ManifestId>.CreateSuccess(ManifestId.Create("1.0.ea.gameinstallation.generals")));
+
         _manifestIdServiceMock.Setup(x => x.GeneratePublisherContentId(
                 It.IsAny<string>(), It.IsAny<ContentType>(), It.IsAny<string>(), It.IsAny<int>()))
             .Returns((string p, ContentType ct, string c, int v) =>
@@ -55,7 +63,9 @@ public class ManifestGenerationServiceTests : IDisposable
         _service = new ManifestGenerationService(
             NullLogger<ManifestGenerationService>.Instance,
             _hashProviderMock.Object,
-            _manifestIdServiceMock.Object);
+            _manifestIdServiceMock.Object,
+            _downloadServiceMock.Object,
+            _configProviderServiceMock.Object);
 
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -200,11 +210,78 @@ public class ManifestGenerationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that CreateGameClientManifestAsync includes all DLLs and Generals.dat for EA App clients.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameClientManifestAsync_IncludesAllDllsAndGeneralsDatForEaApp()
+    {
+        // Arrange
+        var clientPath = Path.Combine(_tempDirectory, "EaAppClient");
+        Directory.CreateDirectory(clientPath);
+        var executablePath = Path.Combine(clientPath, "game.dat");
+        await File.WriteAllTextAsync(executablePath, "dummy game.dat");
+
+        // Create various DLLs, some in RequiredDlls, some auxiliary
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "binkw32.dll"), "dll");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "P2XDLL.DLL"), "ea wrapper");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "patchw32.dll"), "patch dll");
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "custom_wrapper.dll"), "custom dll");
+
+        // Create Generals.dat
+        await File.WriteAllTextAsync(Path.Combine(clientPath, "Generals.dat"), "data file");
+
+        // Act
+        // Use "ea" in the client name to trigger EA App logic
+        var builder = await _service.CreateGameClientManifestAsync(
+            clientPath, GameType.ZeroHour, "EA App Zero Hour", "1.04", executablePath);
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.Contains(manifest.Files, f => f.RelativePath == "game.dat" && f.IsExecutable);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "P2XDLL.DLL");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "patchw32.dll");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "custom_wrapper.dll");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "Generals.dat");
+
+        // Also verify required DLLs from GameClientConstants are included
+        Assert.Contains(manifest.Files, f => f.RelativePath == "binkw32.dll");
+    }
+
+    /// <summary>
+    /// Tests that CreateGameInstallationManifestAsync uses CSV-based generation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateGameInstallationManifestAsync_UsesCsvWhenAvailable()
+    {
+        // Arrange
+        var installationPath = Path.Combine(_tempDirectory, "GeneralsInstall");
+        Directory.CreateDirectory(installationPath);
+
+        // Create some files that are in the generals.csv
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "generals.exe"), "dummy");
+        await File.WriteAllTextAsync(Path.Combine(installationPath, "AudioEnglish.big"), "dummy");
+
+        // Act
+        var builder = await _service.CreateGameInstallationManifestAsync(
+            installationPath, GameType.Generals, GameInstallationType.Steam, "1.08");
+        var manifest = builder.Build();
+
+        // Assert
+        Assert.NotNull(manifest);
+        Assert.Contains(manifest.Files, f => f.RelativePath == "generals.exe");
+        Assert.Contains(manifest.Files, f => f.RelativePath == "AudioEnglish.big");
+    }
+
+    /// <summary>
     /// Cleans up temporary test files.
     /// </summary>
     public void Dispose()
     {
         FileOperationsService.DeleteDirectoryIfExists(_tempDirectory);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>

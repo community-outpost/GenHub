@@ -7,19 +7,20 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
@@ -45,7 +46,9 @@ public class GameLauncher(
     ICasService casService,
     IStorageLocationService storageLocationService,
     IGameSettingsService gameSettingsService,
-    IProfileContentLinker profileContentLinker) : IGameLauncher
+    IProfileContentLinker profileContentLinker,
+    ISteamLauncher steamLauncher,
+    IConfigurationProviderService configurationProvider) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
@@ -115,7 +118,7 @@ public class GameLauncher(
                 },
                 cancellationToken);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Failed to launch game");
             return LaunchResult.CreateFailure(ex.Message, ex);
@@ -140,7 +143,6 @@ public class GameLauncher(
                     // Note: StartInfo properties are often not available for external processes
                     var workingDirectory = string.Empty;
                     var commandLine = string.Empty;
-
                     try
                     {
                         workingDirectory = process.StartInfo.WorkingDirectory ?? string.Empty;
@@ -163,7 +165,7 @@ public class GameLauncher(
                 },
                 cancellationToken);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get game process info for process ID {ProcessId}", processId);
             return null;
@@ -183,17 +185,30 @@ public class GameLauncher(
             using var process = Process.GetProcessById(processId);
 
             // Try graceful termination first
-            if (!process.CloseMainWindow())
+            process.CloseMainWindow();
+
+            // Wait for process to exit with polling (max 5 seconds)
+            // This prevents blocking the UI thread for the full timeout period
+            const int maxWaitMs = 5000;
+            const int pollIntervalMs = 100;
+            int elapsedMs = 0;
+
+            while (!process.HasExited && elapsedMs < maxWaitMs)
             {
-                // If graceful close fails, wait a bit then force kill
-                await Task.Delay(2000, cancellationToken);
-                if (!process.HasExited)
-                    process.Kill();
+                await Task.Delay(pollIntervalMs, cancellationToken);
+                elapsedMs += pollIntervalMs;
+            }
+
+            // Force kill if still running after timeout
+            if (!process.HasExited)
+            {
+                logger.LogWarning("Process {ProcessId} did not exit gracefully after {Timeout}ms, forcing termination", processId, maxWaitMs);
+                process.Kill();
             }
 
             return true;
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             logger.LogError(ex, "Failed to terminate game process with ID {ProcessId}", processId);
             return false;
@@ -246,7 +261,6 @@ public class GameLauncher(
             // Check if already launching (inside the semaphore to prevent race)
             var existingLaunches = await launchRegistry.GetAllActiveLaunchesAsync();
             var activeLaunch = existingLaunches.FirstOrDefault(l => l.ProfileId == profile.Id && !l.TerminatedAt.HasValue);
-
             if (activeLaunch != null)
             {
                 // Double-check if the process is actually still running
@@ -264,7 +278,6 @@ public class GameLauncher(
                         activeLaunch.LaunchId,
                         profile.Id,
                         activeLaunch.ProcessInfo.ProcessId);
-
                     activeLaunch.TerminatedAt = DateTime.UtcNow;
                     await launchRegistry.UnregisterLaunchAsync(activeLaunch.LaunchId);
                 }
@@ -285,7 +298,6 @@ public class GameLauncher(
             };
             await launchRegistry.RegisterLaunchAsync(placeholderLaunchInfo);
             logger.LogDebug("Registered placeholder launch {LaunchId} for profile {ProfileId} to prevent deletion during launch", launchId, profile.Id);
-
             return await LaunchProfileAsync(profile, skipUserDataCleanup, progress, launchId, cancellationToken);
         }
         finally
@@ -327,7 +339,6 @@ public class GameLauncher(
     public async Task<LaunchOperationResult<GameProcessInfo>> GetGameProcessInfoAsync(string launchId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
-
         try
         {
             var launchInfo = await launchRegistry.GetLaunchInfoAsync(launchId);
@@ -360,7 +371,6 @@ public class GameLauncher(
     public async Task<LaunchOperationResult<GameLaunchInfo>> TerminateGameAsync(string launchId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(launchId);
-
         try
         {
             var launchInfo = await launchRegistry.GetLaunchInfoAsync(launchId);
@@ -378,7 +388,6 @@ public class GameLauncher(
             // Update launch info with termination time
             launchInfo.TerminatedAt = DateTime.UtcNow;
             await launchRegistry.UnregisterLaunchAsync(launchId);
-
             return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, launchInfo.ProfileId);
         }
         catch (Exception ex)
@@ -402,7 +411,6 @@ public class GameLauncher(
         // Enforce length limit to prevent buffer overflow attacks
         if (arg.Length > 1024)
             return false;
-
         if (arg.AsSpan().ContainsAny(InvalidArgChars))
             return false;
 
@@ -460,10 +468,8 @@ public class GameLauncher(
             // This ensures that when a GameClient depends on a MapPack, the MapPack is included
             logger.LogDebug("[GameLauncher] Resolving {Count} enabled content manifests with dependencies", profile.EnabledContentIds?.Count ?? 0);
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.ResolvingContent, PercentComplete = 10 });
-
             var enabledIds = profile.EnabledContentIds ?? Enumerable.Empty<string>();
             var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(enabledIds, cancellationToken);
-
             if (!resolutionResult.Success)
             {
                 logger.LogError("[GameLauncher] Failed to resolve content dependencies: {Error}", resolutionResult.FirstError);
@@ -483,7 +489,6 @@ public class GameLauncher(
                 "[GameLauncher] Resolved {Count} manifests (from {EnabledCount} enabled IDs, including dependencies)",
                 manifests.Count,
                 enabledIds.Count());
-
             foreach (var manifest in manifests)
             {
                 logger.LogDebug(
@@ -498,7 +503,6 @@ public class GameLauncher(
                 "[GameLauncher] Profile GameClient - Name: {Name}, WorkingDir: {WorkingDir}",
                 profile.GameClient?.Name ?? "null",
                 profile.GameClient?.WorkingDirectory ?? "null");
-
             logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
             await ApplyProfileSettingsToIniOptionsAsync(profile);
 
@@ -556,26 +560,40 @@ public class GameLauncher(
             }
 
             // Resolve the installation
-            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (!installationResult.Success || installationResult.Data == null)
+            if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
-                logger.LogError("[GameLauncher] Failed to resolve game installation for profile {ProfileId}", profile.Id);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Failed to resolve game installation.", launchId, profile.Id);
+                logger.LogError("[GameLauncher] Profile {ProfileId} has no GameInstallationId set", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not configured for this profile.", launchId, profile.Id);
+            }
+
+            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installationResult.Success)
+            {
+                logger.LogError("[GameLauncher] Failed to retrieve installation {InstallationId}: {Error}", profile.GameInstallationId, installationResult.FirstError);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to retrieve game installation: {installationResult.FirstError}", launchId, profile.Id);
             }
 
             var installation = installationResult.Data;
+            if (installation == null)
+            {
+                logger.LogError("[GameLauncher] Installation record not found for {InstallationId}", profile.GameInstallationId);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not found.", launchId, profile.Id);
+            }
 
             var gameClient = profile.GameClient;
             if (gameClient == null)
             {
                 logger.LogError("[GameLauncher] GameClient is not set for profile {ProfileId}", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure("GameClient not configured for profile.", launchId, profile.Id);
             }
 
             var actualInstallationPath = gameClient.GameType == GameType.Generals
                 ? installation.GeneralsPath ?? string.Empty
                 : installation.ZeroHourPath ?? string.Empty;
-
             if (string.IsNullOrEmpty(actualInstallationPath))
             {
                 logger.LogError("[GameLauncher] Installation path is not set for {GameType}", gameClient.GameType);
@@ -584,25 +602,57 @@ public class GameLauncher(
 
             // Use dynamic workspace path based on the installation location
             var dynamicWorkspacePath = storageLocationService.GetWorkspacePath(installation);
-            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+            var workspaceManifests = manifests;
+            var isSteamLaunch = profile.UseSteamLaunch == true && installation.InstallationType == GameInstallationType.Steam;
 
-            logger.LogDebug("[GameLauncher] Creating workspace configuration - Strategy: {Strategy}", profile.WorkspaceStrategy);
+            if (isSteamLaunch)
+            {
+                logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
+
+                // Workspace should be adjacent to the installation directory, not inside it
+                // e.g., A:\Steam\steamapps\common\.genhub-workspace\{profileId}\
+                // This keeps the installation directory clean and follows proper workspace isolation
+                // The dynamicWorkspacePath from GetWorkspacePath already points to the correct location
+            }
+
+            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+            var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+            logger.LogDebug("[GameLauncher] Creating workspace configuration - Strategy: {Strategy} (Effective)", effectiveStrategy);
             var workspaceConfig = new WorkspaceConfiguration
             {
                 Id = profile.Id,
-                Manifests = manifests,
+                Manifests = workspaceManifests,
                 GameClient = gameClient,
-                Strategy = profile.WorkspaceStrategy,
+                Strategy = effectiveStrategy,
+
+                // Always rebuild the workspace for Steam launches so we don't accidentally reuse
+                // a cached workspace that still contains the proxy launcher instead of the real client.
+                ForceRecreate = isSteamLaunch,
                 WorkspaceRootPath = dynamicWorkspacePath,
                 BaseInstallationPath = actualInstallationPath,
                 ManifestSourcePaths = manifestSourcePaths,
             };
-
             logger.LogDebug("[GameLauncher] BaseInstallationPath set to: {Path}", workspaceConfig.BaseInstallationPath);
 
             // Note: Removed fallback manifest generation - the profile should explicitly include
             // all required manifests in EnabledContentIds. This prevents conflicts between cached
             // manifests and newly generated ones with different version numbers.
+
+            // Ensure the game directory is clean (restored to original state) BEFORE we prepare the workspace.
+            // If a previous Steam launch crashed, the "generalszh.exe" in the install dir might still be our Proxy Launcher.
+            // If we don't clean it up, we'll copy the Proxy into the workspace as the "game", causing an infinite loop.
+            if (isSteamLaunch)
+            {
+                if (!string.IsNullOrEmpty(actualInstallationPath))
+                {
+                    logger.LogInformation("[GameLauncher] Performing pre-launch cleanup to ensure original executables are present");
+
+                    // Always use generals.exe for Steam cleanup (the actual Steam executable)
+                    var steamExecutableName = GameClientConstants.GeneralsExecutable;
+                    await steamLauncher.CleanupGameDirectoryAsync(actualInstallationPath, steamExecutableName, cancellationToken);
+                }
+            }
+
             logger.LogInformation("[GameLauncher] Preparing workspace at: {WorkspacePath}", workspaceConfig.WorkspaceRootPath);
             var workspaceProgress = new Progress<WorkspacePreparationProgress>(
                 wp =>
@@ -612,7 +662,10 @@ public class GameLauncher(
                     progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
                 });
 
-            var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
+            // For In-Place Steam launch, we MUST skip cleanup to avoid deleting user files (screenshots, replays, untracked mods)
+            // that exist in the installation directory.
+            var skipCleanup = isSteamLaunch;
+            var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: skipCleanup, cancellationToken);
             if (!workspaceResult.Success || workspaceResult.Data == null)
             {
                 logger.LogError("[GameLauncher] Workspace preparation failed: {Error}", workspaceResult.FirstError);
@@ -622,6 +675,49 @@ public class GameLauncher(
             var workspaceInfo = workspaceResult.Data;
             logger.LogInformation("[GameLauncher] Workspace prepared successfully: {WorkspaceId}", workspaceInfo.Id);
 
+            // Handle skipping EA logo if enabled
+            if (profile.VideoSkipEALogo == true)
+            {
+                // TODO: Correct way to handle this would be to integrate with the reconciler
+                // but for now we'll just delete the file from the workspace if it exists.
+
+                // Try multiple possible paths for the EA logo
+                // Note: Steam version uses Data\English\Movies\EA_LOGO.BIK
+                var possiblePaths = new[]
+                {
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "Movies", "EA_LOGO.BIK"),
+                    Path.Combine(workspaceInfo.WorkspacePath, "data", "movies", "EA_LOGO.BIK"),
+                };
+
+                logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspaceInfo.WorkspacePath);
+
+                var deleted = false;
+                foreach (var logoPath in possiblePaths)
+                {
+                    if (File.Exists(logoPath))
+                    {
+                        try
+                        {
+                            File.Delete(logoPath);
+                            logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
+                            deleted = true;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+                        }
+                    }
+                }
+
+                if (!deleted)
+                {
+                    logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
+                }
+            }
+
             // Prepare user data content (maps, replays, etc.) for this profile
             // This creates hard links from CAS to user's Documents folder for content with UserMapsDirectory, etc. install targets
             // Uses SwitchProfileUserDataAsync to deactivate any other profile's user data first (unlinks their maps)
@@ -629,7 +725,6 @@ public class GameLauncher(
             // to ensure instant launch as requested by the user.
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
             var previousActiveProfileId = profileContentLinker.GetActiveProfileId();
-
             _ = Task.Run(
                 async () =>
             {
@@ -639,7 +734,6 @@ public class GameLauncher(
                         "[GameLauncher] Background: Switching user data from profile {OldProfile} to {NewProfile}",
                         previousActiveProfileId ?? "(none)",
                         profile.Id);
-
                     var userDataResult = await profileContentLinker.SwitchProfileUserDataAsync(
                         previousActiveProfileId,
                         profile.Id,
@@ -647,7 +741,6 @@ public class GameLauncher(
                         profile.GameClient?.GameType ?? GameType.ZeroHour,
                         skipUserDataCleanup,
                         CancellationToken.None); // Don't cancel background linkage if launch process finishes
-
                     if (!userDataResult.Success)
                     {
                         logger.LogWarning("[GameLauncher] Background user data preparation had issues: {Error}", userDataResult.FirstError);
@@ -666,9 +759,7 @@ public class GameLauncher(
 
             // Start the process
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-
             logger.LogDebug("[GameLauncher] Resolving executable path from workspace");
-
             var finalExecutablePath = workspaceInfo.ExecutablePath;
 
             // Fallback to profile path if workspace didn't resolve it (legacy/simple scenarios)
@@ -762,6 +853,69 @@ public class GameLauncher(
                 logger.LogInformation("[GameLauncher] Added -win argument for windowed mode");
             }
 
+            SteamLaunchPrepResult? steamPrep = null;
+            string? steamAppId = null;
+
+            // Check if this is a Steam profile - use in-place provisioning instead of workspace
+            if (profile.UseSteamLaunch == true &&
+                installation.InstallationType == GameInstallationType.Steam)
+            {
+                logger.LogInformation("[GameLauncher] Steam integration enabled - using in-place file provisioning");
+
+                // CRITICAL: For Steam integration, we must deploy the proxy as the STEAM EXECUTABLE (generals.exe),
+                // NOT the GameClient executable (e.g., GeneralsOnlineZH_60.exe).
+                // Steam launches generals.exe, so the proxy must replace that file.
+                // The proxy will then launch the actual GameClient executable from the workspace.
+                var steamExecutableName = GameClientConstants.GeneralsExecutable; // Always "generals.exe" for Steam
+                logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
+
+                // Resolve Steam AppID from local Steam appmanifest
+                if (SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId))
+                {
+                    steamAppId = resolvedSteamAppId;
+                }
+                else
+                {
+                    // Use hardcoded defaults
+                    steamAppId = gameClient.GameType == GameType.Generals
+                        ? SteamConstants.GeneralsAppId
+                        : SteamConstants.ZeroHourAppId;
+                }
+
+                // Convert arguments dictionary to string array for the proxy config
+                var targetArguments = arguments.Select(kvp => string.IsNullOrEmpty(kvp.Value) ? kvp.Key : $"{kvp.Key} {kvp.Value}").ToArray();
+
+                // Provision files directly to game installation directory (Proxy Launcher)
+                var steamLaunchResult = await steamLauncher.PrepareForProfileAsync(
+                    actualInstallationPath,
+                    profile.Id,
+                    manifests,
+                    steamExecutableName, // Use Steam executable name (generals.exe), not GameClient executable
+                    finalExecutablePath, // Target Workspace Executable
+                    workspaceInfo.WorkspacePath,
+                    targetArguments,
+                    steamAppId,
+                    cancellationToken);
+                if (!steamLaunchResult.Success)
+                {
+                    logger.LogError("[GameLauncher] Steam launch preparation failed: {Error}", steamLaunchResult.FirstError);
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                        $"Failed to prepare game directory for Steam integration: {steamLaunchResult.FirstError}",
+                        launchId,
+                        profile.Id);
+                }
+
+                logger.LogInformation(
+                    "[GameLauncher] Steam launch preparation complete. Files: {Linked} linked, {Removed} removed, {BackedUp} backed up",
+                    steamLaunchResult.Data!.FilesLinked,
+                    steamLaunchResult.Data.FilesRemoved,
+                    steamLaunchResult.Data.FilesBackedUp);
+                steamPrep = steamLaunchResult.Data;
+                logger.LogInformation(
+                    "[GameLauncher] Steam integration ready. Proxy sidecar: {ProxyPath}",
+                    steamLaunchResult.Data.ExecutablePath);
+            }
+
             logger.LogDebug("[GameLauncher] Building launch configuration with {ArgCount} arguments", arguments.Count);
             var launchConfig = new GameLaunchConfiguration
             {
@@ -770,12 +924,86 @@ public class GameLauncher(
                 Arguments = arguments,
                 EnvironmentVariables = profile.EnvironmentVariables,
             };
-
             logger.LogInformation("[GameLauncher] Starting game process...");
-            var processResult = await processManager.StartProcessAsync(launchConfig, cancellationToken);
+            OperationResult<GameProcessInfo> processResult;
+
+            // For Steam launch: launch via Steam so playtime/overlay tracking is owned by Steam.
+            // We rely on SteamLauncher to have prepared the install dir (proxy + proxy_config.json + steam_appid.txt)
+            // so the game entrypoint Steam launches will route into the workspace.
+            if (profile.UseSteamLaunch == true && installation.InstallationType == GameInstallationType.Steam)
+            {
+                if (steamPrep == null || string.IsNullOrWhiteSpace(steamPrep.ExecutablePath))
+                {
+                    logger.LogError("[GameLauncher] Steam prep missing proxy path");
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Steam proxy not prepared", launchId, profile.Id);
+                }
+
+                if (string.IsNullOrWhiteSpace(steamAppId))
+                {
+                    logger.LogError("[GameLauncher] Steam AppId is missing");
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Steam AppId missing", launchId, profile.Id);
+                }
+
+                var steamUrl = $"steam://rungameid/{steamAppId}";
+                logger.LogInformation("[GameLauncher] Launching via Steam URL: {SteamUrl}", steamUrl);
+
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = steamUrl,
+                        UseShellExecute = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[GameLauncher] Failed to launch via Steam URL");
+                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to launch via Steam: {ex.Message}", launchId, profile.Id);
+                }
+
+                // Get the executable manifest for process monitoring (supports GameClient, Executable, and ModdingTool)
+                // For CAS symlinked files, the process name is the SHA hash, not the original filename
+                // For hardlinked files, even if sourced from CAS, the process name is the executable name
+                var executableManifestForMonitor = manifests.FirstOrDefault(m =>
+                    m.ContentType == ContentType.GameClient ||
+                    m.ContentType == ContentType.Executable ||
+                    m.ContentType == ContentType.ModdingTool);
+                var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+
+                string gameProcessName;
+                if (executableFileForMonitor != null &&
+                    executableFileForMonitor.SourceType == ContentSourceType.ContentAddressable &&
+                    effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
+                {
+                    // For CAS symlinked executables, the process name IS the hash
+                    // This is because Windows reports the symlink target hash as the process name
+                    gameProcessName = executableFileForMonitor.Hash;
+                    logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
+                }
+                else
+                {
+                    // For regular files or hardlinked CAS files, use the executable name
+                    // Extract the actual executable name from the file path, avoiding hardcoded fallbacks
+                    gameProcessName = executableFileForMonitor != null
+                        ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
+                        : Path.GetFileNameWithoutExtension(finalExecutablePath);
+                    logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
+                }
+
+                // Discover and track the game process that Steam->proxy launches
+                processResult = await processManager.DiscoverAndTrackProcessAsync(
+                    gameProcessName,
+                    workspaceInfo.WorkspacePath,
+                    cancellationToken);
+            }
+            else
+            {
+                processResult = await processManager.StartProcessAsync(launchConfig, cancellationToken);
+            }
+
             if (!processResult.Success || processResult.Data == null)
             {
-                logger.LogError("[GameLauncher] Process start failed: {Error}", processResult.FirstError);
+                logger.LogError("[GameLauncher] Process start/discovery failed: {Error}", processResult.FirstError);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError ?? "Process start failed", launchId, profile.Id);
             }
 
@@ -798,13 +1026,11 @@ public class GameLauncher(
                 ProcessInfo = processInfo,
                 LaunchedAt = DateTime.UtcNow,
             };
-
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
 
             // Report completion
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
-
             logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
             return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
         }
@@ -873,17 +1099,59 @@ public class GameLauncher(
             var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
             if (!saveResult.Success)
             {
-                logger.LogWarning("Failed to save Options.ini for {GameType}: {Error}", gameType, saveResult.FirstError);
+                logger.LogWarning("[GameLauncher] Failed to save Options.ini for {GameType}: {Error}", gameType, saveResult.FirstError);
             }
             else
             {
-                logger.LogInformation("Successfully wrote Options.ini for {GameType}", gameType);
+                logger.LogInformation("[GameLauncher] Successfully wrote Options.ini for {GameType}", gameType);
             }
+
+            // Apply GeneralsOnline settings
+            await ApplyGeneralsOnlineSettingsAsync(profile);
         }
         catch (Exception ex)
         {
             // Don't fail the launch if Options.ini writing fails - log and continue
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
+        }
+    }
+
+    /// <summary>
+    /// Applies GeneralsOnline-specific settings to the settings.json file.
+    /// </summary>
+    /// <param name="profile">The game profile containing the settings.</param>
+    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
+    {
+        // Only apply if it's Zero Hour (as GO settings only apply there currently)
+        if (profile.GameClient?.GameType != GameType.ZeroHour)
+        {
+            return;
+        }
+
+        try
+        {
+            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
+
+            // Clean Launch Strategy: Create fresh settings object to ensure isolation and prevent pollution
+            var settings = new GeneralsOnlineSettings();
+
+            // Map GO settings from profile using the centralized mapper
+            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
+            if (!saveResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
+            }
+            else
+            {
+                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log and continue
+            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
         }
     }
 
@@ -896,14 +1164,13 @@ public class GameLauncher(
     private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
     {
         var missingHashes = new List<string>();
-
         foreach (var manifest in manifests)
         {
             if (manifest.Files != null)
             {
                 foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
                 {
-                    var existsResult = await casService.ExistsAsync(file.Hash, cancellationToken);
+                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
                     if (!existsResult.Success || !existsResult.Data)
                     {
                         missingHashes.Add(file.Hash);

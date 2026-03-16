@@ -1,0 +1,192 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Common.ViewModels.Dialogs"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="280"
+        x:Class="GenHub.Common.Views.Dialogs.ConfirmationDialogWindow"
+        x:DataType="vm:ConfirmationDialogViewModel"
+        Title="{Binding Title}"
+        Width="500" Height="280"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
+
+    <!-- Root Container with Padding for Window Shadow -->
+    <Grid Margin="20">
+        <!-- Main Window Border (The "Physical" Window) -->
+        <Border CornerRadius="16"
+                BorderThickness="1"
+                ClipToBounds="False"
+                BoxShadow="0 8 32 0 #80000000">
+
+            <!-- Gradient Border (Glass Edge Effect) -->
+            <Border.BorderBrush>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#80FFFFFF" Offset="0" />
+                    <GradientStop Color="#20FFFFFF" Offset="0.5" />
+                    <GradientStop Color="#05FFFFFF" Offset="1" />
+                </LinearGradientBrush>
+            </Border.BorderBrush>
+
+            <!-- Content Container -->
+            <Panel>
+                <!-- 1. Acrylic Blur Backdrop -->
+                <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+                    <ExperimentalAcrylicBorder.Material>
+                        <ExperimentalAcrylicMaterial
+                            BackgroundSource="Digger"
+                            TintColor="#050505"
+                            TintOpacity="0.9"
+                            MaterialOpacity="0.8" />
+                    </ExperimentalAcrylicBorder.Material>
+                </ExperimentalAcrylicBorder>
+
+                <!-- 2. Dark Noise/Texture Overlay (Optional depth) -->
+                <Border CornerRadius="16" Background="#05FFFFFF" IsHitTestVisible="False" />
+
+                <!-- 3. Main Layout -->
+                <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+                    <!-- Header Section -->
+                    <StackPanel Grid.Row="0" Spacing="12">
+                        <!-- Icon and Title Row -->
+                        <Grid ColumnDefinitions="Auto, *">
+                            <!-- Warning/Info Icon -->
+                            <PathIcon Grid.Column="0"
+                                      Data="{StaticResource WarningIcon}"
+                                      Foreground="{StaticResource WarningBrush}"
+                                      Width="24" Height="24"
+                                      Margin="0,0,12,0"
+                                      VerticalAlignment="Center"/>
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Title}"
+                                       FontSize="20"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       VerticalAlignment="Center"
+                                       LetterSpacing="0.5" />
+                        </Grid>
+
+                        <!-- Decorative Separator Line -->
+                        <Border Height="1" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                    <GradientStop Color="#00FFFFFF" Offset="0" />
+                                    <GradientStop Color="#40FFFFFF" Offset="0.5" />
+                                    <GradientStop Color="#00FFFFFF" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Message Body -->
+                    <ScrollViewer Grid.Row="1" Margin="0,20,0,20" VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding Message}"
+                                   FontSize="15"
+                                   Foreground="#CCCCCC"
+                                   TextWrapping="Wrap"
+                                   LineHeight="24"
+                                   TextAlignment="Left" />
+                    </ScrollViewer>
+
+                    <!-- Footer Actions -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto">
+
+                        <!-- Do Not Ask Checkbox -->
+                        <CheckBox Grid.Column="0"
+                                  IsChecked="{Binding DoNotAskAgain}"
+                                  IsVisible="{Binding ShowDoNotAskAgain}"
+                                  Content="Don't ask again"
+                                  Foreground="#909090"
+                                  FontSize="13"
+                                  VerticalAlignment="Center"
+                                  Cursor="Hand">
+                            <CheckBox.Styles>
+                                <Style Selector="CheckBox:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Foreground" Value="#FFFFFF" />
+                                </Style>
+                                <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+                                    <Setter Property="Background" Value="{StaticResource CheckBoxCheckedBrush}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource CheckBoxCheckedBrush}" />
+                                </Style>
+                            </CheckBox.Styles>
+                        </CheckBox>
+
+                        <!-- Cancel Button (Secondary) - Glass Pill -->
+                        <Button Grid.Column="1"
+                                Command="{Binding CancelCommand}"
+                                Content="{Binding CancelButtonText}"
+                                Margin="0,0,12,0"
+                                Padding="24,10"
+                                Background="#10FFFFFF"
+                                BorderBrush="#30FFFFFF"
+                                BorderThickness="1"
+                                Foreground="#DDDDDD"
+                                CornerRadius="20"
+                                Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="#25FFFFFF" />
+                                    <Setter Property="Foreground" Value="White" />
+                                    <Setter Property="BorderBrush" Value="#50FFFFFF" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- Confirm Button (Primary) with Gradient & Glow -->
+                        <Button Grid.Column="2"
+                                Command="{Binding ConfirmCommand}"
+                                Padding="24,8"
+                                BorderThickness="0"
+                                Foreground="White"
+                                FontWeight="SemiBold"
+                                CornerRadius="20"
+                                Cursor="Hand">
+                            <Button.Background>
+                                <StaticResource ResourceKey="PrimaryGradientBrush" />
+                            </Button.Background>
+
+                            <Button.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="Transitions">
+                                        <Transitions>
+                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                                        </Transitions>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="RenderTransform" Value="translateY(-1px)" />
+                                    <Setter Property="Opacity" Value="0.9" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    <Setter Property="Opacity" Value="0.8" />
+                                </Style>
+                            </Button.Styles>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}"
+                                          Width="14" Height="14"
+                                          Foreground="White"
+                                          VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding ConfirmButtonText}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Panel>
+        </Border>
+    </Grid>
+</Window>

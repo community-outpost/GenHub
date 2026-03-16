@@ -14,7 +14,7 @@ public class ToolRegistry : IToolRegistry
     /// <inheritdoc/>
     public IReadOnlyList<IToolPlugin> GetAllTools()
     {
-        return _tools.Values.ToList();
+        return [.. _tools.Values];
     }
 
     /// <inheritdoc/>
@@ -39,13 +39,19 @@ public class ToolRegistry : IToolRegistry
     }
 
     /// <inheritdoc/>
+    public void RegisterTool(IToolPlugin plugin)
+    {
+        _tools[plugin.Metadata.Id] = plugin;
+    }
+
+    /// <inheritdoc/>
     public bool UnregisterTool(string toolId)
     {
         var removed = _tools.TryRemove(toolId, out var plugin);
         if (removed && plugin != null)
         {
             plugin.Dispose();
-            _toolAssemblyPaths.TryRemove(toolId, out var path);
+            _ = _toolAssemblyPaths.TryRemove(toolId, out _);
         }
 
         return removed;

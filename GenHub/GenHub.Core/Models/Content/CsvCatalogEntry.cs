@@ -54,4 +54,10 @@ public sealed class CsvCatalogEntry
     /// </summary>
     [Name("metadata")]
     public string? Metadata { get; set; }
+
+    /// <summary>
+    /// Gets or sets the GitHub raw content URL for the file.
+    /// </summary>
+    [Name("downloadUrl")]
+    public string? DownloadUrl { get; set; }
 }

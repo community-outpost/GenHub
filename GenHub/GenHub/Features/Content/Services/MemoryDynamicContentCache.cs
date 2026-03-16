@@ -15,7 +15,7 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicContentCache
 {
-    private static readonly List<string> _keys = new();
+    private static readonly List<string> _keys = [];
     private readonly IMemoryCache _memoryCache = memoryCache;
 
     /// <inheritdoc/>
@@ -59,7 +59,7 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
 
         lock (_keys)
         {
-            keysToRemove = _keys.Where(k => regex.IsMatch(k)).ToList();
+            keysToRemove = [.._keys.Where(k => regex.IsMatch(k))];
         }
 
         foreach (var key in keysToRemove)

@@ -2,6 +2,7 @@ using System.Net;
 using System.Security;
 using FluentAssertions;
 using GenHub.Features.GitHub.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -33,7 +34,11 @@ public class OctokitGitHubApiClientTests
         var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
         gitHubClientMock.SetupGet(x => x.Repository).Returns(repositoriesClientMock.Object);
 
-        var api = new OctokitGitHubApiClient(gitHubClientMock.Object, Mock.Of<IHttpClientFactory>(), Mock.Of<ILogger<OctokitGitHubApiClient>>());
+        var api = new OctokitGitHubApiClient(
+            gitHubClientMock.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            Mock.Of<IMemoryCache>());
 
         // Act
         var result = await api.GetLatestReleaseAsync("owner", "repo");
@@ -63,7 +68,14 @@ public class OctokitGitHubApiClientTests
         var gitHubClientMock = new Mock<Octokit.IGitHubClient>();
         gitHubClientMock.SetupGet(x => x.Repository).Returns(repositoriesClientMock.Object);
 
-        var api = new OctokitGitHubApiClient(gitHubClientMock.Object, Mock.Of<IHttpClientFactory>(), Mock.Of<ILogger<OctokitGitHubApiClient>>());
+        // A real one is easier for extension method support like cache.Set/TryGetValue
+        var cache = new MemoryCache(new MemoryCacheOptions());
+
+        var api = new OctokitGitHubApiClient(
+            gitHubClientMock.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            cache); // Added the missing parameter
 
         // Act
         var result = await api.GetReleasesAsync("owner", "repo");
@@ -80,7 +92,12 @@ public class OctokitGitHubApiClientTests
     {
         // Arrange
         var concreteClient = new GitHubClient(new ProductHeaderValue("test"));
-        var api = new OctokitGitHubApiClient(concreteClient, Mock.Of<IHttpClientFactory>(), Mock.Of<ILogger<OctokitGitHubApiClient>>());
+        var api = new OctokitGitHubApiClient(
+            concreteClient,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            Mock.Of<IMemoryCache>());
+
         var secureToken = new SecureString();
         foreach (char c in "test-token")
         {
@@ -100,7 +117,12 @@ public class OctokitGitHubApiClientTests
     {
         // Arrange
         var mockClient = new Mock<Octokit.IGitHubClient>();
-        var api = new OctokitGitHubApiClient(mockClient.Object, Mock.Of<IHttpClientFactory>(), Mock.Of<ILogger<OctokitGitHubApiClient>>());
+        var api = new OctokitGitHubApiClient(
+            mockClient.Object,
+            Mock.Of<IHttpClientFactory>(),
+            Mock.Of<ILogger<OctokitGitHubApiClient>>(),
+            Mock.Of<IMemoryCache>());
+
         var secureToken = new SecureString();
         foreach (char c in "test-token")
         {

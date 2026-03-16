@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
@@ -19,8 +20,6 @@ namespace GenHub.Features.Workspace;
 /// </summary>
 public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspaceValidator
 {
-    private readonly ILogger<WorkspaceValidator> _logger = logger;
-
     /// <summary>
     /// Validates a workspace configuration.
     /// </summary>
@@ -100,8 +99,8 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
 
         // Validate that manifests have files (required for workspace preparation)
-        if (configuration.Manifests.Any() &&
-            configuration.Manifests.All(m => (m.Files?.Any() ?? false) == false))
+        if (configuration.Manifests.Count > 0 &&
+            configuration.Manifests.All(m => m.Files?.Count == 0))
         {
             issues.Add(new ValidationIssue
             {
@@ -157,7 +156,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                     {
                         IssueType = ValidationIssueType.UnexpectedFile,
                         Severity = ValidationSeverity.Warning,
-                        Message = $"Strategy '{strategy.Name ?? "Unknown"}' works best when source and destination are on the same volume. Source: {sourceRoot}, Destination: {destRoot}",
+                        Message = $"Strategy '{strategy.Name ?? GameClientConstants.UnknownVersion}' works best when source and destination are on the same volume. Source: {sourceRoot}, Destination: {destRoot}",
                         Path = "VolumeCheck",
                     });
                 }
@@ -183,7 +182,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not check disk space for {DestinationPath}", destinationPath);
+                logger.LogWarning(ex, "Could not check disk space for {DestinationPath}", destinationPath);
             }
         }
 
@@ -272,7 +271,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Could not check execute permissions for {ExecutablePath}", executablePath);
+                            logger.LogWarning(ex, "Could not check execute permissions for {ExecutablePath}", executablePath);
                         }
                     }
                 }
@@ -321,7 +320,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
+            logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
             return OperationResult<ValidationResult>.CreateFailure($"Workspace validation failed: {ex.Message}");
         }
     }
@@ -414,7 +413,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not validate symlinks in workspace {WorkspacePath}", workspacePath);
+            logger.LogWarning(ex, "Could not validate symlinks in workspace {WorkspacePath}", workspacePath);
         }
 
         await Task.CompletedTask;

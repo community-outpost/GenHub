@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Info.ViewModels"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:infoViews="clr-namespace:GenHub.Features.Info.Views"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+             x:Class="GenHub.Features.Info.Views.InfoView"
+             x:DataType="vm:InfoViewModel">
+
+  <UserControl.Resources>
+  </UserControl.Resources>
+
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="vm:FaqSectionViewModel">
+      <infoViews:FaqSectionView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:GenHubInfoSectionViewModel">
+      <infoViews:GenHubInfoSectionView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <UserControl.Styles>
+    <!-- Override local styles to align with glassmorphic theme -->
+    <Style Selector="ListBoxItem">
+      <!-- Inherit base properties but ensure transparent background to let gradient show -->
+      <Setter Property="Background" Value="Transparent" />
+       <!-- Inherit padding from global SidebarLayoutStyles to ensure consistency -->
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="ComboBox.glass-combo">
+      <Setter Property="Background" Value="#1AFFFFFF" /> <!-- 10% White (Subtle) -->
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBox.glass-combo:pointerover">
+      <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}" />
+      <Setter Property="Background" Value="#4D1A1A2E" />
+    </Style>
+
+    <Style Selector="TextBlock.header">
+      <Setter Property="FontSize" Value="28"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Margin" Value="0,0,0,20"/>
+      <Setter Property="Effect">
+        <DropShadowEffect BlurRadius="10" Color="Black" Opacity="0.5" OffsetX="2" OffsetY="2"/>
+      </Setter>
+    </Style>
+  </UserControl.Styles>
+
+  <controls:SidebarLayout PaneTitle="Info"
+                          ItemsSource="{Binding SidebarItems}"
+                          SelectedItem="{Binding SelectedSidebarItem}"
+                          IsPaneOpen="{Binding IsPaneOpen}">
+
+    <controls:SidebarLayout.PaneHeader>
+        <ComboBox ItemsSource="{Binding Modules}"
+                  SelectedItem="{Binding SelectedModule}"
+                  Classes="glass-combo"
+                  HorizontalAlignment="Stretch"
+                  Margin="0,0,0,10">
+              <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                      <TextBlock Text="{Binding}" Foreground="White" />
+                  </DataTemplate>
+              </ComboBox.ItemTemplate>
+        </ComboBox>
+    </controls:SidebarLayout.PaneHeader>
+
+    <controls:SidebarLayout.ItemTemplate>
+        <DataTemplate>
+            <ContentControl Content="{Binding}">
+                <ContentControl.DataTemplates>
+                    <!-- Guide Section Item -->
+                    <DataTemplate DataType="vm:InfoSectionViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <!-- Removed Border, Just Icon now with gradient fill effect usually handled by svg,
+                                 but for MaterialIcon we use foreground. Using Pink/Purple -->
+
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="15" FontWeight="Medium" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </DataTemplate>
+                    <!-- Zero Hour FAQ Category -->
+                    <DataTemplate DataType="vm:FaqCategoryViewModel">
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                             <!-- Restored Icon for consistency with Guide section.
+                                  Using generic icon to ensure text aligns perfectly with other sections. -->
+                             <material:MaterialIcon Kind="HelpCircleOutline"
+                                                    Width="22"
+                                                    Height="22"
+                                                    Foreground="{StaticResource PurpleAccentBright}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"/>
+                             <TextBlock Text="{Binding Title}"
+                                        VerticalAlignment="Center"
+                                        FontSize="15"
+                                        FontWeight="Medium"
+                                        TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ContentControl.DataTemplates>
+            </ContentControl>
+        </DataTemplate>
+    </controls:SidebarLayout.ItemTemplate>
+
+    <!-- Content Area -->
+    <Border Background="Transparent" Padding="20">
+        <Panel>
+            <!-- Main Content (Guide or Zero Hour) -->
+            <ContentControl Content="{Binding SelectedSection}" />
+        </Panel>
+    </Border>
+  </controls:SidebarLayout>
+
+</UserControl>

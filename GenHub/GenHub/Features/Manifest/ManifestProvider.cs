@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Extensions.GameInstallations;
 using System;
 using System.IO;
@@ -93,7 +94,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                         embeddedSourceDir = null;
                     }
 
-                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, cancellationToken);
+                    var addResult = await manifestPool.AddManifestAsync(manifest, embeddedSourceDir ?? string.Empty, null, cancellationToken);
                     if (addResult?.Success == true)
                     {
                         return manifest;
@@ -118,7 +119,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             var gameVersionInt = int.TryParse(gameClient.Version, out var parsedVersion) ? parsedVersion : 0;
             var generated = manifestBuilder
-                .WithBasicInfo("EA Games", gameClient.Name ?? "Unknown", gameVersionInt)
+                .WithBasicInfo("EA Games", gameClient.Name ?? GameClientConstants.UnknownVersion, gameVersionInt)
                 .WithContentType(ContentType.GameClient, gameClient.GameType)
                 .WithPublisher("EA Games", "https://www.ea.com")
                 .WithMetadata($"Generated manifest for {gameClient.Name}")
@@ -130,7 +131,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     IsRequired = true,
                 })
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink)
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy)
                 .Build();
 
             // Validate ID before adding to pool
@@ -151,7 +152,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 gameDir = null;
             }
 
-            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, cancellationToken);
+            var addRes = await manifestPool.AddManifestAsync(generated, gameDir ?? string.Empty, null, cancellationToken);
             if (addRes?.Success != true)
             {
                 logger.LogWarning("Failed to add generated manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes?.Errors ?? []));
@@ -205,7 +206,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 if (manifest != null)
                 {
                     // For embedded installation manifests, provide the installation path as source when available.
-                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, cancellationToken);
+                    var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, null, cancellationToken);
                     if (addRes?.Success != true)
                         logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
                     return manifest;
@@ -237,7 +238,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 .WithPublisher(publisherName, string.Empty)
                 .WithMetadata($"Generated manifest for {manifestGameType} at {sourcePath}")
                 .AddRequiredDirectories("Data", "Maps")
-                .WithInstallationInstructions(WorkspaceStrategy.SymlinkOnly);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Currently, AddFilesFromDirectoryAsync will skip hash computation for ContentSourceType.GameInstallation
             // to dramatically improve scan performance. This is acceptable because:
@@ -261,7 +262,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
-            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, cancellationToken);
+            var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
             if (addRes2?.Success != true)
             {
                 logger.LogWarning("Failed to add generated installation manifest {Id} to pool: {Errors}", generated.Id, string.Join(", ", addRes2?.Errors ?? []));

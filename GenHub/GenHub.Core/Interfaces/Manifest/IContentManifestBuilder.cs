@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 
@@ -203,7 +204,7 @@ public interface IContentManifestBuilder
     /// </summary>
     /// <param name="workspaceStrategy">The workspace preparation strategy.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceStrategy.HybridCopySymlink);
+    IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy);
 
     /// <summary>
     /// Adds a pre-installation step.

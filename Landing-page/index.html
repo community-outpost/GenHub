@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeneralsHub - Universal C&C Launcher</title>
+    <meta name="description"
+        content="The modern launcher for Command & Conquer: Generals and Zero Hour. Manage profiles, mods, maps, and replays in isolated workspaces.">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="GeneralsHub - Universal C&C Launcher">
+    <meta property="og:description" content="The modern launcher for Command & Conquer: Generals and Zero Hour.">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="./assets/icon.png">
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+
+    <link rel="stylesheet" href="./assets/css/variables.css">
+    <link rel="stylesheet" href="./assets/css/global.css">
+    <link rel="stylesheet" href="./assets/css/header.css">
+    <link rel="stylesheet" href="./assets/css/main.css">
+    <link rel="stylesheet" href="./assets/css/features.css">
+    <link rel="stylesheet" href="./assets/css/footer.css">
+    <link rel="stylesheet" href="./assets/css/animations.css">
+    <link rel="stylesheet" href="./assets/css/responsive.css">
+
+    <style>
+      /* GitHub Stats Styles */
+      .stats-widget {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: inline-block;
+      }
+
+      .stats-card {
+        background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+        border: 1px solid #3d3d5c;
+        border-radius: 12px;
+        padding: 24px;
+        width: 280px;
+        position: relative;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+      }
+
+      .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      }
+
+      .stats-summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .stat-box {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #8b8b9a;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #4dabf7;
+        line-height: 1;
+      }
+
+      /* Hover Breakdown Panel */
+      .stats-tooltip {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        width: 100%;
+        background: #252538;
+        border: 1px solid #3d3d5c;
+        border-radius: 8px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        max-height: 300px;
+        overflow: hidden;
+      }
+
+      .stats-card:hover .stats-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      .tooltip-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #3d3d5c;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1e1e2e;
+        border-radius: 8px 8px 0 0;
+      }
+
+      .tooltip-header span {
+        font-weight: 600;
+        font-size: 13px;
+        color: #fff;
+      }
+
+      .tooltip-header small {
+        font-size: 11px;
+        color: #8b8b9a;
+      }
+
+      .tooltip-content {
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      /* Scrollbar styling */
+      .tooltip-content::-webkit-scrollbar {
+        width: 6px;
+      }
+      .tooltip-content::-webkit-scrollbar-track {
+        background: #1e1e2e;
+      }
+      .tooltip-content::-webkit-scrollbar-thumb {
+        background: #4dabf7;
+        border-radius: 3px;
+      }
+
+      .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #3d3d5c33;
+        font-size: 12px;
+        transition: background 0.2s;
+      }
+
+      .breakdown-row:hover {
+        background: #ffffff08;
+        border-radius: 4px;
+      }
+
+      .breakdown-row:last-child {
+        border-bottom: none;
+      }
+
+      .version-tag {
+        font-weight: 600;
+        color: #4dabf7;
+        font-family: "SF Mono", Monaco, monospace;
+        font-size: 11px;
+      }
+
+      .version-stats {
+        display: flex;
+        gap: 12px;
+        color: #8b8b9a;
+      }
+
+      .stat-pill {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .stat-pill b {
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .loading-text, .error-text {
+        text-align: center;
+        padding: 20px;
+        color: #8b8b9a;
+        font-size: 12px;
+      }
+
+      .error-text {
+        color: #ff6b6b;
+      }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <nav>
+            <a href="#" class="logo">
+                <img src="./assets/icon.png" alt="GenHub" onerror="this.style.display='none'">
+                GeneralsHub
+            </a>
+            <div class="nav-links">
+                <a href="https://generalshub.netlify.app/wiki/" target="_blank">Docs</a>
+                <a href="https://github.com/community-outpost/GenHub" target="_blank">GitHub</a>
+                <a href="https://github.com/community-outpost/GenHub/releases" target="_blank">Releases</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="version-badge">Alpha Release: VERSION_PLACEHOLDER</div>
+            <h1>Universal C&C Launcher</h1>
+            <p class="hero-subtitle">
+                The modern platform for Command & Conquer: Generals and Zero Hour. 
+                Install, switch, and launch different setups without breaking your game folder.
+            </p>
+            <p class="hero-description">
+                Manage mods, maps, replays, and profiles in completely isolated workspaces.
+            </p>
+
+            <div class="cta-group">
+                <a href="URL_PLACEHOLDER" id="download-btn" class="btn btn-primary">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Download for Windows
+                </a>
+                <a href="https://github.com/community-outpost/GenHub/releases/latest" target="_blank"
+                    class="btn btn-secondary">
+                    View All Releases
+                </a>
+            </div>
+            <!-- GitHub Stats Component -->
+            <div id="genhub-stats-widget" class="stats-widget" style="margin-top: 3rem;">
+              <div class="stats-card" style="margin: 0 auto;">
+                <div class="stats-summary">
+                  <div class="stat-box">
+                    <span class="stat-label">Total Installs</span>
+                    <span class="stat-value" id="gh-total-installs">...</span>
+                  </div>
+                  <div class="stat-box">
+                    <span class="stat-label">Updates Served</span>
+                    <span class="stat-value" id="gh-total-updates">...</span>
+                  </div>
+                </div>
+                
+                <div class="stats-tooltip">
+                  <div class="tooltip-header">
+                    <span>Release Breakdown</span>
+                  </div>
+                  <div class="tooltip-content" id="gh-breakdown-list">
+                    <div class="loading-text">Loading history...</div>
+                  </div>
+                </div>
+              </div>
+            </div>            
+            <div class="platform-info">
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+                    Windows
+                </span>
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.468v.024c.016.264.066.466.178.664.022.04.05.077.08.113l.012.016.003.005c-.028.012-.056.03-.084.06-.073.066-.141.2-.161.333-.02.2.021.4.082.533.105.2.176.333.359.465.186.133.3.2.48.239l.005.002c-.087.06-.182.116-.252.198-.047.06-.081.14-.082.267 0 .09.015.2.066.332.062.137.172.27.332.399.325.26.747.4 1.186.4.145 0 .291-.014.44-.043a2.26 2.26 0 00.834-.304c.39-.223.672-.527.847-.869.174-.34.259-.698.259-1.06v-.074c0-.403-.16-.8-.46-1.067-.299-.266-.698-.4-1.106-.4a1.52 1.52 0 00-.406.053c-.148.043-.28.108-.395.2-.126.093-.226.202-.317.331v-.135c0-.2-.063-.4-.17-.534a.5.5 0 00-.4-.2z"/></svg>
+                    Linux
+                </span>
+                <span class="platform-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 3.536c.603-.401 1.326-.635 2.106-.635.06 0 .12.003.18.007l3.149-4.567v-.063c0-2.583 2.1-4.687 4.687-4.687s4.687 2.104 4.687 4.687-2.1 4.687-4.687 4.687h-.105l-4.495 3.206c.003.054.007.109.007.165 0 1.94-1.576 3.518-3.518 3.518-.167 0-.331-.015-.492-.042l-6.102 3.354C2.964 22.636 7.16 24 11.979 24c6.627 0 12-5.373 12-12s-5.373-12-12-12z"/></svg>
+                    Steam Integration
+                </span>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="card">
+                <div class="card-icon"><i data-feather="sliders"></i></div>
+                <h3>Game Profiles</h3>
+                <p>Create configurations for Vanilla, Competitive, or Modded setups. Switch instantly without file conflicts.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="download-cloud"></i></div>
+                <h3>One-Click Downloads</h3>
+                <p>Install Generals Online, TheSuperHackers releases, and Community Patches with a single click. Auto-updates included.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="compass"></i></div>
+                <h3>Content Discovery</h3>
+                <p>Browse mods from GitHub, ModDB, and CNCLabs. Content is automatically discovered and ready to install.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="layers"></i></div>
+                <h3>Isolated Workspaces</h3>
+                <p>Each profile runs in its own environment. Smart storage deduplication saves disk space automatically.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="map"></i></div>
+                <h3>Map Manager</h3>
+                <p>Drag-and-drop import, cloud sharing, and MapPack creation. Import directly from GenTool or match pages.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon"><i data-feather="film"></i></div>
+                <h3>Replay Manager</h3>
+                <p>Import replays from multiple sources. Upload to GenHub Cloud and share with a simple link.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 Community Outpost &bull; Built for the C&C Community</p>
+            <div class="footer-links">
+                <a href="https://github.com/community-outpost/GenHub" target="_blank">Source Code</a>
+                <span class="footer-divider">•</span>
+                <a href="https://generalshub.netlify.app/" target="_blank">Documentation</a>
+                <span class="footer-divider">•</span>
+                <a href="https://github.com/community-outpost/GenHub/issues" target="_blank">Report Issue</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Feather Icons
+        feather.replace();
+
+        // GitHub Stats Tracking
+        (function() {
+          // Configuration
+          const CONFIG = {
+            owner: 'community-outpost',
+            repo: 'GenHub',
+            cacheKey: 'genhub_stats_v1',
+            perPage: 100
+          };
+
+          const apiUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/releases?per_page=${CONFIG.perPage}`;
+
+          // Initialize
+          document.addEventListener('DOMContentLoaded', initStats);
+
+          async function initStats() {
+            // Check cache first (session-only to ensure fresh data per visit)
+            const cached = sessionStorage.getItem(CONFIG.cacheKey);
+            if (cached) {
+              try {
+                renderStats(JSON.parse(cached));
+                return;
+              } catch (parseError) {
+                // Cache is corrupted, clear it and proceed to fetch
+                sessionStorage.removeItem(CONFIG.cacheKey);
+              }
+            }
+
+            try {
+              const data = await fetchGitHubStats();
+              // Cache for this browser session only
+              sessionStorage.setItem(CONFIG.cacheKey, JSON.stringify(data));
+              renderStats(data);
+            } catch (error) {
+              handleError(error);
+            }
+          }
+
+          async function fetchGitHubStats() {
+            // Add timeout to prevent indefinite hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+            const response = await fetch(apiUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (response.status === 403) {
+              throw new Error('Rate limit exceeded. Try again later.');
+            }
+            if (!response.ok) {
+              throw new Error(`API Error: ${response.status}`);
+            }
+
+            const releases = await response.json();
+            
+            let totals = { installs: 0, updates: 0 };
+            let history = [];
+
+            releases.forEach(release => {
+              let releaseInstalls = 0;
+              let releaseUpdates = 0;
+
+              // Categorize assets based on Velopack naming conventions
+              release.assets.forEach(asset => {
+                const name = asset.name.toLowerCase();
+                
+                // Setup.exe = Fresh installs
+                if (name.endsWith('-setup.exe') || (name.endsWith('.exe') && !name.includes('full') && !name.includes('delta'))) {
+                  releaseInstalls += asset.download_count;
+                }
+                // .nupkg = Updates (both full and delta count as update mechanisms)
+                else if (name.endsWith('.nupkg')) {
+                  releaseUpdates += asset.download_count;
+                }
+              });
+
+              totals.installs += releaseInstalls;
+              totals.updates += releaseUpdates;
+
+              // Only add to history if this version had any activity
+              if (releaseInstalls > 0 || releaseUpdates > 0) {
+                history.push({
+                  version: release.tag_name,
+                  date: release.published_at,
+                  installs: releaseInstalls,
+                  updates: releaseUpdates
+                });
+              }
+            });
+
+            // Sort by date (newest first)
+            history.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            return { totals, history, lastUpdated: new Date().toISOString() };
+          }
+
+          function renderStats(data) {
+            // Update summary numbers with animation
+            animateNumber('gh-total-installs', data.totals.installs);
+            animateNumber('gh-total-updates', data.totals.updates);
+
+            // Build breakdown list
+            const listContainer = document.getElementById('gh-breakdown-list');
+            if (listContainer) {
+              listContainer.innerHTML = '';
+
+              if (data.history.length === 0) {
+                listContainer.innerHTML = '<div class="loading-text">No release data found</div>';
+                return;
+              }
+
+              data.history.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'breakdown-row';
+                row.innerHTML = `
+                  <span class="version-tag">${escapeHtml(item.version)}</span>
+                  <div class="version-stats">
+                    <span class="stat-pill" title="New Installs">
+                      <b>${formatNumber(item.installs)}</b> installs
+                    </span>
+                    <span class="stat-pill" title="Updates">
+                      <b>${formatNumber(item.updates)}</b> updates
+                    </span>
+                  </div>
+                `;
+                listContainer.appendChild(row);
+              });
+            }
+          }
+
+          function handleError(error) {
+            console.error('[GitHub Stats]', error);
+            const container = document.getElementById('gh-breakdown-list');
+            if (container) {
+              container.innerHTML = `<div class="error-text">Stats unavailable<br><small>${escapeHtml(error.message)}</small></div>`;
+            }
+            const installsElem = document.getElementById('gh-total-installs');
+            const updatesElem = document.getElementById('gh-total-updates');
+            if (installsElem) installsElem.textContent = '-';
+            if (updatesElem) updatesElem.textContent = '-';
+          }
+
+          // Utility: Animate number counting up
+          function animateNumber(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            const duration = 1000;
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+              const elapsed = currentTime - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+              const current = Math.floor(start + (targetValue - start) * easeOutQuart);
+              
+              element.textContent = formatNumber(current);
+              
+              if (progress < 1) {
+                requestAnimationFrame(update);
+              }
+            }
+            
+            requestAnimationFrame(update);
+          }
+
+          // Utility: Format large numbers (1,234)
+          function formatNumber(num) {
+            return num.toLocaleString();
+          }
+
+          // Utility: Escape HTML to prevent XSS
+          function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+          }
+        })();
+    </script>
+
+</body>
+
+</html>

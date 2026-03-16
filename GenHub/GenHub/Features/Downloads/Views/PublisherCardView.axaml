@@ -55,7 +55,7 @@
     <Border Classes="publisher-card" VerticalAlignment="Top">
         <StackPanel Spacing="12">
             <!-- Header with expand/collapse -->
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                 <!-- Icon - Logo Image or Color Circle -->
                 <Panel Grid.Column="0"
                        Width="24" Height="24"
@@ -79,7 +79,7 @@
                            Foreground="White"
                            VerticalAlignment="Center" />
 
-                <!-- Loading/Error Indicator -->
+                <!-- Loading Indicator -->
                 <TextBlock Grid.Column="2"
                            Text="⟳"
                            FontSize="16"
@@ -89,7 +89,7 @@
                            Margin="0,0,10,0" />
 
                 <!-- Expand/Collapse Button -->
-                <Button Grid.Column="3"
+                <Button Grid.Column="4"
                         Command="{Binding ToggleExpandCommand}"
                         Background="Transparent"
                         BorderThickness="0"
@@ -190,7 +190,7 @@
                                                             <Button Classes="link-button"
                                                                     Content="{Binding IsChangelogExpanded, Converter={x:Static converters:BoolToTextConverter.Instance}, ConverterParameter='Show Less|Show More'}"
                                                                     Command="{Binding ToggleChangelogCommand}"
-                                                                    Foreground="#2196F3"
+                                                                    Foreground="#9575CD"
                                                                     Background="Transparent"
                                                                     BorderThickness="0"
                                                                     Padding="0"
@@ -201,12 +201,27 @@
                                                                     IsVisible="{Binding ShouldShowChangelogToggle}" />
                                                         </StackPanel>
 
+                                                        <!-- Dependency Warning - shown prominently for content with required dependencies -->
+                                                        <Border Background="#4D3A1A"
+                                                                BorderBrush="#FFB74D"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="8,6"
+                                                                Margin="0,4,0,0"
+                                                                IsVisible="{Binding HasRequiredDependencies}">
+                                                            <TextBlock Text="{Binding DependencyWarningText}"
+                                                                       FontSize="11"
+                                                                       Foreground="#FFD54F"
+                                                                       FontWeight="SemiBold"
+                                                                       TextWrapping="Wrap" />
+                                                        </Border>
+
                                                         <!-- Progress Bar - visible during installation -->
                                                         <ProgressBar Value="{Binding DownloadProgress}"
                                                                      Maximum="100"
                                                                      Height="4"
                                                                      IsVisible="{Binding IsDownloading}"
-                                                                     Foreground="#4CAF50"
+                                                                     Foreground="#A15DF3"
                                                                      Background="#333333" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
                                                         <TextBlock Text="{Binding DownloadStatus}"

@@ -70,6 +70,7 @@ public partial class GitHubTokenDialogViewModel(IGitHubTokenStorage tokenStorage
     public void Dispose()
     {
         _secureToken?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>

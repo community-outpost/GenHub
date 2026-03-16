@@ -1,0 +1,83 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Styles.Resources>
+        <Color x:Key="ScrollbarThumbColor">#7C4DFF</Color>
+        <Color x:Key="ScrollbarThumbHoverColor">#E040FB</Color>
+        <Color x:Key="ScrollbarTrackColor">#1A1A2E</Color>
+    </Styles.Resources>
+
+    <Style Selector="ScrollBar">
+        <Setter Property="Cursor" Value="Arrow" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent" UseLayoutRounding="False">
+                    <Grid>
+                        <Track Name="PART_Track"
+                               IsDirectionReversed="True"
+                               Orientation="{TemplateBinding Orientation}"
+                               Grid.Row="1"
+                               Grid.Column="1">
+                            <Track.DecreaseButton>
+                                <RepeatButton Name="PART_PageUpButton"
+                                              Classes="repeat"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.DecreaseButton>
+                            <Track.IncreaseButton>
+                                <RepeatButton Name="PART_PageDownButton"
+                                              Classes="repeat"
+                                              Focusable="False"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                            </Track.IncreaseButton>
+                            <Thumb Name="PART_Thumb"
+                                   Classes="thumb"
+                                   Margin="2"
+                                   Background="{DynamicResource ThemeControlMidBrush}"
+                                   BorderBrush="{DynamicResource ThemeBorderLowBrush}" />
+                        </Track>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style Selector="ScrollBar:vertical">
+        <Setter Property="Width" Value="10" />
+    </Style>
+
+    <Style Selector="ScrollBar:horizontal">
+        <Setter Property="Height" Value="10" />
+    </Style>
+
+    <!-- Thumb Style -->
+    <Style Selector="Thumb.thumb">
+        <Setter Property="Template">
+             <ControlTemplate>
+                 <Border Background="{StaticResource PurpleAccentGradient}"
+                         CornerRadius="4"
+                         BoxShadow="0 0 4 0 #4D7C4DFF"/>
+             </ControlTemplate>
+        </Setter>
+        <Setter Property="Transitions">
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1"/>
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Thumb.thumb:pointerover">
+        <Setter Property="RenderTransform" Value="scaleX(1.1) scaleY(1.0)"/>
+    </Style>
+
+    <!-- Invisible Repeat Buttons (Track) -->
+    <Style Selector="RepeatButton.repeat">
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="Transparent" />
+            </ControlTemplate>
+        </Setter>
+    </Style>
+</Styles>

@@ -89,7 +89,7 @@ public class DependencyResolver(
             }
         }
 
-        if (missingContentIds.Any())
+        if (missingContentIds.Count > 0)
         {
             throw new InvalidOperationException($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
         }
@@ -181,16 +181,16 @@ public class DependencyResolver(
             }
         }
 
-        if (missingContentIds.Any())
+        if (missingContentIds.Count > 0)
         {
             return DependencyResolutionResult.CreateFailure($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
         }
 
-        if (warnings.Any())
+        if (warnings.Count > 0)
         {
-            return DependencyResolutionResult.CreateSuccessWithWarnings(resolvedIds.ToList(), resolvedManifests, missingContentIds, warnings);
+            return DependencyResolutionResult.CreateSuccessWithWarnings([..resolvedIds], resolvedManifests, missingContentIds, warnings);
         }
 
-        return DependencyResolutionResult.CreateSuccess(resolvedIds.ToList(), resolvedManifests, missingContentIds);
+        return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
     }
 }

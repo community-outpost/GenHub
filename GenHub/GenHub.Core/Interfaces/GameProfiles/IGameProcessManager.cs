@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
+using System.Diagnostics;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -44,4 +45,20 @@ public interface IGameProcessManager
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A process operation result containing the list of active processes.</returns>
     Task<OperationResult<IReadOnlyList<GameProcessInfo>>> GetActiveProcessesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Attempts to discover a running process by name and track it as a managed process.
+    /// Useful for games launched via Steam.
+    /// </summary>
+    /// <param name="processName">The name of the process (without extension).</param>
+    /// <param name="workingDirectory">The expected working directory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A process operation result containing the discovered process info.</returns>
+    Task<OperationResult<GameProcessInfo>> DiscoverAndTrackProcessAsync(string processName, string workingDirectory, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Registers an existing process for tracking.
+    /// </summary>
+    /// <param name="process">The process to track.</param>
+    void TrackProcess(Process process);
 }

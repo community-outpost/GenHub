@@ -19,11 +19,17 @@ public interface IToolRegistry
     IToolPlugin? GetToolById(string toolId);
 
     /// <summary>
-    /// Registers a new tool plugin.
+    /// Registers a new tool plugin with an assembly path (external tool).
     /// </summary>
     /// <param name="plugin">The tool plugin to register.</param>
     /// <param name="assemblyPath">The path to the tool assembly.</param>
     void RegisterTool(IToolPlugin plugin, string assemblyPath);
+
+    /// <summary>
+    /// Registers a new built-in tool plugin.
+    /// </summary>
+    /// <param name="plugin">The tool plugin to register.</param>
+    void RegisterTool(IToolPlugin plugin);
 
     /// <summary>
     /// Unregisters a tool plugin by its ID.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -84,12 +84,12 @@ public static partial class CNCLabsHelper
                   .Append(query.NumberOfPlayers.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            if (query.Tags != null && query.Tags.Count > 0)
+            if (query.CNCLabsMapTags != null && query.CNCLabsMapTags.Count > 0)
             {
                 sb.Append('&')
                   .Append(CNCLabsConstants.TagsQueryParam)
                   .Append('=')
-                  .Append(string.Join(CNCLabsConstants.CommaSeparator, query.Tags));
+                  .Append(string.Join(CNCLabsConstants.CommaSeparator, query.CNCLabsMapTags));
             }
         }
 
