@@ -85,6 +85,18 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
             bytes.AddRange(charBytes);
         }
 
+        // If we exited because of the byte limit (not a null terminator), drain to the null terminator
+        // so subsequent reads start at the correct position.
+        if (bytes.Count + charSize > ReplayManagerConstants.MaxStringReadBytes)
+        {
+            byte[] drain;
+            do
+            {
+                drain = reader.ReadBytes(charSize);
+            }
+            while (drain.Length == charSize && !IsNullTerminator(drain, charSize));
+        }
+
         return bytes.Count > 0 ? encoding.GetString(bytes.ToArray()) : string.Empty;
     }
 

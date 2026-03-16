@@ -221,4 +221,7 @@ public partial class GameProfileSettingsViewModel
 
     [ObservableProperty]
     private GameType _selectedLocalGameType = Core.Models.Enums.GameType.ZeroHour;
+
+    [ObservableProperty]
+    private bool _isToolProfile;
 }
