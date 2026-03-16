@@ -221,6 +221,14 @@
                     BorderThickness="0"
                     Cursor="Hand"
                     ToolTip.Tip="Click to copy full version (including git hash) to clipboard">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent" />
+                    </Style>
+                    <Style Selector="Button:pressed /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent" />
+                    </Style>
+                </Button.Styles>
                 <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
                            FontSize="9"
                            Foreground="#808080" />
