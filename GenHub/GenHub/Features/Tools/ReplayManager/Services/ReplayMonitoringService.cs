@@ -47,7 +47,17 @@ public sealed class ReplayMonitoringService(
         var monitor = new ReplayMonitor(loggerFactory.CreateLogger<ReplayMonitor>());
         var sessionId = Guid.NewGuid().ToString();
 
-        monitor.FileCompleted += (sender, args) => _ = OnReplayFileCompletedAsync(profileId, gameType, sessionId, args);
+        monitor.FileCompleted += async (sender, args) =>
+        {
+            try
+            {
+                await OnReplayFileCompletedAsync(profileId, gameType, sessionId, args);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Unhandled exception in FileCompleted event handler for profile: {ProfileId}", profileId);
+            }
+        };
 
         var session = new MonitoringSession
         {
@@ -240,14 +250,13 @@ public sealed class ReplayMonitoringService(
                 "Successfully saved replay for profile {ProfileId}: {SavedFilePath}",
                 profileId,
                 savedFilePath);
+
+            // Only stop monitoring after successful save
+            StopMonitoringInternal(profileId, sessionId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error handling replay completion for profile: {ProfileId}", profileId);
-        }
-        finally
-        {
-            StopMonitoringInternal(profileId, sessionId);
         }
     }
 

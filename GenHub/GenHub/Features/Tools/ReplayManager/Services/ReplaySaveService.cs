@@ -144,7 +144,7 @@ public sealed class ReplaySaveService(
     private static string CopyWithRetry(string sourceFilePath, string destinationPath)
     {
         // Open source file once outside retry loop - if it fails, propagate immediately
-        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         for (var attempt = 0; attempt < ReplayManagerConstants.SaveRetryMaxAttempts; attempt++)
         {
@@ -165,6 +165,23 @@ public sealed class ReplaySaveService(
             {
                 throw new IOException(
                     $"Failed to copy replay file after {ReplayManagerConstants.SaveRetryMaxAttempts} attempts - destination path collision");
+            }
+            catch
+            {
+                // Clean up partially created destination file on non-IOException failures
+                try
+                {
+                    if (File.Exists(candidatePath))
+                    {
+                        File.Delete(candidatePath);
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup failures
+                }
+
+                throw;
             }
         }
 
