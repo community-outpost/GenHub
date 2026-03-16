@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -48,7 +49,8 @@ public class GameLauncher(
     IGameSettingsService gameSettingsService,
     IProfileContentLinker profileContentLinker,
     ISteamLauncher steamLauncher,
-    IConfigurationProviderService configurationProvider) : IGameLauncher
+    IConfigurationProviderService configurationProvider,
+    IReplayMonitorService replayMonitorService) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
@@ -1028,6 +1030,20 @@ public class GameLauncher(
             };
             logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
             await launchRegistry.RegisterLaunchAsync(launchInfo);
+
+            // Start replay monitoring if enabled for this profile
+            if (profile.AutoSaveReplays && !profile.IsToolProfile && profile.GameClient != null)
+            {
+                try
+                {
+                    await replayMonitorService.StartMonitoringAsync(profile.Id, profile.GameClient.GameType);
+                    logger.LogInformation("[GameLauncher] Started replay monitoring for profile {ProfileId}", profile.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[GameLauncher] Failed to start replay monitoring for profile {ProfileId}", profile.Id);
+                }
+            }
 
             // Report completion
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });

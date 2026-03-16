@@ -211,6 +211,11 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets a value indicating whether props are shown.</summary>
     public bool? VideoShowProps { get; set; }
 
+    // ===== GenHub Features =====
+
+    /// <summary>Gets or sets a value indicating whether to automatically save replays for this profile.</summary>
+    public bool AutoSaveReplays { get; set; }
+
     // ===== TheSuperHackers Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to archive replays automatically (TSH).</summary>

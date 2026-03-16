@@ -91,6 +91,11 @@ public class UpdateProfileRequest
     public string? CommandLineArguments { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether to automatically save replays for this profile.
+    /// </summary>
+    public bool? AutoSaveReplays { get; set; }
+
+    /// <summary>
     /// Gets or sets the video resolution width for this profile.
     /// </summary>
     public int? VideoResolutionWidth { get; set; }

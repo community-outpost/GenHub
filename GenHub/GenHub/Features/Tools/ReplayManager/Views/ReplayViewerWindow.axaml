@@ -1,0 +1,417 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:GenHub.Features.Tools.ReplayManager.ViewModels"
+        xmlns:models="using:GenHub.Core.Models.Tools.ReplayManager"
+        xmlns:converters="using:GenHub.Features.Tools.ReplayManager.Converters"
+        x:Class="GenHub.Features.Tools.ReplayManager.Views.ReplayViewerWindow"
+        x:DataType="vm:ReplayViewerViewModel"
+        Title="Replay Details"
+        Width="750"
+        Height="700"
+        MinWidth="650"
+        MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        Background="{DynamicResource ApplicationPageBackgroundThemeBrush}">
+
+    <Design.DataContext>
+        <!-- Design-time data provided at runtime via DataContext binding -->
+    </Design.DataContext>
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
+        <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50" />
+        <SolidColorBrush x:Key="ErrorColor" Color="#F44336" />
+        <SolidColorBrush x:Key="InfoColor" Color="#2196F3" />
+        <SolidColorBrush x:Key="HumanPlayerColor" Color="#2196F3" />
+        <SolidColorBrush x:Key="AIPlayerColor" Color="#FF9800" />
+        <SolidColorBrush x:Key="ObserverColor" Color="#9E9E9E" />
+
+        <!-- Converters -->
+        <converters:PlayerTypeToColorConverter x:Key="PlayerTypeToColorConverter"/>
+        <converters:PlayerTypeToIconConverter x:Key="PlayerTypeToIconConverter"/>
+        <converters:ColorNameToBrushConverter x:Key="ColorNameToBrushConverter"/>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #20000000" />
+        </Style>
+
+        <Style Selector="TextBlock.section-title">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Opacity" Value="0.7" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+
+        <Style Selector="Border.stat-card">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="16,12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+
+        <Style Selector="Border.player-card">
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource CardBackground}"
+                Padding="24,20" BoxShadow="0 2 8 0 #20000000">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock Text="🎮" FontSize="24" VerticalAlignment="Center"/>
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="Replay Details" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding FileName}" FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Parse Status Badge -->
+                <Border Grid.Column="2"
+                        Background="{Binding ParseStatusColor}"
+                        CornerRadius="12"
+                        Padding="12,6"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding ParseStatusIcon}" FontSize="12"/>
+                        <TextBlock Text="{Binding ParseStatusText}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" Padding="24,20">
+            <StackPanel Spacing="0">
+                <!-- Quick Stats Row -->
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <Grid ColumnDefinitions="*,*,*,*">
+                        <Border Grid.Column="0" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="⏱️" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="DURATION" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding FormattedDuration}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="👥" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="PLAYERS" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding PlayerCount}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Classes="stat-card">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="🗺️" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="MAP" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding MapNameShort}"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxWidth="120"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="3" Classes="stat-card" Margin="0">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="💾" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="SIZE" Classes="label" HorizontalAlignment="Center" FontSize="10"/>
+                                <TextBlock Text="{Binding FormattedFileSize}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Game Information -->
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Game Information" Classes="section-title"/>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <!-- Map Name -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="Map Name" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.MapName}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Type -->
+                            <StackPanel Grid.Row="0" Grid.Column="1">
+                                <TextBlock Text="Game Type" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameType}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Date -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="Game Date" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedGameDate}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Duration -->
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="Duration" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedDuration}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Game Version -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.GameVersion, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Version" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameVersion}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Build Date -->
+                            <StackPanel Grid.Row="2" Grid.Column="1" IsVisible="{Binding Metadata.BuildDate, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Build Date" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.BuildDate}" Classes="value"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Game Settings -->
+                <Border Classes="card" IsVisible="{Binding HasGameSettings}">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="Game Settings" Classes="section-title"/>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                            <!-- Game Mode -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.GameMode, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Mode" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameMode}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Game Speed -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" IsVisible="{Binding Metadata.GameSpeed, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Game Speed" Classes="label"/>
+                                <TextBlock Text="{Binding Metadata.GameSpeed}" Classes="value" FontWeight="SemiBold"/>
+                            </StackPanel>
+
+                            <!-- Starting Credits -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,0" IsVisible="{Binding Metadata.StartingCredits, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Starting Credits" Classes="label"/>
+                                <TextBlock Text="{Binding FormattedStartingCredits}" Classes="value"/>
+                            </StackPanel>
+
+                            <!-- Fog of War -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" IsVisible="{Binding Metadata.FogOfWar, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="Fog of War" Classes="label"/>
+                                <TextBlock Text="{Binding FogOfWarText}" Classes="value"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Players Section -->
+                <Border Classes="card" IsVisible="{Binding Metadata.IsParsed}">
+                    <StackPanel Spacing="0">
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                            <TextBlock Grid.Column="0" Text="Players" Classes="section-title" Margin="0"/>
+                            <Border Grid.Column="1"
+                                    Background="{DynamicResource AccentColor}"
+                                    CornerRadius="12"
+                                    Padding="10,4">
+                                <TextBlock Text="{Binding PlayerCount, StringFormat='{}{0} Players'}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="White"/>
+                            </Border>
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding Players}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="models:PlayerInfo">
+                                    <Border Classes="player-card">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+                                            <!-- Player Icon and Name -->
+                                            <Border Grid.Column="0" Grid.RowSpan="2"
+                                                    Width="40" Height="40"
+                                                    CornerRadius="20"
+                                                    Background="{Binding Type, Converter={StaticResource PlayerTypeToColorConverter}}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,12,0">
+                                                <TextBlock Text="{Binding Type, Converter={StaticResource PlayerTypeToIconConverter}}"
+                                                           FontSize="20"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="White"/>
+                                            </Border>
+
+                                            <StackPanel Grid.Column="1" Grid.Row="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="15"
+                                                           FontWeight="Bold"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                                <!-- Faction -->
+                                                <Border Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding Faction, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding Faction}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"/>
+                                                </Border>
+
+                                                <!-- Team -->
+                                                <Border Background="{DynamicResource SystemControlBackgroundAltMediumBrush}"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding Team, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding Team, StringFormat='Team {0}'}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"/>
+                                                </Border>
+
+                                                <!-- AI Difficulty -->
+                                                <Border Background="#33FF9800"
+                                                        BorderBrush="#FF9800"
+                                                        BorderThickness="1"
+                                                        CornerRadius="4"
+                                                        Padding="6,2"
+                                                        IsVisible="{Binding AiDifficulty, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                    <TextBlock Text="{Binding AiDifficulty}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="#FF9800"/>
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Color Badge -->
+                                            <Border Grid.Column="2" Grid.RowSpan="2"
+                                                    Width="24" Height="24"
+                                                    CornerRadius="12"
+                                                    Background="{Binding Color, Converter={StaticResource ColorNameToBrushConverter}}"
+                                                    VerticalAlignment="Center"
+                                                    Margin="8,0"
+                                                    IsVisible="{Binding Color, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                                    ToolTip.Tip="{Binding Color}"/>
+
+                                            <!-- Position -->
+                                            <TextBlock Grid.Column="3" Grid.RowSpan="2"
+                                                       Text="{Binding StartPosition, StringFormat='#{0}'}"
+                                                       FontSize="14"
+                                                       FontWeight="Bold"
+                                                       Opacity="0.5"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Empty state -->
+                        <Border Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                                CornerRadius="8"
+                                Padding="20"
+                                IsVisible="{Binding !PlayerCount}">
+                            <StackPanel Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="👥" FontSize="32" HorizontalAlignment="Center" Opacity="0.3"/>
+                                <TextBlock Text="No player information available"
+                                           FontSize="14"
+                                           Opacity="0.6"
+                                           FontStyle="Italic"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- File Information -->
+                <Border Classes="card">
+                    <StackPanel Spacing="0">
+                        <TextBlock Text="File Information" Classes="section-title"/>
+
+                        <StackPanel Spacing="0">
+                            <TextBlock Text="File Path" Classes="label"/>
+                            <TextBlock Text="{Binding FilePath}"
+                                       Classes="value"
+                                       FontFamily="Consolas,Courier New,monospace"
+                                       FontSize="12"/>
+
+                            <TextBlock Text="File Size" Classes="label"/>
+                            <TextBlock Text="{Binding FormattedFileSize}" Classes="value"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Error State -->
+                <Border Classes="card"
+                        Background="#33F44336"
+                        BorderBrush="{DynamicResource ErrorColor}"
+                        BorderThickness="2"
+                        IsVisible="{Binding !Metadata.IsParsed}">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                        <TextBlock Text="⚠️" FontSize="48" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Failed to Parse Replay"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="The replay file could not be parsed. It may be corrupted or in an unsupported format."
+                                   FontSize="14"
+                                   Opacity="0.8"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="400"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="24,16"
+                BoxShadow="0 -2 8 0 #20000000">
+            <Button Content="Close"
+                    Command="{Binding CloseCommand}"
+                    Classes="Primary"
+                    HorizontalAlignment="Right"
+                    MinWidth="120"
+                    Padding="16,8"/>
+        </Border>
+    </Grid>
+</Window>

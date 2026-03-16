@@ -41,6 +41,8 @@ public partial class GameProfileSettingsViewModel
             ColorValue = "#1976D2";
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             SelectedContentType = ContentType.GameClient;
+            AutoSaveReplays = false; // Reset to prevent stale state leakage
+            IsToolProfile = false;
 
             EnabledContent.Clear();
 
@@ -158,6 +160,8 @@ public partial class GameProfileSettingsViewModel
             SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             _originalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
+            AutoSaveReplays = profile.AutoSaveReplays;
+            IsToolProfile = profile.IsToolProfile;
 
             LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");
             GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;

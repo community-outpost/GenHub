@@ -80,10 +80,9 @@
             <DataGridTemplateColumn Width="140" Header="Actions">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Button IsEnabled="False"
+                  <Button Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).ParseReplayCommand}" CommandParameter="{Binding}"
                           Classes="Link" Padding="4" HorizontalAlignment="Center"
-                          ToolTip.Tip="Parse replay details (Coming Soon)">
-                    <!-- TODO: Attach Parse Replay Command -->
+                          ToolTip.Tip="Parse and view replay details">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                       <TextBlock Text="⚙️" FontSize="12"/>
                       <TextBlock Text="PARSE" FontSize="10"/>
