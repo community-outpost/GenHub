@@ -292,7 +292,7 @@ public class ContentStorageService : IContentStorageService
             // This prevents "Could not resolve source path" warnings when GetContentDirectoryAsync is called
             var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
             Directory.CreateDirectory(contentDir);
-            var sourcePathFile = Path.Combine(contentDir, "source.path");
+            var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
             await File.WriteAllTextAsync(sourcePathFile, "CAS-ONLY", cancellationToken);
 
             _logger.LogInformation("Successfully stored content for manifest {ManifestId}", manifest.Id);
@@ -415,7 +415,7 @@ public class ContentStorageService : IContentStorageService
 
             // Remove source.path mapping file if it exists
             var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifestId.Value);
-            var sourcePathFile = Path.Combine(contentDir, "source.path");
+            var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
             FileOperationsService.DeleteFileIfExists(sourcePathFile);
 
             // Clean up the data directory if empty
@@ -507,7 +507,7 @@ public class ContentStorageService : IContentStorageService
                 var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
                 Directory.CreateDirectory(contentDir);
 
-                var sourcePathFile = Path.Combine(contentDir, "source.path");
+                var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
                 await File.WriteAllTextAsync(sourcePathFile, sourceDirectory, cancellationToken);
 
                 _logger.LogInformation(
@@ -543,8 +543,24 @@ public class ContentStorageService : IContentStorageService
 
                 // Clean up the content dir created for source.path mapping
                 var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
+                var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
+
+                // Only delete the directory if we created it in this call (check if it only contains source.path)
                 if (Directory.Exists(contentDir))
-                    Directory.Delete(contentDir, recursive: true);
+                {
+                    var entries = Directory.EnumerateFileSystemEntries(contentDir).ToList();
+                    if (entries.Count == 1 && entries[0].Equals(sourcePathFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Only source.path exists, safe to delete the directory
+                        Directory.Delete(contentDir, recursive: false);
+                    }
+                    else if (entries.Count == 0)
+                    {
+                        // Empty directory, safe to delete
+                        Directory.Delete(contentDir, recursive: false);
+                    }
+                    // Otherwise, leave the directory alone as it contains pre-existing data
+                }
 
                 // Untrack manifest if we failed to save its metadata but had already tracked/refreshed references.
                 await _referenceTracker.UntrackManifestAsync(manifest.Id, CancellationToken.None);

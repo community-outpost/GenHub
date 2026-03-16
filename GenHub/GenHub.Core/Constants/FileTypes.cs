@@ -84,4 +84,9 @@ public static class FileTypes
     /// File extension for user data manifest files.
     /// </summary>
     public const string UserDataManifestExtension = ".userdata.json";
+
+    /// <summary>
+    /// File name for source path mapping files.
+    /// </summary>
+    public const string SourcePathFileName = "source.path";
 }
