@@ -86,7 +86,9 @@ public static class FileTypes
     public const string UserDataManifestExtension = ".userdata.json";
 
     /// <summary>
-    /// File name for source path mapping files.
+    /// Filename used to store the source directory path mapping for a manifest's content.
+    /// This file is written inside the manifest's data directory and contains the path
+    /// to the original source directory (e.g., local installation folder).
     /// </summary>
     public const string SourcePathFileName = "source.path";
 }

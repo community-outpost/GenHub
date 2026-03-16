@@ -42,7 +42,11 @@ public static class ContentTypePriority
             ContentType.ContentReferral => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
             ContentType.UnknownContentType => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
 
-            _ => throw new ArgumentException($"Unknown ContentType: {contentType}"),
+            _ => throw new ArgumentOutOfRangeException(
+                     nameof(contentType),
+                     contentType,
+                     $"ContentType '{contentType}' is not mapped in {nameof(ContentTypePriority)}. " +
+                     "Add an explicit priority entry for this type.")
         };
     }
 

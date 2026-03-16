@@ -502,13 +502,24 @@ public class ContentStorageService : IContentStorageService
 
             // Create source.path mapping if we have a valid source directory
             // This allows GetContentDirectoryAsync to resolve the content location
+            bool contentDirCreatedByThisCall = false;
+            bool sourcePathWrittenByThisCall = false;
+            string? previousSourcePathContent = null;
             if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
             {
                 var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
+                bool dirAlreadyExisted = Directory.Exists(contentDir);
                 Directory.CreateDirectory(contentDir);
+                contentDirCreatedByThisCall = !dirAlreadyExisted;
 
                 var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
+
+                // Backup existing source.path content before overwriting
+                if (File.Exists(sourcePathFile))
+                    previousSourcePathContent = await File.ReadAllTextAsync(sourcePathFile, cancellationToken);
+
                 await File.WriteAllTextAsync(sourcePathFile, sourceDirectory, cancellationToken);
+                sourcePathWrittenByThisCall = true;
 
                 _logger.LogInformation(
                     "Created source path mapping for {ManifestId}: {SourcePath}",
@@ -543,23 +554,26 @@ public class ContentStorageService : IContentStorageService
 
                 // Clean up the content dir created for source.path mapping
                 var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
-                var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
-
-                // Only delete the directory if we created it in this call (check if it only contains source.path)
-                if (Directory.Exists(contentDir))
+                if (contentDirCreatedByThisCall)
                 {
-                    var entries = Directory.EnumerateFileSystemEntries(contentDir).ToList();
-                    if (entries.Count == 1 && entries[0].Equals(sourcePathFile, StringComparison.OrdinalIgnoreCase))
+                    // We created this directory in the current call — safe to remove entirely.
+                    if (Directory.Exists(contentDir))
+                        Directory.Delete(contentDir, recursive: true);
+                }
+                else if (sourcePathWrittenByThisCall && Directory.Exists(contentDir))
+                {
+                    // We overwrote an existing source.path file - restore it or delete if it was new
+                    var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
+                    if (previousSourcePathContent != null)
                     {
-                        // Only source.path exists, safe to delete the directory
-                        Directory.Delete(contentDir, recursive: false);
+                        // Restore the previous content
+                        await File.WriteAllTextAsync(sourcePathFile, previousSourcePathContent, CancellationToken.None);
                     }
-                    else if (entries.Count == 0)
+                    else
                     {
-                        // Empty directory, safe to delete
-                        Directory.Delete(contentDir, recursive: false);
+                        // We created a new file, safe to delete
+                        FileOperationsService.DeleteFileIfExists(sourcePathFile);
                     }
-                    // Otherwise, leave the directory alone as it contains pre-existing data
                 }
 
                 // Untrack manifest if we failed to save its metadata but had already tracked/refreshed references.
