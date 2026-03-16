@@ -288,6 +288,13 @@ public class ContentStorageService : IContentStorageService
             var manifestJson = JsonSerializer.Serialize(updatedManifest, JsonOptions);
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
+            // Create source.path marker for CAS-stored content
+            // This prevents "Could not resolve source path" warnings when GetContentDirectoryAsync is called
+            var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
+            Directory.CreateDirectory(contentDir);
+            var sourcePathFile = Path.Combine(contentDir, "source.path");
+            await File.WriteAllTextAsync(sourcePathFile, "CAS-ONLY", cancellationToken);
+
             _logger.LogInformation("Successfully stored content for manifest {ManifestId}", manifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);
         }
