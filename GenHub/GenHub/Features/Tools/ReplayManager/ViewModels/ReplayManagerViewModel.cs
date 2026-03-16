@@ -847,7 +847,7 @@ public partial class ReplayManagerViewModel(
             // Use the replay's own game type context, not the UI tab state
             var metadata = await parserService.ParseReplayAsync(replay.FullPath, replay.GameVersion);
 
-            if (metadata == null || !metadata.IsParsed)
+            if (!metadata.IsParsed)
             {
                 notificationService.ShowWarning("Parse Failed", "Could not parse replay file. The file may be corrupted or in an unsupported format.");
                 StatusMessage = "Parse failed.";
@@ -869,6 +869,14 @@ public partial class ReplayManagerViewModel(
 
                     await window.ShowDialog(mainWindow);
                 }
+                else
+                {
+                    notificationService.ShowWarning("Cannot Open Viewer", "No main window is available to display the replay details.");
+                }
+            }
+            else
+            {
+                notificationService.ShowWarning("Cannot Open Viewer", "Desktop application lifetime is not available.");
             }
 
             StatusMessage = "Ready";

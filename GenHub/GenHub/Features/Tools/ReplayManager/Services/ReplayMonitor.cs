@@ -76,7 +76,7 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
 
             _watcher = new FileSystemWatcher(directory, fileName)
             {
-                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
+                NotifyFilter = NotifyFilters.Size,
             };
 
             _watcher.Changed += OnFileChanged;
