@@ -161,38 +161,6 @@ public static class GenPatcherContentRegistry
             Variants = ResolutionVariants,
         },
 
-        // Camera Modifications
-        ["crgn"] = new GenPatcherContentMetadata
-        {
-            ContentCode = "crgn",
-            DisplayName = "Camera Mod - Generals",
-            Description = "Camera modification for Generals",
-            ContentType = ContentType.Addon,
-            TargetGame = GameType.Generals,
-            Category = GenPatcherContentCategory.Camera,
-            InstallTarget = ContentInstallTarget.Workspace,
-        },
-        ["crzh"] = new GenPatcherContentMetadata
-        {
-            ContentCode = "crzh",
-            DisplayName = "Camera Mod - Zero Hour",
-            Description = "Camera modification for Zero Hour",
-            ContentType = ContentType.Addon,
-            TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Camera,
-            InstallTarget = ContentInstallTarget.Workspace,
-        },
-        ["dczh"] = new GenPatcherContentMetadata
-        {
-            ContentCode = "dczh",
-            DisplayName = "D-Control - Zero Hour",
-            Description = "D-Control camera for Zero Hour",
-            ContentType = ContentType.Addon,
-            TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Camera,
-            InstallTarget = ContentInstallTarget.Workspace,
-        },
-
         // Hotkeys
         ["ewba"] = new GenPatcherContentMetadata
         {
