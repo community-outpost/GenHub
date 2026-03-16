@@ -534,6 +534,11 @@ public class ContentStorageService : IContentStorageService
             {
                 FileOperationsService.DeleteFileIfExists(manifestPath);
 
+                // Clean up the content dir created for source.path mapping
+                var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
+                if (Directory.Exists(contentDir))
+                    Directory.Delete(contentDir, recursive: true);
+
                 // Untrack manifest if we failed to save its metadata but had already tracked/refreshed references.
                 await _referenceTracker.UntrackManifestAsync(manifest.Id, CancellationToken.None);
             }

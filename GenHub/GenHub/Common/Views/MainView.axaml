@@ -212,12 +212,19 @@
         <Grid Grid.Row="1">
             <ContentControl Content="{Binding CurrentTabViewModel}" />
             <!-- Version label in bottom right corner -->
-            <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
-                       FontSize="9"
-                       Foreground="#808080"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Bottom"
-                       Margin="0,0,10,5" />
+            <Button Command="{Binding CopyVersionToClipboardCommand}"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,10,5"
+                    Padding="0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    ToolTip.Tip="Click to copy version to clipboard">
+                <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
+                           FontSize="9"
+                           Foreground="#808080" />
+            </Button>
         </Grid>
     </Grid>
 </UserControl>

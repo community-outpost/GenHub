@@ -524,14 +524,12 @@ public class ContentReconciliationService(
                 }
                 else
                 {
-                    var error = $"Failed to update profile '{profile.Name}': {updateResult.FirstError}";
                     logger.LogWarning("Failed to update profile '{ProfileName}': {Error}", profile.Name, updateResult.FirstError);
                     failedProfiles.Add(profile.Name);
                 }
             }
             catch (Exception ex)
             {
-                var error = $"Error reconciling profile '{profile.Name}': {ex.Message}";
                 logger.LogError(ex, "Error reconciling profile '{ProfileName}': {Message}", profile.Name, ex.Message);
                 failedProfiles.Add(profile.Name);
             }
@@ -608,14 +606,12 @@ public class ContentReconciliationService(
                 }
                 else
                 {
-                    var error = $"Failed to update profile '{profile.Name}': {updateResult.FirstError}";
                     logger.LogWarning("Failed to update profile '{ProfileName}': {Error}", profile.Name, updateResult.FirstError);
                     failedProfiles.Add(profile.Name);
                 }
             }
             catch (Exception ex)
             {
-                var error = $"Error removing manifest from profile '{profile.Name}': {ex.Message}";
                 logger.LogError(ex, "Error removing manifest from profile '{ProfileName}': {Message}", profile.Name, ex.Message);
                 failedProfiles.Add(profile.Name);
             }

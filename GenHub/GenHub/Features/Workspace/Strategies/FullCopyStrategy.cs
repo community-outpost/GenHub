@@ -142,10 +142,10 @@ public sealed class FullCopyStrategy(
                 async (fileGroup, ct) =>
                 {
                     // For each destination path, process files in priority order (lowest to highest)
-                    // Priority: GameInstallation (0) < GameClient (1) < Mod (2)
+                    // Priority: GameInstallation (10) < Addon (40) < GameClient (50) < Patch (90) < Mod (100)
                     // This ensures higher priority content overwrites lower priority
                     var orderedFiles = fileGroup
-                        .OrderBy(item => item.Manifest.ContentType)
+                        .OrderBy(item => ContentTypePriority.GetPriority(item.Manifest.ContentType))
                         .ToList();
 
                     // Process all versions of this file in priority order
