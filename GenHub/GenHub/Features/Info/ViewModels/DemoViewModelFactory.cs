@@ -51,10 +51,10 @@ public static class DemoViewModelFactory
             UseSteamLaunch = false, // Explicitly start disabled so the first toggle turns it ON
         };
 
-        GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.png");
-
-        // Wire up demo actions that show notifications instead of real operations
-        vm.LaunchAction = async _ =>
+        GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.png")
+        {
+            // Wire up demo actions that show notifications instead of real operations
+            LaunchAction = async _ =>
             {
                 notificationService?.Show(new NotificationMessage(
                     NotificationType.Info,
@@ -69,9 +69,9 @@ public static class DemoViewModelFactory
                     "Demo",
                     "Zero Hour launched successfully! (Simulated)",
                     3000));
-            };
+            },
 
-        vm.EditProfileAction = async _ =>
+            EditProfileAction = async _ =>
             {
                 notificationService?.Show(new NotificationMessage(
                     NotificationType.Info,
@@ -79,9 +79,9 @@ public static class DemoViewModelFactory
                     "Opening the Profile Editor... (Simulated)",
                     3000));
                 await Task.CompletedTask;
-            };
+            },
 
-        vm.DeleteProfileAction = async _ =>
+            DeleteProfileAction = async _ =>
             {
                 notificationService?.Show(new NotificationMessage(
                     NotificationType.Warning,
@@ -89,9 +89,9 @@ public static class DemoViewModelFactory
                     "Deleting profiles is restricted in this interactive guide.",
                     3000));
                 await Task.CompletedTask;
-            };
+            },
 
-        vm.CreateShortcutAction = async _ =>
+            CreateShortcutAction = async _ =>
             {
                 notificationService?.Show(new NotificationMessage(
                     NotificationType.Success,
@@ -99,23 +99,24 @@ public static class DemoViewModelFactory
                     "Desktop Shortcut created successfully on your desktop! (Simulated)",
                     4000));
                 await Task.CompletedTask;
-            };
+            },
+
+            // Enable specific visual highlights requested for the demos
+            // Explicitly set these to ensure no default state bleed
+            IsDemoSteamHighlightVisible = showSteamHighlight,
+            IsDemoShortcutHighlightVisible = showShortcutHighlight,
+        };
 
         vm.ToggleSteamLaunchAction = async _ =>
-            {
-                vm.UseSteamLaunch = !vm.UseSteamLaunch;
-                notificationService?.Show(new NotificationMessage(
-                    NotificationType.Success,
-                    "Demo",
-                    vm.UseSteamLaunch ? "Steam Integration Enabled: Track hours and use the Overlay." : "Steam Integration Disabled.",
-                    3000));
-                await Task.CompletedTask;
-            };
-
-        // Enable specific visual highlights requested for the demos
-        // Explicitly set these to ensure no default state bleed
-        vm.IsDemoSteamHighlightVisible = showSteamHighlight;
-        vm.IsDemoShortcutHighlightVisible = showShortcutHighlight;
+        {
+            vm.UseSteamLaunch = !vm.UseSteamLaunch;
+            notificationService?.Show(new NotificationMessage(
+                NotificationType.Success,
+                "Demo",
+                vm.UseSteamLaunch ? "Steam Integration Enabled: Track hours and use the Overlay." : "Steam Integration Disabled.",
+                3000));
+            await Task.CompletedTask;
+        };
 
         return vm;
     }
@@ -131,17 +132,18 @@ public static class DemoViewModelFactory
         var mockSettings = new MockUserSettingsService();
         var mockLogger = new MockLogger<GenHub.Features.AppUpdate.ViewModels.UpdateNotificationViewModel>();
 
-        UpdateNotificationViewModel vm = new(mockVelopack, mockLogger, mockSettings);
+        UpdateNotificationViewModel vm = new(mockVelopack, mockLogger, mockSettings)
+        {
+            // Manually configure the state to look like an update is available
+            IsChecking = false,
+            IsUpdateAvailable = true,
+            LatestVersion = "1.2.0",
+            StatusMessage = "New feature update available!",
+            ReleaseNotesUrl = "https://github.com/undead2146/GeneralsHub/releases",
 
-        // Manually configure the state to look like an update is available
-        vm.IsChecking = false;
-        vm.IsUpdateAvailable = true;
-        vm.LatestVersion = "1.2.0";
-        vm.StatusMessage = "New feature update available!";
-        vm.ReleaseNotesUrl = "https://github.com/undead2146/GeneralsHub/releases";
-
-        // Enable PAT features for demo to show "Browse Builds" tab
-        vm.HasPat = true;
+            // Enable PAT features for demo to show "Browse Builds" tab
+            HasPat = true,
+        };
 
         // Pre-load dummy data directly to ensure it appears in the demo
         vm.AvailablePullRequests.Clear();
@@ -234,10 +236,18 @@ public static class DemoViewModelFactory
             _ = Task.Run(() => vm.InitializeAsync());
             return vm;
         }
-        catch
+        catch (Exception ex)
         {
-            // Fail safe
-            return null!;
+            System.Diagnostics.Debug.WriteLine($"Failed to create full demo replay manager: {ex}");
+
+            // Fail safe with minimal mocks
+            return new ReplayManagerViewModel(
+                new MockReplayDirectoryService(),
+                new MockReplayImportService(),
+                new MockReplayExportService(),
+                new MockUploadHistoryService(),
+                new MockNotificationService(),
+                new MockLogger<ReplayManagerViewModel>());
         }
     }
 
@@ -281,9 +291,20 @@ public static class DemoViewModelFactory
             _ = Task.Run(() => vm.InitializeAsync());
             return vm;
         }
-        catch
+        catch (Exception ex)
         {
-             return null!;
+            System.Diagnostics.Debug.WriteLine($"Failed to create full demo map manager: {ex}");
+
+            // Fail safe with minimal mocks
+            return new MapManagerViewModel(
+                new MockMapDirectoryService(),
+                new MockMapImportService(),
+                new MockMapExportService(),
+                new MockMapPackService(),
+                new MockUploadHistoryService(),
+                new MockNotificationService(),
+                new TgaImageParser(new MockLogger<TgaImageParser>()),
+                new MockLogger<MapManagerViewModel>());
         }
     }
 
@@ -296,7 +317,7 @@ public static class DemoViewModelFactory
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
-        return new AddLocalContentViewModel(mockService, mockLogger);
+        return new AddLocalContentViewModel(mockService, null, mockLogger);
     }
 
     /// <summary>
@@ -339,13 +360,14 @@ public static class DemoViewModelFactory
             mockStorage,
             mockLocalContent,
             mockLogger,
-            mockSettingsLogger);
+            mockSettingsLogger)
+        {
+            // Set the Content tab as selected (index 0)
+            SelectedTabIndex = 0,
 
-        // Set the Content tab as selected (index 0)
-        vm.SelectedTabIndex = 0;
-
-        // Ensure dialog is closed immediately
-        vm.IsAddLocalContentDialogOpen = false;
+            // Ensure dialog is closed immediately
+            IsAddLocalContentDialogOpen = false,
+        };
 
         return vm;
     }
@@ -380,13 +402,14 @@ public static class DemoViewModelFactory
             mockStorage,
             mockLocalContent,
             mockLogger,
-            mockSettingsLogger);
+            mockSettingsLogger)
+        {
+            // Set the Game Settings tab as selected (index 2)
+            SelectedTabIndex = 2,
 
-        // Set the Game Settings tab as selected (index 2)
-        vm.SelectedTabIndex = 2;
-
-        // Ensure dialog is closed immediately
-        vm.IsAddLocalContentDialogOpen = false;
+            // Ensure dialog is closed immediately
+            IsAddLocalContentDialogOpen = false,
+        };
 
         return vm;
     }
@@ -424,20 +447,39 @@ public static class DemoViewModelFactory
                 mockStorage,
                 mockLocalContent,
                 mockLogger,
-                mockSettingsLogger);
+                mockSettingsLogger)
+            {
+                // The Demo subclass handles its own initialization in the constructor
+                // and overrides RefreshVisibleFiltersAsync and LoadAvailableContentAsync
+                // to provide instant mock data without service calls.
 
-            // The Demo subclass handles its own initialization in the constructor
-            // and overrides RefreshVisibleFiltersAsync and LoadAvailableContentAsync
-            // to provide instant mock data without service calls.
-
-            // Ensure dialog is closed immediately
-            vm.IsAddLocalContentDialogOpen = false;
+                // Ensure dialog is closed immediately
+                IsAddLocalContentDialogOpen = false,
+            };
 
             return vm;
         }
         catch
         {
-            return null!;
+            // Fallback for deprecated method
+             var mockLogger = new MockLogger<GameProfileSettingsViewModel>();
+             var mockSettingsLogger = new MockLogger<GameSettingsViewModel>();
+
+             return new DemoGameProfileSettingsViewModel(
+                new MockGameProfileManager(),
+                new MockGameSettingsService(),
+                new MockConfigurationProviderService(),
+                new MockProfileContentLoader(),
+                null,
+                new MockNotificationService(),
+                new MockContentManifestPool(),
+                new MockContentStorageService(),
+                new MockLocalContentService(),
+                mockLogger,
+                mockSettingsLogger)
+             {
+                 IsAddLocalContentDialogOpen = false,
+             };
         }
     }
 }

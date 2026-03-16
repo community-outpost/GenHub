@@ -13,7 +13,9 @@
     <!-- Header / Refresh -->
     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,20">
        <StackPanel>
+         <!-- TODO: Localize -->
          <TextBlock Text="Generals Online Patch Notes" FontSize="20" FontWeight="Bold" Foreground="White"/>
+         <!-- TODO: Localize -->
          <TextBlock Text="Latest updates and changes" FontSize="14" Foreground="#888888"/>
        </StackPanel>
        <Button Grid.Column="1" Command="{Binding LoadPatchNotesCommand}"
@@ -21,6 +23,7 @@
                Padding="8,4" Background="#33FFFFFF" CornerRadius="4">
            <StackPanel Orientation="Horizontal" Spacing="6">
                <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+               <!-- TODO: Localize -->
                <TextBlock Text="Refresh"/>
            </StackPanel>
        </Button>
@@ -77,11 +80,12 @@
                     <Border Height="1" Background="#22FFFFFF" Margin="16,0" IsVisible="{Binding IsExpanded}"/>
 
                     <!-- Expanded Body (Changes) -->
-                    <Border IsVisible="{Binding IsExpanded}" Padding="16">
-                        <StackPanel Spacing="10">
+                    <Border IsVisible="{Binding IsExpanded}">
+                        <StackPanel Spacing="10" Margin="16">
                             <!-- Loading State for Details -->
                             <StackPanel IsVisible="{Binding IsLoadingDetails}" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,10">
                                 <ProgressBar IsIndeterminate="True" Width="100" VerticalAlignment="Center"/>
+                                <!-- TODO: Localize -->
                                 <TextBlock Text="Fetching details..." FontSize="12" Foreground="#888"/>
                             </StackPanel>
 
@@ -104,6 +108,7 @@
                                     IsVisible="{Binding IsDetailsLoaded}"
                                     Background="Transparent" Padding="4">
                                  <StackPanel Orientation="Horizontal" Spacing="4">
+                                     <!-- TODO: Localize -->
                                      <TextBlock Text="View source" FontSize="11" Foreground="#666"/>
                                      <material:MaterialIcon Kind="OpenInNew" Width="14" Height="14" Foreground="#666"/>
                                  </StackPanel>

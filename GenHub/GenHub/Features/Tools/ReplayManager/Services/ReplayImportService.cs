@@ -51,8 +51,20 @@ public sealed class ReplayImportService(
             var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
             try
             {
+                var source = urlParserService.IdentifySource(url);
+                var userAgent = (source == ReplaySource.GeneralsOnline || source == ReplaySource.GenTool)
+                    ? ApiConstants.BrowserUserAgent
+                    : ApiConstants.DefaultUserAgent;
+
                 var downloadProgress = progress != null ? new Progress<DownloadProgress>(p => progress.Report(p.Percentage / 100.0)) : null;
-                var result = await downloadService.DownloadFileAsync(new Uri(directUrl), tempPath, progress: downloadProgress, cancellationToken: ct);
+                var downloadConfig = new DownloadConfiguration
+                {
+                    Url = new Uri(directUrl),
+                    DestinationPath = tempPath,
+                    UserAgent = userAgent,
+                };
+
+                var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
 
                 if (!result.Success)
                 {

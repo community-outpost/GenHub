@@ -58,6 +58,7 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         CornerRadius="8,8,0,0"
+                        ClipToBounds="True"
                         Margin="{TemplateBinding Margin}">
                         <ContentPresenter Content="{TemplateBinding Content}"
                             ContentTemplate="{TemplateBinding ContentTemplate}"

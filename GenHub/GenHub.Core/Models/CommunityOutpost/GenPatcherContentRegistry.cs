@@ -41,6 +41,16 @@ public static class GenPatcherContentRegistry
     ];
 
     /// <summary>
+    /// Variants for Leikeze's Hotkeys (hlei).
+    /// </summary>
+    private static readonly List<ContentVariant> HleiVariants =
+    [
+        new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = "language", Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], IsDefault = true },
+        new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = "language", Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], IsDefault = false },
+        new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = "language", Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], IsDefault = false },
+    ];
+
+    /// <summary>
     /// Static content metadata for known content codes.
     /// </summary>
     private static readonly Dictionary<string, GenPatcherContentMetadata> KnownContent = new(StringComparer.OrdinalIgnoreCase)
@@ -238,14 +248,15 @@ public static class GenPatcherContentRegistry
         {
             ContentCode = "hlei",
             DisplayName = "Leikeze's Hotkeys",
-            Description = "Highly recommended hotkey preset. Balanced for efficiency and ease of use.",
+            Description = "A comprehensive hotkey set by Leikeze. Supports multiple languages (English, German, Russian) and both Generals and Zero Hour. Highly recommended hotkey preset. Balanced for efficiency and ease of use.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
-            LanguageCode = "en",
             Category = GenPatcherContentCategory.Hotkeys,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
             OutputFilename = "!HotkeysLeikezeZH.big",
+            SupportsVariants = true,
+            Variants = HleiVariants,
         },
         ["hlen"] = new GenPatcherContentMetadata
         {

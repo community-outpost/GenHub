@@ -1,9 +1,9 @@
+// File name intentionally matches generic type param T style, avoiding rename friction
+#pragma warning disable SA1649 // File name should match first type name
+
 using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Models.Results;
-
-// File name intentionally matches generic type param T style, avoiding rename friction
-#pragma warning disable SA1649 // File name should match first type name
 
 /// <summary>Represents the result of an operation, including success/failure, data, and errors.</summary>
 /// <typeparam name="T">The type of data returned by the operation.</typeparam>
@@ -45,7 +45,21 @@ public class OperationResult<T> : ResultBase
     /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
     public static OperationResult<T> CreateFailure(string error, TimeSpan elapsed = default)
     {
+        if (string.IsNullOrWhiteSpace(error))
+            throw new ArgumentException("Error message cannot be null or empty.", nameof(error));
         return new OperationResult<T>(false, default, [error], elapsed);
+    }
+
+    /// <summary>Creates a failed operation result with a single error message and partial data.</summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="data">The partial data.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
+    public static OperationResult<T> CreateFailure(string error, T data, TimeSpan elapsed)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+            throw new ArgumentException("Error message cannot be null or empty.", nameof(error));
+        return new OperationResult<T>(false, data, [error], elapsed);
     }
 
     /// <summary>Creates a failed operation result with multiple error messages.</summary>
@@ -58,6 +72,19 @@ public class OperationResult<T> : ResultBase
         if (!errors.Any())
             throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
         return new OperationResult<T>(false, default, errors, elapsed);
+    }
+
+    /// <summary>Creates a failed operation result with multiple error messages and partial data.</summary>
+    /// <param name="errors">The error messages.</param>
+    /// <param name="data">The partial data.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="OperationResult{T}"/>.</returns>
+    public static OperationResult<T> CreateFailure(IEnumerable<string> errors, T data, TimeSpan elapsed)
+    {
+        ArgumentNullException.ThrowIfNull(errors, nameof(errors));
+        if (!errors.Any())
+            throw new ArgumentException("Errors collection cannot be empty.", nameof(errors));
+        return new OperationResult<T>(false, data, errors, elapsed);
     }
 
     /// <summary>Creates a failed operation result from another result, copying its errors.</summary>

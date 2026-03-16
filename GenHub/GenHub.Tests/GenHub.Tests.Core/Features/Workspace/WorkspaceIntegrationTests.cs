@@ -63,6 +63,7 @@ public class WorkspaceIntegrationTests : IDisposable
 
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
         services.AddSingleton<ICasService, CasService>();
 
         // Register FileOperationsService for workspace strategies
@@ -178,7 +179,7 @@ public class WorkspaceIntegrationTests : IDisposable
             .ReturnsAsync(new ValidationResult("test", []));
 
         // Create WorkspaceReconciler
-        var workspaceReconciler = new WorkspaceReconciler(mockReconcilerLogger);
+        var workspaceReconciler = new WorkspaceReconciler(mockReconcilerLogger, fileOps);
 
         var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker, mockWorkspaceValidator.Object, workspaceReconciler);
 

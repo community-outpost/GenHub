@@ -59,21 +59,6 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     }
 
     /// <summary>
-    /// Gets the list of all dependencies for a Generals Online 30Hz variant.
-    /// Includes Zero Hour installation and QuickMatch MapPack.
-    /// </summary>
-    /// <param name="mapPackVersion">The version of the QuickMatch MapPack to depend on.</param>
-    /// <returns>List of dependencies for 30Hz variant.</returns>
-    public static List<ContentDependency> GetDependenciesFor30Hz(int mapPackVersion = 0)
-    {
-        return new List<ContentDependency>
-        {
-            CreateZeroHourDependencyForGeneralsOnline(),
-            CreateQuickMatchMapPackDependency(mapPackVersion),
-        };
-    }
-
-    /// <summary>
     /// Gets the list of all dependencies for a Generals Online 60Hz variant.
     /// Includes Zero Hour installation and QuickMatch MapPack.
     /// </summary>

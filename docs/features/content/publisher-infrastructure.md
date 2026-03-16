@@ -1,21 +1,21 @@
 ---
-title: Provider Infrastructure Architecture
-description: Clean architecture for implementing content providers (CommunityOutpost, GeneralsOnline, GitHub, ModDB, etc.)
+title: Publisher Infrastructure Architecture
+description: Clean architecture for implementing content publishers (CommunityOutpost, GeneralsOnline, GitHub, ModDB, etc.)
 ---
 
-# Provider Infrastructure Architecture
+# Publisher Infrastructure Architecture
 
-This document describes the clean, data-driven architecture for implementing content providers in GenHub.
+This document describes the clean, data-driven architecture for implementing content publishers in GenHub.
 
 ## Architecture Overview
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
-│                           PROVIDER ARCHITECTURE                           │
+│                           PUBLISHER ARCHITECTURE                          │
 ├───────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
 │  ┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐   │
-│  │  Provider.json   │     │   ICatalogParser │     │  Domain Registry │   │
+│  │  Publisher.json  │     │   ICatalogParser │     │  Domain Registry │   │
 │  │  (Configuration) │     │    (Interface)   │     │   (Metadata)     │   │
 │  └────────┬─────────┘     └────────┬─────────┘     └────────┬─────────┘   │
 │           │                        │                        │             │
@@ -48,7 +48,7 @@ This document describes the clean, data-driven architecture for implementing con
 
 ## Key Principles
 
-### 1. Provider.json is for Configuration ONLY
+### 1. Publisher.json is for Configuration ONLY
 
 - Endpoints (catalog URLs, API URLs, download base URLs)
 - Timeouts
@@ -74,37 +74,37 @@ This document describes the clean, data-driven architecture for implementing con
 public interface ICatalogParser
 {
     string CatalogFormat { get; }
-    
+
     Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
         string catalogContent,
-        ProviderDefinition provider,
+        PublisherDefinition publisher,
         CancellationToken cancellationToken = default);
 }
 ```
 
-- Parser gets raw content + provider config
+- Parser gets raw content + publisher config
 - Parser returns ContentSearchResult with ResolverMetadata
 - Parser sources its own metadata (from registry or parsing)
 
 ---
 
-## Provider Types
+## Publisher Types
 
-### Static Providers
+### Static Publishers
 
 Publishers with fixed identity (e.g., CommunityOutpost, GeneralsOnline, TheSuperHackers)
 
-| Provider | Catalog Format | Metadata Source |
+| Publisher | Catalog Format | Metadata Source |
 |----------|---------------|-----------------|
 | CommunityOutpost | `genpatcher-dat` | `GenPatcherContentRegistry` |
 | GeneralsOnline | `json-api` | Parsed from JSON response |
 | TheSuperHackers | `github-releases` | Parsed from GitHub API |
 
-### Dynamic Providers
+### Dynamic Publishers
 
 Publishers discovered from a source (e.g., GitHub Topics, ModDB authors)
 
-| Provider | Discovery Method | Metadata Source |
+| Publisher | Discovery Method | Metadata Source |
 |----------|-----------------|-----------------|
 | GitHub Topics | Topic search API | Release metadata |
 | ModDB | Search API | Mod page metadata |
@@ -112,13 +112,13 @@ Publishers discovered from a source (e.g., GitHub Topics, ModDB authors)
 
 ---
 
-## Implementing a New Provider
+## Implementing a New Publisher
 
-### Step 1: Create Provider.json
+### Step 1: Create Publisher.json
 
 ```json
 {
-  "providerId": "generalsonline",
+  "publisherId": "generalsonline",
   "publisherType": "generalsonline",
   "displayName": "Generals Online",
   "description": "Official Generals Online game client releases",
@@ -149,20 +149,20 @@ public class JsonApiCatalogParser : ICatalogParser
 
     public async Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
         string catalogContent,
-        ProviderDefinition provider,
+        PublisherDefinition publisher,
         CancellationToken cancellationToken = default)
     {
         // Parse JSON API response
         var response = JsonSerializer.Deserialize<ApiResponse>(catalogContent);
-        
+
         var results = response.Releases.Select(release => new ContentSearchResult
         {
-            Id = $"{provider.ProviderId}.{release.Id}",
+            Id = $"{publisher.PublisherId}.{release.Id}",
             Name = release.Name,
             Description = release.Description,
             Version = release.Version,
             ContentType = ContentType.GameClient,
-            TargetGame = provider.TargetGame ?? GameType.ZeroHour,
+            TargetGame = publisher.TargetGame ?? GameType.ZeroHour,
             SourceUrl = release.DownloadUrl,
             // Store metadata for resolver
             ResolverMetadata = new Dictionary<string, string>
@@ -184,34 +184,34 @@ public class JsonApiCatalogParser : ICatalogParser
 services.AddSingleton<ICatalogParser, JsonApiCatalogParser>();
 ```
 
-### Step 4: Create Provider-Specific Discoverer (if needed)
+### Step 4: Create Publisher-Specific Discoverer (if needed)
 
 For most cases, a generic discoverer can be created that:
 
-1. Loads `ProviderDefinition` by ID
+1. Loads `PublisherDefinition` by ID
 2. Fetches catalog from `Endpoints.CatalogUrl`
 3. Gets parser from `ICatalogParserFactory` by `CatalogFormat`
-4. Calls `parser.ParseAsync(content, provider)`
+4. Calls `parser.ParseAsync(content, publisher)`
 
 ```csharp
-public class GenericStaticProviderDiscoverer : IContentDiscoverer
+public class GenericStaticPublisherDiscoverer : IContentDiscoverer
 {
-    private readonly IProviderDefinitionLoader _providerLoader;
+    private readonly IPublisherDefinitionLoader _publisherLoader;
     private readonly ICatalogParserFactory _parserFactory;
     private readonly IHttpClientFactory _httpClientFactory;
 
     public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
-        ProviderDefinition provider,
+        PublisherDefinition publisher,
         ContentSearchQuery query,
         CancellationToken cancellationToken)
     {
-        var catalogContent = await FetchCatalogAsync(provider, cancellationToken);
-        
-        var parser = _parserFactory.GetParser(provider.CatalogFormat);
-        if (parser == null)
-            return OperationResult.Failure($"No parser for format: {provider.CatalogFormat}");
+        var catalogContent = await FetchCatalogAsync(publisher, cancellationToken);
 
-        return await parser.ParseAsync(catalogContent, provider, cancellationToken);
+        var parser = _parserFactory.GetParser(publisher.CatalogFormat);
+        if (parser == null)
+            return OperationResult.Failure($"No parser for format: {publisher.CatalogFormat}");
+
+        return await parser.ParseAsync(catalogContent, publisher, cancellationToken);
     }
 }
 ```
@@ -300,16 +300,16 @@ public static class GenPatcherContentRegistry
 
 | Component | Responsibility |
 |-----------|---------------|
-| `provider.json` | Configuration: endpoints, timeouts, UI |
+| `publisher.json` | Configuration: endpoints, timeouts, UI |
 | `ICatalogParser` | Parse raw catalog into ContentSearchResult |
 | Domain Registry | Map codes to metadata (optional) |
 | Discoverer | Orchestrate fetch → parse → filter |
 | Resolver | Build ContentManifest from SearchResult |
 | Deliverer | Download, extract, finalize |
 
-This architecture allows adding new providers with minimal code:
+This architecture allows adding new publishers with minimal code:
 
-1. Create `provider.json` for configuration
+1. Create `publisher.json` for configuration
 2. Create or reuse `ICatalogParser` for the catalog format
 3. Optionally create domain registry for metadata
 4. Register in DI
@@ -317,6 +317,6 @@ This architecture allows adding new providers with minimal code:
 **No changes needed to:**
 
 - Core interfaces
-- Existing providers
+- Existing publishers
 - Manifest building
 - Content delivery

@@ -8,20 +8,24 @@
              x:Class="GenHub.Features.Notifications.Views.NotificationContainerView"
              x:DataType="vm:NotificationManagerViewModel">
 
-    <ItemsControl ItemsSource="{Binding ActiveNotifications}"
+    <!-- ScrollViewer to handle overflow when notifications exceed height limit -->
+    <ScrollViewer MaxWidth="1000"
                   HorizontalAlignment="Right"
                   VerticalAlignment="Top"
-                  Margin="16">
-        <ItemsControl.ItemsPanel>
-            <ItemsPanelTemplate>
-                <StackPanel Spacing="12" Orientation="Vertical"/>
-            </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding ActiveNotifications}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="12" Orientation="Vertical"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
 
-        <ItemsControl.ItemTemplate>
-            <DataTemplate>
-                <views:NotificationToastView/>
-            </DataTemplate>
-        </ItemsControl.ItemTemplate>
-    </ItemsControl>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <views:NotificationToastView/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
 </UserControl>

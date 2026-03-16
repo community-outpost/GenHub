@@ -70,6 +70,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
 
         // Register CAS reference tracker (required by WorkspaceManager)
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Mock services - register before AddWorkspaceServices to avoid dependency issues
         _mockInstallationService = new Mock<IGameInstallationService>();

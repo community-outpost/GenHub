@@ -58,6 +58,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
         // Register CAS storage and reference tracker
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         // Register CasService with all dependencies
         services.AddSingleton<ICasService, CasService>();

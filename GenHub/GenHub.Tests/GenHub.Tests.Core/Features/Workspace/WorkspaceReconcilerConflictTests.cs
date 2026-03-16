@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
@@ -31,7 +32,8 @@ public class WorkspaceReconcilerConflictTests : IDisposable
         _testDirectory = Path.Combine(Path.GetTempPath(), $"GenHubTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(_testDirectory);
         _mockLogger = new Mock<ILogger<WorkspaceReconciler>>();
-        _reconciler = new WorkspaceReconciler(_mockLogger.Object);
+        var mockFileOps = new Mock<IFileOperationsService>();
+        _reconciler = new WorkspaceReconciler(_mockLogger.Object, mockFileOps.Object);
     }
 
     /// <summary>

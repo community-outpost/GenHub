@@ -33,6 +33,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private readonly IProfileContentService _profileContentService;
     private readonly IGameProfileManager _profileManager;
     private readonly INotificationService _notificationService;
+    private readonly IContentReconciliationService _reconciliationService;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _profileLock = new(1, 1);
 
@@ -116,6 +117,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="profileContentService">The profile content service.</param>
     /// <param name="profileManager">The profile manager.</param>
     /// <param name="notificationService">The notification service.</param>
+    /// <param name="reconciliationService">The reconciliation service.</param>
     public PublisherCardViewModel(
         ILogger<PublisherCardViewModel> logger,
         IContentOrchestrator contentOrchestrator,
@@ -123,7 +125,8 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         IGameClientProfileService profileService,
         IProfileContentService profileContentService,
         IGameProfileManager profileManager,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IContentReconciliationService reconciliationService)
     {
         _logger = logger;
         _contentOrchestrator = contentOrchestrator;
@@ -132,6 +135,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         _profileContentService = profileContentService;
         _profileManager = profileManager;
         _notificationService = notificationService;
+        _reconciliationService = reconciliationService;
 
         ContentTypes.CollectionChanged += ContentTypes_CollectionChanged;
 

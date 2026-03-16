@@ -45,13 +45,8 @@ public static class VersionComparer
             return CompareNumericVersions(version1, version2);
         }
 
-        // Default: try numeric comparison, fall back to string comparison
-        var numericResult = TryCompareNumericVersions(version1, version2);
-        if (numericResult.HasValue)
-            return numericResult.Value;
-
-        // Fall back to ordinal string comparison
-        return string.Compare(version1, version2, StringComparison.Ordinal);
+        // Default: Use the robust numeric/semantic comparison logic
+        return CompareNumericVersions(version1, version2);
     }
 
     /// <summary>
@@ -82,26 +77,85 @@ public static class VersionComparer
     }
 
     /// <summary>
-    /// Compares two numeric version strings.
+    /// Compares two numeric or semantic version strings.
     /// </summary>
     /// <param name="ver1">The first version.</param>
     /// <param name="ver2">The second version.</param>
     /// <returns>Comparison result.</returns>
     private static int CompareNumericVersions(string ver1, string ver2)
     {
-        // Try to parse as long integers for direct comparison
-        if (long.TryParse(ver1, out var num1) && long.TryParse(ver2, out var num2))
+        // Normalize version strings by removing common prefixes
+        var v1Clean = NormalizeVersionString(ver1);
+        var v2Clean = NormalizeVersionString(ver2);
+
+        // Try to parse as long integers for direct comparison (e.g. "20250101")
+        bool isNum1 = long.TryParse(v1Clean, out var n1);
+        bool isNum2 = long.TryParse(v2Clean, out var n2);
+
+        if (isNum1 && isNum2)
         {
-            return num1.CompareTo(num2);
+            return NormalizeNumericDate(n1).CompareTo(NormalizeNumericDate(n2));
+        }
+
+        // Handle mixed Semantic vs Numeric-Date case
+        // If one is semantic (has dots) and the other is a "large" number (likely a date),
+        // check if the semantic version's major version is >= 1 before treating it as newer.
+        bool hasDot1 = ver1.Contains('.');
+        bool hasDot2 = ver2.Contains('.');
+
+        if (hasDot1 && isNum2)
+        {
+             // ver1 is Semantic, ver2 is Numeric
+             // Parse the semantic major version (integer before first '.')
+             // Only treat semantic as newer if major >= 1; otherwise fall through to numeric comparison
+             if (n2 > 100000)
+             {
+                 // Try to parse the major version from the semantic string
+                 var majorPart = ver1.Split('.')[0].TrimStart('v', 'V');
+                 if (int.TryParse(majorPart, out var semanticMajor) && semanticMajor >= 1)
+                 {
+                     return 1;
+                 }
+
+                 // If major version is 0 or parsing fails, fall through to numeric comparison
+             }
+        }
+        else if (isNum1 && hasDot2)
+        {
+             // ver1 is Numeric, ver2 is Semantic
+             if (n1 > 100000)
+             {
+                 // Try to parse the major version from the semantic string
+                 var majorPart = ver2.Split('.')[0].TrimStart('v', 'V');
+                 if (int.TryParse(majorPart, out var semanticMajor) && semanticMajor >= 1)
+                 {
+                     return -1;
+                 }
+
+                 // If major version is 0 or parsing fails, fall through to numeric comparison
+             }
+        }
+
+        // Handle standard semantic versions (e.g. "1.10" vs "2.0")
+        if (hasDot1 || hasDot2)
+        {
+             return CompareSemanticVersions(ver1, ver2);
         }
 
         // Try to extract digits and compare
         var digits1 = ExtractDigits(ver1);
         var digits2 = ExtractDigits(ver2);
 
-        if (long.TryParse(digits1, out num1) && long.TryParse(digits2, out num2))
+        // Avoid collapsing non-dot alphanumeric versions to digits only.
+        // If the original version contained digits but ALSO other characters (like letters),
+        // then the numeric comparison is risky if the other one is pure numeric.
+        // Check if the original strings (ignoring 'v') contain non-digits.
+        bool hasNonDigits1 = v1Clean.Any(c => !char.IsDigit(c));
+        bool hasNonDigits2 = v2Clean.Any(c => !char.IsDigit(c));
+
+        if (!hasNonDigits1 && !hasNonDigits2 && long.TryParse(digits1, out var ld1) && long.TryParse(digits2, out var ld2))
         {
-            return num1.CompareTo(num2);
+            return NormalizeNumericDate(ld1).CompareTo(NormalizeNumericDate(ld2));
         }
 
         // Fall back to string comparison
@@ -109,17 +163,91 @@ public static class VersionComparer
     }
 
     /// <summary>
-    /// Tries to compare two versions as numeric values.
+    /// Normalizes a version string by removing common prefixes and formatting.
     /// </summary>
-    /// <returns>Comparison result if successful, null otherwise.</returns>
-    private static int? TryCompareNumericVersions(string ver1, string ver2)
+    /// <param name="version">The version string to normalize.</param>
+    /// <returns>The normalized version string.</returns>
+    private static string NormalizeVersionString(string version)
     {
-        if (long.TryParse(ver1, out var num1) && long.TryParse(ver2, out var num2))
+        if (string.IsNullOrWhiteSpace(version))
+            return string.Empty;
+
+        // Remove common prefixes that publishers use
+        var normalized = version;
+
+        // Remove weekly- prefix (SuperHackers)
+        if (normalized.StartsWith("weekly-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(8); // Remove "weekly-"
+
+        // Remove release- prefix
+        if (normalized.StartsWith("release-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(9); // Remove "release-"
+
+        // Remove version- prefix
+        if (normalized.StartsWith("version-", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(9); // Remove "version-"
+
+        // Remove 'v' or 'V' prefix
+        normalized = normalized.TrimStart('v', 'V');
+
+        // Convert date format YYYY-MM-DD to YYYYMMDD
+        if (normalized.Length == 10 && normalized[4] == '-' && normalized[7] == '-')
         {
-            return num1.CompareTo(num2);
+            normalized = normalized.Replace("-", string.Empty);
         }
 
-        return null;
+        return normalized;
+    }
+
+    /// <summary>
+    /// Normalizes a numeric version that might be YYMMDD to YYYYMMDD.
+    /// Assumes 20xx for dates starting with 2-9 (e.g. 210101 -> 20210101).
+    /// </summary>
+    private static long NormalizeNumericDate(long version)
+    {
+        // 6 digits is likely YYMMDD (e.g. 260116)
+        if (version >= 100000 && version <= 991231)
+        {
+            return 20000000 + version;
+        }
+
+        return version;
+    }
+
+    /// <summary>
+    /// Compares two semantic version strings segment by segment.
+    /// </summary>
+    private static int CompareSemanticVersions(string ver1, string ver2)
+    {
+        var parts1 = ver1.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var parts2 = ver2.Split('.', StringSplitOptions.RemoveEmptyEntries);
+
+        for (int i = 0; i < Math.Max(parts1.Length, parts2.Length); i++)
+        {
+            var rawSegment1 = i < parts1.Length ? parts1[i] : "0";
+            var rawSegment2 = i < parts2.Length ? parts2[i] : "0";
+
+            // Trim leading 'v' if present
+            var segment1 = rawSegment1.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? rawSegment1[1..] : rawSegment1;
+            var segment2 = rawSegment2.StartsWith("v", StringComparison.OrdinalIgnoreCase) ? rawSegment2[1..] : rawSegment2;
+
+            // Check if both segments are pure digits after trimming 'v'
+            var isDigit1 = segment1.All(char.IsDigit);
+            var isDigit2 = segment2.All(char.IsDigit);
+
+            if (isDigit1 && isDigit2 && long.TryParse(segment1, out var num1) && long.TryParse(segment2, out var num2))
+            {
+                if (num1 != num2) return num1.CompareTo(num2);
+            }
+            else
+            {
+                // For non-pure-numeric segments, compare the full original strings (case-insensitive)
+                var strCompare = string.Compare(rawSegment1, rawSegment2, StringComparison.OrdinalIgnoreCase);
+                if (strCompare != 0) return strCompare;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>

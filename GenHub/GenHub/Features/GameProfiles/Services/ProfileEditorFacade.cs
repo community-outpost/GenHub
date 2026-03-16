@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -87,17 +88,30 @@ public class ProfileEditorFacade(
             // If content changed, refresh the workspace
             if (request.EnabledContentIds != null)
             {
+                // Validate GameClient is present before creating workspace configuration
+                if (profile.GameClient == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        "Profile must have a GameClient configured to refresh workspace");
+                }
+
                 var workspaceConfig = new WorkspaceConfiguration
                 {
                     Id = profileId,
                     Manifests = [],
                     GameClient = profile.GameClient,
-                    Strategy = profile.WorkspaceStrategy,
+                    Strategy = profile.WorkspaceStrategy ?? _config.GetDefaultWorkspaceStrategy(),
                     ForceRecreate = true, // Force recreate since content changed
                     ValidateAfterPreparation = true,
                 };
 
                 // resolve installation path and workspace root
+                if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        "Profile must have a GameInstallationId to refresh workspace");
+                }
+
                 var install = await _installationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
                 if (install.Failed || install.Data == null)
                 {

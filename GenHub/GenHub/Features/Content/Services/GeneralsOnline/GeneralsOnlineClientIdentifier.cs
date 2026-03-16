@@ -19,20 +19,23 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     public bool CanIdentify(string executablePath)
     {
         var fileName = Path.GetFileName(executablePath);
-        return fileName.Equals(GameClientConstants.GeneralsOnline30HzExecutable, StringComparison.OrdinalIgnoreCase) ||
-               fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase);
+        return fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
     public GameClientIdentification? Identify(string executablePath)
     {
         var fileName = Path.GetFileName(executablePath);
-        var is30Hz = fileName.Equals(GameClientConstants.GeneralsOnline30HzExecutable, StringComparison.OrdinalIgnoreCase);
+
+        if (!fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
 
         return new GameClientIdentification(
             publisherId: PublisherTypeConstants.GeneralsOnline,
-            variant: is30Hz ? GeneralsOnlineConstants.Variant30HzSuffix : GeneralsOnlineConstants.Variant60HzSuffix,
-            displayName: is30Hz ? GameClientConstants.GeneralsOnline30HzDisplayName : GameClientConstants.GeneralsOnline60HzDisplayName,
+            variant: GeneralsOnlineConstants.Variant60HzSuffix,
+            displayName: GameClientConstants.GeneralsOnline60HzDisplayName,
             gameType: GameType.ZeroHour,
             localVersion: null); // Don't fetch from web during detection!
     }

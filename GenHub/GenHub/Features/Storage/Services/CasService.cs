@@ -18,7 +18,7 @@ namespace GenHub.Features.Storage.Services;
 /// </summary>
 public class CasService(
     ICasStorage storage,
-    CasReferenceTracker referenceTracker,
+    ICasReferenceTracker referenceTracker,
     ILogger<CasService> logger,
     IOptions<CasConfiguration> config,
     IFileHashProvider fileHashProvider,

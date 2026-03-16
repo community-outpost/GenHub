@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.GameProfiles;
-using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -152,17 +150,17 @@ public partial class GameProfileSettingsViewModel
             Name = profile.Name;
             Description = profile.Description ?? string.Empty;
             ColorValue = profile.ThemeColor ?? "#1976D2";
-            var defaultIconPath = _profileResourceService?.GetDefaultIconPath(profile.GameClient.GameType.ToString())
+            var defaultIconPath = _profileResourceService?.GetDefaultIconPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour")
                 ?? Core.Constants.UriConstants.DefaultIconUri;
             IconPath = NormalizeResourcePath(profile.IconPath, defaultIconPath);
-            var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient.GameType.ToString()) ?? string.Empty;
+            var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour") ?? string.Empty;
             CoverPath = NormalizeResourcePath(profile.CoverPath, defaultCoverPath);
-            SelectedWorkspaceStrategy = profile.WorkspaceStrategy;
-            _originalWorkspaceStrategy = profile.WorkspaceStrategy;
+            SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
+            _originalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
 
-            LoadAvailableIconsAndCovers(profile.GameClient.GameType.ToString());
-            GameTypeFilter = profile.GameClient.GameType;
+            LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");
+            GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;
 
             GameSettingsViewModel.ColorValue = ColorValue;
             await GameSettingsViewModel.InitializeForProfileAsync(profileId, profile);

@@ -200,7 +200,7 @@ public class GameInstallation : IGameInstallation
                 }
             }
 
-            if (!foundZeroHour)
+            if (!foundZeroHour && string.IsNullOrEmpty(ZeroHourPath))
             {
                 // Zero Hour usually has generals.exe AND specific files like "generals.zh.exe" (sometimes) or just "generals.exe" with different hash/version.
                 // Detection primarily relies on folder name or presence of expansion files.
@@ -209,18 +209,36 @@ public class GameInstallation : IGameInstallation
 
                 if (rootGeneralsExe.FileExistsCaseInsensitive())
                 {
-                    // If we are in root and found generals.exe, it could be ZH.
-                    // Check for something specific to ZH if possible, or just assume if user pointed here it might be combined.
-                    // For safety, let's treat root install as potentially containing both if we can't distinguish.
+                    // Check if Generals is already set to this path to avoid duplicate detection
+                    // This prevents setting both GeneralsPath and ZeroHourPath to the same directory
+                    // when platform-specific detectors (Steam/EA/etc) have already identified Generals here
+                    bool isGeneralsAlreadySetToRoot =
+                        !string.IsNullOrEmpty(GeneralsPath) &&
+                        Path.GetFullPath(GeneralsPath).Equals(
+                            Path.GetFullPath(InstallationPath),
+                            StringComparison.OrdinalIgnoreCase);
 
-                    // Ideally we check for a ZH specific file, but standard detection often just looks for exe.
-                    // Let's assume if the user pointed us here and it has the exe, it's valid.
-                    // Standard Retail ZH has "generals.exe" but also usually lives in its own folder.
-                    // If user pointed to "C:\Games\ZH", it has generals.exe.
-                    HasZeroHour = true;
-                    ZeroHourPath = InstallationPath;
-                    foundZeroHour = true;
-                    _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath}", ZeroHourPath);
+                    if (!isGeneralsAlreadySetToRoot)
+                    {
+                        // If we are in root and found generals.exe, it could be ZH.
+                        // Check for something specific to ZH if possible, or just assume if user pointed here it might be combined.
+                        // For safety, let's treat root install as potentially containing both if we can't distinguish.
+
+                        // Ideally we check for a ZH specific file, but standard detection often just looks for exe.
+                        // Let's assume if the user pointed us here and it has the exe, it's valid.
+                        // Standard Retail ZH has "generals.exe" but also usually lives in its own folder.
+                        // If user pointed to "C:\Games\ZH", it has generals.exe.
+                        HasZeroHour = true;
+                        ZeroHourPath = InstallationPath;
+                        foundZeroHour = true;
+                        _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath}", ZeroHourPath);
+                    }
+                    else
+                    {
+                        _logger?.LogDebug(
+                            "Skipping Zero Hour detection at root {InstallationPath} - Generals already detected here",
+                            InstallationPath);
+                    }
                 }
             }
 

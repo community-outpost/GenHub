@@ -21,13 +21,15 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
     /// Initializes a new instance of the <see cref="DemoAddLocalContentViewModel"/> class.
     /// </summary>
     /// <param name="localContentService">Service for handling local content operations.</param>
+    /// <param name="contentStorageService">Service for content storage operations.</param>
     /// <param name="notificationService">Optional notification service for demo actions.</param>
     /// <param name="logger">Logger instance.</param>
     public DemoAddLocalContentViewModel(
         ILocalContentService? localContentService,
+        IContentStorageService? contentStorageService,
         INotificationService? notificationService,
         ILogger<AddLocalContentViewModel>? logger = null)
-        : base(localContentService ?? new MockLocalContentService(), logger)
+        : base(localContentService ?? new MockLocalContentService(), contentStorageService, logger)
     {
         _notificationService = notificationService;
 
@@ -65,82 +67,83 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
             Name = "RiseOfTheReds_v1.87",
             IsFile = false,
             FullPath = "C:\\Demo\\RiseOfTheReds_v1.87",
-            Children = new ObservableCollection<FileTreeItem>
-            {
+            Children =
+            [
+
                 // Core Game Files
-                new FileTreeItem
+                new()
                 {
                     Name = "Core Files",
                     IsFile = false,
                     FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Core",
-                    Children = new ObservableCollection<FileTreeItem>
-                    {
-                         new FileTreeItem { Name = "ROTR_Installer.exe", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\ROTR_Installer.exe" },
-                         new FileTreeItem { Name = "README.txt", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\README.txt" },
-                         new FileTreeItem { Name = "License.rtf", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\License.rtf" },
-                    },
+                    Children =
+                    [
+                         new() { Name = "ROTR_Installer.exe", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\ROTR_Installer.exe" },
+                         new() { Name = "README.txt", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\README.txt" },
+                         new() { Name = "License.rtf", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\License.rtf" },
+                    ],
                 },
 
                 // Data Folder
-                new FileTreeItem
+                new()
                 {
                     Name = "Data",
                     IsFile = false,
                     FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data",
-                    Children = new ObservableCollection<FileTreeItem>
-                    {
-                        new FileTreeItem { Name = "INI", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\INI" },
-                        new FileTreeItem { Name = "Art", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Art" },
-                        new FileTreeItem { Name = "Audio", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Audio" },
-                        new FileTreeItem { Name = "Scripts", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Scripts" },
-                    },
+                    Children =
+                    [
+                        new() { Name = "INI", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\INI" },
+                        new() { Name = "Art", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Art" },
+                        new() { Name = "Audio", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Audio" },
+                        new() { Name = "Scripts", IsFile = false, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Data\\Scripts" },
+                    ],
                 },
 
                 // Maps Folder (Organized)
-                new FileTreeItem
+                new()
                 {
                     Name = "Maps",
                     IsFile = false,
                     FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps",
-                    Children = new ObservableCollection<FileTreeItem>
-                    {
-                        new FileTreeItem
+                    Children =
+                    [
+                        new()
                         {
                             Name = "Tournament Desert II",
                             IsFile = false,
                             FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II",
-                            Children = new ObservableCollection<FileTreeItem>
-                            {
-                                new FileTreeItem { Name = "Tournament Desert II.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.map" },
-                                new FileTreeItem { Name = "Tournament Desert II.str", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.str" },
-                                new FileTreeItem { Name = "Preview.tga", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Preview.tga" },
-                            },
+                            Children =
+                            [
+                                new() { Name = "Tournament Desert II.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.map" },
+                                new() { Name = "Tournament Desert II.str", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Tournament Desert II.str" },
+                                new() { Name = "Preview.tga", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Tournament Desert II\\Preview.tga" },
+                            ],
                         },
-                        new FileTreeItem
+                        new()
                         {
                             Name = "Alpine Assault",
                             IsFile = false,
                             FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Alpine Assault",
-                            Children = new ObservableCollection<FileTreeItem>
-                            {
-                                new FileTreeItem { Name = "Alpine Assault.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Alpine Assault\\Alpine Assault.map" },
-                            },
+                            Children =
+                            [
+                                new() { Name = "Alpine Assault.map", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Maps\\Alpine Assault\\Alpine Assault.map" },
+                            ],
                         },
-                    },
+                    ],
                 },
 
                 // Addons/extras
-                new FileTreeItem
+                new()
                 {
                     Name = "Optional Addons",
                     IsFile = false,
                     FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Addons",
-                    Children = new ObservableCollection<FileTreeItem>
-                    {
-                         new FileTreeItem { Name = "HD_Textures.big", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Addons\\HD_Textures.big" },
-                    },
+                    Children =
+                    [
+                         new() { Name = "HD_Textures.big", IsFile = true, FullPath = "C:\\Demo\\RiseOfTheReds_v1.87\\Addons\\HD_Textures.big" },
+                    ],
                 },
-            },
+            ],
         };
 
         FileTree.Add(modFolder);
@@ -170,12 +173,12 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         BrowseFileAction = async () =>
         {
             _notificationService?.Show(new Core.Models.Notifications.NotificationMessage(
-                Core.Models.Enums.NotificationType.Info,
+                NotificationType.Info,
                 "Demo - Browse Files",
                 "In the actual dialog, this opens a file picker to select .zip archives or individual files.",
                 4000));
             await Task.Delay(100);
-            return new System.Collections.Generic.List<string> { "C:\\Downloads\\ExampleMod.zip" };
+            return ["C:\\Downloads\\ExampleMod.zip"];
         };
     }
 

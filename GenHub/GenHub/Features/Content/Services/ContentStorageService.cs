@@ -29,7 +29,7 @@ public class ContentStorageService : IContentStorageService
     private readonly string _storageRoot;
     private readonly ILogger<ContentStorageService> _logger;
     private readonly ICasService _casService;
-    private readonly CasReferenceTracker _referenceTracker;
+    private readonly ICasReferenceTracker _referenceTracker;
 
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
@@ -181,7 +181,7 @@ public class ContentStorageService : IContentStorageService
         string storageRoot,
         ILogger<ContentStorageService> logger,
         ICasService casService,
-        CasReferenceTracker referenceTracker)
+        ICasReferenceTracker referenceTracker)
     {
         if (string.IsNullOrWhiteSpace(storageRoot))
         {
@@ -271,7 +271,12 @@ public class ContentStorageService : IContentStorageService
             var updatedManifest = await StoreContentFilesAsync(manifest, sourceDirectory, progress, cancellationToken);
 
             // Track CAS references to ensure files are not prematurely garbage collected
-            await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
+            var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
+            if (!trackResult.Success)
+            {
+                _logger.LogError("Failed to track CAS references for manifest {ManifestId}: {Error}", updatedManifest.Id, trackResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+            }
 
             // Ensure Manifests directory exists before writing manifest file
             var manifestDirectory = Path.GetDirectoryName(manifestPath);
@@ -294,6 +299,14 @@ public class ContentStorageService : IContentStorageService
             try
             {
                 FileOperationsService.DeleteFileIfExists(manifestPath);
+
+                // Untrack manifest if we failed to save it but had already tracked references.
+                // This prevents orphan references from protecting CAS objects that aren't actually associated with a manifest.
+                var untrackResult = await _referenceTracker.UntrackManifestAsync(manifest.Id, CancellationToken.None);
+                if (!untrackResult.Success)
+                {
+                    _logger.LogWarning("Failed to cleanup CAS references after storage failure for manifest '{ManifestId}': {ErrorCount} errors.", manifest.Id.Value, untrackResult.Errors?.Count ?? 0);
+                }
             }
             catch (Exception cleanupEx)
             {
@@ -377,14 +390,21 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, bool skipUntrack = false, CancellationToken cancellationToken = default)
     {
         var manifestPath = GetManifestStoragePath(manifestId);
 
         try
         {
             // Untrack CAS references before removing manifest file
-            await _referenceTracker.UntrackManifestAsync(manifestId, cancellationToken);
+            if (!skipUntrack)
+            {
+                var untrackResult = await _referenceTracker.UntrackManifestAsync(manifestId, cancellationToken);
+                if (!untrackResult.Success)
+                {
+                    _logger.LogWarning("Failed to untrack CAS references during removal of manifest '{ManifestId}': {ErrorCount} errors.", manifestId.Value, untrackResult.Errors?.Count ?? 0);
+                }
+            }
 
             // Remove source.path mapping file if it exists
             var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifestId.Value);
@@ -418,7 +438,7 @@ public class ContentStorageService : IContentStorageService
     }
 
     /// <inheritdoc/>
-    public async Task<StorageStats> GetStorageStatsAsync(CancellationToken cancellationToken = default)
+    public async Task<OperationResult<StorageStats>> GetStorageStatsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -437,12 +457,12 @@ public class ContentStorageService : IContentStorageService
                 stats.AvailableFreeSpaceBytes = driveInfo.AvailableFreeSpace;
             }
 
-            return await Task.FromResult(stats);
+            return await Task.FromResult(OperationResult<StorageStats>.CreateSuccess(stats));
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to calculate storage stats");
-            return new StorageStats();
+            return OperationResult<StorageStats>.CreateFailure($"Failed to calculate storage stats: {ex.Message}");
         }
     }
 
@@ -489,11 +509,20 @@ public class ContentStorageService : IContentStorageService
                     sourceDirectory);
             }
 
+            // Ensure CAS references are tracked even for metadata-only storage
+            var trackResult = await _referenceTracker.TrackManifestReferencesAsync(manifest.Id, manifest, cancellationToken);
+            if (!trackResult.Success)
+            {
+                _logger.LogError("Failed to track CAS references for metadata-only manifest {ManifestId}: {Error}", manifest.Id, trackResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+            }
+
             // Store manifest metadata only
             var manifestJson = JsonSerializer.Serialize(manifest, JsonOptions);
             await File.WriteAllTextAsync(manifestPath, manifestJson, cancellationToken);
 
-            _logger.LogInformation("Successfully stored manifest metadata for {ManifestId}", manifest.Id);
+            _logger.LogInformation("Successfully stored manifest metadata for {ManifestId} and refreshed CAS tracking", manifest.Id);
+
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
         catch (Exception ex)
@@ -504,6 +533,9 @@ public class ContentStorageService : IContentStorageService
             try
             {
                 FileOperationsService.DeleteFileIfExists(manifestPath);
+
+                // Untrack manifest if we failed to save its metadata but had already tracked/refreshed references.
+                await _referenceTracker.UntrackManifestAsync(manifest.Id, CancellationToken.None);
             }
             catch (Exception cleanupEx)
             {
@@ -756,7 +788,7 @@ public class ContentStorageService : IContentStorageService
         _logger.LogInformation(
             "Successfully stored {StoredCount} of {TotalCount} files to CAS for {ManifestId}",
             updatedFiles.Count,
-            manifest.Files.Count,
+            totalFiles,
             manifest.Id);
 
         return manifest;

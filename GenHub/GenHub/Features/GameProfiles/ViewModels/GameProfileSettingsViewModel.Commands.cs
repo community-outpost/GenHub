@@ -38,6 +38,15 @@ public partial class GameProfileSettingsViewModel
     }
 
     /// <summary>
+    /// Updates the selected content editor category from the scroll spy without triggering a scroll request.
+    /// </summary>
+    /// <param name="category">The new active category.</param>
+    public void UpdateContentEditorCategoryFromScroll(ContentEditorCategory category)
+    {
+        SelectedContentEditorCategory = category;
+    }
+
+    /// <summary>
     /// Loads the available content items based on current filters.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -129,6 +138,22 @@ public partial class GameProfileSettingsViewModel
     {
         SelectedContentCategory = category;
         ScrollToSectionRequested?.Invoke(category.ToString() + "Section");
+    }
+
+    [RelayCommand]
+    private void SelectContentEditorCategory(ContentEditorCategory category)
+    {
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] SelectContentEditorCategory called with category: {category}");
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested is null: {ScrollToSectionRequested == null}");
+
+        SelectedContentEditorCategory = category;
+
+        var sectionName = category.ToString() + "Section";
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] Invoking ScrollToSectionRequested with: {sectionName}");
+
+        ScrollToSectionRequested?.Invoke(sectionName);
+
+        System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested invoked");
     }
 
     [RelayCommand]
@@ -340,7 +365,7 @@ public partial class GameProfileSettingsViewModel
                     Description = Description,
                     GameInstallationId = SelectedGameInstallation.SourceId,
                     GameClientId = SelectedGameInstallation.GameClientId,
-                    PreferredStrategy = SelectedWorkspaceStrategy,
+                    WorkspaceStrategy = SelectedWorkspaceStrategy,
                     EnabledContentIds = enabledContentIds,
                     CommandLineArguments = CommandLineArguments,
                     IconPath = IconPath,
@@ -383,7 +408,7 @@ public partial class GameProfileSettingsViewModel
                     ThemeColor = ColorValue,
                     GameInstallationId = SelectedGameInstallation?.SourceId,
 
-                    PreferredStrategy = _originalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != _originalWorkspaceStrategy.Value
+                    WorkspaceStrategy = _originalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != _originalWorkspaceStrategy.Value
                         ? SelectedWorkspaceStrategy
                         : null,
                     EnabledContentIds = enabledContentIds,
@@ -631,9 +656,9 @@ public partial class GameProfileSettingsViewModel
     {
         try
         {
-            if (_localContentService == null)
+            if (_localContentService == null || _contentStorageService == null)
             {
-                StatusMessage = "Local content service unavailable";
+                StatusMessage = "Content services unavailable";
                 return;
             }
 
@@ -643,7 +668,7 @@ public partial class GameProfileSettingsViewModel
 
             if (dialogOwner == null) return;
 
-            var vm = new AddLocalContentViewModel(_localContentService, null);
+            var vm = new AddLocalContentViewModel(_localContentService, _contentStorageService, null);
             var window = new Views.AddLocalContentWindow
             {
                 DataContext = vm,
@@ -665,6 +690,9 @@ public partial class GameProfileSettingsViewModel
                 StatusMessage = $"Added {contentItem.DisplayName}";
                 await EnableContentInternal(contentItem, bypassLoadingGuard: true);
 
+                // Refresh filters and content to ensure new type appears and list updates
+                await RefreshFiltersAndContentAsync();
+
                 _localNotificationService?.ShowSuccess(
                      "Content Added",
                      $"'{contentItem.DisplayName}' has been added successfully.");
@@ -674,6 +702,82 @@ public partial class GameProfileSettingsViewModel
         {
             _logger?.LogError(ex, "Error opening Add Local Content dialog");
             StatusMessage = "Error opening dialog";
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditContent(ContentDisplayItem? contentItem)
+    {
+        if (contentItem == null) return;
+
+        try
+        {
+            if (_localContentService == null || _contentStorageService == null)
+            {
+                StatusMessage = "Content services unavailable";
+                return;
+            }
+
+            var owner = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+
+            if (owner == null) return;
+
+            var vm = new AddLocalContentViewModel(_localContentService, _contentStorageService, null);
+            await vm.LoadFromManifestAsync(contentItem);
+
+            var window = new Views.AddLocalContentWindow
+            {
+                DataContext = vm,
+            };
+
+            var result = await window.ShowDialog<bool>(owner);
+
+            if (result && vm.CreatedContentItem != null)
+            {
+                var updatedItem = vm.CreatedContentItem;
+                var oldId = contentItem.ManifestId.Value;
+                var newId = updatedItem.ManifestId.Value;
+
+                _logger?.LogInformation("Edited local content: {Name} (ID: {OldId} -> {NewId})", contentItem.DisplayName, oldId, newId);
+                StatusMessage = "Content updated";
+                _localNotificationService?.ShowSuccess("Content Updated", $"'{contentItem.DisplayName}' has been updated.");
+
+                // Architecture: Synchronize our internal collections IMMEDIATELY to avoid duplication/flicker.
+                // If it was in EnabledContent, replace it with the new item (maintaining enabled state).
+                var inEnabled = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == oldId);
+                if (inEnabled != null)
+                {
+                    var index = EnabledContent.IndexOf(inEnabled);
+                    updatedItem.IsEnabled = true;
+                    EnabledContent[index] = updatedItem;
+                }
+
+                // If it was in AvailableContent, remove the old one (the refresh below will add the new one back if appropriate).
+                var inAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == oldId);
+                if (inAvailable != null)
+                {
+                    AvailableContent.Remove(inAvailable);
+                }
+
+                // If GameClient or GameInstallation ID changed and this was our selection, synchronize SelectedGameInstallation.
+                if ((contentItem.ContentType == ContentType.GameClient || contentItem.ContentType == ContentType.GameInstallation) &&
+                    SelectedGameInstallation != null &&
+                    SelectedGameInstallation.ManifestId.Value == oldId)
+                {
+                    SelectedGameInstallation = updatedItem;
+                    _logger?.LogInformation("Synchronized SelectedGameInstallation with newly edited {ContentType}", contentItem.ContentType);
+                }
+
+                // Reload content and filters to reflect all changes (e.g. type changes, category updates).
+                await RefreshFiltersAndContentAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error editing content {Name}", contentItem.DisplayName);
+            StatusMessage = "Error editing content";
         }
     }
 
@@ -714,7 +818,13 @@ public partial class GameProfileSettingsViewModel
             if (result.Success)
             {
                  IsAddLocalContentDialogOpen = false;
-                 await LoadAvailableContentAsync();
+
+                 // Refresh filters and content to ensure new type appears and list updates
+                 await RefreshFiltersAndContentAsync();
+
+                 // If the added item matches current filter, ensure it's selected/visible (handled by LoadAvailableContent)
+                 // If the item introduced a new filter, user might want to switch to it.
+                 // For now, just refreshing ensures it's reachable.
             }
             else
             {

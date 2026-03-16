@@ -60,7 +60,7 @@ public class MainViewModelTests
         // Act
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -104,7 +104,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -144,7 +144,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -186,7 +186,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -276,13 +276,16 @@ public class MainViewModelTests
 
         // Minimal defaults used by MainViewModel
         mock.Setup(x => x.GetLastSelectedTab()).Returns(NavigationTab.GameProfiles);
+        var tempPath = Path.Combine(Path.GetTempPath(), "GenHub", "Manifests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempPath);
+        mock.Setup(x => x.GetManifestsPath()).Returns(tempPath);
         return mock.Object;
     }
 
     /// <summary>
     /// Helper method to create a DownloadsViewModel with mocked dependencies.
     /// </summary>
-    private static DownloadsViewModel CreateDownloadsViewModel()
+    private static DownloadsViewModel CreateDownloadsViewModel(IConfigurationProviderService configProvider)
     {
         var mockServiceProvider = new Mock<IServiceProvider>();
         var mockLogger = new Mock<ILogger<DownloadsViewModel>>();
@@ -301,7 +304,8 @@ public class MainViewModelTests
             mockServiceProvider.Object,
             mockLogger.Object,
             mockNotificationService.Object,
-            realGitHubDiscoverer);
+            realGitHubDiscoverer,
+            configProvider);
     }
 
     /// <summary>

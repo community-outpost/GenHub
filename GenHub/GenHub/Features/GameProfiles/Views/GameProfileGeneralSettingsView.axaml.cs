@@ -22,6 +22,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
     private double _animTargetOffset;
     private double _animStartOffset;
     private DateTime _animStartTime;
+    private GameProfileSettingsViewModel? _boundViewModel;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileGeneralSettingsView"/> class.
@@ -46,18 +47,30 @@ public partial class GameProfileGeneralSettingsView : UserControl
         }
 
         // Map section names to controls and categories
-        MapSection("IdentitySection", GeneralSettingsCategory.Identity);
-        MapSection("AppearanceSection", GeneralSettingsCategory.Appearance);
-        MapSection("LaunchSection", GeneralSettingsCategory.Launch);
-        MapSection("ThemeSection", GeneralSettingsCategory.Theme);
+        MapSections();
 
         if (DataContext is GameProfileSettingsViewModel vm)
         {
-            // Subscribe to ViewModel scroll requests
-            vm.ScrollToSectionRequested = OnScrollToSectionRequested;
+            _boundViewModel = vm;
+            AttachHandlers(vm);
+        }
+    }
 
-            // Subscribe to ScrollViewer changes for Spy logic
-            _scrollViewer.ScrollChanged += OnScrollChanged;
+    /// <inheritdoc />
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (_boundViewModel != null)
+        {
+            DetachHandlers(_boundViewModel);
+            _boundViewModel = null;
+        }
+
+        if (DataContext is GameProfileSettingsViewModel vm)
+        {
+            _boundViewModel = vm;
+            AttachHandlers(vm);
         }
     }
 
@@ -68,14 +81,43 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
+        _animationTimer?.Stop();
+
+        if (_boundViewModel != null)
+        {
+            DetachHandlers(_boundViewModel);
+            _boundViewModel = null;
+        }
+    }
+
+    private void MapSections()
+    {
+        if (_sections.Count > 0) return;
+
+        MapSection("IdentitySection", GeneralSettingsCategory.Identity);
+        MapSection("AppearanceSection", GeneralSettingsCategory.Appearance);
+        MapSection("LaunchSection", GeneralSettingsCategory.Launch);
+        MapSection("ThemeSection", GeneralSettingsCategory.Theme);
+    }
+
+    private void AttachHandlers(GameProfileSettingsViewModel vm)
+    {
+        vm.ScrollToSectionRequested -= OnScrollToSectionRequested;
+        vm.ScrollToSectionRequested += OnScrollToSectionRequested;
+
         if (_scrollViewer != null)
         {
             _scrollViewer.ScrollChanged -= OnScrollChanged;
+            _scrollViewer.ScrollChanged += OnScrollChanged;
         }
+    }
 
-        if (DataContext is GameProfileSettingsViewModel vm)
+    private void DetachHandlers(GameProfileSettingsViewModel vm)
+    {
+        vm.ScrollToSectionRequested -= OnScrollToSectionRequested;
+        if (_scrollViewer != null)
         {
-            vm.ScrollToSectionRequested = null;
+            _scrollViewer.ScrollChanged -= OnScrollChanged;
         }
     }
 
@@ -101,8 +143,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
         Dispatcher.UIThread.InvokeAsync(
             () =>
             {
-                var content = _scrollViewer.Content as Control;
-                if (content != null)
+                if (_scrollViewer.Content is Control content)
                 {
                     var transform = targetControl.TransformToVisual(content);
                     if (transform.HasValue)
@@ -110,9 +151,17 @@ public partial class GameProfileGeneralSettingsView : UserControl
                         var pos = transform.Value.Transform(new Point(0, 0));
                         StartAnimation(pos.Y);
                     }
+                    else
+                    {
+                        // Reset if no animation starts
+                        _isScrollingProgrammatically = false;
+                    }
                 }
-
-                _isScrollingProgrammatically = false;
+                else
+                {
+                    // Reset if no content
+                    _isScrollingProgrammatically = false;
+                }
             },
             DispatcherPriority.Background);
     }
@@ -146,9 +195,9 @@ public partial class GameProfileGeneralSettingsView : UserControl
                     activeCategory = category;
                 }
             }
-            catch
+            catch (InvalidOperationException)
             {
-                // Ignore transformation errors
+                // Ignore transformation errors (can happen if control is not yet fully attached to visual tree)
             }
         }
 

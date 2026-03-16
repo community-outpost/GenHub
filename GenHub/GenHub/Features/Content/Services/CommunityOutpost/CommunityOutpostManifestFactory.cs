@@ -752,7 +752,7 @@ public class CommunityOutpostManifestFactory(
                         // 1. Matches inclusion pattern
                         // 2. OR: Starts with '!' (Special GenPatcher prefix for mandatory files like hotkeys)
                         // 3. AND: Is not a dependency BIG or always-include BIG (handled separately)
-                        if (!matchesInclude && !fileName.StartsWith('!') && !isDependencyBig && !isAlwaysInclude)
+                        if (!matchesInclude && !isDependencyBig && !isAlwaysInclude)
                         {
                             logger.LogDebug("Skipping file {File} - does not match variant {Variant} include patterns", relativePath, variant.Name);
                             continue;
@@ -848,7 +848,7 @@ public class CommunityOutpostManifestFactory(
                 Version = originalManifest.Version,
                 ManifestVersion = originalManifest.ManifestVersion,
                 ContentType = originalManifest.ContentType,
-                TargetGame = originalManifest.TargetGame,
+                TargetGame = (variant != null && variant.TargetGame.HasValue) ? variant.TargetGame.Value : originalManifest.TargetGame,
                 Files = fileEntries,
 
                 // Remove auto-install dependencies from the list since they're bundled into the files

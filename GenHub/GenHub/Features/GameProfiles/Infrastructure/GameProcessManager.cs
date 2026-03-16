@@ -262,22 +262,21 @@ public class GameProcessManager(
                         }
                     }
 
-                    logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode} (User likely closed it)", process.Id, exitCode);
-
-                    // Capture info before disposal
-                    var shortLivedProcessInfo = new GameProcessInfo
-                    {
-                        ProcessId = process.Id,
-                        ProcessName = "ExitedProcess",
-                        StartTime = DateTime.Now,
-                        ExecutablePath = configuration.ExecutablePath,
-                    };
+                    logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
                     process.Dispose();
 
-                    // Return Success instead of Failure to avoid "Process exited immediately" error popup
-                    // The process is not tracked, so UI will correctly revert to "Play" state naturally
-                    return OperationResult<GameProcessInfo>.CreateSuccess(shortLivedProcessInfo);
+                    // If it exits immediately with a non-zero code (like a crash or missing DLL), this is a genuine failure
+                    if (exitCode != 0)
+                    {
+                        return OperationResult<GameProcessInfo>.CreateFailure($"Process exited immediately with code {exitCode}");
+                    }
+                    else
+                    {
+                        // If it exits with 0 and we didn't find a spawned child, still fail the launch
+                        // because we don't have a valid process to track, preventing the UI from getting stuck in a 'running' state
+                        return OperationResult<GameProcessInfo>.CreateFailure("Process exited immediately after launch.");
+                    }
                 }
             }
 

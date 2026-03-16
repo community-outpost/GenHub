@@ -27,7 +27,7 @@ public class CreateProfileRequestTests
         Assert.Equal("Test Profile", request.Name);
         Assert.Equal("install-1", request.GameInstallationId);
         Assert.Equal("client-1", request.GameClientId);
-        Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, request.PreferredStrategy);
+        Assert.Null(request.WorkspaceStrategy);
     }
 
     /// <summary>
@@ -99,11 +99,11 @@ public class CreateProfileRequestTests
 
             // Act
             Description = "Test Description",
-            PreferredStrategy = WorkspaceStrategy.FullCopy,
+            WorkspaceStrategy = WorkspaceStrategy.FullCopy,
         };
 
         // Assert
         Assert.Equal("Test Description", request.Description);
-        Assert.Equal(WorkspaceStrategy.FullCopy, request.PreferredStrategy);
+        Assert.Equal(WorkspaceStrategy.FullCopy, request.WorkspaceStrategy);
     }
 }

@@ -51,21 +51,21 @@ public class UserSettingsServiceTests : IDisposable
     /// Verifies that GetSettings returns raw user values when no file exists.
     /// </summary>
     [Fact]
-    public void Get_WhenNoFileExists_ReturnsRawUserSettings()
+    public void Get_WhenNoFileExists_ReturnsDefaultUserSettings()
     {
         var service = CreateService();
         var settings = service.Get();
 
-        // UserSettingsService should return raw C# defaults, not application defaults
-        Assert.Null(settings.Theme);
-        Assert.Equal(0.0, settings.WindowWidth);
-        Assert.Equal(0.0, settings.WindowHeight);
+        // UserSettingsService should return our new explicit defaults
+        Assert.Equal(AppConstants.DefaultThemeName, settings.Theme);
+        Assert.Equal(UiConstants.DefaultWindowWidth, settings.WindowWidth);
+        Assert.Equal(UiConstants.DefaultWindowHeight, settings.WindowHeight);
         Assert.False(settings.IsMaximized);
         Assert.Equal(NavigationTab.Home, settings.LastSelectedTab);
-        Assert.Equal(0, settings.MaxConcurrentDownloads);
-        Assert.False(settings.AllowBackgroundDownloads);
-        Assert.False(settings.AutoCheckForUpdatesOnStartup);
-        Assert.Equal(WorkspaceStrategy.HardLink, settings.DefaultWorkspaceStrategy); // C# enum default is HardLink (0)
+        Assert.Equal(DownloadDefaults.MaxConcurrentDownloads, settings.MaxConcurrentDownloads);
+        Assert.True(settings.AllowBackgroundDownloads);
+        Assert.True(settings.AutoCheckForUpdatesOnStartup);
+        Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, settings.DefaultWorkspaceStrategy);
     }
 
     /// <summary>
@@ -136,7 +136,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetSettings_WithCorruptedJson_ReturnsRawDefaults()
+    public async Task GetSettings_WithCorruptedJson_ReturnsDefaults()
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
@@ -152,8 +152,8 @@ public class UserSettingsServiceTests : IDisposable
         var service = new UserSettingsService(logger.Object, appConfig.Object);
         var settings = service.Get();
 
-        // Should return raw C# defaults when JSON is corrupted
-        Assert.Null(settings.Theme);
+        // Should return defaults when JSON is corrupted
+        Assert.Equal(AppConstants.DefaultThemeName, settings.Theme);
         Assert.Equal(NavigationTab.Home, settings.LastSelectedTab);
     }
 
@@ -230,7 +230,6 @@ public class UserSettingsServiceTests : IDisposable
         var service = CreateService();
         var settingsPathField = typeof(UserSettingsService)
             .GetField("_settingsFilePath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
         Assert.NotNull(settingsPathField);
         settingsPathField.SetValue(service, settingsPath);
 
@@ -246,7 +245,7 @@ public class UserSettingsServiceTests : IDisposable
     /// Verifies that loading settings from partially valid JSON preserves what's in JSON without applying defaults.
     /// </summary>
     [Fact]
-    public void LoadSettings_WithPartiallyValidJson_PreservesJsonValues()
+    public void LoadSettings_WithPartiallyValidJson_PreservesJsonValuesAndAppliesDefaults()
     {
         // Arrange
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
@@ -261,11 +260,11 @@ public class UserSettingsServiceTests : IDisposable
         var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
         var settings = service.Get();
 
-        // Assert - Only JSON values should be set, rest should be C# defaults
-        Assert.Null(settings.Theme); // Not in JSON, should be null
+        // Assert - JSON values should be set, rest should be our explicit defaults
+        Assert.Equal(AppConstants.DefaultThemeName, settings.Theme); // Not in JSON, should be default
         Assert.Equal(1600.0, settings.WindowWidth); // From JSON
-        Assert.Equal(0.0, settings.WindowHeight); // Not in JSON, should be C# default (0)
-        Assert.Equal(0, settings.MaxConcurrentDownloads); // Not in JSON, should be 0
+        Assert.Equal(UiConstants.DefaultWindowHeight, settings.WindowHeight); // Not in JSON, should be default
+        Assert.Equal(DownloadDefaults.MaxConcurrentDownloads, settings.MaxConcurrentDownloads); // Not in JSON, should be default
         Assert.True(settings.AllowBackgroundDownloads); // From JSON
     }
 
@@ -363,7 +362,7 @@ public class UserSettingsServiceTests : IDisposable
     /// <summary>
     /// Creates a new <see cref="UserSettingsService"/> instance for testing with a temp file path.
     /// </summary>
-    /// <returns>A new <see cref="UserSettingsService"/> instance using a temp file path.</returns>
+    /// <returns>A new <see cref="TestableUserSettingsService"/> instance using a temp file path.</returns>
     private TestableUserSettingsService CreateService()
     {
         var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);

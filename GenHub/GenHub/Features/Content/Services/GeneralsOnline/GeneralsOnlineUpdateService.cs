@@ -1,15 +1,16 @@
-using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
-using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Providers;
-using GenHub.Core.Models.Results.Content;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Results.Content;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -22,7 +23,7 @@ public class GeneralsOnlineUpdateService(
     ILogger<GeneralsOnlineUpdateService> logger,
     IContentManifestPool manifestPool,
     IHttpClientFactory httpClientFactory,
-    IProviderDefinitionLoader providerLoader) : ContentUpdateServiceBase(logger)
+    IProviderDefinitionLoader providerLoader) : ContentUpdateServiceBase(logger), IGeneralsOnlineUpdateService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient(GeneralsOnlineConstants.PublisherType);
 
@@ -170,7 +171,9 @@ public class GeneralsOnlineUpdateService(
 
             // Add cache-busting to prevent HTTP caching of old version
             var cacheBuster = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var urlWithCacheBuster = $"{latestVersionUrl}?nocache={cacheBuster}";
+            var urlWithCacheBuster = latestVersionUrl.Contains('?')
+                ? $"{latestVersionUrl}&nocache={cacheBuster}"
+                : $"{latestVersionUrl}?nocache={cacheBuster}";
 
             logger.LogDebug("Fetching latest version from CDN with cache-busting: {Url}", urlWithCacheBuster);
 
@@ -178,11 +181,14 @@ public class GeneralsOnlineUpdateService(
             HttpResponseMessage? response = null;
             for (int i = 0; i < 3; i++)
             {
+                HttpResponseMessage? currentResponse = null;
                 try
                 {
-                    response = await _httpClient.GetAsync(urlWithCacheBuster, cancellationToken);
-                    if (response.IsSuccessStatusCode)
+                    currentResponse = await _httpClient.GetAsync(urlWithCacheBuster, cancellationToken);
+                    if (currentResponse.IsSuccessStatusCode)
                     {
+                        response = currentResponse;
+                        currentResponse = null; // Prevent disposal in finally
                         break;
                     }
                 }
@@ -190,6 +196,10 @@ public class GeneralsOnlineUpdateService(
                 {
                     logger.LogWarning(ex, "Attempt {Attempt} failed to fetch latest version", i + 1);
                     await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                }
+                finally
+                {
+                    currentResponse?.Dispose();
                 }
             }
 
@@ -199,12 +209,15 @@ public class GeneralsOnlineUpdateService(
                 return null;
             }
 
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            var version = content?.Trim().Trim('"');
+            using (response)
+            {
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                var version = content?.Trim().Trim('"');
 
-            logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
+                logger.LogInformation("Successfully fetched version from CDN: '{Version}' (length: {Length})", version, version?.Length ?? 0);
 
-            return version;
+                return version;
+            }
         }
         catch (Exception ex)
         {

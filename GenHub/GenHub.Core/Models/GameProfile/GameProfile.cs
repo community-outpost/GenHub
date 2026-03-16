@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
+using GenHub.Core.Serialization;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -21,10 +23,10 @@ public class GameProfile : IGameProfile
     public string Description { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the game client this profile is based on.</summary>
-    public GameClient GameClient { get; set; } = new();
+    public GameClient? GameClient { get; set; }
 
     /// <summary>Gets the version string of the game.</summary>
-    public string Version => GameClient.Id;
+    public string Version => GameClient?.Version ?? string.Empty;
 
     /// <summary>Gets or sets the path to the executable for this profile.</summary>
     public string ExecutablePath { get; set; } = string.Empty;
@@ -33,7 +35,7 @@ public class GameProfile : IGameProfile
     /// Gets or sets the game installation ID for this profile.
     /// Not required for Tool profiles (profiles with ToolContentId set).
     /// </summary>
-    public string GameInstallationId { get; set; } = string.Empty;
+    public string? GameInstallationId { get; set; }
 
     /// <summary>Gets or sets the list of enabled content manifest IDs for this profile.</summary>
     public List<string> EnabledContentIds { get; set; } = [];
@@ -50,11 +52,13 @@ public class GameProfile : IGameProfile
     /// </summary>
     public bool IsToolProfile => !string.IsNullOrWhiteSpace(ToolContentId);
 
-    /// <summary>Gets or sets the workspace strategy for this profile.</summary>
-    public WorkspaceStrategy WorkspaceStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;
-
-    /// <summary>Gets the preferred workspace strategy for this profile.</summary>
-    WorkspaceStrategy IGameProfile.PreferredStrategy => WorkspaceStrategy;
+    /// <summary>
+    /// Gets or sets the workspace strategy for this profile.
+    /// Returns null for missing or invalid values. Defaulting is applied by services, not in this converter.
+    /// Supports multiple input formats (null, numeric, string).
+    /// </summary>
+    [JsonConverter(typeof(JsonWorkspaceStrategyConverter))]
+    public WorkspaceStrategy? WorkspaceStrategy { get; set; }
 
     /// <summary>Gets or sets launch options and parameters.</summary>
     public Dictionary<string, string> LaunchOptions { get; set; } = [];

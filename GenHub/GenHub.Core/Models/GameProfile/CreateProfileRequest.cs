@@ -32,8 +32,8 @@ public class CreateProfileRequest
     /// </summary>
     public GameClient? GameClient { get; set; }
 
-    /// <summary>Gets or sets the preferred workspace strategy.</summary>
-    public WorkspaceStrategy PreferredStrategy { get; set; } = WorkspaceConstants.DefaultWorkspaceStrategy;
+    /// <summary>Gets or sets the workspace strategy for this profile. When null, uses the global default workspace strategy.</summary>
+    public WorkspaceStrategy? WorkspaceStrategy { get; set; }
 
     /// <summary>Gets or sets the list of enabled content IDs.</summary>
     public List<string>? EnabledContentIds { get; set; }

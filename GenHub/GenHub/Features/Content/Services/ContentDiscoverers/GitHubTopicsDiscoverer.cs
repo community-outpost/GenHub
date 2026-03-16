@@ -220,95 +220,6 @@ public partial class GitHubTopicsDiscoverer(
         }
     }
 
-    [System.Text.RegularExpressions.GeneratedRegex(@"(\d{3,4}x\d{3,4})")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
-
-    /// <summary>
-    /// Infers ContentType from repository topics.
-    /// </summary>
-    private static (ContentType Type, bool IsInferred) InferContentTypeFromTopics(List<string> topics)
-    {
-        // Check for explicit type topics
-        if (topics.Contains(GitHubTopicsConstants.GameClientTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.GameClient, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.ModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase) ||
-            topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mod, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapPackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.MapPack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.AddonTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Addon, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.PatchTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Patch, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.LanguagePackTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.LanguagePack, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MissionTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Mission, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.MapTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (ContentType.Map, false);
-        }
-
-        // No explicit type found, will need inference
-        return (ContentType.Addon, true);
-    }
-
-    /// <summary>
-    /// Infers GameType from repository topics.
-    /// </summary>
-    private static (GameType Type, bool IsInferred) InferGameTypeFromTopics(List<string> topics)
-    {
-        // Check for game-specific topics
-        if (topics.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        if (topics.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            // Check if also has ZH topic - use exact matching instead of substring matching
-            if (topics.Any(t => t.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
-                               t.Equals("zero-hour", StringComparison.OrdinalIgnoreCase)))
-            {
-                return (GameType.ZeroHour, false);
-            }
-
-            return (GameType.Generals, false);
-        }
-
-        // Generals Online content is typically for Zero Hour
-        if (topics.Contains(GitHubTopicsConstants.GeneralsOnlineTopic, StringComparer.OrdinalIgnoreCase))
-        {
-            return (GameType.ZeroHour, false);
-        }
-
-        // Default to ZeroHour (most common) with inference flag
-        return (GameType.ZeroHour, true);
-    }
-
     /// <summary>
     /// Checks if a search result matches the query criteria.
     /// </summary>
@@ -565,7 +476,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, release.Name);
@@ -573,7 +484,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, release.Name);
@@ -657,7 +568,7 @@ public partial class GitHubTopicsDiscoverer(
         string sourceTopic)
     {
         // Infer content type from topics first, then fall back to name-based inference
-        var (contentType, isTypeInferred) = InferContentTypeFromTopics(repo.Topics);
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(repo.Topics);
         if (isTypeInferred)
         {
             var nameInference = GitHubInferenceHelper.InferContentType(repo.Name, latestRelease?.Name);
@@ -665,7 +576,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Infer game type
-        var (gameType, isGameInferred) = InferGameTypeFromTopics(repo.Topics);
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(repo.Topics);
         if (isGameInferred)
         {
             var nameInference = GitHubInferenceHelper.InferTargetGame(repo.Name, latestRelease?.Name);

@@ -47,7 +47,8 @@ public class GameLauncher(
     IStorageLocationService storageLocationService,
     IGameSettingsService gameSettingsService,
     IProfileContentLinker profileContentLinker,
-    ISteamLauncher steamLauncher) : IGameLauncher
+    ISteamLauncher steamLauncher,
+    IConfigurationProviderService configurationProvider) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
@@ -559,18 +560,34 @@ public class GameLauncher(
             }
 
             // Resolve the installation
-            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
-            if (!installationResult.Success || installationResult.Data == null)
+            if (string.IsNullOrWhiteSpace(profile.GameInstallationId))
             {
-                logger.LogError("[GameLauncher] Failed to resolve game installation for profile {ProfileId}", profile.Id);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Failed to resolve game installation.", launchId, profile.Id);
+                logger.LogError("[GameLauncher] Profile {ProfileId} has no GameInstallationId set", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not configured for this profile.", launchId, profile.Id);
+            }
+
+            var installationResult = await gameInstallationService.GetInstallationAsync(profile.GameInstallationId, cancellationToken);
+            if (!installationResult.Success)
+            {
+                logger.LogError("[GameLauncher] Failed to retrieve installation {InstallationId}: {Error}", profile.GameInstallationId, installationResult.FirstError);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to retrieve game installation: {installationResult.FirstError}", launchId, profile.Id);
             }
 
             var installation = installationResult.Data;
+            if (installation == null)
+            {
+                logger.LogError("[GameLauncher] Installation record not found for {InstallationId}", profile.GameInstallationId);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Game installation not found.", launchId, profile.Id);
+            }
+
             var gameClient = profile.GameClient;
             if (gameClient == null)
             {
                 logger.LogError("[GameLauncher] GameClient is not set for profile {ProfileId}", profile.Id);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure("GameClient not configured for profile.", launchId, profile.Id);
             }
 
@@ -599,13 +616,14 @@ public class GameLauncher(
             }
 
             logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
-            logger.LogDebug("[GameLauncher] Creating workspace configuration - Strategy: {Strategy}", profile.WorkspaceStrategy);
+            var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+            logger.LogDebug("[GameLauncher] Creating workspace configuration - Strategy: {Strategy} (Effective)", effectiveStrategy);
             var workspaceConfig = new WorkspaceConfiguration
             {
                 Id = profile.Id,
                 Manifests = workspaceManifests,
                 GameClient = gameClient,
-                Strategy = profile.WorkspaceStrategy,
+                Strategy = effectiveStrategy,
 
                 // Always rebuild the workspace for Steam launches so we don't accidentally reuse
                 // a cached workspace that still contains the proxy launcher instead of the real client.
@@ -955,7 +973,7 @@ public class GameLauncher(
                 string gameProcessName;
                 if (executableFileForMonitor != null &&
                     executableFileForMonitor.SourceType == ContentSourceType.ContentAddressable &&
-                    profile.WorkspaceStrategy == WorkspaceStrategy.SymlinkOnly)
+                    effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
                 {
                     // For CAS symlinked executables, the process name IS the hash
                     // This is because Windows reports the symlink target hash as the process name

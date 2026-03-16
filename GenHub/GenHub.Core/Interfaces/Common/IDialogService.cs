@@ -37,4 +37,12 @@ public interface IDialogService
         string content,
         IEnumerable<DialogAction> actions,
         bool showDoNotAskAgain = false);
+
+    /// <summary>
+    /// Shows a custom update option dialog.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="message">The dialog message.</param>
+    /// <returns>The result of the dialog interaction.</returns>
+    Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message);
 }

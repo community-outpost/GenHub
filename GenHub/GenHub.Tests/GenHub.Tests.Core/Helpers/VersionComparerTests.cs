@@ -43,6 +43,9 @@ public class VersionComparerTests
     [InlineData("20251228", "20251229", -1)] // Older version
     [InlineData("20251229", "20251229", 0)] // Same version
     [InlineData("20251226", "20241226", 1)] // Different years
+    [InlineData("20260116", "260116", 0)] // YYYYMMDD vs YYMMDD (same date)
+    [InlineData("270116", "260116", 1)] // YYMMDD comparison
+    [InlineData("1.20260116", "20260116", 1)] // Semantic 1.YYYYMMDD > YYYYMMDD (fallback to semantic)
     public void CompareVersions_TheSuperHackers_NumericVersions_ReturnsCorrectComparison(
         string version1,
         string version2,
@@ -65,6 +68,10 @@ public class VersionComparerTests
     [InlineData("1.0", "1.0", 0)] // Same version
     [InlineData("2.0", "1.0", 1)] // Newer version
     [InlineData("1.0", "2.0", -1)] // Older version
+    [InlineData("1.10", "1.9", 1)] // Semantic: 10 > 9
+    [InlineData("1.9.1", "1.9", 1)] // Semantic: 9.1 > 9.0
+    [InlineData("2.0.0", "1.99.99", 1)] // Major version change
+    [InlineData("v1.2.3", "1.2.3", 0)] // Prefix handling (extracted digits)
     public void CompareVersions_GeneralsOnline_NumericVersions_ReturnsCorrectComparison(
         string version1,
         string version2,

@@ -54,6 +54,7 @@ public class GameLauncherTests
         // Setup configuration provider mock
         _configurationProviderServiceMock.Setup(x => x.GetWorkspacePath()).Returns(@"C:\Workspaces");
         _configurationProviderServiceMock.Setup(x => x.GetApplicationDataPath()).Returns(@"C:\Content");
+        _configurationProviderServiceMock.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
 
         // Setup game installation service mock
         var testInstallation = new GameInstallation(@"C:\Games\CommandAndConquer", GameInstallationType.Steam);
@@ -129,7 +130,8 @@ public class GameLauncherTests
             _storageLocationServiceMock.Object,
             _gameSettingsServiceMock.Object,
             _profileContentLinkerMock.Object,
-            _steamLauncherMock.Object);
+            _steamLauncherMock.Object,
+            _configurationProviderServiceMock.Object);
     }
 
     /// <summary>

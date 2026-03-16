@@ -85,8 +85,8 @@ public class GameClientProfileService(
                 GameInstallationId = installation.Id,
                 GameClientId = gameClient.Id,
                 GameClient = gameClient,
-                Description = $"GameProfile for {profileName}",
-                PreferredStrategy = preferredStrategy,
+                Description = $"Auto-created profile for {installation.InstallationType} {gameClient.Name}",
+                WorkspaceStrategy = preferredStrategy,
                 EnabledContentIds = enabledContentIds,
                 ThemeColor = themeColor ?? GetThemeColorForGameType(gameClient.GameType, gameClient),
                 IconPath = !string.IsNullOrEmpty(iconPath) ? iconPath : GetIconPathForGame(gameClient.GameType),
@@ -155,7 +155,7 @@ public class GameClientProfileService(
         {
             // With the new detection pipeline, GameClients are already resolved to valid variants.
             // We no longer need to handle "placeholders" that expand into multiple profiles.
-            // Each content variant (e.g., 30Hz, 60Hz) is detected as a separate GameClient.
+            // Each content variant (e.g., 60Hz) is detected as a separate GameClient.
             var singleResult = await CreateProfileForGameClientAsync(
                 installation,
                 gameClient,
@@ -258,6 +258,7 @@ public class GameClientProfileService(
                 Version = manifest.Version,
                 GameType = manifest.TargetGame,
                 SourceType = ContentType.GameClient,
+                PublisherType = manifest.Publisher?.PublisherType,
                 ExecutablePath = Path.Combine(installationPath, executableFile.RelativePath),
                 WorkingDirectory = installationPath,
                 InstallationId = matchingInstallation.Id,
@@ -564,7 +565,7 @@ public class GameClientProfileService(
 
         var profileExists = profilesResult.Data.Any(p =>
             p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
-            p.GameInstallationId.Equals(installationId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.GameInstallationId, installationId, StringComparison.OrdinalIgnoreCase));
 
         if (profileExists)
         {
@@ -574,6 +575,6 @@ public class GameClientProfileService(
         return profilesResult.Data.Any(p =>
             p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase) &&
             p.GameClient != null &&
-            p.GameClient.Id.Equals(gameClientId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.GameClient.Id, gameClientId, StringComparison.OrdinalIgnoreCase));
     }
 }

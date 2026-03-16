@@ -264,6 +264,8 @@ public class ContentOrchestrator : IContentOrchestrator
         // Cache successful results
         if (result.Success && result.Data != null)
         {
+            result.Data.OriginalProviderName = providerName;
+            result.Data.OriginalContentId = contentId;
             await _cache.SetAsync(cacheKey, result.Data, TimeSpan.FromHours(1), cancellationToken);
         }
 
@@ -655,10 +657,30 @@ public class ContentOrchestrator : IContentOrchestrator
 
         try
         {
-            await _manifestPool.RemoveManifestAsync(manifestId, cancellationToken);
+            // Retrieve the manifest first to get its original provider info for cache invalidation
+            var manifestResult = await _manifestPool.GetManifestAsync(manifestId, cancellationToken);
+
+            var removalResult = await _manifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+            if (!removalResult.Success)
+            {
+                _logger.LogWarning("Failed to remove content {ManifestId} from pool: {Error}", manifestId, removalResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to remove content from pool: {removalResult.FirstError}");
+            }
+
             _logger.LogInformation("Removed content {ManifestId} from pool", manifestId);
 
             // Invalidate related cache entries
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                var providerName = manifestResult.Data.OriginalProviderName;
+                var contentId = manifestResult.Data.OriginalContentId;
+
+                if (!string.IsNullOrEmpty(providerName) && !string.IsNullOrEmpty(contentId))
+                {
+                    await _cache.InvalidateAsync($"manifest::{providerName}::{contentId}", cancellationToken);
+                }
+            }
+
             await _cache.InvalidateAsync($"manifest::{manifestId}", cancellationToken);
 
             return OperationResult<bool>.CreateSuccess(true);

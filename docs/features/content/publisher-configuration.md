@@ -1,36 +1,36 @@
 ---
-title: Provider Configuration
-description: Data-driven provider configuration for flexible content pipeline customization
+title: Publisher Configuration
+description: Data-driven publisher configuration for flexible content pipeline customization
 ---
 
-# Provider Configuration
+# Publisher Configuration
 
-GenHub uses **data-driven provider configuration** to externalize content source settings into JSON files. This enables runtime configuration of endpoints, timeouts, catalog parsing, and provider behavior without code changes.
+GenHub uses **data-driven publisher configuration** to externalize content source settings into JSON files. This enables runtime configuration of endpoints, timeouts, catalog parsing, and publisher behavior without code changes.
 
 ## File Locations
 
-Provider definition files are loaded from two locations:
+Publisher definition files are loaded from two locations:
 
 | Location | Path | Purpose |
 |----------|------|---------|
-| **Bundled** | `{AppDir}/Providers/*.provider.json` | Official providers shipped with the app |
-| **User** | `{AppData}/GenHub/Providers/*.provider.json` | User-customized or additional providers |
+| **Bundled** | `{AppDir}/Publishers/*.publisher.json` | Official publishers shipped with the app |
+| **User** | `{AppData}/GenHub/Publishers/*.publisher.json` | User-customized or additional publishers |
 
-**Loading Priority**: User providers with matching `providerId` override bundled providers, allowing customization without modifying app files.
+**Loading Priority**: User publishers with matching `publisherId` override bundled publishers, allowing customization without modifying app files.
 
 **Platform Paths**:
 
-- Windows: `C:\Users\{User}\AppData\Roaming\GenHub\Providers\`
-- Linux: `~/.config/GenHub/Providers/`
-- macOS: `~/Library/Application Support/GenHub/Providers/`
+- Windows: `C:\Users\{User}\AppData\Roaming\GenHub\Publishers\`
+- Linux: `~/.config/GenHub/Publishers/`
+- macOS: `~/Library/Application Support/GenHub/Publishers/`
 
-## Provider Definition Schema
+## Publisher Definition Schema
 
-Each provider is defined in a `*.provider.json` file:
+Each publisher is defined in a `*.publisher.json` file:
 
 ```json
 {
-  "providerId": "community-outpost",
+  "publisherId": "community-outpost",
   "publisherType": "communityoutpost",
   "displayName": "Community Outpost",
   "description": "Official patches, tools, and addons from GenPatcher",
@@ -61,18 +61,18 @@ Each provider is defined in a `*.provider.json` file:
 
 | Field | Type | Usage |
 |-------|------|-------|
-| `providerId` | string | Unique identifier used by `IProviderDefinitionLoader.GetProvider()` to retrieve the provider |
+| `publisherId` | string | Unique identifier used by `IPublisherDefinitionLoader.GetPublisher()` to retrieve the publisher |
 | `publisherType` | string | Used in manifest ID generation (e.g., "communityoutpost" → `communityoutpost:gentool`) |
-| `displayName` | string | Shown in UI provider listings and content source headers |
-| `description` | string | Shown in provider detail views and tooltips |
-| `iconColor` | string | Used to color provider icons in the content browser |
+| `displayName` | string | Shown in UI publisher listings and content source headers |
+| `description` | string | Shown in publisher detail views and tooltips |
+| `iconColor` | string | Used to color publisher icons in the content browser |
 | `providerType` | enum | `Static` (fixed publisher) or `Dynamic` (authors as publishers) |
 | `catalogFormat` | string | Used by `ICatalogParserFactory.GetParser()` to resolve the correct catalog parser |
-| `enabled` | boolean | Controls whether provider is returned by `GetAllProviders()` |
+| `enabled` | boolean | Controls whether publisher is returned by `GetAllPublishers()` |
 | `endpoints` | object | URL configuration used by discoverers, resolvers, and deliverers |
 | `mirrorPreference` | string[] | Used by catalog parsers to order download URLs by mirror name |
 | `targetGame` | enum? | Used to filter content by game in discovery and manifest building |
-| `defaultTags` | string[] | Applied to all content from this provider in `ContentSearchResult` |
+| `defaultTags` | string[] | Applied to all content from this publisher in `ContentSearchResult` |
 | `timeouts` | object | Used to configure HTTP client timeouts in discoverers |
 
 ### Endpoints Object
@@ -92,12 +92,12 @@ Each provider is defined in a `*.provider.json` file:
 
 ```csharp
 // Standard endpoints
-var catalogUrl = provider.Endpoints.CatalogUrl;
-var website = provider.Endpoints.WebsiteUrl;
+var catalogUrl = publisher.Endpoints.CatalogUrl;
+var website = publisher.Endpoints.WebsiteUrl;
 
 // Custom endpoints (case-insensitive key lookup)
-var patchPage = provider.Endpoints.GetEndpoint("patchPageUrl");
-var customApi = provider.Endpoints.GetEndpoint("customApiUrl");
+var patchPage = publisher.Endpoints.GetEndpoint("patchPageUrl");
+var customApi = publisher.Endpoints.GetEndpoint("customApiUrl");
 ```
 
 ## Catalog Parser System
@@ -106,14 +106,14 @@ The `catalogFormat` field drives a pluggable catalog parsing system. Each format
 
 ### How It Works
 
-1. **Discovery** - `CommunityOutpostDiscoverer` fetches catalog from `provider.Endpoints.CatalogUrl`
-2. **Parser Resolution** - `ICatalogParserFactory.GetParser(provider.CatalogFormat)` returns the correct parser
+1. **Discovery** - `CommunityOutpostDiscoverer` fetches catalog from `publisher.Endpoints.CatalogUrl`
+2. **Parser Resolution** - `ICatalogParserFactory.GetParser(publisher.CatalogFormat)` returns the correct parser
 3. **Parsing** - Parser transforms catalog content, using static registry classes for metadata lookup
 
 ```csharp
 // In CommunityOutpostDiscoverer.DiscoverAsync():
-var parser = _catalogParserFactory.GetParser(provider.CatalogFormat);
-var results = await parser.ParseAsync(catalogContent, provider, cancellationToken);
+var parser = _catalogParserFactory.GetParser(publisher.CatalogFormat);
+var results = await parser.ParseAsync(catalogContent, publisher, cancellationToken);
 ```
 
 ### ICatalogParser Interface
@@ -122,17 +122,17 @@ var results = await parser.ParseAsync(catalogContent, provider, cancellationToke
 public interface ICatalogParser
 {
     /// <summary>
-    /// Format identifier matching provider.CatalogFormat (e.g., "genpatcher-dat").
+    /// Format identifier matching publisher.CatalogFormat (e.g., "genpatcher-dat").
     /// </summary>
     string CatalogFormat { get; }
 
     /// <summary>
-    /// Parses catalog content into ContentSearchResults using provider config.
+    /// Parses catalog content into ContentSearchResults using publisher config.
     /// Metadata is sourced from static registry classes (e.g., GenPatcherContentRegistry).
     /// </summary>
     Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
         string catalogContent,
-        ProviderDefinition provider,
+        PublisherDefinition publisher,
         CancellationToken cancellationToken = default);
 }
 ```
@@ -186,7 +186,7 @@ such as `GenPatcherContentRegistry`. These are static classes that provide metad
    services.AddTransient<ICatalogParser, MyNewCatalogParser>();
    ```
 
-3. **Create Provider JSON** - Reference your format in `catalogFormat`
+3. **Create Publisher JSON** - Reference your format in `catalogFormat`
 
 Example parser skeleton:
 
@@ -197,10 +197,10 @@ public class MyNewCatalogParser : ICatalogParser
 
     public async Task<OperationResult<IEnumerable<ContentSearchResult>>> ParseAsync(
         string catalogContent,
-        ProviderDefinition provider,
+        PublisherDefinition publisher,
         CancellationToken cancellationToken = default)
     {
-        // Parse catalogContent using provider.Endpoints for URLs
+        // Parse catalogContent using publisher.Endpoints for URLs
         // Look up metadata from a static registry class
         // Return ContentSearchResult collection
     }
@@ -218,15 +218,15 @@ public class MyNewCatalogParser : ICatalogParser
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              ProviderDefinitionLoader.GetProvider()             │
+│              PublisherDefinitionLoader.GetPublisher()           │
 │         (Auto-loads on first access if not initialized)         │
 └─────────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┴───────────────┐
               ▼                               ▼
 ┌──────────────────────────┐    ┌──────────────────────────┐
-│   Load Bundled Providers │    │    Load User Providers   │
-│   {AppDir}/Providers/    │    │  {AppData}/GenHub/Prov.  │
+│  Load Bundled Publishers │    │   Load User Publishers   │
+│   {AppDir}/Publishers/   │    │  {AppData}/GenHub/Pub.   │
 └──────────────────────────┘    └──────────────────────────┘
               │                               │
               └───────────────┬───────────────┘
@@ -237,30 +237,30 @@ public class MyNewCatalogParser : ICatalogParser
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     In-Memory Provider Cache                    │
+│                     In-Memory Publisher Cache                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Content Pipeline Integration
 
-The provider definition flows through the content pipeline:
+The publisher definition flows through the content pipeline:
 
 ```
 ┌─────────────────────┐
-│  ContentProvider    │──── GetProviderDefinition() ────┐
-└─────────────────────┘                                 │
-         │                                              ▼
-         │                              ┌───────────────────────────┐
-         ▼                              │  ProviderDefinitionLoader │
-┌─────────────────────┐                 │  GetProvider(providerId)  │
-│    Discoverer       │◄────────────────└───────────────────────────┘
-│ DiscoverAsync(prov) │
+│  ContentProvider    │──── GetPublisherDefinition() ────┐
+└─────────────────────┘                                  │
+         │                                               ▼
+         │                              ┌────────────────────────────┐
+         ▼                              │ PublisherDefinitionLoader  │
+┌─────────────────────┐                 │ GetPublisher(publisherId)  │
+│    Discoverer       │◄────────────────└────────────────────────────┘
+│ DiscoverAsync(pub)  │
 └─────────────────────┘
          │
          ▼
 ┌─────────────────────┐
 │     Resolver        │
-│ ResolveAsync(prov)  │
+│ ResolveAsync(pub)   │
 └─────────────────────┘
          │
          ▼
@@ -272,18 +272,18 @@ The provider definition flows through the content pipeline:
 
 ## Implementation Example: Community Outpost
 
-### Provider Class
+### Publisher Class
 
-The provider class injects `IProviderDefinitionLoader` and caches the definition:
+The publisher class injects `IPublisherDefinitionLoader` and caches the definition:
 
 ```csharp
 public class CommunityOutpostProvider : BaseContentProvider
 {
-    private readonly IProviderDefinitionLoader _definitionLoader;
-    private ProviderDefinition? _cachedProviderDefinition;
+    private readonly IPublisherDefinitionLoader _definitionLoader;
+    private PublisherDefinition? _cachedPublisherDefinition;
 
     public CommunityOutpostProvider(
-        IProviderDefinitionLoader definitionLoader,
+        IPublisherDefinitionLoader definitionLoader,
         IContentDiscoverer discoverer,
         IContentResolver resolver,
         IContentDeliverer deliverer,
@@ -295,36 +295,36 @@ public class CommunityOutpostProvider : BaseContentProvider
         // ... store other dependencies
     }
 
-    protected override ProviderDefinition? GetProviderDefinition()
+    protected override PublisherDefinition? GetPublisherDefinition()
     {
-        // Cache the provider definition for performance
-        _cachedProviderDefinition ??= _definitionLoader.GetProvider(PublisherId);
-        return _cachedProviderDefinition;
+        // Cache the publisher definition for performance
+        _cachedPublisherDefinition ??= _definitionLoader.GetPublisher(PublisherId);
+        return _cachedPublisherDefinition;
     }
 }
 ```
 
 ### Discoverer Usage
 
-Discoverers receive the provider definition and use it for endpoint configuration:
+Discoverers receive the publisher definition and use it for endpoint configuration:
 
 ```csharp
 public class CommunityOutpostDiscoverer : IContentDiscoverer
 {
     public async Task<OperationResult<IEnumerable<ContentSearchResult>>> DiscoverAsync(
-        ProviderDefinition? provider,
+        PublisherDefinition? publisher,
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
     {
-        // Get configuration from provider definition with fallback to constants
-        var catalogUrl = provider?.Endpoints.CatalogUrl 
+        // Get configuration from publisher definition with fallback to constants
+        var catalogUrl = publisher?.Endpoints.CatalogUrl
             ?? CommunityOutpostConstants.CatalogUrl;
-        
-        var patchPageUrl = provider?.Endpoints.GetEndpoint("patchPageUrl") 
+
+        var patchPageUrl = publisher?.Endpoints.GetEndpoint("patchPageUrl")
             ?? CommunityOutpostConstants.PatchPageUrl;
-        
+
         var timeout = TimeSpan.FromSeconds(
-            provider?.Timeouts.CatalogTimeoutSeconds ?? 30);
+            publisher?.Timeouts.CatalogTimeoutSeconds ?? 30);
 
         _logger.LogDebug(
             "Using endpoints - CatalogUrl: {CatalogUrl}, Timeout: {Timeout}s",
@@ -334,7 +334,7 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
         // Fetch catalog and discover content...
         using var client = _httpClientFactory.CreateClient();
         client.Timeout = timeout;
-        
+
         var catalogContent = await client.GetStringAsync(catalogUrl, cancellationToken);
         // Parse and return results...
     }
@@ -343,21 +343,21 @@ public class CommunityOutpostDiscoverer : IContentDiscoverer
 
 ### Resolver Usage
 
-Resolvers use provider configuration for manifest creation:
+Resolvers use publisher configuration for manifest creation:
 
 ```csharp
 public class CommunityOutpostResolver : IContentResolver
 {
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
-        ProviderDefinition? provider,
+        PublisherDefinition? publisher,
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        // Get endpoints from provider definition
-        var websiteUrl = provider?.Endpoints.WebsiteUrl 
+        // Get endpoints from publisher definition
+        var websiteUrl = publisher?.Endpoints.WebsiteUrl
             ?? CommunityOutpostConstants.PublisherWebsite;
-        
-        var patchPageUrl = provider?.Endpoints.GetEndpoint("patchPageUrl") 
+
+        var patchPageUrl = publisher?.Endpoints.GetEndpoint("patchPageUrl")
             ?? CommunityOutpostConstants.PatchPageUrl;
 
         // Build manifest using configured endpoints
@@ -378,55 +378,55 @@ public class CommunityOutpostResolver : IContentResolver
 }
 ```
 
-## IProviderDefinitionLoader Interface
+## IPublisherDefinitionLoader Interface
 
 ```csharp
-public interface IProviderDefinitionLoader
+public interface IPublisherDefinitionLoader
 {
     /// <summary>
-    /// Gets a specific provider definition by ID. Auto-loads on first access.
+    /// Gets a specific publisher definition by ID. Auto-loads on first access.
     /// </summary>
-    ProviderDefinition? GetProvider(string providerId);
+    PublisherDefinition? GetPublisher(string publisherId);
 
     /// <summary>
-    /// Gets all enabled provider definitions.
+    /// Gets all enabled publisher definitions.
     /// </summary>
-    IEnumerable<ProviderDefinition> GetAllProviders();
+    IEnumerable<PublisherDefinition> GetAllPublishers();
 
     /// <summary>
-    /// Gets providers filtered by type (Static or Dynamic).
+    /// Gets publishers filtered by type (Static or Dynamic).
     /// </summary>
-    IEnumerable<ProviderDefinition> GetProvidersByType(ProviderType providerType);
+    IEnumerable<PublisherDefinition> GetPublishersByType(ProviderType providerType);
 
     /// <summary>
-    /// Loads all provider definitions asynchronously.
+    /// Loads all publisher definitions asynchronously.
     /// </summary>
-    Task<OperationResult<IEnumerable<ProviderDefinition>>> LoadProvidersAsync(
+    Task<OperationResult<IEnumerable<PublisherDefinition>>> LoadPublishersAsync(
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Reloads all providers (for hot-reload scenarios).
+    /// Reloads all publishers (for hot-reload scenarios).
     /// </summary>
-    Task<OperationResult<bool>> ReloadProvidersAsync(
+    Task<OperationResult<bool>> ReloadPublishersAsync(
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a runtime-defined provider (not from file).
+    /// Adds a runtime-defined publisher (not from file).
     /// </summary>
-    OperationResult<bool> AddCustomProvider(ProviderDefinition provider);
+    OperationResult<bool> AddCustomPublisher(PublisherDefinition publisher);
 
     /// <summary>
-    /// Removes a runtime-added provider.
+    /// Removes a runtime-added publisher.
     /// </summary>
-    OperationResult<bool> RemoveCustomProvider(string providerId);
+    OperationResult<bool> RemoveCustomPublisher(string publisherId);
 }
 ```
 
-## Provider Types
+## Publisher Types
 
-### Static Providers
+### Static Publishers
 
-Static providers have a fixed publisher identity. All content discovered from the source is attributed to a single known publisher.
+Static publishers have a fixed publisher identity. All content discovered from the source is attributed to a single known publisher.
 
 **Examples**: Community Outpost, Generals Online, TheSuperHackers
 
@@ -437,9 +437,9 @@ Static providers have a fixed publisher identity. All content discovered from th
 }
 ```
 
-### Dynamic Providers
+### Dynamic Publishers
 
-Dynamic providers support multiple publishers where content authors become individual publishers. Each discovered author gets their own publisher identity.
+Dynamic publishers support multiple publishers where content authors become individual publishers. Each discovered author gets their own publisher identity.
 
 **Examples**: GitHub (repo owners), ModDB (mod authors), CNCLabs (map authors)
 
@@ -459,30 +459,30 @@ Dynamic providers support multiple publishers where content authors become indiv
 | Feature | Description |
 |---------|-------------|
 | **Runtime Changes** | Modify endpoints without recompilation |
-| **User Customization** | Users can override bundled providers in AppData |
+| **User Customization** | Users can override bundled publishers in AppData |
 | **Mirror Support** | Built-in failover across multiple download mirrors |
-| **Hot Reload** | `ReloadProvidersAsync()` for runtime updates |
-| **Extensibility** | Add new providers by dropping in JSON files |
+| **Hot Reload** | `ReloadPublishersAsync()` for runtime updates |
+| **Extensibility** | Add new publishers by dropping in JSON files |
 | **Environment Config** | Different URLs for dev/staging/production |
 
 ## Testing
 
-### Unit Testing with Mock Providers
+### Unit Testing with Mock Publishers
 
 ```csharp
 [Fact]
-public async Task Discoverer_UsesProviderEndpoints()
+public async Task Discoverer_UsesPublisherEndpoints()
 {
     // Arrange
-    var provider = new ProviderDefinition
+    var publisher = new PublisherDefinition
     {
-        ProviderId = "test-provider",
-        DisplayName = "Test Provider",
-        Endpoints = new ProviderEndpoints
+        PublisherId = "test-publisher",
+        DisplayName = "Test Publisher",
+        Endpoints = new PublisherEndpoints
         {
             CatalogUrl = "https://test.example.com/catalog"
         },
-        Timeouts = new ProviderTimeouts
+        Timeouts = new PublisherTimeouts
         {
             CatalogTimeoutSeconds = 10
         }
@@ -492,7 +492,7 @@ public async Task Discoverer_UsesProviderEndpoints()
     var discoverer = new CommunityOutpostDiscoverer(mockHttp.Object, _logger);
 
     // Act
-    await discoverer.DiscoverAsync(provider, query, CancellationToken.None);
+    await discoverer.DiscoverAsync(publisher, query, CancellationToken.None);
 
     // Assert
     mockHttp.Verify(x => x.CreateClient(), Times.Once);
@@ -500,7 +500,7 @@ public async Task Discoverer_UsesProviderEndpoints()
 }
 ```
 
-### Integration Testing with Test Provider Files
+### Integration Testing with Test Publisher Files
 
 ```csharp
 [Fact]
@@ -509,27 +509,27 @@ public async Task Loader_LoadsFromBothDirectories()
     // Arrange
     var bundledDir = Path.Combine(_tempDir, "bundled");
     var userDir = Path.Combine(_tempDir, "user");
-    
+
     Directory.CreateDirectory(bundledDir);
     Directory.CreateDirectory(userDir);
-    
-    // Create bundled provider
+
+    // Create bundled publisher
     File.WriteAllText(
-        Path.Combine(bundledDir, "test.provider.json"),
-        """{"providerId": "test", "displayName": "Bundled"}""");
-    
+        Path.Combine(bundledDir, "test.publisher.json"),
+        """{"publisherId": "test", "displayName": "Bundled"}""");
+
     // Create user override
     File.WriteAllText(
-        Path.Combine(userDir, "test.provider.json"),
-        """{"providerId": "test", "displayName": "User Override"}""");
+        Path.Combine(userDir, "test.publisher.json"),
+        """{"publisherId": "test", "displayName": "User Override"}""");
 
-    var loader = new ProviderDefinitionLoader(_logger, bundledDir, userDir);
+    var loader = new PublisherDefinitionLoader(_logger, bundledDir, userDir);
 
     // Act
-    var provider = loader.GetProvider("test");
+    var publisher = loader.GetPublisher("test");
 
     // Assert - User override wins
-    Assert.Equal("User Override", provider?.DisplayName);
+    Assert.Equal("User Override", publisher?.DisplayName);
 }
 ```
 
@@ -538,17 +538,17 @@ public async Task Loader_LoadsFromBothDirectories()
 | Component | Path |
 |-----------|------|
 | **Core Interfaces** | |
-| IProviderDefinitionLoader | `GenHub.Core/Interfaces/Providers/IProviderDefinitionLoader.cs` |
-| ICatalogParser | `GenHub.Core/Interfaces/Providers/ICatalogParser.cs` |
-| ICatalogParserFactory | `GenHub.Core/Interfaces/Providers/ICatalogParserFactory.cs` |
+| IPublisherDefinitionLoader | `GenHub.Core/Interfaces/Publishers/IPublisherDefinitionLoader.cs` |
+| ICatalogParser | `GenHub.Core/Interfaces/Publishers/ICatalogParser.cs` |
+| ICatalogParserFactory | `GenHub.Core/Interfaces/Publishers/ICatalogParserFactory.cs` |
 | **Core Services** | |
-| ProviderDefinitionLoader | `GenHub.Core/Services/Providers/ProviderDefinitionLoader.cs` |
-| CatalogParserFactory | `GenHub.Core/Services/Providers/CatalogParserFactory.cs` |
+| PublisherDefinitionLoader | `GenHub.Core/Services/Publishers/PublisherDefinitionLoader.cs` |
+| CatalogParserFactory | `GenHub.Core/Services/Publishers/CatalogParserFactory.cs` |
 | **Models** | |
-| ProviderDefinition | `GenHub.Core/Models/Providers/ProviderDefinition.cs` |
+| PublisherDefinition | `GenHub.Core/Models/Publishers/PublisherDefinition.cs` |
 | GenPatcherContentRegistry | `GenHub/Features/Content/Models/GenPatcherContentRegistry.cs` |
-| **Provider Configurations** | |
-| Community Outpost Provider | `GenHub/Providers/communityoutpost.provider.json` |
+| **Publisher Configurations** | |
+| Community Outpost Publisher | `GenHub/Publishers/communityoutpost.publisher.json` |
 | **Community Outpost Implementation** | |
 | CommunityOutpostDiscoverer | `GenHub/Features/Content/Services/CommunityOutpost/CommunityOutpostDiscoverer.cs` |
 | CommunityOutpostResolver | `GenHub/Features/Content/Services/CommunityOutpost/CommunityOutpostResolver.cs` |

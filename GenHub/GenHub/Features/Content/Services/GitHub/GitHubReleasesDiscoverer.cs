@@ -59,6 +59,10 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         {
             try
             {
+                // Get repository info for topics
+                var repository = await gitHubClient.GetRepositoryAsync(owner, repo, cancellationToken);
+                var topics = repository?.Topics ?? [];
+
                 // Get all releases from GitHub
                 var releases = await gitHubClient.GetReleasesAsync(owner, repo, cancellationToken);
 
@@ -69,8 +73,22 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                         if (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                             release.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true)
                         {
-                            var inferredContentType = GitHubInferenceHelper.InferContentType(repo, release.Name);
-                            var inferredGame = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
+                            // Infer content type from topics first, then fall back to name-based inference
+                            var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(topics);
+                            if (isTypeInferred)
+                            {
+                                var nameInference = GitHubInferenceHelper.InferContentType(repo, release.Name);
+                                contentType = nameInference.Type;
+                            }
+
+                            // Infer game type
+                            var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(topics);
+                            if (isGameInferred)
+                            {
+                                var nameInference = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
+                                gameType = nameInference.Type;
+                            }
+
                             results.Add(new ContentSearchResult
                             {
                                 Id = $"github.{owner}.{repo}.{release.TagName}",
@@ -78,9 +96,9 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
                                 Description = release.Body ?? "GitHub release - full details available after resolution",
                                 Version = release.TagName,
                                 AuthorName = release.Author,
-                                ContentType = inferredContentType.Type,
-                                TargetGame = inferredGame.Type,
-                                IsInferred = inferredContentType.IsInferred || inferredGame.IsInferred,
+                                ContentType = contentType,
+                                TargetGame = gameType,
+                                IsInferred = isTypeInferred || isGameInferred,
                                 ProviderName = SourceName,
                                 RequiresResolution = true,
                                 ResolverId = ContentSourceNames.GitHubResolverId,

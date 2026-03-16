@@ -4,13 +4,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
-using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
-using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -124,8 +122,8 @@ public class GameProfileManager(
                 Name = request.Name,
                 Description = request.Description ?? string.Empty,
                 GameInstallationId = request.GameInstallationId ?? string.Empty,
-                GameClient = gameClient ?? new(),
-                WorkspaceStrategy = request.PreferredStrategy,
+                GameClient = gameClient,
+                WorkspaceStrategy = request.WorkspaceStrategy,
                 EnabledContentIds = request.EnabledContentIds ?? [],
                 ToolContentId = toolContentId, // Set for Tool profiles
                 ThemeColor = request.ThemeColor,
@@ -189,6 +187,8 @@ public class GameProfileManager(
             }
 
             var profile = loadResult.Data!;
+            var previousEnabledContentIds = profile.EnabledContentIds?.ToList() ?? [];
+            var previousGameClientId = profile.GameClient?.Id;
 
             if (request.Name != null)
             {
@@ -201,9 +201,10 @@ public class GameProfileManager(
             }
 
             profile.Description = request.Description ?? profile.Description;
-            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds;
-            profile.WorkspaceStrategy = request.PreferredStrategy ?? profile.WorkspaceStrategy;
-            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions;
+            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
+            profile.GameClient = request.GameClient ?? profile.GameClient;
+            profile.WorkspaceStrategy = request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
+            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
             profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
             profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
             profile.IconPath = request.IconPath ?? profile.IconPath;
@@ -213,8 +214,34 @@ public class GameProfileManager(
             profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
             profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
 
-            // Only update ActiveWorkspaceId if explicitly provided (not null or empty)
-            if (!string.IsNullOrEmpty(request.ActiveWorkspaceId))
+            // Detect if content changed and invalidate workspace if needed
+            bool contentChanged = false;
+            if (request.EnabledContentIds != null)
+            {
+                var newContentIds = request.EnabledContentIds.ToList();
+                contentChanged = !previousEnabledContentIds.SequenceEqual(newContentIds, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (request.GameClient != null)
+            {
+                var newGameClientId = request.GameClient.Id;
+                contentChanged = contentChanged || !string.Equals(previousGameClientId, newGameClientId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // If content changed, clear the ActiveWorkspaceId to force workspace rebuild on next launch
+            // This is critical - without this, the workspace will continue using the old content
+            if (contentChanged && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
+            {
+                logger.LogDebug(
+                    "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",
+                    profile.Name,
+                    profile.ActiveWorkspaceId);
+                profile.ActiveWorkspaceId = string.Empty;
+            }
+
+            // Only update ActiveWorkspaceId if explicitly provided (not null)
+            // We allow empty strings because that's how we clear the active workspace to force a rebuild
+            if (request.ActiveWorkspaceId != null)
             {
                 profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
             }
@@ -226,6 +253,10 @@ public class GameProfileManager(
             if (saveResult.Success)
             {
                 logger.LogInformation("Successfully updated game profile: {ProfileName}", profile.Name);
+
+                // Send notification after successful update so UI can refresh
+                // This is critical for GameProfileLauncherViewModel.RefreshSingleProfileAsync to work
+                WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(profile));
             }
             else
             {

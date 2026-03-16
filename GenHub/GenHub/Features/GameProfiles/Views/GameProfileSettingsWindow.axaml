@@ -12,7 +12,7 @@
         x:DataType="vm:GameProfileSettingsViewModel"
         x:Name="SettingsWindow"
         Title="Profile Settings"
-        Width="850" Height="750"
+        Width="1000" Height="850"
         MinWidth="600" MinHeight="550"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
@@ -510,7 +510,7 @@
                 <!-- Tab Content Panels -->
                 <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
                     <!-- Content Tab Panel (Index 0) -->
-                    <views:GameProfileContentSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
+                    <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
 
                     <!-- Profile Settings Panel (Index 1) -->
                     <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
@@ -651,12 +651,14 @@
             </StackPanel>
         </Border>
 
-        <notifications:NotificationContainerView Grid.RowSpan="2"
-                                               DataContext="{Binding NotificationManager}"
-                                               ZIndex="2000" />
-
-
             </Grid>
+
+            <!-- Notification Container - Outside Grid for proper positioning -->
+            <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,90,10,0"
+                                                   ZIndex="2000" />
 
             <!-- Floating Action Button for Global Save -->
             <Border ZIndex="500"

@@ -64,7 +64,7 @@ public static class ModDBConstants
     /// <summary>
     /// UserAgent string that mimics a standard web browser.
     /// </summary>
-    public const string BrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    public const string BrowserUserAgent = ApiConstants.BrowserUserAgent;
 
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/moddb-logo.png";

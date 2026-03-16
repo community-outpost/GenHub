@@ -26,6 +26,7 @@ public class PublisherCardViewModelTests
     private readonly Mock<IProfileContentService> _profileContentServiceMock;
     private readonly Mock<IGameProfileManager> _gameProfileManagerMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IContentReconciliationService> _reconciliationServiceMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PublisherCardViewModelTests"/> class.
@@ -38,6 +39,7 @@ public class PublisherCardViewModelTests
         _profileContentServiceMock = new Mock<IProfileContentService>();
         _gameProfileManagerMock = new Mock<IGameProfileManager>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _reconciliationServiceMock = new Mock<IContentReconciliationService>();
     }
 
     /// <summary>
@@ -170,6 +172,7 @@ public class PublisherCardViewModelTests
             new Mock<IGameClientProfileService>().Object,
             _profileContentServiceMock.Object,
             _gameProfileManagerMock.Object,
-            _notificationServiceMock.Object);
+            _notificationServiceMock.Object,
+            _reconciliationServiceMock.Object);
     }
 }

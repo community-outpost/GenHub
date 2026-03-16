@@ -56,7 +56,6 @@ public class GameClientHashRegistry : IGameClientHashRegistry
             // Publisher clients
             GameClientConstants.SuperHackersGeneralsExecutable,
             GameClientConstants.SuperHackersZeroHourExecutable,
-            GameClientConstants.GeneralsOnline30HzExecutable,
             GameClientConstants.GeneralsOnline60HzExecutable,
         ];
 

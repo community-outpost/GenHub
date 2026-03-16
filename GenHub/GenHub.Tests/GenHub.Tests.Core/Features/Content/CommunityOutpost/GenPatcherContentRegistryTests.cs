@@ -24,6 +24,7 @@ public class GenPatcherContentRegistryTests
     [InlineData("10gn", "Generals 1.08", ContentType.GameClient, GameType.Generals)]
     [InlineData("10zh", "Zero Hour 1.04", ContentType.GameClient, GameType.ZeroHour)]
     [InlineData("cbbs", "Control Bar HD (Base)", ContentType.Addon, GameType.ZeroHour)]
+    [InlineData("hlei", "Leikeze's Hotkeys", ContentType.Addon, GameType.ZeroHour)]
     [InlineData("crzh", "Camera Mod - Zero Hour", ContentType.Addon, GameType.ZeroHour)]
     public void GetMetadata_ReturnsCorrectMetadataForKnownCodes(
         string contentCode,

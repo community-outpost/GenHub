@@ -25,11 +25,23 @@ features:
     details: Supports multiple game versions, forks, and community builds from Steam, EA App, CD/ISO, and manual installations.
     icon: 🎮
   - title: Content Discovery
-    details: Automated discovery and installation of mods, patches, and add-ons from GitHub, ModDB, CNCLabs, and local sources.
+    details: Automated discovery and installation of mods, patches, and add-ons from GitHub, ModDB, CNCLabs, and local sources. Subscribe to community publishers via genhub:// protocol links for automatic catalog updates.
     icon: 🔍
+  - title: Publisher Studio
+    details: Desktop tool for content creators to build and publish catalogs with decentralized hosting integration. Create multi-catalog projects, manage addon chains, and share content without centralized infrastructure.
+    icon: 📦
+  - title: Subscription System
+    details: Subscribe to community publishers using genhub:// protocol links. Automatic catalog updates and seamless content discovery from decentralized sources.
+    icon: 🔗
   - title: Isolated Workspaces
-    details: Each game profile runs in its own isolated workspace, preventing conflicts between different configurations.
+    details: Each game profile runs in its own isolated workspace with content-addressable storage (CAS) for deduplication, integrity verification, and efficient storage. Prevents conflicts between different configurations.
     icon: 📁
+  - title: Workspace Reconciliation
+    details: Incremental updates and fast profile switching using delta-based changes. Efficient workspace management with multiple strategies (symlink, copy, hardlink).
+    icon: ⚡
+  - title: Content-Addressable Storage
+    details: Files stored by SHA256 hash for automatic deduplication across mods. Integrity verification ensures downloaded content matches expected checksums. Immutable storage prevents accidental modifications.
+    icon: 🔐
   - title: User Data Management
     details: Intelligent tracking and isolation of user-generated content (maps, replays, saves) across profiles with hard-link efficiency and smart switching to prevent data loss.
     icon: 🛡️
@@ -37,14 +49,14 @@ features:
     details: Native support for Windows and Linux with platform-specific optimizations.
     icon: 🌐
   - title: Three-Tier Architecture
-    details: Sophisticated content pipeline with orchestrator, providers, and specialized pipeline components.
+    details: Sophisticated content pipeline with orchestrator, providers, and specialized pipeline components. Workspace reconciliation enables efficient profile switching and incremental updates.
     icon: 🏗️
+  - title: Tool Profile Support
+    details: Create profiles for standalone executables like WorldBuilder or modding utilities with specialized direct-launch logic. Full support for modding tool integration and management.
+    icon: 🛠️
   - title: Maintenance Tools
     details: Built-in "Danger Zone" for deep cleaning of CAS storage, workspaces, and metadata.
-    icon: 🛡️
-  - title: Tool Support
-    details: Create profiles for standalone executables like WorldBuilder or modding utilities, with specialized direct-launch logic.
-    icon: 🛠️
+    icon: 🧹
   - title: Developer Friendly
     details: Clean architecture, comprehensive testing, and extensive documentation for contributors.
     icon: 👥

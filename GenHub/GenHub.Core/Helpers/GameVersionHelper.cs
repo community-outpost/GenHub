@@ -24,13 +24,34 @@ public static partial class GameVersionHelper
         // Extract all digits from the version string
         var digits = NonDigitRegex().Replace(version, string.Empty);
 
-        // Take first 8 digits (YYYYMMDD format) to avoid overflow
-        if (digits.Length > 8)
+        // If it looks like a long date (YYYYMMDD) preceded by a segment (e.g. "1.20260116"),
+        // we might want the latter part if it's the date.
+        // But for now, let's just avoid the 8-digit truncation if it causes mangling
+        // and only truncate IF it would actually overflow int.
+        if (digits.Length > 9 && digits.StartsWith('0'))
         {
-            digits = digits[..8];
+            digits = digits.TrimStart('0');
         }
 
-        return int.TryParse(digits, out var result) ? result : 0;
+        if (digits.Length > 10)
+        {
+             // int.MaxValue is ~2.1 billion (10 digits)
+            digits = digits[..10];
+        }
+
+        if (long.TryParse(digits, out var longResult))
+        {
+            if (longResult > int.MaxValue)
+            {
+                // If it's still too large for int, cap at int.MaxValue to prevent incorrect comparisons
+                // Most callers expect int.
+                return int.MaxValue;
+            }
+
+            return (int)longResult;
+        }
+
+        return 0;
     }
 
     /// <summary>
@@ -161,9 +182,8 @@ public static partial class GameVersionHelper
             return (dateValue * 10) + parsed.Value.Qfe;
         }
 
-        // Fallback: extract all digits
-        var digitsOnly = string.Concat(version.Where(char.IsDigit));
-        return int.TryParse(digitsOnly, out var result) ? result : 0;
+        // Fallback: use ExtractVersionFromVersionString which handles overflow
+        return ExtractVersionFromVersionString(version);
     }
 
     /// <summary>

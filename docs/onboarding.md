@@ -49,13 +49,15 @@ We follow a **GitHub-first workflow**:
 
 ### 2. Branching Strategy
 
-Create a branch from `main` using the format:
+Create a branch from `development` using the format:
 
 ```bash
 feature/<short-description>
 fix/<short-description>
 refactor/<short-description>
 ```
+
+**Important:** The `development` branch is our primary working branch. The `main` branch is reserved for stable releases and has automatic release deployment configured. When `development` is merged into `main`, a new release is automatically created and published.
 
 ### 3. Code Standards
 
@@ -82,6 +84,14 @@ refactor/<short-description>
 
 - At least **one approval** from a reviewer is required before merging.
 - Be open to feedback and iterate quickly.
+
+### 7. Release Process
+
+- **Development Branch**: All feature branches merge into `development` after PR approval.
+- **Main Branch**: Reserved for stable releases with automatic deployment configured.
+- **Release Workflow**: When `development` is merged into `main`, an automatic release is triggered and published to GitHub Releases.
+- **Version Management**: Version numbers are managed in `Directory.Build.props` and follow [Semantic Versioning](https://semver.org/).
+- For detailed release instructions, see the [Release Process Documentation](./releases.md).
 
 ---
 

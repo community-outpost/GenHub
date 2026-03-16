@@ -434,7 +434,15 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                     return;
                 }
 
-                SelectedGameType = profile.GameClient.GameType;
+                if ((profile.GameClient?.GameType ?? GameType.Unknown) == GameType.Unknown)
+                {
+                    _logger.LogWarning("Cannot initialize settings for profile {Id} with Unknown game type", profile.Id);
+                    SelectedGameType = GameType.Unknown;
+                    StatusMessage = "Profile has an unknown game type. Settings cannot be loaded.";
+                    return;
+                }
+
+                SelectedGameType = profile.GameClient?.GameType ?? GameType.Unknown;
                 _logger.LogInformation(
                     "Auto-selected game type {GameType} for profile {ProfileId}",
                     SelectedGameType,
@@ -639,6 +647,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             return;
         }
 
+        if (SelectedGameType == GameType.Unknown)
+        {
+             StatusMessage = "Cannot load settings: Game type is Unknown";
+             _logger.LogWarning("LoadSettings called with Unknown GameType");
+             return;
+        }
+
         GameType gameType = SelectedGameType;
         try
         {
@@ -801,7 +816,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
 
-        StatusMessage = $"Loaded profile settings for {profile.GameClient.GameType}";
+        var gameType = profile.GameClient?.GameType;
+        StatusMessage = gameType != null
+            ? $"Loaded profile settings for {gameType}"
+            : "Loaded profile settings (no game client configured)";
         _logger.LogInformation(
             "Loaded profile settings - Windowed={Windowed}, Resolution={Width}x{Height}",
             Windowed,
@@ -1046,7 +1064,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AntiAliasing = AntiAliasing;
 
         // Map TextureQuality to TextureReduction (0-3, inverted)
-        options.Video.TextureReduction = TextureReductionOffset - (int)TextureQuality;
+        // Clamp to 0-2 range for Options.ini compatibility
+        options.Video.TextureReduction = Math.Clamp(TextureReductionOffset - (int)TextureQuality, 0, 2);
         options.Video.UseShadowVolumes = Shadows;
         options.Video.UseShadowDecals = UseShadowDecals;
         options.Video.BuildingOcclusion = BuildingOcclusion;

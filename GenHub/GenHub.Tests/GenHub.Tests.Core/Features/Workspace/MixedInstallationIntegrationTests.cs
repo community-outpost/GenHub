@@ -12,6 +12,7 @@ using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit.Abstractions;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
@@ -36,13 +37,16 @@ public class MixedInstallationIntegrationTests : IDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IFileHashProvider _hashProvider;
+    private readonly ITestOutputHelper _testOutput;
     private bool _disposed = false;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MixedInstallationIntegrationTests"/> class.
     /// </summary>
-    public MixedInstallationIntegrationTests()
+    /// <param name="testOutput">The test output helper.</param>
+    public MixedInstallationIntegrationTests(ITestOutputHelper testOutput)
     {
+        _testOutput = testOutput;
         _tempSteamInstall = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "SteamGames");
         _tempCommunityClient = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "CommunityClient");
         _tempModsFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString(), "Mods");
@@ -75,6 +79,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         services.AddSingleton<IConfigurationProviderService>(mockConfigProvider.Object);
 
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
 
         var mockCasService = new Mock<ICasService>();
         services.AddSingleton<ICasService>(mockCasService.Object);
@@ -98,13 +103,13 @@ public class MixedInstallationIntegrationTests : IDisposable
     {
         // Arrange
         // Create manifests for Steam installation
-        var gameInstallManifest = CreateManifest(
+        var gameInstallManifest = await CreateManifestAsync(
             "1.104.steam.gameinstallation.zerohour",
             "Steam Zero Hour Installation",
             ContentType.GameInstallation,
             [("Data/INI/Object/AmericaTankCrusader.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "Object", "AmericaTankCrusader.ini")), ("Data/INI/GameData.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"))]);
 
-        var gameClientManifest = CreateManifest(
+        var gameClientManifest = await CreateManifestAsync(
             "1.104.steam.gameclient.zerohour",
             "Zero Hour Steam Client",
             ContentType.GameClient,
@@ -146,13 +151,13 @@ public class MixedInstallationIntegrationTests : IDisposable
     public async Task INT2_MixedInstallation_SteamBaseWithCommunityClient_CombinesCorrectly()
     {
         // Arrange
-        var gameInstallManifest = CreateManifest(
+        var gameInstallManifest = await CreateManifestAsync(
             "1.104.steam.gameinstallation.zerohour",
             "Zero Hour 1.04 Base",
             ContentType.GameInstallation,
             [("Data/INI/Object/AmericaTankCrusader.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "Object", "AmericaTankCrusader.ini")), ("Data/INI/GameData.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"))]);
 
-        var communityClientManifest = CreateManifest(
+        var communityClientManifest = await CreateManifestAsync(
             "2.10.gentool.gameclient.zerotool",
             "GenTool Community Client",
             ContentType.GameClient,
@@ -209,34 +214,34 @@ public class MixedInstallationIntegrationTests : IDisposable
     [Fact]
     public async Task INT3_FullStack_EABaseWithCommunityClientAndMods_CombinesCorrectly()
     {
+        // Create physical files for all sources
+        await CreateTestFile(Path.Combine(_tempModsFolder, "ShockWave", "Data", "INI", "Weapon.ini"), "[ShockWaveMod]");
+        await CreateTestFile(Path.Combine(_tempModsFolder, "Maps", "DesertStorm.map"), "MapData");
+
         // Arrange - Create 4 different content sources
-        var gameInstallManifest = CreateManifest(
+        var gameInstallManifest = await CreateManifestAsync(
             "1.104.eaapp.gameinstallation.zerohour",
             "EA App Zero Hour Installation",
             ContentType.GameInstallation,
             [("Data/INI/Object/AmericaTankCrusader.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "Object", "AmericaTankCrusader.ini")), ("Data/INI/GameData.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"))]);
 
-        var communityClientManifest = CreateManifest(
+        var communityClientManifest = await CreateManifestAsync(
             "2.10.gentool.gameclient.zerotool",
             "GenTool Community Client",
             ContentType.GameClient,
             [("generals.exe", Path.Combine(_tempCommunityClient, "generals.exe")), ("patch.dll", Path.Combine(_tempCommunityClient, "patch.dll"))]);
 
-        var modManifest = CreateManifest(
+        var modManifest = await CreateManifestAsync(
             "1.5.shockwave.mod.shockwave",
             "ShockWave Mod",
             ContentType.Mod,
             [("Data/INI/Weapon.ini", Path.Combine(_tempModsFolder, "ShockWave", "Data", "INI", "Weapon.ini"))]);
 
-        var mapPackManifest = CreateManifest(
+        var mapPackManifest = await CreateManifestAsync(
             "1.0.community.mappack.desert",
             "Desert Maps Pack",
             ContentType.MapPack,
             [("Maps/DesertStorm.map", Path.Combine(_tempModsFolder, "Maps", "DesertStorm.map"))]);
-
-        // Create physical files for all sources
-        await CreateTestFile(Path.Combine(_tempModsFolder, "ShockWave", "Data", "INI", "Weapon.ini"), "[ShockWaveMod]");
-        await CreateTestFile(Path.Combine(_tempModsFolder, "Maps", "DesertStorm.map"), "MapData");
 
         var config = new WorkspaceConfiguration
         {
@@ -282,7 +287,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         // WorkspaceManager doesn't validate dependencies - that's ProfileLauncherFacade's job
 
         // Create GameInstallation for Generals (not ZeroHour)
-        var generalsInstall = CreateManifest(
+        var generalsInstall = await CreateManifestAsync(
             "1.0.steam.gameinstallation.generals",
             "Steam Generals Installation",
             ContentType.GameInstallation,
@@ -348,29 +353,29 @@ public class MixedInstallationIntegrationTests : IDisposable
     [Fact]
     public async Task INT5_ConflictResolution_ModBeatsInstallation_CorrectPriority()
     {
+        // Create different content for each version
+        await CreateTestFile(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
+        await CreateTestFile(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
+        await CreateTestFile(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
+
         // Arrange - Create manifests with overlapping files
-        var gameInstallManifest = CreateManifest(
+        var gameInstallManifest = await CreateManifestAsync(
             "1.104.steam.gameinstallation.zerohour",
             "Steam Zero Hour Installation",
             ContentType.GameInstallation,
             [("Data/INI/GameData.ini", Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"))]);
 
-        var gameClientManifest = CreateManifest(
+        var gameClientManifest = await CreateManifestAsync(
             "2.10.gentool.gameclient.zerotool",
             "GenTool Community Client",
             ContentType.GameClient,
             [("generals.exe", Path.Combine(_tempCommunityClient, "generals.exe")), ("Data/INI/GameData.ini", Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"))]);
 
-        var modManifest = CreateManifest(
+        var modManifest = await CreateManifestAsync(
             "1.5.shockwave.mod.shockwave",
             "ShockWave Mod",
             ContentType.Mod,
             [("Data/INI/GameData.ini", Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"))]);
-
-        // Create different content for each version
-        await CreateTestFile(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
-        await CreateTestFile(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
-        await CreateTestFile(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
 
         var config = new WorkspaceConfiguration
         {
@@ -423,9 +428,10 @@ public class MixedInstallationIntegrationTests : IDisposable
             if (Directory.Exists(_tempWorkspaceRoot)) Directory.Delete(_tempWorkspaceRoot, true);
             if (Directory.Exists(_tempContentStorage)) Directory.Delete(_tempContentStorage, true);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore cleanup errors
+            // Log cleanup errors
+            _testOutput.WriteLine($"Cleanup failed: {ex.Message}");
         }
 
         _disposed = true;
@@ -450,7 +456,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         File.WriteAllText(Path.Combine(_tempModsFolder, "ShockWave", "Data", "Scripts", "CustomScript.scb"), "[ShockWave] Custom script");
     }
 
-    private ContentManifest CreateManifest(string id, string name, ContentType contentType, (string RelativePath, string SourcePath)[] files)
+    private async Task<ContentManifest> CreateManifestAsync(string id, string name, ContentType contentType, (string RelativePath, string SourcePath)[] files)
     {
         var manifest = new ContentManifest
         {
@@ -465,7 +471,7 @@ public class MixedInstallationIntegrationTests : IDisposable
         foreach (var (relativePath, sourcePath) in files)
         {
             var fileInfo = new FileInfo(sourcePath);
-            var hash = File.Exists(sourcePath) ? _hashProvider.ComputeFileHashAsync(sourcePath, CancellationToken.None).Result : string.Empty;
+            var hash = File.Exists(sourcePath) ? await _hashProvider.ComputeFileHashAsync(sourcePath, CancellationToken.None) : string.Empty;
 
             manifest.Files.Add(new ManifestFile
             {

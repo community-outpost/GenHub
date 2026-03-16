@@ -18,25 +18,27 @@ public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
         {
             if (reader.TryGetInt32(out var value))
             {
-                // Legacy compatibility: 0 was previously SymlinkOnly (now 1), Default was HardLink (now 0)
-                // If we encounter raw 0 in JSON, it likely means old "SymlinkOnly" setting
-                if (value == 0)
-                {
-                    return WorkspaceStrategy.SymlinkOnly;
-                }
-
                 if (Enum.IsDefined(typeof(WorkspaceStrategy), value))
                 {
                     return (WorkspaceStrategy)value;
                 }
+
+                // Invalid numeric value - fallback
+                return WorkspaceStrategy.HardLink;
             }
         }
         else if (reader.TokenType == JsonTokenType.String)
         {
             var valueStr = reader.GetString();
-            if (Enum.TryParse<WorkspaceStrategy>(valueStr, true, out var result) && Enum.IsDefined(typeof(WorkspaceStrategy), result))
+            if (!string.IsNullOrEmpty(valueStr) && Enum.TryParse<WorkspaceStrategy>(valueStr, true, out var result))
             {
-                return result;
+                if (Enum.IsDefined(typeof(WorkspaceStrategy), result))
+                {
+                    return result;
+                }
+
+                // Invalid string value - fallback
+                return WorkspaceStrategy.HardLink;
             }
         }
 
@@ -47,6 +49,6 @@ public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, WorkspaceStrategy value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.ToString());
+        writer.WriteNumberValue((int)value);
     }
 }

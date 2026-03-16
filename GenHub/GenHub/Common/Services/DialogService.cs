@@ -103,6 +103,36 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         return (viewModel.Result, viewModel.DoNotAskAgain);
     }
 
+    /// <inheritdoc/>
+    public async Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message)
+    {
+        var viewModel = new UpdateOptionDialogViewModel
+        {
+            Title = title,
+            Message = message,
+        };
+
+        var window = new UpdateOptionDialogWindow
+        {
+            DataContext = viewModel,
+        };
+
+        var mainWindow = GetMainWindow();
+        if (mainWindow != null)
+        {
+            await window.ShowDialog(mainWindow);
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource();
+            window.Closed += (s, e) => tcs.SetResult();
+            window.Show();
+            await tcs.Task;
+        }
+
+        return viewModel.Result;
+    }
+
     private static Window? GetMainWindow()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
@@ -105,7 +104,7 @@ public class GameProfileRepository(
                 return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(new List<GameProfile>().AsReadOnly());
             }
 
-            var profileFiles = Directory.GetFiles(_profilesDirectory, "*.json");
+            var profileFiles = Directory.GetFiles(_profilesDirectory, FileTypes.JsonFilePattern);
             var profiles = new List<GameProfile>();
 
             foreach (var filePath in profileFiles)
@@ -138,7 +137,7 @@ public class GameProfileRepository(
                 }
             }
 
-            _logger.LogDebug("Successfully loaded {Count} profiles", profiles.Count);
+            _logger.LogTrace("Successfully loaded {Count} profiles", profiles.Count);
             return ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles.AsReadOnly());
         }
         catch (Exception ex)

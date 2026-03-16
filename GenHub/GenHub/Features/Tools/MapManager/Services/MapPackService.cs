@@ -152,12 +152,13 @@ public sealed class MapPackService : IMapPackService
             // The ContentManifestBuilder now automatically sets InstallTarget to UserMapsDirectory
             // for ContentType.MapPack, complying with userdata.md.
             var result = await _localContentService.CreateLocalContentManifestAsync(
-                tempDir,
-                name,
-                ContentType.MapPack,
-                targetGame,
-                progress,
-                ct);
+                directoryPath: tempDir,
+                name: name,
+                contentType: ContentType.MapPack,
+                targetGame: targetGame,
+                sourcePath: null,
+                progress: progress,
+                cancellationToken: ct);
 
             return result;
         }

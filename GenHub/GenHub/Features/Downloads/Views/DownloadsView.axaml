@@ -34,6 +34,15 @@
             <Setter Property="MinHeight" Value="120" />
             <Setter Property="BoxShadow" Value="0 2 8 0 #20000000" />
         </Style>
+
+        <!-- Secondary Action Button -->
+        <Style Selector="Button.secondary-action">
+            <Setter Property="Background" Value="#2A2A2A" />
+            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="12,8" />
+        </Style>
     </UserControl.Styles>
 
     <ScrollViewer>
@@ -46,19 +55,28 @@
             </Grid.RowDefinitions>
 
             <!-- Header Section -->
-            <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,30">
-                <TextBlock Text="{Binding Title}"
-                           FontSize="28"
-                           FontWeight="SemiBold"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,10" />
-                <TextBlock Text="{Binding Description}"
-                           FontSize="16"
-                           Foreground="#AAAAAA"
-                           HorizontalAlignment="Center" />
+            <Grid Grid.Row="0" Margin="0,0,0,30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-            </StackPanel>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,20">
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="32"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="0,0,0,12" />
+                    <TextBlock Text="{Binding Description}"
+                               FontSize="16"
+                               Foreground="#AAAAAA"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+                </StackPanel>
+
+            </Grid>
 
             <!-- Main Content Area -->
             <ScrollViewer Grid.Row="1">

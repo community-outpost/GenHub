@@ -16,6 +16,8 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.GitHub;
 
@@ -135,74 +137,49 @@ public class GitHubContentDeliverer(
                 logger.LogInformation("Downloaded {FileName} to {Path}", file.RelativePath, localPath);
             }
 
-            // Check if this is GameClient content with ZIP files
-            var zipFiles = downloadedFiles.Where(f => Path.GetExtension(f).Equals(".zip", StringComparison.OrdinalIgnoreCase)).ToList();
+            // Check if this is content with archive files (ZIP, 7z, tar.gz, etc.)
+            var archiveFiles = downloadedFiles
+                .Where(f => IsArchiveFile(f))
+                .ToList();
 
-            if (zipFiles.Count > 0)
+            if (archiveFiles.Count > 0)
             {
                 logger.LogInformation(
-                    "Content detected with {Count} ZIP files. Extracting...",
-                    zipFiles.Count);
+                    "Content detected with {Count} archive file(s). Extracting...",
+                    archiveFiles.Count);
 
-                // Extract all ZIPs
-                foreach (var zipFile in zipFiles)
+                // Extract all archives using SharpCompress
+                foreach (var archiveFile in archiveFiles)
                 {
                     try
                     {
-                        using (var archive = ZipFile.OpenRead(zipFile))
-                        {
-                            int totalEntries = archive.Entries.Count;
-                            int currentEntry = 0;
+                        await ExtractArchiveAsync(
+                            archiveFile,
+                            targetDirectory,
+                            progress,
+                            cancellationToken);
 
-                            foreach (var entry in archive.Entries)
-                            {
-                                if (string.IsNullOrEmpty(entry.Name)) continue; // Skip directories
-
-                                var destinationPath = Path.Combine(targetDirectory, entry.FullName);
-                                var destinationDir = Path.GetDirectoryName(destinationPath);
-                                if (!string.IsNullOrEmpty(destinationDir)) Directory.CreateDirectory(destinationDir);
-
-                                entry.ExtractToFile(destinationPath, overwrite: true);
-                                currentEntry++;
-
-                                // Map extraction progress from 65% to 70%
-                                double extractStart = 65;
-                                double extractEnd = 70;
-                                double currentPercentage = extractStart + ((double)currentEntry / totalEntries * (extractEnd - extractStart));
-
-                                progress?.Report(new ContentAcquisitionProgress
-                                {
-                                    Phase = ContentAcquisitionPhase.Extracting,
-                                    ProgressPercentage = currentPercentage,
-                                    CurrentOperation = $"{entry.Name} ({currentEntry}/{totalEntries})",
-                                    FilesProcessed = currentEntry,
-                                    TotalFiles = totalEntries,
-                                    CurrentFile = entry.Name,
-                                });
-                            }
-                        }
-
-                        logger.LogInformation("Extracted {ZipFile}", Path.GetFileName(zipFile));
-                        File.Delete(zipFile);
+                        logger.LogInformation("Extracted {ArchiveFile}", Path.GetFileName(archiveFile));
+                        File.Delete(archiveFile);
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Failed to extract {ZipFile}", Path.GetFileName(zipFile));
+                        logger.LogError(ex, "Failed to extract {ArchiveFile}", Path.GetFileName(archiveFile));
                         return OperationResult<ContentManifest>.CreateFailure(
-                            $"Failed to extract {Path.GetFileName(zipFile)}: {ex.Message}");
+                            $"Failed to extract {Path.GetFileName(archiveFile)}: {ex.Message}");
                     }
                 }
 
                 logger.LogInformation(
-                    "Successfully extracted {Count} ZIP files for GameClient {ManifestId}. Using publisher factory for manifest generation...",
-                    zipFiles.Count,
+                    "Successfully extracted {Count} archive file(s) for {ManifestId}. Using publisher factory for manifest generation...",
+                    archiveFiles.Count,
                     packageManifest.Id);
 
                 // Use publisher-specific factory to create manifests
                 return await HandleExtractedContentAsync(packageManifest, targetDirectory, progress, cancellationToken);
             }
 
-            // For non-GameClient content or if no ZIPs, return original manifest
+            // For content without archives, return original manifest
             return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
         }
         catch (Exception ex)
@@ -251,6 +228,21 @@ public class GitHubContentDeliverer(
 
         return uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
                uri.Host.EndsWith(".github.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines if a file is a supported archive format.
+    /// </summary>
+    /// <param name="filePath">The file path to check.</param>
+    /// <returns>True if the file is a supported archive format, false otherwise.</returns>
+    private static bool IsArchiveFile(string filePath)
+    {
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        return ext == FileTypes.ZipFileExtension ||
+               ext == FileTypes.SevenZipFileExtension ||
+               ext == FileTypes.TarFileExtension ||
+               ext == FileTypes.GzipFileExtension ||
+               ext == FileTypes.RarFileExtension;
     }
 
     /// <summary>
@@ -359,5 +351,73 @@ public class GitHubContentDeliverer(
             logger.LogError(ex, "Failed to handle extracted content using factory");
             return OperationResult<ContentManifest>.CreateFailure($"Factory content handling failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Extracts an archive file asynchronously to prevent UI blocking.
+    /// </summary>
+    /// <param name="archiveFile">Path to the archive file.</param>
+    /// <param name="targetDirectory">Directory to extract files to.</param>
+    /// <param name="progress">Progress reporter for extraction updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ExtractArchiveAsync(
+        string archiveFile,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        await Task.Run(
+            () =>
+            {
+                using (var archive = ArchiveFactory.Open(archiveFile))
+                {
+                    int totalEntries = archive.Entries.Count(e => !e.IsDirectory);
+                    int currentEntry = 0;
+
+                    foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        var destinationPath = Path.Combine(targetDirectory, entry.Key ?? string.Empty);
+                        var destinationDir = Path.GetDirectoryName(destinationPath);
+                        if (!string.IsNullOrEmpty(destinationDir))
+                        {
+                            Directory.CreateDirectory(destinationDir);
+                        }
+
+                        entry.WriteToFile(
+                            destinationPath,
+                            new ExtractionOptions
+                            {
+                                ExtractFullPath = true,
+                                Overwrite = true,
+                            });
+
+                        currentEntry++;
+
+                        // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
+                        double extractStart = ContentConstants.ProgressStepValidatingFiles;
+                        double extractEnd = ContentConstants.ProgressStepExtracting;
+                        double progressRange = extractEnd - extractStart;
+                        double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
+
+                        progress?.Report(
+                            new ContentAcquisitionProgress
+                            {
+                                Phase = ContentAcquisitionPhase.Extracting,
+                                ProgressPercentage = currentPercentage,
+                                CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
+                                FilesProcessed = currentEntry,
+                                TotalFiles = totalEntries,
+                                CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
+                            });
+                    }
+                }
+            },
+            cancellationToken);
     }
 }

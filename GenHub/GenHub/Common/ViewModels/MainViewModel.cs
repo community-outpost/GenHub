@@ -59,12 +59,12 @@ public partial class MainViewModel(
     private readonly CancellationTokenSource _initializationCts = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="MainViewModel"/> class.
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
     /// </summary>
+    [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
     public MainViewModel()
         : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
     {
-        // Parameterless constructor for XAML tools if needed, though usually handled by DI
     }
 
     /// <summary>

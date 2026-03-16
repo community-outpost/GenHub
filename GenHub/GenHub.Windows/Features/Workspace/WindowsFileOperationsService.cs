@@ -131,9 +131,10 @@ public partial class WindowsFileOperationsService(
                 {
                     // No content type provided and volumes differ - hard link will fail
                     var errorMessage = $"Cannot create hard link across different volumes/drives: Source={casSourcePath} (volume {sourceRoot}), Destination={destinationPath} (volume {destRoot})";
+
                     // Exception will be caught and logged by the outer catch block
                     throw new IOException(errorMessage);
-                }
+            }
             }
 
             FileOperationsService.EnsureDirectoryExists(destinationPath);

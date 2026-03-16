@@ -81,14 +81,14 @@ public static class GeneralsOnlineConstants
     /// <summary>Content type for GeneralsOnline game clients.</summary>
     public const string ContentType = "gameclient";
 
-    /// <summary>Manifest name suffix for 30Hz variant.</summary>
-    public const string Variant30HzSuffix = "30hz";
-
     /// <summary>Manifest name suffix for 60Hz variant.</summary>
     public const string Variant60HzSuffix = "60hz";
 
     /// <summary>Manifest name suffix for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackSuffix = "quickmatch-maps";
+
+    /// <summary>The default tick rate variant suffix.</summary>
+    public const string DefaultVariantSuffix = Variant60HzSuffix;
 
     /// <summary>Display name for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackDisplayName = "GeneralsOnline QuickMatch Maps";

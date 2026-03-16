@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
@@ -26,7 +27,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <summary>
 /// ViewModel for managing game profile settings, including content selection and configuration.
 /// </summary>
-public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Core.Models.Content.ContentAcquiredMessage>
+public partial class GameProfileSettingsViewModel : ViewModelBase,
+    IRecipient<Core.Models.Content.ContentAcquiredMessage>,
+    IRecipient<ManifestReplacedMessage>
 {
     /// <summary>
     /// Information about a content filter type.
@@ -130,6 +133,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
             SourceId = coreItem.SourceId,
             GameClientId = coreItem.GameClientId,
             IsEnabled = coreItem.IsEnabled,
+            IsEditable = coreItem.IsEditable,
+            SourcePath = coreItem.SourcePath,
         };
     }
 
@@ -211,11 +216,92 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
 
         GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!);
 
-        WeakReferenceMessenger.Default.Register(this);
+        WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
+        WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
     }
 
     /// <inheritdoc/>
     public void Receive(Core.Models.Content.ContentAcquiredMessage message) => _ = LoadAvailableContentAsync();
+
+    /// <inheritdoc/>
+    public void Receive(ManifestReplacedMessage message)
+    {
+        // Global manifest replacement - update our state surgicaly to avoid losing unsaved toggles
+        // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
+        Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
+    }
+
+    /// <summary>
+    /// Handles the replacement of a manifest ID with a new one globally.
+    /// Updates enabled and available content collections to use the new manifest ID.
+    /// </summary>
+    /// <param name="oldId">The old manifest ID to replace.</param>
+    /// <param name="newId">The new manifest ID to use.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    internal async Task HandleManifestReplacementAsync(string oldId, string newId)
+    {
+        try
+        {
+            bool affected = false;
+
+            // 1. Check EnabledContent - use ManifestId.Value for comparison
+            var inEnabled = EnabledContent.FirstOrDefault(e => e.ManifestId.Value == oldId);
+            if (inEnabled != null)
+            {
+                _logger?.LogInformation("Replacing manifest {OldId} with {NewId} in EnabledContent", oldId, newId);
+                var index = EnabledContent.IndexOf(inEnabled);
+
+                // Get the new presentation data for the item
+                if (_manifestPool != null && _profileContentLoader != null)
+                {
+                    var manifestResult = await _manifestPool.GetManifestAsync(newId);
+                    if (manifestResult.Success && manifestResult.Data != null)
+                    {
+                        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                        var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
+                        viewModelItem.IsEnabled = true;
+                        EnabledContent[index] = viewModelItem;
+                        affected = true;
+                    }
+                }
+            }
+
+            // 2. Check AvailableContent - use ManifestId.Value for comparison
+            var inAvailable = AvailableContent.FirstOrDefault(a => a.ManifestId.Value == oldId);
+            if (inAvailable != null)
+            {
+                _logger?.LogInformation("Removing old manifest {OldId} from AvailableContent", oldId);
+                AvailableContent.Remove(inAvailable);
+                affected = true;
+            }
+
+            // 3. Check SelectedGameInstallation (if it's a GameClient replacement)
+            if (SelectedGameInstallation != null && SelectedGameInstallation.ManifestId.Value == oldId)
+            {
+                if (_manifestPool != null && _profileContentLoader != null)
+                {
+                    var manifestResult = await _manifestPool.GetManifestAsync(newId);
+                    if (manifestResult.Success && manifestResult.Data != null)
+                    {
+                        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+                        SelectedGameInstallation = ConvertToViewModelContentDisplayItem(coreItem);
+                        SelectedGameInstallation.IsEnabled = true;
+                        affected = true;
+                    }
+                }
+            }
+
+            if (affected)
+            {
+                // Refresh to ensure everything (filters, lists) is consistent
+                await RefreshFiltersAndContentAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error handling manifest replacement message");
+        }
+    }
 
     /// <summary>
     /// Refreshes the visible filters and available content based on the current game type filter.
@@ -289,6 +375,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                             SourceId = existing.SourceId,
                             GameClientId = existing.GameClientId,
                             Version = existing.Version,
+                            IsEditable = existing.IsEditable,
+                            SourcePath = existing.SourcePath,
                         });
                     }
                 }
@@ -432,9 +520,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
                         alreadyEnabled = EnabledContent.Any(x => x.ContentType == dependency.DependencyType);
                     }
 
-                    if (!alreadyEnabled && !dependency.IsOptional)
+                    if (!alreadyEnabled && !dependency.IsOptional && _profileContentLoader != null)
                     {
-                        var availableOfTargetType = await _profileContentLoader!.LoadAvailableContentAsync(
+                        var availableOfTargetType = await _profileContentLoader.LoadAvailableContentAsync(
                             dependency.DependencyType,
                             new ObservableCollection<Core.Models.Content.ContentDisplayItem>(AvailableGameInstallations.Select(x => new Core.Models.Content.ContentDisplayItem
                             {
@@ -650,7 +738,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         try
         {
             EnabledContent.Clear();
-            var coreItems = await _profileContentLoader!.LoadEnabledContentForProfileAsync(profile);
+            if (_profileContentLoader == null) return;
+
+            var coreItems = await _profileContentLoader.LoadEnabledContentForProfileAsync(profile);
             foreach (var coreItem in coreItems)
             {
                 var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
@@ -669,7 +759,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         try
         {
             AvailableGameInstallations.Clear();
-            var coreItems = await _profileContentLoader!.LoadAvailableGameInstallationsAsync();
+            if (_profileContentLoader == null) return;
+
+            var coreItems = await _profileContentLoader.LoadAvailableGameInstallationsAsync();
             foreach (var coreItem in coreItems)
             {
                 try
@@ -695,5 +787,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase, IRecipient<Co
         }
     }
 
-    private WorkspaceStrategy GetDefaultWorkspaceStrategy() => _configurationProvider!.GetDefaultWorkspaceStrategy();
+    private WorkspaceStrategy GetDefaultWorkspaceStrategy() =>
+        _configurationProvider?.GetDefaultWorkspaceStrategy() ?? WorkspaceConstants.DefaultWorkspaceStrategy;
 }

@@ -417,7 +417,13 @@ public class MockMapPackService : IMapPackService
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateCasMapPackAsync(string name, GameType targetGame, IEnumerable<MapFile> selectedMaps, IProgress<ContentStorageProgress>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest()));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+        {
+            Id = ManifestId.Create("mock.map-pack.id"),
+            Name = name,
+            TargetGame = targetGame,
+            ContentType = ContentType.MapPack,
+        }));
     }
 
     /// <inheritdoc/>
@@ -454,19 +460,25 @@ public class MockLocalContentService : ILocalContentService
     public IReadOnlyList<ContentType> AllowedContentTypes => [ContentType.Mod, ContentType.Map, ContentType.GameClient];
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame)
+    public Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame }));
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame }));
+         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult> DeleteLocalContentAsync(string manifestId) => Task.FromResult(OperationResult.CreateSuccess());
+    public Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.CreateSuccess());
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
+    }
 }
 
 /// <summary>
@@ -733,7 +745,32 @@ public class MockProfileContentLoader : IProfileContentLoader
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest?>> GetManifestAsync(string manifestId)
-        => Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest()));
+        => Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest
+        {
+            Id = ManifestId.Create(manifestId),
+            Name = "Mock Manifest",
+        }));
+
+    /// <inheritdoc/>
+    public ContentDisplayItem CreateManifestDisplayItem(
+        ContentManifest manifest,
+        string? sourceId = null,
+        string? gameClientId = null,
+        bool isEnabled = false)
+    {
+        return new ContentDisplayItem
+        {
+            Id = manifest.Id.Value,
+            ManifestId = manifest.Id,
+            DisplayName = manifest.Name,
+            ContentType = manifest.ContentType,
+            GameType = manifest.TargetGame,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = isEnabled,
+            SourceId = sourceId ?? string.Empty,
+            GameClientId = gameClientId ?? string.Empty,
+        };
+    }
 }
 
 /// <summary>
@@ -751,7 +788,11 @@ public class MockContentManifestPool : IContentManifestPool
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest?>> GetManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
-        => Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest()));
+        => Task.FromResult(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest
+        {
+            Id = manifestId,
+            Name = "Mock Manifest",
+        }));
 
     /// <inheritdoc/>
     public Task<OperationResult<IEnumerable<ContentManifest>>> GetAllManifestsAsync(CancellationToken cancellationToken = default)
@@ -774,7 +815,7 @@ public class MockContentManifestPool : IContentManifestPool
         => Task.FromResult(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
 
     /// <inheritdoc/>
-    public Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
+    public Task<OperationResult<bool>> RemoveManifestAsync(ManifestId manifestId, bool skipUntrack = false, CancellationToken cancellationToken = default)
         => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
@@ -817,10 +858,10 @@ public class MockContentStorageService : IContentStorageService
         => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default)
+    public Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, bool skipUntrack = false, CancellationToken cancellationToken = default)
         => Task.FromResult(OperationResult<bool>.CreateSuccess(true));
 
     /// <inheritdoc/>
-    public Task<StorageStats> GetStorageStatsAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(new StorageStats());
+    public Task<OperationResult<StorageStats>> GetStorageStatsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(OperationResult<StorageStats>.CreateSuccess(new StorageStats()));
 }

@@ -19,7 +19,7 @@ namespace GenHub.Tests.Core.Features.GameClients;
 /// </summary>
 public class GameClientDetectorTests : IDisposable
 {
-    private static readonly IReadOnlyList<string> PossibleExecutableNames = [GameClientConstants.GeneralsExecutable, GameClientConstants.GeneralsOnline30HzExecutable, GameClientConstants.GeneralsOnline60HzExecutable];
+    private static readonly IReadOnlyList<string> PossibleExecutableNames = [GameClientConstants.GeneralsExecutable, GameClientConstants.GeneralsOnline60HzExecutable];
     private readonly Mock<IManifestGenerationService> _manifestGenerationServiceMock;
     private readonly Mock<IContentManifestPool> _contentManifestPoolMock;
     private readonly Mock<IFileHashProvider> _hashProviderMock;
@@ -306,26 +306,26 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 30Hz client.
+    /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz client.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline30HzExecutable_DetectsClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsClient()
     {
-        // Arrange - Create identifier for GeneralsOnline 30Hz
+        // Arrange - Create identifier for GeneralsOnline 60Hz
         var generalsOnlineIdentifierMock = new Mock<IGameClientIdentifier>();
         generalsOnlineIdentifierMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
-        generalsOnlineIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.Contains(GameClientConstants.GeneralsOnline30HzExecutable)))).Returns(true);
-        generalsOnlineIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => !p.Contains(GameClientConstants.GeneralsOnline30HzExecutable)))).Returns(false);
+        generalsOnlineIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.Contains(GameClientConstants.GeneralsOnline60HzExecutable)))).Returns(true);
+        generalsOnlineIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => !p.Contains(GameClientConstants.GeneralsOnline60HzExecutable)))).Returns(false);
         generalsOnlineIdentifierMock.Setup(x => x.Identify(It.IsAny<string>())).Returns(new GameClientIdentification(
             PublisherTypeConstants.GeneralsOnline,
-            "30Hz",
-            "GeneralsOnline 30Hz",
+            "60Hz",
+            "GeneralsOnline 60Hz",
             GameType.Generals,
             GameClientConstants.UnknownVersion));
 
         // Create detector with the identifier
-        var detectorWith30HzIdentifier = new GameClientDetector(
+        var detectorWith60HzIdentifier = new GameClientDetector(
             _manifestGenerationServiceMock.Object,
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
@@ -336,7 +336,7 @@ public class GameClientDetectorTests : IDisposable
         var generalsPath = Path.Combine(_tempDirectory, "Generals");
         Directory.CreateDirectory(generalsPath);
 
-        var generalsOnlineExePath = Path.Combine(generalsPath, GameClientConstants.GeneralsOnline30HzExecutable);
+        var generalsOnlineExePath = Path.Combine(generalsPath, GameClientConstants.GeneralsOnline60HzExecutable);
         await File.WriteAllTextAsync(generalsOnlineExePath, "dummy content");
 
         // Also create standard executable for the installation client
@@ -361,7 +361,7 @@ public class GameClientDetectorTests : IDisposable
         var manifestBuilderMock = new Mock<IContentManifestBuilder>();
         var generalsOnlineManifest = new ContentManifest
         {
-            Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-30hz"),
+            Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-60hz"),
             Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
         };
         manifestBuilderMock.Setup(x => x.Build()).Returns(generalsOnlineManifest);
@@ -387,7 +387,7 @@ public class GameClientDetectorTests : IDisposable
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        var result = await detectorWith30HzIdentifier.DetectGameClientsFromInstallationsAsync(installations);
+        var result = await detectorWith60HzIdentifier.DetectGameClientsFromInstallationsAsync(installations);
 
         // Assert
         Assert.True(result.Success);
@@ -400,15 +400,15 @@ public class GameClientDetectorTests : IDisposable
 
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
 
-        Assert.Contains("30Hz", generalsOnlineClient.Name);
+        Assert.Contains("60Hz", generalsOnlineClient.Name);
     }
 
     /// <summary>
-    /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz client.
+    /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz client for Zero Hour.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsZeroHourClient()
     {
         // Arrange - Create identifier for GeneralsOnline 60Hz
         var generalsOnlineIdentifierMock = new Mock<IGameClientIdentifier>();
@@ -488,24 +488,13 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that DetectGameClientsFromInstallationsAsync detects multiple GeneralsOnline variants.
+    /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz variant with standard client.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithMultipleGeneralsOnlineVariants_DetectsAllClients()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzVariant_DetectsClientWithStandard()
     {
-        // Arrange - Create identifiers for both 30Hz and 60Hz
-        var identifier30HzMock = new Mock<IGameClientIdentifier>();
-        identifier30HzMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
-        identifier30HzMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.Contains(GameClientConstants.GeneralsOnline30HzExecutable)))).Returns(true);
-        identifier30HzMock.Setup(x => x.CanIdentify(It.Is<string>(p => !p.Contains(GameClientConstants.GeneralsOnline30HzExecutable)))).Returns(false);
-        identifier30HzMock.Setup(x => x.Identify(It.IsAny<string>())).Returns(new GameClientIdentification(
-            PublisherTypeConstants.GeneralsOnline,
-            "30Hz",
-            "GeneralsOnline 30Hz",
-            GameType.Generals,
-            GameClientConstants.UnknownVersion));
-
+        // Arrange - Create identifier for 60Hz
         var identifier60HzMock = new Mock<IGameClientIdentifier>();
         identifier60HzMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
         identifier60HzMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.Contains(GameClientConstants.GeneralsOnline60HzExecutable)))).Returns(true);
@@ -517,23 +506,21 @@ public class GameClientDetectorTests : IDisposable
             GameType.Generals,
             GameClientConstants.UnknownVersion));
 
-        // Create detector with both identifiers
-        var detectorWithMultipleIdentifiers = new GameClientDetector(
+        // Create detector with the identifier
+        var detectorWithIdentifier = new GameClientDetector(
             _manifestGenerationServiceMock.Object,
             _contentManifestPoolMock.Object,
             _hashProviderMock.Object,
             _hashRegistryMock.Object,
-            [identifier30HzMock.Object, identifier60HzMock.Object],
+            [identifier60HzMock.Object],
             NullLogger<GameClientDetector>.Instance);
 
         var generalsPath = Path.Combine(_tempDirectory, "GeneralsMultiple");
         Directory.CreateDirectory(generalsPath);
 
-        var generalsonline30HzPath = Path.Combine(generalsPath, GameClientConstants.GeneralsOnline30HzExecutable);
         var generalsonline60HzPath = Path.Combine(generalsPath, GameClientConstants.GeneralsOnline60HzExecutable);
         var standardExePath = Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable);
 
-        await File.WriteAllTextAsync(generalsonline30HzPath, "dummy");
         await File.WriteAllTextAsync(generalsonline60HzPath, "dummy");
         await File.WriteAllTextAsync(standardExePath, "dummy");
 
@@ -568,11 +555,11 @@ public class GameClientDetectorTests : IDisposable
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        var result = await detectorWithMultipleIdentifiers.DetectGameClientsFromInstallationsAsync(installations);
+        var result = await detectorWithIdentifier.DetectGameClientsFromInstallationsAsync(installations);
 
         // Assert
         Assert.True(result.Success);
-        Assert.Equal(3, result.Items.Count); // 2 GeneralsOnline variants (30Hz, 60Hz) + 1 standard client
+        Assert.Equal(2, result.Items.Count); // 1 GeneralsOnline variant (60Hz) + 1 standard client
     }
 
     /// <summary>

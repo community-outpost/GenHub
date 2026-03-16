@@ -14,16 +14,31 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileSettingsViewModel
 {
+    private Action<string>? _scrollToSectionRequested;
+
     /// <summary>
     /// Gets or sets the action triggered when the view needs to scroll to a specific section.
     /// </summary>
-    public Action<string>? ScrollToSectionRequested { get; set; }
+    public Action<string>? ScrollToSectionRequested
+    {
+        get => _scrollToSectionRequested;
+        set
+        {
+            var stackTrace = new System.Diagnostics.StackTrace(1, true);
+            var caller = stackTrace.GetFrame(0);
+            System.Diagnostics.Debug.WriteLine($"[ViewModel] ScrollToSectionRequested SET - Old: {_scrollToSectionRequested != null}, New: {value != null}, Caller: {caller?.GetMethod()?.DeclaringType?.Name}.{caller?.GetMethod()?.Name}");
+            _scrollToSectionRequested = value;
+        }
+    }
 
     [ObservableProperty]
     private GeneralSettingsCategory _selectedGeneralCategory = GeneralSettingsCategory.Identity;
 
     [ObservableProperty]
     private ContentSettingsCategory _selectedContentCategory = ContentSettingsCategory.Selection;
+
+    [ObservableProperty]
+    private ContentEditorCategory _selectedContentEditorCategory = ContentEditorCategory.EnabledContent;
 
     [ObservableProperty]
     private string _name = string.Empty;
@@ -100,27 +115,6 @@ public partial class GameProfileSettingsViewModel
     private string _commandLineArguments = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<ProfileInfoItem> _availableCovers = [];
-
-    [ObservableProperty]
-    private ProfileInfoItem? _selectedCover;
-
-    [ObservableProperty]
-    private ObservableCollection<ProfileInfoItem> _availableGameClients = [];
-
-    [ObservableProperty]
-    private ProfileInfoItem? _selectedClient;
-
-    [ObservableProperty]
-    private string _formattedSize = string.Empty;
-
-    [ObservableProperty]
-    private string _buildDate = string.Empty;
-
-    [ObservableProperty]
-    private string _sourceType = string.Empty;
-
-    [ObservableProperty]
     private string _shortcutPath = string.Empty;
 
     [ObservableProperty]
@@ -143,24 +137,6 @@ public partial class GameProfileSettingsViewModel
 
     [ObservableProperty]
     private ProfileInfoItem? _selectedProfileInfo;
-
-    [ObservableProperty]
-    private ObservableCollection<ProfileInfoItem> _availableExecutables = [];
-
-    [ObservableProperty]
-    private ProfileInfoItem? _selectedExecutable;
-
-    [ObservableProperty]
-    private bool _isExecutableValid = true;
-
-    [ObservableProperty]
-    private ObservableCollection<ProfileInfoItem> _availableDataPaths = [];
-
-    [ObservableProperty]
-    private ProfileInfoItem? _selectedDataPath;
-
-    [ObservableProperty]
-    private bool _isDataPathValid = true;
 
     [ObservableProperty]
     private bool _runAsAdmin;

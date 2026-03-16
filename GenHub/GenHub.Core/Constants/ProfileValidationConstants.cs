@@ -21,6 +21,11 @@ public static class ProfileValidationConstants
     public const string ToolProfileMissingContentId = "Tool profile must have ToolContentId set";
 
     /// <summary>
+    /// Error message when a Tool profile has an invalid ToolContentId.
+    /// </summary>
+    public const string InvalidToolContentId = "Tool profile has an invalid ToolContentId";
+
+    /// <summary>
     /// Error message when attempting to mix Tool content with other content types.
     /// </summary>
     public const string ToolProfileMixedContentNotAllowed = "Tool profiles can only contain exactly one ModdingTool content item";
