@@ -23,7 +23,7 @@ public static class ContentTypePriority
             ContentType.GameClient => 50,          // Community executables override official
             ContentType.Addon => 40,               // Addons (maps, etc.)
             ContentType.GameInstallation => 10,    // Lowest: Base game files
-            _ => 0,                                // Unknown/undefined types
+            _ => throw new ArgumentOutOfRangeException(nameof(contentType), contentType, "No priority mapping defined for this ContentType. Update ContentTypePriority.GetPriority()."),
         };
     }
 
