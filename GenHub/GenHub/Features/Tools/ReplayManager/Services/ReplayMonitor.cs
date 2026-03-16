@@ -270,9 +270,14 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
                 }
                 else
                 {
-                    _lastFileSize = currentSize;
-                    _stabilityCheckCount = 0;
-                    _stabilityTimer?.Change(ReplayManagerConstants.FileStabilityCheckIntervalMs, Timeout.Infinite);
+                    if (currentSize != _lastFileSize)
+                    {
+                        _lastFileSize = currentSize;
+                        _stabilityCheckCount = 0;
+                        _stabilityTimer?.Change(ReplayManagerConstants.FileStabilityCheckIntervalMs, Timeout.Infinite);
+                    }
+                    // If size is unchanged but below minimum, let the FileSystemWatcher drive the next check
+                    // instead of spinning the timer indefinitely.
                 }
             }
             catch (Exception ex)
