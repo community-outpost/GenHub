@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Workspace;
@@ -22,8 +23,26 @@ public static class ContentTypePriority
             ContentType.Patch => 90,               // Patches override base content
             ContentType.GameClient => 50,          // Community executables override official
             ContentType.Addon => 40,               // Addons (maps, etc.)
-            ContentType.GameInstallation => 10,    // Lowest: Base game files
-            _ => 0,                                // Unknown/undefined types
+            ContentType.MapPack => 40,             // Map collections (same tier as Addon)
+            ContentType.Mission => 40,             // Story missions (same tier as Addon)
+            ContentType.Map => 40,                 // Individual maps (same tier as Addon)
+            ContentType.LanguagePack => 30,        // Localization packs
+            ContentType.Skin => 30,                // UI/visual customizations
+            ContentType.Video => 20,               // Video content
+            ContentType.Replay => 20,              // Replay files
+            ContentType.Screensaver => 20,         // Screensaver files
+            ContentType.Executable => 20,          // Standalone executables
+            ContentType.ModdingTool => 20,         // Modding/mapping tools
+            ContentType.ContentBundle => 0,        // Meta: collection of other content
+            ContentType.PublisherReferral => 0,    // Meta: link to publisher content
+            ContentType.ContentReferral => 0,      // Meta: link to specific content
+            ContentType.UnknownContentType => 0,   // Unknown: lowest priority
+            ContentType.GameInstallation => 10,    // Lowest physical: Base game files
+            _ => throw new ArgumentOutOfRangeException(
+                     nameof(contentType),
+                     contentType,
+                     $"ContentType '{contentType}' is not mapped in {nameof(ContentTypePriority)}. " +
+                     "Add an explicit priority entry for this type.")
         };
     }
 

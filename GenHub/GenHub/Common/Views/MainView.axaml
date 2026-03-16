@@ -93,6 +93,22 @@
 
 
 
+        <!-- Version label button: transparent, no hover/pressed overlay -->
+        <Style Selector="Button.version-label">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
         <!-- Header gradient background -->
         <Style Selector="Border.header-background">
             <Setter Property="Background">
@@ -212,12 +228,17 @@
         <Grid Grid.Row="1">
             <ContentControl Content="{Binding CurrentTabViewModel}" />
             <!-- Version label in bottom right corner -->
-            <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
-                       FontSize="9"
-                       Foreground="#808080"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Bottom"
-                       Margin="0,0,10,5" />
+            <Button Classes="version-label"
+                    Command="{Binding CopyVersionToClipboardCommand}"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,10,5"
+                    Cursor="Hand"
+                    ToolTip.Tip="Click to copy full version (including git hash) to clipboard">
+                <TextBlock Text="{x:Static constants:AppConstants.FullDisplayVersion}"
+                           FontSize="9"
+                           Foreground="#808080" />
+            </Button>
         </Grid>
     </Grid>
 </UserControl>
