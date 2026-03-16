@@ -250,6 +250,7 @@ public static class DemoViewModelFactory
                 new MockReplayImportService(),
                 new MockReplayExportService(),
                 new MockUploadHistoryService(),
+                new ReplayParserService(new MockLogger<ReplayParserService>()),
                 new MockNotificationService(),
                 new MockLogger<ReplayManagerViewModel>());
         }

@@ -45,6 +45,18 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         { "7", "Teal" },
     };
 
+    /// <summary>
+    /// Parses a replay file and extracts metadata.
+    /// </summary>
+    /// <param name="filePath">The path to the replay file.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <returns>The extracted metadata.</returns>
+    public Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
+    {
+        // Offload synchronous I/O to thread pool to avoid blocking
+        return Task.Run(() => ParseReplayCore(filePath, gameType));
+    }
+
     private static ReplayMetadata CreateEmptyMetadata(string filePath, long fileSize, GameType gameType)
     {
         DateTime gameDate;
@@ -269,18 +281,6 @@ public sealed class ReplayParserService(ILogger<ReplayParserService> logger)
         }
 
         return players.Count > 0 ? players : null;
-    }
-
-    /// <summary>
-    /// Parses a replay file and extracts metadata.
-    /// </summary>
-    /// <param name="filePath">The path to the replay file.</param>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>The extracted metadata.</returns>
-    public Task<ReplayMetadata> ParseReplayAsync(string filePath, GameType gameType)
-    {
-        // Offload synchronous I/O to thread pool to avoid blocking
-        return Task.Run(() => ParseReplayCore(filePath, gameType));
     }
 
     private ReplayMetadata ParseReplayCore(string filePath, GameType gameType)

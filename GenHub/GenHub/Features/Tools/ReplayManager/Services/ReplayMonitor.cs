@@ -208,6 +208,7 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
             catch (Exception restartEx)
             {
                 logger.LogError(restartEx, "Failed to restart FileSystemWatcher for: {FilePath}", FilePath);
+
                 // Transition to a consistent stopped state so the grace-period cleanup or a caller retry can take over
                 StopMonitoring();
             }
@@ -276,6 +277,7 @@ public sealed class ReplayMonitor(ILogger<ReplayMonitor> logger) : IDisposable
                         _stabilityCheckCount = 0;
                         _stabilityTimer?.Change(ReplayManagerConstants.FileStabilityCheckIntervalMs, Timeout.Infinite);
                     }
+
                     // If size is unchanged but below minimum, let the FileSystemWatcher drive the next check
                     // instead of spinning the timer indefinitely.
                 }
