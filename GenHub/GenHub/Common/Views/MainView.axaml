@@ -220,7 +220,7 @@
                     Background="Transparent"
                     BorderThickness="0"
                     Cursor="Hand"
-                    ToolTip.Tip="Click to copy version to clipboard">
+                    ToolTip.Tip="Click to copy full version (including git hash) to clipboard">
                 <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
                            FontSize="9"
                            Foreground="#808080" />
