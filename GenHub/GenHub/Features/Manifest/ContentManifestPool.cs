@@ -294,12 +294,20 @@ public class ContentManifestPool(
             var contentDir = Path.Combine(storageService.GetContentStorageRoot(), DirectoryNames.Data, manifestId.Value);
 
             // If a mapping file exists, return its value (this points to the original source directory)
-            var mappingFile = Path.Combine(contentDir, "source.path");
+            var mappingFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
             if (File.Exists(mappingFile))
             {
                 var sourcePath = await File.ReadAllTextAsync(mappingFile, cancellationToken);
                 if (!string.IsNullOrWhiteSpace(sourcePath))
+                {
+                    // Handle CAS-only content gracefully - return null without warnings
+                    if (sourcePath.Trim().Equals("CAS-ONLY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return OperationResult<string?>.CreateSuccess(null);
+                    }
+
                     return OperationResult<string?>.CreateSuccess(sourcePath);
+                }
             }
 
             var result = Directory.Exists(contentDir) ? contentDir : null;
