@@ -480,6 +480,11 @@ public class ContentStorageService : IContentStorageService
     {
         var manifestPath = GetManifestStoragePath(manifest.Id);
 
+        // Declare cleanup tracking variables outside try block so they're accessible in catch
+        bool contentDirCreatedByThisCall = false;
+        bool sourcePathWrittenByThisCall = false;
+        string? previousSourcePathContent = null;
+
         try
         {
             // Validate manifest for security issues
@@ -502,9 +507,6 @@ public class ContentStorageService : IContentStorageService
 
             // Create source.path mapping if we have a valid source directory
             // This allows GetContentDirectoryAsync to resolve the content location
-            bool contentDirCreatedByThisCall = false;
-            bool sourcePathWrittenByThisCall = false;
-            string? previousSourcePathContent = null;
             if (!string.IsNullOrWhiteSpace(sourceDirectory) && Directory.Exists(sourceDirectory))
             {
                 var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, manifest.Id.Value);
