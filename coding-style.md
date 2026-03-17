@@ -31,8 +31,7 @@ and additional project-specific preferences.
 - **Comments**:
   - Use `//` for single-line comments.
   - Avoid the use of `/**/` block comments.
-  - Place comments on their own line above the code they describe, not at the end of a line.	 
-	
+  - Place comments on their own line above the code they describe, not at the end of a line.
 ---
 
 ## 3. Naming Conventions
@@ -61,8 +60,8 @@ and additional project-specific preferences.
 7. Indexers
 8. Events
 9. Methods
-	1. Static methods go first, then instance methods.
-	2. Methods should be ordered by visibility: `public`, `protected`, `internal`, `private`. 
+    1. Static methods go first, then instance methods.
+    2. Methods should be ordered by visibility: `public`, `protected`, `internal`, `private`.
 
 - **Using Directives**:
 - Alphabetical order (no special treatment for `System` namespaces).
@@ -88,7 +87,7 @@ and additional project-specific preferences.
 
 ## 7. Tooling
 
-- Use Visual Studio's default formatting (__Edit > Advanced > Format Document__).
+- Use Visual Studio's default formatting (**Edit > Advanced > Format Document**).
 - StyleCop and similar analyzers are used to enforce ordering and style.
 - Enable nullable reference types in project settings.
 

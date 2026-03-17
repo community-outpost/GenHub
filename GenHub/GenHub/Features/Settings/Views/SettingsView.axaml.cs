@@ -33,6 +33,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
+            vm.LoadSubscriptionsCommand.Execute(null);
         }
     }
 

@@ -1,0 +1,600 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
+             xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:parsers="clr-namespace:GenHub.Core.Models.Parsers;assembly=GenHub.Core"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+             x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
+             x:DataType="vm:ContentDetailViewModel"
+             Background="#1A1A1A">
+
+    <UserControl.Resources>
+        <converters:FileSizeConverter x:Key="FileSizeConverter" />
+        <converters:StringToImageConverter x:Key="StringToImageConverter" />
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,*" Margin="24">
+        <!-- Header / Navigation -->
+        <Button Grid.Row="0"
+                Command="{Binding CloseCommand}"
+                Content="← Back to Browse"
+                Background="Transparent"
+                Foreground="{DynamicResource BorderBrush}"
+                BorderThickness="0"
+                Margin="0,0,0,16"
+                FontSize="14"
+                FontWeight="SemiBold"
+                Cursor="Hand"
+                HorizontalAlignment="Left"
+                Padding="0,8">
+            <Button.Styles>
+                <Style Selector="Button:pointerover">
+                    <Setter Property="Foreground" Value="White" />
+                </Style>
+            </Button.Styles>
+        </Button>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*, 320">
+            <!-- Main Content (Left) -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,24,0">
+                <!-- Banner Image (Removed) -->
+
+                <!-- Header Info -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,24">
+                    <Border Grid.Column="0" CornerRadius="12" Width="80" Height="80" ClipToBounds="True" Background="{DynamicResource CardBackground}">
+                        <Image Source="{Binding IconUrl, Converter={StaticResource StringToImageConverter}}"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="4">
+                        <TextBlock Text="{Binding Name}"
+                                   FontSize="32"
+                                   FontWeight="Bold"
+                                   Foreground="White"
+                                   TextWrapping="Wrap" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding AuthorName}" Foreground="#AAAAAA"
+                                       IsVisible="{Binding HasAuthor}" />
+                            <TextBlock Text="•" Foreground="#444444"
+                                       IsVisible="{Binding HasAuthor}" />
+                            <TextBlock Text="{Binding ProviderName}" Foreground="#AAAAAA" />
+                            <TextBlock Text="•" Foreground="#444444"
+                                       IsVisible="{Binding HasVersion}" />
+                            <TextBlock Text="{Binding Version}" Foreground="#AAAAAA"
+                                       IsVisible="{Binding HasVersion}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Loading Indicator -->
+                <StackPanel Grid.Row="2" IsVisible="{Binding IsLoadingDetails}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
+                    <ProgressBar IsIndeterminate="True" Width="200" />
+                    <TextBlock Text="Loading details..." Foreground="#888888" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Tabs -->
+                <TabControl Grid.Row="2" IsVisible="{Binding !IsLoadingDetails}">
+                    <TabControl.Styles>
+                        <Style Selector="TabItem">
+                            <Setter Property="FontSize" Value="16" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Foreground" Value="#AAAAAA" />
+                            <Setter Property="Margin" Value="0,0,24,0" />
+                            <Setter Property="Padding" Value="0,0,0,12" />
+                        </Style>
+                        <Style Selector="TabItem:selected">
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}" />
+                        </Style>
+                    </TabControl.Styles>
+
+                    <!-- Overview Tab -->
+                    <TabItem Header="Overview">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Screenshots Gallery -->
+                                <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="4"
+                                        IsVisible="{Binding SelectedScreenshotUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <Grid RowDefinitions="*,Auto">
+                                        <Image Source="{Binding SelectedScreenshotUrl, Converter={StaticResource StringToImageConverter}}"
+                                               Height="400" Stretch="Uniform" Margin="0,0,0,12" />
+                                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Screenshots}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Margin="4" Padding="0" Width="80" Height="45" Cursor="Hand"
+                                                            Command="{Binding $parent[UserControl].((vm:ContentDetailViewModel)DataContext).SetSelectedScreenshotCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="{DynamicResource ButtonBackground}">
+                                                        <Image Source="{Binding Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" />
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Description -->
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="About" FontSize="20" FontWeight="SemiBold" Foreground="White" />
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="#CCCCCC"
+                                               FontSize="15"
+                                               LineHeight="24"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Files Tab - Only show if more than 1 file -->
+                    <TabItem Header="Files" IsVisible="{Binding ShowFilesTab}">
+                        <ScrollViewer>
+                            <ItemsControl ItemsSource="{Binding Files}" Margin="0,24,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="parsers:File">
+                                        <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="4">
+                                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="12">
+                                                        <TextBlock Text="{Binding SizeDisplay}" Foreground="#AAAAAA" FontSize="13"
+                                                                   IsVisible="{Binding SizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <TextBlock Text="{Binding UploadDate, StringFormat='{}{0:MMM dd, yyyy}'}"
+                                                                   Foreground="#AAAAAA" FontSize="13"
+                                                                   IsVisible="{Binding UploadDate, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Uploader, StringFormat='By: {0}'}"
+                                                               Foreground="#888888" FontSize="12"
+                                                               IsVisible="{Binding Uploader, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="Download"
+                                                        Command="{Binding $parent[UserControl].((vm:ContentDetailViewModel)DataContext).DownloadFileCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}"
+                                                        CornerRadius="6" Padding="16,8"
+                                                        VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Releases Tab (visible when HasReleases) -->
+                    <TabItem Header="Releases" IsVisible="{Binding HasReleases}">
+                        <ScrollViewer Padding="20">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Main Releases" FontWeight="SemiBold" FontSize="16" Foreground="White" Margin="0,0,0,8"/>
+                                <TextBlock Text="These are the primary mod/content releases" FontSize="13" Foreground="#888888" Margin="0,0,0,12"/>
+
+                                <ItemsControl ItemsSource="{Binding Releases}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#333333" CornerRadius="8" Padding="16" Margin="0,0,0,8">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                                            <TextBlock Text="{Binding Version}" FontSize="12" Foreground="#AAAAAA"
+                                                                       IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                            <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="12" Foreground="#888888" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                        <!-- Download button for this release -->
+                                                        <Button Content="Download"
+                                                                Command="{Binding DownloadCommand}"
+                                                                IsVisible="{Binding !IsDownloaded}"
+                                                                IsEnabled="{Binding !IsDownloading}"
+                                                                Background="#AB47BC" Foreground="White" CornerRadius="6" Padding="16,8"
+                                                                Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="#BA68C8" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+
+                                                        <!-- Add to Profile button for this release -->
+                                                        <Button Content="Add to Profile"
+                                                                Command="{Binding AddToProfileCommand}"
+                                                                IsVisible="{Binding IsDownloaded}"
+                                                                Background="#4CAF50" Foreground="White" CornerRadius="6" Padding="16,8"
+                                                                Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="#66BB6A" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+
+                                                        <!-- Progress indicator -->
+                                                        <ProgressBar Value="{Binding DownloadProgress}" Width="80" Height="4"
+                                                                     IsVisible="{Binding IsDownloading}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Addons Tab (visible when HasAddons) -->
+                    <TabItem IsVisible="{Binding HasAddons}">
+                        <TabItem.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock Text="Addons" />
+                                <Border Background="#9C27B0" CornerRadius="8" Padding="6,2">
+                                    <TextBlock Text="{Binding AddonsCount}" FontSize="10" Foreground="White" />
+                                </Border>
+                            </StackPanel>
+                        </TabItem.Header>
+                        <ScrollViewer Padding="20">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="Available Addons" FontWeight="SemiBold" FontSize="16" Foreground="White" Margin="0,0,0,8"/>
+                                <TextBlock Text="Additional content that can be added to this mod" FontSize="13" Foreground="#888888" Margin="0,0,0,12"/>
+
+                                <ItemsControl ItemsSource="{Binding Addons}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#333333" CornerRadius="8" Padding="16" Margin="0,0,0,8">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <StackPanel Grid.Column="0" Spacing="4">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White" />
+                                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
+                                                                   TextWrapping="Wrap" MaxLines="2"
+                                                                   IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                        <TextBlock Text="{Binding ReleaseDateDisplay}" FontSize="12" Foreground="#888888" />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <!-- Download button for this addon -->
+                                                        <Button Content="Download"
+                                                                Command="{Binding DownloadCommand}"
+                                                                IsVisible="{Binding !IsDownloaded}"
+                                                                IsEnabled="{Binding !IsDownloading}"
+                                                                Background="#AB47BC" Foreground="White" CornerRadius="6" Padding="16,8"
+                                                                Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="#BA68C8" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+
+                                                        <!-- Add to Profile button for this addon -->
+                                                        <Button Content="Add to Profile"
+                                                                Command="{Binding AddToProfileCommand}"
+                                                                IsVisible="{Binding IsDownloaded}"
+                                                                Background="#4CAF50" Foreground="White" CornerRadius="6" Padding="16,8"
+                                                                Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover">
+                                                                    <Setter Property="Background" Value="#66BB6A" />
+                                                                </Style>
+                                                                <Style Selector="Button:pressed">
+                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+
+                                                        <!-- Progress indicator -->
+                                                        <ProgressBar Value="{Binding DownloadProgress}" Width="80" Height="4"
+                                                                     IsVisible="{Binding IsDownloading}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Media Tab -->
+                    <TabItem Header="Media" IsVisible="{Binding HasMedia}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Videos -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasVideos}">
+                                    <TextBlock Text="Videos" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                                    <ItemsControl ItemsSource="{Binding Videos}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Video">
+                                                <Border Background="#252525" CornerRadius="8" Padding="12" Margin="0,0,12,12" Width="300">
+                                                    <StackPanel Spacing="8">
+                                                        <Border CornerRadius="6" Height="170" Background="#333333" ClipToBounds="True">
+                                                            <Image Source="{Binding ThumbnailUrl, Converter={StaticResource StringToImageConverter}}"
+                                                                   Stretch="UniformToFill"
+                                                                   IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding Platform}" FontSize="12" Foreground="#888888" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Images -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasImages}">
+                                    <TextBlock Text="Images" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                                    <ItemsControl ItemsSource="{Binding Images}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Image">
+                                                <Border Background="#252525" CornerRadius="8" Padding="8" Margin="0,0,8,8" Width="200">
+                                                    <StackPanel Spacing="8">
+                                                        <Border CornerRadius="6" Height="120" Background="#333333" ClipToBounds="True">
+                                                            <Image Source="{Binding ThumbnailUrl, Converter={StaticResource StringToImageConverter}}"
+                                                                   Stretch="UniformToFill"
+                                                                   IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Title}" FontSize="13" Foreground="White" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Community Tab -->
+                    <TabItem Header="Community" IsVisible="{Binding HasCommunity}">
+                        <ScrollViewer>
+                            <StackPanel Spacing="24" Margin="0,24,0,0">
+                                <!-- Articles -->
+                                <StackPanel Spacing="12" IsVisible="{Binding !!Articles.Count}">
+                                    <TextBlock Text="Articles" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                                    <ItemsControl ItemsSource="{Binding Articles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Article">
+                                                <Border Background="#252525" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                                            <TextBlock Text="{Binding Author}" Foreground="#AAAAAA" FontSize="13" />
+                                                            <TextBlock Text="{Binding PublishDate, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="#AAAAAA" FontSize="13" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding Content}" Foreground="#CCCCCC" FontSize="14" MaxLines="3" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Reviews -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasReviews}">
+                                    <TextBlock Text="Reviews" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                                    <ItemsControl ItemsSource="{Binding Reviews}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Review">
+                                                <Border Background="#252525" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                                    <StackPanel Spacing="8">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding Rating, StringFormat='⭐ {0:F1}'}" Foreground="#FFB300" FontWeight="Bold" />
+                                                                <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="White" />
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="#888888" FontSize="12" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Content}" Foreground="#CCCCCC" FontSize="14" LineHeight="20" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding HelpfulVotes, StringFormat='{}{0} people found this helpful'}" Foreground="#666666" FontSize="12" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Comments -->
+                                <StackPanel Spacing="12" IsVisible="{Binding HasComments}">
+                                    <TextBlock Text="Comments" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                                    <ItemsControl ItemsSource="{Binding Comments}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="parsers:Comment">
+                                                <Border Background="#252525" CornerRadius="8" Padding="16" Margin="0,0,0,8">
+                                                    <StackPanel Spacing="6">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding Author}" FontWeight="SemiBold" Foreground="White" />
+                                                                <Border Background="#2196F3" CornerRadius="4" Padding="4,2" IsVisible="{Binding IsCreator}">
+                                                                    <TextBlock Text="CREATOR" FontSize="10" FontWeight="Bold" Foreground="White" />
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Date, StringFormat='{}{0:MMM dd, yyyy}'}" Foreground="#888888" FontSize="12" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding Content}" Foreground="#CCCCCC" FontSize="13" LineHeight="20" TextWrapping="Wrap" />
+                                                        <TextBlock Text="{Binding Karma, StringFormat='Karma: {0}'}" Foreground="#666666" FontSize="11" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
+            </Grid>
+
+            <!-- Sidebar (Right) -->
+            <StackPanel Grid.Column="1" Spacing="16">
+                <!-- Action Card -->
+                <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20">
+                    <StackPanel Spacing="16">
+                        <!-- Download Button (visible when not downloaded and not update available) -->
+                        <Button Content="Download Now"
+                                Command="{Binding DownloadCommand}"
+                                HorizontalAlignment="Stretch"
+                                Height="48"
+                                Background="#AB47BC"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                IsVisible="{Binding ShowDownloadButton}"
+                                IsEnabled="{Binding !IsDownloading}"
+                                Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="#BA68C8" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="Background" Value="#9C27B0" />
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                                <Style Selector="Button:disabled">
+                                    <Setter Property="Background" Value="#333333" />
+                                    <Setter Property="Foreground" Value="#666666" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- Update Button (visible when update is available) -->
+                        <Button Content="Update Available"
+                                Command="{Binding UpdateCommand}"
+                                HorizontalAlignment="Stretch"
+                                Height="48"
+                                Background="#FF9800"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                IsVisible="{Binding ShowUpdateButton}"
+                                IsEnabled="{Binding !IsDownloading}"
+                                Cursor="Hand">
+                            <ToolTip.Tip>A newer version is available. Click to download the update.</ToolTip.Tip>
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="#FFA726" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="Background" Value="#F57C00" />
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                                <Style Selector="Button:disabled">
+                                    <Setter Property="Background" Value="#333333" />
+                                    <Setter Property="Foreground" Value="#666666" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- Add to Profile Button (visible when downloaded and not update available) -->
+                        <Button Content="Add to Profile"
+                                Command="{Binding AddToProfileCommand}"
+                                HorizontalAlignment="Stretch"
+                                Height="48"
+                                Background="#4CAF50"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                IsVisible="{Binding ShowAddToProfileButton}"
+                                Cursor="Hand">
+                            <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="#66BB6A" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="Background" Value="#388E3C" />
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+
+                        <!-- Download Progress -->
+                        <StackPanel IsVisible="{Binding IsDownloading}" Spacing="8">
+                            <TextBlock Text="{Binding DownloadStatusMessage}" Foreground="#AAAAAA" FontSize="13" TextWrapping="Wrap" />
+                            <ProgressBar Value="{Binding DownloadProgress}" Height="4" />
+                        </StackPanel>
+
+                        <!-- Metadata Grid -->
+                        <StackPanel Spacing="8" Margin="0,8,0,0">
+                            <!-- Size - only show if > 0 -->
+                            <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasDownloadSize}">
+                                <TextBlock Grid.Column="0" Text="Size" Foreground="#888888"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}" Foreground="White" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Updated - only show if has valid date -->
+                            <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasLastUpdated}">
+                                <TextBlock Grid.Column="0" Text="Updated" Foreground="#888888"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="White" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Type - always show (content type is always valid) -->
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="Type" Foreground="#888888"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ContentType}" Foreground="White" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Version - only show if not empty -->
+                            <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasVersion}">
+                                <TextBlock Grid.Column="0" Text="Version" Foreground="#888888"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Version}" Foreground="White" HorizontalAlignment="Right"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tags -->
+                <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20" IsVisible="{Binding !!Tags.Count}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Tags" FontWeight="SemiBold" Foreground="White" />
+                        <ItemsControl ItemsSource="{Binding Tags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource WindowBackground}" CornerRadius="4" Padding="8,4" Margin="0,0,8,8">
+                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="#CCCCCC" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

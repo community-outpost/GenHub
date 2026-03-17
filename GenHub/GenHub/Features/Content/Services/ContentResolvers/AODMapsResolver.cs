@@ -7,6 +7,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Parsers;
@@ -92,7 +93,7 @@ public class AODMapsResolver(
         }
     }
 
-    private static ParsedContentDetails ConvertToMapDetails(File file, GenHub.Core.Models.Parsers.GlobalContext context, ContentSearchResult item)
+    private static ParsedContentDetails ConvertToMapDetails(File file, GlobalContext context, ContentSearchResult item)
     {
         // Determine GameType and ContentType
         // AODMaps are mostly Zero Hour or Generals.

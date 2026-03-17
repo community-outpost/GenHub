@@ -2,6 +2,7 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -138,7 +139,7 @@ public class SharedViewModelModuleTests
         // Act & Assert: Try to resolve each ViewModel that doesn't require complex constructor parameters
         Assert.NotNull(serviceProvider.GetService<MainViewModel>());
         Assert.NotNull(serviceProvider.GetService<GameProfileLauncherViewModel>());
-        Assert.NotNull(serviceProvider.GetService<DownloadsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<DownloadsBrowserViewModel>());
         Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
     }

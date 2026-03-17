@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;

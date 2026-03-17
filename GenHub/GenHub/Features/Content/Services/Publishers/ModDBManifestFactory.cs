@@ -19,11 +19,11 @@ namespace GenHub.Features.Content.Services.Publishers;
 
 /// <summary>
 /// Factory for creating ModDB content manifests from parsed content details.
-/// Generates manifest IDs following the format: 1.YYYYMMDD.moddb-{author}.{contentType}.{contentName}.
+/// Generates manifest IDs following the format: 1.YYYYMMDD.moddb.{contentType}.{contentName}.
+/// Uses ManifestIdGenerator with release date for unique versioning.
 /// </summary>
 public partial class ModDBManifestFactory(
     IContentManifestBuilder manifestBuilder,
-    IManifestIdService manifestIdService,
     IProviderDefinitionLoader providerLoader,
     ILogger<ModDBManifestFactory> logger) : IPublisherManifestFactory
 {
@@ -77,6 +77,7 @@ public partial class ModDBManifestFactory(
 
     /// <summary>
     /// Creates a content manifest from ModDB content details.
+    /// Uses the file's release date to generate a unique manifest ID.
     /// </summary>
     /// <param name="details">The parsed ModDB content details.</param>
     /// <param name="detailPageUrl">The detail page URL.</param>
@@ -97,42 +98,36 @@ public partial class ModDBManifestFactory(
         // 2. Slugify content name
         var contentName = SlugifyTitle(details.Name);
 
-        // 3. Format release date as YYYYMMDD for manifest ID
-        var releaseDate = details.SubmissionDate.ToString(ModDBConstants.ReleaseDateFormat);
-
-        // 4. Generate manifest ID with release date
+        // 3. Use release date for manifest ID generation
         // Format: 1.YYYYMMDD.moddb-{author}.{contentType}.{contentName}
-        var manifestIdResult = manifestIdService.GeneratePublisherContentId(
-            publisherId,
+        var releaseDate = details.SubmissionDate;
+
+        // 4. Generate manifest ID with release date using ManifestIdGenerator
+        var manifestId = ManifestIdGenerator.GeneratePublisherContentId(
+            "moddb",
             details.ContentType,
             contentName,
-            userVersion: int.Parse(releaseDate)); // Use date as user version
-
-        if (!manifestIdResult.Success)
-        {
-            logger.LogError(
-                "Failed to generate manifest ID for ModDB content '{ContentName}': {Error}",
-                details.Name,
-                manifestIdResult.FirstError);
-            throw new InvalidOperationException($"Failed to generate manifest ID for ModDB content '{details.Name}': {manifestIdResult.FirstError}");
-        }
+            releaseDate);
 
         logger.LogInformation(
             "Creating ModDB manifest: ID={ManifestId}, Name={Name}, Author={Author}, Type={ContentType}, ReleaseDate={Date}",
-            manifestIdResult.Data.Value,
+            manifestId,
             details.Name,
             details.Author,
             details.ContentType,
-            releaseDate);
+            releaseDate.ToString("yyyy-MM-dd"));
 
-        // 5. Build manifest
+        // 5. Build manifest using the pre-generated manifest ID
         var provider = providerLoader.GetProvider(ModDBConstants.PublisherPrefix);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? ModDBConstants.PublisherWebsite;
         var publisherName = string.Format(System.Globalization.CultureInfo.InvariantCulture, ModDBConstants.PublisherNameFormat, details.Author);
         var supportUrl = provider?.Endpoints.SupportUrl ?? detailPageUrl;
 
+        // Format release date as YYYYMMDD for the manifest version
+        var releaseDateVersion = releaseDate.ToString("yyyyMMdd");
+
         var manifest = manifestBuilder
-            .WithBasicInfo(publisherId, details.Name, int.Parse(releaseDate))
+            .WithBasicInfo(publisherId, details.Name, releaseDateVersion)
             .WithContentType(details.ContentType, details.TargetGame)
             .WithPublisher(
                 name: publisherName,
@@ -148,17 +143,57 @@ public partial class ModDBManifestFactory(
         // 6. Add custom metadata
         manifest = AddCustomMetadata(manifest);
 
-        // 7. Add the download file
-        var fileName = ExtractFileNameFromUrl(details.DownloadUrl);
+        // 7. Add the download files
+        var addedUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Add primary file
+        var primaryFileName = ExtractFileNameFromUrl(details.DownloadUrl);
+        logger.LogInformation("[TEMP] ModDBManifestFactory - Adding primary file: {FileName} from URL: {Url}", primaryFileName, details.DownloadUrl);
+
         manifest = await manifest.AddRemoteFileAsync(
-            fileName,
+            primaryFileName,
             details.DownloadUrl,
-            ContentSourceType.RemoteDownload);
+            ContentSourceType.ContentAddressable,
+            isExecutable: false,
+            permissions: null);
+
+        addedUrls.Add(details.DownloadUrl);
+
+        // Add any additional files discovered on the page (e.g. patches, mirrors, addons)
+        if (details.AdditionalFiles != null)
+        {
+            foreach (var file in details.AdditionalFiles)
+            {
+                if (string.IsNullOrEmpty(file.DownloadUrl) || addedUrls.Contains(file.DownloadUrl))
+                    continue;
+
+                var fileName = !string.IsNullOrEmpty(file.Name) ? file.Name : ExtractFileNameFromUrl(file.DownloadUrl);
+
+                logger.LogInformation("[TEMP] ModDBManifestFactory - Adding additional file: {FileName} from URL: {Url}", fileName, file.DownloadUrl);
+
+                manifest = await manifest.AddRemoteFileAsync(
+                    fileName,
+                    file.DownloadUrl,
+                    ContentSourceType.ContentAddressable,
+                    isExecutable: false,
+                    permissions: null);
+
+                addedUrls.Add(file.DownloadUrl);
+            }
+        }
+
+        logger.LogInformation("[TEMP] ModDBManifestFactory - {Count} total files added to manifest with CAS storage", addedUrls.Count);
 
         // 8. Add dependencies based on target game
         manifest = AddGameDependencies(manifest, details.TargetGame);
 
-        return manifest.Build();
+        var builtManifest = manifest.Build();
+
+        // Override the manifest ID with our pre-generated ID that uses the release date
+        // This ensures the ID matches the format: 1.YYYYMMDD.moddb.{contentType}.{contentName}
+        builtManifest.Id = ManifestId.Create(manifestId);
+
+        return builtManifest;
     }
 
     /// <summary>
@@ -215,7 +250,7 @@ public partial class ModDBManifestFactory(
     /// <returns>A list of tags.</returns>
     private static List<string> GetTags(MapDetails details)
     {
-        var tags = new List<string>(ModDBConstants.Tags);
+        List<string> tags = [.. ModDBConstants.Tags];
 
         // Add game-specific tag
         tags.Add(details.TargetGame == GameType.Generals ? GameClientConstants.GeneralsShortName : GameClientConstants.ZeroHourShortName);

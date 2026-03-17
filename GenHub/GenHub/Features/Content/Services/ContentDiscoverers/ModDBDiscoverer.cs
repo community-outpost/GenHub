@@ -7,21 +7,36 @@ using System.Threading.Tasks;
 using AngleSharp;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.ModDB;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
+using Microsoft.Playwright;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
 /// <summary>
-/// Discovers content from ModDB website across mods, downloads, and addons sections.
-/// Supports comprehensive filtering and category-based discovery.
+/// Discovers content from ModDB website using Playwright to bypass WAF/Bot protections.
 /// </summary>
-public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> logger) : IContentDiscoverer
+public class ModDBDiscoverer : IContentDiscoverer
 {
+    private readonly ILogger<ModDBDiscoverer> _logger;
+    private readonly IPlaywrightService _playwrightService;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ModDBDiscoverer"/> class.
+    /// </summary>
+    /// <param name="logger">The logger instance.</param>
+    /// <param name="playwrightService">The Playwright service for browser automation.</param>
+    public ModDBDiscoverer(ILogger<ModDBDiscoverer> logger, IPlaywrightService playwrightService)
+    {
+        _logger = logger;
+        _playwrightService = playwrightService;
+    }
+
     /// <inheritdoc />
     public string SourceName => ModDBConstants.DiscovererSourceName;
 
@@ -42,65 +57,100 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
         try
         {
             var gameType = query.TargetGame ?? GameType.ZeroHour;
-            logger.LogInformation("Discovering ModDB content for {Game}", gameType);
+            _logger.LogInformation("Discovering ModDB content for {Game} using Playwright", gameType);
 
             List<ContentSearchResult> results = [];
+            bool hasMoreItems = false;
 
-            // Determine which sections to search based on ContentType filter
-            var sectionsToSearch = DetermineSectionsToSearch(query.ContentType);
+            // Determine which sections to search based on query filters
+            var sectionsToSearch = DetermineSectionsToSearch(query);
 
             foreach (var section in sectionsToSearch)
             {
-                var sectionResults = await DiscoverFromSectionAsync(section, gameType, query, cancellationToken);
+                var (sectionResults, sectionHasMore) = await DiscoverFromSectionAsync(section, gameType, query, cancellationToken);
                 results.AddRange(sectionResults);
+                if (sectionHasMore)
+                {
+                    hasMoreItems = true;
+                }
             }
 
-            logger.LogInformation(
+            _logger.LogInformation(
                 "Discovered {Count} ModDB items across {Sections} sections",
                 results.Count,
                 sectionsToSearch.Count);
-            var list = results.ToList();
+
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
-                Items = list,
-                TotalItems = list.Count,
-                HasMoreItems = false,
+                Items = results,
+                HasMoreItems = hasMoreItems,
             });
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to discover ModDB content");
+            _logger.LogError(ex, "Failed to discover ModDB content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Determines which sections to search based on content type filter.
-    /// </summary>
-    private static List<string> DetermineSectionsToSearch(ContentType? contentType)
+    private static List<string> DetermineSectionsToSearch(ContentSearchQuery query)
     {
-        if (contentType == null)
+        // Use explicit section from query if provided
+        if (!string.IsNullOrEmpty(query.ModDBSection))
         {
-            // No filter - search all sections
-            return ["mods", "downloads", "addons"];
+            return [query.ModDBSection];
         }
 
-        return contentType switch
+        // Map ContentType to section if possible
+        if (query.ContentType.HasValue)
         {
-            ContentType.Mod => ["mods", "downloads"], // Some full mods are in downloads
-            ContentType.Patch => ["downloads"],
-            ContentType.Map or ContentType.MapPack => ["addons", "downloads"],
-            ContentType.Skin => ["addons"],
-            ContentType.ModdingTool => ["downloads"],
-            ContentType.LanguagePack => ["downloads", "addons"],
-            ContentType.Video => ["downloads"],
-            _ => ["downloads", "addons"],
-        };
+            return query.ContentType.Value switch
+            {
+                ContentType.Mod or ContentType.Patch or ContentType.Video => ["downloads"],
+                ContentType.Map or ContentType.Skin or ContentType.LanguagePack => ["addons"],
+                _ => ["downloads", "addons"],
+            };
+        }
+
+        // Default to both if no explicit type is set, or just downloads if that's safer
+        return ["downloads"];
     }
 
-    /// <summary>
-    /// Maps GenHub ContentType to ModDB category code.
-    /// </summary>
+    private static ModDBFilter BuildFilterFromQuery(ContentSearchQuery query)
+    {
+        var filter = new ModDBFilter
+        {
+            Keyword = query.SearchTerm,
+            Page = query.Page ?? 1,
+        };
+
+        // Apply Category filter (for downloads section)
+        if (!string.IsNullOrWhiteSpace(query.ModDBCategory))
+        {
+            filter.Category = query.ModDBCategory;
+        }
+
+        // Apply AddonCategory filter (for categoryaddon param)
+        if (!string.IsNullOrWhiteSpace(query.ModDBAddonCategory))
+        {
+            filter.AddonCategory = query.ModDBAddonCategory;
+        }
+
+        // Apply License filter
+        if (!string.IsNullOrWhiteSpace(query.ModDBLicense))
+        {
+            filter.Licence = query.ModDBLicense;
+        }
+
+        // Apply Timeframe filter
+        if (!string.IsNullOrWhiteSpace(query.ModDBTimeframe))
+        {
+            filter.Timeframe = query.ModDBTimeframe;
+        }
+
+        return filter;
+    }
+
     private static string? MapContentTypeToCategory(ContentType contentType, string section)
     {
         if (section == "downloads")
@@ -129,135 +179,53 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
         return null;
     }
 
-    /// <summary>
-    /// Determines content type from section and category.
-    /// </summary>
-    private static ContentType DetermineContentType(string section, string? category, string url)
-    {
-        // First try category-based mapping if available
-        if (!string.IsNullOrEmpty(category))
-        {
-            var mapped = ModDBCategoryMapper.MapCategoryByName(category);
-
-            // Addon is the default fallback
-            if (mapped != ContentType.Addon)
-            {
-                return mapped;
-            }
-        }
-
-        // Fallback to section-based heuristics
-        return section switch
-        {
-            "mods" => ContentType.Mod,
-            "downloads" => url.Contains("/maps/") ? ContentType.Map : ContentType.Addon,
-            "addons" => url.Contains("/maps/") ? ContentType.Map : ContentType.Addon,
-            _ => ContentType.Addon,
-        };
-    }
-
-    /// <summary>
-    /// Extracts ModDB ID from a URL.
-    /// </summary>
-    private static string ExtractModDBIdFromUrl(string url)
-    {
-        try
-        {
-            var uri = new Uri(url);
-            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            return segments.Length > 0 ? segments[^1] : Guid.NewGuid().ToString();
-        }
-        catch
-        {
-            return Guid.NewGuid().ToString();
-        }
-    }
-
-    /// <summary>
-    /// Builds a filter object from the search query.
-    /// </summary>
-    private static ModDBFilter BuildFilterFromQuery(ContentSearchQuery query, string section)
-    {
-        var filter = new ModDBFilter
-        {
-            Keyword = query.SearchTerm,
-            Page = query.Page ?? 1,
-        };
-
-        // Map ContentType to ModDB category if specified
-        if (query.ContentType.HasValue)
-        {
-            filter.Category = MapContentTypeToCategory(query.ContentType.Value, section);
-
-            // For addons, the parameter is different
-            if (section == "addons")
-            {
-                filter.AddonCategory = filter.Category;
-                filter.Category = null; // Clear main category if it's an addon search
-            }
-        }
-
-        return filter;
-    }
-
-    /// <summary>
-    /// Parses a single content item from HTML.
-    /// </summary>
     private static ContentSearchResult? ParseContentItem(AngleSharp.Dom.IElement item, GameType gameType, string section)
     {
-        // Extract title and link
-        // ModDB structure: <h4><a href="...">Title</a></h4>
         var titleLink = item.QuerySelector("h4 a, h3 a, a.title") ?? item.QuerySelector("td.content.name a");
-
-        if (titleLink == null)
-        {
-            return null;
-        }
+        if (titleLink == null) return null;
 
         var title = titleLink.TextContent?.Trim();
         var href = titleLink.GetAttribute("href");
+        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(href)) return null;
 
-        if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(href))
-        {
-            return null;
-        }
+        if (!href.Contains("/mods/") && !href.Contains("/downloads/") && !href.Contains("/addons/")) return null;
 
-        // Filter out non-content links if we grabbed something generic
-        if (!href.Contains("/mods/") && !href.Contains("/downloads/") && !href.Contains("/addons/"))
-        {
-            return null;
-        }
-
-        // Make absolute URL
         var detailUrl = href.StartsWith("http") ? href : ModDBConstants.BaseUrl + href;
 
-        // Extract author
-        var authorLink = item.QuerySelector(ModDBConstants.AuthorLinkSelector);
-        var author = authorLink?.TextContent?.Trim() ?? ModDBConstants.DefaultAuthor;
+        // Try multiple selectors for author
+        var authorLink = item.QuerySelector("a[href*='/members/']") ??
+                        item.QuerySelector("span.by a") ??
+                        item.QuerySelector("span.author a");
+        var author = authorLink?.TextContent?.Trim();
+        if (string.IsNullOrWhiteSpace(author)) author = "Unknown";
 
-        // Extract preview image
-        var img = item.QuerySelector("img");
+        var img = item.QuerySelector("img.image, img.screenshot, div.image img, td.content.image img") ?? item.QuerySelector("img");
         var iconUrl = img?.GetAttribute("src") ?? string.Empty;
-        if (!string.IsNullOrEmpty(iconUrl) && !iconUrl.StartsWith("http"))
+        if (!string.IsNullOrEmpty(iconUrl))
         {
-            iconUrl = ModDBConstants.BaseUrl + iconUrl;
+            if (iconUrl.Contains("blank.gif")) iconUrl = string.Empty;
+            else if (!iconUrl.StartsWith("http")) iconUrl = ModDBConstants.BaseUrl + iconUrl;
         }
 
-        // Extract description
-        var descEl = item.QuerySelector("p, div.summary, span.summary");
+        var descEl = item.QuerySelector("p, div.summary, span.summary, td.content.name span.summary");
         var description = descEl?.TextContent?.Trim() ?? string.Empty;
 
-        // Try to extract category from the page
         var categoryEl = item.QuerySelector("span.category, div.category, span.subheading");
         var category = categoryEl?.TextContent?.Trim();
 
-        // Map to ContentType
-        var contentType = DetermineContentType(section, category, detailUrl);
+        // Extract date from timeago or time element
+        var dateEl = item.QuerySelector("time[datetime]") ?? item.QuerySelector("abbr.timeago");
+        var dateStr = dateEl?.GetAttribute("datetime") ?? dateEl?.GetAttribute("title");
+        DateTime? lastUpdated = null;
+        if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+        {
+            lastUpdated = parsedDate;
+        }
 
-        // Extract ModDB ID from URL
+        var contentType = DetermineContentType(section, category, detailUrl);
         var moddbId = ExtractModDBIdFromUrl(detailUrl);
 
-        var searchResult = new ContentSearchResult
+        var result = new ContentSearchResult
         {
             Id = $"{ModDBConstants.PublisherPrefix}-{moddbId}",
             Name = title,
@@ -270,24 +238,72 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
             RequiresResolution = true,
             ResolverId = ModDBConstants.ResolverId,
             SourceUrl = detailUrl,
+            LastUpdated = lastUpdated,
         };
 
-        // Add metadata
-        searchResult.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = moddbId;
-        searchResult.ResolverMetadata[ModDBConstants.SectionMetadataKey] = section;
+        result.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = moddbId;
+        result.ResolverMetadata[ModDBConstants.SectionMetadataKey] = section;
 
-        return searchResult;
+        // Detect if this is a mod (which may have addons) vs a standalone addon
+        var isMod = detailUrl.Contains("/mods/") && !detailUrl.Contains("/addons/");
+        result.ResolverMetadata["IsMod"] = isMod.ToString();
+
+        // If this is from a mod's addon section, store the parent mod URL
+        if (detailUrl.Contains("/mods/") && detailUrl.Contains("/addons/"))
+        {
+            // Extract parent mod URL: https://www.moddb.com/mods/the-end-of-days/addons/some-addon
+            // becomes: https://www.moddb.com/mods/the-end-of-days
+            var modMatch = System.Text.RegularExpressions.Regex.Match(detailUrl, @"(https?://[^/]+/mods/[^/]+)");
+            if (modMatch.Success)
+            {
+                result.ResolverMetadata["ParentModUrl"] = modMatch.Groups[1].Value;
+            }
+        }
+
+        return result;
     }
 
-    /// <summary>
-    /// Discovers content from a specific section.
-    /// </summary>
-    private async Task<List<ContentSearchResult>> DiscoverFromSectionAsync(
+    private static ContentType DetermineContentType(string section, string? category, string url)
+    {
+        if (!string.IsNullOrEmpty(category))
+        {
+            var mapped = ModDBCategoryMapper.MapCategoryByName(category);
+            if (mapped != ContentType.Addon) return mapped;
+        }
+
+        return section switch
+        {
+            "mods" => ContentType.Mod,
+            "downloads" => url.Contains("/maps/") ? ContentType.Map : ContentType.Addon,
+            "addons" => url.Contains("/maps/") ? ContentType.Map : ContentType.Addon,
+            _ => ContentType.Addon,
+        };
+    }
+
+    private static string ExtractModDBIdFromUrl(string url)
+    {
+        try
+        {
+            var uri = new Uri(url);
+
+            // http://.../mods/contra
+            // http://.../downloads/contra-009
+            var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length > 0 ? segments[^1] : Guid.NewGuid().ToString();
+        }
+        catch
+        {
+            return Guid.NewGuid().ToString();
+        }
+    }
+
+    private async Task<(List<ContentSearchResult> Items, bool HasMoreItems)> DiscoverFromSectionAsync(
         string section,
         GameType gameType,
         ContentSearchQuery query,
         CancellationToken cancellationToken)
     {
+        IPage? page = null;
         try
         {
             // Build URL for the section
@@ -295,21 +311,41 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                 ? $"{ModDBConstants.GeneralsBaseUrl}/{section}"
                 : $"{ModDBConstants.ZeroHourBaseUrl}/{section}";
 
-            // Build filter query string if needed
-            var filter = BuildFilterFromQuery(query, section);
+            var filter = BuildFilterFromQuery(query);
             var queryString = filter.ToQueryString();
-            var url = baseUrl + queryString;
 
-            logger.LogDebug("Fetching from URL: {Url}", url);
+            // ModDB uses path-based pagination: /page/2, /page/3, etc.
+            var pageSuffix = filter.Page > 1 ? $"/page/{filter.Page}" : string.Empty;
+            var url = baseUrl + pageSuffix + queryString;
 
-            var html = await httpClient.GetStringAsync(url, cancellationToken);
-            var context = BrowsingContext.New(Configuration.Default);
-            var document = await context.OpenAsync(req => req.Content(html), cancellationToken);
+            _logger.LogInformation(
+                "[ModDB] Fetching page {Page} from section '{Section}': {Url}",
+                filter.Page,
+                section,
+                url);
+
+            // Use IPlaywrightService to create a page
+            page = await _playwrightService.CreatePageAsync(cancellationToken: cancellationToken);
+
+            await page.GotoAsync(url, new PageGotoOptions { Timeout = 30000, WaitUntil = WaitUntilState.DOMContentLoaded });
+
+            // Wait for content to load
+            try
+            {
+                await page.WaitForSelectorAsync("div.row.rowcontent, div.table tr", new PageWaitForSelectorOptions { Timeout = 5000 });
+            }
+            catch
+            {
+                _logger.LogWarning("Timeout waiting for content selector on {Url}, parsing what we have...", url);
+            }
+
+            var html = await page.ContentAsync();
+
+            // Use AngleSharp to parse the HTML (Robust and already implemented)
+            var browsingContext = BrowsingContext.New(Configuration.Default);
+            var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
 
             List<ContentSearchResult> results = [];
-
-            // Parse content items - ModDB uses consistent structure across sections
-            // Usually div.row.rowcontent or div.table depending on the view, but rowcontent is common for lists
             var contentItems = document.QuerySelectorAll("div.row.rowcontent, div.table tr");
 
             foreach (var item in contentItems)
@@ -322,19 +358,59 @@ public class ModDBDiscoverer(HttpClient httpClient, ILogger<ModDBDiscoverer> log
                         results.Add(searchResult);
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-                    logger.LogDebug(ex, "Failed to parse content item");
+                    // Ignore parse errors for individual items
                 }
             }
 
-            logger.LogDebug("Found {Count} items in {Section} section", results.Count, section);
-            return results;
+            // NEW LOGGING:
+            _logger.LogInformation("[ModDB] Pagination Logic Starting...");
+            var pagesDiv = document.QuerySelector("div.pages");
+            if (pagesDiv != null)
+            {
+                _logger.LogInformation("[ModDB] found div.pages. Html content length: {Length}", pagesDiv.InnerHtml.Length);
+                var allLinks = pagesDiv.QuerySelectorAll("a");
+                foreach (var link in allLinks)
+                {
+                    _logger.LogInformation("[ModDB] Link in pages: Text='{Text}', Href='{Href}', Class='{Class}'", link.TextContent?.Trim(), link.GetAttribute("href"), link.ClassName);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("[ModDB] div.pages NOT FOUND");
+            }
+
+            // Check for pagination "next" button
+            // ModDB typically has a 'a.next' or 'span.next' inside a div.pages
+            var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
+
+            if (nextLink == null)
+            {
+                 _logger.LogWarning("[ModDB] NEXT LINK IS NULL. Trying broader search...");
+                 var anyNext = document.QuerySelectorAll("a").FirstOrDefault(a => a.TextContent != null && a.TextContent.Contains("next", StringComparison.OrdinalIgnoreCase));
+                 if (anyNext != null)
+                 {
+                     _logger.LogInformation("[ModDB] Found a link containing 'next' (but not matching selector): Text='{Text}', Href='{Href}', Class='{Class}'", anyNext.TextContent, anyNext.GetAttribute("href"), anyNext.ClassName);
+                 }
+            }
+            else
+            {
+                _logger.LogInformation("[ModDB] Found next link via selector: {Url}", nextLink.GetAttribute("href"));
+            }
+
+            var hasMoreItems = nextLink != null;
+
+            return (results, hasMoreItems);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to discover from {Section} section", section);
-            return [];
+            _logger.LogError(ex, "Failed to discover from {Section} with Playwright", section);
+            return ([], false);
+        }
+        finally
+        {
+            if (page != null) await page.CloseAsync();
         }
     }
 }

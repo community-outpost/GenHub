@@ -34,7 +34,10 @@ public class CNCLabsContentProvider(
         ?? throw new ArgumentException("HTTP deliverer not found", nameof(deliverers));
 
     /// <inheritdoc />
-    public override string SourceName => "CNC Labs";
+    /// <remarks>
+    /// Must match the ProviderName set by CNCLabsMapDiscoverer on search results.
+    /// </remarks>
+    public override string SourceName => CNCLabsConstants.SourceName;
 
     /// <inheritdoc />
     public override string Description => "Provides maps and content from CNC Labs";

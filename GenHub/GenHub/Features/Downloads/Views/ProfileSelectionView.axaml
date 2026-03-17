@@ -1,0 +1,352 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+        x:Class="GenHub.Features.Downloads.Views.ProfileSelectionView"
+        x:DataType="vm:ProfileSelectionViewModel"
+        Title="Add to Profile"
+        Width="500" Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        MinWidth="400" MinHeight="400"
+        Background="#1E1E1E">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+        <!-- Header Section -->
+        <StackPanel Grid.Row="0" Spacing="12" Margin="0,0,0,20">
+            <!-- Title Row with Icon -->
+            <Grid ColumnDefinitions="Auto, *">
+                <PathIcon Grid.Column="0"
+                          Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                          Foreground="#9C27B0"
+                          Width="28" Height="28"
+                          Margin="0,0,12,0"
+                          VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="Add to Profile"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="White" />
+                    <TextBlock Text="{Binding ProfileSummary}"
+                               FontSize="13"
+                               Foreground="#AAAAAA" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Separator Line -->
+            <Border Height="1" HorizontalAlignment="Stretch">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="#00FFFFFF" Offset="0" />
+                        <GradientStop Color="#40FFFFFF" Offset="0.5" />
+                        <GradientStop Color="#00FFFFFF" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Content Name Display -->
+            <StackPanel Spacing="4" IsVisible="{Binding ContentName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                <TextBlock Text="Select a profile for:"
+                           FontSize="13"
+                           Foreground="#888888" />
+                <TextBlock Text="{Binding ContentName}"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="#9C27B0"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Main Content - Profile Lists -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
+                <!-- Loading Indicator -->
+                <StackPanel IsVisible="{Binding IsLoading}"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center"
+                            Spacing="12"
+                            Margin="0,40,0,0">
+                    <ProgressBar IsIndeterminate="True" Width="200" />
+                    <TextBlock Text="Loading profiles..."
+                               Foreground="#888888"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Error Message -->
+                <Border IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                        Background="#3A1D1D"
+                        CornerRadius="8"
+                        Padding="16"
+                        Margin="0,8,0,0">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Error Loading Profiles"
+                                   FontWeight="SemiBold"
+                                   Foreground="#FF6B6B"
+                                   FontSize="14" />
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="#FFAAAA"
+                                   TextWrapping="Wrap"
+                                   FontSize="13" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Compatible Profiles Section -->
+                <StackPanel Spacing="12"
+                            IsVisible="{Binding !IsLoading}"
+                            Margin="0,8,0,0">
+                    <TextBlock Text="Compatible Profiles"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#4CAF50"
+                               IsVisible="{Binding CompatibleProfiles.Count}" />
+
+                    <ItemsControl ItemsSource="{Binding CompatibleProfiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:ProfileOptionViewModel">
+                                <Border Background="#2A2A2A"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*,120">
+                                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Border Background="#4CAF50"
+                                                        CornerRadius="4"
+                                                        Padding="6,2">
+                                                    <TextBlock Text="{Binding GameType}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="White" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Description}"
+                                                           FontSize="12"
+                                                           Foreground="#AAAAAA"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Content="Select"
+                                                Command="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).SelectProfileCommand}"
+                                                CommandParameter="{Binding}"
+                                                Background="#4CAF50"
+                                                Foreground="White"
+                                                CornerRadius="6"
+                                                Padding="20,10"
+                                                FontSize="13"
+                                                FontWeight="SemiBold"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Stretch"
+                                                Cursor="Hand">
+                                            <Button.Styles>
+                                                <Style Selector="Button:pointerover">
+                                                    <Setter Property="Background" Value="#66BB6A" />
+                                                </Style>
+                                                <Style Selector="Button:pressed">
+                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                </Style>
+                                            </Button.Styles>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Empty State for Compatible Profiles -->
+                    <Border Background="#1A1A1A"
+                            CornerRadius="8"
+                            Padding="24"
+                            IsVisible="{Binding !HasCompatibleProfiles}">
+                        <StackPanel Spacing="8" HorizontalAlignment="Center">
+                            <TextBlock Text="No compatible profiles"
+                                       FontSize="14"
+                                       Foreground="#888888"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Create a new profile to use this content"
+                                       FontSize="12"
+                                       Foreground="#666666"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Other Profiles Section (with warnings) -->
+                <StackPanel Spacing="12"
+                            IsVisible="{Binding HasOtherProfiles}"
+                            Margin="0,8,0,0">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <PathIcon Grid.Column="0"
+                                  Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+                                  Foreground="#FF9800"
+                                  Width="18" Height="18"
+                                  Margin="0,0,8,0"
+                                  VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="Other Profiles"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="#FF9800"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding OtherProfiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:ProfileOptionViewModel">
+                                <Border Background="#2A1A1A"
+                                        CornerRadius="8"
+                                        Padding="16"
+                                        Margin="0,0,0,8"
+                                        BorderBrush="#FF9800"
+                                        BorderThickness="1">
+                                    <Grid ColumnDefinitions="*,120">
+                                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Border Background="#FF9800"
+                                                        CornerRadius="4"
+                                                        Padding="6,2">
+                                                    <TextBlock Text="{Binding GameType}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="White" />
+                                                </Border>
+                                                <TextBlock Text="{Binding Description}"
+                                                           FontSize="12"
+                                                           Foreground="#AAAAAA"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <Border Background="#3D1F00"
+                                                    CornerRadius="4"
+                                                    Padding="8,4"
+                                                    HorizontalAlignment="Left"
+                                                    IsVisible="{Binding ShowWarning}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <PathIcon Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"
+                                                              Foreground="#FF9800"
+                                                              Width="12" Height="12"
+                                                              VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding WarningMessage}"
+                                                               FontSize="11"
+                                                               Foreground="#FFB74D"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="1"
+                                                Content="Select"
+                                                Command="{Binding $parent[Window].((vm:ProfileSelectionViewModel)DataContext).SelectProfileCommand}"
+                                                CommandParameter="{Binding}"
+                                                Background="#FF9800"
+                                                Foreground="White"
+                                                CornerRadius="6"
+                                                Padding="20,10"
+                                                FontSize="13"
+                                                FontWeight="SemiBold"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Stretch"
+                                                Cursor="Hand">
+                                            <Button.Styles>
+                                                <Style Selector="Button:pointerover">
+                                                    <Setter Property="Background" Value="#FFA726" />
+                                                </Style>
+                                                <Style Selector="Button:pressed">
+                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
+                                                </Style>
+                                            </Button.Styles>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- No Profiles State -->
+                <Border Background="#1A1A1A"
+                        CornerRadius="8"
+                        Padding="32"
+                        IsVisible="{Binding !HasAnyProfiles}"
+                        Margin="0,20,0,0">
+                    <StackPanel Spacing="12" HorizontalAlignment="Center">
+                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                                  Foreground="#444444"
+                                  Width="48" Height="48"
+                                  HorizontalAlignment="Center" />
+                        <TextBlock Text="No profiles available"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Foreground="#888888"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Create a new profile to get started"
+                                   FontSize="13"
+                                   Foreground="#666666"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer Buttons -->
+        <StackPanel Grid.Row="2"
+                    Spacing="12"
+                    Margin="0,20,0,0">
+            <!-- Create New Profile Button -->
+            <Button Content="Create New Profile"
+                    Command="{Binding CreateNewProfileCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="44"
+                    Background="#9C27B0"
+                    Foreground="White"
+                    CornerRadius="8"
+                    FontSize="14"
+                    FontWeight="SemiBold"
+                    Cursor="Hand">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#AB47BC" />
+                    </Style>
+                    <Style Selector="Button:pressed">
+                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+
+            <!-- Cancel Button -->
+            <Button Content="Cancel"
+                    Command="{Binding CancelCommand}"
+                    HorizontalAlignment="Stretch"
+                    Height="44"
+                    Background="Transparent"
+                    BorderBrush="#40FFFFFF"
+                    BorderThickness="1"
+                    Foreground="#AAAAAA"
+                    CornerRadius="8"
+                    FontSize="14"
+                    Cursor="Hand">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#15FFFFFF" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Style>
+                    <Style Selector="Button:pressed">
+                        <Setter Property="RenderTransform" Value="scale(0.98)" />
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

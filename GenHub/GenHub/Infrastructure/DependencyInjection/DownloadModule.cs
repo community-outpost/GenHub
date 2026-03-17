@@ -2,6 +2,7 @@ using System;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Features.Downloads.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -21,6 +22,9 @@ public static class DownloadModule
         // Register DownloadService and its interface
         services.AddScoped<IDownloadService, DownloadService>();
         services.AddScoped<DownloadService>();
+
+        // Register ContentStateService for download state tracking
+        services.AddSingleton<IContentStateService, ContentStateService>();
 
         // Register HttpClient with configuration from IConfigurationProviderService
         services.AddHttpClient<DownloadService>((serviceProvider, client) =>

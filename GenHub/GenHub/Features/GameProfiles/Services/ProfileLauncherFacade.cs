@@ -886,6 +886,13 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
             }
 
+            // Check for missing dependencies (can occur even on success-with-warnings)
+            if (resolutionResult.MissingContentIds?.Any() == true)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(
+                    $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
+            }
+
             manifests = [.. resolutionResult.ResolvedManifests];
 
             // CAS preflight check - verify all CAS content is available before workspace preparation.

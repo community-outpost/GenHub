@@ -430,9 +430,44 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogInformation("Acquiring content {ContentName} from {ProviderName}", searchResult.Name, searchResult.ProviderName);
 
+        // Define stages for progress tracking
+        const int totalStages = 5;
+        var lastUpdateTime = DateTime.UtcNow;
+
+        void ReportProgress(int stage, string description, double stageProgress = 0, string? operation = null, bool isBottleneck = false, string? bottleneckReason = null)
+        {
+            var now = DateTime.UtcNow;
+            var timeSinceLastUpdate = now - lastUpdateTime;
+            lastUpdateTime = now;
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                CurrentStage = stage,
+                TotalStages = totalStages,
+                StageDescription = description,
+                StageProgress = stageProgress,
+                CurrentOperation = operation ?? description,
+                Phase = stage switch
+                {
+                    1 => ContentAcquisitionPhase.ValidatingManifest,
+                    2 => ContentAcquisitionPhase.Downloading,
+                    3 => ContentAcquisitionPhase.Extracting,
+                    4 => ContentAcquisitionPhase.ValidatingFiles,
+                    5 => ContentAcquisitionPhase.Completed,
+                    _ => ContentAcquisitionPhase.Downloading,
+                },
+                ProgressPercentage = ((stage - 1) * 100.0 / totalStages) + (stageProgress / totalStages),
+                TimeSinceLastUpdate = timeSinceLastUpdate,
+                IsBottleneck = isBottleneck,
+                BottleneckReason = bottleneckReason,
+            });
+        }
+
         try
         {
-            // Step 1: Get provider
+            // Stage 1: Get provider and resolve manifest
+            ReportProgress(1, "Resolving content", 0, "Finding content provider...");
+
             var provider = _providers.FirstOrDefault(p => p.SourceName == searchResult.ProviderName);
             if (provider == null)
             {
@@ -440,19 +475,22 @@ public class ContentOrchestrator : IContentOrchestrator
                     $"Provider not found: {searchResult.ProviderName}");
             }
 
-            // Step 2: Get complete manifest
+            ReportProgress(1, "Resolving content", 30, "Validating manifest structure...");
+
             ContentManifest manifest;
             var embeddedManifest = searchResult.GetData<ContentManifest>();
             if (embeddedManifest != null)
             {
                 manifest = embeddedManifest;
+                ReportProgress(1, "Resolving content", 60, "Using embedded manifest");
             }
             else if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
             {
-                // Content requires resolution through a resolver (e.g., GitHub releases)
                 _logger.LogInformation(
                     "Content requires resolution. Using resolver: {ResolverId}",
                     searchResult.ResolverId);
+
+                ReportProgress(1, "Resolving content", 40, "Resolving content details...");
 
                 var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
                 if (!resolveResult.Success || resolveResult.Data == null)
@@ -462,9 +500,11 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
 
                 manifest = resolveResult.Data;
+                ReportProgress(1, "Resolving content", 80, "Manifest resolved");
             }
             else
             {
+                ReportProgress(1, "Resolving content", 40, "Fetching manifest from provider...");
                 var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
                 if (!manifestResult.Success || manifestResult.Data == null)
                 {
@@ -475,13 +515,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 manifest = manifestResult.Data;
             }
 
-            // Step 3: Validate manifest structure only
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.ValidatingManifest,
-                ProgressPercentage = ContentConstants.ProgressStepValidatingManifest,
-                CurrentOperation = "Validating content manifest",
-            });
+            // Validate manifest structure
+            ReportProgress(1, "Resolving content", 90, "Validating manifest...");
 
             var validationResult = await _contentValidator.ValidateManifestAsync(manifest, cancellationToken);
             if (!validationResult.IsValid)
@@ -494,51 +529,68 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
             }
 
-            // Step 4: Provider content preparation (download to staging)
+            ReportProgress(1, "Resolving content", 100, "Manifest validated");
+
+            // Stage 2: Download content
             var stagingDir = Path.Combine(Path.GetTempPath(), "GenHub", "Staging", manifest.Id);
             Directory.CreateDirectory(stagingDir);
 
             try
             {
-                progress?.Report(new ContentAcquisitionProgress
+                ReportProgress(2, "Downloading", 0, "Starting download...");
+
+                // Create a wrapper progress that maps provider progress to our staged progress
+                var downloadProgress = new Progress<ContentAcquisitionProgress>(p =>
                 {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = ContentConstants.ProgressStepDownloading,
-                    CurrentOperation = "Preparing content via provider pipeline",
+                    var stagePercent = p.TotalBytes > 0
+                        ? (double)p.BytesProcessed / p.TotalBytes * 100
+                        : p.ProgressPercentage;
+
+                    var operation = p.TotalBytes > 0
+                        ? $"Downloading: {FormatBytes(p.BytesProcessed)} / {FormatBytes(p.TotalBytes)}"
+                        : p.CurrentOperation;
+
+                    ReportProgress(2, "Downloading", stagePercent, operation);
                 });
 
-                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, progress, cancellationToken);
+                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, downloadProgress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Content preparation failed: {prepareResult.FirstError}");
                 }
 
-                // Step 5: Full validation (manifest + files)
-                // Always validate to ensure content integrity, even if nominally in CAS
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    ProgressPercentage = ContentConstants.ProgressStepValidatingFiles,
-                    CurrentOperation = "Validating prepared content files",
-                });
+                ReportProgress(2, "Downloading", 100, "Download complete");
 
-                // Forward orchestrator progress into validator
+                // Stage 3: Extract and process files
+                ReportProgress(3, "Processing files", 0, "Extracting content...");
+
+                // Note: Extraction is typically handled by the provider's PrepareContentAsync
+                // This stage is for any additional post-download processing
+                ReportProgress(3, "Processing files", 100, "Files processed");
+
+                // Stage 4: Validate files and compute hashes
+                ReportProgress(4, "Validating", 0, "Starting file validation...");
+
                 IProgress<ValidationProgress>? validationProgress = null;
                 if (progress != null)
                 {
                     validationProgress = new Progress<ValidationProgress>(vp =>
                     {
-                        // Map validation progress (0-100) into 70-80% range for acquisition
-                        var pct = ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0);
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.ValidatingFiles,
-                            ProgressPercentage = pct,
-                            CurrentOperation = vp.CurrentFile ?? "Validating files",
-                            FilesProcessed = vp.Processed,
-                            TotalFiles = vp.Total,
-                        });
+                        var isHashCalculation = vp.CurrentFile?.Contains("hash", StringComparison.OrdinalIgnoreCase) == true
+                            || vp.Total > 100; // Many files = likely hash computation
+
+                        var operation = vp.Total > 0
+                            ? $"Validating: {vp.Processed}/{vp.Total} files"
+                            : vp.CurrentFile ?? "Validating files";
+
+                        ReportProgress(
+                            4,
+                            "Validating",
+                            vp.PercentComplete,
+                            operation,
+                            isBottleneck: isHashCalculation && vp.Total > 100,
+                            bottleneckReason: isHashCalculation && vp.Total > 100 ? "Computing file hashes..." : null);
                     });
                 }
 
@@ -558,20 +610,14 @@ public class ContentOrchestrator : IContentOrchestrator
                     }
                 }
 
-                // Step 6: Store in permanent storage (only if not already stored by deliverer)
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Extracting,
-                    ProgressPercentage = ContentConstants.ProgressStepExtracting,
-                    CurrentOperation = "Adding to content library",
-                });
+                ReportProgress(4, "Validating", 100, "Validation complete");
 
-                // Check if the manifest was already stored by the deliverer
-                // This prevents double-storage which could overwrite files with empty arrays
+                // Stage 5: Store in content library (CAS)
+                ReportProgress(5, "Storing", 0, "Adding to content library...");
+
                 var alreadyStoredResult = await _manifestPool.IsManifestAcquiredAsync(prepareResult.Data.Id, cancellationToken);
                 if (!alreadyStoredResult.Success || !alreadyStoredResult.Data)
                 {
-                    // Manifest not yet stored, store it now
                     _logger.LogDebug("Manifest {ManifestId} not yet stored, storing now from staging directory", prepareResult.Data.Id);
 
                     // For GameClient content, ensure InstallationPoolRootPath is set before storing
@@ -586,20 +632,19 @@ public class ContentOrchestrator : IContentOrchestrator
                         }
                     }
 
+                    ReportProgress(5, "Storing", 30, "Copying files to content store...", isBottleneck: true, bottleneckReason: "Storing files in content-addressable storage...");
+
                     await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken: cancellationToken);
+
+                    ReportProgress(5, "Storing", 90, "Registering manifest...");
                 }
                 else
                 {
-                    // Manifest already stored by deliverer, skip redundant storage
                     _logger.LogDebug("Manifest {ManifestId} already stored by deliverer, skipping redundant storage", prepareResult.Data.Id);
+                    ReportProgress(5, "Storing", 90, "Content already stored");
                 }
 
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Completed,
-                    ProgressPercentage = ContentConstants.ProgressStepCompleted,
-                    CurrentOperation = "Content acquired successfully",
-                });
+                ReportProgress(5, "Complete", 100, "Content acquired successfully");
 
                 _logger.LogInformation("Content {ContentName} acquired and stored in manifest pool", searchResult.Name);
 
@@ -690,6 +735,20 @@ public class ContentOrchestrator : IContentOrchestrator
             _logger.LogError(ex, "Failed to remove content {ManifestId} from pool", manifestId);
             return OperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
         }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] sizes = ["B", "KB", "MB", "GB"];
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
     }
 
     private static IEnumerable<ContentSearchResult> ApplySorting(

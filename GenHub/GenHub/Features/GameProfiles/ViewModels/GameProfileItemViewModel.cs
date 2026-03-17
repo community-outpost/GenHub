@@ -113,7 +113,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Stops profile using the injected action.
+    /// Stops the profile using the injected action.
     /// </summary>
     [RelayCommand]
     private async Task StopProfile()
@@ -137,7 +137,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Toggles edit mode for this specific profile.
+    /// Toggles the edit mode for this specific profile.
     /// </summary>
     [RelayCommand]
     private void ToggleEditMode()
@@ -651,6 +651,30 @@ public partial class GameProfileItemViewModel : ViewModelBase
             // Update description
             // Update description layout
             UpdateDescription(gameProfile);
+
+            // Update workspace info
+            ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
+            UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
+
+            // Update visuals
+            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
+            {
+                ColorValue = gameProfile.ThemeColor;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.IconPath))
+            {
+                IconPath = gameProfile.IconPath;
+            }
+
+            if (!string.IsNullOrEmpty(gameProfile.CoverPath))
+            {
+                var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
+                CoverPath = normalizedCoverPath;
+                CoverImagePath = normalizedCoverPath;
+            }
+
+            CommandLineArguments = gameProfile.CommandLineArguments;
         }
 
         // Notify UI of all property changes
@@ -752,9 +776,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private static string NormalizeCoverPath(string coverPath)
     {
         if (string.IsNullOrEmpty(coverPath))
-        {
             return coverPath;
-        }
 
         // Map old paths to new paths for backward compatibility
         // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png

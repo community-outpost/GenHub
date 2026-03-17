@@ -1,10 +1,5 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
@@ -30,6 +25,8 @@ public class GameClientManifestIntegrationTests : IDisposable
     private readonly ManifestGenerationService _manifestService;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly GameClientDetector _detector;
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+    private readonly Mock<IConfigurationProviderService> _configProviderMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameClientManifestIntegrationTests"/> class.
@@ -41,12 +38,15 @@ public class GameClientManifestIntegrationTests : IDisposable
 
         _hashProvider = new Sha256HashProvider();
         _manifestIdService = new ManifestIdService();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderMock = new Mock<IConfigurationProviderService>();
+
         _manifestService = new ManifestGenerationService(
             NullLogger<ManifestGenerationService>.Instance,
             _hashProvider,
             _manifestIdService,
-            new Mock<IDownloadService>().Object,
-            new Mock<IConfigurationProviderService>().Object);
+            _downloadServiceMock.Object,
+            _configProviderMock.Object);
 
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))

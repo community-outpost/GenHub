@@ -428,7 +428,7 @@ public interface IPublisherDefinitionLoader
 
 Static publishers have a fixed publisher identity. All content discovered from the source is attributed to a single known publisher.
 
-**Examples**: Community Outpost, Generals Online, TheSuperHackers
+**Examples**: Community Outpost, AODMaps, Generals Online, TheSuperHackers
 
 ```json
 {
@@ -450,6 +450,24 @@ Dynamic publishers support multiple publishers where content authors become indi
     "method": "github-topic",
     "topics": ["cnc-generals", "zero-hour-mod"],
     "authorsAsPublishers": true
+  }
+}
+```
+
+#### AODMaps Configuration
+
+AODMaps uses a static publisher configuration to map its custom catalog format:
+
+```json
+{
+  "publisherId": "aodmaps",
+  "publisherType": "aodmaps",
+  "displayName": "Age of Defense Maps",
+  "providerType": "Static",
+  "catalogFormat": "html-scraping",
+  "endpoints": {
+    "catalogUrl": "https://aodmaps.com",
+    "websiteUrl": "https://aodmaps.com"
   }
 }
 ```

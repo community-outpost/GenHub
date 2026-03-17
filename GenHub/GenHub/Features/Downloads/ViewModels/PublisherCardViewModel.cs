@@ -24,20 +24,21 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <summary>
 /// ViewModel for a publisher card displaying content from a single publisher.
 /// </summary>
-public partial class PublisherCardViewModel : ObservableObject, IRecipient<ProfileCreatedMessage>, IRecipient<ProfileUpdatedMessage>, IRecipient<ProfileDeletedMessage>, IDisposable
+public partial class PublisherCardViewModel(
+    ILogger<PublisherCardViewModel> logger,
+    IContentOrchestrator contentOrchestrator,
+    IContentManifestPool manifestPool,
+    IGameClientProfileService profileService,
+    IProfileContentService profileContentService,
+    IGameProfileManager profileManager,
+    INotificationService notificationService,
+    IContentReconciliationService reconciliationService) : ObservableObject, IRecipient<ProfileCreatedMessage>, IRecipient<ProfileUpdatedMessage>, IRecipient<ProfileDeletedMessage>, IDisposable
 {
-    private readonly ILogger<PublisherCardViewModel> _logger;
-    private readonly IContentOrchestrator _contentOrchestrator;
-    private readonly IContentManifestPool _manifestPool;
-    private readonly IGameClientProfileService _profileService;
-    private readonly IProfileContentService _profileContentService;
-    private readonly IGameProfileManager _profileManager;
-    private readonly INotificationService _notificationService;
-    private readonly IContentReconciliationService _reconciliationService;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _profileLock = new(1, 1);
 
     private bool _disposed;
+
     [ObservableProperty]
     private string _publisherId = string.Empty;
 
@@ -108,35 +109,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private ICommand? _primaryActionCommand;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PublisherCardViewModel"/> class.
+    /// Initializes the view model.
     /// </summary>
-    /// <param name="logger">The logger.</param>
-    /// <param name="contentOrchestrator">The content orchestrator.</param>
-    /// <param name="manifestPool">The manifest pool.</param>
-    /// <param name="profileService">The game client profile service.</param>
-    /// <param name="profileContentService">The profile content service.</param>
-    /// <param name="profileManager">The profile manager.</param>
-    /// <param name="notificationService">The notification service.</param>
-    /// <param name="reconciliationService">The reconciliation service.</param>
-    public PublisherCardViewModel(
-        ILogger<PublisherCardViewModel> logger,
-        IContentOrchestrator contentOrchestrator,
-        IContentManifestPool manifestPool,
-        IGameClientProfileService profileService,
-        IProfileContentService profileContentService,
-        IGameProfileManager profileManager,
-        INotificationService notificationService,
-        IContentReconciliationService reconciliationService)
+    public void Initialize()
     {
-        _logger = logger;
-        _contentOrchestrator = contentOrchestrator;
-        _manifestPool = manifestPool;
-        _profileService = profileService;
-        _profileContentService = profileContentService;
-        _profileManager = profileManager;
-        _notificationService = notificationService;
-        _reconciliationService = reconciliationService;
-
         ContentTypes.CollectionChanged += ContentTypes_CollectionChanged;
 
         // Register for profile creation and deletion messages
@@ -170,7 +146,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         await _profileLock.WaitAsync(token);
         try
         {
-            var profilesResult = await _profileManager.GetAllProfilesAsync(token);
+            var profilesResult = await profileManager.GetAllProfilesAsync(token);
             if (profilesResult.Success && profilesResult.Data != null)
             {
                 AvailableProfiles.Clear();
@@ -184,14 +160,14 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         return;
                     }
 
-                    var freshProfileResult = await _profileManager.GetProfileAsync(profileId, token);
+                    var freshProfileResult = await profileManager.GetProfileAsync(profileId, token);
                     if (freshProfileResult.Success && freshProfileResult.Data != null)
                     {
                         AvailableProfiles.Add(freshProfileResult.Data);
                     }
                 }
 
-                _logger.LogDebug("Refreshed available profiles: {Count} profiles", AvailableProfiles.Count);
+                logger.LogDebug("Refreshed available profiles: {Count} profiles", AvailableProfiles.Count);
             }
         }
         catch (OperationCanceledException)
@@ -200,7 +176,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to refresh available profiles");
+            logger.LogWarning(ex, "Failed to refresh available profiles");
         }
         finally
         {
@@ -214,7 +190,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="message">The profile created message.</param>
     public void Receive(ProfileCreatedMessage message)
     {
-        _logger.LogDebug("Profile created: {Name}", message.Profile.Name);
+        logger.LogDebug("Profile created: {Name}", message.Profile.Name);
         RefreshProfilesOnUiThread();
     }
 
@@ -224,7 +200,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="message">The profile updated message.</param>
     public void Receive(ProfileUpdatedMessage message)
     {
-        _logger.LogDebug("Profile updated: {Name}", message.Profile.Name);
+        logger.LogDebug("Profile updated: {Name}", message.Profile.Name);
         RefreshProfilesOnUiThread();
     }
 
@@ -234,7 +210,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="message">The profile deleted message.</param>
     public void Receive(ProfileDeletedMessage message)
     {
-        _logger.LogDebug("Profile deleted: {Name}", message.ProfileName);
+        logger.LogDebug("Profile deleted: {Name}", message.ProfileName);
         RefreshProfilesOnUiThread();
     }
 
@@ -285,17 +261,17 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     {
         try
         {
-            var result = await _manifestPool.GetAllManifestsAsync();
+            var result = await manifestPool.GetAllManifestsAsync();
             if (!result.Success || result.Data == null)
             {
-                _logger.LogWarning("Failed to retrieve manifests for installation status check: {Errors}", ManifestHelper.FormatErrors(result.Errors));
+                logger.LogWarning("Failed to retrieve manifests for installation status check: {Errors}", ManifestHelper.FormatErrors(result.Errors));
                 return;
             }
 
             // Get all installed manifests
             var allManifests = result.Data.ToList();
 
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Checking installation status for {PublisherId} - {ManifestCount} total manifests in pool",
                 PublisherId,
                 allManifests.Count);
@@ -303,7 +279,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             // Log all manifests for debugging
             foreach (var m in allManifests)
             {
-                _logger.LogDebug(
+                logger.LogDebug(
                     "Installed manifest: Id={Id}, Version={Version}, Publisher={Publisher}, ContentType={ContentType}",
                     m.Id.Value,
                     m.Version,
@@ -362,7 +338,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                             if (isNewer)
                             {
                                 item.UpdateAvailableVersion = item.Version;
-                                _logger.LogDebug(
+                                logger.LogDebug(
                                     "Update available for {Name}: installed={InstalledVersion}, available={AvailableVersion}",
                                     item.Name,
                                     highestInstalledVersion,
@@ -472,7 +448,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         }
                     }
 
-                    _logger.LogDebug(
+                    logger.LogDebug(
                         "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}, Dependencies: {DependencyCount}",
                         item.Name,
                         item.Version,
@@ -485,7 +461,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to refresh installation status for {PublisherId}", PublisherId);
+            logger.LogError(ex, "Failed to refresh installation status for {PublisherId}", PublisherId);
         }
     }
 
@@ -684,7 +660,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private async Task ToggleExpandAsync()
     {
         IsExpanded = !IsExpanded;
-        _logger.LogDebug("Publisher card {PublisherId} expanded: {IsExpanded}", PublisherId, IsExpanded);
+        logger.LogDebug("Publisher card {PublisherId} expanded: {IsExpanded}", PublisherId, IsExpanded);
 
         if (IsExpanded)
         {
@@ -697,20 +673,20 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     {
         if (item.IsDownloaded)
         {
-            _logger.LogDebug("Content {ItemName} is already downloaded", item.Name);
+            logger.LogDebug("Content {ItemName} is already downloaded", item.Name);
             return;
         }
 
         if (item.Model == null)
         {
-            _logger.LogError("Cannot install item {ItemName}: Model is null", item.Name);
+            logger.LogError("Cannot install item {ItemName}: Model is null", item.Name);
             item.DownloadStatus = "Error: No source available";
             return;
         }
 
         try
         {
-            _logger.LogInformation("Starting download of {ItemName} v{Version}", item.Name, item.Version);
+            logger.LogInformation("Starting download of {ItemName} v{Version}", item.Name, item.Version);
             item.IsDownloading = true;
             item.DownloadStatus = "Downloading...";
             item.DownloadProgress = 0;
@@ -721,7 +697,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 item.DownloadStatus = FormatProgressStatus(p);
             });
 
-            var result = await _contentOrchestrator.AcquireContentAsync(item.Model, progress);
+            var result = await contentOrchestrator.AcquireContentAsync(item.Model, progress);
 
             if (result.Success && result.Data is Core.Models.Manifest.ContentManifest manifest)
             {
@@ -731,12 +707,12 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                 // Update the Model.Id with the resolved manifest ID
                 item.Model.Id = manifest.Id.Value;
-                _logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
+                logger.LogDebug("Updated Model.Id to resolved manifest ID: {ManifestId}", item.Model.Id);
 
                 // Refresh installation status to populate variants
                 await RefreshInstallationStatusAsync();
 
-                _logger.LogInformation("Successfully downloaded {ItemName}", item.Name);
+                logger.LogInformation("Successfully downloaded {ItemName}", item.Name);
 
                 // Notify other components that content was acquired
                 try
@@ -746,7 +722,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
+                    logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
                 }
 
                 if (manifest.ContentType == ContentType.GameClient)
@@ -758,7 +734,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     var installedVersion = result.Data.Version;
                     var publisherType = result.Data.Publisher?.PublisherType;
 
-                    var allManifests = await _manifestPool.GetAllManifestsAsync();
+                    var allManifests = await manifestPool.GetAllManifestsAsync();
                     if (allManifests.Success && allManifests.Data != null)
                     {
                         // Find all GameClient manifests with matching version and publisher
@@ -767,7 +743,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                             m.Publisher?.PublisherType == publisherType &&
                             m.ContentType == ContentType.GameClient).ToList();
 
-                        _logger.LogInformation(
+                        logger.LogInformation(
                             "Found {Count} GameClient variants for {Publisher} v{Version}",
                             justInstalledGameClients.Count,
                             publisherType,
@@ -775,17 +751,17 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                         foreach (var m in justInstalledGameClients)
                         {
-                            var profileResult = await _profileService.CreateProfileFromManifestAsync(m);
+                            var profileResult = await profileService.CreateProfileFromManifestAsync(m);
                             if (profileResult.Success)
                             {
-                                _logger.LogInformation(
+                                logger.LogInformation(
                                     "Created profile for {ManifestId}: {ProfileName}",
                                     manifest.Id,
                                     profileResult.Data?.Name);
                             }
                             else
                             {
-                                _logger.LogWarning(
+                                logger.LogWarning(
                                     "Failed to create profile for {ManifestId}: {Errors}",
                                     manifest.Id,
                                     string.Join(", ", profileResult.Errors));
@@ -794,19 +770,19 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     }
                 }
 
-                _notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+                notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
             }
             else
             {
                 var errorMsg = result.Errors != null ? string.Join(", ", result.Errors) : "Unknown error";
                 item.DownloadStatus = $"✗ Failed: {errorMsg}";
-                _logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
+                logger.LogError("Failed to download {ItemName}: {Error}", item.Name, errorMsg);
             }
         }
         catch (Exception ex)
         {
             item.DownloadStatus = $"✗ Error: {ex.Message}";
-            _logger.LogError(ex, "Exception during download of {ItemName}", item.Name);
+            logger.LogError(ex, "Exception during download of {ItemName}", item.Name);
         }
         finally
         {
@@ -817,7 +793,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     [RelayCommand]
     private void ViewDetails()
     {
-        _logger.LogDebug("Viewing details for {PublisherName}", DisplayName);
+        logger.LogDebug("Viewing details for {PublisherName}", DisplayName);
 
         // TODO: Open publisher details view or website
     }
@@ -837,7 +813,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
         if (latestItem == null)
         {
-            _logger.LogInformation("No uninstalled content available for {PublisherId}", PublisherId);
+            logger.LogInformation("No uninstalled content available for {PublisherId}", PublisherId);
             return;
         }
 
@@ -870,7 +846,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 // Use first variant as default if called directly with item
                 contentId = item.AvailableVariants[0].Id.Value;
                 contentName = item.AvailableVariants[0].Name ?? item.Name;
-                _logger.LogDebug("Using first variant manifest ID: {ManifestId}", contentId);
+                logger.LogDebug("Using first variant manifest ID: {ManifestId}", contentId);
             }
             else if (item.IsDownloaded && !string.IsNullOrEmpty(item.Model.Id) && item.Model.Id.Count(c => c == '.') >= 4)
             {
@@ -881,14 +857,14 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             else if (!item.IsDownloaded)
             {
                 item.DownloadStatus = "✗ Download content first";
-                _logger.LogWarning("Cannot add {ItemName} to profile: content not downloaded yet", item.Name);
+                logger.LogWarning("Cannot add {ItemName} to profile: content not downloaded yet", item.Name);
                 return;
             }
             else
             {
                 // Fallback - try to find the manifest in the pool that matches this item
                 item.DownloadStatus = "✗ Invalid content ID";
-                _logger.LogWarning("Cannot add {ItemName} to profile: invalid manifest ID format {Id}", item.Name, item.Model.Id);
+                logger.LogWarning("Cannot add {ItemName} to profile: invalid manifest ID format {Id}", item.Name, item.Model.Id);
                 return;
             }
 
@@ -913,7 +889,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
         try
         {
-            _logger.LogInformation("Adding {ContentName} ({ContentId}) to profile {ProfileName}", contentName, contentId, profile.Name);
+            logger.LogInformation("Adding {ContentName} ({ContentId}) to profile {ProfileName}", contentName, contentId, profile.Name);
 
             // If we have an item access, update status
             if (parameters[0] is ContentItemViewModel vmItem)
@@ -921,7 +897,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 vmItem.DownloadStatus = "Adding to profile...";
             }
 
-            var result = await _profileContentService.AddContentToProfileAsync(
+            var result = await profileContentService.AddContentToProfileAsync(
                 profile.Id,
                 contentId,
                 CancellationToken.None);
@@ -941,24 +917,24 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
+                    logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
                 }
 
                 if (result.WasContentSwapped)
                 {
-                    _logger.LogInformation(
+                    logger.LogInformation(
                         "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
                         result.SwappedContentName,
                         contentName,
                         profile.Name);
 
-                    _notificationService.ShowWarning(
+                    notificationService.ShowWarning(
                         "Content Replaced",
                         $"Replaced '{result.SwappedContentName ?? "conflicting content"}' with '{contentName}' in '{profile.Name}'. Only one of this type can be enabled at a time.");
                 }
                 else
                 {
-                    _notificationService.ShowSuccess(
+                    notificationService.ShowSuccess(
                         "Added to Profile",
                         $"'{contentName}' added to profile '{profile.Name}'");
                 }
@@ -972,10 +948,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     failItem.DownloadStatus = $"✗ Failed: {result.FirstError}";
                 }
 
-                _notificationService.ShowError(
+                notificationService.ShowError(
                     "Failed to Add to Profile",
                     result.FirstError ?? "Unknown error occurred");
-                _logger.LogError("Failed to add content to profile: {Error}", result.FirstError);
+                logger.LogError("Failed to add content to profile: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
@@ -985,10 +961,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 errItem.DownloadStatus = $"✗ Error: {ex.Message}";
             }
 
-            _notificationService.ShowError(
+            notificationService.ShowError(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
-            _logger.LogError(ex, "Exception adding content to profile");
+            logger.LogError(ex, "Exception adding content to profile");
         }
     }
 
@@ -1048,14 +1024,14 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 profileName = $"{baseName} ({counter++})";
             }
 
-            _logger.LogInformation("Creating new profile '{ProfileName}' with {ContentName}", profileName, contentName);
+            logger.LogInformation("Creating new profile '{ProfileName}' with {ContentName}", profileName, contentName);
 
             if (itemForStatus != null)
             {
                 itemForStatus.DownloadStatus = "Creating profile...";
             }
 
-            var result = await _profileContentService.CreateProfileWithContentAsync(
+            var result = await profileContentService.CreateProfileWithContentAsync(
                 profileName,
                 contentId,
                 CancellationToken.None);
@@ -1075,7 +1051,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to send ProfileCreatedMessage");
+                    logger.LogWarning(ex, "Failed to send ProfileCreatedMessage");
                 }
 
                 await RefreshAvailableProfilesAsync();
@@ -1087,10 +1063,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     itemForStatus.DownloadStatus = $"✗ Failed: {result.FirstError}";
                 }
 
-                _notificationService.ShowError(
+                notificationService.ShowError(
                     "Failed to Create Profile",
                     result.FirstError ?? "Unknown error occurred");
-                _logger.LogError("Failed to create profile: {Error}", result.FirstError);
+                logger.LogError("Failed to create profile: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
@@ -1100,10 +1076,10 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 itemForStatus.DownloadStatus = $"✗ Error: {ex.Message}";
             }
 
-            _notificationService.ShowError(
+            notificationService.ShowError(
                 "Error Creating Profile",
                 $"An unexpected error occurred: {ex.Message}");
-            _logger.LogError(ex, "Exception creating profile with content");
+            logger.LogError(ex, "Exception creating profile with content");
         }
     }
 
@@ -1117,7 +1093,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to refresh profiles dropdown");
+                logger.LogError(ex, "Failed to refresh profiles dropdown");
             }
         });
     }

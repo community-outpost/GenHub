@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels.Dialogs;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -43,7 +44,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="logger">Logger instance.</param>
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
-    DownloadsViewModel downloadsViewModel,
+    DownloadsBrowserViewModel downloadsViewModel,
     ToolsViewModel toolsViewModel,
     SettingsViewModel settingsViewModel,
     NotificationManagerViewModel notificationManager,
@@ -85,7 +86,7 @@ public partial class MainViewModel(
     /// <summary>
     /// Gets the downloads view model.
     /// </summary>
-    public DownloadsViewModel DownloadsViewModel { get; } = downloadsViewModel;
+    public DownloadsBrowserViewModel DownloadsViewModel { get; } = downloadsViewModel;
 
     /// <summary>
     /// Gets the tools view model.
@@ -115,8 +116,8 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
         NavigationTab.Tools,
-        NavigationTab.Info,
         NavigationTab.Settings,
+        NavigationTab.Info,
     ];
 
     /// <summary>
@@ -179,6 +180,9 @@ public partial class MainViewModel(
         await InfoViewModel.InitializeAsync();
         logger?.LogInformation("MainViewModel initialized");
 
+        // Ensure the initial tab's activation logic runs (triggers lazy loading)
+        OnSelectedTabChanged(SelectedTab);
+
         // Start background check with cancellation support
         _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
 
@@ -218,7 +222,7 @@ public partial class MainViewModel(
     // Register for messages
     private void RegisterMessages()
     {
-        WeakReferenceMessenger.Default.Register(this);
+        WeakReferenceMessenger.Default.Register<NavigationMessage>(this);
     }
 
     /// <summary>
@@ -249,13 +253,13 @@ public partial class MainViewModel(
                     {
                         notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
-                            "Update Available",
-                            $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
+                            AppUpdateConstants.UpdateNotificationTitle,
+                            string.Format(AppUpdateConstants.UpdateAvailableMessageFormat, updateInfo.TargetFullRelease.Version),
                             null, // Persistent
                             actions:
                             [
                                 new NotificationAction(
-                                    "View Updates",
+                                    AppUpdateConstants.ViewUpdatesAction,
                                     () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
                                     NotificationActionStyle.Primary,
                                     dismissOnExecute: true),
@@ -281,13 +285,13 @@ public partial class MainViewModel(
                     {
                         notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
-                            "Branch Update Available",
-                            $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
+                            AppUpdateConstants.BranchUpdateNotificationTitle,
+                            string.Format(AppUpdateConstants.BranchUpdateAvailableMessageFormat, newVersionBase, settings.SubscribedBranch),
                             null, // Persistent
                             actions:
                             [
                                 new NotificationAction(
-                                    "View Updates",
+                                    AppUpdateConstants.ViewUpdatesAction,
                                     () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
                                     NotificationActionStyle.Primary,
                                     dismissOnExecute: true),
@@ -336,7 +340,7 @@ public partial class MainViewModel(
                              SelectTab(NavigationTab.Info);
 
                              // Programmatic navigation to the quickstart section
-                             InfoViewModel.OpenSection("quickstart");
+                             InfoViewModel.OpenSection(InfoConstants.QuickstartSectionId);
                         },
                     },
                     new DialogAction

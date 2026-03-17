@@ -181,12 +181,8 @@ public class DependencyResolver(
             }
         }
 
-        if (missingContentIds.Count > 0)
-        {
-            return DependencyResolutionResult.CreateFailure($"Missing or invalid content IDs: {string.Join(", ", missingContentIds)}");
-        }
-
-        if (warnings.Count > 0)
+        // Return result with missing dependencies - let the caller decide how to handle
+        if (warnings.Count > 0 || missingContentIds.Count > 0)
         {
             return DependencyResolutionResult.CreateSuccessWithWarnings([..resolvedIds], resolvedManifests, missingContentIds, warnings);
         }

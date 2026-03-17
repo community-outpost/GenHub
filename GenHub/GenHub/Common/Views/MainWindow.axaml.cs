@@ -1,6 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using System;
+using System.Linq;
 
 namespace GenHub.Common.Views;
 
@@ -15,6 +17,58 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data.Contains(DataFormats.Files))
+        {
+            e.DragEffects = DragDropEffects.Link;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        var files = e.Data.GetFiles()?.ToList();
+        if (files == null || files.Count == 0) return;
+
+        foreach (var file in files)
+        {
+            var filePath = file.Path.LocalPath;
+            if (System.IO.Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var json = await System.IO.File.ReadAllTextAsync(filePath);
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("catalogUrl", out var urlProp))
+                    {
+                        var url = urlProp.GetString();
+                        if (!string.IsNullOrEmpty(url))
+                        {
+                            if (Avalonia.Application.Current is App app)
+                            {
+                                // Call the internal subscription handler
+                                // We use reflection or make it public if needed,
+                                // but App already has SingleInstance handle logic.
+                                // Actually we can just call the public method if we add it.
+                                await app.HandleSubscribeCommandAsync(url);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore invalid files
+                }
+            }
+        }
     }
 
     /// <summary>

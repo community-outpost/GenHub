@@ -125,6 +125,9 @@
         <DataTemplate DataType="downloadsVM:DownloadsViewModel">
             <downloadsViews:DownloadsView />
         </DataTemplate>
+        <DataTemplate DataType="downloadsVM:DownloadsBrowserViewModel">
+            <downloadsViews:DownloadsBrowserView />
+        </DataTemplate>
         <DataTemplate DataType="toolsVM:ToolsViewModel">
             <toolsViews:ToolsView />
         </DataTemplate>
@@ -183,16 +186,16 @@
                         Content="Tools"
                         Name="Tab2Button" />
                     <Button Classes="modern-tab"
-                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
-                        Command="{Binding SelectTabCommand}"
-                        CommandParameter="{x:Static enums:NavigationTab.Info}"
-                        Content="Info"
-                        Name="Tab3Button" />
-                    <Button Classes="modern-tab"
                         Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
                         Command="{Binding SelectTabCommand}"
                         CommandParameter="{x:Static enums:NavigationTab.Settings}"
                         Content="Settings"
+                        Name="Tab3Button" />
+                    <Button Classes="modern-tab"
+                        Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
+                        Command="{Binding SelectTabCommand}"
+                        CommandParameter="{x:Static enums:NavigationTab.Info}"
+                        Content="Info"
                         Name="Tab4Button" />
                 </StackPanel>
 

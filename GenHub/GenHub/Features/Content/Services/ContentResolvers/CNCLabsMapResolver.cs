@@ -45,6 +45,12 @@ public class CNCLabsMapResolver(
         ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
+        // [TEMP] DEBUG: ResolveAsync entry point
+        logger.LogInformation(
+            "[TEMP] CNCLabsMapResolver.ResolveAsync called - Item: {Name}, SourceUrl: {Url}",
+            discoveredItem?.Name,
+            discoveredItem?.SourceUrl);
+
         if (discoveredItem?.SourceUrl == null)
         {
             return OperationResult<ContentManifest>.CreateFailure("Invalid discovered item or source URL");
@@ -94,8 +100,8 @@ public class CNCLabsMapResolver(
 
             if (!mapId.HasValue)
             {
-                logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
-                return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
+                 logger.LogWarning("Invalid or missing map ID in resolver metadata for {Url}", discoveredItem.SourceUrl);
+                 return OperationResult<ContentManifest>.CreateFailure("Invalid map ID in resolver metadata");
             }
 
             // Use factory to create manifest
@@ -226,7 +232,7 @@ public class CNCLabsMapResolver(
         var previewImage = document.QuerySelector("img.PreviewImage")?.GetAttribute("src") ?? string.Empty;
         if (!string.IsNullOrEmpty(previewImage) && !previewImage.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            previewImage = $"https://www.cnclabs.com{previewImage}";
+            previewImage = $"{CNCLabsConstants.PublisherWebsite}{previewImage}";
         }
 
         var screenshots = document.QuerySelectorAll("img.Screenshot")
@@ -234,7 +240,7 @@ public class CNCLabsMapResolver(
             .Where(src => !string.IsNullOrEmpty(src))
             .Select(src => src!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
-                : $"https://www.cnclabs.com{src}")
+                : $"{CNCLabsConstants.PublisherWebsite}{src}")
             .ToList();
 
         return new ParsedContentDetails(

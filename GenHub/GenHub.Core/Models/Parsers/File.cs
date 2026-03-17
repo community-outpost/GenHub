@@ -15,6 +15,8 @@ namespace GenHub.Core.Models.Parsers;
 /// <param name="CommentCount">Number of comments (optional).</param>
 /// <param name="ThumbnailUrl">The thumbnail image URL (optional).</param>
 /// <param name="DownloadCount">Number of downloads (optional).</param>
+/// <param name="FileSectionType">The file section type (Downloads or Addons).</param>
+/// <param name="ReleaseDate">The release date (optional, may differ from upload date).</param>
 public record File(
     string Name,
     string? Version = null,
@@ -27,4 +29,6 @@ public record File(
     string? Md5Hash = null,
     int? CommentCount = null,
     string? ThumbnailUrl = null,
-    int? DownloadCount = null) : ContentSection(SectionType.File, Name);
+    int? DownloadCount = null,
+    FileSectionType FileSectionType = FileSectionType.Downloads,
+    DateTime? ReleaseDate = null) : ContentSection(SectionType.File, Name);
