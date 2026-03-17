@@ -229,7 +229,7 @@
                         <Setter Property="Background" Value="Transparent" />
                     </Style>
                 </Button.Styles>
-                <TextBlock Text="{x:Static constants:AppConstants.DisplayVersion}"
+                <TextBlock Text="{x:Static constants:AppConstants.FullDisplayVersion}"
                            FontSize="9"
                            Foreground="#808080" />
             </Button>
