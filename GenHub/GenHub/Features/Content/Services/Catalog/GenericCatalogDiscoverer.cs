@@ -32,7 +32,7 @@ public class GenericCatalogDiscoverer(
     private readonly IPublisherCatalogParser _catalogParser = catalogParser;
     private readonly IVersionSelector _versionSelector = versionSelector;
 
-    private PublisherSubscription? _subscription;
+    private Core.Models.Providers.PublisherSubscription? _subscription;
     private PublisherCatalog? _cachedCatalog;
 
     /// <summary>
@@ -71,12 +71,49 @@ public class GenericCatalogDiscoverer(
 
     private static int ExtractVersionNumber(string version)
     {
-        if (int.TryParse(new string([.. version.Where(char.IsDigit)]), out var result))
+        if (string.IsNullOrWhiteSpace(version))
         {
-            return result;
+            return 0;
         }
 
-        return 0;
+        // Try to normalize using the same logic as ManifestIdGenerator
+        // This handles versions like "1.0", "1.08", "2.5" consistently
+        try
+        {
+            // Remove common prefixes
+            var cleanVersion = version.TrimStart('v', 'V').Trim();
+
+            // Handle dotted versions (e.g., "1.0", "1.08", "2.5")
+            if (cleanVersion.Contains('.'))
+            {
+                var parts = cleanVersion.Split('.');
+                if (parts.Length == 2 &&
+                    int.TryParse(parts[0], out int major) && major >= 0 &&
+                    int.TryParse(parts[1], out int minor) && minor >= 0)
+                {
+                    // Use same padding logic as ManifestIdGenerator: "1.08" → 108, "1.8" → 108
+                    var normalized = $"{major}{minor.ToString().PadLeft(2, '0')}";
+                    if (int.TryParse(normalized, out var result))
+                    {
+                        return result;
+                    }
+                }
+            }
+
+            // Handle simple integer versions
+            if (int.TryParse(cleanVersion, out var intVersion) && intVersion >= 0)
+            {
+                return intVersion;
+            }
+        }
+        catch
+        {
+            // Fall through to hash-based approach
+        }
+
+        // For complex version strings that can't be normalized deterministically,
+        // use a stable hash to avoid collisions while maintaining consistency
+        return Math.Abs(version.GetHashCode()) % 1000000;
     }
 
     /// <inheritdoc />
@@ -97,7 +134,7 @@ public class GenericCatalogDiscoverer(
     /// Configures this discoverer for a specific publisher subscription.
     /// </summary>
     /// <param name="subscription">The publisher subscription.</param>
-    public void Configure(PublisherSubscription subscription)
+    public void Configure(Core.Models.Providers.PublisherSubscription subscription)
     {
         ArgumentNullException.ThrowIfNull(subscription);
         _subscription = subscription;
@@ -144,6 +181,11 @@ public class GenericCatalogDiscoverer(
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Content discovery cancelled by user for publisher '{PublisherId}'", _subscription.PublisherId);
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to discover content from publisher '{PublisherId}'", _subscription.PublisherId);
@@ -182,6 +224,12 @@ public class GenericCatalogDiscoverer(
         }
         catch (TaskCanceledException ex)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("Catalog fetch cancelled by user");
+                throw new OperationCanceledException("Catalog fetch cancelled by user", ex, cancellationToken);
+            }
+
             _logger.LogWarning(ex, "Catalog fetch timed out");
             return OperationResult<PublisherCatalog>.CreateFailure("Catalog fetch timed out");
         }

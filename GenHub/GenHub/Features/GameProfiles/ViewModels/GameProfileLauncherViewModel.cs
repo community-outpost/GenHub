@@ -918,10 +918,7 @@ public partial class GameProfileLauncherViewModel(
                 CreateShortcutAction = CreateShortcut,
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
-<<<<<<< HEAD
                 CopyProfileAction = CopyProfile,
-=======
->>>>>>> c75615b2 (feat: ui-downloads)
             };
 
             // Add to collection before the "Add New Profile" button (which is always at the end)

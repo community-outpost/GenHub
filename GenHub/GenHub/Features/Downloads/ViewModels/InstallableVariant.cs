@@ -2,6 +2,8 @@ using System.Windows.Input;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
+// TODO: Consider making properties init-only for immutability if appropriate for usage patterns
+
 /// <summary>
 /// Represents a specific installable variant for multi-asset content.
 /// </summary>

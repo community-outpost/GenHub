@@ -161,8 +161,7 @@
                                                         CommandParameter="{Binding}"
                                                         Background="{DynamicResource ButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}"
                                                         CornerRadius="6" Padding="16,8"
-                                                        VerticalAlignment="Center"
-                                                        IsVisible="False" />
+                                                        VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>

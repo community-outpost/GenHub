@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
+             xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="GenHub.Features.Downloads.Views.DownloadsBrowserView"
              x:DataType="vm:DownloadsBrowserViewModel"
@@ -67,7 +68,6 @@
                         <ColumnDefinition Width="Auto" /> <!-- Back Button -->
                         <ColumnDefinition Width="Auto" /> <!-- Sidebar Toggle -->
                         <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -183,7 +183,7 @@
                             <Button.IsVisible>
                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                     <Binding Path="CanLoadMore" />
-                                    <Binding Path="SelectedPublisher.PublisherId" Converter="{x:Static converters:ComparisonConverters.IsNotEqualTo}" ConverterParameter="thesuperhackers"/>
+                                    <Binding Path="SelectedPublisher.PublisherId" Converter="{x:Static converters:ComparisonConverters.IsNotEqualTo}" ConverterParameter="{x:Static constants:PublisherTypeConstants.TheSuperHackers}"/>
                                 </MultiBinding>
                             </Button.IsVisible>
                             <Button.Styles>
@@ -202,6 +202,9 @@
                                        FontSize="24"
                                        Foreground="#9C27B0"
                                        Margin="0,0,10,0">
+                                <TextBlock.RenderTransform>
+                                    <RotateTransform Angle="0"/>
+                                </TextBlock.RenderTransform>
                                 <TextBlock.Styles>
                                     <Style Selector="TextBlock">
                                         <Style.Animations>

@@ -232,7 +232,7 @@ public class CNCLabsMapResolver(
         var previewImage = document.QuerySelector("img.PreviewImage")?.GetAttribute("src") ?? string.Empty;
         if (!string.IsNullOrEmpty(previewImage) && !previewImage.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
-            previewImage = $"https://www.cnclabs.com{previewImage}";
+            previewImage = $"{CNCLabsConstants.PublisherWebsite}{previewImage}";
         }
 
         var screenshots = document.QuerySelectorAll("img.Screenshot")
@@ -240,7 +240,7 @@ public class CNCLabsMapResolver(
             .Where(src => !string.IsNullOrEmpty(src))
             .Select(src => src!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
-                : $"https://www.cnclabs.com{src}")
+                : $"{CNCLabsConstants.PublisherWebsite}{src}")
             .ToList();
 
         return new ParsedContentDetails(

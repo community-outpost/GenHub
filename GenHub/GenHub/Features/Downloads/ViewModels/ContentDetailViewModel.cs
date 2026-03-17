@@ -46,15 +46,15 @@ public partial class ContentDetailViewModel(
         Timeout = TimeSpan.FromSeconds(10),
     };
 
+    [ObservableProperty]
+    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault() ?? string.Empty;
+
     // Lazy loading flags to track which sections have been loaded
     private bool _imagesLoaded;
     private bool _videosLoaded;
     private bool _releasesLoaded;
     private bool _addonsLoaded;
     private bool _basicContentLoaded;
-
-    [ObservableProperty]
-    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault() ?? string.Empty;
 
     /// <summary>
     /// Gets the collection of screenshot URLs.
@@ -531,7 +531,7 @@ public partial class ContentDetailViewModel(
         {
             // Try to get size from parsed files first
             var parsedFile = Files?.FirstOrDefault();
-            if (parsedFile?.SizeBytes > 0)
+            if (parsedFile?.SizeBytes.HasValue == true && parsedFile.SizeBytes.Value > 0)
             {
                 return parsedFile.SizeBytes.Value;
             }
@@ -753,10 +753,10 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
-    /// Downloads an individual file from the WebFile.
+    /// Downloads an individual file from the WebFile (internal implementation).
     /// </summary>
     /// <param name="file">The file to download.</param>
-    private async Task DownloadFileAsync(WebFile file)
+    private async Task DownloadFileInternalAsync(WebFile file)
     {
         if (file == null || string.IsNullOrEmpty(file.DownloadUrl))
         {

@@ -119,7 +119,7 @@
                     <!-- Placeholder when no icon -->
                     <StackPanel HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                IsVisible="{Binding IconUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}">
                         <TextBlock Text="📦"
                                    FontSize="32"
                                    HorizontalAlignment="Center" />

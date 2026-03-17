@@ -4,6 +4,8 @@ using System.Windows.Input;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
+// TODO: Consider extracting common scaffolding between ReleaseItemViewModel and AddonItemViewModel into a shared base class
+
 /// <summary>
 /// ViewModel for a release item in the Releases section.
 /// </summary>

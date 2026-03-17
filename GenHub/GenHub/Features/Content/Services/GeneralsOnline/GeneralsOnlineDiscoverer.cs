@@ -121,7 +121,7 @@ public class GeneralsOnlineDiscoverer(
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
-                Items = results,
+                Items = results.ToList(),
                 HasMoreItems = false, // API returns all items at once
             });
         }

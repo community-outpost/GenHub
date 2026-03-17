@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AngleSharp;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.ModDB;
@@ -22,18 +23,18 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class ModDBDiscoverer : IContentDiscoverer
 {
-    private static readonly SemaphoreSlim _browserLock = new(1, 1);
-    private static IPlaywright? _playwright;
-    private static IBrowser? _browser;
     private readonly ILogger<ModDBDiscoverer> _logger;
+    private readonly IPlaywrightService _playwrightService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModDBDiscoverer"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
-    public ModDBDiscoverer(ILogger<ModDBDiscoverer> logger)
+    /// <param name="playwrightService">The Playwright service for browser automation.</param>
+    public ModDBDiscoverer(ILogger<ModDBDiscoverer> logger, IPlaywrightService playwrightService)
     {
         _logger = logger;
+        _playwrightService = playwrightService;
     }
 
     /// <inheritdoc />
@@ -55,8 +56,6 @@ public class ModDBDiscoverer : IContentDiscoverer
     {
         try
         {
-            await EnsurePlaywrightInitializedAsync();
-
             var gameType = query.TargetGame ?? GameType.ZeroHour;
             _logger.LogInformation("Discovering ModDB content for {Game} using Playwright", gameType);
 
@@ -91,28 +90,6 @@ public class ModDBDiscoverer : IContentDiscoverer
         {
             _logger.LogError(ex, "Failed to discover ModDB content");
             return OperationResult<ContentDiscoveryResult>.CreateFailure($"Discovery failed: {ex.Message}");
-        }
-    }
-
-    private static async Task EnsurePlaywrightInitializedAsync()
-    {
-        if (_browser != null) return;
-
-        await _browserLock.WaitAsync();
-        try
-        {
-            if (_browser != null) return;
-
-            _playwright = await Playwright.CreateAsync();
-            _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-            {
-                Headless = true,
-                Args = ["--disable-blink-features=AutomationControlled"], // Attempt to hide automation
-            });
-        }
-        finally
-        {
-            _browserLock.Release();
         }
     }
 
@@ -326,7 +303,6 @@ public class ModDBDiscoverer : IContentDiscoverer
         ContentSearchQuery query,
         CancellationToken cancellationToken)
     {
-        IBrowserContext? context = null;
         IPage? page = null;
         try
         {
@@ -348,14 +324,8 @@ public class ModDBDiscoverer : IContentDiscoverer
                 section,
                 url);
 
-            if (_browser == null) throw new InvalidOperationException("Browser not initialized");
-
-            // Create a new context/page for this request to ensure clean session or isolated cookies if needed
-            context = await _browser.NewContextAsync(new BrowserNewContextOptions
-            {
-                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            });
-            page = await context.NewPageAsync();
+            // Use IPlaywrightService to create a page
+            page = await _playwrightService.CreatePageAsync(cancellationToken: cancellationToken);
 
             await page.GotoAsync(url, new PageGotoOptions { Timeout = 30000, WaitUntil = WaitUntilState.DOMContentLoaded });
 
@@ -441,7 +411,6 @@ public class ModDBDiscoverer : IContentDiscoverer
         finally
         {
             if (page != null) await page.CloseAsync();
-            if (context != null) await context.DisposeAsync();
         }
     }
 }

@@ -24,6 +24,15 @@ public sealed partial class VariantSelectionViewModel : ObservableObject
     [ObservableProperty]
     private VariantOptionViewModel? _selectedVariant;
 
+    partial void OnSelectedVariantChanged(VariantOptionViewModel? value)
+    {
+        // Synchronize IsSelected property with SelectedVariant
+        foreach (var variant in Variants)
+        {
+            variant.IsSelected = variant == value;
+        }
+    }
+
     [ObservableProperty]
     private bool _wasSuccessful;
 
@@ -43,6 +52,8 @@ public sealed partial class VariantSelectionViewModel : ObservableObject
         string contentName,
         ObservableCollection<ContentManifest> manifests)
     {
+        ArgumentNullException.ThrowIfNull(manifests);
+
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         ContentName = contentName;
 

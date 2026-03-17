@@ -133,7 +133,6 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         return viewModel.Result;
     }
 
-
     private static Window? GetMainWindow()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

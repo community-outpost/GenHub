@@ -11,11 +11,8 @@ public partial class PublisherItemViewModel(
     string publisherId,
     string displayName,
     string? logoSource = null,
-    string? publisherType = null,
-    ILogger<PublisherItemViewModel>? logger = null) : ObservableObject
+    string? publisherType = null) : ObservableObject
 {
-    private readonly ILogger<PublisherItemViewModel>? _logger = logger;
-
     [ObservableProperty]
     private bool _isSelected;
 

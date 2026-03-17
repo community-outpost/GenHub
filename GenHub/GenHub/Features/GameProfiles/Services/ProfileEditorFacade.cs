@@ -131,6 +131,13 @@ public class ProfileEditorFacade(
                         return ProfileOperationResult<GameProfile>.CreateFailure(string.Join(", ", resolutionResult.Errors));
                     }
 
+                    // Check for missing dependencies (can occur even on success-with-warnings)
+                    if (resolutionResult.MissingContentIds?.Any() == true)
+                    {
+                        return ProfileOperationResult<GameProfile>.CreateFailure(
+                            $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
+                    }
+
                     workspaceConfig.Manifests = [..resolutionResult.ResolvedManifests];
                     profile.EnabledContentIds = [..resolutionResult.ResolvedContentIds];
 

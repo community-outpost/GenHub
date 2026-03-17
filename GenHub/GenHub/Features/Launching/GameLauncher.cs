@@ -476,6 +476,16 @@ public class GameLauncher(
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Failed to resolve content dependencies: {resolutionResult.FirstError}", launchId, profile.Id);
             }
 
+            // Check for missing dependencies (can occur even on success-with-warnings)
+            if (resolutionResult.MissingContentIds?.Any() == true)
+            {
+                logger.LogError("[GameLauncher] Missing or invalid content IDs: {MissingIds}", string.Join(", ", resolutionResult.MissingContentIds));
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                    $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}",
+                    launchId,
+                    profile.Id);
+            }
+
             if (resolutionResult.Warnings?.Any() == true)
             {
                 foreach (var warning in resolutionResult.Warnings)

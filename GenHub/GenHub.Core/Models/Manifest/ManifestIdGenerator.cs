@@ -78,6 +78,8 @@ public static partial class ManifestIdGenerator
             throw new ArgumentException("Publisher ID cannot be empty", nameof(publisherId));
         if (string.IsNullOrWhiteSpace(contentName))
             throw new ArgumentException("Content name cannot be empty", nameof(contentName));
+        if (releaseDate == DateTime.MinValue)
+            throw new ArgumentException("Release date cannot be DateTime.MinValue", nameof(releaseDate));
 
         var safePublisher = Normalize(publisherId);
         var contentTypeString = contentType.ToManifestIdString();

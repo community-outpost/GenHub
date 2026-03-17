@@ -59,8 +59,8 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IGitHubTokenStorage>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
-        // Register PublisherCardViewModel as transient (no longer used in new UI)
-        // services.AddTransient<PublisherCardViewModel>();
+        // Register PublisherCardViewModel as transient
+        services.AddTransient<PublisherCardViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios
         services.AddTransient<ProfileSelectionViewModel>();

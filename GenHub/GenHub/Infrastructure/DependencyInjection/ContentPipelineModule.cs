@@ -132,7 +132,6 @@ public static class ContentPipelineModule
         // Register Local Content Service
         services.AddTransient<ILocalContentService, LocalContentService>();
 
-<<<<<<< HEAD
         // Register Local Content Profile Reconciler
         services.AddScoped<ILocalContentProfileReconciler, LocalContentProfileReconciler>();
 
@@ -150,7 +149,8 @@ public static class ContentPipelineModule
             var appConfig = sp.GetRequiredService<IAppConfiguration>();
             var logger = sp.GetRequiredService<ILogger<FileBasedReconciliationAuditLog>>();
             return new FileBasedReconciliationAuditLog(appConfig.GetConfiguredDataPath(), logger);
-=======
+        });
+
         // Register publisher subscription store for creator catalog management
         services.AddSingleton<IPublisherSubscriptionStore, GenHub.Features.Content.Services.Catalog.PublisherSubscriptionStore>();
 
@@ -163,15 +163,6 @@ public static class ContentPipelineModule
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogDiscoverer>();
         services.AddTransient<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>();
         services.AddTransient<IContentResolver>(sp => sp.GetRequiredService<GenHub.Features.Content.Services.Catalog.GenericCatalogResolver>());
-
-        // Register ViewModels for catalog management
-        services.AddTransient<GenHub.Features.Content.ViewModels.Catalog.SubscriptionConfirmationViewModel>(sp =>
-        {
-            // Note: This is usually created via ActivatorUtilities to pass the URL,
-            // but we register the type itself just in case or for simple resolution.
-            return null!; // We'll use ActivatorUtilities.CreateInstance in App.axaml.cs
->>>>>>> c75615b2 (feat: ui-downloads)
-        });
     }
 
     /// <summary>
@@ -269,13 +260,8 @@ public static class ContentPipelineModule
         services.AddSingleton<IContentDiscoverer>(sp => sp.GetRequiredService<CommunityOutpostDiscoverer>());
 
         // Register Community Outpost resolver
-<<<<<<< HEAD
-        services.AddTransient<CommunityOutpostResolver>();
-        services.AddTransient<IContentResolver, CommunityOutpostResolver>();
-=======
         services.AddSingleton<CommunityOutpostResolver>();
         services.AddSingleton<IContentResolver>(sp => sp.GetRequiredService<CommunityOutpostResolver>());
->>>>>>> c75615b2 (feat: ui-downloads)
 
         // Register compressed image converter (AVIF/WebP to TGA) for GenPatcher content
         services.AddSingleton<CompressedImageToTgaConverter>();

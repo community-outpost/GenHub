@@ -30,9 +30,10 @@ public partial class DownloadsViewModel(
     ILogger<DownloadsViewModel> logger,
     INotificationService notificationService,
     GitHubTopicsDiscoverer gitHubTopicsDiscoverer,
-    IConfigurationProviderService configurationProvider) : ViewModelBase, IRecipient<GenHub.Core.Messages.OpenPublisherDetailsMessage>, IRecipient<GenHub.Core.Messages.ClosePublisherDetailsMessage>
+    IConfigurationProviderService configurationProvider) : ViewModelBase, IRecipient<GenHub.Core.Messages.OpenPublisherDetailsMessage>, IRecipient<GenHub.Core.Messages.ClosePublisherDetailsMessage>, IDisposable
 {
     private bool _isPublisherContentPopulated;
+    private bool _disposed;
 
     [ObservableProperty]
     private string _title = "Downloads";
@@ -157,6 +158,7 @@ public partial class DownloadsViewModel(
         // Create Generals Online publisher card (Feature 2)
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel generalsOnlineCard)
         {
+            generalsOnlineCard.Initialize();
             generalsOnlineCard.PublisherId = GeneralsOnlineConstants.PublisherType;
             generalsOnlineCard.DisplayName = GeneralsOnlineConstants.ContentName;
             generalsOnlineCard.LogoSource = GeneralsOnlineConstants.LogoSource;
@@ -168,6 +170,7 @@ public partial class DownloadsViewModel(
         // Create TheSuperHackers publisher card
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel superHackersCard)
         {
+            superHackersCard.Initialize();
             superHackersCard.PublisherId = PublisherTypeConstants.TheSuperHackers;
             superHackersCard.DisplayName = SuperHackersConstants.PublisherName;
             superHackersCard.LogoSource = SuperHackersConstants.LogoSource;
@@ -179,6 +182,7 @@ public partial class DownloadsViewModel(
         // Create Community Outpost publisher card
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel communityOutpostCard)
         {
+            communityOutpostCard.Initialize();
             communityOutpostCard.PublisherId = CommunityOutpostConstants.PublisherType;
             communityOutpostCard.DisplayName = CommunityOutpostConstants.PublisherName;
             communityOutpostCard.LogoSource = CommunityOutpostConstants.LogoSource;
@@ -190,6 +194,7 @@ public partial class DownloadsViewModel(
         // Create GitHub publisher card (topic-based discovery)
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel githubCard)
         {
+            githubCard.Initialize();
             githubCard.PublisherId = GitHubTopicsConstants.PublisherType;
             githubCard.DisplayName = GitHubTopicsConstants.PublisherName;
             githubCard.LogoSource = GitHubTopicsConstants.LogoSource;
@@ -201,6 +206,7 @@ public partial class DownloadsViewModel(
         // Create CNC Labs publisher card
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel cncLabsCard)
         {
+            cncLabsCard.Initialize();
             cncLabsCard.PublisherId = CNCLabsConstants.PublisherType;
             cncLabsCard.DisplayName = CNCLabsConstants.PublisherName;
             cncLabsCard.LogoSource = CNCLabsConstants.LogoSource;
@@ -212,6 +218,7 @@ public partial class DownloadsViewModel(
         // Create ModDB publisher card
         if (serviceProvider.GetService(typeof(PublisherCardViewModel)) is PublisherCardViewModel modDBCard)
         {
+            modDBCard.Initialize();
             modDBCard.PublisherId = ModDBConstants.PublisherType;
             modDBCard.DisplayName = ModDBConstants.PublisherDisplayName;
             modDBCard.LogoSource = ModDBConstants.LogoSource;
@@ -861,5 +868,16 @@ public partial class DownloadsViewModel(
     {
         IsBrowserVisible = false;
         Title = "Downloads";
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+            _disposed = true;
+            GC.SuppressFinalize(this);
+        }
     }
 }

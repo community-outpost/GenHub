@@ -36,10 +36,15 @@ public sealed class ContentStateService(
         var releaseDate = item.LastUpdated ?? DateTime.MinValue;
 
         // 2. Generate prospective manifest ID (used for parsing segments)
+        var providerName = string.IsNullOrWhiteSpace(item.ProviderName) ? "unknown" : item.ProviderName;
+        var contentName = string.IsNullOrWhiteSpace(item.Name)
+            ? (string.IsNullOrWhiteSpace(item.Id) ? "unknown" : item.Id)
+            : item.Name;
+
         var prospectiveId = ManifestIdGenerator.GeneratePublisherContentId(
-            item.ProviderName ?? "unknown",
+            providerName,
             item.ContentType,
-            item.Name ?? item.Id ?? "unknown",
+            contentName,
             releaseDate);
 
         _logger.LogDebug(
@@ -115,10 +120,15 @@ public sealed class ContentStateService(
         var releaseDate = item.LastUpdated ?? DateTime.MinValue;
 
         // 2. Generate prospective manifest ID
+        var providerName = string.IsNullOrWhiteSpace(item.ProviderName) ? "unknown" : item.ProviderName;
+        var contentName = string.IsNullOrWhiteSpace(item.Name)
+            ? (string.IsNullOrWhiteSpace(item.Id) ? "unknown" : item.Id)
+            : item.Name;
+
         var prospectiveId = ManifestIdGenerator.GeneratePublisherContentId(
-            item.ProviderName ?? "unknown",
+            providerName,
             item.ContentType,
-            item.Name ?? item.Id ?? "unknown",
+            contentName,
             releaseDate);
 
         // 3. Check if exact match exists (fast path)

@@ -172,7 +172,7 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
 
         // HasMoreItems is true if we loaded only latest releases (user can request more)
         // or if there are more items in the paginated results
-        var hasMoreItems = loadOnlyLatest || (skip + paginatedResults.Count < totalItems);
+        var hasMoreItems = totalItems > 0 && (loadOnlyLatest || (skip + paginatedResults.Count < totalItems));
 
         logger.LogInformation(
             "GitHubReleasesDiscoverer: Returning page {Page}, {ReturnCount} items of {TotalCount} total. HasMore: {HasMore}, LoadedOnlyLatest: {LoadedOnlyLatest}",

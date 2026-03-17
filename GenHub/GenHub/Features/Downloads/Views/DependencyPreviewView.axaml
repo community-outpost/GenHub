@@ -83,7 +83,7 @@
                                         <StackPanel Grid.Column="1" Spacing="4">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
                                             <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
-                                                       TextWrapping="Wrap"/>
+                                                       TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>

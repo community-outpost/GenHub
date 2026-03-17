@@ -743,10 +743,10 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetGitHubDiscoveryRepositories returns defaults when user setting is null.
+    /// Verifies that GetGitHubDiscoveryRepositories returns defaults when user setting is empty.
     /// </summary>
     [Fact]
-    public void GetGitHubDiscoveryRepositories_WithNullUserSetting_ReturnsDefaults()
+    public void GetGitHubDiscoveryRepositories_WithEmptyUserSetting_ReturnsDefaults()
     {
         // Arrange
         var userSettings = new UserSettings { GitHubDiscoveryRepositories = new() };

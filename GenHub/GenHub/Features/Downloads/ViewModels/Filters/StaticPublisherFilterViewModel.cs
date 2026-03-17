@@ -45,6 +45,10 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         {
             baseQuery.ContentType = SelectedContentType;
         }
+        else
+        {
+            baseQuery.ContentType = null;
+        }
 
         return baseQuery;
     }

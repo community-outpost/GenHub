@@ -110,8 +110,8 @@
                                         CornerRadius="8"
                                         Padding="16"
                                         Margin="0,0,0,8">
-                                    <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
-                                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                    <Grid ColumnDefinitions="*,120">
+                                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock Text="{Binding Name}"
                                                        FontSize="15"
                                                        FontWeight="SemiBold"
@@ -181,7 +181,7 @@
 
                 <!-- Other Profiles Section (with warnings) -->
                 <StackPanel Spacing="12"
-                            IsVisible="{Binding OtherProfiles.Count}"
+                            IsVisible="{Binding HasOtherProfiles}"
                             Margin="0,8,0,0">
                     <Grid ColumnDefinitions="Auto,*">
                         <PathIcon Grid.Column="0"
@@ -207,8 +207,8 @@
                                         Margin="0,0,0,8"
                                         BorderBrush="#FF9800"
                                         BorderThickness="1">
-                                    <Grid ColumnDefinitions="*,120" ColumnSpacing="12">
-                                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                                    <Grid ColumnDefinitions="*,120">
+                                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock Text="{Binding Name}"
                                                        FontSize="15"
                                                        FontWeight="SemiBold"

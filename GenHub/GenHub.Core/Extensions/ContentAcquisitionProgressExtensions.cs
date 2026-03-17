@@ -15,6 +15,8 @@ public static class ContentAcquisitionProgressExtensions
     /// <returns>A formatted progress status string.</returns>
     public static string FormatProgressStatus(this ContentAcquisitionProgress progress)
     {
+        ArgumentNullException.ThrowIfNull(progress);
+
         // Use the new staged progress format if available
         if (progress.TotalStages > 0 && progress.CurrentStage > 0)
         {

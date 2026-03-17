@@ -22,7 +22,7 @@ public sealed partial class ProfileOptionViewModel(GameProfile profile) : Observ
     /// <summary>
     /// Gets the game type.
     /// </summary>
-    public GameType GameType => Profile.GameClient.GameType;
+    public GameType GameType => Profile.GameClient?.GameType ?? GameType.Generals;
 
     /// <summary>
     /// Gets the game client name.

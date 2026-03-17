@@ -22,6 +22,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using static GenHub.Features.Downloads.Services.ContentState;
 
@@ -38,16 +39,18 @@ public partial class DownloadsBrowserViewModel(
     IContentOrchestrator contentOrchestrator,
     IProfileContentService profileContentService,
     IGameProfileManager profileManager,
-    INotificationService notificationService) : ObservableObject
+    INotificationService notificationService) : ObservableObject, IDisposable
 {
     private const string CategoryMerged = "merged";
     private const string CategoryStatic = "static";
     private const string CategoryDynamic = "dynamic";
 
-    private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
-
     [ObservableProperty]
     private string _searchTerm = string.Empty;
+
+    private readonly Dictionary<string, IFilterPanelViewModel> _filterViewModels = [];
+    private CancellationTokenSource? _lastSearchCts;
+    private bool _disposed;
 
     [ObservableProperty]
     private bool _isSidebarVisible = true;
@@ -85,8 +88,6 @@ public partial class DownloadsBrowserViewModel(
 
     [ObservableProperty]
     private bool _canLoadMore;
-
-    private CancellationTokenSource? _lastSearchCts;
 
     /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
@@ -160,7 +161,17 @@ public partial class DownloadsBrowserViewModel(
         // Close detail view
         SelectedContent = null;
 
-        _ = RefreshContentAsync();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RefreshContentAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error refreshing content for publisher {Publisher}", value?.PublisherId ?? "Unknown");
+            }
+        });
     }
 
     private void OnFiltersCleared(object? sender, EventArgs e)
@@ -524,11 +535,8 @@ public partial class DownloadsBrowserViewModel(
     {
         if (item?.SearchResult != null)
         {
-            var contentLogger = serviceProvider.GetService(typeof(ILogger<ContentDetailViewModel>)) as ILogger<ContentDetailViewModel>;
-            if (contentLogger is null)
-            {
-                logger.LogWarning("Could not resolve ILogger<ContentDetailViewModel> from service provider");
-            }
+            var contentLogger = serviceProvider.GetService(typeof(ILogger<ContentDetailViewModel>)) as ILogger<ContentDetailViewModel>
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentDetailViewModel>.Instance;
 
             var parsers = serviceProvider.GetService(typeof(IEnumerable<IWebPageParser>)) as IEnumerable<IWebPageParser> ?? [];
 
@@ -539,7 +547,7 @@ public partial class DownloadsBrowserViewModel(
                 profileContentService,
                 profileManager,
                 notificationService,
-                contentLogger!,
+                contentLogger,
                 CloseDetail);
 
             vm.Initialize();
@@ -749,7 +757,10 @@ public partial class DownloadsBrowserViewModel(
                 serviceProvider.GetService(typeof(ILogger<ProfileSelectionViewModel>)) as ILogger<ProfileSelectionViewModel>
                     ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ProfileSelectionViewModel>.Instance,
                 profileManager,
-                profileContentService);
+                profileContentService,
+                serviceProvider.GetRequiredService(typeof(IContentManifestPool)) as IContentManifestPool
+                    ?? throw new InvalidOperationException("IContentManifestPool service not found"),
+                notificationService);
 
             // Load profiles for the target game
             await profileSelectionVm.LoadProfilesAsync(item.TargetGame, manifestId, item.Name, CancellationToken.None);
@@ -820,6 +831,27 @@ public partial class DownloadsBrowserViewModel(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
             logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item?.Name);
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            // Unsubscribe from event handlers
+            if (CurrentFilterViewModel != null)
+            {
+                CurrentFilterViewModel.FiltersApplied -= OnFiltersApplied;
+                CurrentFilterViewModel.FiltersCleared -= OnFiltersCleared;
+            }
+
+            // Cancel and dispose of search cancellation token
+            _lastSearchCts?.Cancel();
+            _lastSearchCts?.Dispose();
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
     }
 }

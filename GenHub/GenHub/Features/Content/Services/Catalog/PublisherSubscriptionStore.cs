@@ -239,25 +239,33 @@ public class PublisherSubscriptionStore : IPublisherSubscriptionStore
 
     private async Task<PublisherSubscriptionCollection> LoadSubscriptionsAsync(CancellationToken cancellationToken)
     {
-        // Return cached if available
-        if (_cachedSubscriptions != null)
+        await _fileLock.WaitAsync(cancellationToken);
+        try
         {
+            // Return cached if available
+            if (_cachedSubscriptions != null)
+            {
+                return _cachedSubscriptions;
+            }
+
+            if (!File.Exists(_subscriptionsFilePath))
+            {
+                _logger.LogInformation("Subscriptions file not found, creating new collection");
+                _cachedSubscriptions = new PublisherSubscriptionCollection();
+                return _cachedSubscriptions;
+            }
+
+            var json = await File.ReadAllTextAsync(_subscriptionsFilePath, cancellationToken);
+            _cachedSubscriptions = JsonSerializer.Deserialize<PublisherSubscriptionCollection>(json)
+                ?? new PublisherSubscriptionCollection();
+
+            _logger.LogDebug("Loaded {Count} subscriptions from file", _cachedSubscriptions.Subscriptions.Count);
             return _cachedSubscriptions;
         }
-
-        if (!File.Exists(_subscriptionsFilePath))
+        finally
         {
-            _logger.LogInformation("Subscriptions file not found, creating new collection");
-            _cachedSubscriptions = new PublisherSubscriptionCollection();
-            return _cachedSubscriptions;
+            _fileLock.Release();
         }
-
-        var json = await File.ReadAllTextAsync(_subscriptionsFilePath, cancellationToken);
-        _cachedSubscriptions = JsonSerializer.Deserialize<PublisherSubscriptionCollection>(json)
-            ?? new PublisherSubscriptionCollection();
-
-        _logger.LogDebug("Loaded {Count} subscriptions from file", _cachedSubscriptions.Subscriptions.Count);
-        return _cachedSubscriptions;
     }
 
     private async Task SaveSubscriptionsAsync(

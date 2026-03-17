@@ -227,11 +227,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 if (!File.Exists(targetPath))
                 {
                     logger.LogDebug("Broken symlink detected: {FilePath} -> {Target}", filePath, targetPath);
-<<<<<<< HEAD
                     return true;
-=======
-                    return Task.FromResult(true);
->>>>>>> c75615b2 (feat: ui-downloads)
                 }
 
                 // For symlinks, trust that the target is correct if it exists and size matches
@@ -272,11 +268,6 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 return true;
             }
 
-<<<<<<< HEAD
-            if (!string.IsNullOrEmpty(manifestFile.Hash) && (forceFullVerification || fileInfo.Length < SmallFileThreshold))
-            {
-                var hashMatches = await fileOperations.VerifyFileHashAsync(filePath, manifestFile.Hash, CancellationToken.None);
-=======
             // OPTIMIZATION: Skip deep hash verification during workspace reconciliation
             // to avoid 60-90+ second delays during game launch when processing 400+ files.
             // Size-based comparison is 20-60x faster and sufficient for detecting real changes.
@@ -285,28 +276,13 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                 "File size matches for {FilePath} ({Size} bytes), trusting size comparison for performance",
                 filePath,
                 fileInfo.Length);
->>>>>>> c75615b2 (feat: ui-downloads)
 
-                if (!hashMatches)
-                {
-                    logger.LogDebug(
-                        "Hash mismatch for {FilePath}: expected {Expected}",
-                        filePath,
-                        manifestFile.Hash);
-                    return true;
-                }
-            }
-
-            return false; // File appears to be current (size matches and hash check passed/skipped)
+            return false;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
-<<<<<<< HEAD
             return true; // Assume needs update if we can't verify
-=======
-            return Task.FromResult(true); // Assume needs update if we can't verify
->>>>>>> c75615b2 (feat: ui-downloads)
         }
     }
 }

@@ -191,7 +191,25 @@ public partial class ModDBFilterViewModel : FilterPanelViewModelBase
         OnPropertyChanged(nameof(ShowCategoryFilter));
         OnPropertyChanged(nameof(ShowAddonCategoryFilter));
         OnPropertyChanged(nameof(ShowLicenseFilter));
+        OnPropertyChanged(nameof(IsDownloadsSelected));
+        OnPropertyChanged(nameof(IsAddonsSelected));
+        OnPropertyChanged(nameof(IsModsSelected));
     }
+
+    /// <summary>
+    /// Gets a value indicating whether the Downloads section is selected.
+    /// </summary>
+    public bool IsDownloadsSelected => SelectedSection == ModDBSection.Downloads;
+
+    /// <summary>
+    /// Gets a value indicating whether the Addons section is selected.
+    /// </summary>
+    public bool IsAddonsSelected => SelectedSection == ModDBSection.Addons;
+
+    /// <summary>
+    /// Gets a value indicating whether the Mods section is selected.
+    /// </summary>
+    public bool IsModsSelected => SelectedSection == ModDBSection.Mods;
 
     /// <summary>
     /// Gets a value indicating whether to show the Addon Category filter (Downloads, Mods, and Addons sections).

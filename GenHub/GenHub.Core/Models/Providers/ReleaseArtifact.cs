@@ -43,5 +43,5 @@ public class ReleaseArtifact
     /// When multiple artifacts exist, the primary one is downloaded by default.
     /// </summary>
     [JsonPropertyName("isPrimary")]
-    public bool IsPrimary { get; set; } = true;
+    public bool IsPrimary { get; set; }
 }

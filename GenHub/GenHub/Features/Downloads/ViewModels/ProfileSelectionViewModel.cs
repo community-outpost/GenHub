@@ -26,6 +26,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="logger">The logger.</param>
 /// <param name="profileManager">The profile manager.</param>
 /// <param name="profileContentService">The profile content service.</param>
+/// <param name="manifestPool">The content manifest pool.</param>
+/// <param name="notificationService">The notification service.</param>
 public sealed partial class ProfileSelectionViewModel(
     ILogger<ProfileSelectionViewModel> logger,
     IGameProfileManager profileManager,
@@ -38,6 +40,11 @@ public sealed partial class ProfileSelectionViewModel(
 
     [ObservableProperty]
     private ObservableCollection<ProfileOptionViewModel> _otherProfiles = [];
+
+    /// <summary>
+    /// Gets a value indicating whether there are other profiles with warnings.
+    /// </summary>
+    public bool HasOtherProfiles => OtherProfiles.Count > 0;
 
     [ObservableProperty]
     private GameType _targetGame;
@@ -150,13 +157,15 @@ public sealed partial class ProfileSelectionViewModel(
                 else
                 {
                     option.ShowWarning = true;
-                    option.WarningMessage = $"This profile is for {profile.GameClient.GameType}, content is for {targetGame}";
+                    var profileGameType = profile.GameClient?.GameType.ToString() ?? "Tool";
+                    option.WarningMessage = $"This profile is for {profileGameType}, content is for {targetGame}";
                     OtherProfiles.Add(option);
                 }
             }
 
             OnPropertyChanged(nameof(HasAnyProfiles));
             OnPropertyChanged(nameof(HasCompatibleProfiles));
+            OnPropertyChanged(nameof(HasOtherProfiles));
             OnPropertyChanged(nameof(ProfileSummary));
 
             logger.LogInformation(
@@ -188,6 +197,12 @@ public sealed partial class ProfileSelectionViewModel(
     /// <returns>True if compatible, otherwise false.</returns>
     private static bool IsCompatible(GameProfile profile, GameType targetGame)
     {
+        // Tool profiles (with null GameClient) are not compatible with game content
+        if (profile.GameClient == null)
+        {
+            return false;
+        }
+
         // ZeroHour content can only go in ZeroHour profiles
         // Generals content can only go in Generals profiles
         return profile.GameClient.GameType == targetGame;
@@ -339,11 +354,14 @@ public sealed partial class ProfileSelectionViewModel(
                         }
 
                         // Show variant selection dialog
+                        var variantLogger = logger as ILogger<VariantSelectionViewModel>
+                            ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<VariantSelectionViewModel>.Instance;
                         var variantViewModel = new VariantSelectionViewModel(
-                            logger as ILogger<VariantSelectionViewModel> ?? throw new InvalidOperationException("Logger not available"),
+                            variantLogger,
                             manifest.Name,
                             allVariants);
 
+                        // TODO: Refactor to use proper MVVM pattern with view resolution service instead of direct View instantiation
                         var variantDialog = new Views.VariantSelectionView(variantViewModel);
 
                         var currentWindow = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop

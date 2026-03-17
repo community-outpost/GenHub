@@ -30,7 +30,7 @@ public class PublisherCatalog
     /// Gets or sets when the catalog was last updated.
     /// </summary>
     [JsonPropertyName("lastUpdated")]
-    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdated { get; set; }
 
     /// <summary>
     /// Gets or sets an optional SHA256 signature for catalog integrity verification.

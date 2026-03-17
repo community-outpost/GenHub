@@ -91,7 +91,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         .Select(t => t.Tag);
 
     /// <inheritdoc />
-    public override bool HasActiveFilters => MapTagFilters.Any(t => t.IsSelected) || TargetGame.HasValue || NumberOfPlayers.HasValue;
+    public override bool HasActiveFilters => MapTagFilters.Any(t => t.IsSelected) || (TargetGame.HasValue && TargetGame.Value != GameType.ZeroHour) || NumberOfPlayers.HasValue;
 
     /// <inheritdoc />
     public override ContentSearchQuery ApplyFilters(ContentSearchQuery baseQuery)
@@ -150,7 +150,7 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     /// <inheritdoc />
     public override IEnumerable<string> GetActiveFilterSummary()
     {
-        if (TargetGame.HasValue)
+        if (TargetGame.HasValue && TargetGame.Value != GameType.ZeroHour)
         {
             yield return $"Game: {TargetGame}";
         }

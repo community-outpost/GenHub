@@ -44,9 +44,6 @@ public class ContentManifestBuilderTests
     private readonly Mock<IConfigurationProviderService> _configurationProviderMock;
 
     /// <summary>
-    /// Mock for the playwright service.
-    /// </summary>
-    /// <summary>
     /// The content manifest builder under test.
     /// </summary>
     private readonly ContentManifestBuilder _builder;
