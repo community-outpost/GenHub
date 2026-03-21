@@ -108,9 +108,8 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
 
         if (!Directory.Exists(directoryPath))
         {
-            var errorMessage = $"Directory does not exist: {directoryPath}";
-            logger.LogError(errorMessage);
-            return OperationResult<GenLauncherNormalizationResult>.CreateFailure(errorMessage);
+            logger.LogError("Directory does not exist: {DirectoryPath}", directoryPath);
+            return OperationResult<GenLauncherNormalizationResult>.CreateFailure($"Directory does not exist: {directoryPath}");
         }
 
         var result = new GenLauncherNormalizationResult();
