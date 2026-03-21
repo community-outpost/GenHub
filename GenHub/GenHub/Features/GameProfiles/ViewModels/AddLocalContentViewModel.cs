@@ -27,8 +27,8 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class AddLocalContentViewModel(
     ILocalContentService localContentService,
     IContentStorageService? contentStorageService,
-    IGenLauncherNormalizationService genLauncherNormalizationService,
-    IDialogService dialogService,
+    IGenLauncherNormalizationService? genLauncherNormalizationService,
+    IDialogService? dialogService,
     ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject
 {
     /// <summary>
@@ -378,58 +378,61 @@ public partial class AddLocalContentViewModel(
             // Detect and normalize GenLauncher files
             try
             {
-                var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath);
-
-                if (detectionResult.HasGenLauncherFiles)
+                if (genLauncherNormalizationService != null && dialogService != null)
                 {
-                    logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
+                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath);
 
-                    var shouldNormalize = await dialogService.ShowConfirmationAsync(
-                        "GenLauncher Files Detected",
-                        $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
-                        "This will:\n" +
-                        "• Convert .gib files to .big\n" +
-                        "• Remove .GLR, .GOF, .GLTC suffixes\n" +
-                        "• Remove symbolic links",
-                        "Normalize",
-                        "Skip",
-                        sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
-
-                    if (shouldNormalize)
+                    if (detectionResult.HasGenLauncherFiles)
                     {
-                        StatusMessage = "Normalizing GenLauncher files...";
-                        logger?.LogInformation("User confirmed normalization");
+                        logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
 
-                        var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
-                            _stagingPath,
-                            CancellationToken.None);
+                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
+                            "GenLauncher Files Detected",
+                            $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
+                            "This will:\n" +
+                            "• Convert .gib files to .big\n" +
+                            "• Remove .GLR, .GOF, .GLTC suffixes\n" +
+                            "• Remove symbolic links",
+                            "Normalize",
+                            "Skip",
+                            sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
 
-                        if (normalizationResult.Success)
+                        if (shouldNormalize)
                         {
-                            var result = normalizationResult.Data;
-                            StatusMessage = $"Normalized {result.NormalizedCount} file(s). Import successful.";
-                            logger?.LogInformation(
-                                "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
-                                result.NormalizedCount,
-                                result.SymbolicLinksRemoved);
+                            StatusMessage = "Normalizing GenLauncher files...";
+                            logger?.LogInformation("User confirmed normalization");
 
-                            if (!result.IsFullySuccessful)
+                            var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
+                                _stagingPath,
+                                CancellationToken.None);
+
+                            if (normalizationResult.Success)
                             {
-                                logger?.LogWarning(
-                                    "Some files failed to normalize: {FailedFiles}",
-                                    string.Join(", ", result.FailedFiles));
+                                var result = normalizationResult.Data;
+                                StatusMessage = $"Normalized {result.NormalizedCount} file(s). Import successful.";
+                                logger?.LogInformation(
+                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
+                                    result.NormalizedCount,
+                                    result.SymbolicLinksRemoved);
+
+                                if (!result.IsFullySuccessful)
+                                {
+                                    logger?.LogWarning(
+                                        "Some files failed to normalize: {FailedFiles}",
+                                        string.Join(", ", result.FailedFiles));
+                                }
+                            }
+                            else
+                            {
+                                StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+                                logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
                             }
                         }
                         else
                         {
-                            StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
-                            logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
+                            logger?.LogInformation("User skipped normalization");
+                            StatusMessage = "Import successful (GenLauncher files not normalized).";
                         }
-                    }
-                    else
-                    {
-                        logger?.LogInformation("User skipped normalization");
-                        StatusMessage = "Import successful (GenLauncher files not normalized).";
                     }
                 }
             }
