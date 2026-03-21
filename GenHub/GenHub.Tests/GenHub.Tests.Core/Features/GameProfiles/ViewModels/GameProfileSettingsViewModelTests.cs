@@ -82,6 +82,8 @@ public class GameProfileSettingsViewModelTests
             null, // IContentManifestPool
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             nullLogger,
             gameSettingsLogger);
 
@@ -141,6 +143,8 @@ public class GameProfileSettingsViewModelTests
             null, // IContentManifestPool
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             nullLogger,
             gameSettingsLogger);
 
@@ -228,6 +232,8 @@ public class GameProfileSettingsViewModelTests
             mockManifestPool.Object,
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             logger,
             NullLogger<GameSettingsViewModel>.Instance);
 

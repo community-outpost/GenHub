@@ -326,6 +326,8 @@ public class MainViewModelTests
             null, // IContentManifestPool
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             NullLogger<GameProfileSettingsViewModel>.Instance,
             NullLogger<GameSettingsViewModel>.Instance);
 

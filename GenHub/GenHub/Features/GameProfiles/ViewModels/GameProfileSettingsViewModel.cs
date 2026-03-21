@@ -147,6 +147,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IContentManifestPool? _manifestPool;
     private readonly IContentStorageService? _contentStorageService;
     private readonly ILocalContentService? _localContentService;
+    private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
+    private readonly IDialogService? _dialogService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
 
@@ -182,6 +184,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="manifestPool">The manifest pool.</param>
     /// <param name="contentStorageService">The content storage service.</param>
     /// <param name="localContentService">The local content service.</param>
+    /// <param name="genLauncherNormalizationService">The GenLauncher normalization service.</param>
+    /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
     public GameProfileSettingsViewModel(
@@ -194,6 +198,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IContentManifestPool? manifestPool,
         IContentStorageService? contentStorageService,
         ILocalContentService? localContentService,
+        IGenLauncherNormalizationService? genLauncherNormalizationService,
+        IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger)
     {
@@ -206,6 +212,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _manifestPool = manifestPool;
         _contentStorageService = contentStorageService;
         _localContentService = localContentService;
+        _genLauncherNormalizationService = genLauncherNormalizationService;
+        _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
 

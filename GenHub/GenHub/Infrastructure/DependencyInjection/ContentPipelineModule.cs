@@ -26,6 +26,7 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -126,6 +127,9 @@ public static class ContentPipelineModule
 
         // Register Unified Content Reconciliation Service
         services.AddScoped<IContentReconciliationService, ContentReconciliationService>();
+
+        // Register GenLauncher normalization service
+        services.AddSingleton<IGenLauncherNormalizationService, GenLauncherNormalizationService>();
 
         // Reconciliation infrastructure
         services.AddScoped<IContentReconciliationOrchestrator, ContentReconciliationOrchestrator>();
