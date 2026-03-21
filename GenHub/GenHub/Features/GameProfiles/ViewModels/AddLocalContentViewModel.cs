@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
@@ -391,7 +392,8 @@ public partial class AddLocalContentViewModel(
                         "• Remove .GLR, .GOF, .GLTC suffixes\n" +
                         "• Remove symbolic links",
                         "Normalize",
-                        "Skip");
+                        "Skip",
+                        sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
 
                     if (shouldNormalize)
                     {
@@ -438,7 +440,13 @@ public partial class AddLocalContentViewModel(
             }
 
             await RefreshStagingTreeAsync();
-            StatusMessage = "Import successful.";
+
+            // Only set generic message if normalization didn't set a specific one
+            if (!StatusMessage.Contains("Normalized") && !StatusMessage.Contains("GenLauncher"))
+            {
+                StatusMessage = "Import successful.";
+            }
+
             Validate();
         }
         catch (Exception ex)
