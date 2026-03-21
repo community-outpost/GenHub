@@ -144,16 +144,29 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 return OperationResult<GenLauncherNormalizationResult>.CreateSuccess(result);
             }
 
-            // Remove symbolic links
+            // Remove symbolic links (both files and directories)
             foreach (var symlink in detection.SymbolicLinks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    File.Delete(symlink);
-                    result.SymbolicLinksRemoved++;
-                    logger.LogInformation("Removed symbolic link: {FilePath}", symlink);
+                    var fileInfo = new FileInfo(symlink);
+                    var dirInfo = new DirectoryInfo(symlink);
+
+                    // Check if it's a directory symlink
+                    if (dirInfo.Exists && dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        Directory.Delete(symlink);
+                        result.SymbolicLinksRemoved++;
+                        logger.LogInformation("Removed directory symbolic link: {DirectoryPath}", symlink);
+                    }
+                    else if (fileInfo.Exists)
+                    {
+                        File.Delete(symlink);
+                        result.SymbolicLinksRemoved++;
+                        logger.LogInformation("Removed file symbolic link: {FilePath}", symlink);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -171,13 +184,18 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 {
                     var bigFile = Path.ChangeExtension(gibFile, GenLauncherConstants.BigExtension);
 
-                    // Check if destination exists and log warning
+                    // Check if destination exists - skip to avoid data loss
                     if (File.Exists(bigFile))
                     {
-                        logger.LogWarning("Destination file already exists, will be overwritten: {BigFile}", bigFile);
+                        logger.LogWarning(
+                            "Skipping .gib → .big conversion for {GibFile}: target {BigFile} already exists. Manual resolution required.",
+                            gibFile,
+                            bigFile);
+                        result.FailedFiles.Add(gibFile);
+                        continue;
                     }
 
-                    File.Move(gibFile, bigFile, overwrite: true);
+                    File.Move(gibFile, bigFile);
                     result.NormalizedCount++;
                     logger.LogInformation("Converted {GibFile} to {BigFile}", gibFile, bigFile);
                 }
@@ -203,7 +221,18 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     var normalizedName = RemoveSuffix(suffixFile);
                     if (normalizedName != suffixFile)
                     {
-                        File.Move(suffixFile, normalizedName, overwrite: true);
+                        // Check if destination exists - skip to avoid data loss
+                        if (File.Exists(normalizedName))
+                        {
+                            logger.LogWarning(
+                                "Skipping suffix removal for {OriginalFile}: target {NormalizedFile} already exists. Manual resolution required.",
+                                suffixFile,
+                                normalizedName);
+                            result.FailedFiles.Add(suffixFile);
+                            continue;
+                        }
+
+                        File.Move(suffixFile, normalizedName);
                         result.NormalizedCount++;
                         logger.LogInformation("Normalized {OriginalFile} to {NormalizedFile}", suffixFile, normalizedName);
                     }
