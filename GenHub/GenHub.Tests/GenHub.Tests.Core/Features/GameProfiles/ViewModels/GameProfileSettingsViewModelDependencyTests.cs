@@ -52,6 +52,8 @@ public class GameProfileSettingsViewModelDependencyTests
             _mockManifestPool.Object,
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             NullLogger<GameProfileSettingsViewModel>.Instance,
             NullLogger<GameSettingsViewModel>.Instance);
 
