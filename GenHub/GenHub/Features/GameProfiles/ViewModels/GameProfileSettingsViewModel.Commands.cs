@@ -668,7 +668,12 @@ public partial class GameProfileSettingsViewModel
 
             if (dialogOwner == null) return;
 
-            var vm = new AddLocalContentViewModel(_localContentService, _contentStorageService, null);
+            var vm = new AddLocalContentViewModel(
+                _localContentService,
+                _contentStorageService,
+                _genLauncherNormalizationService,
+                _dialogService,
+                null);
             var window = new Views.AddLocalContentWindow
             {
                 DataContext = vm,
@@ -724,7 +729,12 @@ public partial class GameProfileSettingsViewModel
 
             if (owner == null) return;
 
-            var vm = new AddLocalContentViewModel(_localContentService, _contentStorageService, null);
+            var vm = new AddLocalContentViewModel(
+                _localContentService,
+                _contentStorageService,
+                _genLauncherNormalizationService,
+                _dialogService,
+                null);
             await vm.LoadFromManifestAsync(contentItem);
 
             var window = new Views.AddLocalContentWindow

@@ -110,7 +110,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         {
             var errorMessage = $"Directory does not exist: {directoryPath}";
             logger.LogError(errorMessage);
-            return OperationResult<GenLauncherNormalizationResult>.Failure(errorMessage);
+            return OperationResult<GenLauncherNormalizationResult>.CreateFailure(errorMessage);
         }
 
         var result = new GenLauncherNormalizationResult();
@@ -123,7 +123,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             if (!detection.HasGenLauncherFiles)
             {
                 logger.LogInformation("No GenLauncher files detected. Nothing to normalize.");
-                return OperationResult<GenLauncherNormalizationResult>.Success(result);
+                return OperationResult<GenLauncherNormalizationResult>.CreateSuccess(result);
             }
 
             // Remove symbolic links
@@ -190,29 +190,23 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 }
             }
 
-            var successMessage = result.IsFullySuccessful
-                ? $"Successfully normalized {result.NormalizedCount} file(s) and removed {result.SymbolicLinksRemoved} symbolic link(s)."
-                : $"Normalized {result.NormalizedCount} file(s) and removed {result.SymbolicLinksRemoved} symbolic link(s) with {result.FailedFiles.Count} failure(s).";
-
             logger.LogInformation(
                 "Normalization complete. Normalized: {NormalizedCount}, Symlinks removed: {SymlinksRemoved}, Failed: {FailedCount}",
                 result.NormalizedCount,
                 result.SymbolicLinksRemoved,
                 result.FailedFiles.Count);
 
-            return result.IsFullySuccessful
-                ? OperationResult<GenLauncherNormalizationResult>.Success(result, successMessage)
-                : OperationResult<GenLauncherNormalizationResult>.PartialSuccess(result, successMessage);
+            return OperationResult<GenLauncherNormalizationResult>.CreateSuccess(result);
         }
         catch (OperationCanceledException)
         {
             logger.LogWarning("Normalization operation was cancelled.");
-            return OperationResult<GenLauncherNormalizationResult>.Failure("Operation was cancelled.");
+            return OperationResult<GenLauncherNormalizationResult>.CreateFailure("Operation was cancelled.");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error during GenLauncher file normalization in directory: {DirectoryPath}", directoryPath);
-            return OperationResult<GenLauncherNormalizationResult>.Failure($"Normalization failed: {ex.Message}");
+            return OperationResult<GenLauncherNormalizationResult>.CreateFailure($"Normalization failed: {ex.Message}");
         }
     }
 
