@@ -359,6 +359,8 @@ public static class DemoViewModelFactory
             mockManifests,
             mockStorage,
             mockLocalContent,
+            null, // genLauncherNormalizationService
+            null, // dialogService
             mockLogger,
             mockSettingsLogger)
         {
@@ -401,6 +403,8 @@ public static class DemoViewModelFactory
             mockManifests,
             mockStorage,
             mockLocalContent,
+            null, // genLauncherNormalizationService
+            null, // dialogService
             mockLogger,
             mockSettingsLogger)
         {
@@ -446,6 +450,8 @@ public static class DemoViewModelFactory
                 mockManifests,
                 mockStorage,
                 mockLocalContent,
+                null, // genLauncherNormalizationService
+                null, // dialogService
                 mockLogger,
                 mockSettingsLogger)
             {
