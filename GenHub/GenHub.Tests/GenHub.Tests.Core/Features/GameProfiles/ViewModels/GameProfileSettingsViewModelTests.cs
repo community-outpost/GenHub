@@ -143,6 +143,8 @@ public class GameProfileSettingsViewModelTests
             null, // IContentManifestPool
             null, // IContentStorageService
             null, // ILocalContentService
+            null, // IGenLauncherNormalizationService
+            null, // IDialogService
             nullLogger,
             gameSettingsLogger);
 
