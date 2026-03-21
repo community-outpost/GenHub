@@ -481,6 +481,8 @@ public static class DemoViewModelFactory
                 new MockContentManifestPool(),
                 new MockContentStorageService(),
                 new MockLocalContentService(),
+                null, // genLauncherNormalizationService
+                null, // dialogService
                 mockLogger,
                 mockSettingsLogger)
              {
