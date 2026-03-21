@@ -44,8 +44,15 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         {
             await Task.Run(() =>
             {
-                var files = Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories);
-                var directories = Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories);
+                // Use EnumerationOptions to avoid following directory symlinks
+                var enumerationOptions = new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    AttributesToSkip = 0, // Don't skip any attributes, including ReparsePoint
+                };
+
+                var files = Directory.GetFiles(directoryPath, "*.*", enumerationOptions);
+                var directories = Directory.GetDirectories(directoryPath, "*", enumerationOptions);
 
                 // Check files for symlinks and GenLauncher patterns
                 foreach (var file in files)
