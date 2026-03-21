@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -16,8 +17,13 @@ namespace GenHub.Infrastructure.Services;
 /// <param name="logger">Logger instance.</param>
 public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationService> logger) : IGenLauncherNormalizationService
 {
-    private static readonly string[] GibExtensions = [".gib"];
-    private static readonly string[] SuffixesToRemove = [".GLR", ".GOF", ".GLTC"];
+    private static readonly HashSet<string> GibExtensions = [GenLauncherConstants.GibExtension];
+    private static readonly HashSet<string> SuffixesToRemove =
+    [
+        GenLauncherConstants.ReplaceSuffix,
+        GenLauncherConstants.OriginalFileSuffix,
+        GenLauncherConstants.TempCopySuffix,
+    ];
 
     /// <inheritdoc/>
     public async Task<GenLauncherDetectionResult> DetectGenLauncherFilesAsync(string directoryPath)
@@ -39,7 +45,9 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             await Task.Run(() =>
             {
                 var files = Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories);
+                var directories = Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories);
 
+                // Check files for symlinks and GenLauncher patterns
                 foreach (var file in files)
                 {
                     var fileInfo = new FileInfo(file);
@@ -63,20 +71,31 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     }
 
                     // Check for suffix files
-                    if (fileName.EndsWith(".GLR", StringComparison.OrdinalIgnoreCase))
+                    if (fileName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
                     {
                         result.GlrFiles.Add(file);
                         logger.LogDebug("Detected .GLR file: {FilePath}", file);
                     }
-                    else if (fileName.EndsWith(".GOF", StringComparison.OrdinalIgnoreCase))
+                    else if (fileName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
                     {
                         result.GofFiles.Add(file);
                         logger.LogDebug("Detected .GOF file: {FilePath}", file);
                     }
-                    else if (fileName.EndsWith(".GLTC", StringComparison.OrdinalIgnoreCase))
+                    else if (fileName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
                     {
                         result.GltcFiles.Add(file);
                         logger.LogDebug("Detected .GLTC file: {FilePath}", file);
+                    }
+                }
+
+                // Check directories for symlinks
+                foreach (var directory in directories)
+                {
+                    var dirInfo = new DirectoryInfo(directory);
+                    if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        result.SymbolicLinks.Add(directory);
+                        logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
                     }
                 }
 
@@ -150,7 +169,14 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
 
                 try
                 {
-                    var bigFile = Path.ChangeExtension(gibFile, ".big");
+                    var bigFile = Path.ChangeExtension(gibFile, GenLauncherConstants.BigExtension);
+
+                    // Check if destination exists and log warning
+                    if (File.Exists(bigFile))
+                    {
+                        logger.LogWarning("Destination file already exists, will be overwritten: {BigFile}", bigFile);
+                    }
+
                     File.Move(gibFile, bigFile, overwrite: true);
                     result.NormalizedCount++;
                     logger.LogInformation("Converted {GibFile} to {BigFile}", gibFile, bigFile);
