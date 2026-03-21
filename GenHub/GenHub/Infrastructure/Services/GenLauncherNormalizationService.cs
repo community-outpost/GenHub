@@ -26,7 +26,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
     ];
 
     /// <inheritdoc/>
-    public async Task<GenLauncherDetectionResult> DetectGenLauncherFilesAsync(string directoryPath)
+    public async Task<GenLauncherDetectionResult> DetectGenLauncherFilesAsync(string directoryPath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath, nameof(directoryPath));
 
@@ -44,70 +44,11 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         {
             await Task.Run(() =>
             {
-                // Use EnumerationOptions to avoid following directory symlinks
-                var enumerationOptions = new EnumerationOptions
-                {
-                    RecurseSubdirectories = true,
-                    AttributesToSkip = 0, // Don't skip any attributes, including ReparsePoint
-                };
-
-                var files = Directory.GetFiles(directoryPath, "*.*", enumerationOptions);
-                var directories = Directory.GetDirectories(directoryPath, "*", enumerationOptions);
-
-                // Check files for symlinks and GenLauncher patterns
-                foreach (var file in files)
-                {
-                    var fileInfo = new FileInfo(file);
-
-                    // Check for symbolic links
-                    if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    {
-                        result.SymbolicLinks.Add(file);
-                        logger.LogDebug("Detected symbolic link: {FilePath}", file);
-                        continue;
-                    }
-
-                    var fileName = fileInfo.Name;
-                    var extension = fileInfo.Extension.ToLowerInvariant();
-
-                    // Check for .gib files
-                    if (GibExtensions.Contains(extension))
-                    {
-                        result.GibFiles.Add(file);
-                        logger.LogDebug("Detected .gib file: {FilePath}", file);
-                    }
-
-                    // Check for suffix files
-                    if (fileName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.GlrFiles.Add(file);
-                        logger.LogDebug("Detected .GLR file: {FilePath}", file);
-                    }
-                    else if (fileName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.GofFiles.Add(file);
-                        logger.LogDebug("Detected .GOF file: {FilePath}", file);
-                    }
-                    else if (fileName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        result.GltcFiles.Add(file);
-                        logger.LogDebug("Detected .GLTC file: {FilePath}", file);
-                    }
-                }
-
-                // Check directories for symlinks
-                foreach (var directory in directories)
-                {
-                    var dirInfo = new DirectoryInfo(directory);
-                    if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    {
-                        result.SymbolicLinks.Add(directory);
-                        logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
-                    }
-                }
+                // Manual recursion to avoid following directory symlinks
+                ScanDirectory(directoryPath, result, cancellationToken);
 
                 result.HasGenLauncherFiles = result.TotalAffectedFiles > 0;
-            }).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation(
                 "Detection complete. Found {TotalCount} GenLauncher files: {Summary}",
@@ -268,6 +209,74 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         {
             logger.LogError(ex, "Error during GenLauncher file normalization in directory: {DirectoryPath}", directoryPath);
             return OperationResult<GenLauncherNormalizationResult>.CreateFailure($"Normalization failed: {ex.Message}");
+        }
+    }
+
+    private void ScanDirectory(string directoryPath, GenLauncherDetectionResult result, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Scan files in current directory only (non-recursive)
+        foreach (var file in Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileInfo = new FileInfo(file);
+
+            // Check for symbolic links
+            if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                result.SymbolicLinks.Add(file);
+                logger.LogDebug("Detected symbolic link: {FilePath}", file);
+                continue;
+            }
+
+            var fileName = fileInfo.Name;
+            var extension = fileInfo.Extension.ToLowerInvariant();
+
+            // Check for .gib files
+            if (GibExtensions.Contains(extension))
+            {
+                result.GibFiles.Add(file);
+                logger.LogDebug("Detected .gib file: {FilePath}", file);
+            }
+
+            // Check for suffix files
+            if (fileName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GlrFiles.Add(file);
+                logger.LogDebug("Detected .GLR file: {FilePath}", file);
+            }
+            else if (fileName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GofFiles.Add(file);
+                logger.LogDebug("Detected .GOF file: {FilePath}", file);
+            }
+            else if (fileName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GltcFiles.Add(file);
+                logger.LogDebug("Detected .GLTC file: {FilePath}", file);
+            }
+        }
+
+        // Scan subdirectories (non-recursive, manual control)
+        foreach (var directory in Directory.EnumerateDirectories(directoryPath, "*", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var dirInfo = new DirectoryInfo(directory);
+
+            // Check if it's a directory symlink
+            if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                result.SymbolicLinks.Add(directory);
+                logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
+                // Don't recurse into symlinked directories
+                continue;
+            }
+
+            // Recurse into normal directories
+            ScanDirectory(directory, result, cancellationToken);
         }
     }
 
