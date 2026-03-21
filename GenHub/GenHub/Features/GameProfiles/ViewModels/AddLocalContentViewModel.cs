@@ -380,7 +380,7 @@ public partial class AddLocalContentViewModel(
             {
                 if (genLauncherNormalizationService != null && dialogService != null)
                 {
-                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath);
+                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, _cts?.Token ?? CancellationToken.None);
 
                     if (detectionResult.HasGenLauncherFiles)
                     {
