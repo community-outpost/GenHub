@@ -30,6 +30,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -45,40 +46,14 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithGeneralsQuery_ReturnsValidResult()
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            IndexFilePath = "non-existent-index.json",
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/generals.csv",
-                    GameType = "Generals",
-                    Version = "1.08",
-                    SupportedLanguages = new List<string> { "EN" },
-                    FileCount = 100,
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { TargetGame = GameType.Generals });
 
-        var discoverer = new CSVDiscoverer(
-            Mock.Of<ILogger<CSVDiscoverer>>(),
-            mockConfig.Object);
-
-        var query = new ContentSearchQuery { TargetGame = GameType.Generals };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data!.Items.Should().NotBeEmpty();
-        result.Data.Items.First().ResolverMetadata.Should().ContainKey(CsvConstants.CsvUrlMetadataKey);
+        result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://example.com/generals.csv");
     }
 
@@ -89,20 +64,10 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithNonGameInstallationContentType_ReturnsEmptyResult()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
-        var discoverer = new CSVDiscoverer(
-            Mock.Of<ILogger<CSVDiscoverer>>(),
-            mockConfig.Object);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { ContentType = ContentType.Map });
 
-        var query = new ContentSearchQuery { ContentType = GenHub.Core.Models.Enums.ContentType.Map };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.Items.Should().BeEmpty();
@@ -111,39 +76,19 @@ public class CSVDiscovererTests
     /// <summary>
     /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> matches language filters case-insensitively.
     /// </summary>
-    /// <param name="filterLanguage">The language filter to test.</param>
+    /// <param name="filterLanguage">The language filter to apply to the query.</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Theory]
     [InlineData("de")]
     [InlineData("DE")]
     public async Task DiscoverAsync_WithLanguageFilter_MatchesCaseInsensitively(string filterLanguage)
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/de.csv",
-                    GameType = "Generals",
-                    Version = "1.0",
-                    SupportedLanguages = new List<string> { "DE" },
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/de.csv", "Generals", "1.0", "DE"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Language = filterLanguage });
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-        var query = new ContentSearchQuery { Language = filterLanguage };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
-        result.Data!.Items.Should().NotBeEmpty();
+        result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().ResolverMetadata[CsvConstants.LanguageMetadataKey].Should().Be("DE");
     }
 
@@ -154,31 +99,11 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithAllLanguagesFilter_ReturnsAllLanguages()
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/multi.csv",
-                    GameType = "Generals",
-                    Version = "1.0",
-                    SupportedLanguages = new List<string> { "en", "de" },
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/multi.csv", "Generals", "1.0", "en", "de"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Language = CsvConstants.AllLanguagesFilter });
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-        var query = new ContentSearchQuery { Language = CsvConstants.AllLanguagesFilter };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Data!.Items.Should().HaveCount(2);
     }
 
@@ -189,30 +114,11 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_MultipleLanguagesInCatalog_ReturnsOneItemPerLanguage()
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/multi.csv",
-                    GameType = "Generals",
-                    Version = "1.0",
-                    SupportedLanguages = new List<string> { "EN", "DE", "FR" },
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/multi.csv", "Generals", "1.0", "EN", "DE", "FR"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
-
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-
-        // Act
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
-        // Assert
         result.Data!.Items.Should().HaveCount(3);
         result.Data.Items.Should().Contain(i => i.ResolverMetadata[CsvConstants.LanguageMetadataKey] == "EN");
         result.Data.Items.Should().Contain(i => i.ResolverMetadata[CsvConstants.LanguageMetadataKey] == "DE");
@@ -220,29 +126,18 @@ public class CSVDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns an empty result when the configuration service returns null.
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> does not fail when the configuration service returns null.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_ReturnsEmptyResult()
+    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_DoesNotFail()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns((CsvCatalogConfiguration)null!);
+        var discoverer = CreateDiscoverer(null);
 
-        var discoverer = new CSVDiscoverer(
-            Mock.Of<ILogger<CSVDiscoverer>>(),
-            mockConfig.Object);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
-        var query = new ContentSearchQuery();
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data!.Items.Should().BeEmpty();
     }
 
     /// <summary>
@@ -252,77 +147,44 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithCanceledToken_RespectsCancellation()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
-
-        var discoverer = new CSVDiscoverer(
-            Mock.Of<ILogger<CSVDiscoverer>>(),
-            mockConfig.Object);
-
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             discoverer.DiscoverAsync(new ContentSearchQuery(), cts.Token));
     }
 
     /// <summary>
-    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> uses the index file path over configuration when both are provided.
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns an empty result when the index file cannot be loaded.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithIndexFilePath_UsesIndexFileOverConfiguration()
+    public async Task DiscoverAsync_WhenIndexFileIsMissing_ReturnsEmptyResult()
     {
-        // Arrange
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var indexData = new CsvCatalogRegistryIndex
-            {
-                Entries = new List<CsvCatalogRegistryEntry>
-                {
-                    new CsvCatalogRegistryEntry
-                    {
-                        Url = "https://index.com/file.csv",
-                        GameType = "Generals",
-                        Version = "1.0",
-                        SupportedLanguages = new List<string> { "EN" },
-                        IsActive = true,
-                    },
-                },
-            };
-            File.WriteAllText(tempFile, JsonSerializer.Serialize(indexData));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = "non-existent-index.json" });
 
-            var config = new CsvCatalogConfiguration
-            {
-                IndexFilePath = tempFile,
-                CsvValidationCatalogs = new List<CsvValidationCatalog>
-                {
-                    new CsvValidationCatalog { Url = "https://config.com/file.csv" },
-                },
-            };
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
-            var mockConfig = new Mock<IConfigurationProviderService>();
-            mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Items.Should().BeEmpty();
+    }
 
-            var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> uses entries from the configured index file path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithIndexFilePath_UsesIndexFileEntries()
+    {
+        using var indexFile = CreateIndexFile(CreateEntry("https://index.com/file.csv", "Generals", "1.0", "EN"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-            // Act
-            var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
-            // Assert
-            result.Data!.Items.Should().ContainSingle();
-            result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/file.csv");
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        result.Data!.Items.Should().ContainSingle();
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/file.csv");
     }
 
     /// <summary>
@@ -332,34 +194,14 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithZeroHourQuery_ReturnsValidResult()
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/zerohour.csv",
-                    GameType = "ZeroHour",
-                    Version = "1.04",
-                    SupportedLanguages = new List<string> { "EN" },
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/zerohour.csv", "ZeroHour", "1.04", "EN"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { TargetGame = GameType.ZeroHour });
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-        var query = new ContentSearchQuery { TargetGame = GameType.ZeroHour };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data!.Items.Should().NotBeEmpty();
+        result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().TargetGame.Should().Be(GameType.ZeroHour);
     }
 
@@ -370,31 +212,11 @@ public class CSVDiscovererTests
     [Fact]
     public async Task DiscoverAsync_WithNonMatchingGameType_ReturnsEmpty()
     {
-        // Arrange
-        var config = new CsvCatalogConfiguration
-        {
-            CsvValidationCatalogs = new List<CsvValidationCatalog>
-            {
-                new CsvValidationCatalog
-                {
-                    Url = "https://example.com/generals.csv",
-                    GameType = "Generals",
-                    Version = "1.08",
-                    SupportedLanguages = new List<string> { "EN" },
-                },
-            },
-        };
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
 
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config);
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { TargetGame = GameType.ZeroHour });
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-        var query = new ContentSearchQuery { TargetGame = GameType.ZeroHour };
-
-        // Act
-        var result = await discoverer.DiscoverAsync(query);
-
-        // Assert
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
         result.Data!.Items.Should().BeEmpty();
@@ -406,13 +228,8 @@ public class CSVDiscovererTests
     [Fact]
     public void SourceName_ReturnsExpectedValue()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-
-        // Act & Assert
         discoverer.SourceName.Should().Be(CsvConstants.SourceName);
     }
 
@@ -422,13 +239,8 @@ public class CSVDiscovererTests
     [Fact]
     public void Description_ReturnsExpectedValue()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-
-        // Act & Assert
         discoverer.Description.Should().Be(CsvConstants.Description);
     }
 
@@ -438,13 +250,8 @@ public class CSVDiscovererTests
     [Fact]
     public void IsEnabled_ReturnsTrue()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-
-        // Act & Assert
         discoverer.IsEnabled.Should().BeTrue();
     }
 
@@ -454,13 +261,57 @@ public class CSVDiscovererTests
     [Fact]
     public void Capabilities_ReturnsDirectSearch()
     {
-        // Arrange
-        var mockConfig = new Mock<IConfigurationProviderService>();
-        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration());
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
-        var discoverer = new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
-
-        // Act & Assert
         discoverer.Capabilities.Should().Be(ContentSourceCapabilities.DirectSearch);
+    }
+
+    private static CSVDiscoverer CreateDiscoverer(CsvCatalogConfiguration? config)
+    {
+        var mockConfig = new Mock<IConfigurationProviderService>();
+        mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config!);
+
+        return new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+    }
+
+    private static TempIndexFile CreateIndexFile(params CsvCatalogRegistryEntry[] entries)
+    {
+        return new TempIndexFile(entries);
+    }
+
+    private static CsvCatalogRegistryEntry CreateEntry(string url, string gameType, string version, params string[] languages)
+    {
+        return new CsvCatalogRegistryEntry
+        {
+            Url = url,
+            GameType = gameType,
+            Version = version,
+            SupportedLanguages = languages.ToList(),
+            IsActive = true,
+        };
+    }
+
+    private sealed class TempIndexFile : IDisposable
+    {
+        public TempIndexFile(IEnumerable<CsvCatalogRegistryEntry> entries)
+        {
+            FilePath = Path.GetTempFileName();
+            var index = new CsvCatalogRegistryIndex
+            {
+                Entries = entries.ToList(),
+            };
+
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(index));
+        }
+
+        public string FilePath { get; }
+
+        public void Dispose()
+        {
+            if (File.Exists(FilePath))
+            {
+                File.Delete(FilePath);
+            }
+        }
     }
 }

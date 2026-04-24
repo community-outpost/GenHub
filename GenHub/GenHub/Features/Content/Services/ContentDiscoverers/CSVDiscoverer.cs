@@ -209,28 +209,37 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             }
 
             List<CsvCatalogRegistryEntry> loadedEntries = [];
-            bool loadedFromIndex = false;
-
-            // Try loading from index.json
             var indexPath = _config.IndexFilePath;
+
+            if (string.IsNullOrWhiteSpace(indexPath))
+            {
+                _logger.LogWarning("CSV catalog discovery is not configured because IndexFilePath is empty.");
+                _cachedEntries = loadedEntries;
+                return _cachedEntries;
+            }
+
             try
             {
-                if (!string.IsNullOrWhiteSpace(indexPath))
+                var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
+                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+
+                if (index?.Entries == null || index.Entries.Count == 0)
                 {
-                    var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
-                    var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+                    _logger.LogWarning("No CSV catalog entries found in index.json at {Path}", indexPath);
+                }
+                else
+                {
+                    loadedEntries = index.Entries
+                        .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
+                        .ToList();
 
-                    if (index?.Entries != null && index.Entries.Count > 0)
+                    if (loadedEntries.Count > 0)
                     {
-                        loadedEntries = index.Entries
-                            .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
-                            .ToList();
-
-                        if (loadedEntries.Count > 0)
-                        {
-                            loadedFromIndex = true;
-                            _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
-                        }
+                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No valid active CSV catalog entries found in index.json at {Path}", indexPath);
                     }
                 }
             }
@@ -240,31 +249,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to load index.json from {Path}. Falling back to configuration.", indexPath);
-            }
-
-            // Fallback to configuration if index load failed or returned no entries
-            if (!loadedFromIndex)
-            {
-                if (_config.CsvValidationCatalogs != null && _config.CsvValidationCatalogs.Count > 0)
-                {
-                    loadedEntries = _config.CsvValidationCatalogs.Select(c => new CsvCatalogRegistryEntry
-                    {
-                        Url = c.Url,
-                        GameType = c.GameType,
-                        Version = c.Version,
-                        SupportedLanguages = (c.SupportedLanguages ?? [])
-                            .Where(l => !string.IsNullOrWhiteSpace(l))
-                            .ToList(),
-                        FileCount = c.FileCount,
-                    }).ToList();
-
-                    _logger.LogInformation("Loaded {Count} CSV catalog entries from configuration fallback", loadedEntries.Count);
-                }
-                else
-                {
-                    _logger.LogWarning("No CSV catalogs found in index.json or configuration.");
-                }
+                _logger.LogWarning(ex, "Failed to load index.json from {Path}", indexPath);
             }
 
             _cachedEntries = loadedEntries;
