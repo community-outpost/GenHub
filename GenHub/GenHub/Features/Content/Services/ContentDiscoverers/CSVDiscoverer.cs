@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,6 +31,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
     private readonly ILogger<CSVDiscoverer> _logger;
     private readonly CsvCatalogConfiguration _config;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private List<CsvCatalogRegistryEntry>? _cachedEntries;
     private bool _disposed;
@@ -39,12 +41,15 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
     /// </summary>
     /// <param name="logger">The logger instance.</param>
     /// <param name="configProvider">The configuration provider service.</param>
+    /// <param name="httpClientFactory">The HTTP client factory used for remote index sources.</param>
     public CSVDiscoverer(
         ILogger<CSVDiscoverer> logger,
-        IConfigurationProviderService configProvider)
+        IConfigurationProviderService configProvider,
+        IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _config = configProvider.GetCsvCatalogConfiguration() ?? new CsvCatalogConfiguration();
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <inheritdoc />
@@ -87,14 +92,13 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                     _ => null,
                 };
 
-                if (targetGameStr != null)
+                if (targetGameStr is null)
                 {
-                    filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
+                    _logger.LogWarning("Unsupported game type encountered: {GameType}. Returning no results.", query.TargetGame.Value);
+                    return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult());
                 }
-                else
-                {
-                    _logger.LogWarning("Unsupported game type encountered: {GameType}. Skipping GameType filter.", query.TargetGame.Value);
-                }
+
+                filteredEntries = filteredEntries.Where(e => e.GameType.Equals(targetGameStr, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
             foreach (var entry in filteredEntries)
@@ -108,11 +112,11 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                     .ToList();
 
                 List<string> languagesToInclude;
-                if (string.IsNullOrWhiteSpace(query.Language) || normalizedQueryLanguage == "ALL")
+                if (string.IsNullOrWhiteSpace(query.Language) || normalizedQueryLanguage == CsvConstants.AllLanguagesFilter)
                 {
                     languagesToInclude = normalizedEntryLanguages;
                 }
-                else if (normalizedEntryLanguages.Contains("ALL"))
+                else if (normalizedEntryLanguages.Contains(CsvConstants.AllLanguagesFilter))
                 {
                     languagesToInclude = [normalizedQueryLanguage!];
                 }
@@ -186,9 +190,13 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
     private static string NormalizeLanguage(string language)
     {
-        if (string.Equals(language, "All", StringComparison.OrdinalIgnoreCase))
-            return "ALL";
-        return language.ToUpperInvariant();
+        var trimmed = language.Trim();
+        if (string.Equals(trimmed, CsvConstants.AllLanguagesFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            return CsvConstants.AllLanguagesFilter;
+        }
+
+        return trimmed.ToUpperInvariant();
     }
 
     private async Task<List<CsvCatalogRegistryEntry>> LoadCatalogEntriesAsync(CancellationToken cancellationToken)
@@ -209,47 +217,40 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             }
 
             List<CsvCatalogRegistryEntry> loadedEntries = [];
-            var indexPath = _config.IndexFilePath;
 
-            if (string.IsNullOrWhiteSpace(indexPath))
+            foreach (var indexSource in GetIndexSources())
             {
-                _logger.LogWarning("CSV catalog discovery is not configured because IndexFilePath is empty.");
-                _cachedEntries = loadedEntries;
-                return _cachedEntries;
-            }
-
-            try
-            {
-                var json = await File.ReadAllTextAsync(indexPath, cancellationToken);
-                var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
-
-                if (index?.Entries == null || index.Entries.Count == 0)
+                try
                 {
-                    _logger.LogWarning("No CSV catalog entries found in index.json at {Path}", indexPath);
-                }
-                else
-                {
+                    var json = await LoadIndexJsonAsync(indexSource, cancellationToken);
+                    var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+
+                    if (index?.Entries == null || index.Entries.Count == 0)
+                    {
+                        _logger.LogWarning("No CSV catalog entries found in index.json from {Source}", indexSource);
+                        continue;
+                    }
+
                     loadedEntries = index.Entries
                         .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
                         .ToList();
 
                     if (loadedEntries.Count > 0)
                     {
-                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json at {Path}", loadedEntries.Count, indexPath);
+                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json from {Source}", loadedEntries.Count, indexSource);
+                        break;
                     }
-                    else
-                    {
-                        _logger.LogWarning("No valid active CSV catalog entries found in index.json at {Path}", indexPath);
-                    }
+
+                    _logger.LogWarning("No valid active CSV catalog entries found in index.json from {Source}", indexSource);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to load index.json from {Path}", indexPath);
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load index.json from {Source}", indexSource);
+                }
             }
 
             _cachedEntries = loadedEntries;
@@ -261,6 +262,32 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         }
     }
 
+    private IEnumerable<string> GetIndexSources()
+    {
+        var configuredSource = _config.IndexFilePath?.Trim();
+        if (!string.IsNullOrWhiteSpace(configuredSource))
+        {
+            yield return configuredSource;
+        }
+
+        if (!string.Equals(configuredSource, CsvConstants.DefaultIndexFileUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return CsvConstants.DefaultIndexFileUrl;
+        }
+    }
+
+    private async Task<string> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
+    {
+        if (Uri.TryCreate(indexPath, UriKind.Absolute, out var indexUri) &&
+            (indexUri.Scheme == Uri.UriSchemeHttp || indexUri.Scheme == Uri.UriSchemeHttps))
+        {
+            var httpClient = _httpClientFactory.CreateClient(string.Empty);
+            return await httpClient.GetStringAsync(indexUri, cancellationToken);
+        }
+
+        return await File.ReadAllTextAsync(indexPath, cancellationToken);
+    }
+
     private ContentSearchResult? CreateSearchResult(CsvCatalogRegistryEntry entry, string language)
     {
         if (!Enum.TryParse<GameType>(entry.GameType, true, out var gameType))
@@ -269,7 +296,14 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             return null;
         }
 
-        var contentName = $"{gameType}-{entry.Version}-{language}";
+        var canonicalGameType = gameType switch
+        {
+            GameType.Generals => CsvConstants.GeneralsGameType,
+            GameType.ZeroHour => CsvConstants.ZeroHourGameType,
+            _ => entry.GameType,
+        };
+
+        var contentName = $"{canonicalGameType}-{entry.Version}-{language}";
 
         var id = ManifestIdGenerator.GeneratePublisherContentId(
             PublisherTypeConstants.TheSuperHackers,
@@ -279,8 +313,8 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         var result = new ContentSearchResult
         {
             Id = id,
-            Name = $"{entry.GameType} {entry.Version} ({language})",
-            Description = $"Base game installation files for {entry.GameType} v{entry.Version}. Language: {language}",
+            Name = $"{canonicalGameType} {entry.Version} ({language})",
+            Description = $"Base game installation files for {canonicalGameType} v{entry.Version}. Language: {language}",
             Version = entry.Version,
             ContentType = ContentType.GameInstallation,
             TargetGame = gameType,
@@ -292,7 +326,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         };
 
         result.ResolverMetadata[CsvConstants.CsvUrlMetadataKey] = entry.Url;
-        result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = gameType.ToString();
+        result.ResolverMetadata[CsvConstants.GameTypeMetadataKey] = canonicalGameType;
         result.ResolverMetadata[CsvConstants.VersionMetadataKey] = entry.Version;
         result.ResolverMetadata[CsvConstants.LanguageMetadataKey] = language;
 

@@ -6,6 +6,11 @@ namespace GenHub.Core.Constants;
 public static class CsvConstants
 {
     /// <summary>
+    /// Default remote index.json source for CSV catalog discovery.
+    /// </summary>
+    public const string DefaultIndexFileUrl = "https://raw.githubusercontent.com/community-outpost/GenHub/main/docs/GameInstallationFilesRegistry/index.json";
+
+    /// <summary>
     /// Source name for the CSV catalog discoverer.
     /// </summary>
     public const string SourceName = "Csv Discoverer";
@@ -58,5 +63,5 @@ public static class CsvConstants
     /// <summary>
     /// Special language filter value to include all languages.
     /// </summary>
-    public const string AllLanguagesFilter = "ALL";
+    public const string AllLanguagesFilter = "All";
 }
