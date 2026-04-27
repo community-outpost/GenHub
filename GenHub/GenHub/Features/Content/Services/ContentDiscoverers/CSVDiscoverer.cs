@@ -24,6 +24,12 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// </summary>
 public class CSVDiscoverer : IContentDiscoverer, IDisposable
 {
+    private enum CsvCatalogSourceKind
+    {
+        IndexJson,
+        ConfiguredCatalogs,
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -199,6 +205,13 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         return trimmed.ToUpperInvariant();
     }
 
+    private static List<CsvCatalogRegistryEntry> GetValidCatalogEntries(IEnumerable<CsvCatalogRegistryEntry>? entries)
+    {
+        return entries?
+            .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
+            .ToList() ?? [];
+    }
+
     private async Task<List<CsvCatalogRegistryEntry>> LoadCatalogEntriesAsync(CancellationToken cancellationToken)
     {
         // Return cached entries if available
@@ -218,30 +231,21 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
 
             List<CsvCatalogRegistryEntry> loadedEntries = [];
 
-            foreach (var indexSource in GetIndexSources())
+            foreach (var source in GetCatalogSources())
             {
                 try
                 {
-                    var json = await LoadIndexJsonAsync(indexSource, cancellationToken);
-                    var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
-
-                    if (index?.Entries == null || index.Entries.Count == 0)
-                    {
-                        _logger.LogWarning("No CSV catalog entries found in index.json from {Source}", indexSource);
-                        continue;
-                    }
-
-                    loadedEntries = index.Entries
-                        .Where(e => e != null && e.IsActive && !string.IsNullOrWhiteSpace(e.Url) && !string.IsNullOrWhiteSpace(e.GameType) && !string.IsNullOrWhiteSpace(e.Version))
-                        .ToList();
+                    loadedEntries = source.Kind == CsvCatalogSourceKind.IndexJson
+                        ? await LoadEntriesFromIndexAsync(source.Description, cancellationToken)
+                        : GetValidCatalogEntries(source.ConfiguredEntries);
 
                     if (loadedEntries.Count > 0)
                     {
-                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from index.json from {Source}", loadedEntries.Count, indexSource);
+                        _logger.LogInformation("Loaded {Count} valid CSV catalog entries from {Source}", loadedEntries.Count, source.Description);
                         break;
                     }
 
-                    _logger.LogWarning("No valid active CSV catalog entries found in index.json from {Source}", indexSource);
+                    _logger.LogWarning("No valid active CSV catalog entries found in {Source}", source.Description);
                 }
                 catch (OperationCanceledException)
                 {
@@ -249,7 +253,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to load index.json from {Source}", indexSource);
+                    _logger.LogWarning(ex, "Failed to load CSV catalog entries from {Source}", source.Description);
                 }
             }
 
@@ -262,18 +266,39 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         }
     }
 
-    private IEnumerable<string> GetIndexSources()
+    private IEnumerable<CsvCatalogSource> GetCatalogSources()
     {
         var configuredSource = _config.IndexFilePath?.Trim();
-        if (!string.IsNullOrWhiteSpace(configuredSource))
+        var seenIndexSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var indexSource in new[] { CsvConstants.DefaultIndexFileUrl, configuredSource })
         {
-            yield return configuredSource;
+            if (string.IsNullOrWhiteSpace(indexSource) || !seenIndexSources.Add(indexSource))
+            {
+                continue;
+            }
+
+            yield return CsvCatalogSource.FromIndex(indexSource);
         }
 
-        if (!string.Equals(configuredSource, CsvConstants.DefaultIndexFileUrl, StringComparison.OrdinalIgnoreCase))
+        if (_config.CsvValidationCatalogs != null && _config.CsvValidationCatalogs.Count > 0)
         {
-            yield return CsvConstants.DefaultIndexFileUrl;
+            yield return CsvCatalogSource.FromConfiguredCatalogs(_config.CsvValidationCatalogs);
         }
+    }
+
+    private async Task<List<CsvCatalogRegistryEntry>> LoadEntriesFromIndexAsync(string indexSource, CancellationToken cancellationToken)
+    {
+        var json = await LoadIndexJsonAsync(indexSource, cancellationToken);
+        var index = JsonSerializer.Deserialize<CsvCatalogRegistryIndex>(json, JsonOptions);
+
+        if (index?.Entries == null || index.Entries.Count == 0)
+        {
+            _logger.LogWarning("No CSV catalog entries found in index.json from {Source}", indexSource);
+            return [];
+        }
+
+        return GetValidCatalogEntries(index.Entries);
     }
 
     private async Task<string> LoadIndexJsonAsync(string indexPath, CancellationToken cancellationToken)
@@ -306,7 +331,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         var contentName = $"{canonicalGameType}-{entry.Version}-{language}";
 
         var id = ManifestIdGenerator.GeneratePublisherContentId(
-            PublisherTypeConstants.TheSuperHackers,
+            PublisherTypeConstants.CsvRegistry,
             ContentType.GameInstallation,
             contentName);
 
@@ -336,5 +361,21 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
         }
 
         return result;
+    }
+
+    private sealed record CsvCatalogSource(
+        CsvCatalogSourceKind Kind,
+        string Description,
+        IReadOnlyList<CsvCatalogRegistryEntry>? ConfiguredEntries)
+    {
+        public static CsvCatalogSource FromIndex(string source)
+        {
+            return new CsvCatalogSource(CsvCatalogSourceKind.IndexJson, source, null);
+        }
+
+        public static CsvCatalogSource FromConfiguredCatalogs(IReadOnlyList<CsvCatalogRegistryEntry> entries)
+        {
+            return new CsvCatalogSource(CsvCatalogSourceKind.ConfiguredCatalogs, "CsvValidationCatalogs configuration", entries);
+        }
     }
 }

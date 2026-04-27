@@ -78,6 +78,12 @@ public class UserSettings
     /// <summary>Gets or sets the list of GitHub repositories for discovery.</summary>
     public List<string>? GitHubDiscoveryRepositories { get; set; }
 
+    /// <summary>Gets or sets the configured CSV catalog index.json path or URL.</summary>
+    public string? IndexFilePath { get; set; }
+
+    /// <summary>Gets or sets the fallback CSV validation catalogs.</summary>
+    public List<CsvCatalogRegistryEntry>? CsvValidationCatalogs { get; set; }
+
     /// <summary>Gets or sets the list of installed tool plugin assembly paths.</summary>
     public List<string>? InstalledToolAssemblyPaths { get; set; }
 
@@ -204,6 +210,8 @@ public class UserSettings
             DismissedUpdateVersion = DismissedUpdateVersion,
             ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
             GitHubDiscoveryRepositories = GitHubDiscoveryRepositories != null ? [.. GitHubDiscoveryRepositories] : null,
+            IndexFilePath = IndexFilePath,
+            CsvValidationCatalogs = CsvValidationCatalogs != null ? [.. CsvValidationCatalogs] : null,
             InstalledToolAssemblyPaths = InstalledToolAssemblyPaths != null ? [.. InstalledToolAssemblyPaths] : null,
             PreferredStorageInstallationId = PreferredStorageInstallationId,
             UseInstallationAdjacentStorage = UseInstallationAdjacentStorage,

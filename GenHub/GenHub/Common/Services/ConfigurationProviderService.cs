@@ -253,6 +253,9 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public UserSettings GetEffectiveSettings()
     {
+        var csvCatalogConfiguration = GetCsvCatalogConfiguration();
+        var csvValidationCatalogs = csvCatalogConfiguration.CsvValidationCatalogs ?? [];
+
         return new UserSettings
         {
             Theme = GetTheme(),
@@ -279,6 +282,8 @@ public class ConfigurationProviderService(
             ApplicationDataPath = GetApplicationDataPath(),
             CachePath = GetCachePath(),
             CasConfiguration = GetCasConfiguration(),
+            IndexFilePath = csvCatalogConfiguration.IndexFilePath,
+            CsvValidationCatalogs = [.. csvValidationCatalogs],
         };
     }
 
@@ -373,7 +378,25 @@ public class ConfigurationProviderService(
     }
 
     /// <inheritdoc />
-    public CsvCatalogConfiguration GetCsvCatalogConfiguration() => _appConfig.GetCsvCatalogConfiguration();
+    public CsvCatalogConfiguration GetCsvCatalogConfiguration()
+    {
+        var appConfig = _appConfig.GetCsvCatalogConfiguration() ?? new CsvCatalogConfiguration();
+        var settings = _userSettings.Get();
+        var appCatalogs = appConfig.CsvValidationCatalogs ?? [];
+
+        return new CsvCatalogConfiguration
+        {
+            IndexFilePath = settings.IsExplicitlySet(nameof(UserSettings.IndexFilePath)) &&
+                !string.IsNullOrWhiteSpace(settings.IndexFilePath)
+                    ? settings.IndexFilePath
+                    : appConfig.IndexFilePath,
+            CsvValidationCatalogs = settings.IsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs)) &&
+                settings.CsvValidationCatalogs != null &&
+                settings.CsvValidationCatalogs.Count > 0
+                    ? [.. settings.CsvValidationCatalogs]
+                    : [.. appCatalogs],
+        };
+    }
 
     /// <summary>
     /// Moves the data written by releases that stored everything under the roaming application data
