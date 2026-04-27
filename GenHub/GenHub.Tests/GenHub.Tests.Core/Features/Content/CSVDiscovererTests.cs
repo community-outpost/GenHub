@@ -1,4 +1,3 @@
-// Unit tests for CSVDiscoverer. The whole file is made by AI
 // Copyright (C) 2026  GenHub & The Super Hackers
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,6 +16,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -108,6 +109,23 @@ public class CSVDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> preserves the canonical All language token.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithUnifiedCatalog_PreservesCanonicalAllLanguage()
+    {
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/unified.csv", "ZeroHour", "1.04", "All"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        result.Data!.Items.Should().ContainSingle();
+        result.Data.Items.First().ResolverMetadata[CsvConstants.LanguageMetadataKey].Should().Be(CsvConstants.AllLanguagesFilter);
+        result.Data.Items.First().Name.Should().Contain("(All)");
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns one item per language when multiple languages are in the catalog.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -172,6 +190,40 @@ public class CSVDiscovererTests
     }
 
     /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> falls back to the default index URL when the configured source fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenConfiguredIndexFails_FallsBackToDefaultIndexUrl()
+    {
+        var configuredUrl = "https://example.com/custom-index.json";
+        var fallbackJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+        {
+            Entries =
+            [
+                CreateEntry("https://index.com/fallback.csv", "Generals", "1.0", "EN"),
+            ],
+        });
+
+        var discoverer = CreateDiscoverer(
+            new CsvCatalogConfiguration { IndexFilePath = configuredUrl },
+            new MultiResponseHttpMessageHandler(
+                new Dictionary<string, HttpResponseMessage>
+                {
+                    [configuredUrl] = new(HttpStatusCode.NotFound),
+                    [CsvConstants.DefaultIndexFileUrl] = new(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(fallbackJson),
+                    },
+                }));
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        result.Data!.Items.Should().ContainSingle();
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/fallback.csv");
+    }
+
+    /// <summary>
     /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> uses entries from the configured index file path.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -185,6 +237,49 @@ public class CSVDiscovererTests
 
         result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/file.csv");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> uses entries from a remote index URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithRemoteIndexUrl_UsesRemoteEntries()
+    {
+        var remoteIndexUrl = "https://example.com/index.json";
+        var remoteIndexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+        {
+            Entries =
+            [
+                CreateEntry("https://index.com/remote.csv", "Generals", "1.0", "EN"),
+            ],
+        });
+
+        var discoverer = CreateDiscoverer(
+            new CsvCatalogConfiguration { IndexFilePath = remoteIndexUrl },
+            new StubHttpMessageHandler(remoteIndexUrl, remoteIndexJson, HttpStatusCode.OK));
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        result.Data!.Items.Should().ContainSingle();
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/remote.csv");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> returns no items for unsupported target games.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithUnsupportedTargetGame_ReturnsEmpty()
+    {
+        using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { TargetGame = (GameType)999 });
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Items.Should().BeEmpty();
     }
 
     /// <summary>
@@ -266,12 +361,16 @@ public class CSVDiscovererTests
         discoverer.Capabilities.Should().Be(ContentSourceCapabilities.DirectSearch);
     }
 
-    private static CSVDiscoverer CreateDiscoverer(CsvCatalogConfiguration? config)
+    private static CSVDiscoverer CreateDiscoverer(CsvCatalogConfiguration? config, HttpMessageHandler? httpMessageHandler = null)
     {
         var mockConfig = new Mock<IConfigurationProviderService>();
         mockConfig.Setup(o => o.GetCsvCatalogConfiguration()).Returns(config!);
+        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+        mockHttpClientFactory
+            .Setup(o => o.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(httpMessageHandler ?? new StubHttpMessageHandler()));
 
-        return new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object);
+        return new CSVDiscoverer(Mock.Of<ILogger<CSVDiscoverer>>(), mockConfig.Object, mockHttpClientFactory.Object);
     }
 
     private static TempIndexFile CreateIndexFile(params CsvCatalogRegistryEntry[] entries)
@@ -312,6 +411,53 @@ public class CSVDiscovererTests
             {
                 File.Delete(FilePath);
             }
+        }
+    }
+
+    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly string? _expectedUrl;
+        private readonly string _content;
+        private readonly HttpStatusCode _statusCode;
+
+        public StubHttpMessageHandler(
+            string? expectedUrl = null,
+            string content = "",
+            HttpStatusCode statusCode = HttpStatusCode.NotFound)
+        {
+            _expectedUrl = expectedUrl;
+            _content = content;
+            _statusCode = statusCode;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var statusCode = _expectedUrl == null || request.RequestUri?.AbsoluteUri == _expectedUrl
+                ? _statusCode
+                : HttpStatusCode.NotFound;
+            var content = statusCode == HttpStatusCode.OK ? _content : string.Empty;
+            var response = new HttpResponseMessage(statusCode)
+            {
+                RequestMessage = request,
+                Content = new StringContent(content),
+            };
+
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class MultiResponseHttpMessageHandler(IDictionary<string, HttpResponseMessage> responses) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var requestUrl = request.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (!responses.TryGetValue(requestUrl, out var response))
+            {
+                response = new HttpResponseMessage(HttpStatusCode.NotFound);
+            }
+
+            response.RequestMessage = request;
+            return Task.FromResult(response);
         }
     }
 }

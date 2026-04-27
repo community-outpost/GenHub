@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.Content;
 
 /// <summary>
@@ -7,9 +9,10 @@ namespace GenHub.Core.Models.Content;
 public class CsvCatalogConfiguration
 {
     /// <summary>
-    /// Gets or sets the path to the catalog index.json file.
-    /// If a relative path is provided, it is resolved relative to the application's working directory;
-    /// absolute paths are used as given. The expected file is index.json.
+    /// Gets or sets the preferred local path or remote URL for the catalog index.json file.
+    /// Relative file paths are resolved from the application's working directory.
+    /// HTTP and HTTPS URLs are downloaded directly from the configured source.
+    /// If loading fails, the discoverer falls back to <see cref="CsvConstants.DefaultIndexFileUrl"/>.
     /// </summary>
-    public string IndexFilePath { get; set; } = "docs/GameInstallationFilesRegistry/index.json";
+    public string IndexFilePath { get; set; } = CsvConstants.DefaultIndexFileUrl;
 }
