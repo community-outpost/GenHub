@@ -190,18 +190,25 @@ public class CSVDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> falls back to the default index URL when the configured source fails.
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> prefers the default GitHub index URL before configured index sources.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenConfiguredIndexFails_FallsBackToDefaultIndexUrl()
+    public async Task DiscoverAsync_WhenDefaultGitHubIndexHasEntries_UsesItBeforeConfiguredIndex()
     {
         var configuredUrl = "https://example.com/custom-index.json";
-        var fallbackJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+        var githubJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
         {
             Entries =
             [
-                CreateEntry("https://index.com/fallback.csv", "Generals", "1.0", "EN"),
+                CreateEntry("https://index.com/github.csv", "Generals", "1.0", "EN"),
+            ],
+        });
+        var configuredJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
+        {
+            Entries =
+            [
+                CreateEntry("https://index.com/configured.csv", "Generals", "1.0", "EN"),
             ],
         });
 
@@ -210,17 +217,20 @@ public class CSVDiscovererTests
             new MultiResponseHttpMessageHandler(
                 new Dictionary<string, HttpResponseMessage>
                 {
-                    [configuredUrl] = new(HttpStatusCode.NotFound),
                     [CsvConstants.DefaultIndexFileUrl] = new(HttpStatusCode.OK)
                     {
-                        Content = new StringContent(fallbackJson),
+                        Content = new StringContent(githubJson),
+                    },
+                    [configuredUrl] = new(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(configuredJson),
                     },
                 }));
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
         result.Data!.Items.Should().ContainSingle();
-        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/fallback.csv");
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/github.csv");
     }
 
     /// <summary>
@@ -263,6 +273,34 @@ public class CSVDiscovererTests
 
         result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://index.com/remote.csv");
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="CSVDiscoverer.DiscoverAsync"/> falls back to configured catalogs after index sources return no entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WhenIndexSourcesHaveNoEntries_UsesConfiguredCatalogs()
+    {
+        var discoverer = CreateDiscoverer(new CsvCatalogConfiguration
+        {
+            IndexFilePath = "non-existent-index.json",
+            CsvValidationCatalogs =
+            [
+                new CsvCatalogRegistryEntry
+                {
+                    Url = "https://config.com/fallback.csv",
+                    GameType = "Generals",
+                    Version = "1.08",
+                    SupportedLanguages = ["EN"],
+                },
+            ],
+        });
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        result.Data!.Items.Should().ContainSingle();
+        result.Data.Items.First().ResolverMetadata[CsvConstants.CsvUrlMetadataKey].Should().Be("https://config.com/fallback.csv");
     }
 
     /// <summary>

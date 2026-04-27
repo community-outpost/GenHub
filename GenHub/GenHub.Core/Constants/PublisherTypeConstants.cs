@@ -56,6 +56,9 @@ public static class PublisherTypeConstants
     /// <summary>Community Outpost platform.</summary>
     public const string CommunityOutpost = "communityoutpost";
 
+    /// <summary>CSV registry publisher.</summary>
+    public const string CsvRegistry = "csvregistry";
+
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
 

@@ -271,6 +271,8 @@ public class UserSettingsService : IUserSettingsService
             "applicationDataPath" => nameof(UserSettings.ApplicationDataPath),
             "contentDirectories" => nameof(UserSettings.ContentDirectories),
             "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
+            "indexFilePath" => nameof(UserSettings.IndexFilePath),
+            "csvValidationCatalogs" => nameof(UserSettings.CsvValidationCatalogs),
             _ => string.Empty,
         };
     }

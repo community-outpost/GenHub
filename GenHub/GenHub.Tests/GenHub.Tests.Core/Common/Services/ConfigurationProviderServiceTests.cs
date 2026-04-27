@@ -2,6 +2,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -760,6 +761,83 @@ public class ConfigurationProviderServiceTests
         // Assert
         Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
         Assert.Single(result);
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration returns explicitly configured user settings over app settings.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithExplicitUserSettings_ReturnsUserSettings()
+    {
+        // Arrange
+        var appCatalog = new CsvCatalogRegistryEntry
+        {
+            Url = "https://app.example/catalog.csv",
+            GameType = "Generals",
+            Version = "1.08",
+            SupportedLanguages = ["EN"],
+        };
+        var userCatalog = new CsvCatalogRegistryEntry
+        {
+            Url = "https://user.example/catalog.csv",
+            GameType = "ZeroHour",
+            Version = "1.04",
+            SupportedLanguages = ["DE"],
+        };
+        var userSettings = new UserSettings
+        {
+            IndexFilePath = "https://user.example/index.json",
+            CsvValidationCatalogs = [userCatalog],
+        };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.IndexFilePath));
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.CsvValidationCatalogs));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://app.example/index.json",
+            CsvValidationCatalogs = [appCatalog],
+        });
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://user.example/index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://user.example/catalog.csv", result.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Verifies that GetCsvCatalogConfiguration returns app settings when user settings are not explicit.
+    /// </summary>
+    [Fact]
+    public void GetCsvCatalogConfiguration_WithoutExplicitUserSettings_ReturnsAppSettings()
+    {
+        // Arrange
+        var appCatalog = new CsvCatalogRegistryEntry
+        {
+            Url = "https://app.example/catalog.csv",
+            GameType = "Generals",
+            Version = "1.08",
+            SupportedLanguages = ["EN"],
+        };
+        _mockAppConfig.Setup(x => x.GetCsvCatalogConfiguration()).Returns(new CsvCatalogConfiguration
+        {
+            IndexFilePath = "https://app.example/index.json",
+            CsvValidationCatalogs = [appCatalog],
+        });
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetCsvCatalogConfiguration();
+
+        // Assert
+        Assert.Equal("https://app.example/index.json", result.IndexFilePath);
+        Assert.Single(result.CsvValidationCatalogs);
+        Assert.Equal("https://app.example/catalog.csv", result.CsvValidationCatalogs[0].Url);
     }
 
     /// <summary>

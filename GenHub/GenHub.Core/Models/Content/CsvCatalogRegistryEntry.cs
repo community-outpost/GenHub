@@ -72,5 +72,5 @@ public class CsvCatalogRegistryEntry
     /// Gets or sets a value indicating whether this registry entry is active.
     /// </summary>
     [JsonPropertyName("isActive")]
-    public bool IsActive { get; set; }
+    public bool IsActive { get; set; } = true;
 }

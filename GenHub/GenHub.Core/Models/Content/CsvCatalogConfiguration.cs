@@ -1,4 +1,4 @@
-using GenHub.Core.Constants;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Content;
 
@@ -9,10 +9,12 @@ namespace GenHub.Core.Models.Content;
 public class CsvCatalogConfiguration
 {
     /// <summary>
-    /// Gets or sets the preferred local path or remote URL for the catalog index.json file.
-    /// Relative file paths are resolved from the application's working directory.
-    /// HTTP and HTTPS URLs are downloaded directly from the configured source.
-    /// If loading fails, the discoverer falls back to <see cref="CsvConstants.DefaultIndexFileUrl"/>.
+    /// Gets or sets the configured local path or remote URL for the catalog index.json file.
     /// </summary>
-    public string IndexFilePath { get; set; } = CsvConstants.DefaultIndexFileUrl;
+    public string IndexFilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the fallback validation catalogs defined in configuration.
+    /// </summary>
+    public List<CsvCatalogRegistryEntry> CsvValidationCatalogs { get; set; } = [];
 }
