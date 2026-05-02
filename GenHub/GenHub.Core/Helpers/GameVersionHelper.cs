@@ -168,6 +168,13 @@ public static partial class GameVersionHelper
     /// Gets a sortable integer version for Generals Online versions.
     /// Converts "101525_QFE2" to 1015252, "042826_QFE3_EAC" to 428263.
     /// Build suffixes (e.g. _EAC) are ignored — only date and QFE affect ordering.
+    /// <para>
+    /// Note: The encoding uses <c>dateValue * 10 + QFE</c>, which limits QFE to 0–9
+    /// without colliding with the next date. This is intentional — the value is embedded
+    /// in manifest IDs and changing the encoding would break installed content references.
+    /// Version ordering uses <see cref="ParseGeneralsOnlineVersion"/> directly via
+    /// <c>VersionComparer.CompareGeneralsOnlineVersions</c>, which has no such limitation.
+    /// </para>
     /// </summary>
     /// <param name="version">The version string to convert.</param>
     /// <returns>A sortable integer, or 0 if parsing fails.</returns>
