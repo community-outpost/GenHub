@@ -62,19 +62,21 @@ public static class VersionComparer
         var parsed1 = GameVersionHelper.ParseGeneralsOnlineVersion(version1);
         var parsed2 = GameVersionHelper.ParseGeneralsOnlineVersion(version2);
 
-        if (parsed1 != null && parsed2 != null)
-        {
-            int dateCompare = parsed1.Value.Date.CompareTo(parsed2.Value.Date);
-            if (dateCompare != 0)
-            {
-                return dateCompare;
-            }
+        // Both unparseable — fall back to generic numeric comparison
+        if (parsed1 == null && parsed2 == null)
+            return CompareNumericVersions(version1, version2);
 
-            return parsed1.Value.Qfe.CompareTo(parsed2.Value.Qfe);
+        // Exactly one unparseable — treat unparseable as always older
+        if (parsed1 == null) return -1;
+        if (parsed2 == null) return 1;
+
+        int dateCompare = parsed1.Value.Date.CompareTo(parsed2.Value.Date);
+        if (dateCompare != 0)
+        {
+            return dateCompare;
         }
 
-        // Fallback for unparseable versions (e.g. "Unknown", semantic versions)
-        return CompareNumericVersions(version1, version2);
+        return parsed1.Value.Qfe.CompareTo(parsed2.Value.Qfe);
     }
 
     /// <summary>

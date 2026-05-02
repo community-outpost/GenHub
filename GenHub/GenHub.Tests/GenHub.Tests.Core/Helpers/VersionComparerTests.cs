@@ -194,4 +194,42 @@ public class VersionComparerTests
         // Assert
         Assert.Equal(expected, Math.Sign(result));
     }
+
+    /// <summary>
+    /// Verifies that when only one GeneralsOnline version is parseable,
+    /// the unparseable version is always treated as older.
+    /// </summary>
+    /// <param name="version1">The first version string.</param>
+    /// <param name="version2">The second version string.</param>
+    /// <param name="expected">The expected comparison result.</param>
+    [Theory]
+    [InlineData("042826_QFE3_EAC", "Unknown", 1)] // Parseable vs unparseable
+    [InlineData("Unknown", "042826_QFE3_EAC", -1)] // Unparseable vs parseable
+    [InlineData("042826_QFE2", "garbage", 1)] // Legacy parseable vs unparseable
+    [InlineData("garbage", "042826_QFE2", -1)] // Unparseable vs legacy parseable
+    public void CompareVersions_GeneralsOnline_MixedParseable_UnparseableIsOlder(
+        string version1,
+        string version2,
+        int expected)
+    {
+        // Act
+        var result = VersionComparer.CompareVersions(version1, version2, PublisherTypeConstants.GeneralsOnline);
+
+        // Assert
+        Assert.Equal(expected, Math.Sign(result));
+    }
+
+    /// <summary>
+    /// Verifies that when both GeneralsOnline versions are unparseable,
+    /// the method falls back to numeric/string comparison.
+    /// </summary>
+    [Fact]
+    public void CompareVersions_GeneralsOnline_BothUnparseable_FallsBackToNumeric()
+    {
+        // Act
+        var result = VersionComparer.CompareVersions("Unknown", "Unknown", PublisherTypeConstants.GeneralsOnline);
+
+        // Assert — same unparseable strings should compare as equal
+        Assert.Equal(0, result);
+    }
 }
