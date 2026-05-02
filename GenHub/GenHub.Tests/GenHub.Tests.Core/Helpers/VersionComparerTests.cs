@@ -169,4 +169,29 @@ public class VersionComparerTests
         // Assert
         Assert.Equal(expected, Math.Sign(result));
     }
+
+    /// <summary>
+    /// Verifies that GeneralsOnline versions with extended format (build suffix) compare correctly.
+    /// Versions like "042826_QFE3_EAC" should compare by date+QFE only, ignoring the suffix.
+    /// </summary>
+    /// <param name="version1">The first version string.</param>
+    /// <param name="version2">The second version string.</param>
+    /// <param name="expected">The expected comparison result.</param>
+    [Theory]
+    [InlineData("042826_QFE3_EAC", "042826_QFE3_EAC", 0)] // Same extended version
+    [InlineData("042826_QFE4_EAC", "042826_QFE3_EAC", 1)] // Same date, higher QFE
+    [InlineData("042826_QFE3_EAC", "042826_QFE2", 1)] // Extended vs legacy, higher QFE
+    [InlineData("042826_QFE2", "042826_QFE2_EAC", 0)] // Legacy vs extended, same date+QFE
+    [InlineData("042926_QFE1_EAC", "042826_QFE3_EAC", 1)] // Newer date wins regardless of QFE
+    public void CompareVersions_GeneralsOnline_ExtendedFormat_ReturnsCorrectComparison(
+        string version1,
+        string version2,
+        int expected)
+    {
+        // Act
+        var result = VersionComparer.CompareVersions(version1, version2, PublisherTypeConstants.GeneralsOnline);
+
+        // Assert
+        Assert.Equal(expected, Math.Sign(result));
+    }
 }

@@ -10,7 +10,7 @@ namespace GenHub.Core.Models.GeneralsOnline;
 public class GeneralsOnlineRelease
 {
     /// <summary>
-    /// Gets version string in format: MMDDYY_QFE# (e.g., "101525_QFE5").
+    /// Gets version string in format: MMDDYY_QFE#[_SUFFIX] (e.g., "101525_QFE5", "042826_QFE3_EAC").
     /// </summary>
     public required string Version { get; init; }
 

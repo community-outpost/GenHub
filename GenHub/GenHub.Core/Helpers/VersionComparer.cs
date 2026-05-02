@@ -41,11 +41,39 @@ public static class VersionComparer
         }
         else if (string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
         {
-            // GeneralsOnline uses numeric versions
-            return CompareNumericVersions(version1, version2);
+            // GeneralsOnline uses MMDDYY_QFE#[_SUFFIX] format — parse for accurate comparison
+            return CompareGeneralsOnlineVersions(version1, version2);
         }
 
         // Default: Use the robust numeric/semantic comparison logic
+        return CompareNumericVersions(version1, version2);
+    }
+
+    /// <summary>
+    /// Compares two GeneralsOnline version strings (MMDDYY_QFE#[_SUFFIX]).
+    /// Extra suffix segments (e.g. _EAC) are build metadata and do not affect ordering.
+    /// Falls back to <see cref="CompareNumericVersions"/> when parsing fails.
+    /// </summary>
+    /// <param name="version1">The first version.</param>
+    /// <param name="version2">The second version.</param>
+    /// <returns>Comparison result.</returns>
+    private static int CompareGeneralsOnlineVersions(string version1, string version2)
+    {
+        var parsed1 = GameVersionHelper.ParseGeneralsOnlineVersion(version1);
+        var parsed2 = GameVersionHelper.ParseGeneralsOnlineVersion(version2);
+
+        if (parsed1 != null && parsed2 != null)
+        {
+            int dateCompare = parsed1.Value.Date.CompareTo(parsed2.Value.Date);
+            if (dateCompare != 0)
+            {
+                return dateCompare;
+            }
+
+            return parsed1.Value.Qfe.CompareTo(parsed2.Value.Qfe);
+        }
+
+        // Fallback for unparseable versions (e.g. "Unknown", semantic versions)
         return CompareNumericVersions(version1, version2);
     }
 

@@ -91,7 +91,7 @@ public class GeneralsOnlineUpdateService(
             return true; // Any version is newer than nothing
         }
 
-        // Parse MMddyy_QFE# format
+        // Parse MMddyy_QFE#[_SUFFIX] format (suffixes like _EAC are build metadata, ignored for comparison)
         var latest = GameVersionHelper.ParseGeneralsOnlineVersion(latestVersion);
         var current = GameVersionHelper.ParseGeneralsOnlineVersion(currentVersion);
 

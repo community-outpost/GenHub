@@ -52,6 +52,7 @@ public static class GeneralsOnlineConstants
     public const string VersionDateFormat = "MMddyy";
 
     /// <summary>Separator between date and QFE number in versions.</summary>
+    /// <remarks>Used by catalog parser for date extraction. Version comparison uses underscore split.</remarks>
     public const string QfeSeparator = "_QFE";
 
     /// <summary>Prefix for QFE markers in version strings.</summary>

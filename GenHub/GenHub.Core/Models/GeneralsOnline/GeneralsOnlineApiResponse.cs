@@ -8,8 +8,9 @@ namespace GenHub.Core.Models.GeneralsOnline;
 public class GeneralsOnlineApiResponse
 {
     /// <summary>
-    /// Gets or sets the version string (e.g., "111825_QFE2" for November 18, 2025).
-    /// Format: MMDDYY_QFE# where MM=month, DD=day, YY=year, #=QFE number.
+    /// Gets or sets the version string (e.g., "111825_QFE2" or "042826_QFE3_EAC").
+    /// Format: MMDDYY_QFE#[_SUFFIX] where MM=month, DD=day, YY=year, #=QFE number.
+    /// The optional suffix (e.g. "_EAC") is build metadata that does not affect version ordering.
     /// </summary>
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;

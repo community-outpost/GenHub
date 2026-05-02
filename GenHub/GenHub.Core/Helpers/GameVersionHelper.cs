@@ -122,7 +122,9 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
-    /// Parses a version string (MMDDYY_QFE#) used by Generals Online.
+    /// Parses a version string (MMDDYY_QFE#[_SUFFIX]) used by Generals Online.
+    /// Supports extended formats like "042826_QFE3_EAC" — extra segments after
+    /// the QFE number are build metadata and do not affect version ordering.
     /// </summary>
     /// <param name="version">The version string to parse.</param>
     /// <returns>A tuple containing the extracted date and QFE number, or null if parsing fails.</returns>
@@ -135,9 +137,9 @@ public static partial class GameVersionHelper
 
         try
         {
-            // Format: MMDDYY_QFE# or DDMMYY_QFE# (General Online CDN uses MMDDYY)
+            // Format: MMDDYY_QFE#[_SUFFIX...] (Generals Online CDN uses MMDDYY)
             var parts = version.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length != 2)
+            if (parts.Length < 2)
             {
                 return null;
             }
@@ -164,7 +166,8 @@ public static partial class GameVersionHelper
 
     /// <summary>
     /// Gets a sortable integer version for Generals Online versions.
-    /// Converts "101525_QFE2" to 1015252.
+    /// Converts "101525_QFE2" to 1015252, "042826_QFE3_EAC" to 428263.
+    /// Build suffixes (e.g. _EAC) are ignored — only date and QFE affect ordering.
     /// </summary>
     /// <param name="version">The version string to convert.</param>
     /// <returns>A sortable integer, or 0 if parsing fails.</returns>

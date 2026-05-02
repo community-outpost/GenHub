@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -90,5 +91,52 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.True(result.Success);
         var item = result.Data.First();
         Assert.Equal("111825_QFE2", item.Version);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync correctly parses extended version format with build suffix.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ParseAsync_WithExtendedVersion_ParsesCorrectly()
+    {
+        // Arrange
+        var json = @"{
+            ""version"": ""042826_QFE3_EAC"",
+            ""download_url"": ""https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE3_EAC.zip"",
+            ""size"": 28277693,
+            ""release_notes"": ""www.playgenerals.online/updates"",
+            ""sha256"": ""abc123""
+        }";
+
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data!.First();
+        Assert.Equal("042826_QFE3_EAC", item.Version);
+        Assert.Equal("https://cdn.playgenerals.online/GeneralsOnline_portable_042826_QFE3_EAC.zip", item.GetData<GeneralsOnlineRelease>()!.PortableUrl);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync correctly handles latest.txt fallback with extended version.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ParseAsync_LatestFallbackExtendedVersion_ParsesCorrectly()
+    {
+        // Arrange
+        var wrapper = "{\"source\":\"latest\",\"version\":\"042826_QFE3_EAC\"}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data!.First();
+        Assert.Equal("042826_QFE3_EAC", item.Version);
     }
 }
