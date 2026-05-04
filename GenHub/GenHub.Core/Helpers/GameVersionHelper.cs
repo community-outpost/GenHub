@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text.RegularExpressions;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Helpers;
 
@@ -145,7 +146,7 @@ public static partial class GameVersionHelper
             }
 
             var datePart = parts[0];
-            var qfePart = parts[1].Replace("QFE", string.Empty, StringComparison.OrdinalIgnoreCase);
+            var qfePart = parts[1].Replace(GeneralsOnlineConstants.QfeMarkerPrefix, string.Empty, StringComparison.OrdinalIgnoreCase);
 
             if (datePart.Length != 6 || !int.TryParse(qfePart, out var qfe))
             {
