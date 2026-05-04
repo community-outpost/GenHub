@@ -408,6 +408,9 @@ public class GeneralsOnlineManifestFactory(
         var allFiles = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
         logger.LogInformation("Processing {Count} files", allFiles.Length);
 
+        // Track file metadata including isPlugin flag for diagnostic logging.
+        // Note: isPlugin is currently used only for logging; all non-map files
+        // (including plugins) are routed to GameClient manifests with Workspace install target.
         List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsPlugin)> filesWithHashes = [];
 
         // Detect Maps directory (case-insensitive)
@@ -416,7 +419,7 @@ public class GeneralsOnlineManifestFactory(
 
         // Detect plugins directory (case-insensitive) for EAC and other plugins
         var pluginsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(d => Path.GetFileName(d).Equals("plugins", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.PluginsSubdirectory, StringComparison.OrdinalIgnoreCase));
 
         foreach (var filePath in allFiles)
         {
