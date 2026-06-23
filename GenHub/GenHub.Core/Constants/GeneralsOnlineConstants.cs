@@ -100,9 +100,6 @@ public static class GeneralsOnlineConstants
     /// <summary>Subdirectory within the portable ZIP containing maps.</summary>
     public const string MapsSubdirectory = "Maps";
 
-    /// <summary>Subdirectory within the portable ZIP containing plugins (EAC, etc.).</summary>
-    public const string PluginsSubdirectory = "plugins";
-
     // ===== Component Identifiers =====
 
     /// <summary>Source name for Generals Online discoverer.</summary>

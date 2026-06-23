@@ -22,11 +22,19 @@ public static class VersionComparer
     {
         // Handle null/empty cases
         if (string.IsNullOrWhiteSpace(version1) && string.IsNullOrWhiteSpace(version2))
+        {
             return 0;
+        }
+
         if (string.IsNullOrWhiteSpace(version1))
+        {
             return -1;
+        }
+
         if (string.IsNullOrWhiteSpace(version2))
+        {
             return 1;
+        }
 
         // Determine comparison strategy based on publisher type
         if (string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
@@ -64,11 +72,20 @@ public static class VersionComparer
 
         // Both unparseable — fall back to generic numeric comparison
         if (parsed1 == null && parsed2 == null)
+        {
             return CompareNumericVersions(version1, version2);
+        }
 
         // Exactly one unparseable — treat unparseable as always older
-        if (parsed1 == null) return -1;
-        if (parsed2 == null) return 1;
+        if (parsed1 == null)
+        {
+            return -1;
+        }
+
+        if (parsed2 == null)
+        {
+            return 1;
+        }
 
         int dateCompare = parsed1.Value.Date.CompareTo(parsed2.Value.Date);
         if (dateCompare != 0)
@@ -200,22 +217,30 @@ public static class VersionComparer
     private static string NormalizeVersionString(string version)
     {
         if (string.IsNullOrWhiteSpace(version))
+        {
             return string.Empty;
+        }
 
         // Remove common prefixes that publishers use
         var normalized = version;
 
         // Remove weekly- prefix (SuperHackers)
         if (normalized.StartsWith("weekly-", StringComparison.OrdinalIgnoreCase))
+        {
             normalized = normalized.Substring(8); // Remove "weekly-"
+        }
 
         // Remove release- prefix
         if (normalized.StartsWith("release-", StringComparison.OrdinalIgnoreCase))
+        {
             normalized = normalized.Substring(9); // Remove "release-"
+        }
 
         // Remove version- prefix
         if (normalized.StartsWith("version-", StringComparison.OrdinalIgnoreCase))
+        {
             normalized = normalized.Substring(9); // Remove "version-"
+        }
 
         // Remove 'v' or 'V' prefix
         normalized = normalized.TrimStart('v', 'V');
@@ -267,13 +292,19 @@ public static class VersionComparer
 
             if (isDigit1 && isDigit2 && long.TryParse(segment1, out var num1) && long.TryParse(segment2, out var num2))
             {
-                if (num1 != num2) return num1.CompareTo(num2);
+                if (num1 != num2)
+                {
+                    return num1.CompareTo(num2);
+                }
             }
             else
             {
                 // For non-pure-numeric segments, compare the full original strings (case-insensitive)
                 var strCompare = string.Compare(rawSegment1, rawSegment2, StringComparison.OrdinalIgnoreCase);
-                if (strCompare != 0) return strCompare;
+                if (strCompare != 0)
+                {
+                    return strCompare;
+                }
             }
         }
 
@@ -307,7 +338,9 @@ public static class VersionComparer
     private static long? ExtractNumericFromDate(string dateStr)
     {
         if (string.IsNullOrWhiteSpace(dateStr))
+        {
             return null;
+        }
 
         // Remove common date separators
         var digits = dateStr.Replace("-", string.Empty)
@@ -328,7 +361,9 @@ public static class VersionComparer
     private static string ExtractDigits(string version)
     {
         if (string.IsNullOrWhiteSpace(version))
+        {
             return string.Empty;
+        }
 
         var result = new System.Text.StringBuilder();
         foreach (var c in version)

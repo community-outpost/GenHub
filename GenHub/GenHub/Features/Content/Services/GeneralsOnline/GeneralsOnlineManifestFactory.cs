@@ -408,18 +408,13 @@ public class GeneralsOnlineManifestFactory(
         var allFiles = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
         logger.LogInformation("Processing {Count} files", allFiles.Length);
 
-        // Track file metadata including isPlugin flag for diagnostic logging.
-        // Note: isPlugin is currently used only for logging; all non-map files
-        // (including plugins) are routed to GameClient manifests with Workspace install target.
-        List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsPlugin)> filesWithHashes = [];
+        // Track file metadata for manifest generation. Maps are routed to the MapPack
+        // manifest; all other files (executables, shared files) go to the GameClient manifest.
+        List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap)> filesWithHashes = [];
 
         // Detect Maps directory (case-insensitive)
         var mapsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
             .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
-
-        // Detect plugins directory (case-insensitive) for EAC and other plugins
-        var pluginsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.PluginsSubdirectory, StringComparison.OrdinalIgnoreCase));
 
         foreach (var filePath in allFiles)
         {
@@ -434,9 +429,6 @@ public class GeneralsOnlineManifestFactory(
             // Determine if this file is inside the Maps directory
             var isMap = mapsDirectory != null && filePath.StartsWith(mapsDirectory, StringComparison.OrdinalIgnoreCase);
 
-            // Determine if this file is inside the plugins directory (EAC, etc.)
-            var isPlugin = pluginsDirectory != null && filePath.StartsWith(pluginsDirectory, StringComparison.OrdinalIgnoreCase);
-
             string hash;
             using (var stream = File.OpenRead(filePath))
             {
@@ -444,8 +436,8 @@ public class GeneralsOnlineManifestFactory(
                 hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
 
-            filesWithHashes.Add((relativePath, fileInfo, hash, isMap, isPlugin));
-            logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap}, isPlugin: {IsPlugin})", relativePath, fileInfo.Length, hash[..8], isMap, isPlugin);
+            filesWithHashes.Add((relativePath, fileInfo, hash, isMap));
+            logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap})", relativePath, fileInfo.Length, hash[..8], isMap);
         }
 
         List<ContentManifest> updatedManifests = [];
@@ -458,7 +450,7 @@ public class GeneralsOnlineManifestFactory(
             if (isMapPackManifest)
             {
                 // MapPack manifest: only include map files with UserMapsDirectory install target
-                foreach (var (relativePath, fileInfo, hash, isMap, isPlugin) in filesWithHashes)
+                foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
                 {
                     if (!isMap)
                     {
@@ -472,12 +464,11 @@ public class GeneralsOnlineManifestFactory(
             }
             else
             {
-                // Game client manifest: include executables, shared files, plugin files (EAC), but NOT maps
+                // Game client manifest: include executables and shared files, but NOT maps
                 // Map files are handled by the MapPack manifest
-                // Plugin files (EAC DLLs, etc.) are included so they're copied to the workspace
                 var targetExecutable = GameClientConstants.GeneralsOnline60HzExecutable;
 
-                foreach (var (relativePath, fileInfo, hash, isMap, isPlugin) in filesWithHashes)
+                foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
                 {
                     var fileName = Path.GetFileName(relativePath);
                     var isExecutable = false;
@@ -509,7 +500,7 @@ public class GeneralsOnlineManifestFactory(
                     });
                 }
 
-                logger.LogInformation("GameClient manifest '{Name}' updated with {Count} files (including plugins)", manifest.Name, manifestFiles.Count);
+                logger.LogInformation("GameClient manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
             }
 
             updatedManifests.Add(new ContentManifest
