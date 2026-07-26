@@ -40,11 +40,6 @@ jobs:
           $version = "0.0.${{ github.run_number }}"
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Inject Secrets
-        shell: pwsh
-        run: |
-          ./.github/scripts/inject-token.ps1 -Token "${{ secrets.UPLOADTHING_TOKEN }}"
-
       - name: Publish Windows App
         shell: pwsh
         run: |
@@ -115,11 +110,6 @@ jobs:
 
       - name: Install Linux Dependencies
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libx11-dev
-
-      - name: Inject Secrets
-        shell: pwsh
-        run: |
-          ./.github/scripts/inject-token.ps1 -Token "${{ secrets.UPLOADTHING_TOKEN }}"
 
       - name: Publish Linux App
         run: |

@@ -42,14 +42,14 @@ public interface IUploadHistoryService
     Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync();
 
     /// <summary>
-    /// Removes a history item.
+    /// Removes an item from local history without deleting the hosted file.
     /// </summary>
     /// <param name="url">The URL.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task RemoveHistoryItemAsync(string url);
 
     /// <summary>
-    /// Clears the history.
+    /// Clears local history without deleting hosted files.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task ClearHistoryAsync();

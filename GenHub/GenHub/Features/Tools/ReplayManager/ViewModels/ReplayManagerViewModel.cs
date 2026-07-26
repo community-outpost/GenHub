@@ -200,7 +200,7 @@ public partial class ReplayManagerViewModel(
         {
             notificationService.ShowInfo(
                 "Remove From History",
-                "Removes the item from your local history. This frees up your upload quota immediately.");
+                "Removes the item from local history without deleting the hosted file.");
             return;
         }
 
@@ -208,7 +208,9 @@ public partial class ReplayManagerViewModel(
         {
             await uploadHistoryService.RemoveHistoryItemAsync(item.Url);
             await LoadHistoryAsync();
-            notificationService.ShowSuccess("Removed", "History item removed.");
+            notificationService.ShowSuccess(
+                "Removed",
+                "Removed from local history. The hosted file was not deleted.");
         }
         catch (Exception ex)
         {
@@ -229,7 +231,7 @@ public partial class ReplayManagerViewModel(
         {
             notificationService.ShowInfo(
                 "Clear History",
-                "Clears your entire local upload history. This frees up all your upload quota.");
+                "Clears local upload history without deleting hosted files.");
             return;
         }
 
@@ -237,7 +239,9 @@ public partial class ReplayManagerViewModel(
         {
             await uploadHistoryService.ClearHistoryAsync();
             await LoadHistoryAsync();
-            notificationService.ShowSuccess("Cleared", "All upload history cleared.");
+            notificationService.ShowSuccess(
+                "Cleared",
+                "Local history cleared. Hosted files were not deleted.");
         }
         catch (Exception ex)
         {

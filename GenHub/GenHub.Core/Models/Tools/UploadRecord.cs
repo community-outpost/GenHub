@@ -24,9 +24,4 @@ public sealed class UploadRecord
     /// Gets or sets the name of the uploaded file.
     /// </summary>
     public string? FileName { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether this item is queued for deletion.
-    /// </summary>
-    public bool IsPendingDeletion { get; set; }
 }

@@ -1081,7 +1081,7 @@ public partial class MapManagerViewModel : ObservableObject
         {
             _notificationService.ShowInfo(
                 "Remove From History",
-                "Removes the item from your local history. This frees up your upload quota immediately.");
+                "Removes the item from local history without deleting the hosted file.");
             return;
         }
 
@@ -1089,7 +1089,9 @@ public partial class MapManagerViewModel : ObservableObject
         {
             await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess("Removed", "History item removed.");
+            _notificationService.ShowSuccess(
+                "Removed",
+                "Removed from local history. The hosted file was not deleted.");
         }
         catch (Exception ex)
         {
@@ -1107,7 +1109,7 @@ public partial class MapManagerViewModel : ObservableObject
         {
             _notificationService.ShowInfo(
                 "Clear History",
-                "Clears your entire local upload history. This frees up all your upload quota.");
+                "Clears local upload history without deleting hosted files.");
             return;
         }
 
@@ -1115,7 +1117,9 @@ public partial class MapManagerViewModel : ObservableObject
         {
             await _uploadHistoryService.ClearHistoryAsync();
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess("Cleared", "All upload history cleared.");
+            _notificationService.ShowSuccess(
+                "Cleared",
+                "Local history cleared. Hosted files were not deleted.");
         }
         catch (Exception ex)
         {

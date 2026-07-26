@@ -4,7 +4,23 @@ This document describes the Uploading API and the `UploadThingService` implement
 
 ## Overview
 
-GenHub uses **UploadThing** (V7 API) as its primary cloud storage provider for sharing maps, replays, and other user-generated content. The uploading functionality is abstracted behind the `IUploadThingService` interface.
+GenHub can still import existing UploadThing links, but creating and deleting cloud
+uploads is temporarily disabled.
+
+## Security status
+
+The development build pipeline injected `UPLOADTHING_TOKEN` into desktop binaries
+using reversible XOR obfuscation. Any CI artifacts produced while that path was
+active must be treated as credential-bearing. The affected code was not present
+in the last public release.
+
+Repository owners must revoke and rotate the exposed UploadThing token. The
+replacement must not be added to GitHub Actions, source code, or desktop build
+artifacts.
+
+The application must keep uploads disabled until a trusted backend can authenticate
+the user and issue a narrowly scoped, short-lived credential or one-time signed
+upload URL. Long-lived provider credentials must remain server-side.
 
 ## IUploadThingService Interface
 
@@ -27,23 +43,25 @@ public interface IUploadThingService
 }
 ```
 
-## UploadThingService Implementation
+## Disabled UploadThingService Implementation
 
-The `UploadThingService` (in `GenHub.Features.Tools.Services`) implements the V7 UploadThing API. It requires a valid API token to function.
+The `UploadThingService` (in `GenHub.Features.Tools.Services`) is a fail-closed
+implementation. Upload requests return `null`, delete requests return `false`, and
+neither operation makes a network request.
 
-### Configuration
+The map and replay upload buttons are also disabled so users do not enter a flow
+that cannot complete. Importing existing public UploadThing links remains available.
 
-The service looks for the UploadThing token in the following environment variables (defined in `ApiConstants`):
+## Requirements for re-enabling uploads
 
-1.  `UPLOADTHING_TOKEN`
-2.  `GENHUB_UPLOADTHING_TOKEN` (Fallback)
+Before uploads are re-enabled:
 
-### Implementation Details
-
-The upload process follows the UploadThing V7 flow:
-1.  **Prepare Upload**: Sends a POST request to `https://api.uploadthing.com/v7/prepareUpload` with file metadata.
-2.  **Binary Upload**: Performs a PUT request to the presigned URL returned in the preparation step.
-3.  **URL Generation**: Constructs the public URL using the format `https://utfs.io/f/{key}`.
+- A trusted backend must hold the UploadThing provider credential.
+- The client must receive only narrowly scoped, short-lived authorization.
+- Authorization must be constrained by file size, content type, and expiration.
+- Upload and delete paths must have tests proving that expired or over-scoped
+  credentials are rejected.
+- No reusable secret may be written into source files or packaged binaries.
 
 ## Dependency Injection
 
@@ -57,31 +75,8 @@ public static IServiceCollection AddUploadThingServices(this IServiceCollection 
 }
 ```
 
-## Usage Example
-
-```csharp
-public class MyViewModel(IUploadThingService uploadService)
-{
-    public async Task ShareFile(string path)
-    {
-        var url = await uploadService.UploadFileAsync(path, new Progress<double>(p => 
-        {
-            Console.WriteLine($"Upload progress: {p:P0}");
-        }));
-
-        if (url != null)
-        {
-            Console.WriteLine($"File shared at: {url}");
-        }
-    }
-}
-```
-
 ## Constants
 
-Key constants used by the Uploading API (defined in `ApiConstants`):
-
-- `UploadThingApiVersion`: `"7.7.4"`
-- `UploadThingPrepareUrl`: `https://api.uploadthing.com/v7/prepareUpload`
-- `UploadThingPublicUrlFormat`: `https://utfs.io/f/{0}`
-- `MediaTypeZip`: `"application/zip"`
+Only `UploadThingUrlFragment` remains in `ApiConstants`, because it is needed to
+recognize existing public links during import. Credential names, API-key headers,
+provider endpoints, and build-time token decoding have been removed.

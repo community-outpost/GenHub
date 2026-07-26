@@ -41,16 +41,6 @@ public static class LogMessages
     public const string FailedToDeleteReplay = "Failed to delete replay: {Path}";
 
     /// <summary>
-    /// Log message for uploading to UploadThing.
-    /// </summary>
-    public const string UploadingToUploadThing = "Uploading to UploadThing V7: {Path}";
-
-    /// <summary>
-    /// Log message for successful UploadThing upload.
-    /// </summary>
-    public const string UploadThingSuccessful = "UploadThing V7 successful. Public URL: {Url}";
-
-    /// <summary>
     /// Log message for failed ZIP creation.
     /// </summary>
     public const string FailedToCreateZip = "Failed to create ZIP: {Path}";

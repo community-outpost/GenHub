@@ -123,11 +123,6 @@ jobs:
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "CHANNEL=$channel" >> $env:GITHUB_OUTPUT
 
-      - name: Inject Secrets
-        shell: pwsh
-        run: |
-          ./.github/scripts/inject-token.ps1 -Token "${{ secrets.UPLOADTHING_TOKEN }}"
-
       - name: Build Projects
         shell: pwsh
         run: |
@@ -284,11 +279,6 @@ jobs:
           echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Inject Secrets
-        shell: pwsh
-        run: |
-          ./.github/scripts/inject-token.ps1 -Token "${{ secrets.UPLOADTHING_TOKEN }}"
 
       - name: Build Projects
         run: |

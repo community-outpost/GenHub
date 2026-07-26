@@ -167,9 +167,9 @@
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary" IsEnabled="{Binding SelectedReplays.Count}"
+                    Classes="Primary" IsEnabled="False"
                     CornerRadius="4,0,0,4"
-                    ToolTip.Tip="Upload the selected replays to the cloud (UploadThing) and copy the shareable link to your clipboard.">
+                    ToolTip.Tip="Cloud uploads are temporarily disabled while short-lived credentials are implemented.">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="☁️"/>
                 <TextBlock Text="Upload"/>

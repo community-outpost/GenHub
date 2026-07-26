@@ -29,14 +29,11 @@ URI scheme constants for handling different types of URIs and paths.
 - `AvarUriScheme`: URI scheme for Avalonia embedded resources (`"avares://"`)
 - `HttpUriScheme`: HTTP URI scheme (`"http://"`)
 - `UploadThingUrlFragment`: URL fragment for identification (`"utfs.io/f/"`)
-- `UploadThingTokenEnvVar`: Token environment variable (`"UPLOADTHING_TOKEN"`)
-- `UploadThingTokenEnvVarAlt`: Alternative token environment variable (`"GENHUB_UPLOADTHING_TOKEN"`)
-- `UploadThingApiKeyHeader`: API key header name (`"x-uploadthing-api-key"`)
-- `UploadThingVersionHeader`: API version header name (`"x-uploadthing-version"`)
+- Upload and credential constants were removed while cloud uploads are disabled.
+  `UploadThingUrlFragment` remains only for importing existing public links.
 
 ### Media Types
 
-- `MediaTypeZip`: Media type for ZIP files (`"application/zip"`)
 
 - `HttpsUriScheme`: HTTPS URI scheme (`"https://"`)
 - `GeneralsIconUri`: Icon URI for Generals game type (`"avares://GenHub/Assets/Icons/generals-icon.png"`)
