@@ -58,4 +58,19 @@ public class GameVersionHelperTests
     {
         Assert.Equal(20260116, GameVersionHelper.GetGeneralsOnlineManifestIdComponent("2026-01-16"));
     }
+
+    /// <summary>
+    /// Verifies that malformed, signed, and overflowing QFE values use the established
+    /// digit-extraction fallback instead of producing wrapped manifest IDs.
+    /// </summary>
+    /// <param name="version">The malformed or overflowing version string.</param>
+    /// <param name="expected">The expected fallback component.</param>
+    [Theory]
+    [InlineData("101525_QFE-1", 1015251)]
+    [InlineData("101525_QFEQFE-2", 1015252)]
+    [InlineData("101525_QFE2147483647", 1015252147)]
+    public void GetGeneralsOnlineManifestIdComponent_FallsBackForInvalidQfe(string version, int expected)
+    {
+        Assert.Equal(expected, GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));
+    }
 }

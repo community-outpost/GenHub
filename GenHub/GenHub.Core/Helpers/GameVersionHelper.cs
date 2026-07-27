@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -152,10 +153,14 @@ public static partial class GameVersionHelper
         }
 
         var datePart = parts[0];
-        var qfePart = parts[1].Replace("QFE", string.Empty, StringComparison.OrdinalIgnoreCase);
+        var qfePart = parts[1];
+        var hasQfePrefix = qfePart.StartsWith("QFE", StringComparison.OrdinalIgnoreCase);
+        var qfeDigits = hasQfePrefix ? qfePart[3..] : string.Empty;
 
         if (datePart.Length != 6
-            || !int.TryParse(qfePart, out var qfe)
+            || qfeDigits.Length == 0
+            || !qfeDigits.All(character => character is >= '0' and <= '9')
+            || !int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe)
             || !int.TryParse(datePart[0..2], out var month)
             || !int.TryParse(datePart[2..4], out var day)
             || !int.TryParse(datePart[4..6], out var twoDigitYear))
@@ -167,9 +172,13 @@ public static partial class GameVersionHelper
         {
             var date = new DateTime(2000 + twoDigitYear, month, day);
             var mmddyy = int.Parse(date.ToString("MMddyy"));
-            return (mmddyy * 10) + qfe;
+            return checked((mmddyy * 10) + qfe);
         }
         catch (ArgumentOutOfRangeException)
+        {
+            return ExtractVersionFromVersionString(version);
+        }
+        catch (OverflowException)
         {
             return ExtractVersionFromVersionString(version);
         }
