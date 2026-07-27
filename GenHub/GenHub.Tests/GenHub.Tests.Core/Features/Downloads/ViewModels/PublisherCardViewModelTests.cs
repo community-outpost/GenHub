@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -162,6 +163,57 @@ public class PublisherCardViewModelTests
         // Assert
         clientItem.IsInstalled.Should().BeTrue("GameClient should match based on version even if name differs");
         clientItem.AvailableVariants.Should().ContainSingle();
+    }
+
+    /// <summary>
+    /// Verifies the Downloads badge uses calendar-aware Generals Online ordering across
+    /// a year boundary instead of the legacy MMDDYY manifest-ID component.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RefreshInstallationStatus_GeneralsOnlineAcrossYearBoundary_ShowsUpdate()
+    {
+        var vm = CreateSystem();
+        vm.PublisherId = PublisherTypeConstants.GeneralsOnline;
+
+        var availableItem = new ContentItemViewModel(new ContentSearchResult
+        {
+            Id = "GeneralsOnline_060526_QFE1",
+            Name = "Generals Online",
+            Version = "060526_QFE1",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+            AuthorName = "Generals Online Team",
+            LastUpdated = DateTime.Now,
+        });
+
+        vm.ContentTypes.Add(new ContentTypeGroup
+        {
+            DisplayName = "Game Clients",
+            Type = GenHub.Core.Models.Enums.ContentType.GameClient,
+            Items = [availableItem],
+        });
+
+        var installedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1215251.generalsonline.gameclient.60hz"),
+            Name = "Generals Online",
+            Version = "121525_QFE1",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            Publisher = new PublisherInfo
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+        };
+
+        _manifestPoolMock
+            .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([installedManifest]));
+
+        await vm.RefreshInstallationStatusAsync();
+
+        availableItem.IsUpdateAvailable.Should().BeTrue();
+        availableItem.UpdateAvailableVersion.Should().Be("060526_QFE1");
     }
 
     private PublisherCardViewModel CreateSystem()
