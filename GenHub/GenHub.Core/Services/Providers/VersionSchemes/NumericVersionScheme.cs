@@ -11,8 +11,6 @@ namespace GenHub.Core.Services.Providers.VersionSchemes;
 /// </summary>
 public sealed class NumericVersionScheme : VersionSchemeBase
 {
-    private const long DateStampFloor = 100000;
-
     private static readonly string[] KnownPrefixes = ["weekly-", "release-", "version-"];
 
     /// <inheritdoc/>
@@ -30,7 +28,7 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
         var normalized = Normalize(version);
 
-        if (TryParseNumericValue(normalized, out var whole))
+        if (TryParseNumericValue(normalized, out var whole, out _))
         {
             result = new ContentVersion(whole);
             return true;
@@ -66,8 +64,8 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         var normalized1 = Normalize(version1);
         var normalized2 = Normalize(version2);
 
-        var isNumeric1 = TryParseNumericValue(normalized1, out var numeric1);
-        var isNumeric2 = TryParseNumericValue(normalized2, out var numeric2);
+        var isNumeric1 = TryParseNumericValue(normalized1, out var numeric1, out var isDateStamp1);
+        var isNumeric2 = TryParseNumericValue(normalized2, out var numeric2, out var isDateStamp2);
 
         if (isNumeric1 && isNumeric2)
         {
@@ -79,12 +77,12 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
         // A dotted version with a major of 1 or higher outranks a bare date stamp,
         // so "1.20260116" is newer than "20260116" rather than astronomically older.
-        if (hasDot1 && isNumeric2 && OutranksDateStamp(normalized1, numeric2))
+        if (hasDot1 && isDateStamp2 && OutranksDateStamp(normalized1))
         {
             return 1;
         }
 
-        if (isNumeric1 && hasDot2 && OutranksDateStamp(normalized2, numeric1))
+        if (isDateStamp1 && hasDot2 && OutranksDateStamp(normalized2))
         {
             return -1;
         }
@@ -112,13 +110,8 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         return string.Compare(version1, version2, StringComparison.Ordinal);
     }
 
-    private static bool OutranksDateStamp(string dottedVersion, long dateStamp)
+    private static bool OutranksDateStamp(string dottedVersion)
     {
-        if (dateStamp <= DateStampFloor)
-        {
-            return false;
-        }
-
         var major = dottedVersion.Split('.')[0].TrimStart('v', 'V');
         return int.TryParse(major, out var majorNumber) && majorNumber >= 1;
     }
@@ -146,21 +139,34 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         return normalized;
     }
 
-    private static bool TryParseNumericValue(string normalized, out long value)
+    private static bool TryParseNumericValue(
+        string normalized,
+        out long value,
+        out bool isDateStamp)
     {
+        isDateStamp = false;
+
         // Preserve the declared six-character YYMMDD width before numeric parsing,
-        // including a leading zero. Only valid calendar dates receive 20xx expansion;
-        // other six-digit values remain ordinary numeric versions.
-        if (normalized.Length == 6
+        // including a leading zero, and validate full YYYYMMDD values before treating
+        // either form as a date stamp.
+        var dateCandidate = normalized.Length switch
+        {
+            6 => $"20{normalized}",
+            8 => normalized,
+            _ => null,
+        };
+
+        if (dateCandidate is not null
             && normalized.All(char.IsDigit)
             && DateTime.TryParseExact(
-                $"20{normalized}",
+                dateCandidate,
                 "yyyyMMdd",
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
                 out _)
-            && long.TryParse($"20{normalized}", NumberStyles.None, CultureInfo.InvariantCulture, out value))
+            && long.TryParse(dateCandidate, NumberStyles.None, CultureInfo.InvariantCulture, out value))
         {
+            isDateStamp = true;
             return true;
         }
 

@@ -79,6 +79,7 @@ public class ContentVersionComparerTests
     [InlineData("20260116", "260116", 0)]
     [InlineData("270116", "260116", 1)]
     [InlineData("010126", "20010126", 0)]
+    [InlineData("300101", "20300101", 0)]
     [InlineData("1.20260116", "20260116", 1)]
     [InlineData("weekly-2025-12-26", "weekly-2025-11-21", 1)]
     public void Compare_TheSuperHackers_ReturnsCorrectOrder(string version1, string version2, int expected)
@@ -107,6 +108,8 @@ public class ContentVersionComparerTests
     [InlineData("1.08", "1.04", 1)]
     [InlineData("release-1.1", "2.0", -1)]
     [InlineData("version-2.0", "v1.9", 1)]
+    [InlineData("1.0", "999999", -1)]
+    [InlineData("999999", "1.0", 1)]
     public void Compare_UnknownPublisher_UsesDefaultScheme(string version1, string version2, int expected)
     {
         var result = _comparer.Compare(version1, version2, null);
