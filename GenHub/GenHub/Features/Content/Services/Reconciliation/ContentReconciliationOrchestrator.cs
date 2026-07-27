@@ -155,6 +155,12 @@ public class ContentReconciliationOrchestrator(
                         casObjectsCollected = gcResult.Data.ObjectsDeleted;
                         bytesFreed = gcResult.Data.BytesFreed;
                     }
+                    else
+                    {
+                        var warning = gcResult.FirstError ?? "Garbage collection did not run";
+                        warnings.Add(warning);
+                        logger.LogWarning("[Orchestrator:{OpId}] {Warning}", operationId, warning);
+                    }
                 }
             }
 
@@ -267,6 +273,7 @@ public class ContentReconciliationOrchestrator(
         var stopwatch = Stopwatch.StartNew();
         var operationId = Guid.NewGuid().ToString("N")[..ReconciliationConstants.OperationIdLength];
         var ids = manifestIds.ToList();
+        var warnings = new List<string>();
 
         logger.LogInformation(
             "[Orchestrator:{OpId}] Starting content removal for {Count} manifests",
@@ -366,6 +373,12 @@ public class ContentReconciliationOrchestrator(
                     casObjectsCollected = gcResult.Data.ObjectsDeleted;
                     bytesFreed = gcResult.Data.BytesFreed;
                 }
+                else
+                {
+                    var warning = gcResult.FirstError ?? "Garbage collection did not run";
+                    warnings.Add(warning);
+                    logger.LogWarning("[Orchestrator:{OpId}] {Warning}", operationId, warning);
+                }
             }
 
             stopwatch.Stop();
@@ -378,6 +391,7 @@ public class ContentReconciliationOrchestrator(
                 CasObjectsCollected = casObjectsCollected,
                 BytesFreed = bytesFreed,
                 Duration = stopwatch.Elapsed,
+                Warnings = warnings,
             };
 
             await auditLog.LogOperationAsync(

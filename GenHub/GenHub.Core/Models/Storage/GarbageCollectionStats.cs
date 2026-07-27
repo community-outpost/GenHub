@@ -43,6 +43,11 @@ public record GarbageCollectionStats
     public bool InProgress { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether collection was blocked because destructive GC is disabled.
+    /// </summary>
+    public bool Disabled { get; init; }
+
+    /// <summary>
     /// Gets a static instance representing a skipped GC operation.
     /// </summary>
     public static GarbageCollectionStats SkippedResult { get; } = new()
@@ -68,5 +73,20 @@ public record GarbageCollectionStats
         Duration = TimeSpan.Zero,
         Skipped = true,
         InProgress = true,
+    };
+
+    /// <summary>
+    /// Gets a static instance representing fail-closed disabled garbage collection.
+    /// </summary>
+    public static GarbageCollectionStats DisabledResult { get; } = new()
+    {
+        ObjectsScanned = 0,
+        ObjectsReferenced = 0,
+        ObjectsDeleted = 0,
+        BytesFreed = 0,
+        Duration = TimeSpan.Zero,
+        Skipped = true,
+        InProgress = false,
+        Disabled = true,
     };
 }

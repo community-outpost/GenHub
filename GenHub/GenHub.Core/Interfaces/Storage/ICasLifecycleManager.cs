@@ -37,13 +37,13 @@ public interface ICasLifecycleManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs garbage collection immediately.
-    /// Should only be called AFTER all untrack operations are complete.
+    /// Requests garbage collection.
+    /// Destructive collection is currently disabled until reachability tracking is proven complete.
     /// </summary>
     /// <param name="force">Whether to force collection regardless of grace period.</param>
     /// <param name="lockTimeout">Optional timeout to wait for the GC lock. Defaults to 5 seconds if not specified.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Result with GC statistics.</returns>
+    /// <returns>A disabled result with zero deletion statistics.</returns>
     Task<OperationResult<GarbageCollectionStats>> RunGarbageCollectionAsync(
         bool force = false,
         TimeSpan? lockTimeout = null,

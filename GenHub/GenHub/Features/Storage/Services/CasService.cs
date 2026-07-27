@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -25,8 +26,6 @@ public class CasService(
     IStreamHashProvider streamHashProvider,
     ICasPoolManager? poolManager = null) : ICasService
 {
-    private readonly CasConfiguration _config = config.Value;
-
     /// <inheritdoc/>
     public async Task<OperationResult<string>> StoreContentAsync(string sourcePath, string? expectedHash = null, CancellationToken cancellationToken = default)
     {
@@ -257,68 +256,21 @@ public class CasService(
     }
 
     /// <inheritdoc/>
-    public async Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(bool force = false, CancellationToken cancellationToken = default)
+    public Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(
+        bool force = false,
+        CancellationToken cancellationToken = default)
     {
-        var startTime = DateTime.UtcNow;
-        var result = new CasGarbageCollectionResult(true, (string?)null);
+        _ = referenceTracker;
+        _ = config;
 
-        try
-        {
-            logger.LogInformation("Starting CAS garbage collection (force={Force})", force);
-
-            // Get all objects in CAS
-            var allHashes = await storage.GetAllObjectHashesAsync(cancellationToken);
-            result.ObjectsScanned = allHashes.Length;
-
-            // Get all referenced hashes
-            var referencedHashes = await referenceTracker.GetAllReferencedHashesAsync(cancellationToken);
-            result.ObjectsReferenced = referencedHashes.Count;
-
-            // Find unreferenced objects
-            var unreferencedHashes = System.Linq.Enumerable.Except(allHashes, referencedHashes);
-
-            // Use configurable grace period unless forced
-            var gracePeriod = force ? TimeSpan.Zero : _config.GcGracePeriod;
-            long bytesFreed = 0;
-            int objectsDeleted = 0;
-
-            foreach (var hash in unreferencedHashes)
-            {
-                try
-                {
-                    var creationTime = await storage.GetObjectCreationTimeAsync(hash, cancellationToken);
-                    if (force || creationTime == null || DateTime.UtcNow - creationTime.Value > gracePeriod)
-                    {
-                        // Get size before deletion
-                        var objectPath = storage.GetObjectPath(hash);
-                        if (File.Exists(objectPath))
-                        {
-                            var fileInfo = new FileInfo(objectPath);
-                            bytesFreed += fileInfo.Length;
-                        }
-
-                        await storage.DeleteObjectAsync(hash, cancellationToken);
-                        objectsDeleted++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to delete unreferenced object {Hash}", hash);
-                }
-            }
-
-            result.ObjectsDeleted = objectsDeleted;
-            result.BytesFreed = bytesFreed;
-
-            logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed} bytes freed", objectsDeleted, bytesFreed);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "CAS garbage collection failed");
-            result = new CasGarbageCollectionResult(false, ex.Message, DateTime.UtcNow - startTime);
-        }
-
-        return result;
+        // Re-enable only after references cover every persisted manifest, workspace, user-data
+        // link, and CAS pool; startup can rebuild and audit that graph; and crash/concurrency
+        // tests prove that no live blob can be classified as unreachable.
+        logger.LogWarning(
+            "{Message} Requested force={Force}",
+            CasDefaults.GarbageCollectionDisabledMessage,
+            force);
+        return Task.FromResult(CasGarbageCollectionResult.CreateDisabled());
     }
 
     /// <inheritdoc/>

@@ -256,4 +256,28 @@ public class ContentReconciliationServiceTests
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    /// <summary>
+    /// Verifies that scheduled garbage collection reports the fail-closed disabled result.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ScheduleGarbageCollectionAsync_WhenDisabled_ReturnsFailure()
+    {
+        _casServiceMock
+            .Setup(service => service.RunGarbageCollectionAsync(
+                It.IsAny<bool>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GarbageCollectionStats>.CreateFailure(
+                GenHub.Core.Constants.CasDefaults.GarbageCollectionDisabledMessage,
+                GarbageCollectionStats.DisabledResult,
+                TimeSpan.Zero));
+
+        var result = await _service.ScheduleGarbageCollectionAsync(force: true);
+
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Be(
+            GenHub.Core.Constants.CasDefaults.GarbageCollectionDisabledMessage);
+    }
 }

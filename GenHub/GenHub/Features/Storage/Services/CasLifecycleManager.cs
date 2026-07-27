@@ -181,8 +181,19 @@ public class CasLifecycleManager(
                 ObjectsDeleted = gcResult.ObjectsDeleted,
                 BytesFreed = gcResult.BytesFreed,
                 Duration = stopwatch.Elapsed,
-                Skipped = false,
+                Skipped = gcResult.Disabled,
+                Disabled = gcResult.Disabled,
             };
+
+            if (!gcResult.Success)
+            {
+                var error = gcResult.FirstError ?? "CAS garbage collection failed";
+                logger.LogWarning("Garbage collection did not run: {Error}", error);
+                return OperationResult<GarbageCollectionStats>.CreateFailure(
+                    error,
+                    stats,
+                    stopwatch.Elapsed);
+            }
 
             logger.LogInformation(
                 "GC completed: scanned={Scanned}, referenced={Referenced}, deleted={Deleted}, freed={Bytes} bytes",

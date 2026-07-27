@@ -76,7 +76,13 @@ public class CasMaintenanceService(
         // Run garbage collection
         var gcResult = await casService.RunGarbageCollectionAsync(cancellationToken: cancellationToken);
 
-        if (gcResult.Success)
+        if (gcResult.Disabled)
+        {
+            logger.LogWarning(
+                "CAS garbage collection did not run: {Reason}",
+                gcResult.FirstError);
+        }
+        else if (gcResult.Success)
         {
             logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Elapsed);
         }

@@ -53,11 +53,12 @@ public interface ICasService
     Task<OperationResult<Stream>> OpenContentStreamAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs garbage collection to remove unreferenced content.
+    /// Requests garbage collection of unreferenced content.
+    /// Destructive collection is currently disabled until reachability tracking is proven complete.
     /// </summary>
     /// <param name="force">If true, ignores the grace period and deletes all unreferenced objects immediately.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The result of the garbage collection operation.</returns>
+    /// <returns>A clear disabled result; no CAS blobs are deleted.</returns>
     Task<CasGarbageCollectionResult> RunGarbageCollectionAsync(bool force = false, CancellationToken cancellationToken = default);
 
     /// <summary>

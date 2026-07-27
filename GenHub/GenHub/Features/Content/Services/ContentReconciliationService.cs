@@ -354,9 +354,14 @@ public class ContentReconciliationService(
                 try
                 {
                     var gcResult = await casLifecycleManager.RunGarbageCollectionAsync(force, lockTimeout: null, cancellationToken);
-                    return gcResult.Success
-                        ? OperationResult.CreateSuccess()
-                        : OperationResult.CreateFailure(gcResult.FirstError ?? "GC failed");
+                    if (gcResult.Success)
+                    {
+                        return OperationResult.CreateSuccess();
+                    }
+
+                    var error = gcResult.FirstError ?? "GC failed";
+                    logger.LogWarning("Scheduled garbage collection did not run: {Error}", error);
+                    return OperationResult.CreateFailure(error);
                 }
                 catch (OperationCanceledException)
                 {

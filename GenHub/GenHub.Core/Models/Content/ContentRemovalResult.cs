@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Content;
 
@@ -36,4 +37,9 @@ public record ContentRemovalResult
     /// Gets the duration of the operation.
     /// </summary>
     public TimeSpan Duration { get; init; }
+
+    /// <summary>
+    /// Gets non-fatal warnings reported during removal.
+    /// </summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
 }
