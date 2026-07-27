@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,19 +20,49 @@ namespace GenHub.Features.Launching;
 /// Service for preparing game directories for Steam-tracked profile launches.
 /// This approach uses a "Proxy Launcher" mechanism:
 /// 1. We start a Workspace as usual (isolated environment).
-/// 2. We drop a sidecar ProxyLauncher.exe next to the original game executables (we do NOT overwrite them).
+/// 2. We back up and replace the original game executable with the proxy.
 /// 3. We write a proxy_config.json telling the Proxy to launch the Workspace executable using direct paths.
-/// 4. Steam launch options can point at the sidecar proxy; the proxy then runs the Workspace game.
+/// 4. Steam launches the proxy under the original executable name; the proxy then runs the Workspace game.
 ///
 /// Each profile uses its own adjacent workspace: {installationRoot}\.genhub-workspace\{profileId}\
 /// The proxy_config.json is regenerated on each launch with the correct workspace paths for that profile.
-/// This keeps the game directory clean (no exe replacement) while maintaining Steam integration.
 /// </summary>
-public class SteamLauncher(
-    ILogger<SteamLauncher> logger) : ISteamLauncher
+public class SteamLauncher : ISteamLauncher
 {
     private const string ProxyConfigFileName = "proxy_config.json";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    private readonly ILogger<SteamLauncher> _logger;
+    private readonly string? _proxySourcePathOverride;
+    private readonly Func<string, string, CancellationToken, Task> _writeAllTextAsync;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SteamLauncher"/> class.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    public SteamLauncher(ILogger<SteamLauncher> logger)
+        : this(logger, null, File.WriteAllTextAsync)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SteamLauncher"/> class with test seams.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="proxySourcePathOverride">An optional proxy source path override.</param>
+    /// <param name="writeAllTextAsync">The text file writer.</param>
+    internal SteamLauncher(
+        ILogger<SteamLauncher> logger,
+        string? proxySourcePathOverride,
+        Func<string, string, CancellationToken, Task> writeAllTextAsync)
+    {
+        _logger = logger;
+        _proxySourcePathOverride = proxySourcePathOverride;
+        _writeAllTextAsync = writeAllTextAsync;
+    }
 
     /// <summary>
     /// Configuration for the proxy launcher.
@@ -58,151 +90,76 @@ public class SteamLauncher(
         string? steamAppId = null,
         CancellationToken cancellationToken = default)
     {
+        PreparationRollback? rollback = null;
+
         try
         {
-            logger.LogInformation(
+            _logger.LogInformation(
                 "[SteamLauncher] Preparing game directory {Path} for profile {ProfileId} using Proxy Launcher",
                 gameInstallPath,
                 profileId);
 
-            var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
-            var proxyDeployPath = Path.Combine(gameInstallPath, SteamConstants.ProxyLauncherFileName);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            // 1. Ensure we have the ProxyLauncher binary available
-            var currentBaseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var proxySourcePath = Path.Combine(currentBaseDir, SteamConstants.ProxyLauncherFileName);
-
+            // Validate every prerequisite that can be checked without changing the installation.
+            var proxySourcePath = ResolveProxySourcePath();
             if (!File.Exists(proxySourcePath))
             {
-                logger.LogDebug("[SteamLauncher] Proxy Launcher not found in base directory: {Path}. Checking fallbacks...", proxySourcePath);
-
-                // Fallback 1: Development path relative to typical bin output structure
-                var devPaths = new[]
-                {
-                    Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Debug", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-                    Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Release", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
-                    Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", "GenHub.ProxyLauncher.exe")), // In case it's in a subfolder
-                };
-
-                foreach (var devPath in devPaths)
-                {
-                    if (File.Exists(devPath))
-                    {
-                        proxySourcePath = devPath;
-                        break;
-                    }
-                }
-
-                if (!File.Exists(proxySourcePath))
-                {
-                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                        $"Proxy Launcher binary not found at {proxySourcePath}. Please build GenHub.ProxyLauncher project.");
-                }
-            }
-
-            // 2. Deploy Proxy Launcher as the game executable
-            // Steam launches the game executable (e.g., generals.exe), so we replace it with our proxy.
-            // The proxy then launches the actual workspace executable.
-            // Original game exe is backed up to .ghbak for restoration and version detection.
-            var targetExeName = executableName; // e.g., "generals.exe" or "game.exe" (Zero Hour)
-            var targetExePath = Path.Combine(gameInstallPath, targetExeName);
-            var backupPath = targetExePath + SteamConstants.BackupExtension;
-
-            // Backup original executable if not already backed up
-            if (!File.Exists(backupPath) && File.Exists(targetExePath))
-            {
-                logger.LogInformation(
-                    "[SteamLauncher] Backing up original {Exe} to {Backup}",
-                    targetExeName,
-                    Path.GetFileName(backupPath));
-
-                try
-                {
-                    File.Copy(targetExePath, backupPath, overwrite: false);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "[SteamLauncher] Failed to create backup of {Exe}", targetExeName);
-                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                        $"Failed to backup original executable: {ex.Message}");
-                }
-            }
-
-            // Deploy proxy (always overwrite - if backup exists, target is our old proxy)
-            logger.LogInformation("[SteamLauncher] Deploying proxy launcher as {Exe}", targetExeName);
-
-            try
-            {
-                // Try to kill any running instances of the target executable to release file lock
-                var processName = Path.GetFileNameWithoutExtension(targetExePath);
-                var runningProcesses = Process.GetProcessesByName(processName);
-                foreach (var process in runningProcesses)
-                {
-                    try
-                    {
-                        if (process.MainModule?.FileName?.Equals(targetExePath, StringComparison.OrdinalIgnoreCase) == true)
-                        {
-                            logger.LogWarning(
-                                "[SteamLauncher] Killing running process {ProcessName} ({Pid}) to update proxy",
-                                process.ProcessName,
-                                process.Id);
-                            process.Kill();
-                            process.WaitForExit(1000);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "[SteamLauncher] Failed to kill process {Pid}", process.Id);
-                    }
-                }
-
-                // Wait briefly for file lock to release
-                if (runningProcesses.Length > 0)
-                {
-                    Thread.Sleep(500);
-                }
-
-                File.Copy(proxySourcePath, targetExePath, overwrite: true);
-                logger.LogInformation("[SteamLauncher] Successfully deployed proxy as {Exe}", targetExeName);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "[SteamLauncher] Failed to deploy proxy as {Exe}", targetExeName);
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
-                    $"Failed to deploy proxy launcher: {ex.Message}");
+                    $"Proxy Launcher binary not found at {proxySourcePath}. Please build GenHub.ProxyLauncher project.");
             }
 
-            var primaryDeployedPath = targetExePath;
+            gameInstallPath = Path.GetFullPath(gameInstallPath);
+            if (!Directory.Exists(gameInstallPath))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Game installation directory not found: {gameInstallPath}");
+            }
 
-            // 3. Create Proxy Config (always points to the workspace executable)
-            var effectiveTargetExecutable = targetExecutablePath;
+            var targetExePath = Path.Combine(gameInstallPath, executableName);
+            var backupPath = targetExePath + SteamConstants.BackupExtension;
+            var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
 
-            // Validate that the target executable exists
+            if (Directory.Exists(targetExePath))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Game executable path is a directory: {targetExePath}");
+            }
+
+            if (!File.Exists(targetExePath) && !File.Exists(backupPath))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Original game executable not found: {targetExePath}");
+            }
+
+            if (Directory.Exists(backupPath))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Backup executable path is a directory: {backupPath}");
+            }
+
+            var effectiveTargetExecutable = Path.GetFullPath(targetExecutablePath);
             if (!File.Exists(effectiveTargetExecutable))
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
                     $"Target executable not found: {effectiveTargetExecutable}. Workspace may not be properly prepared.");
             }
 
-            // Ensure paths are absolute
-            effectiveTargetExecutable = Path.GetFullPath(effectiveTargetExecutable);
             var effectiveWorkingDirectory = string.IsNullOrEmpty(targetWorkingDirectory)
                 ? Path.GetDirectoryName(effectiveTargetExecutable) ?? string.Empty
                 : Path.GetFullPath(targetWorkingDirectory);
 
-            // Use direct workspace paths - proxy_config.json is regenerated on each launch with correct paths
-            // Each profile uses its own adjacent workspace: {installationRoot}\.genhub-workspace\{profileId}\
-            // This removes the .genhub-workspace-active junction indirection layer
-            logger.LogInformation(
-                "[SteamLauncher] Using direct workspace paths - Target: {Target}, WorkDir: {WorkDir}",
-                effectiveTargetExecutable,
-                effectiveWorkingDirectory);
-
-            // Validate working directory exists
             if (!Directory.Exists(effectiveWorkingDirectory))
             {
                 return OperationResult<SteamLaunchPrepResult>.CreateFailure(
                     $"Working directory not found: {effectiveWorkingDirectory}");
+            }
+
+            var targetDirectory = Path.GetDirectoryName(effectiveTargetExecutable);
+            if (string.IsNullOrEmpty(targetDirectory) || !Directory.Exists(targetDirectory))
+            {
+                return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                    $"Target executable directory not found: {targetDirectory}");
             }
 
             var config = new ProxyConfig
@@ -214,52 +171,84 @@ public class SteamLauncher(
             };
 
             var configJson = JsonSerializer.Serialize(config, JsonOptions);
-            await File.WriteAllTextAsync(proxyConfigPath, configJson, cancellationToken);
-            logger.LogInformation("[SteamLauncher] Wrote proxy config to {Path}", proxyConfigPath);
-            logger.LogInformation(
+            var appIdDirectories = string.IsNullOrEmpty(steamAppId)
+                ? []
+                : new[] { effectiveWorkingDirectory, targetDirectory, gameInstallPath }
+                    .Distinct(PathComparer)
+                    .ToArray();
+            var filesToCapture = new List<string> { proxyConfigPath };
+
+            foreach (var directory in appIdDirectories)
+            {
+                filesToCapture.Add(Path.Combine(directory, "steam_appid.txt"));
+            }
+
+            foreach (var path in filesToCapture.Distinct(PathComparer))
+            {
+                if (Directory.Exists(path))
+                {
+                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                        $"Required file path is a directory: {path}");
+                }
+            }
+
+            var dependencyCopies = GetRequiredDependencyCopies(
+                gameInstallPath,
+                [effectiveWorkingDirectory, targetDirectory]);
+            foreach (var (_, destinationPath) in dependencyCopies)
+            {
+                if (Directory.Exists(destinationPath))
+                {
+                    return OperationResult<SteamLaunchPrepResult>.CreateFailure(
+                        $"Runtime dependency path is a directory: {destinationPath}");
+                }
+            }
+
+            rollback = new PreparationRollback(
+                targetExePath,
+                backupPath,
+                proxySourcePath,
+                filesToCapture);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            await StopRunningTargetProcessesAsync(targetExePath, cancellationToken);
+
+            rollback.PrepareExecutableBackup();
+            rollback.DeployProxy();
+
+            _logger.LogInformation("[SteamLauncher] Successfully deployed proxy as {Exe}", executableName);
+            _logger.LogInformation(
+                "[SteamLauncher] Using direct workspace paths - Target: {Target}, WorkDir: {WorkDir}",
+                effectiveTargetExecutable,
+                effectiveWorkingDirectory);
+
+            await rollback.WriteTextAsync(proxyConfigPath, configJson, _writeAllTextAsync, cancellationToken);
+            _logger.LogInformation("[SteamLauncher] Wrote proxy config to {Path}", proxyConfigPath);
+            _logger.LogInformation(
                 "[SteamLauncher] Proxy config - Target: {Target}, WorkDir: {WorkDir}, Args: {ArgCount}",
                 config.TargetExecutable,
                 config.WorkingDirectory,
                 config.Arguments.Length);
 
-            // 5. CRITICAL: Always write steam_appid.txt next to BOTH the working directory and the target executable.
-            // Steam overlays/readiness logic checks the executable directory first. Many modded game clients call SteamAPI_Init
-            // and immediately look for steam_appid.txt adjacent to their EXE. If we only write it to the install dir, the
-            // workspace executable will trigger SteamAPI_RestartAppIfNecessary and surface the "invalid license" error.
-            if (!string.IsNullOrEmpty(steamAppId))
+            foreach (var directory in appIdDirectories)
             {
-                await WriteSteamAppIdAsync(steamAppId, effectiveWorkingDirectory, cancellationToken);
-
-                var targetDirectory = Path.GetDirectoryName(effectiveTargetExecutable);
-                if (!string.IsNullOrEmpty(targetDirectory) &&
-                    !string.Equals(targetDirectory, effectiveWorkingDirectory, StringComparison.OrdinalIgnoreCase))
-                {
-                    await WriteSteamAppIdAsync(steamAppId, targetDirectory, cancellationToken);
-                }
+                await WriteSteamAppIdAsync(steamAppId!, directory, rollback, cancellationToken);
             }
 
-            // 6. Ensure steam_appid.txt also exists alongside the proxy (Steam sometimes checks the launch dir)
-            if (!string.IsNullOrEmpty(steamAppId))
+            foreach (var (sourcePath, destinationPath) in dependencyCopies)
             {
-                await WriteSteamAppIdAsync(steamAppId, gameInstallPath, cancellationToken);
+                await rollback.CopyNewFileAsync(sourcePath, destinationPath, cancellationToken);
+                _logger.LogInformation(
+                    "[SteamLauncher] Copied missing critical file {File} to {Destination}",
+                    Path.GetFileName(sourcePath),
+                    Path.GetDirectoryName(destinationPath));
             }
 
-            // 7. Critical: Ensure steam_api.dll and other runtime dependencies exist where the target exe loads from.
-            // Some modded clients are distributed without these files in their manifests (to keep manifests minimal).
-            // Missing steam_api.dll is the primary cause of "invalid license" when the workspace executable calls SteamAPI_Init.
-            await EnsureRuntimeDependenciesAsync(gameInstallPath, effectiveWorkingDirectory, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var targetDirForDeps = Path.GetDirectoryName(effectiveTargetExecutable);
-            if (!string.IsNullOrEmpty(targetDirForDeps) &&
-                !string.Equals(targetDirForDeps, effectiveWorkingDirectory, StringComparison.OrdinalIgnoreCase))
-            {
-                await EnsureRuntimeDependenciesAsync(gameInstallPath, targetDirForDeps, cancellationToken);
-            }
-
-            // Return result
             var result = new SteamLaunchPrepResult
             {
-                ExecutablePath = primaryDeployedPath, // Sidecar proxy path (leave originals untouched)
+                ExecutablePath = targetExePath,
                 WorkingDirectory = gameInstallPath,
                 ProfileId = profileId,
                 FilesLinked = 0,
@@ -268,12 +257,26 @@ public class SteamLauncher(
                 SteamAppId = steamAppId,
             };
 
+            rollback.Commit();
             return OperationResult<SteamLaunchPrepResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[SteamLauncher] Failed to prepare proxy for profile {ProfileId}", profileId);
-            return OperationResult<SteamLaunchPrepResult>.CreateFailure($"Failed to prepare proxy: {ex.Message}");
+            _logger.LogError(ex, "[SteamLauncher] Failed to prepare proxy for profile {ProfileId}", profileId);
+
+            var errors = new List<string>
+            {
+                ex is OperationCanceledException
+                    ? "Steam proxy preparation was canceled."
+                    : $"Failed to prepare proxy: {ex.Message}",
+            };
+
+            if (rollback is not null)
+            {
+                errors.AddRange(rollback.Rollback());
+            }
+
+            return OperationResult<SteamLaunchPrepResult>.CreateFailure(errors);
         }
     }
 
@@ -285,13 +288,13 @@ public class SteamLauncher(
     {
         try
         {
-            logger.LogInformation("[SteamLauncher] Cleaning up game directory: {Path}", gameInstallPath);
+            _logger.LogInformation("[SteamLauncher] Cleaning up game directory: {Path}", gameInstallPath);
 
             // 1. Remove Proxy Config
             var proxyConfigPath = Path.Combine(gameInstallPath, ProxyConfigFileName);
             if (File.Exists(proxyConfigPath))
             {
-                logger.LogDebug("[SteamLauncher] Removing proxy config: {Path}", proxyConfigPath);
+                _logger.LogDebug("[SteamLauncher] Removing proxy config: {Path}", proxyConfigPath);
                 File.Delete(proxyConfigPath);
             }
 
@@ -301,7 +304,7 @@ public class SteamLauncher(
 
             if (File.Exists(backupPath))
             {
-                logger.LogInformation(
+                _logger.LogInformation(
                     "[SteamLauncher] Restoring original {Exe} from backup",
                     executableName);
 
@@ -315,13 +318,13 @@ public class SteamLauncher(
 
                     // Restore original from backup
                     File.Move(backupPath, targetExePath);
-                    logger.LogInformation(
+                    _logger.LogInformation(
                         "[SteamLauncher] Successfully restored original {Exe}",
                         executableName);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(
+                    _logger.LogWarning(
                         ex,
                         "[SteamLauncher] Failed to restore original {Exe} from backup",
                         executableName);
@@ -329,7 +332,7 @@ public class SteamLauncher(
             }
             else
             {
-                logger.LogDebug(
+                _logger.LogDebug(
                     "[SteamLauncher] No backup found for {Exe}, skipping restoration",
                     executableName);
             }
@@ -343,23 +346,22 @@ public class SteamLauncher(
 
             // Note: .genhub-workspace-active junction cleanup removed - no longer using junctions
             // Each profile uses its own adjacent workspace directly
-            logger.LogInformation("[SteamLauncher] Cleaned up game directory artifacts: {Path}", gameInstallPath);
+            _logger.LogInformation("[SteamLauncher] Cleaned up game directory artifacts: {Path}", gameInstallPath);
             return Task.FromResult(OperationResult<bool>.CreateSuccess(true));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[SteamLauncher] Failed to cleanup game directory: {Path}", gameInstallPath);
+            _logger.LogError(ex, "[SteamLauncher] Failed to cleanup game directory: {Path}", gameInstallPath);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Failed to cleanup: {ex.Message}"));
         }
     }
 
-    private async Task WriteSteamAppIdAsync(string steamAppId, string directory, CancellationToken cancellationToken)
+    private async Task WriteSteamAppIdAsync(
+        string steamAppId,
+        string directory,
+        PreparationRollback rollback,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(directory))
-        {
-            return;
-        }
-
         var appIdPath = Path.Combine(directory, "steam_appid.txt");
 
         // Check current content - only rewrite if different (avoid breaking hardlinks unnecessarily)
@@ -370,47 +372,496 @@ public class SteamLauncher(
             needsWrite = currentContent.Trim() != steamAppId;
             if (needsWrite)
             {
-                logger.LogWarning(
+                _logger.LogWarning(
                     "[SteamLauncher] steam_appid.txt has wrong ID ({WrongId}), overwriting with correct ID ({CorrectId})",
                     currentContent.Trim(),
                     steamAppId);
-
-                // Delete the hardlink to avoid modifying original
-                File.Delete(appIdPath);
             }
         }
 
         if (needsWrite)
         {
-            await File.WriteAllTextAsync(appIdPath, steamAppId, cancellationToken);
-            logger.LogInformation(
+            await rollback.WriteTextAsync(appIdPath, steamAppId, _writeAllTextAsync, cancellationToken);
+            _logger.LogInformation(
                 "[SteamLauncher] Wrote steam_appid.txt ({AppId}) to {Path}",
                 steamAppId,
                 directory);
         }
     }
 
-    private async Task EnsureRuntimeDependenciesAsync(string sourceDirectory, string destinationDirectory, CancellationToken cancellationToken)
+    private string ResolveProxySourcePath()
     {
-        if (string.IsNullOrWhiteSpace(destinationDirectory))
+        if (!string.IsNullOrEmpty(_proxySourcePathOverride))
         {
-            return;
+            return Path.GetFullPath(_proxySourcePathOverride);
         }
 
-        var filesToEnsure = new[] { "steam_api.dll", "binkw32.dll", "mss32.dll" };
-        foreach (var file in filesToEnsure)
+        var currentBaseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var defaultPath = Path.Combine(currentBaseDir, SteamConstants.ProxyLauncherFileName);
+        if (File.Exists(defaultPath))
         {
-            var sourcePath = Path.Combine(sourceDirectory, file);
-            var destPath = Path.Combine(destinationDirectory, file);
-            if (File.Exists(sourcePath) && !File.Exists(destPath))
+            return defaultPath;
+        }
+
+        _logger.LogDebug(
+            "[SteamLauncher] Proxy Launcher not found in base directory: {Path}. Checking fallbacks...",
+            defaultPath);
+
+        var developmentPaths = new[]
+        {
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Debug", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "..", "..", "..", "..", "GenHub.ProxyLauncher", "bin", "Release", "net8.0-windows", "win-x64", "GenHub.ProxyLauncher.exe")),
+            Path.GetFullPath(Path.Combine(currentBaseDir, "net8.0-windows", "GenHub.ProxyLauncher.exe")),
+        };
+
+        return developmentPaths.FirstOrDefault(File.Exists) ?? defaultPath;
+    }
+
+    private async Task StopRunningTargetProcessesAsync(
+        string targetExePath,
+        CancellationToken cancellationToken)
+    {
+        var processName = Path.GetFileNameWithoutExtension(targetExePath);
+        var runningProcesses = Process.GetProcessesByName(processName);
+
+        try
+        {
+            foreach (var process in runningProcesses)
             {
-                File.Copy(sourcePath, destPath);
-                logger.LogInformation("[SteamLauncher] Copied missing critical file {File} to {Destination}", file, destinationDirectory);
+                try
+                {
+                    if (process.MainModule?.FileName is string processPath &&
+                        PathComparer.Equals(Path.GetFullPath(processPath), targetExePath))
+                    {
+                        _logger.LogWarning(
+                            "[SteamLauncher] Killing running process {ProcessName} ({Pid}) to update proxy",
+                            process.ProcessName,
+                            process.Id);
+                        process.Kill();
+                        process.WaitForExit(1000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[SteamLauncher] Failed to kill process {Pid}", process.Id);
+                }
+            }
+
+            if (runningProcesses.Length > 0)
+            {
+                await Task.Delay(500, cancellationToken);
+            }
+        }
+        finally
+        {
+            foreach (var process in runningProcesses)
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private List<(string SourcePath, string DestinationPath)> GetRequiredDependencyCopies(
+        string sourceDirectory,
+        IEnumerable<string> destinationDirectories)
+    {
+        var filesToEnsure = new[] { "steam_api.dll", "binkw32.dll", "mss32.dll" };
+        var copies = new List<(string SourcePath, string DestinationPath)>();
+
+        foreach (var destinationDirectory in destinationDirectories.Distinct(PathComparer))
+        {
+            foreach (var file in filesToEnsure)
+            {
+                var sourcePath = Path.Combine(sourceDirectory, file);
+                var destinationPath = Path.Combine(destinationDirectory, file);
+                if (File.Exists(sourcePath) && !File.Exists(destinationPath))
+                {
+                    copies.Add((sourcePath, destinationPath));
+                }
             }
         }
 
-        // Yield control occasionally to respect cancellation
-        await Task.Yield();
-        cancellationToken.ThrowIfCancellationRequested();
+        return copies;
+    }
+
+    private sealed class PreparationRollback
+    {
+        private readonly string _targetExePath;
+        private readonly string _backupPath;
+        private readonly string _proxySourcePath;
+        private readonly string _executableSnapshotPath;
+        private readonly Dictionary<string, byte[]?> _originalFiles = new(PathComparer);
+        private readonly Dictionary<string, byte[]> _preparedFiles = new(PathComparer);
+        private readonly List<string> _mutatedFiles = [];
+        private readonly HashSet<string> _temporaryFiles = new(PathComparer);
+        private bool _backupCreated;
+        private bool _executableMutationStarted;
+        private bool _targetInitiallyExisted;
+        private string? _executableRestoreSource;
+        private bool _completed;
+
+        public PreparationRollback(
+            string targetExePath,
+            string backupPath,
+            string proxySourcePath,
+            IEnumerable<string> filesToCapture)
+        {
+            _targetExePath = targetExePath;
+            _backupPath = backupPath;
+            _proxySourcePath = proxySourcePath;
+            _executableSnapshotPath = CreateTemporaryPath(targetExePath);
+
+            foreach (var path in filesToCapture.Distinct(PathComparer))
+            {
+                _originalFiles[path] = File.Exists(path) ? File.ReadAllBytes(path) : null;
+            }
+        }
+
+        public void PrepareExecutableBackup()
+        {
+            _targetInitiallyExisted = File.Exists(_targetExePath);
+
+            if (_targetInitiallyExisted)
+            {
+                _temporaryFiles.Add(_executableSnapshotPath);
+                File.Copy(_targetExePath, _executableSnapshotPath, overwrite: false);
+
+                var targetIsCurrentProxy = File.Exists(_backupPath) &&
+                    FilesAreEqual(_targetExePath, _proxySourcePath);
+                _executableRestoreSource = targetIsCurrentProxy
+                    ? _backupPath
+                    : _executableSnapshotPath;
+            }
+            else
+            {
+                _executableRestoreSource = _backupPath;
+            }
+
+            if (!File.Exists(_backupPath))
+            {
+                var backupStagingPath = CreateTemporaryPath(_backupPath);
+                _temporaryFiles.Add(backupStagingPath);
+                File.Copy(_targetExePath, backupStagingPath, overwrite: false);
+                File.Move(backupStagingPath, _backupPath, overwrite: false);
+                _temporaryFiles.Remove(backupStagingPath);
+                _backupCreated = true;
+            }
+        }
+
+        public void DeployProxy()
+        {
+            var stagingPath = CreateTemporaryPath(_targetExePath);
+            _temporaryFiles.Add(stagingPath);
+            File.Copy(_proxySourcePath, stagingPath, overwrite: false);
+
+            if (_targetInitiallyExisted)
+            {
+                if (!File.Exists(_targetExePath) ||
+                    !FilesAreEqual(_targetExePath, _executableSnapshotPath))
+                {
+                    throw new IOException(
+                        $"Game executable changed before proxy deployment: {_targetExePath}");
+                }
+            }
+            else if (File.Exists(_targetExePath))
+            {
+                throw new IOException(
+                    $"Game executable appeared before proxy deployment: {_targetExePath}");
+            }
+
+            _executableMutationStarted = true;
+            File.Move(stagingPath, _targetExePath, overwrite: true);
+            _temporaryFiles.Remove(stagingPath);
+        }
+
+        public async Task WriteTextAsync(
+            string path,
+            string contents,
+            Func<string, string, CancellationToken, Task> writer,
+            CancellationToken cancellationToken)
+        {
+            var stagingPath = CreateTemporaryPath(path);
+            _temporaryFiles.Add(stagingPath);
+
+            await writer(stagingPath, contents, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureCapturedFileIsUnchanged(path);
+            var preparedContents = File.ReadAllBytes(stagingPath);
+            File.Move(stagingPath, path, overwrite: true);
+            _preparedFiles[path] = preparedContents;
+            TrackMutation(path);
+            _temporaryFiles.Remove(stagingPath);
+        }
+
+        public async Task CopyNewFileAsync(
+            string sourcePath,
+            string destinationPath,
+            CancellationToken cancellationToken)
+        {
+            await using var source = new FileStream(
+                sourcePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                81920,
+                useAsync: true);
+            await using var destination = new FileStream(
+                destinationPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                useAsync: true);
+
+            _originalFiles[destinationPath] = null;
+            TrackMutation(destinationPath);
+            await source.CopyToAsync(destination, cancellationToken);
+        }
+
+        public void Commit()
+        {
+            var errors = new List<string>();
+            CleanupTemporaryFiles(errors);
+            if (errors.Count > 0)
+            {
+                throw new IOException(string.Join(" ", errors));
+            }
+
+            _completed = true;
+        }
+
+        public IReadOnlyList<string> Rollback()
+        {
+            if (_completed)
+            {
+                return [];
+            }
+
+            var errors = new List<string>();
+
+            for (var index = _mutatedFiles.Count - 1; index >= 0; index--)
+            {
+                var path = _mutatedFiles[index];
+
+                try
+                {
+                    if (!CanRestoreCapturedFile(path))
+                    {
+                        errors.Add($"Rollback did not overwrite unexpectedly changed file '{path}'.");
+                        continue;
+                    }
+
+                    RestoreCapturedFile(path, _originalFiles[path]);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Rollback failed for '{path}': {ex.Message}");
+                }
+            }
+
+            var executableRestored = TryRestoreExecutable(errors);
+            if (executableRestored && _backupCreated)
+            {
+                try
+                {
+                    File.Delete(_backupPath);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Rollback failed to remove new backup '{_backupPath}': {ex.Message}");
+                }
+            }
+
+            if (executableRestored)
+            {
+                CleanupTemporaryFiles(errors);
+            }
+            else
+            {
+                foreach (var path in _temporaryFiles.Where(File.Exists))
+                {
+                    errors.Add($"Recovery file retained at '{path}'.");
+                }
+
+                if (_backupCreated && File.Exists(_backupPath))
+                {
+                    errors.Add($"Recovery backup retained at '{_backupPath}'.");
+                }
+            }
+
+            _completed = true;
+            return errors;
+        }
+
+        private void TrackMutation(string path)
+        {
+            if (!_mutatedFiles.Contains(path, PathComparer))
+            {
+                _mutatedFiles.Add(path);
+            }
+        }
+
+        private bool CanRestoreCapturedFile(string path)
+        {
+            if (!_preparedFiles.TryGetValue(path, out var preparedContents))
+            {
+                return true;
+            }
+
+            if (!File.Exists(path))
+            {
+                return _originalFiles[path] is null;
+            }
+
+            return File.ReadAllBytes(path).SequenceEqual(preparedContents);
+        }
+
+        private void EnsureCapturedFileIsUnchanged(string path)
+        {
+            var originalContents = _originalFiles[path];
+            if (originalContents is null)
+            {
+                if (File.Exists(path) || Directory.Exists(path))
+                {
+                    throw new IOException($"File appeared before preparation could update it: {path}");
+                }
+
+                return;
+            }
+
+            if (!File.Exists(path) ||
+                !File.ReadAllBytes(path).SequenceEqual(originalContents))
+            {
+                throw new IOException($"File changed before preparation could update it: {path}");
+            }
+        }
+
+        private bool TryRestoreExecutable(List<string> errors)
+        {
+            if (!_executableMutationStarted)
+            {
+                return true;
+            }
+
+            try
+            {
+                var restoreSource = GetExecutableRestoreSource();
+                if (_targetInitiallyExisted &&
+                    File.Exists(_targetExePath) &&
+                    FilesAreEqual(_targetExePath, restoreSource))
+                {
+                    return true;
+                }
+
+                if (File.Exists(_targetExePath) &&
+                    !FilesAreEqual(_targetExePath, _proxySourcePath))
+                {
+                    errors.Add(
+                        $"Rollback did not overwrite unexpectedly changed executable '{_targetExePath}'.");
+                    return false;
+                }
+
+                AtomicCopy(restoreSource, _targetExePath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Rollback failed to restore executable '{_targetExePath}': {ex.Message}");
+                return false;
+            }
+        }
+
+        private string GetExecutableRestoreSource()
+        {
+            if (!string.IsNullOrEmpty(_executableRestoreSource) &&
+                File.Exists(_executableRestoreSource))
+            {
+                return _executableRestoreSource;
+            }
+
+            if (File.Exists(_backupPath))
+            {
+                return _backupPath;
+            }
+
+            throw new FileNotFoundException(
+                "No recovery copy of the original executable is available.",
+                _executableRestoreSource);
+        }
+
+        private void CleanupTemporaryFiles(List<string> errors)
+        {
+            foreach (var path in _temporaryFiles.ToArray())
+            {
+                try
+                {
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                    }
+
+                    _temporaryFiles.Remove(path);
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Failed to remove preparation artifact '{path}': {ex.Message}");
+                }
+            }
+        }
+
+        private void RestoreCapturedFile(string path, byte[]? originalContents)
+        {
+            if (originalContents is null)
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+
+                return;
+            }
+
+            var stagingPath = CreateTemporaryPath(path);
+            try
+            {
+                File.WriteAllBytes(stagingPath, originalContents);
+                File.Move(stagingPath, path, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(stagingPath))
+                {
+                    File.Delete(stagingPath);
+                }
+            }
+        }
+
+        private void AtomicCopy(string sourcePath, string destinationPath)
+        {
+            var stagingPath = CreateTemporaryPath(destinationPath);
+            _temporaryFiles.Add(stagingPath);
+            File.Copy(sourcePath, stagingPath, overwrite: false);
+            File.Move(stagingPath, destinationPath, overwrite: true);
+            _temporaryFiles.Remove(stagingPath);
+        }
+
+        private bool FilesAreEqual(string firstPath, string secondPath)
+        {
+            var firstInfo = new FileInfo(firstPath);
+            var secondInfo = new FileInfo(secondPath);
+            if (firstInfo.Length != secondInfo.Length)
+            {
+                return false;
+            }
+
+            using var firstStream = File.OpenRead(firstPath);
+            using var secondStream = File.OpenRead(secondPath);
+            return SHA256.HashData(firstStream).SequenceEqual(SHA256.HashData(secondStream));
+        }
+
+        private string CreateTemporaryPath(string path)
+        {
+            return $"{path}.genhub-rollback-{Guid.NewGuid():N}";
+        }
     }
 }
