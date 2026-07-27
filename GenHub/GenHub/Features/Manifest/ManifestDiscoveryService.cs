@@ -61,7 +61,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
-            var manifestFiles = Directory.EnumerateFiles(directory, "FileTypes.JsonFilePattern", SearchOption.AllDirectories);
+            var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.JsonFilePattern, SearchOption.AllDirectories);
             foreach (var manifestFile in manifestFiles)
             {
                 try
