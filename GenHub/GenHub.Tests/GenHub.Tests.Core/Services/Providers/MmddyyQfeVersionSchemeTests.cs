@@ -66,6 +66,10 @@ public class MmddyyQfeVersionSchemeTests
     [InlineData("0428267_QFE1")]
     [InlineData("042826_EAC")]
     [InlineData("042826_QFE-1")]
+    [InlineData("042826__QFE3")]
+    [InlineData("_042826_QFE3")]
+    [InlineData("042826_QFE3_")]
+    [InlineData("042826_QFE1_QFE2")]
     public void TryParse_RejectsMalformedVersions(string? version)
     {
         Assert.False(_scheme.TryParse(version, out var result));

@@ -24,8 +24,8 @@ public sealed class MmddyyQfeVersionScheme : VersionSchemeBase
             return false;
         }
 
-        var segments = version.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (segments.Length < 2)
+        var segments = version.Split('_', StringSplitOptions.TrimEntries);
+        if (segments.Length < 2 || segments.Any(string.IsNullOrEmpty))
         {
             return false;
         }
@@ -50,15 +50,19 @@ public sealed class MmddyyQfeVersionScheme : VersionSchemeBase
             return false;
         }
 
-        var qfeSegment = segments
+        var qfeSegments = segments
             .Skip(1)
-            .FirstOrDefault(segment => segment.StartsWith(GeneralsOnlineConstants.QfeMarkerPrefix, StringComparison.OrdinalIgnoreCase));
+            .Where(segment => segment.StartsWith(
+                GeneralsOnlineConstants.QfeMarkerPrefix,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
 
-        if (qfeSegment is null)
+        if (qfeSegments.Length != 1)
         {
             return false;
         }
 
+        var qfeSegment = qfeSegments[0];
         var qfeDigits = qfeSegment[GeneralsOnlineConstants.QfeMarkerPrefix.Length..];
         if (!int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe))
         {
