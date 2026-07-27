@@ -74,24 +74,24 @@ public sealed class NumericVersionScheme : VersionSchemeBase
             return numeric1.CompareTo(numeric2);
         }
 
-        var hasDot1 = version1.Contains('.');
-        var hasDot2 = version2.Contains('.');
+        var hasDot1 = normalized1.Contains('.');
+        var hasDot2 = normalized2.Contains('.');
 
         // A dotted version with a major of 1 or higher outranks a bare date stamp,
         // so "1.20260116" is newer than "20260116" rather than astronomically older.
-        if (hasDot1 && isNumeric2 && OutranksDateStamp(version1, numeric2))
+        if (hasDot1 && isNumeric2 && OutranksDateStamp(normalized1, numeric2))
         {
             return 1;
         }
 
-        if (isNumeric1 && hasDot2 && OutranksDateStamp(version2, numeric1))
+        if (isNumeric1 && hasDot2 && OutranksDateStamp(normalized2, numeric1))
         {
             return -1;
         }
 
         if (hasDot1 || hasDot2)
         {
-            return CompareSegments(version1, version2);
+            return CompareSegments(normalized1, normalized2);
         }
 
         var digits1 = ExtractDigits(version1);

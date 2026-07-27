@@ -105,6 +105,8 @@ public class ContentVersionComparerTests
     [InlineData("1.04", "1.08", -1)]
     [InlineData("104", "108", -1)]
     [InlineData("1.08", "1.04", 1)]
+    [InlineData("release-1.1", "2.0", -1)]
+    [InlineData("version-2.0", "v1.9", 1)]
     public void Compare_UnknownPublisher_UsesDefaultScheme(string version1, string version2, int expected)
     {
         var result = _comparer.Compare(version1, version2, null);
