@@ -10,6 +10,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 
@@ -21,7 +22,8 @@ namespace GenHub.Features.Content.Services.SuperHackers;
 public class SuperHackersUpdateService(
     ILogger<SuperHackersUpdateService> logger,
     IContentManifestPool manifestPool,
-    IHttpClientFactory httpClientFactory) : ContentUpdateServiceBase(logger), ISuperHackersUpdateService
+    IHttpClientFactory httpClientFactory,
+    IContentVersionComparer versionComparer) : ContentUpdateServiceBase(logger), ISuperHackersUpdateService
 {
     // HttpClient is created per request via factory, so no need for Dispose or cached instance.
 
@@ -72,14 +74,14 @@ public class SuperHackersUpdateService(
         }
     }
 
-    private static bool IsNewerVersion(string latestVersion, string? currentVersion)
+    private bool IsNewerVersion(string latestVersion, string? currentVersion)
     {
         if (string.IsNullOrEmpty(currentVersion))
         {
             return true; // Any version is newer than nothing
         }
 
-        return VersionComparer.CompareVersions(latestVersion, currentVersion, PublisherTypeConstants.TheSuperHackers) > 0;
+        return versionComparer.IsNewer(latestVersion, currentVersion, PublisherTypeConstants.TheSuperHackers);
     }
 
     private async Task<string?> GetInstalledVersionAsync(CancellationToken cancellationToken)
@@ -102,7 +104,7 @@ public class SuperHackersUpdateService(
             // This ensures we check updates against the latest version the user has, avoiding false positives
             // if they keep old versions installed.
             var newest = shManifests
-                .OrderByDescending(m => m.Version, new VersionStringComparer(PublisherTypeConstants.TheSuperHackers))
+                .OrderByDescending(m => m.Version, versionComparer.GetScheme(PublisherTypeConstants.TheSuperHackers))
                 .FirstOrDefault();
 
             return newest?.Version;
@@ -112,11 +114,6 @@ public class SuperHackersUpdateService(
             logger.LogWarning(ex, "Failed to get installed SuperHackers version");
             return null;
         }
-    }
-
-    private class VersionStringComparer(string publisherType) : IComparer<string?>
-    {
-        public int Compare(string? x, string? y) => VersionComparer.CompareVersions(x, y, publisherType);
     }
 
     private async Task<string?> GetLatestVersionFromGitHubAsync(CancellationToken cancellationToken)

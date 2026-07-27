@@ -6,6 +6,7 @@
     "iconColor": "#4CAF50",
     "providerType": "Static",
     "catalogFormat": "generalsonline-json-api",
+    "versionScheme": "mmddyy-qfe",
     "endpoints": {
         "catalogUrl": "https://cdn.playgenerals.online/manifest.json",
         "websiteUrl": "https://www.playgenerals.online/",

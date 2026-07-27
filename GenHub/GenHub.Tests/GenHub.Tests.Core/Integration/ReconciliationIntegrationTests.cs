@@ -23,6 +23,7 @@ using GenHub.Core.Models.Storage;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.SuperHackers;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -291,7 +292,8 @@ public class ReconciliationIntegrationTests : IDisposable
             _notificationServiceMock.Object,
             _dialogServiceMock.Object,
             _userSettingsServiceMock.Object,
-            _profileManagerMock.Object);
+            _profileManagerMock.Object,
+            TestVersionComparer.CreateDefault());
 
         // Act
         var result = await reconciler.CheckAndReconcileIfNeededAsync(profile.Id);

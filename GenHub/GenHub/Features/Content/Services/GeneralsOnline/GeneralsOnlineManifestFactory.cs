@@ -195,7 +195,7 @@ public class GeneralsOnlineManifestFactory(
         return await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
     }
 
-    private static int ParseVersionForManifestId(string version) => GameVersionHelper.GetGeneralsOnlineSortableVersion(version);
+    private static int ParseVersionForManifestId(string version) => GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version);
 
     private static ManifestFile CreateMapManifestFile(string relativePath, FileInfo fileInfo, string hash)
     {

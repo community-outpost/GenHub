@@ -14,6 +14,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -70,7 +71,8 @@ public class GeneralsOnlineProfileReconcilerTests
             _notificationServiceMock.Object,
             _dialogServiceMock.Object,
             _userSettingsServiceMock.Object,
-            _profileManagerMock.Object);
+            _profileManagerMock.Object,
+            TestVersionComparer.CreateDefault());
     }
 
     /// <summary>

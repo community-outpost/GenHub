@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.Content.ViewModels;
@@ -34,6 +35,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     private readonly IGameProfileManager _profileManager;
     private readonly INotificationService _notificationService;
     private readonly IContentReconciliationService _reconciliationService;
+    private readonly IContentVersionComparer _versionComparer;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _profileLock = new(1, 1);
 
@@ -118,6 +120,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     /// <param name="profileManager">The profile manager.</param>
     /// <param name="notificationService">The notification service.</param>
     /// <param name="reconciliationService">The reconciliation service.</param>
+    /// <param name="versionComparer">The publisher-aware version comparer.</param>
     public PublisherCardViewModel(
         ILogger<PublisherCardViewModel> logger,
         IContentOrchestrator contentOrchestrator,
@@ -126,9 +129,11 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         IProfileContentService profileContentService,
         IGameProfileManager profileManager,
         INotificationService notificationService,
-        IContentReconciliationService reconciliationService)
+        IContentReconciliationService reconciliationService,
+        IContentVersionComparer versionComparer)
     {
         _logger = logger;
+        _versionComparer = versionComparer;
         _contentOrchestrator = contentOrchestrator;
         _manifestPool = manifestPool;
         _profileService = profileService;
@@ -351,12 +356,12 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                         // Find the highest version among installed variants
                         var highestInstalledVersion = variants
                             .Select(v => v.Version ?? string.Empty)
-                            .OrderByDescending(v => v)
+                            .OrderByDescending(v => v, _versionComparer.GetScheme(PublisherId))
                             .FirstOrDefault();
 
                         if (!string.IsNullOrEmpty(highestInstalledVersion))
                         {
-                            var isNewer = IsVersionNewer(item.Version, highestInstalledVersion);
+                            var isNewer = _versionComparer.IsNewer(item.Version, highestInstalledVersion, PublisherId);
                             item.IsUpdateAvailable = isNewer;
 
                             if (isNewer)
@@ -545,27 +550,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
 
         return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
-    }
-
-    /// <summary>
-    /// Determines if the available version is newer than the installed version.
-    /// Uses GameVersionHelper for consistent version parsing across the application.
-    /// </summary>
-    /// <param name="availableVersion">The available version string (e.g., "010326" or "010326_QFE1").</param>
-    /// <param name="installedVersion">The installed version string (e.g., "122025_QFE1").</param>
-    /// <returns>True if available version is newer; otherwise, false.</returns>
-    private static bool IsVersionNewer(string availableVersion, string installedVersion)
-    {
-        if (string.IsNullOrEmpty(availableVersion) || string.IsNullOrEmpty(installedVersion))
-        {
-            return false;
-        }
-
-        // Use the centralized helper to get sortable version numbers
-        var availableSortable = GameVersionHelper.GetGeneralsOnlineSortableVersion(availableVersion);
-        var installedSortable = GameVersionHelper.GetGeneralsOnlineSortableVersion(installedVersion);
-
-        return availableSortable > installedSortable;
     }
 
     /// <summary>

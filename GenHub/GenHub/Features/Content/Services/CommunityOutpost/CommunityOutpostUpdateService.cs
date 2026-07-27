@@ -6,6 +6,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
@@ -18,11 +19,13 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// <param name="discoverer">Content discoverer.</param>
 /// <param name="resolver">Content resolver.</param>
 /// <param name="manifestPool">Manifest pool.</param>
+/// <param name="versionComparer">Publisher-aware version comparer.</param>
 /// <param name="logger">Logger instance.</param>
 public class CommunityOutpostUpdateService(
     CommunityOutpostDiscoverer discoverer,
     CommunityOutpostResolver resolver,
     IContentManifestPool manifestPool,
+    IContentVersionComparer versionComparer,
     ILogger<CommunityOutpostUpdateService> logger)
     : ContentUpdateServiceBase(logger), ICommunityOutpostUpdateService
 {
@@ -70,10 +73,10 @@ public class CommunityOutpostUpdateService(
 
                 if (installed != null)
                 {
-                    if (VersionComparer.CompareVersions(discovered.Version, installed.Version, CommunityOutpostConstants.PublisherType) > 0)
+                    if (versionComparer.IsNewer(discovered.Version, installed.Version, CommunityOutpostConstants.PublisherType))
                     {
                         // Check if this discovered version is newer than our current "latest to resolve"
-                        if (latestToResolve == null || VersionComparer.CompareVersions(discovered.Version, latestToResolve.Version, CommunityOutpostConstants.PublisherType) > 0)
+                        if (latestToResolve == null || versionComparer.IsNewer(discovered.Version, latestToResolve.Version, CommunityOutpostConstants.PublisherType))
                         {
                             logger.LogInformation("Newer update candidate found for {Id}: {OldVersion} -> {NewVersion}", discovered.Id, installed.Version, discovered.Version);
                             latestToResolve = discovered;

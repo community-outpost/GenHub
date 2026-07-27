@@ -4,12 +4,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -34,7 +34,8 @@ public class GeneralsOnlineProfileReconciler(
     INotificationService notificationService,
     IDialogService dialogService,
     IUserSettingsService userSettingsService,
-    IGameProfileManager profileManager)
+    IGameProfileManager profileManager,
+    IContentVersionComparer versionComparer)
     : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
     /// <inheritdoc/>
@@ -178,7 +179,7 @@ public class GeneralsOnlineProfileReconciler(
             else
             {
                 // ReplaceCurrent
-                var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+                var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
 
                 // CRITICAL: Pass removeOld = false to prevent premature deletion
                 // We'll handle deletion after MapPack enforcement succeeds
@@ -279,7 +280,8 @@ public class GeneralsOnlineProfileReconciler(
     /// </summary>
     private static Dictionary<string, string> BuildManifestMapping(
         List<ContentManifest> oldManifests,
-        List<ContentManifest> newManifests)
+        List<ContentManifest> newManifests,
+        IVersionScheme versionScheme)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -287,7 +289,7 @@ public class GeneralsOnlineProfileReconciler(
         {
             // Find corresponding new manifest by matching variant
             var newManifest = newManifests
-                .OrderByDescending(n => GameVersionHelper.GetGeneralsOnlineSortableVersion(n.Version))
+                .OrderByDescending(n => n.Version, versionScheme)
                 .FirstOrDefault(n =>
                     (n.ContentType == oldManifest.ContentType ||
                      (oldManifest.ContentType == Core.Models.Enums.ContentType.Mod && n.ContentType == Core.Models.Enums.ContentType.GameClient)) &&
@@ -576,7 +578,7 @@ public class GeneralsOnlineProfileReconciler(
         CancellationToken cancellationToken)
     {
         var oldIds = oldManifests.Select(m => m.Id.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+        var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
         int createdCount = 0;
 
         var allProfiles = await profileManager.GetAllProfilesAsync(cancellationToken);

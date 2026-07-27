@@ -79,6 +79,7 @@ public class GeneralsOnlineDiTests
             services.AddSingleton(new Mock<IProviderDefinitionLoader>().Object);
             services.AddSingleton(new Mock<ICatalogParserFactory>().Object);
             services.AddSingleton(new Mock<ICatalogParser>().Object);
+            services.AddSingleton(new Mock<IContentVersionComparer>().Object);
             services.AddSingleton(new Mock<IDynamicContentCache>().Object);
             services.AddSingleton(new Mock<Octokit.IGitHubClient>().Object);
             services.AddSingleton(new Mock<IGitHubApiClient>().Object);

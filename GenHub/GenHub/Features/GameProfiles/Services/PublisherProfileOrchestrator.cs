@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -28,6 +29,7 @@ public class PublisherProfileOrchestrator(
     IContentManifestPool manifestPool,
     IGameClientProfileService gameClientProfileService,
     INotificationService notificationService,
+    IContentVersionComparer versionComparer,
     ILogger<PublisherProfileOrchestrator> logger) : IPublisherProfileOrchestrator
 {
     /// <inheritdoc/>
@@ -303,7 +305,7 @@ public class PublisherProfileOrchestrator(
             var highestInstalledVersion = existingManifests
                 .Select(m => m.Version)
                 .Where(v => !string.IsNullOrWhiteSpace(v))
-                .OrderByDescending(v => v, new VersionStringComparer(publisherType))
+                .OrderByDescending(v => v, versionComparer.GetScheme(publisherType))
                 .FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(highestInstalledVersion))
@@ -346,7 +348,7 @@ public class PublisherProfileOrchestrator(
                 latestAvailableVersion);
 
             // Compare versions
-            var comparison = Core.Helpers.VersionComparer.CompareVersions(
+            var comparison = versionComparer.Compare(
                 latestAvailableVersion,
                 highestInstalledVersion,
                 publisherType);
@@ -372,17 +374,6 @@ public class PublisherProfileOrchestrator(
         {
             logger.LogWarning(ex, "Error checking for newer version for {PublisherType}, assuming current is fine to avoid loops", publisherType);
             return false; // On error, don't trigger acquisition to avoid potential infinite loops
-        }
-    }
-
-    /// <summary>
-    /// Comparer for version strings that uses the VersionComparer utility.
-    /// </summary>
-    private class VersionStringComparer(string publisherType) : IComparer<string>
-    {
-        public int Compare(string? x, string? y)
-        {
-            return Core.Helpers.VersionComparer.CompareVersions(x, y, publisherType);
         }
     }
 }

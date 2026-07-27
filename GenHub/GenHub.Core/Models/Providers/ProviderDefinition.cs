@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Providers;
@@ -59,6 +60,13 @@ public class ProviderDefinition
     /// </summary>
     [JsonPropertyName("catalogFormat")]
     public string CatalogFormat { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the version scheme used to order this provider's versions
+    /// (e.g. "mmddyy-qfe", "iso-date", "numeric").
+    /// </summary>
+    [JsonPropertyName("versionScheme")]
+    public string VersionScheme { get; set; } = VersionSchemeConstants.Default;
 
     /// <summary>
     /// Gets or sets the endpoints configuration for this provider.

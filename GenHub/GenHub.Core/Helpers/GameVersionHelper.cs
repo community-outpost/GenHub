@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text.RegularExpressions;
+using GenHub.Core.Services.Providers.VersionSchemes;
 
 namespace GenHub.Core.Helpers;
 
@@ -8,6 +9,8 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class GameVersionHelper
 {
+    private static readonly MmddyyQfeVersionScheme GeneralsOnlineScheme = new();
+
     /// <summary>
     /// Extracts a numeric version from a version string like "2025-11-07" or "weekly-2025-11-21".
     /// Extracts all digits and returns them as an integer (e.g., "2025-11-07" -> 20251107).
@@ -122,68 +125,33 @@ public static partial class GameVersionHelper
     }
 
     /// <summary>
-    /// Parses a version string (MMDDYY_QFE#) used by Generals Online.
-    /// </summary>
-    /// <param name="version">The version string to parse.</param>
-    /// <returns>A tuple containing the extracted date and QFE number, or null if parsing fails.</returns>
-    public static (DateTime Date, int Qfe)? ParseGeneralsOnlineVersion(string? version)
-    {
-        if (string.IsNullOrWhiteSpace(version))
-        {
-            return null;
-        }
-
-        try
-        {
-            // Format: MMDDYY_QFE# or DDMMYY_QFE# (General Online CDN uses MMDDYY)
-            var parts = version.Split('_', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length != 2)
-            {
-                return null;
-            }
-
-            var datePart = parts[0];
-            var qfePart = parts[1].Replace("QFE", string.Empty, StringComparison.OrdinalIgnoreCase);
-
-            if (datePart.Length != 6 || !int.TryParse(qfePart, out var qfe))
-            {
-                return null;
-            }
-
-            var month = int.Parse(datePart[0..2]);
-            var day = int.Parse(datePart[2..4]);
-            var year = 2000 + int.Parse(datePart[4..6]);
-
-            return (new DateTime(year, month, day), qfe);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Gets a sortable integer version for Generals Online versions.
+    /// Builds the numeric version component of a Generals Online manifest ID.
     /// Converts "101525_QFE2" to 1015252.
     /// </summary>
+    /// <remarks>
+    /// This value identifies a release inside an existing manifest ID; it is not a sort key.
+    /// MMddyy is month-major and drops leading zeros, so it does not order across months or
+    /// years — use <see cref="Interfaces.Providers.IContentVersionComparer"/> for that. The
+    /// encoding is frozen because changing it would invalidate the IDs of installed content.
+    /// </remarks>
     /// <param name="version">The version string to convert.</param>
-    /// <returns>A sortable integer, or 0 if parsing fails.</returns>
-    public static int GetGeneralsOnlineSortableVersion(string? version)
+    /// <returns>The manifest ID component, or 0 if parsing fails.</returns>
+    public static int GetGeneralsOnlineManifestIdComponent(string? version)
     {
         if (string.IsNullOrWhiteSpace(version))
         {
             return 0;
         }
 
-        var parsed = ParseGeneralsOnlineVersion(version);
-        if (parsed != null)
+        if (!GeneralsOnlineScheme.TryParse(version, out var parsed))
         {
-            var dateValue = int.Parse(parsed.Value.Date.ToString("MMddyy"));
-            return (dateValue * 10) + parsed.Value.Qfe;
+            return ExtractVersionFromVersionString(version);
         }
 
-        // Fallback: use ExtractVersionFromVersionString which handles overflow
-        return ExtractVersionFromVersionString(version);
+        var components = parsed.Components;
+        var mmddyy = (int)((components[1] * 10000) + (components[2] * 100) + (components[0] % 100));
+
+        return (mmddyy * 10) + (int)components[3];
     }
 
     /// <summary>

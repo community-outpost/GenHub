@@ -9,6 +9,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.ViewModels;
 using GenHub.Features.Downloads.ViewModels;
+using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -173,6 +174,7 @@ public class PublisherCardViewModelTests
             _profileContentServiceMock.Object,
             _gameProfileManagerMock.Object,
             _notificationServiceMock.Object,
-            _reconciliationServiceMock.Object);
+            _reconciliationServiceMock.Object,
+            TestVersionComparer.CreateDefault());
     }
 }

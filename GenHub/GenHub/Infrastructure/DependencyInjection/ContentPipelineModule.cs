@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Services.Content;
 using GenHub.Core.Services.Providers;
+using GenHub.Core.Services.Providers.VersionSchemes;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.CommunityOutpost;
 using GenHub.Features.Content.Services.ContentDeliverers;
@@ -105,6 +106,13 @@ public static class ContentPipelineModule
         services.AddSingleton<ICatalogParserFactory, CatalogParserFactory>();
         services.AddSingleton<ICatalogParser, GenPatcherDatCatalogParser>();
         services.AddSingleton<ICatalogParser, GeneralsOnlineJsonCatalogParser>();
+
+        // Register version scheme factory and schemes
+        services.AddSingleton<IVersionSchemeFactory, VersionSchemeFactory>();
+        services.AddSingleton<IVersionScheme, NumericVersionScheme>();
+        services.AddSingleton<IVersionScheme, IsoDateVersionScheme>();
+        services.AddSingleton<IVersionScheme, MmddyyQfeVersionScheme>();
+        services.AddSingleton<IContentVersionComparer, ContentVersionComparer>();
 
         // Register cache
         services.AddSingleton<IDynamicContentCache, MemoryDynamicContentCache>();

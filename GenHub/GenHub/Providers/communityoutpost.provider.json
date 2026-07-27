@@ -6,6 +6,7 @@
   "iconColor": "#5E35B1",
   "providerType": "Static",
   "catalogFormat": "genpatcher-dat",
+  "versionScheme": "iso-date",
   "endpoints": {
     "catalogUrl": "https://legi.cc/gp2/dl.dat",
     "websiteUrl": "https://legi.cc",

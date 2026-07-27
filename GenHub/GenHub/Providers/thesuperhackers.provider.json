@@ -6,6 +6,7 @@
     "iconColor": "#FF9800",
     "providerType": "Static",
     "catalogFormat": "github-releases",
+    "versionScheme": "numeric",
     "endpoints": {
         "websiteUrl": "https://github.com/thesuperhackers",
         "supportUrl": "https://github.com/thesuperhackers/GeneralsGameCode/issues",
