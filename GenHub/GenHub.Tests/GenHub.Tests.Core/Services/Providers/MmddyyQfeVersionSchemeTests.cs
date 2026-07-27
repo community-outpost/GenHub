@@ -41,6 +41,16 @@ public class MmddyyQfeVersionSchemeTests
     }
 
     /// <summary>
+    /// Verifies that two-digit years always map to the publisher's 2000-2099 range.
+    /// </summary>
+    [Fact]
+    public void TryParse_UsesExplicitTwentyFirstCenturyPolicy()
+    {
+        Assert.True(_scheme.TryParse("010130_QFE1", out var result));
+        Assert.Equal(new long[] { 2030, 1, 1, 1 }, result.Components);
+    }
+
+    /// <summary>
     /// Verifies that malformed versions are rejected without throwing.
     /// </summary>
     /// <param name="version">The version string.</param>
