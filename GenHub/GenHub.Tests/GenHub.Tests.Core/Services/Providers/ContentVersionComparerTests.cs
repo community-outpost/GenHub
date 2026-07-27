@@ -78,6 +78,7 @@ public class ContentVersionComparerTests
     [InlineData("20251226", "20241226", 1)]
     [InlineData("20260116", "260116", 0)]
     [InlineData("270116", "260116", 1)]
+    [InlineData("010126", "20010126", 0)]
     [InlineData("1.20260116", "20260116", 1)]
     [InlineData("weekly-2025-12-26", "weekly-2025-11-21", 1)]
     public void Compare_TheSuperHackers_ReturnsCorrectOrder(string version1, string version2, int expected)

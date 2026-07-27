@@ -11,12 +11,7 @@ namespace GenHub.Core.Services.Providers.VersionSchemes;
 /// </summary>
 public sealed class NumericVersionScheme : VersionSchemeBase
 {
-    /// <summary>
-    /// Six-digit values are read as YYMMDD so they order against full YYYYMMDD dates.
-    /// </summary>
-    private const long ShortDateFloor = 100000;
-    private const long ShortDateCeiling = 991231;
-    private const long CenturyOffset = 20000000;
+    private const long DateStampFloor = 100000;
 
     private static readonly string[] KnownPrefixes = ["weekly-", "release-", "version-"];
 
@@ -35,9 +30,9 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
         var normalized = Normalize(version);
 
-        if (long.TryParse(normalized, NumberStyles.None, CultureInfo.InvariantCulture, out var whole))
+        if (TryParseNumericValue(normalized, out var whole))
         {
-            result = new ContentVersion(ExpandShortDate(whole));
+            result = new ContentVersion(whole);
             return true;
         }
 
@@ -71,12 +66,12 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         var normalized1 = Normalize(version1);
         var normalized2 = Normalize(version2);
 
-        var isNumeric1 = long.TryParse(normalized1, out var numeric1);
-        var isNumeric2 = long.TryParse(normalized2, out var numeric2);
+        var isNumeric1 = TryParseNumericValue(normalized1, out var numeric1);
+        var isNumeric2 = TryParseNumericValue(normalized2, out var numeric2);
 
         if (isNumeric1 && isNumeric2)
         {
-            return ExpandShortDate(numeric1).CompareTo(ExpandShortDate(numeric2));
+            return numeric1.CompareTo(numeric2);
         }
 
         var hasDot1 = version1.Contains('.');
@@ -111,7 +106,7 @@ public sealed class NumericVersionScheme : VersionSchemeBase
             && long.TryParse(digits1, out var extracted1)
             && long.TryParse(digits2, out var extracted2))
         {
-            return ExpandShortDate(extracted1).CompareTo(ExpandShortDate(extracted2));
+            return extracted1.CompareTo(extracted2);
         }
 
         return string.Compare(version1, version2, StringComparison.Ordinal);
@@ -119,7 +114,7 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
     private static bool OutranksDateStamp(string dottedVersion, long dateStamp)
     {
-        if (dateStamp <= ShortDateFloor)
+        if (dateStamp <= DateStampFloor)
         {
             return false;
         }
@@ -151,8 +146,26 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         return normalized;
     }
 
-    private static long ExpandShortDate(long version) =>
-        version is >= ShortDateFloor and <= ShortDateCeiling ? CenturyOffset + version : version;
+    private static bool TryParseNumericValue(string normalized, out long value)
+    {
+        // Preserve the declared six-character YYMMDD width before numeric parsing,
+        // including a leading zero. Only valid calendar dates receive 20xx expansion;
+        // other six-digit values remain ordinary numeric versions.
+        if (normalized.Length == 6
+            && normalized.All(char.IsDigit)
+            && DateTime.TryParseExact(
+                $"20{normalized}",
+                "yyyyMMdd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out _)
+            && long.TryParse($"20{normalized}", NumberStyles.None, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        return long.TryParse(normalized, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+    }
 
     private static int CompareSegments(string version1, string version2)
     {
