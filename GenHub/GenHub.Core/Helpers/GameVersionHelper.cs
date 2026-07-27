@@ -171,8 +171,8 @@ public static partial class GameVersionHelper
 
         try
         {
-            var date = new DateTime(2000 + twoDigitYear, month, day);
-            var mmddyy = int.Parse(date.ToString("MMddyy"));
+            _ = new DateTime(2000 + twoDigitYear, month, day);
+            var mmddyy = (month * 10000) + (day * 100) + twoDigitYear;
             return checked((mmddyy * 10) + qfe);
         }
         catch (ArgumentOutOfRangeException)

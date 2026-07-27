@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Helpers;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -88,5 +89,26 @@ public class GameVersionHelperTests
         Assert.Equal(
             GameVersionHelper.ExtractVersionFromVersionString(version),
             GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));
+    }
+
+    /// <summary>
+    /// Verifies that manifest IDs use the publisher's Gregorian MMDDYY digits even when
+    /// the current culture uses a different calendar.
+    /// </summary>
+    [Fact]
+    public void GetGeneralsOnlineManifestIdComponent_IsCultureInvariant()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("th-TH");
+
+            Assert.Equal(314252, GameVersionHelper.GetGeneralsOnlineManifestIdComponent("031425_QFE2"));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 }
