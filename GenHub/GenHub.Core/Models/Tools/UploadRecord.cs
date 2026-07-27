@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace GenHub.Core.Models.Tools;
 
 /// <summary>
@@ -24,4 +26,13 @@ public sealed class UploadRecord
     /// Gets or sets the name of the uploaded file.
     /// </summary>
     public string? FileName { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a legacy record was pending deletion.
+    /// </summary>
+    /// <remarks>
+    /// Retained only to migrate existing history files. New records leave this value unset.
+    /// </remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsPendingDeletion { get; set; }
 }

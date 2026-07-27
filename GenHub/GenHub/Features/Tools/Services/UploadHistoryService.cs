@@ -175,10 +175,20 @@ public sealed class UploadHistoryService(
 
                 // Clean up old entries (expired retention)
                 var retentionCutoff = DateTime.UtcNow.AddDays(-HistoryRetentionDays);
+                var hasPendingDeletionRecords = history.Any(r => r.IsPendingDeletion);
 
-                _cache = history.Where(r => r.Timestamp >= retentionCutoff).OrderByDescending(r => r.Timestamp).ToList();
+                var migratedHistory = history
+                    .Where(r => !r.IsPendingDeletion && r.Timestamp >= retentionCutoff)
+                    .OrderByDescending(r => r.Timestamp)
+                    .ToList();
+                _cache = migratedHistory;
 
-                return new List<UploadRecord>(_cache);
+                if (hasPendingDeletionRecords)
+                {
+                    SaveHistoryInternal(migratedHistory);
+                }
+
+                return new List<UploadRecord>(migratedHistory);
             }
             catch (Exception ex)
             {

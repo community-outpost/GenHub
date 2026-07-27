@@ -204,8 +204,6 @@
                     ToolTip.Tip="View the history of your uploaded maps.">
               <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"/>
             </Button>
-            <TextBlock Text="(max 10MB per file)" FontSize="10" Opacity="0.5" VerticalAlignment="Center" Margin="8,0,0,0"/>
-
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
                    IsLightDismissEnabled="True">
