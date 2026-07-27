@@ -8,15 +8,20 @@ namespace GenHub.Core.Models.Content;
 /// </summary>
 public readonly struct ContentVersion : IComparable<ContentVersion>, IEquatable<ContentVersion>
 {
-    private static readonly long[] NoComponents = [];
+    private static readonly IReadOnlyList<long> NoComponents =
+        Array.AsReadOnly(Array.Empty<long>());
 
-    private readonly long[]? _components;
+    private readonly IReadOnlyList<long>? _components;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentVersion"/> struct.
     /// </summary>
     /// <param name="components">The version components, most-significant first.</param>
-    public ContentVersion(params long[] components) => _components = components;
+    public ContentVersion(params long[] components)
+    {
+        ArgumentNullException.ThrowIfNull(components);
+        _components = Array.AsReadOnly((long[])components.Clone());
+    }
 
     /// <summary>
     /// Gets the version components, most-significant first.

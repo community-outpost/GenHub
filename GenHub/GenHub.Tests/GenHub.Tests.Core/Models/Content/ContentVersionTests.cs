@@ -51,6 +51,31 @@ public class ContentVersionTests
     }
 
     /// <summary>
+    /// Verifies that mutating the source array cannot change an existing version value.
+    /// </summary>
+    [Fact]
+    public void Constructor_DefensivelyCopiesComponents()
+    {
+        long[] components = [1, 7, 2];
+        var version = new ContentVersion(components);
+
+        components[0] = 9;
+
+        Assert.Equal(new long[] { 1, 7, 2 }, version.Components);
+    }
+
+    /// <summary>
+    /// Verifies that the component view does not expose the mutable backing array.
+    /// </summary>
+    [Fact]
+    public void Components_DoesNotExposeMutableArray()
+    {
+        var version = new ContentVersion(1, 7, 2);
+
+        Assert.IsNotType<long[]>(version.Components);
+    }
+
+    /// <summary>
     /// Verifies that a default version carries no components.
     /// </summary>
     [Fact]
