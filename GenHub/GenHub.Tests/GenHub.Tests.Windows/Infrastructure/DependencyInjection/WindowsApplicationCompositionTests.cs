@@ -10,6 +10,7 @@ using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.GameInstallations;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 
 namespace GenHub.Tests.Windows.Infrastructure.DependencyInjection;
 
@@ -73,6 +74,17 @@ public class WindowsApplicationCompositionTests
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformServices => platformServices.AddWindowsServices());
 
+        Assert.Contains(
+            services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IGitHubTokenStorage)
+                && descriptor.ImplementationType == typeof(WindowsGitHubTokenStorage)
+                && descriptor.Lifetime == ServiceLifetime.Singleton);
+
+        var tokenStorageMock = new Mock<IGitHubTokenStorage>();
+        tokenStorageMock.Setup(storage => storage.HasToken()).Returns(true);
+        services.AddSingleton(tokenStorageMock.Object);
+
         using var serviceProvider = services.BuildServiceProvider();
 
         Assert.Equal(
@@ -81,10 +93,11 @@ public class WindowsApplicationCompositionTests
         Assert.IsType<WindowsInstallationDetector>(
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());
-        Assert.IsType<WindowsGitHubTokenStorage>(
-            serviceProvider.GetRequiredService<IGitHubTokenStorage>());
+        Assert.Same(tokenStorageMock.Object, serviceProvider.GetRequiredService<IGitHubTokenStorage>());
 
         var settingsViewModel = serviceProvider.GetRequiredService<SettingsViewModel>();
+        Assert.True(settingsViewModel.HasGitHubPat);
+        tokenStorageMock.Verify(storage => storage.HasToken(), Times.Once);
         Assert.NotNull(serviceProvider.GetRequiredService<GameProfileSettingsViewModel>());
 
         var mainViewModel = serviceProvider.GetRequiredService<MainViewModel>();
