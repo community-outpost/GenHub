@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Text.RegularExpressions;
-using GenHub.Core.Services.Providers.VersionSchemes;
 
 namespace GenHub.Core.Helpers;
 
@@ -9,8 +8,6 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class GameVersionHelper
 {
-    private static readonly MmddyyQfeVersionScheme GeneralsOnlineScheme = new();
-
     /// <summary>
     /// Extracts a numeric version from a version string like "2025-11-07" or "weekly-2025-11-21".
     /// Extracts all digits and returns them as an integer (e.g., "2025-11-07" -> 20251107).
@@ -143,15 +140,39 @@ public static partial class GameVersionHelper
             return 0;
         }
 
-        if (!GeneralsOnlineScheme.TryParse(version, out var parsed))
+        // Preserve the exact legacy behavior used to generate installed manifest IDs.
+        // Extended versions previously fell through to digit extraction, so this encoder
+        // intentionally accepts only the original two-segment format.
+        var parts = version.Split(
+            '_',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 2)
         {
             return ExtractVersionFromVersionString(version);
         }
 
-        var components = parsed.Components;
-        var mmddyy = (int)((components[1] * 10000) + (components[2] * 100) + (components[0] % 100));
+        var datePart = parts[0];
+        var qfePart = parts[1].Replace("QFE", string.Empty, StringComparison.OrdinalIgnoreCase);
 
-        return (mmddyy * 10) + (int)components[3];
+        if (datePart.Length != 6
+            || !int.TryParse(qfePart, out var qfe)
+            || !int.TryParse(datePart[0..2], out var month)
+            || !int.TryParse(datePart[2..4], out var day)
+            || !int.TryParse(datePart[4..6], out var twoDigitYear))
+        {
+            return ExtractVersionFromVersionString(version);
+        }
+
+        try
+        {
+            var date = new DateTime(2000 + twoDigitYear, month, day);
+            var mmddyy = int.Parse(date.ToString("MMddyy"));
+            return (mmddyy * 10) + qfe;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return ExtractVersionFromVersionString(version);
+        }
     }
 
     /// <summary>

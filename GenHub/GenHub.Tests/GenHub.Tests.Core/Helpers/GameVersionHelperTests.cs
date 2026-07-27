@@ -19,17 +19,18 @@ public class GameVersionHelperTests
     [InlineData("121525_QFE1", 1215251)]
     [InlineData("060526_QFE1", 605261)]
     [InlineData("042826_QFE3", 428263)]
+    [InlineData("101525_QFE10", 1015260)]
+    [InlineData("011526_QFE1_EAC_X86", 11526186)]
     public void GetGeneralsOnlineManifestIdComponent_MatchesEstablishedEncoding(string version, int expected)
     {
         Assert.Equal(expected, GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));
     }
 
     /// <summary>
-    /// Verifies that a build tag does not change the manifest ID, so the same release keeps
-    /// one identity whether or not the CDN appends a tag.
+    /// Verifies that the current non-numeric EAC build tag retains its established ID.
     /// </summary>
     [Fact]
-    public void GetGeneralsOnlineManifestIdComponent_IgnoresBuildTags()
+    public void GetGeneralsOnlineManifestIdComponent_PreservesEstablishedEacBuildId()
     {
         Assert.Equal(
             GameVersionHelper.GetGeneralsOnlineManifestIdComponent("042826_QFE3"),
