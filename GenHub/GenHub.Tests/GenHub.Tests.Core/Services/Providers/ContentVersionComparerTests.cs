@@ -110,6 +110,11 @@ public class ContentVersionComparerTests
     [InlineData("version-2.0", "v1.9", 1)]
     [InlineData("1.0", "999999", -1)]
     [InlineData("999999", "1.0", 1)]
+    [InlineData("1.invalid", "20260101", -1)]
+    [InlineData("999999.invalid", "20260101", -1)]
+    [InlineData("1..2", "1.2", -1)]
+    [InlineData("1.2", "1..2", 1)]
+    [InlineData("beta2", "2", -1)]
     public void Compare_UnknownPublisher_UsesDefaultScheme(string version1, string version2, int expected)
     {
         var result = _comparer.Compare(version1, version2, null);

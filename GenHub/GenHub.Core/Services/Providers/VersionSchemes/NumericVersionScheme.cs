@@ -34,7 +34,7 @@ public sealed class NumericVersionScheme : VersionSchemeBase
             return true;
         }
 
-        var segments = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var segments = normalized.Split('.', StringSplitOptions.None);
         if (segments.Length < 2)
         {
             return false;
@@ -64,6 +64,13 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         var normalized1 = Normalize(version1);
         var normalized2 = Normalize(version2);
 
+        var parsed1 = TryParse(normalized1, out var parsedVersion1);
+        var parsed2 = TryParse(normalized2, out var parsedVersion2);
+        if (!parsed1 || !parsed2)
+        {
+            return base.Compare(version1, version2);
+        }
+
         var isNumeric1 = TryParseNumericValue(normalized1, out var numeric1, out var isDateStamp1);
         var isNumeric2 = TryParseNumericValue(normalized2, out var numeric2, out var isDateStamp2);
 
@@ -77,12 +84,12 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
         // A dotted version with a major of 1 or higher outranks a bare date stamp,
         // so "1.20260116" is newer than "20260116" rather than astronomically older.
-        if (hasDot1 && isDateStamp2 && OutranksDateStamp(normalized1))
+        if (hasDot1 && isDateStamp2 && parsedVersion1.Components[0] >= 1)
         {
             return 1;
         }
 
-        if (isDateStamp1 && hasDot2 && OutranksDateStamp(normalized2))
+        if (isDateStamp1 && hasDot2 && parsedVersion2.Components[0] >= 1)
         {
             return -1;
         }
@@ -108,12 +115,6 @@ public sealed class NumericVersionScheme : VersionSchemeBase
         }
 
         return string.Compare(version1, version2, StringComparison.Ordinal);
-    }
-
-    private static bool OutranksDateStamp(string dottedVersion)
-    {
-        var major = dottedVersion.Split('.')[0].TrimStart('v', 'V');
-        return int.TryParse(major, out var majorNumber) && majorNumber >= 1;
     }
 
     private static string Normalize(string version)
@@ -175,8 +176,8 @@ public sealed class NumericVersionScheme : VersionSchemeBase
 
     private static int CompareSegments(string version1, string version2)
     {
-        var segments1 = version1.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        var segments2 = version2.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var segments1 = version1.Split('.', StringSplitOptions.None);
+        var segments2 = version2.Split('.', StringSplitOptions.None);
 
         for (var i = 0; i < Math.Max(segments1.Length, segments2.Length); i++)
         {
