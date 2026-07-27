@@ -73,4 +73,20 @@ public class GameVersionHelperTests
     {
         Assert.Equal(expected, GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));
     }
+
+    /// <summary>
+    /// Verifies that signed and whitespace-padded date components use the fallback
+    /// rather than being accepted by permissive integer parsing.
+    /// </summary>
+    /// <param name="version">The malformed version string.</param>
+    [Theory]
+    [InlineData("01+225_QFE2")]
+    [InlineData("01 225_QFE2")]
+    [InlineData("0102+5_QFE2")]
+    public void GetGeneralsOnlineManifestIdComponent_FallsBackForNonDigitDate(string version)
+    {
+        Assert.Equal(
+            GameVersionHelper.ExtractVersionFromVersionString(version),
+            GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));
+    }
 }

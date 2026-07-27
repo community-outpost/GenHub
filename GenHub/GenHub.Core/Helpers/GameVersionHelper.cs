@@ -158,12 +158,13 @@ public static partial class GameVersionHelper
         var qfeDigits = hasQfePrefix ? qfePart[3..] : string.Empty;
 
         if (datePart.Length != 6
+            || !datePart.All(character => character is >= '0' and <= '9')
             || qfeDigits.Length == 0
             || !qfeDigits.All(character => character is >= '0' and <= '9')
             || !int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe)
-            || !int.TryParse(datePart[0..2], out var month)
-            || !int.TryParse(datePart[2..4], out var day)
-            || !int.TryParse(datePart[4..6], out var twoDigitYear))
+            || !int.TryParse(datePart[0..2], NumberStyles.None, CultureInfo.InvariantCulture, out var month)
+            || !int.TryParse(datePart[2..4], NumberStyles.None, CultureInfo.InvariantCulture, out var day)
+            || !int.TryParse(datePart[4..6], NumberStyles.None, CultureInfo.InvariantCulture, out var twoDigitYear))
         {
             return ExtractVersionFromVersionString(version);
         }
