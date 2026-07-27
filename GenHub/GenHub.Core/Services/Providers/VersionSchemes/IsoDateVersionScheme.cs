@@ -5,14 +5,18 @@ using GenHub.Core.Models.Content;
 namespace GenHub.Core.Services.Providers.VersionSchemes;
 
 /// <summary>
-/// Calendar-date versions, separated ("2025-11-07", "2025/11/07") or compact ("20251107").
+/// Calendar-date versions, separated ("2025-11-07", "2025/11/07", "2025.11.07")
+/// or compact ("20251107").
 /// </summary>
 public sealed class IsoDateVersionScheme : VersionSchemeBase
 {
-    private const string SeparatedFormat = "yyyy-MM-dd";
-    private const string CompactFormat = "yyyyMMdd";
-
-    private static readonly char[] Separators = ['-', '/', '.'];
+    private static readonly string[] SupportedFormats =
+    [
+        "yyyy-MM-dd",
+        "yyyy/MM/dd",
+        "yyyy.MM.dd",
+        "yyyyMMdd",
+    ];
 
     /// <inheritdoc/>
     public override string SchemeId => VersionSchemeConstants.IsoDate;
@@ -27,14 +31,14 @@ public sealed class IsoDateVersionScheme : VersionSchemeBase
             return false;
         }
 
-        if (!DateTime.TryParseExact(version, SeparatedFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        if (!DateTime.TryParseExact(
+                version,
+                SupportedFormats,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var date))
         {
-            var compact = string.Concat(version.Split(Separators, StringSplitOptions.RemoveEmptyEntries));
-
-            if (!DateTime.TryParseExact(compact, CompactFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
-            {
-                return false;
-            }
+            return false;
         }
 
         result = new ContentVersion(date.Year, date.Month, date.Day);
