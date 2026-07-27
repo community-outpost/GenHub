@@ -95,10 +95,16 @@ public class GeneralsOnlineUpdateService(
                 return null;
             }
 
-            var goManifest = manifests.Data.FirstOrDefault(m =>
-                m.Publisher?.PublisherType?.Equals(GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) == true);
+            var versionScheme = versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType);
 
-            return goManifest?.Version;
+            return manifests.Data
+                .Where(m =>
+                    m.Publisher?.PublisherType?.Equals(
+                        GeneralsOnlineConstants.PublisherType,
+                        StringComparison.OrdinalIgnoreCase) == true)
+                .Select(m => m.Version)
+                .OrderByDescending(version => version, versionScheme)
+                .FirstOrDefault();
         }
         catch (Exception ex)
         {
