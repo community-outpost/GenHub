@@ -478,6 +478,57 @@ public class GameLauncherTests
     }
 
     /// <summary>
+    /// Verifies Steam launch setup is serialized across profiles that share an installation.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_ConcurrentSteamProfilesSharingInstallation_SerializesSetup()
+    {
+        // Arrange
+        var firstProfile = CreateTestProfile();
+        firstProfile.UseSteamLaunch = true;
+        var secondProfile = CreateTestProfile();
+        secondProfile.UseSteamLaunch = true;
+        var cleanupStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCleanup = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanupCalls = 0;
+
+        _steamLauncherMock.Setup(x => x.CleanupGameDirectoryAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                Interlocked.Increment(ref cleanupCalls);
+                cleanupStarted.TrySetResult(true);
+                await releaseCleanup.Task;
+                return OperationResult<bool>.CreateFailure("Injected cleanup stop.");
+            });
+
+        // Act
+        var firstLaunch = _gameLauncher.LaunchProfileAsync(firstProfile);
+        await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var secondLaunch = _gameLauncher.LaunchProfileAsync(secondProfile);
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+            Assert.Equal(1, Volatile.Read(ref cleanupCalls));
+        }
+        finally
+        {
+            releaseCleanup.TrySetResult(true);
+        }
+
+        // Assert
+        var results = await Task.WhenAll(firstLaunch, secondLaunch);
+        Assert.All(results, result => Assert.False(result.Success));
+        Assert.Equal(2, Volatile.Read(ref cleanupCalls));
+    }
+
+    /// <summary>
     /// Launches a profile with empty enabled content and asserts success.
     /// </summary>
     /// <returns>The async task.</returns>

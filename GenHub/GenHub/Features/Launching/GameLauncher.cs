@@ -51,6 +51,9 @@ public class GameLauncher(
     IConfigurationProviderService configurationProvider) : IGameLauncher
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
+        new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
 
     /// <inheritdoc/>
@@ -58,6 +61,18 @@ public class GameLauncher(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
         var semaphore = _profileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(cancellationToken);
+        return new SemaphoreReleaser(semaphore);
+    }
+
+    private static async Task<IDisposable> AcquireSteamInstallationLockAsync(
+        string installationPath,
+        CancellationToken cancellationToken)
+    {
+        var normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
+        var semaphore = _steamInstallationLaunchLocks.GetOrAdd(
+            normalizedPath,
+            _ => new SemaphoreSlim(1, 1));
         await semaphore.WaitAsync(cancellationToken);
         return new SemaphoreReleaser(semaphore);
     }
@@ -454,6 +469,8 @@ public class GameLauncher(
 
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
+        IDisposable? steamInstallationLock = null;
+
         try
         {
             logger.LogInformation("[GameLauncher] === Starting launch for profile '{ProfileName}' (ID: {ProfileId}) ===", profile.Name, profile.Id);
@@ -607,6 +624,9 @@ public class GameLauncher(
 
             if (isSteamLaunch)
             {
+                steamInstallationLock = await AcquireSteamInstallationLockAsync(
+                    actualInstallationPath,
+                    cancellationToken);
                 logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
 
                 // Workspace should be adjacent to the installation directory, not inside it
@@ -649,7 +669,20 @@ public class GameLauncher(
 
                     // Always use generals.exe for Steam cleanup (the actual Steam executable)
                     var steamExecutableName = GameClientConstants.GeneralsExecutable;
-                    await steamLauncher.CleanupGameDirectoryAsync(actualInstallationPath, steamExecutableName, cancellationToken);
+                    var cleanupResult = await steamLauncher.CleanupGameDirectoryAsync(
+                        actualInstallationPath,
+                        steamExecutableName,
+                        cancellationToken);
+                    if (!cleanupResult.Success)
+                    {
+                        logger.LogError(
+                            "[GameLauncher] Pre-launch Steam cleanup failed: {Error}",
+                            cleanupResult.FirstError);
+                        return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                            $"Failed to restore the Steam installation before launch: {cleanupResult.FirstError}",
+                            launchId,
+                            profile.Id);
+                    }
                 }
             }
 
@@ -1047,6 +1080,10 @@ public class GameLauncher(
             logger.LogError(ex, "Failed to launch profile {ProfileId}, cleaning up placeholder entry", profile.Id);
             await launchRegistry.UnregisterLaunchAsync(launchId);
             return LaunchOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}", launchId, profile.Id);
+        }
+        finally
+        {
+            steamInstallationLock?.Dispose();
         }
     }
 

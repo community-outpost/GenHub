@@ -96,6 +96,27 @@ public sealed class SteamLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies preparation can recover when a prior crash left only the executable backup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_MissingTargetWithBackup_DeploysProxyFromRecoveryState()
+    {
+        // Arrange
+        var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
+        File.Move(_originalExecutablePath, backupPath);
+
+        // Act
+        var result = await PrepareAsync(CreateLauncher());
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.Equal("proxy executable", File.ReadAllText(_originalExecutablePath));
+        Assert.Equal("original executable", File.ReadAllText(backupPath));
+        Assert.Empty(GetRollbackArtifacts());
+    }
+
+    /// <summary>
     /// Verifies a late write failure restores files changed by the current attempt.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -136,31 +157,156 @@ public sealed class SteamLauncherTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies an uncertain pre-existing backup is preserved but not used to overwrite the current executable.
+    /// Verifies an uncertain pre-existing backup prevents preparation without changing either executable.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task PrepareForProfileAsync_UnrelatedPreExistingBackup_RestoresPreAttemptExecutable()
+    public async Task PrepareForProfileAsync_UnrelatedPreExistingBackup_FailsWithoutMutation()
     {
         // Arrange
         var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
         File.WriteAllText(_originalExecutablePath, "current executable");
         File.WriteAllText(backupPath, "stale pre-existing backup");
 
-        async Task FailingWriter(string path, string contents, CancellationToken cancellationToken)
-        {
-            await File.WriteAllTextAsync(path, contents, cancellationToken);
-            throw new IOException("Injected write failure.");
-        }
-
         // Act
-        var result = await PrepareAsync(CreateLauncher(FailingWriter));
+        var result = await PrepareAsync(CreateLauncher());
 
         // Assert
         Assert.False(result.Success);
+        Assert.Contains("unverified pre-existing backup", result.AllErrors);
         Assert.Equal("current executable", File.ReadAllText(_originalExecutablePath));
         Assert.Equal("stale pre-existing backup", File.ReadAllText(backupPath));
+        Assert.False(File.Exists(Path.Combine(_gameInstallPath, "proxy_config.json")));
         Assert.Empty(GetRollbackArtifacts());
+    }
+
+    /// <summary>
+    /// Verifies cleanup preserves an unrelated backup instead of overwriting a valid executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupGameDirectoryAsync_UnrelatedBackup_PreservesExecutableAndArtifacts()
+    {
+        // Arrange
+        var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
+        var configPath = Path.Combine(_gameInstallPath, "proxy_config.json");
+        File.WriteAllText(backupPath, "stale pre-existing backup");
+        File.WriteAllText(configPath, "pre-existing config");
+
+        // Act
+        var result = await CreateLauncher().CleanupGameDirectoryAsync(
+            _gameInstallPath,
+            ExecutableName);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("original executable", File.ReadAllText(_originalExecutablePath));
+        Assert.Equal("stale pre-existing backup", File.ReadAllText(backupPath));
+        Assert.Equal("pre-existing config", File.ReadAllText(configPath));
+    }
+
+    /// <summary>
+    /// Verifies cleanup restores a backup only when the installed executable is the known proxy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupGameDirectoryAsync_DeployedProxy_RestoresVerifiedBackup()
+    {
+        // Arrange
+        var backupPath = _originalExecutablePath + SteamConstants.BackupExtension;
+        var configPath = Path.Combine(_gameInstallPath, "proxy_config.json");
+        File.WriteAllText(_originalExecutablePath, "proxy executable");
+        File.WriteAllText(backupPath, "original executable");
+        File.WriteAllText(configPath, "prepared config");
+
+        // Act
+        var result = await CreateLauncher().CleanupGameDirectoryAsync(
+            _gameInstallPath,
+            ExecutableName);
+
+        // Assert
+        Assert.True(result.Success, result.AllErrors);
+        Assert.Equal("original executable", File.ReadAllText(_originalExecutablePath));
+        Assert.False(File.Exists(backupPath));
+        Assert.False(File.Exists(configPath));
+    }
+
+    /// <summary>
+    /// Verifies cleanup fails without deleting proxy artifacts when the original backup is missing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupGameDirectoryAsync_DeployedProxyWithoutBackup_FailsClosed()
+    {
+        // Arrange
+        var configPath = Path.Combine(_gameInstallPath, "proxy_config.json");
+        File.WriteAllText(_originalExecutablePath, "proxy executable");
+        File.WriteAllText(configPath, "prepared config");
+
+        // Act
+        var result = await CreateLauncher().CleanupGameDirectoryAsync(
+            _gameInstallPath,
+            ExecutableName);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal("proxy executable", File.ReadAllText(_originalExecutablePath));
+        Assert.Equal("prepared config", File.ReadAllText(configPath));
+    }
+
+    /// <summary>
+    /// Verifies concurrent preparations for one installation cannot overlap their mutations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareForProfileAsync_ConcurrentProfilesSharingInstallation_SerializesMutations()
+    {
+        // Arrange
+        var firstWriteStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirstWrite = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondWriteStarted = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async Task BlockingWriter(string path, string contents, CancellationToken cancellationToken)
+        {
+            firstWriteStarted.TrySetResult(true);
+            await releaseFirstWrite.Task.WaitAsync(cancellationToken);
+            await File.WriteAllTextAsync(path, contents, cancellationToken);
+        }
+
+        async Task ObservedWriter(string path, string contents, CancellationToken cancellationToken)
+        {
+            secondWriteStarted.TrySetResult(true);
+            await File.WriteAllTextAsync(path, contents, cancellationToken);
+        }
+
+        var firstPreparation = PrepareAsync(
+            CreateLauncher(BlockingWriter),
+            profileId: "first-profile");
+        await firstWriteStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var secondPreparation = PrepareAsync(
+            CreateLauncher(ObservedWriter),
+            profileId: "second-profile");
+
+        try
+        {
+            var prematureSecondWrite = await Task.WhenAny(
+                secondWriteStarted.Task,
+                Task.Delay(TimeSpan.FromMilliseconds(250)));
+            Assert.NotSame(secondWriteStarted.Task, prematureSecondWrite);
+        }
+        finally
+        {
+            releaseFirstWrite.TrySetResult(true);
+        }
+
+        // Assert
+        var results = await Task.WhenAll(firstPreparation, secondPreparation);
+        Assert.All(results, result => Assert.True(result.Success, result.AllErrors));
+        Assert.True(secondWriteStarted.Task.IsCompleted);
     }
 
     /// <summary>
@@ -254,11 +400,12 @@ public sealed class SteamLauncherTests : IDisposable
         SteamLauncher launcher,
         string? targetExecutablePath = null,
         string? steamAppId = null,
+        string profileId = "test-profile",
         CancellationToken cancellationToken = default)
     {
         return launcher.PrepareForProfileAsync(
             _gameInstallPath,
-            "test-profile",
+            profileId,
             Array.Empty<ContentManifest>(),
             ExecutableName,
             targetExecutablePath ?? _workspaceExecutablePath,
