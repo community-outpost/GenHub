@@ -52,7 +52,7 @@ public class GameLauncher(
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
-        new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        new(InstallationPathLockKey.Comparer);
 
     private static readonly SearchValues<char> InvalidArgChars = SearchValues.Create(";|&\n\r`$%");
 
@@ -69,7 +69,7 @@ public class GameLauncher(
         string installationPath,
         CancellationToken cancellationToken)
     {
-        var normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
+        var normalizedPath = InstallationPathLockKey.Create(installationPath);
         var semaphore = _steamInstallationLaunchLocks.GetOrAdd(
             normalizedPath,
             _ => new SemaphoreSlim(1, 1));

@@ -37,7 +37,7 @@ public class SteamLauncher : ISteamLauncher
         : StringComparer.Ordinal;
 
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _installationMutationLocks =
-        new(PathComparer);
+        new(InstallationPathLockKey.Comparer);
 
     private readonly ILogger<SteamLauncher> _logger;
     private readonly string? _proxySourcePathOverride;
@@ -386,7 +386,7 @@ public class SteamLauncher : ISteamLauncher
         string installationPath,
         CancellationToken cancellationToken)
     {
-        var normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
+        var normalizedPath = InstallationPathLockKey.Create(installationPath);
         var semaphore = _installationMutationLocks.GetOrAdd(
             normalizedPath,
             _ => new SemaphoreSlim(1, 1));

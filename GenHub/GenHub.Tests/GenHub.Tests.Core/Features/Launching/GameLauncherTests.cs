@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -485,10 +486,44 @@ public class GameLauncherTests
     public async Task LaunchProfileAsync_ConcurrentSteamProfilesSharingInstallation_SerializesSetup()
     {
         // Arrange
+        var testRoot = Path.Combine(
+            Path.GetTempPath(),
+            "GenHub-GameLauncherAliasTests",
+            Guid.NewGuid().ToString("N"));
+        var physicalInstallationPath = Path.Combine(testRoot, "physical-installation");
+        var installationAliasPath = Path.Combine(testRoot, "installation-alias");
+        Directory.CreateDirectory(physicalInstallationPath);
+        CreateDirectoryAlias(installationAliasPath, physicalInstallationPath);
+        Assert.Equal(
+            InstallationPathLockKey.Create(physicalInstallationPath),
+            InstallationPathLockKey.Create(installationAliasPath),
+            InstallationPathLockKey.Comparer);
+
         var firstProfile = CreateTestProfile();
         firstProfile.UseSteamLaunch = true;
+        firstProfile.GameInstallationId = "physical-installation";
         var secondProfile = CreateTestProfile();
         secondProfile.UseSteamLaunch = true;
+        secondProfile.GameInstallationId = "installation-alias";
+
+        var physicalInstallation = new GameInstallation(
+            physicalInstallationPath,
+            GameInstallationType.Steam);
+        physicalInstallation.SetPaths(physicalInstallationPath, null);
+        var aliasInstallation = new GameInstallation(
+            installationAliasPath,
+            GameInstallationType.Steam);
+        aliasInstallation.SetPaths(installationAliasPath, null);
+
+        _gameInstallationServiceMock.Setup(x => x.GetInstallationAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string installationId, CancellationToken _) =>
+                OperationResult<GameInstallation>.CreateSuccess(
+                    installationId == firstProfile.GameInstallationId
+                        ? physicalInstallation
+                        : aliasInstallation));
+
         var cleanupStarted = new TaskCompletionSource<bool>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseCleanup = new TaskCompletionSource<bool>(
@@ -507,25 +542,42 @@ public class GameLauncherTests
                 return OperationResult<bool>.CreateFailure("Injected cleanup stop.");
             });
 
-        // Act
-        var firstLaunch = _gameLauncher.LaunchProfileAsync(firstProfile);
-        await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var secondLaunch = _gameLauncher.LaunchProfileAsync(secondProfile);
-
         try
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(250));
-            Assert.Equal(1, Volatile.Read(ref cleanupCalls));
+            // Act
+            var firstLaunch = _gameLauncher.LaunchProfileAsync(firstProfile);
+            await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var secondLaunch = _gameLauncher.LaunchProfileAsync(secondProfile);
+
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(250));
+                Assert.Equal(1, Volatile.Read(ref cleanupCalls));
+            }
+            finally
+            {
+                releaseCleanup.TrySetResult(true);
+            }
+
+            // Assert
+            var results = await Task.WhenAll(firstLaunch, secondLaunch);
+            Assert.All(results, result => Assert.False(result.Success));
+            Assert.Equal(2, Volatile.Read(ref cleanupCalls));
         }
         finally
         {
             releaseCleanup.TrySetResult(true);
-        }
 
-        // Assert
-        var results = await Task.WhenAll(firstLaunch, secondLaunch);
-        Assert.All(results, result => Assert.False(result.Success));
-        Assert.Equal(2, Volatile.Read(ref cleanupCalls));
+            if (Directory.Exists(installationAliasPath))
+            {
+                Directory.Delete(installationAliasPath);
+            }
+
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
     }
 
     /// <summary>
@@ -863,5 +915,31 @@ public class GameLauncherTests
             GameClient = new GameClient { Id = "version-1", ExecutablePath = @"C:\Games\generals.exe", GameType = GameType.Generals },
             EnabledContentIds = ["1.0.genhub.mod.test"],
         };
+    }
+
+    private static void CreateDirectoryAlias(string aliasPath, string targetPath)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Directory.CreateSymbolicLink(aliasPath, targetPath);
+            return;
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add("/c");
+        startInfo.ArgumentList.Add("mklink");
+        startInfo.ArgumentList.Add("/J");
+        startInfo.ArgumentList.Add(aliasPath);
+        startInfo.ArgumentList.Add(targetPath);
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to start junction creation process.");
+        process.WaitForExit();
+        Assert.Equal(0, process.ExitCode);
     }
 }
