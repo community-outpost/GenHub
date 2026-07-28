@@ -221,8 +221,17 @@ public class ManifestDiscoveryServiceTests : IDisposable
     /// </summary>
     public void Dispose()
     {
-        Directory.Delete(_tempDirectory, true);
-        GC.SuppressFinalize(this);
+        try
+        {
+            if (Directory.Exists(_tempDirectory))
+            {
+                Directory.Delete(_tempDirectory, true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort cleanup should not fail an otherwise successful test.
+        }
     }
 
     private static string SerializeManifest(string id)
