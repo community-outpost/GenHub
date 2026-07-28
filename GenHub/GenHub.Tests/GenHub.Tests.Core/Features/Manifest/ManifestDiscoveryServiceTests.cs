@@ -144,6 +144,57 @@ public class ManifestDiscoveryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that unavailable descendants do not prevent discovery in accessible sibling directories.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverManifestsAsync_WithUnavailableDescendants_ContinuesDiscoveringAccessibleManifests()
+    {
+        // Arrange
+        const string accessibleManifestId = "1.0.genhub.mod.accessible";
+        var accessibleDirectory = Directory.CreateDirectory(
+            Path.Combine(_tempDirectory, "accessible")).FullName;
+        var inaccessibleDirectory = Directory.CreateDirectory(
+            Path.Combine(_tempDirectory, "inaccessible")).FullName;
+        var removedDirectory = Directory.CreateDirectory(
+            Path.Combine(_tempDirectory, "removed")).FullName;
+        await File.WriteAllTextAsync(
+            Path.Combine(accessibleDirectory, "accessible.json"),
+            SerializeManifest(accessibleManifestId));
+
+        IEnumerable<string> EnumerateFiles(string directory, string pattern)
+        {
+            if (directory == inaccessibleDirectory)
+            {
+                throw new UnauthorizedAccessException("Injected inaccessible directory.");
+            }
+
+            if (directory == removedDirectory)
+            {
+                throw new DirectoryNotFoundException("Injected concurrently removed directory.");
+            }
+
+            return Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly);
+        }
+
+        var discoveryService = new ManifestDiscoveryService(
+            _loggerMock.Object,
+            _cacheMock.Object,
+            EnumerateFiles,
+            directory => Directory.EnumerateDirectories(
+                directory,
+                "*",
+                SearchOption.TopDirectoryOnly));
+
+        // Act
+        var manifests = await discoveryService.DiscoverManifestsAsync([_tempDirectory]);
+
+        // Assert
+        var manifest = Assert.Single(manifests);
+        Assert.Equal(accessibleManifestId, manifest.Key);
+    }
+
+    /// <summary>
     /// Tests that ValidateDependencies returns false when a required dependency is missing.
     /// </summary>
     [Fact]

@@ -20,6 +20,29 @@ namespace GenHub.Features.Manifest;
 public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, IManifestCache manifestCache)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    private readonly Func<string, string, IEnumerable<string>> _enumerateFiles =
+        (directory, pattern) => Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly);
+
+    private readonly Func<string, IEnumerable<string>> _enumerateDirectories =
+        directory => Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ManifestDiscoveryService"/> class with filesystem test seams.
+    /// </summary>
+    /// <param name="logger">The logger.</param>
+    /// <param name="manifestCache">The manifest cache.</param>
+    /// <param name="enumerateFiles">The top-level file enumerator.</param>
+    /// <param name="enumerateDirectories">The top-level directory enumerator.</param>
+    internal ManifestDiscoveryService(
+        ILogger<ManifestDiscoveryService> logger,
+        IManifestCache manifestCache,
+        Func<string, string, IEnumerable<string>> enumerateFiles,
+        Func<string, IEnumerable<string>> enumerateDirectories)
+        : this(logger, manifestCache)
+    {
+        _enumerateFiles = enumerateFiles;
+        _enumerateDirectories = enumerateDirectories;
+    }
 
     /// <summary>
     /// Gets manifests by content type.
@@ -61,7 +84,10 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
-            var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.JsonFilePattern, SearchOption.AllDirectories);
+            var manifestFiles = EnumerateFilesSafely(
+                directory,
+                FileTypes.JsonFilePattern,
+                cancellationToken);
             foreach (var manifestFile in manifestFiles)
             {
                 try
@@ -157,6 +183,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         return true;
     }
 
+    private static bool IsSkippableEnumerationException(Exception exception)
+    {
+        return exception is UnauthorizedAccessException or IOException;
+    }
+
     private static bool IsVersionCompatible(string actualVersion, string minVersion, string maxVersion)
     {
         if (!string.IsNullOrEmpty(minVersion) && string.Compare(actualVersion, minVersion, StringComparison.OrdinalIgnoreCase) < 0)
@@ -184,16 +215,71 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         return null;
     }
 
+    private IEnumerable<string> EnumerateFilesSafely(
+        string rootDirectory,
+        string searchPattern,
+        CancellationToken cancellationToken)
+    {
+        var pendingDirectories = new Stack<string>();
+        pendingDirectories.Push(rootDirectory);
+
+        while (pendingDirectories.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var currentDirectory = pendingDirectories.Pop();
+
+            string[] files;
+            try
+            {
+                files = _enumerateFiles(currentDirectory, searchPattern).ToArray();
+            }
+            catch (Exception ex) when (IsSkippableEnumerationException(ex))
+            {
+                logger.LogWarning(
+                    ex,
+                    "Skipping files in inaccessible or unavailable manifest directory: {Directory}",
+                    currentDirectory);
+                files = [];
+            }
+
+            foreach (var file in files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return file;
+            }
+
+            string[] childDirectories;
+            try
+            {
+                childDirectories = _enumerateDirectories(currentDirectory).ToArray();
+            }
+            catch (Exception ex) when (IsSkippableEnumerationException(ex))
+            {
+                logger.LogWarning(
+                    ex,
+                    "Skipping inaccessible or unavailable manifest directory: {Directory}",
+                    currentDirectory);
+                childDirectories = [];
+            }
+
+            for (var index = childDirectories.Length - 1; index >= 0; index--)
+            {
+                pendingDirectories.Push(childDirectories[index]);
+            }
+        }
+    }
+
     private async Task DiscoverFileSystemManifestsAsync(IEnumerable<string> searchDirectories, CancellationToken cancellationToken)
     {
         foreach (var directory in searchDirectories.Where(Directory.Exists))
         {
             logger.LogInformation("Scanning directory for manifests: {Directory}", directory);
 
-            // Look for both .json and .manifest.json files to avoid conflicts with stored manifests
-            var manifestFiles = Directory.EnumerateFiles(directory, FileTypes.ManifestFilePattern, SearchOption.AllDirectories)
-                .Concat(Directory.EnumerateFiles(directory, "*.json", SearchOption.AllDirectories)
-                    .Where(f => !f.EndsWith(FileTypes.ManifestFileExtension)));
+            // The JSON pattern includes both .json and .manifest.json files.
+            var manifestFiles = EnumerateFilesSafely(
+                directory,
+                FileTypes.JsonFilePattern,
+                cancellationToken);
 
             foreach (var manifestFile in manifestFiles)
             {
