@@ -24,7 +24,7 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         (directory, pattern) => Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly);
 
     private readonly Func<string, IEnumerable<string>> _enumerateDirectories =
-        directory => Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly);
+        directory => Directory.EnumerateDirectories(directory);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ManifestDiscoveryService"/> class with filesystem test seams.
