@@ -51,6 +51,41 @@ public sealed class UploadHistoryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that removing one item preserves the other local records.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveHistoryItemAsync_WhenOtherItemsExist_PreservesOtherRecords()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/first", "first.zip");
+        service.RecordUpload(2048, "https://utfs.io/f/second", "second.zip");
+
+        await service.RemoveHistoryItemAsync("https://utfs.io/f/first");
+
+        var reloadedService = CreateService();
+        var item = Assert.Single(await reloadedService.GetUploadHistoryAsync());
+        Assert.Equal("https://utfs.io/f/second", item.Url);
+    }
+
+    /// <summary>
+    /// Verifies that removing a non-matching URL leaves local history unchanged.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveHistoryItemAsync_WhenUrlDoesNotMatch_PreservesHistory()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/example", "example.zip");
+
+        await service.RemoveHistoryItemAsync("https://utfs.io/f/missing");
+
+        var reloadedService = CreateService();
+        var item = Assert.Single(await reloadedService.GetUploadHistoryAsync());
+        Assert.Equal("https://utfs.io/f/example", item.Url);
+    }
+
+    /// <summary>
     /// Verifies that clearing history deletes every local record immediately.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -60,6 +95,21 @@ public sealed class UploadHistoryServiceTests : IDisposable
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/first", "first.zip");
         service.RecordUpload(2048, "https://utfs.io/f/second", "second.zip");
+
+        await service.ClearHistoryAsync();
+
+        var reloadedService = CreateService();
+        Assert.Empty(await reloadedService.GetUploadHistoryAsync());
+    }
+
+    /// <summary>
+    /// Verifies that clearing empty history completes without creating records.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearHistoryAsync_WhenHistoryIsEmpty_RemainsEmpty()
+    {
+        var service = CreateService();
 
         await service.ClearHistoryAsync();
 
