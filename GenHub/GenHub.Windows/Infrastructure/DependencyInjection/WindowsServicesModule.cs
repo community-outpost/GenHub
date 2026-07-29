@@ -32,6 +32,7 @@ public static class WindowsServicesModule
         // Register Windows-specific services
         services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
         services.AddSingleton<IGamePathProvider, WindowsGamePathProvider>();
+        services.AddSingleton<ISymlinkCapabilityProvider, WindowsSymlinkCapabilityProvider>();
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
 

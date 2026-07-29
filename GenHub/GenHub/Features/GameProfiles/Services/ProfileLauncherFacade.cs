@@ -52,6 +52,7 @@ public class ProfileLauncherFacade(
     IPublisherReconcilerRegistry reconcilerRegistry,
     IConfigurationProviderService configurationProvider,
     IGameProcessManager gameProcessManager,
+    ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
     /// <inheritdoc/>
@@ -165,22 +166,16 @@ public class ProfileLauncherFacade(
                     var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
                     var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
 
-                    // Determine effective strategy with admin rights check for symlink strategies
-                    var effectiveToolStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
-                    var isToolAdmin = false;
-                    if (OperatingSystem.IsWindows())
-                    {
-                        using var identity = WindowsIdentity.GetCurrent();
-                        var principal = new WindowsPrincipal(identity);
-                        isToolAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
-                    }
+                    // Determine effective strategy, downgrading symlink strategies only
+                    // where symlinks genuinely cannot be created. See ISymlinkCapabilityProvider.
+                    var requestedToolStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+                    var effectiveToolStrategy = ResolveSupportedWorkspaceStrategy(requestedToolStrategy);
 
-                    if (!isToolAdmin && (effectiveToolStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveToolStrategy == WorkspaceStrategy.SymlinkOnly))
+                    if (effectiveToolStrategy != requestedToolStrategy)
                     {
                         logger.LogInformation(
-                            "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",
-                            effectiveToolStrategy);
-                        effectiveToolStrategy = WorkspaceStrategy.HardLink;
+                            "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink: this platform cannot create symlinks without elevation",
+                            requestedToolStrategy);
                     }
 
                     actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
@@ -454,30 +449,18 @@ public class ProfileLauncherFacade(
             var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
             logger.LogDebug("[Launch] Step 5: Checking workspace strategy and admin rights - Strategy: {Strategy}", effectiveStrategy);
 
-            // Admin check for symlink strategies.
-            // If not admin and using a symlink-based strategy, permanently switch the profile to HardLink strategy.
-            var isProfileAdmin = false;
-            if (OperatingSystem.IsWindows())
-            {
-                using var identity = WindowsIdentity.GetCurrent();
-                var principal = new WindowsPrincipal(identity);
-                isProfileAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
-                logger.LogInformation(
-                    "Profile {ProfileId} launch - Admin check: IsAdmin={IsAdmin}, User={User}, Strategy={Strategy}",
-                    profileId,
-                    isProfileAdmin,
-                    identity.Name,
-                    effectiveStrategy);
-            }
-            else
-            {
-                logger.LogInformation(
-                    "Profile {ProfileId} launch - Non-Windows platform, admin check skipped, Strategy={Strategy}",
-                    profileId,
-                    effectiveStrategy);
-            }
+            // Downgrade symlink strategies only where symlinks genuinely cannot be created.
+            // This previously asked whether the process was an administrator and computed
+            // that only on Windows, leaving it false on Unix — which made SymlinkOnly and
+            // HybridCopySymlink unreachable there despite symlink(2) needing no privilege.
+            var canCreateSymlinks = symlinkCapability.CanCreateSymlinks;
+            logger.LogInformation(
+                "Profile {ProfileId} launch - Symlink capability: {CanCreateSymlinks}, Strategy={Strategy}",
+                profileId,
+                canCreateSymlinks,
+                effectiveStrategy);
 
-            if (!isProfileAdmin && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
+            if (!canCreateSymlinks && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
                 // No admin rights - switch profile to HardLink strategy permanently
                 var originalStrategy = effectiveStrategy;
@@ -510,6 +493,11 @@ public class ProfileLauncherFacade(
                     }
                 }
             }
+
+            // GameLauncher constructs the actual workspace request from this in-memory
+            // profile. Persisting an explicit downgrade is not enough: inherited defaults
+            // are intentionally not persisted, and persistence may fail independently.
+            profile.WorkspaceStrategy = effectiveStrategy;
 
             // Use dynamic workspace path based on the game installation location
             var casPoolPath = storageLocationService.GetCasPoolPath(resolvedInstallation);
@@ -950,7 +938,8 @@ public class ProfileLauncherFacade(
                 Id = profileId,
                 Manifests = manifests,
                 GameClient = profile.GameClient!,
-                Strategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy(),
+                Strategy = ResolveSupportedWorkspaceStrategy(
+                    profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
                 ForceRecreate = false,
                 ValidateAfterPreparation = true,
                 ManifestSourcePaths = manifestSourcePaths,
@@ -1730,6 +1719,14 @@ public class ProfileLauncherFacade(
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private WorkspaceStrategy ResolveSupportedWorkspaceStrategy(WorkspaceStrategy strategy)
+    {
+        return !symlinkCapability.CanCreateSymlinks
+            && strategy is WorkspaceStrategy.HybridCopySymlink or WorkspaceStrategy.SymlinkOnly
+                ? WorkspaceStrategy.HardLink
+                : strategy;
     }
 
     /// <summary>

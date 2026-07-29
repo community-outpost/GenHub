@@ -29,6 +29,7 @@ public static class LinuxServicesModule
     {
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
         services.AddSingleton<IGamePathProvider, LinuxGamePathProvider>();
+        services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();
 
         // Real hard links via link(2). Without this the base implementation throws, which

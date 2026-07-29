@@ -12,6 +12,7 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using GenHub.Core.Interfaces.Workspace;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 
@@ -35,6 +36,7 @@ public class SharedViewModelModuleTests
         services.AddSingleton<IConfigurationProviderService>(configProvider);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
         services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
         services.AddSingleton<IUserSettingsService>(CreateMockUserSettingsService());
         services.AddSingleton<IAppConfiguration>(CreateMockAppConfiguration());
 
