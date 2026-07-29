@@ -2,14 +2,24 @@ name: GenHub Release
 
 permissions:
   contents: write
+  actions: read
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit on main to promote
+        required: true
+        default: main
+      version:
+        description: SemVer release version without the leading v
+        required: true
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.version || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -19,14 +29,85 @@ env:
   UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
   WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
   LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+  TEST_PROJECTS: 'GenHub/GenHub.Tests/**/*.csproj'
 
 jobs:
+  promote:
+    name: Verify Release Promotion
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout promoted ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve and validate release
+        id: release
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          sha=$(git rev-parse HEAD)
+          git fetch origin main
+          git merge-base --is-ancestor "$sha" origin/main || {
+            echo "::error::Release ref must resolve to a commit on main."
+            exit 1
+          }
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$MANUAL_VERSION"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Version must be valid SemVer without a leading v."
+            exit 1
+          fi
+
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful CI for promoted commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ steps.release.outputs.sha }}';
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              branch: 'main',
+              head_sha: sha,
+              status: 'success',
+              per_page: 100,
+            });
+
+            const successfulPush = data.workflow_runs.find(
+              run => run.event === 'push' && run.conclusion === 'success'
+            );
+
+            if (!successfulPush) {
+              core.setFailed(`No successful GenHub CI push run exists for ${sha} on main.`);
+              return;
+            }
+
+            core.info(`Using successful CI run ${successfulPush.html_url}`);
+
   build-windows:
     name: Build Windows
+    needs: promote
     runs-on: windows-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.promote.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -37,8 +118,26 @@ jobs:
         id: buildinfo
         shell: pwsh
         run: |
-          $version = "0.0.${{ github.run_number }}"
+          $version = "${{ needs.promote.outputs.version }}"
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Run Release Tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj |
+            Where-Object { $_.Name -notlike '*Linux*' }
+
+          if (-not $testProjects) {
+            throw "No Windows-compatible test projects found."
+          }
+
+          foreach ($testProject in $testProjects) {
+            dotnet test $testProject.FullName -c $env:BUILD_CONFIGURATION
+            if ($LASTEXITCODE -ne 0) {
+              throw "Tests failed for $($testProject.FullName)"
+            }
+          }
 
       - name: Publish Windows App
         shell: pwsh
@@ -82,11 +181,30 @@ jobs:
           $zipName = "GenHub-${{ steps.buildinfo.outputs.VERSION }}-win-portable.zip"
           Compress-Archive -Path $portableDir -DestinationPath $zipName -Force
 
+      - name: Smoke Test Windows Release Assets
+        shell: pwsh
+        run: |
+          $requiredPatterns = @(
+            "win-publish/GenHub.Windows.exe",
+            "velopack-release-windows/*.nupkg",
+            "velopack-release-windows/*-Setup.exe",
+            "velopack-release-windows/RELEASES",
+            "GenHub-${{ steps.buildinfo.outputs.VERSION }}-win-portable.zip"
+          )
+
+          foreach ($pattern in $requiredPatterns) {
+            $files = Get-ChildItem $pattern -ErrorAction SilentlyContinue
+            if (-not $files -or ($files | Where-Object Length -eq 0)) {
+              throw "Missing or empty release asset: $pattern"
+            }
+          }
+
       - name: Upload Windows Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
           path: velopack-release-windows/*
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload Windows Portable Artifact
@@ -94,14 +212,18 @@ jobs:
         with:
           name: windows-portable
           path: "GenHub-*-win-portable.zip"
+          if-no-files-found: error
           retention-days: 1
 
   build-linux:
     name: Build Linux
+    needs: promote
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.promote.outputs.sha }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -111,6 +233,26 @@ jobs:
       - name: Install Linux Dependencies
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libx11-dev
 
+      - name: Extract Build Info
+        id: buildinfo
+        run: |
+          VERSION="${{ needs.promote.outputs.version }}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run Release Tests
+        run: |
+          shopt -s globstar nullglob
+          test_projects=(${{ env.TEST_PROJECTS }})
+          if [ "${#test_projects[@]}" -eq 0 ]; then
+            echo "::error::No Linux-compatible test projects found."
+            exit 1
+          fi
+
+          for test_project in "${test_projects[@]}"; do
+            [[ "$test_project" == *Windows* ]] && continue
+            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}"
+          done
+
       - name: Publish Linux App
         run: |
           dotnet publish "${{ env.LINUX_PROJECT }}" \
@@ -118,7 +260,7 @@ jobs:
             -r linux-x64 \
             --self-contained true \
             -o "linux-publish" \
-            -p:Version="0.0.${{ github.run_number }}"
+            -p:Version="${{ steps.buildinfo.outputs.VERSION }}"
 
       - name: Install Velopack CLI
         run: |
@@ -129,7 +271,7 @@ jobs:
         run: |
           vpk pack \
             --packId GenHub \
-            --packVersion "0.0.${{ github.run_number }}" \
+            --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
             --packDir linux-publish \
             --mainExe GenHub.Linux \
             --packTitle "GenHub" \
@@ -141,16 +283,27 @@ jobs:
           mv velopack-release-linux/releases.json velopack-release-linux/releases.linux.json || true
           mv velopack-release-linux/assets.json velopack-release-linux/assets.linux.json || true
 
+      - name: Smoke Test Linux Release Assets
+        run: |
+          set -euo pipefail
+          test -x linux-publish/GenHub.Linux
+          compgen -G 'velopack-release-linux/*.nupkg' > /dev/null
+          if find velopack-release-linux -type f -size 0 -print -quit | grep -q .; then
+            echo "::error::A Linux release asset is empty."
+            exit 1
+          fi
+
       - name: Upload Linux Release Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
           path: velopack-release-linux/*
+          if-no-files-found: error
           retention-days: 1
 
   create-release:
     name: Create GitHub Release
-    needs: [build-windows, build-linux]
+    needs: [promote, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -158,15 +311,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.promote.outputs.sha }}
           fetch-depth: 0
 
       - name: Extract Info
         id: info
         run: |
-          VERSION="0.0.${{ github.run_number }}"
+          VERSION="${{ needs.promote.outputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           git fetch --tags --force
-          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | head -n 1)
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | grep -vx "v${VERSION}" | head -n 1)
           if [ -z "$PREVIOUS_TAG" ]; then
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" -10)
             COUNT="10"
@@ -201,6 +355,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.info.outputs.VERSION }}
+          target_commitish: ${{ needs.promote.outputs.sha }}
           name: GenHub Alpha v${{ steps.info.outputs.VERSION }}
           prerelease: true
           body: |
