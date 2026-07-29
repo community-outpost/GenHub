@@ -8,6 +8,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.MacOS" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" />
         <PackageReference Include="Avalonia.Diagnostics">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>

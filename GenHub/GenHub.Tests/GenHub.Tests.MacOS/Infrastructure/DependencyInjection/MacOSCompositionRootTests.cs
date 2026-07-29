@@ -8,6 +8,7 @@ namespace GenHub.Tests.MacOS.Infrastructure.DependencyInjection;
 /// Verifies the macOS host's real service container is complete.
 /// </summary>
 [SupportedOSPlatform("macos")]
+[Collection(ApplicationCompositionCollection.Name)]
 public class MacOSCompositionRootTests
 {
     /// <summary>

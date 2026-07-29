@@ -6,6 +6,7 @@ namespace GenHub.Tests.Windows.Infrastructure.DependencyInjection;
 /// <summary>
 /// Verifies the Windows host's real service container is complete.
 /// </summary>
+[Collection(ApplicationCompositionCollection.Name)]
 public class WindowsCompositionRootTests
 {
     /// <summary>

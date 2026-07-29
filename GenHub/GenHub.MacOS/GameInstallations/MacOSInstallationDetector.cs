@@ -125,19 +125,6 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             logger.LogInformation(
                 "macOS installation detection completed with {ResultCount} installations found",
                 installs.Count);
-
-            // An empty result caused by a declined permission prompt must not be reported
-            // as a successful scan that found nothing: the user would be told they own no
-            // games, with no hint that a permission decision caused it and no way back.
-            // Reporting failure also keeps callers from caching the empty result.
-            if (installs.Count == 0 && deniedRoots.Count > 0)
-            {
-                sw.Stop();
-                return Task.FromResult(DetectionResult<GameInstallation>.CreateFailure(
-                    $"Could not search {string.Join(", ", deniedRoots)} because macOS denied access, " +
-                    "so no conclusion can be drawn about installed games. Grant access in " +
-                    "System Settings > Privacy & Security > Files and Folders, then detect again."));
-            }
         }
         catch (OperationCanceledException)
         {
@@ -151,7 +138,33 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
         }
 
         sw.Stop();
-        return Task.FromResult(DetectionResult<GameInstallation>.CreateSuccess(installs, sw.Elapsed));
+        return Task.FromResult(CreateDetectionResult(installs, deniedRoots, sw.Elapsed));
+    }
+
+    /// <summary>
+    /// Creates the final detection result while preserving retry semantics for incomplete scans.
+    /// </summary>
+    /// <param name="installs">The installations found in readable locations.</param>
+    /// <param name="deniedRoots">Locations that could not be searched.</param>
+    /// <param name="elapsed">The elapsed detection time.</param>
+    /// <returns>A successful result only when every candidate location was searchable.</returns>
+    internal static DetectionResult<GameInstallation> CreateDetectionResult(
+        IReadOnlyCollection<GameInstallation> installs,
+        IReadOnlyCollection<string> deniedRoots,
+        TimeSpan elapsed)
+    {
+        // Any denied root makes the result incomplete. Returning success when another
+        // root happened to contain a game would cache that partial result and suppress
+        // the retry needed after the user grants access.
+        if (deniedRoots.Count > 0)
+        {
+            return DetectionResult<GameInstallation>.CreateFailure(
+                $"Could not search {string.Join(", ", deniedRoots)} because macOS denied access, " +
+                "so installation detection is incomplete. Grant access in " +
+                "System Settings > Privacy & Security > Files and Folders, then detect again.");
+        }
+
+        return DetectionResult<GameInstallation>.CreateSuccess(installs, elapsed);
     }
 
     /// <summary>

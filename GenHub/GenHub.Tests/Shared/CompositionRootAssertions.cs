@@ -90,6 +90,7 @@ public static class CompositionRootAssertions
     {
         ArgumentNullException.ThrowIfNull(platformModule);
 
+        using var testEnvironment = new TemporaryApplicationEnvironment();
         var services = new ServiceCollection();
         services.ConfigureApplicationServices(platformModule);
 
@@ -124,6 +125,10 @@ public static class CompositionRootAssertions
             + "if they are genuinely optional on this platform.";
 
         Assert.True(missing.Count == 0, missingMessage);
+
+        var configurationProvider = scope.ServiceProvider.GetRequiredService<IConfigurationProviderService>();
+        Assert.Equal(testEnvironment.AppDataPath, configurationProvider.GetRootAppDataPath());
+        Assert.Equal(testEnvironment.CasPath, configurationProvider.GetCasConfiguration().CasRootPath);
 
         var empty = RequiredNonEmptyCollections
             .Where(t => !((IEnumerable<object>)scope.ServiceProvider

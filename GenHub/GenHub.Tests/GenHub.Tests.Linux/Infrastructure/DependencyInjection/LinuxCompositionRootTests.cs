@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using GenHub.Linux.Infrastructure.DependencyInjection;
 using GenHub.Tests.Shared;
 
@@ -6,6 +7,8 @@ namespace GenHub.Tests.Linux.Infrastructure.DependencyInjection;
 /// <summary>
 /// Verifies the Linux host's real service container is complete.
 /// </summary>
+[SupportedOSPlatform("linux")]
+[Collection(ApplicationCompositionCollection.Name)]
 public class LinuxCompositionRootTests
 {
     /// <summary>
