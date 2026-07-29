@@ -1,5 +1,3 @@
-using System;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -27,9 +25,11 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
-using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 

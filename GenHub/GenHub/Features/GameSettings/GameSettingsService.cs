@@ -34,6 +34,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     private static readonly SemaphoreSlim _optionsIniWriteSemaphore = new(1, 1);
 
     private readonly ILogger<GameSettingsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
     // Required, not optional. This previously defaulted to WindowsGamePathProvider when
     // nothing was registered — which was every platform, because no DI module registered
     // an IGamePathProvider at all. macOS and Linux therefore wrote Options.ini via

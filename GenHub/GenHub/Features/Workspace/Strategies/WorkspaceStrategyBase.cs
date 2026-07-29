@@ -552,11 +552,15 @@ public abstract class WorkspaceStrategyBase<T>(
                 {
                     File.Copy(targetPath, temporaryPath, overwrite: true);
 
-                    File.SetUnixFileMode(
-                        temporaryPath,
-                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        const UnixFileMode executableMode =
+                            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                            UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+
+                        File.SetUnixFileMode(temporaryPath, executableMode);
+                    }
 
                     File.Move(temporaryPath, targetPath, overwrite: true);
                 },
