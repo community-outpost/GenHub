@@ -80,10 +80,9 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var generalsPath = FindGameDirectory(root, GeneralsDirectoryNames, out var generalsDenied);
-                var zeroHourPath = FindGameDirectory(root, ZeroHourDirectoryNames, out var zeroHourDenied);
+                var (generalsPath, zeroHourPath, accessDenied) = FindGameDirectories(root);
 
-                if (generalsDenied || zeroHourDenied)
+                if (accessDenied)
                 {
                     deniedRoots.Add(root);
                 }
@@ -253,40 +252,56 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     }
 
     /// <summary>
-    /// Finds an immediate child of <paramref name="root"/> whose name matches one of
-    /// <paramref name="candidateNames"/>, comparing case-insensitively because macOS
-    /// volumes can be case-sensitive while retail trees are Windows-cased.
+    /// Finds immediate children of <paramref name="root"/> whose names match the known
+    /// Generals and Zero Hour directory names.
     /// </summary>
     /// <param name="root">Directory to search within.</param>
-    /// <param name="candidateNames">Directory names to look for.</param>
-    /// <returns>The matching directory path, or null when none matches.</returns>
-    /// <param name="accessDenied">
-    /// Set when the directory could not be read because access was denied, which on macOS
-    /// is how a declined privacy prompt surfaces. Distinct from finding nothing.
-    /// </param>
-    private static string? FindGameDirectory(string root, string[] candidateNames, out bool accessDenied)
+    /// <returns>
+    /// The matching paths and whether access was denied. Matching is case-insensitive
+    /// because macOS volumes can be case-sensitive while retail trees are Windows-cased.
+    /// </returns>
+    private static (string? GeneralsPath, string? ZeroHourPath, bool AccessDenied)
+        FindGameDirectories(string root)
     {
-        accessDenied = false;
-
         try
         {
-            return Directory
-                .EnumerateDirectories(root)
-                .FirstOrDefault(dir => candidateNames.Any(name =>
-                    string.Equals(Path.GetFileName(dir), name, StringComparison.OrdinalIgnoreCase)));
+            string? generalsPath = null;
+            string? zeroHourPath = null;
+
+            foreach (var directory in Directory.EnumerateDirectories(root))
+            {
+                var directoryName = Path.GetFileName(directory);
+                if (generalsPath is null &&
+                    GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+                {
+                    generalsPath = directory;
+                }
+
+                if (zeroHourPath is null &&
+                    ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase))
+                {
+                    zeroHourPath = directory;
+                }
+
+                if (generalsPath is not null && zeroHourPath is not null)
+                {
+                    break;
+                }
+            }
+
+            return (generalsPath, zeroHourPath, false);
         }
         catch (UnauthorizedAccessException)
         {
             // Reported separately: on macOS this is how a declined TCC prompt surfaces for
             // a protected location such as ~/Documents. Treating it as "nothing here"
             // would tell the user they own no games when we were simply not allowed to look.
-            accessDenied = true;
-            return null;
+            return (null, null, true);
         }
         catch (Exception)
         {
             // A vanished directory is not a detection failure.
-            return null;
+            return (null, null, false);
         }
     }
 }

@@ -765,6 +765,17 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 installations = [];
             }
 
+            // A failed live scan cannot produce a cacheable result. Return before
+            // loading persisted manifests or resolving their paths, since that work
+            // would be discarded and repeated on every retry.
+            if (detectionHadError)
+            {
+                logger.LogWarning(
+                    "Detection failed; leaving the cache uninitialized so a retry rescans");
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
+            }
+
             // Load installations from persisted manifests
             var manifestInstallations = await LoadInstallationsFromManifestsAsync(cancellationToken);
             if (manifestInstallations.Count > 0)
@@ -842,19 +853,6 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                         "Resolved {ResolvedCount} installation paths",
                         resolvedCount);
                 }
-            }
-
-            // Return failure whenever detection had an error.
-            //
-            // Checked before the cache is populated, not after. Persisted manifests can
-            // contribute partial results even when the live scan fails; caching those
-            // results would suppress the retry needed after access is restored.
-            if (detectionHadError)
-            {
-                logger.LogWarning(
-                    "Detection failed; leaving the cache uninitialized so a retry rescans");
-                return OperationResult<bool>.CreateFailure(
-                    $"Failed to detect game installations: {string.Join(", ", detectionResult.Errors)}");
             }
 
             // Generate manifests and populate AvailableVersions for each installation

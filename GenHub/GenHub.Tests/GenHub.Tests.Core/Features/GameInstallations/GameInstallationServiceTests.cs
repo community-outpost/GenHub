@@ -273,6 +273,7 @@ public class GameInstallationServiceTests : IDisposable
             .ReturnsAsync(denied);
 
         var first = await _service.GetAllInstallationsAsync();
+        Assert.False(first.Success);
         Assert.Empty(first.Data ?? []);
 
         // The user grants access; detection now succeeds.
@@ -322,6 +323,11 @@ public class GameInstallationServiceTests : IDisposable
         _clientOrchestratorMock.Verify(
             x => x.DetectGameClientsFromInstallationsAsync(
                 It.IsAny<List<GameInstallation>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        _manifestPoolMock.Verify(
+            x => x.SearchManifestsAsync(
+                It.IsAny<ContentSearchQuery>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
