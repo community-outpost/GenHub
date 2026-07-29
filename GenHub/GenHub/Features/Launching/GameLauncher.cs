@@ -51,6 +51,16 @@ public class GameLauncher(
     ISteamLauncher steamLauncher,
     IConfigurationProviderService configurationProvider) : IGameLauncher
 {
+    /// <summary>
+    /// Environment variables naming the retail directories the engine mounts archives from.
+    /// Ordered Zero Hour first, matching <see cref="AddRetailArchiveRoots"/>.
+    /// </summary>
+    private static readonly string[] RetailArchiveRootVariables =
+    [
+        "CNC_ZH_INSTALLPATH",
+        "CNC_GENERALS_INSTALLPATH",
+    ];
+
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
         new(InstallationPathLockKey.Comparer);
@@ -958,6 +968,17 @@ public class GameLauncher(
                 Arguments = arguments,
                 EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             };
+
+            // Must happen before spawn. When the archive roots are wrong the engine still
+            // starts, reaches its main loop and reports nothing — it simply has no content.
+            // Launch therefore "succeeds" while the user gets a broken game, and no
+            // post-spawn check can tell the difference.
+            var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation);
+            if (archiveRootError is not null)
+            {
+                logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(archiveRootError, launchId, profile.Id);
+            }
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
 
@@ -1292,6 +1313,79 @@ public class GameLauncher(
     /// </remarks>
     /// <param name="environment">The environment being built.</param>
     /// <param name="installation">The installation supplying retail data, if any.</param>
+    /// <summary>
+    /// Verifies that every configured retail archive root actually contains archives.
+    /// </summary>
+    /// <remarks>
+    /// The engine mounts its content from these roots, but reaches its main loop with zero
+    /// content and no error when they are wrong — no exit code, no log line, nothing a
+    /// host process can observe. A launch that "succeeded" is therefore indistinguishable
+    /// from one that produced an empty game, so this has to be checked before spawn.
+    /// <para>
+    /// Existence of at least one <c>.big</c> archive is used as the sentinel rather than a
+    /// specific filename, which varies by localisation and version. This only catches a
+    /// root that is wrong or empty; an archive that exists but fails to mount still needs
+    /// a machine-readable failure from the engine itself.
+    /// </para>
+    /// </remarks>
+    /// <param name="environment">The environment built for the child process.</param>
+    /// <param name="installation">The installation whose declared paths were used.</param>
+    /// <returns>An error message naming the offending root, or <c>null</c> when valid.</returns>
+    private static string? ValidateRetailArchiveRoots(
+        Dictionary<string, string> environment,
+        GameInstallation? installation)
+    {
+        // Validated against the installation's declared paths, not only the variables that
+        // survived into the environment. AddArchiveRoot drops a path that does not exist,
+        // so validating the environment alone would silently skip the exact case this
+        // exists to catch: a stale installation root reaching spawn unnoticed.
+        var declaredPaths = new (string Variable, string? Path)[]
+        {
+            (RetailArchiveRootVariables[0], installation?.ZeroHourPath),
+            (RetailArchiveRootVariables[1], installation?.GeneralsPath),
+        };
+
+        foreach (var (variableName, declaredPath) in declaredPaths)
+        {
+            // A profile override is the root actually used, so it is what gets checked.
+            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+                ? configured
+                : declaredPath;
+
+            // Nothing configured for this game means it is simply not installed.
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
+
+            if (!Directory.Exists(root))
+            {
+                return $"The retail archive root for {variableName} does not exist: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
+
+            bool hasArchive;
+            try
+            {
+                hasArchive = Directory
+                    .EnumerateFiles(root, "*.big", SearchOption.TopDirectoryOnly)
+                    .Any();
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+            }
+
+            if (!hasArchive)
+            {
+                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
+        }
+
+        return null;
+    }
+
     private static void AddRetailArchiveRoots(
         Dictionary<string, string> environment,
         GameInstallation? installation)
@@ -1301,8 +1395,8 @@ public class GameLauncher(
             return;
         }
 
-        AddArchiveRoot(environment, "CNC_ZH_INSTALLPATH", installation.ZeroHourPath);
-        AddArchiveRoot(environment, "CNC_GENERALS_INSTALLPATH", installation.GeneralsPath);
+        AddArchiveRoot(environment, RetailArchiveRootVariables[0], installation.ZeroHourPath);
+        AddArchiveRoot(environment, RetailArchiveRootVariables[1], installation.GeneralsPath);
     }
 
     /// <summary>

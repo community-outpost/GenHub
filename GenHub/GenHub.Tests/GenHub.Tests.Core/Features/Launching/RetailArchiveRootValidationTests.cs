@@ -1,0 +1,154 @@
+using System.Reflection;
+using System.Runtime.InteropServices;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Features.Launching;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.Launching;
+
+/// <summary>
+/// Tests for the pre-spawn retail archive root check.
+/// </summary>
+/// <remarks>
+/// The engine reaches its main loop with zero content and no error when these roots are
+/// wrong, so a launch that "succeeded" cannot be distinguished from one that produced an
+/// empty game. Everything here is about refusing to spawn in that state.
+/// </remarks>
+public class RetailArchiveRootValidationTests : IDisposable
+{
+    private readonly string _tempDir;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RetailArchiveRootValidationTests"/> class.
+    /// </summary>
+    public RetailArchiveRootValidationTests()
+    {
+        _tempDir = Directory.CreateTempSubdirectory("GenHub.ArchiveRootTests.").FullName;
+    }
+
+    /// <summary>
+    /// A root holding archives is accepted.
+    /// </summary>
+    [Fact]
+    public void Validate_WithArchivesPresent_Accepts()
+    {
+        var root = CreateRoot("valid", withArchive: true);
+
+        Assert.Null(Validate(InstallationWithZeroHour(root)));
+    }
+
+    /// <summary>
+    /// A stale installation path must be rejected. This is the case the earlier
+    /// implementation missed: the environment builder drops a nonexistent path, so
+    /// validating only the environment skipped it and the launch proceeded.
+    /// </summary>
+    [Fact]
+    public void Validate_WithNonexistentRoot_RejectsRatherThanSkipping()
+    {
+        var missing = Path.Combine(_tempDir, "gone");
+
+        var error = Validate(InstallationWithZeroHour(missing));
+
+        Assert.NotNull(error);
+        Assert.Contains(missing, error);
+    }
+
+    /// <summary>
+    /// A root that exists but holds no archives would produce an empty game.
+    /// </summary>
+    [Fact]
+    public void Validate_WithNoArchives_Rejects()
+    {
+        var root = CreateRoot("empty", withArchive: false);
+
+        var error = Validate(InstallationWithZeroHour(root));
+
+        Assert.NotNull(error);
+        Assert.Contains("no .big archives", error);
+    }
+
+    /// <summary>
+    /// An unreadable root is reported rather than treated as archive-free, so the message
+    /// points at the permission rather than at the content.
+    /// </summary>
+    [Fact]
+    public void Validate_WithUnreadableRoot_ReportsTheReadFailure()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || Environment.UserName == "root")
+        {
+            return;
+        }
+
+        var root = CreateRoot("unreadable", withArchive: true);
+        File.SetUnixFileMode(root, UnixFileMode.UserWrite);
+
+        try
+        {
+            var error = Validate(InstallationWithZeroHour(root));
+
+            Assert.NotNull(error);
+            Assert.Contains("could not be read", error);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                root,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
+    /// A game that is simply not installed declares no path and is not an error.
+    /// </summary>
+    [Fact]
+    public void Validate_WithNoDeclaredPath_Accepts()
+    {
+        Assert.Null(Validate(InstallationWithZeroHour(null)));
+    }
+
+    /// <summary>
+    /// Disposes the temporary directory.
+    /// </summary>
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_tempDir, recursive: true);
+        }
+        catch (IOException)
+        {
+            // A test left a directory unreadable; not worth failing the run over.
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    private static string? Validate(GameInstallation installation) =>
+        (string?)typeof(GameLauncher)
+            .GetMethod("ValidateRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [new Dictionary<string, string>(), installation]);
+
+    private static GameInstallation InstallationWithZeroHour(string? zeroHourPath)
+    {
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Retail,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(null, zeroHourPath);
+        return installation;
+    }
+
+    private string CreateRoot(string name, bool withArchive)
+    {
+        var root = Directory.CreateDirectory(Path.Combine(_tempDir, name)).FullName;
+        if (withArchive)
+        {
+            File.WriteAllText(Path.Combine(root, "INIZH.big"), "archive");
+        }
+
+        return root;
+    }
+}
