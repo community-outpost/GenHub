@@ -22,6 +22,7 @@ using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using SharpCompress.Archives.SevenZip;
 using SharpCompress.Common;
+using GenHub.Core.Utilities;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
 
@@ -177,7 +178,7 @@ public class CommunityOutpostDeliverer(
                 RelativePath = relativePath,
                 Size = fileInfo.Length,
                 IsRequired = true,
-                IsExecutable = relativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase),
+                IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath),
                 SourceType = ContentSourceType.ExtractedPackage,
             });
         }

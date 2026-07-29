@@ -5,6 +5,7 @@ using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
+using GenHub.Core.Utilities;
 
 namespace GenHub.Features.Content.Services.Helpers;
 
@@ -190,12 +191,7 @@ public static class GitHubInferenceHelper
     /// <returns>True when the extension matches a known executable type.</returns>
     public static bool IsExecutableFile(string fileName)
     {
-        var ext = Path.GetExtension(fileName);
-        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".sh", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".bat", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".so", StringComparison.OrdinalIgnoreCase);
+        return ExecutableFileClassifier.RequiresExecutePermission(fileName);
     }
 
     /// <summary>
