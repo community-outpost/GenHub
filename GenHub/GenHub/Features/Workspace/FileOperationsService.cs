@@ -377,18 +377,18 @@ public class FileOperationsService(
             await Task.Run(
                 () =>
                 {
-                    if (OperatingSystem.IsWindows())
-                    {
-                        // Use platform-specific implementation
-                        throw new NotImplementedException("Hard link creation should be handled by platform-specific service");
-                    }
-                    else
-                    {
-                        File.Copy(targetPath, linkPath, true);
-                        logger.LogWarning(
-                            "Hard links not supported on this platform, fell back to copy for {Link}",
-                            linkPath);
-                    }
+                    // Every supported platform has a decorator that overrides this:
+                    // WindowsFileOperationsService and UnixFileOperationsService. Reaching
+                    // here means the host did not register one.
+                    //
+                    // This used to File.Copy on non-Windows and log a warning. That made a
+                    // missing registration invisible: workspaces still built, tests still
+                    // passed, and every profile silently consumed a full copy of the game
+                    // instead of a link. Failing is the only way that surfaces.
+                    throw new NotSupportedException(
+                        "Hard link creation must be handled by a platform-specific IFileOperationsService. "
+                        + "Register WindowsFileOperationsService or UnixFileOperationsService in the host's "
+                        + "service module.");
                 },
                 cancellationToken);
 

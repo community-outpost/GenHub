@@ -252,6 +252,76 @@ public class WorkspaceValidatorTests : IDisposable
     }
 
     /// <summary>
+    /// An execute bit for an identity other than the effective process identity must not
+    /// make a workspace entry point appear executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_ReturnsAccessWarning()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.OtherExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied
+                && issue.Severity == ValidationSeverity.Warning);
+    }
+
+    /// <summary>
+    /// A workspace entry point executable by the current identity remains valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_ExecutableEntryPoint_HasNoAccessError()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.DoesNotContain(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied);
+    }
+
+    /// <summary>
     /// Disposes of test resources.
     /// </summary>
     public void Dispose()
