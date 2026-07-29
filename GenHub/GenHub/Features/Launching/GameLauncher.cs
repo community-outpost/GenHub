@@ -21,6 +21,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
@@ -955,7 +956,7 @@ public class GameLauncher(
                 ExecutablePath = finalExecutablePath,
                 WorkingDirectory = workspaceInfo.WorkspacePath,
                 Arguments = arguments,
-                EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, workspaceInfo.WorkspacePath),
+                EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, workspaceInfo.WorkspacePath, installation),
             };
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
@@ -1254,7 +1255,8 @@ public class GameLauncher(
     /// <returns>The environment to pass to the child process.</returns>
     private static Dictionary<string, string> BuildEnvironmentVariables(
         Dictionary<string, string>? profileEnvironment,
-        string workspacePath)
+        string workspacePath,
+        GameInstallation? installation)
     {
         var environment = profileEnvironment is null
             ? []
@@ -1264,6 +1266,8 @@ public class GameLauncher(
         {
             return environment;
         }
+
+        AddRetailArchiveRoots(environment, installation);
 
         var variableName = OperatingSystem.IsMacOS() ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
 
@@ -1280,6 +1284,66 @@ public class GameLauncher(
             : $"{workspacePath}{Path.PathSeparator}{inherited}";
 
         return environment;
+    }
+
+
+    /// <summary>
+    /// Points the engine at the user's retail archives without copying them.
+    /// </summary>
+    /// <remarks>
+    /// A non-Windows engine build reads <c>InstallPath</c> through
+    /// <c>GetStringFromRegistry</c>, which on these platforms checks
+    /// <c>$CNC_ZH_INSTALLPATH</c> and <c>$CNC_GENERALS_INSTALLPATH</c> first. The engine
+    /// then mounts <c>*.big</c> from those roots in addition to the working directory.
+    /// <para>
+    /// That matters a great deal for workspace cost. Zero Hour needs both its own and the
+    /// base Generals archives — roughly 3 GB — and without this the only way to satisfy it
+    /// is to materialise every one of them into each profile's workspace. With it, a
+    /// workspace holds the engine and whatever content actually differs per profile, and
+    /// the bulk retail data stays where the user already has it.
+    /// </para>
+    /// <para>
+    /// The trailing separator is required, not cosmetic. The engine concatenates this
+    /// value with the archive filename directly, so a root without one produces paths like
+    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
+    /// still starts — with no content and no error the user can act on.
+    /// </para>
+    /// </remarks>
+    /// <param name="environment">The environment being built.</param>
+    /// <param name="installation">The installation supplying retail data, if any.</param>
+    private static void AddRetailArchiveRoots(
+        Dictionary<string, string> environment,
+        GameInstallation? installation)
+    {
+        if (installation is null)
+        {
+            return;
+        }
+
+        AddArchiveRoot(environment, "CNC_ZH_INSTALLPATH", installation.ZeroHourPath);
+        AddArchiveRoot(environment, "CNC_GENERALS_INSTALLPATH", installation.GeneralsPath);
+    }
+
+    /// <summary>
+    /// Sets one archive-root variable, with the trailing separator the engine requires.
+    /// </summary>
+    /// <param name="environment">The environment being built.</param>
+    /// <param name="variableName">The environment variable to set.</param>
+    /// <param name="path">The retail directory, or null/empty to skip.</param>
+    private static void AddArchiveRoot(
+        Dictionary<string, string> environment,
+        string variableName,
+        string? path)
+    {
+        // A profile that sets this explicitly wins.
+        if (string.IsNullOrWhiteSpace(path) || environment.ContainsKey(variableName) || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        environment[variableName] = path.EndsWith(Path.DirectorySeparatorChar)
+            ? path
+            : path + Path.DirectorySeparatorChar;
     }
 
 }
