@@ -410,6 +410,18 @@ jobs:
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
           dotnet build "${{ env.MACOS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
 
+      # Runs the macOS composition root before publish. "Run Tests" at the end of this job
+      # already covered this project, but it sits after Publish and Smoke Test App Launch —
+      # so an unresolvable service killed the job at the smoke test, as a status-134 crash
+      # after packaging, and the assertion that names the service never executed. Running it
+      # here fails in seconds with the service name. A missing platform registration is
+      # invisible to per-branch CI, appearing only once both halves are merged, so this is
+      # the earliest point it can surface.
+      - name: Run macOS Tests
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+
       - name: Publish macOS App
         run: |
           BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
@@ -484,7 +496,9 @@ jobs:
         shell: bash
         run: |
           while IFS= read -r test_project; do
-            [[ "$test_project" == *Windows* || "$test_project" == *Linux* ]] && continue
+            # MacOS is covered by "Run macOS Tests" before publish, so it is skipped
+            # here rather than run a second time.
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *MacOS* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done < <(find GenHub/GenHub.Tests -type f -name '*.csproj' | sort)
