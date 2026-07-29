@@ -956,7 +956,7 @@ public class GameLauncher(
                 ExecutablePath = finalExecutablePath,
                 WorkingDirectory = workspaceInfo.WorkspacePath,
                 Arguments = arguments,
-                EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, workspaceInfo.WorkspacePath, installation),
+                EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             };
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
@@ -1226,36 +1226,31 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Builds the child process environment, adding the dynamic-loader search path a
-    /// native Unix game client needs.
+    /// Builds the child process environment for a game client.
     /// </summary>
     /// <remarks>
-    /// A native client ships its dynamic libraries beside the executable in the workspace.
-    /// The reference launch wrapper for the BGFX port does the same before exec:
-    /// <c>export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"</c>.
+    /// No dynamic-loader search path is set. GenHub previously prepended the workspace to
+    /// <c>DYLD_LIBRARY_PATH</c> / <c>LD_LIBRARY_PATH</c> as a fallback for a build with an
+    /// incomplete rpath. That was measured to be unnecessary — the BGFX build declares
+    /// every dependency as <c>@executable_path/…</c> with an <c>@executable_path/</c>
+    /// rpath and launches correctly with the variable cleared — and it carried two costs
+    /// that outweighed a fallback for a build we do not ship:
     /// <para>
-    /// This is a fallback, not a requirement, and that has been verified rather than
-    /// assumed: the current BGFX build declares every dependency as
-    /// <c>@executable_path/…</c> with an <c>@executable_path/</c> rpath, and launches
-    /// correctly with the variable cleared. It matters only for a build whose rpath is
-    /// incomplete, where the loader would otherwise fail with "library not loaded", the
-    /// process would die before drawing a window, and the user would see nothing at all.
+    /// dyld consults <c>DYLD_LIBRARY_PATH</c> before <c>@executable_path</c> for
+    /// leaf-name references, so any same-named library elsewhere on that path silently
+    /// takes precedence over the one shipped beside the executable.
     /// </para>
     /// <para>
-    /// It is safe alongside <c>@executable_path</c>: those references are resolved
-    /// directly against the executable's directory and do not consult this variable.
-    /// </para>
-    /// <para>
-    /// Windows resolves DLLs from the executable's own directory already, so nothing is
-    /// added there.
+    /// The hardened runtime ignores <c>DYLD_LIBRARY_PATH</c> outright, so the variable
+    /// would stop having any effect the moment GenHub is signed and notarized. Keeping it
+    /// meant launch behaviour would change silently at signing time rather than now.
     /// </para>
     /// </remarks>
     /// <param name="profileEnvironment">Environment variables configured on the profile.</param>
-    /// <param name="workspacePath">The workspace root, which is also the working directory.</param>
+    /// <param name="installation">The retail installation supplying archive roots.</param>
     /// <returns>The environment to pass to the child process.</returns>
     private static Dictionary<string, string> BuildEnvironmentVariables(
         Dictionary<string, string>? profileEnvironment,
-        string workspacePath,
         GameInstallation? installation)
     {
         var environment = profileEnvironment is null
@@ -1268,20 +1263,6 @@ public class GameLauncher(
         }
 
         AddRetailArchiveRoots(environment, installation);
-
-        var variableName = OperatingSystem.IsMacOS() ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
-
-        // A profile that sets the variable explicitly wins; prepending the workspace
-        // silently would override a deliberate choice.
-        if (environment.ContainsKey(variableName))
-        {
-            return environment;
-        }
-
-        var inherited = Environment.GetEnvironmentVariable(variableName);
-        environment[variableName] = string.IsNullOrEmpty(inherited)
-            ? workspacePath
-            : $"{workspacePath}{Path.PathSeparator}{inherited}";
 
         return environment;
     }
