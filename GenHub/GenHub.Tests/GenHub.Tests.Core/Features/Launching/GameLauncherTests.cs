@@ -911,6 +911,23 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Removes the temporary retail root.
+    /// </summary>
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_retailRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
     /// Creates a test <see cref="GameProfile"/> with required members set.
     /// </summary>
     /// <returns>A valid <see cref="GameProfile"/>.</returns>
@@ -950,22 +967,5 @@ public class GameLauncherTests : IDisposable
             throw new InvalidOperationException("Failed to start junction creation process.");
         process.WaitForExit();
         Assert.Equal(0, process.ExitCode);
-    }
-
-    /// <summary>
-    /// Removes the temporary retail root.
-    /// </summary>
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_retailRoot, recursive: true);
-        }
-        catch (IOException)
-        {
-            // Best effort; a leftover temp directory is not worth failing the run over.
-        }
-
-        GC.SuppressFinalize(this);
     }
 }

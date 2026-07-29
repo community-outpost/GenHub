@@ -888,14 +888,6 @@ public class GameProcessManager(
     }
 
     /// <summary>
-    /// Retains the last few lines written to standard error.
-    /// <para>
-    /// Bounded on purpose. The interesting output from a process that dies during startup
-    /// is the last thing it said, and a game that runs for hours would otherwise
-    /// accumulate its entire log in memory for no benefit.
-    /// </para>
-    /// </summary>
-    /// <summary>
     /// Waits for the asynchronous stderr handlers to finish before the capture is read.
     /// </summary>
     /// <remarks>

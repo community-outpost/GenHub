@@ -97,11 +97,11 @@ public class RetailArchiveRootTests : IDisposable
         {
             await Task.Delay(TimeSpan.FromSeconds(14));
             var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
-
-            Assert.True(
-                info.Success,
+            const string failureMessage =
                 "The engine exited despite the archive roots being supplied, so retail data "
-                + "was not reached through the environment.");
+                + "was not reached through the environment.";
+
+            Assert.True(info.Success, failureMessage);
         }
         finally
         {
@@ -143,16 +143,35 @@ public class RetailArchiveRootTests : IDisposable
         {
             await Task.Delay(TimeSpan.FromSeconds(14));
             var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
-
-            Assert.False(
-                info.Success,
+            const string failureMessage =
                 "An engine-only workspace survived with no archive roots at all. If the engine "
                 + "now locates retail data by some other means, the environment plumbing in "
-                + "GameLauncher.AddRetailArchiveRoots may be unnecessary.");
+                + "GameLauncher.AddRetailArchiveRoots may be unnecessary.";
+
+            Assert.False(info.Success, failureMessage);
         }
         finally
         {
             await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
+        }
+    }
+
+    /// <summary>
+    /// Releases the staged workspace.
+    /// </summary>
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+        try
+        {
+            if (Directory.Exists(_engineOnlyWorkspace))
+            {
+                Directory.Delete(_engineOnlyWorkspace, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // A leftover temp directory is not worth failing a test over.
         }
     }
 
@@ -179,29 +198,11 @@ public class RetailArchiveRootTests : IDisposable
             File.Copy(source, destination, overwrite: true);
         }
 
-        File.SetUnixFileMode(
-            Path.Combine(_engineOnlyWorkspace, BinaryName),
+        const UnixFileMode executableMode =
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
             UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-            UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
-    }
+            UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
 
-    /// <summary>
-    /// Releases the staged workspace.
-    /// </summary>
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
-        try
-        {
-            if (Directory.Exists(_engineOnlyWorkspace))
-            {
-                Directory.Delete(_engineOnlyWorkspace, recursive: true);
-            }
-        }
-        catch (IOException)
-        {
-            // A leftover temp directory is not worth failing a test over.
-        }
+        File.SetUnixFileMode(Path.Combine(_engineOnlyWorkspace, BinaryName), executableMode);
     }
 }

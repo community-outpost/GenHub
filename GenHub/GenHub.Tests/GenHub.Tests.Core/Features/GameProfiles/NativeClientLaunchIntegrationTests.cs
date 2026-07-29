@@ -17,7 +17,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// <para>
 /// Everything else in the native-client work is verified against synthetic binaries.
 /// This is the one test that answers the actual question: can GenHub start the real
-/// engine, against real retail data, and have it stay up?
+    /// engine, against real retail data, and have it remain running.
 /// </para>
 /// <para>
 /// Skipped unless a native install is present, so CI and other machines stay green.
@@ -36,9 +36,6 @@ public class NativeClientLaunchIntegrationTests
 
     private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
 
-    /// <summary>
-    /// Resolves the native install directory, or null when there is nothing to test.
-    /// </summary>
     private static string? NativeClientDirectory
     {
         get
@@ -98,11 +95,11 @@ public class NativeClientLaunchIntegrationTests
             await Task.Delay(LaunchSettleTime);
 
             var info = await _processManager.GetProcessInfoAsync(result.Data!.ProcessId);
-
-            Assert.True(
-                info.Success,
+            const string failureMessage =
                 "The engine started and then exited during initialisation. That is the failure "
-                + "mode this work exists to make visible; check the captured output.");
+                + "mode this work exists to make visible; check the captured output.";
+
+            Assert.True(info.Success, failureMessage);
         }
         finally
         {
@@ -151,12 +148,12 @@ public class NativeClientLaunchIntegrationTests
                 await Task.Delay(TimeSpan.FromSeconds(6));
                 var info = await _processManager.GetProcessInfoAsync(result.Data.ProcessId);
                 await _processManager.TerminateProcessAsync(result.Data.ProcessId);
-
-                Assert.False(
-                    info.Success,
+                const string failureMessage =
                     "The engine survived being launched from an unrelated working directory. If it "
                     + "no longer resolves archives relative to the current directory, the workspace "
-                    + "model can be relaxed.");
+                    + "model can be relaxed.";
+
+                Assert.False(info.Success, failureMessage);
                 return;
             }
 

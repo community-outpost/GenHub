@@ -478,6 +478,180 @@ public class GameLauncher(
         return true;
     }
 
+    /// <summary>
+    /// Builds the child process environment for a game client.
+    /// </summary>
+    /// <remarks>
+    /// No dynamic-loader search path is set. GenHub previously prepended the workspace to
+    /// <c>DYLD_LIBRARY_PATH</c> / <c>LD_LIBRARY_PATH</c> as a fallback for a build with an
+    /// incomplete rpath. That was measured to be unnecessary — the BGFX build declares
+    /// every dependency as <c>@executable_path/…</c> with an <c>@executable_path/</c>
+    /// rpath and launches correctly with the variable cleared — and it carried two costs
+    /// that outweighed a fallback for a build we do not ship:
+    /// <para>
+    /// dyld consults <c>DYLD_LIBRARY_PATH</c> before <c>@executable_path</c> for
+    /// leaf-name references, so any same-named library elsewhere on that path silently
+    /// takes precedence over the one shipped beside the executable.
+    /// </para>
+    /// <para>
+    /// The hardened runtime ignores <c>DYLD_LIBRARY_PATH</c> outright, so the variable
+    /// would stop having any effect the moment GenHub is signed and notarized. Keeping it
+    /// meant launch behaviour would change silently at signing time rather than now.
+    /// </para>
+    /// </remarks>
+    /// <param name="profileEnvironment">Environment variables configured on the profile.</param>
+    /// <param name="installation">The retail installation supplying archive roots.</param>
+    /// <returns>The environment to pass to the child process.</returns>
+    private static Dictionary<string, string> BuildEnvironmentVariables(
+        Dictionary<string, string>? profileEnvironment,
+        GameInstallation? installation)
+    {
+        var environment = profileEnvironment is null
+            ? []
+            : new Dictionary<string, string>(profileEnvironment);
+
+        if (OperatingSystem.IsWindows())
+        {
+            return environment;
+        }
+
+        AddRetailArchiveRoots(environment, installation);
+
+        return environment;
+    }
+
+    /// <summary>
+    /// Verifies that every configured retail archive root actually contains archives.
+    /// </summary>
+    /// <remarks>
+    /// The engine mounts its content from these roots, but reaches its main loop with zero
+    /// content and no error when they are wrong — no exit code, no log line, nothing a
+    /// host process can observe. A launch that "succeeded" is therefore indistinguishable
+    /// from one that produced an empty game, so this has to be checked before spawn.
+    /// <para>
+    /// Existence of at least one <c>.big</c> archive is used as the sentinel rather than a
+    /// specific filename, which varies by localisation and version. This only catches a
+    /// root that is wrong or empty; an archive that exists but fails to mount still needs
+    /// a machine-readable failure from the engine itself.
+    /// </para>
+    /// </remarks>
+    /// <param name="environment">The environment built for the child process.</param>
+    /// <param name="installation">The installation whose declared paths were used.</param>
+    /// <returns>An error message naming the offending root, or <c>null</c> when valid.</returns>
+    private static string? ValidateRetailArchiveRoots(
+        Dictionary<string, string> environment,
+        GameInstallation? installation)
+    {
+        // Validated against the installation's declared paths, not only the variables that
+        // survived into the environment. AddArchiveRoot drops a path that does not exist,
+        // so validating the environment alone would silently skip the exact case this
+        // exists to catch: a stale installation root reaching spawn unnoticed.
+        var declaredPaths = new (string Variable, string? Path)[]
+        {
+            (RetailArchiveRootVariables[0], installation?.ZeroHourPath),
+            (RetailArchiveRootVariables[1], installation?.GeneralsPath),
+        };
+
+        foreach (var (variableName, declaredPath) in declaredPaths)
+        {
+            // A profile override is the root actually used, so it is what gets checked.
+            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+                ? configured
+                : declaredPath;
+
+            // Nothing configured for this game means it is simply not installed.
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
+
+            if (!Directory.Exists(root))
+            {
+                return $"The retail archive root for {variableName} does not exist: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
+
+            bool hasArchive;
+            try
+            {
+                hasArchive = Directory
+                    .EnumerateFiles(root, "*.big", SearchOption.TopDirectoryOnly)
+                    .Any();
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+            }
+
+            if (!hasArchive)
+            {
+                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Points the engine at the user's retail archives without copying them.
+    /// </summary>
+    /// <remarks>
+    /// A non-Windows engine build reads <c>InstallPath</c> through
+    /// <c>GetStringFromRegistry</c>, which on these platforms checks
+    /// <c>$CNC_ZH_INSTALLPATH</c> and <c>$CNC_GENERALS_INSTALLPATH</c> first. The engine
+    /// then mounts <c>*.big</c> from those roots in addition to the working directory.
+    /// <para>
+    /// That matters a great deal for workspace cost. Zero Hour needs both its own and the
+    /// base Generals archives — roughly 3 GB — and without this the only way to satisfy it
+    /// is to materialise every one of them into each profile's workspace. With it, a
+    /// workspace holds the engine and whatever content actually differs per profile, and
+    /// the bulk retail data stays where the user already has it.
+    /// </para>
+    /// <para>
+    /// The trailing separator is required, not cosmetic. The engine concatenates this
+    /// value with the archive filename directly, so a root without one produces paths like
+    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
+    /// still starts — with no content and no error the user can act on.
+    /// </para>
+    /// </remarks>
+    /// <param name="environment">The environment being built.</param>
+    /// <param name="installation">The installation supplying retail data, if any.</param>
+    private static void AddRetailArchiveRoots(
+        Dictionary<string, string> environment,
+        GameInstallation? installation)
+    {
+        if (installation is null)
+        {
+            return;
+        }
+
+        AddArchiveRoot(environment, RetailArchiveRootVariables[0], installation.ZeroHourPath);
+        AddArchiveRoot(environment, RetailArchiveRootVariables[1], installation.GeneralsPath);
+    }
+
+    /// <summary>
+    /// Sets one archive-root variable, with the trailing separator the engine requires.
+    /// </summary>
+    /// <param name="environment">The environment being built.</param>
+    /// <param name="variableName">The environment variable to set.</param>
+    /// <param name="path">The retail directory, or null/empty to skip.</param>
+    private static void AddArchiveRoot(
+        Dictionary<string, string> environment,
+        string variableName,
+        string? path)
+    {
+        // A profile that sets this explicitly wins.
+        if (string.IsNullOrWhiteSpace(path) || environment.ContainsKey(variableName) || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        environment[variableName] = path.EndsWith(Path.DirectorySeparatorChar)
+            ? path
+            : path + Path.DirectorySeparatorChar;
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -1174,180 +1348,6 @@ public class GameLauncher(
             // Don't fail the launch if Options.ini writing fails - log and continue
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
         }
-    }
-
-    /// <summary>
-    /// Builds the child process environment for a game client.
-    /// </summary>
-    /// <remarks>
-    /// No dynamic-loader search path is set. GenHub previously prepended the workspace to
-    /// <c>DYLD_LIBRARY_PATH</c> / <c>LD_LIBRARY_PATH</c> as a fallback for a build with an
-    /// incomplete rpath. That was measured to be unnecessary — the BGFX build declares
-    /// every dependency as <c>@executable_path/…</c> with an <c>@executable_path/</c>
-    /// rpath and launches correctly with the variable cleared — and it carried two costs
-    /// that outweighed a fallback for a build we do not ship:
-    /// <para>
-    /// dyld consults <c>DYLD_LIBRARY_PATH</c> before <c>@executable_path</c> for
-    /// leaf-name references, so any same-named library elsewhere on that path silently
-    /// takes precedence over the one shipped beside the executable.
-    /// </para>
-    /// <para>
-    /// The hardened runtime ignores <c>DYLD_LIBRARY_PATH</c> outright, so the variable
-    /// would stop having any effect the moment GenHub is signed and notarized. Keeping it
-    /// meant launch behaviour would change silently at signing time rather than now.
-    /// </para>
-    /// </remarks>
-    /// <param name="profileEnvironment">Environment variables configured on the profile.</param>
-    /// <param name="installation">The retail installation supplying archive roots.</param>
-    /// <returns>The environment to pass to the child process.</returns>
-    private static Dictionary<string, string> BuildEnvironmentVariables(
-        Dictionary<string, string>? profileEnvironment,
-        GameInstallation? installation)
-    {
-        var environment = profileEnvironment is null
-            ? []
-            : new Dictionary<string, string>(profileEnvironment);
-
-        if (OperatingSystem.IsWindows())
-        {
-            return environment;
-        }
-
-        AddRetailArchiveRoots(environment, installation);
-
-        return environment;
-    }
-
-    /// <summary>
-    /// Verifies that every configured retail archive root actually contains archives.
-    /// </summary>
-    /// <remarks>
-    /// The engine mounts its content from these roots, but reaches its main loop with zero
-    /// content and no error when they are wrong — no exit code, no log line, nothing a
-    /// host process can observe. A launch that "succeeded" is therefore indistinguishable
-    /// from one that produced an empty game, so this has to be checked before spawn.
-    /// <para>
-    /// Existence of at least one <c>.big</c> archive is used as the sentinel rather than a
-    /// specific filename, which varies by localisation and version. This only catches a
-    /// root that is wrong or empty; an archive that exists but fails to mount still needs
-    /// a machine-readable failure from the engine itself.
-    /// </para>
-    /// </remarks>
-    /// <param name="environment">The environment built for the child process.</param>
-    /// <param name="installation">The installation whose declared paths were used.</param>
-    /// <returns>An error message naming the offending root, or <c>null</c> when valid.</returns>
-    private static string? ValidateRetailArchiveRoots(
-        Dictionary<string, string> environment,
-        GameInstallation? installation)
-    {
-        // Validated against the installation's declared paths, not only the variables that
-        // survived into the environment. AddArchiveRoot drops a path that does not exist,
-        // so validating the environment alone would silently skip the exact case this
-        // exists to catch: a stale installation root reaching spawn unnoticed.
-        var declaredPaths = new (string Variable, string? Path)[]
-        {
-            (RetailArchiveRootVariables[0], installation?.ZeroHourPath),
-            (RetailArchiveRootVariables[1], installation?.GeneralsPath),
-        };
-
-        foreach (var (variableName, declaredPath) in declaredPaths)
-        {
-            // A profile override is the root actually used, so it is what gets checked.
-            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
-                ? configured
-                : declaredPath;
-
-            // Nothing configured for this game means it is simply not installed.
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                continue;
-            }
-
-            if (!Directory.Exists(root))
-            {
-                return $"The retail archive root for {variableName} does not exist: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
-            }
-
-            bool hasArchive;
-            try
-            {
-                hasArchive = Directory
-                    .EnumerateFiles(root, "*.big", SearchOption.TopDirectoryOnly)
-                    .Any();
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-
-            if (!hasArchive)
-            {
-                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Points the engine at the user's retail archives without copying them.
-    /// </summary>
-    /// <remarks>
-    /// A non-Windows engine build reads <c>InstallPath</c> through
-    /// <c>GetStringFromRegistry</c>, which on these platforms checks
-    /// <c>$CNC_ZH_INSTALLPATH</c> and <c>$CNC_GENERALS_INSTALLPATH</c> first. The engine
-    /// then mounts <c>*.big</c> from those roots in addition to the working directory.
-    /// <para>
-    /// That matters a great deal for workspace cost. Zero Hour needs both its own and the
-    /// base Generals archives — roughly 3 GB — and without this the only way to satisfy it
-    /// is to materialise every one of them into each profile's workspace. With it, a
-    /// workspace holds the engine and whatever content actually differs per profile, and
-    /// the bulk retail data stays where the user already has it.
-    /// </para>
-    /// <para>
-    /// The trailing separator is required, not cosmetic. The engine concatenates this
-    /// value with the archive filename directly, so a root without one produces paths like
-    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
-    /// still starts — with no content and no error the user can act on.
-    /// </para>
-    /// </remarks>
-    /// <param name="environment">The environment being built.</param>
-    /// <param name="installation">The installation supplying retail data, if any.</param>
-    private static void AddRetailArchiveRoots(
-        Dictionary<string, string> environment,
-        GameInstallation? installation)
-    {
-        if (installation is null)
-        {
-            return;
-        }
-
-        AddArchiveRoot(environment, RetailArchiveRootVariables[0], installation.ZeroHourPath);
-        AddArchiveRoot(environment, RetailArchiveRootVariables[1], installation.GeneralsPath);
-    }
-
-    /// <summary>
-    /// Sets one archive-root variable, with the trailing separator the engine requires.
-    /// </summary>
-    /// <param name="environment">The environment being built.</param>
-    /// <param name="variableName">The environment variable to set.</param>
-    /// <param name="path">The retail directory, or null/empty to skip.</param>
-    private static void AddArchiveRoot(
-        Dictionary<string, string> environment,
-        string variableName,
-        string? path)
-    {
-        // A profile that sets this explicitly wins.
-        if (string.IsNullOrWhiteSpace(path) || environment.ContainsKey(variableName) || !Directory.Exists(path))
-        {
-            return;
-        }
-
-        environment[variableName] = path.EndsWith(Path.DirectorySeparatorChar)
-            ? path
-            : path + Path.DirectorySeparatorChar;
     }
 
     /// <summary>
