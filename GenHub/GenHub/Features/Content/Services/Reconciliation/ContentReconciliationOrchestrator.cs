@@ -177,6 +177,19 @@ public class ContentReconciliationOrchestrator(
                 Warnings = warnings,
             };
 
+            var auditMetadata = new Dictionary<string, string>
+            {
+                ["profilesUpdated"] = profilesUpdated.ToString(),
+                ["workspacesInvalidated"] = workspacesInvalidated.ToString(),
+                ["manifestsRemoved"] = manifestsRemoved.ToString(),
+                ["casObjectsCollected"] = casObjectsCollected.ToString(),
+                ["bytesFreed"] = bytesFreed.ToString(),
+            };
+            if (warnings.Count > 0)
+            {
+                auditMetadata["warnings"] = string.Join("; ", warnings);
+            }
+
             await auditLog.LogOperationAsync(
                 new ReconciliationAuditEntry
                 {
@@ -189,14 +202,7 @@ public class ContentReconciliationOrchestrator(
                     Success = !criticalFailureOccurred,
                     ErrorMessage = criticalFailureOccurred ? string.Join("; ", warnings) : null,
                     Duration = stopwatch.Elapsed,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["profilesUpdated"] = profilesUpdated.ToString(),
-                        ["workspacesInvalidated"] = workspacesInvalidated.ToString(),
-                        ["manifestsRemoved"] = manifestsRemoved.ToString(),
-                        ["casObjectsCollected"] = casObjectsCollected.ToString(),
-                        ["bytesFreed"] = bytesFreed.ToString(),
-                    },
+                    Metadata = auditMetadata,
                 },
                 cancellationToken);
 
@@ -394,6 +400,19 @@ public class ContentReconciliationOrchestrator(
                 Warnings = warnings,
             };
 
+            var auditMetadata = new Dictionary<string, string>
+            {
+                ["profilesUpdated"] = profilesUpdated.ToString(),
+                ["workspacesInvalidated"] = invalidatedWorkspacesCount.ToString(),
+                ["manifestsRemoved"] = manifestsRemoved.ToString(),
+                ["casObjectsCollected"] = casObjectsCollected.ToString(),
+                ["bytesFreed"] = bytesFreed.ToString(),
+            };
+            if (warnings.Count > 0)
+            {
+                auditMetadata["warnings"] = string.Join("; ", warnings);
+            }
+
             await auditLog.LogOperationAsync(
                 new ReconciliationAuditEntry
                 {
@@ -403,14 +422,7 @@ public class ContentReconciliationOrchestrator(
                     AffectedManifestIds = ids,
                     Success = !criticalFailureOccurred,
                     ErrorMessage = criticalFailureOccurred ? "One or more manifests failed to untrack or be removed from the pool." : null,
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["profilesUpdated"] = profilesUpdated.ToString(),
-                        ["workspacesInvalidated"] = invalidatedWorkspacesCount.ToString(),
-                        ["manifestsRemoved"] = manifestsRemoved.ToString(),
-                        ["casObjectsCollected"] = casObjectsCollected.ToString(),
-                        ["bytesFreed"] = bytesFreed.ToString(),
-                    },
+                    Metadata = auditMetadata,
                     Duration = stopwatch.Elapsed,
                 },
                 cancellationToken);

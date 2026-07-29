@@ -33,9 +33,11 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
             .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(
                 ReconciliationResult.Empty));
 
+        var auditEntries = new List<ReconciliationAuditEntry>();
         var orchestrator = CreateOrchestrator(
             reconciliationService,
-            CreateDisabledLifecycleManager());
+            CreateDisabledLifecycleManager(),
+            auditEntries);
         var request = new ContentReplacementRequest
         {
             ManifestMapping = new Dictionary<string, string>
@@ -52,6 +54,9 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
         Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, result.Data.Warnings);
         Assert.Equal(0, result.Data.CasObjectsCollected);
         Assert.Equal(0, result.Data.BytesFreed);
+        var auditEntry = Assert.Single(auditEntries);
+        Assert.NotNull(auditEntry.Metadata);
+        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, auditEntry.Metadata["warnings"]);
     }
 
     /// <summary>
@@ -70,7 +75,8 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
             .ReturnsAsync(OperationResult<BulkUntrackResult>.CreateSuccess(
                 new BulkUntrackResult(0, 0, [])));
 
-        var orchestrator = CreateOrchestrator(reconciliationService, lifecycleManager);
+        var auditEntries = new List<ReconciliationAuditEntry>();
+        var orchestrator = CreateOrchestrator(reconciliationService, lifecycleManager, auditEntries);
 
         var result = await orchestrator.ExecuteContentRemovalAsync([]);
 
@@ -79,6 +85,9 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
         Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, result.Data.Warnings);
         Assert.Equal(0, result.Data.CasObjectsCollected);
         Assert.Equal(0, result.Data.BytesFreed);
+        var auditEntry = Assert.Single(auditEntries);
+        Assert.NotNull(auditEntry.Metadata);
+        Assert.Contains(CasDefaults.GarbageCollectionDisabledMessage, auditEntry.Metadata["warnings"]);
     }
 
     private static Mock<ICasLifecycleManager> CreateDisabledLifecycleManager()
@@ -98,13 +107,15 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
 
     private static ContentReconciliationOrchestrator CreateOrchestrator(
         Mock<IContentReconciliationService> reconciliationService,
-        Mock<ICasLifecycleManager> lifecycleManager)
+        Mock<ICasLifecycleManager> lifecycleManager,
+        List<ReconciliationAuditEntry>? auditEntries = null)
     {
         var auditLog = new Mock<IReconciliationAuditLog>();
         auditLog
             .Setup(log => log.LogOperationAsync(
                 It.IsAny<ReconciliationAuditEntry>(),
                 It.IsAny<CancellationToken>()))
+            .Callback<ReconciliationAuditEntry, CancellationToken>((entry, _) => auditEntries?.Add(entry))
             .Returns(Task.CompletedTask);
 
         return new ContentReconciliationOrchestrator(
