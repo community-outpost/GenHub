@@ -955,7 +955,7 @@ public class GameLauncher(
                 ExecutablePath = finalExecutablePath,
                 WorkingDirectory = workspaceInfo.WorkspacePath,
                 Arguments = arguments,
-                EnvironmentVariables = profile.EnvironmentVariables,
+                EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, workspaceInfo.WorkspacePath),
             };
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
@@ -1223,4 +1223,58 @@ public class GameLauncher(
 
         return OperationResult<bool>.CreateSuccess(true);
     }
+
+    /// <summary>
+    /// Builds the child process environment, adding the dynamic-loader search path a
+    /// native Unix game client needs.
+    /// </summary>
+    /// <remarks>
+    /// A native client ships its dynamic libraries beside the executable in the workspace.
+    /// The reference launch wrapper for the BGFX port does exactly this before exec:
+    /// <c>export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"</c>.
+    /// <para>
+    /// Bundled libraries are normally reachable through <c>@executable_path</c> or
+    /// <c>$ORIGIN</c> rpath entries, so this is a fallback rather than the primary
+    /// mechanism — but when an rpath is missing the loader fails with "library not
+    /// loaded", the process dies before it draws a window, and the user sees nothing at
+    /// all. Setting the variable costs nothing and removes that failure mode.
+    /// </para>
+    /// <para>
+    /// Windows resolves DLLs from the executable's own directory already, so nothing is
+    /// added there.
+    /// </para>
+    /// </remarks>
+    /// <param name="profileEnvironment">Environment variables configured on the profile.</param>
+    /// <param name="workspacePath">The workspace root, which is also the working directory.</param>
+    /// <returns>The environment to pass to the child process.</returns>
+    private static Dictionary<string, string> BuildEnvironmentVariables(
+        Dictionary<string, string>? profileEnvironment,
+        string workspacePath)
+    {
+        var environment = profileEnvironment is null
+            ? []
+            : new Dictionary<string, string>(profileEnvironment);
+
+        if (OperatingSystem.IsWindows())
+        {
+            return environment;
+        }
+
+        var variableName = OperatingSystem.IsMacOS() ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
+
+        // A profile that sets the variable explicitly wins; prepending the workspace
+        // silently would override a deliberate choice.
+        if (environment.ContainsKey(variableName))
+        {
+            return environment;
+        }
+
+        var inherited = Environment.GetEnvironmentVariable(variableName);
+        environment[variableName] = string.IsNullOrEmpty(inherited)
+            ? workspacePath
+            : $"{workspacePath}{Path.PathSeparator}{inherited}";
+
+        return environment;
+    }
+
 }

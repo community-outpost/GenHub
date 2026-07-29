@@ -68,6 +68,16 @@ public class GameProcessManager(
                 return OperationResult<GameProcessInfo>.CreateFailure($"Executable not found: {configuration.ExecutablePath}");
             }
 
+            // Verify, never fix. Setting the bit here could mutate a shared content-store
+            // blob under the hard-link workspace strategy; the workspace build already
+            // applies it to a copy it owns. A failure here means that step did not run.
+            if (!OperatingSystem.IsWindows() && !HasExecutePermission(configuration.ExecutablePath))
+            {
+                logger.LogError("[Process] Executable is not marked executable: {ExecutablePath}", configuration.ExecutablePath);
+                return OperationResult<GameProcessInfo>.CreateFailure(
+                    $"'{configuration.ExecutablePath}' does not have the execute permission set, so it cannot be launched.");
+            }
+
             logger.LogInformation("[Process] Starting process for executable: {ExecutablePath}", configuration.ExecutablePath);
 
             var workingDirectory = configuration.WorkingDirectory
@@ -89,6 +99,12 @@ public class GameProcessManager(
                 FileName = configuration.ExecutablePath,
                 UseShellExecute = false,
                 CreateNoWindow = false,
+
+                // Captured so that a process which dies during startup can say why.
+                // A dynamic-loader failure prints "library not loaded" here and then exits;
+                // without this the user sees no window and no error, and the exit code
+                // alone does not identify the missing library.
+                RedirectStandardError = true,
             };
 
             // Add arguments using Arguments string
@@ -190,6 +206,20 @@ public class GameProcessManager(
 
             logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);
 
+            // Drained continuously via the event handler rather than read at exit, so a
+            // chatty process cannot fill the pipe buffer and deadlock. Only a bounded tail
+            // is retained.
+            var capturedErrors = new BoundedErrorBuffer();
+            process.ErrorDataReceived += (_, e) => capturedErrors.Append(e.Data);
+            try
+            {
+                process.BeginErrorReadLine();
+            }
+            catch (InvalidOperationException ex)
+            {
+                logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
+            }
+
             // Check if process exited immediately (launcher pattern)
             // Only apply delay if we need to detect a spawned process
             if (!isBatchFile)
@@ -201,9 +231,18 @@ public class GameProcessManager(
                 {
                     var exitCode = process.ExitCode;
 
-                    // For Generals/Zero Hour, exit code 0 indicates the launcher spawned the actual game and exited
-                    // Try to find the actual game process by executable name
-                    if (exitCode == 0)
+                    // Windows-only launcher-stub heuristic. Some Windows game clients are
+                    // stubs that spawn the real process and exit 0, so the PID that was
+                    // started is not the one to track. Finding the replacement matches on
+                    // the executable's base name.
+                    //
+                    // Not applied on Unix, for two reasons. Native clients exec directly and
+                    // never fork-and-exit, so there is nothing to find. And base-name
+                    // matching strips the extension, which makes the native "generalszh"
+                    // indistinguishable from TheSuperHackers' "generalszh.exe" — so a
+                    // running Windows client under Wine could be adopted as if it were this
+                    // launch, and later terminated on its owner's behalf.
+                    if (exitCode == 0 && OperatingSystem.IsWindows())
                     {
                         logger.LogInformation(
                             "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
@@ -269,7 +308,18 @@ public class GameProcessManager(
                     // If it exits immediately with a non-zero code (like a crash or missing DLL), this is a genuine failure
                     if (exitCode != 0)
                     {
-                        return OperationResult<GameProcessInfo>.CreateFailure($"Process exited immediately with code {exitCode}");
+                        var stderrTail = capturedErrors.ToString();
+                        var detail = string.IsNullOrWhiteSpace(stderrTail)
+                            ? "No output was captured."
+                            : stderrTail;
+
+                        logger.LogError(
+                            "[Process] Process exited immediately with code {ExitCode}. Output: {Output}",
+                            exitCode,
+                            detail);
+
+                        return OperationResult<GameProcessInfo>.CreateFailure(
+                            $"Process exited immediately with code {exitCode}. {detail}");
                     }
                     else
                     {
@@ -797,4 +847,76 @@ public class GameProcessManager(
             return null;
         }
     }
+
+    /// <summary>
+    /// Determines whether a file carries the Unix execute bit for the current user.
+    /// </summary>
+    /// <param name="path">The executable path.</param>
+    /// <returns><c>true</c> on Windows, or when any execute bit is set.</returns>
+    private static bool HasExecutePermission(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        try
+        {
+            var mode = File.GetUnixFileMode(path);
+            return mode.HasFlag(UnixFileMode.UserExecute)
+                || mode.HasFlag(UnixFileMode.GroupExecute)
+                || mode.HasFlag(UnixFileMode.OtherExecute);
+        }
+        catch (Exception)
+        {
+            // Unreadable metadata should not block a launch that might otherwise work.
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Retains the last few lines written to standard error.
+    /// <para>
+    /// Bounded on purpose. The interesting output from a process that dies during startup
+    /// is the last thing it said, and a game that runs for hours would otherwise
+    /// accumulate its entire log in memory for no benefit.
+    /// </para>
+    /// </summary>
+    private sealed class BoundedErrorBuffer
+    {
+        private const int MaxLines = 20;
+        private readonly Queue<string> _lines = new();
+        private readonly object _gate = new();
+
+        /// <summary>
+        /// Appends a line, discarding the oldest once the cap is reached.
+        /// </summary>
+        /// <param name="line">The line received, or null at end of stream.</param>
+        internal void Append(string? line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                _lines.Enqueue(line);
+                while (_lines.Count > MaxLines)
+                {
+                    _lines.Dequeue();
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            lock (_gate)
+            {
+                return string.Join(" | ", _lines);
+            }
+        }
+    }
+
 }

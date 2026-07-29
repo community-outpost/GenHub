@@ -32,6 +32,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.Logging;
+using GenHub.Core.Extensions.GameInstallations;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -1648,8 +1649,11 @@ public partial class GameProfileLauncherViewModel(
                 GameClientConstants.SuperHackersGeneralsExecutable,
             ];
 
-            bool hasZeroHour = zeroHourExecutables.Any(exe => File.Exists(Path.Combine(selectedPath, exe)));
-            bool hasGenerals = generalsExecutables.Any(exe => File.Exists(Path.Combine(selectedPath, exe)));
+            // Case-insensitive, matching the nine sibling detectors. Retail data copied
+            // from a disc or a Windows machine is frequently upper-cased (GENERALS.EXE),
+            // and Linux volumes plus case-sensitive APFS will not match it otherwise.
+            bool hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
+            bool hasGenerals = generalsExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
 
             if (hasZeroHour || hasGenerals)
             {
@@ -1677,12 +1681,12 @@ public partial class GameProfileLauncherViewModel(
 
             if (Directory.Exists(generalsSubdir))
             {
-                hasGenerals = generalsExecutables.Any(exe => File.Exists(Path.Combine(generalsSubdir, exe)));
+                hasGenerals = generalsExecutables.Any(exe => Path.Combine(generalsSubdir, exe).FileExistsCaseInsensitive());
             }
 
             if (Directory.Exists(zeroHourSubdir))
             {
-                hasZeroHour = zeroHourExecutables.Any(exe => File.Exists(Path.Combine(zeroHourSubdir, exe)));
+                hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(zeroHourSubdir, exe).FileExistsCaseInsensitive());
             }
 
             if (hasGenerals || hasZeroHour)
