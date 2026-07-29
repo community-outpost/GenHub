@@ -179,15 +179,25 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             yield break;
         }
 
-        // Places a user plausibly drops a copied game folder.
-        yield return Path.Combine(home, "Games");
-        yield return Path.Combine(home, "Documents");
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrEmpty(documents))
+        {
+            yield return documents;
+        }
+
+        // .NET has no SpecialFolder value for Downloads.
         yield return Path.Combine(home, "Downloads");
-        yield return Path.Combine(home, "Library", "Application Support");
+
+        var applicationSupport = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrEmpty(applicationSupport))
+        {
+            yield return applicationSupport;
+        }
+
         yield return "/Applications";
 
         // Wine and CrossOver bottles keep a Windows-shaped tree under drive_c.
-        foreach (var prefix in GetBottleDriveCPaths(home))
+        foreach (var prefix in GetBottleDriveCPaths(home, applicationSupport))
         {
             yield return prefix;
             yield return Path.Combine(prefix, "Program Files", GameClientConstants.EaGamesParentDirectoryName);
@@ -199,14 +209,17 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
     /// Enumerates the <c>drive_c</c> directory of every Wine prefix and CrossOver bottle.
     /// </summary>
     /// <param name="home">The current user's home directory.</param>
+    /// <param name="applicationSupport">The platform-resolved application support directory.</param>
     /// <returns>Existing <c>drive_c</c> paths.</returns>
-    private static IEnumerable<string> GetBottleDriveCPaths(string home)
+    private static IEnumerable<string> GetBottleDriveCPaths(string home, string applicationSupport)
     {
-        var bottleContainers = new[]
+        var bottleContainers = new List<string>();
+        if (!string.IsNullOrEmpty(applicationSupport))
         {
-            Path.Combine(home, "Library", "Application Support", "CrossOver", "Bottles"),
-            Path.Combine(home, "Wine Prefixes"),
-        };
+            bottleContainers.Add(Path.Combine(applicationSupport, "CrossOver", "Bottles"));
+        }
+
+        bottleContainers.Add(Path.Combine(home, "Wine Prefixes"));
 
         foreach (var container in bottleContainers)
         {
