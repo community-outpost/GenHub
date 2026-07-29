@@ -256,6 +256,7 @@ public class GameInstallationServiceTests : IDisposable
         // Assert
         Assert.Null(exception);
     }
+
     /// <summary>
     /// A failed scan that found nothing must not populate the cache. On macOS this is a
     /// declined privacy prompt; caching the empty result would leave the cache
@@ -343,5 +344,4 @@ public class GameInstallationServiceTests : IDisposable
             x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()),
             Times.Once);
     }
-
 }

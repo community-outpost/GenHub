@@ -142,12 +142,12 @@ public static class CompositionRootAssertions
         foreach (var type in RequiredConstructibleTypes)
         {
             var failure = Record.Exception(() => scope.ServiceProvider.GetRequiredService(type));
-
-            Assert.True(
-                failure is null,
+            var failureMessage =
                 $"Host container failed to construct {type.Name}: {failure?.Message} "
                 + "This is a factory-lambda dependency, which ValidateOnBuild cannot detect. "
-                + "The application would start and then crash on first use.");
+                + "The application would start and then crash on first use.";
+
+            Assert.True(failure is null, failureMessage);
         }
     }
 }
