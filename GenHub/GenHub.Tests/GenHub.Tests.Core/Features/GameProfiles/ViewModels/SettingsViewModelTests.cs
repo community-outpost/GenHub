@@ -378,7 +378,7 @@ public class SettingsViewModelTests
             service => service.ShowInfo(
                 "CAS Cleanup Disabled",
                 CasDefaults.GarbageCollectionDisabledMessage,
-                It.IsAny<int?>(),
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds,
                 It.IsAny<bool>()),
             Times.Once);
         _mockNotificationService.Verify(

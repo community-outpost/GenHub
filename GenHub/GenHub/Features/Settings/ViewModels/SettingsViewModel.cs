@@ -1120,17 +1120,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowInfo(
                     "CAS Cleanup Disabled",
                     result.FirstError ?? CasDefaults.GarbageCollectionDisabledMessage,
-                    TimeIntervals.NotificationHideDelay.Milliseconds);
+                    (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
             }
             else if (result.ObjectsDeleted == 0)
             {
                 if (result.ObjectsReferenced > 0)
                 {
-                    _notificationService.ShowInfo("CAS Clean", "All items in CAS are currently in use and cannot be deleted.", TimeIntervals.NotificationHideDelay.Milliseconds);
+                    _notificationService.ShowInfo("CAS Clean", "All items in CAS are currently in use and cannot be deleted.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
                 }
                 else
                 {
-                    _notificationService.ShowInfo("CAS Empty", "CAS storage is already empty.", TimeIntervals.NotificationHideDelay.Milliseconds);
+                    _notificationService.ShowInfo("CAS Empty", "CAS storage is already empty.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
                 }
             }
             else
@@ -1162,7 +1162,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     await _manifestPool.RemoveManifestAsync(manifest.Id);
                 }
 
-                _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", TimeIntervals.NotificationHideDelay.Milliseconds);
+                _notificationService.ShowSuccess("Manifests Deleted", $"Deleted {count} manifest(s) successfully.", (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
             }
 
             await UpdateDangerZoneDataAsync();
