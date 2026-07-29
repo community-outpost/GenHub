@@ -1230,14 +1230,19 @@ public class GameLauncher(
     /// </summary>
     /// <remarks>
     /// A native client ships its dynamic libraries beside the executable in the workspace.
-    /// The reference launch wrapper for the BGFX port does exactly this before exec:
+    /// The reference launch wrapper for the BGFX port does the same before exec:
     /// <c>export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"</c>.
     /// <para>
-    /// Bundled libraries are normally reachable through <c>@executable_path</c> or
-    /// <c>$ORIGIN</c> rpath entries, so this is a fallback rather than the primary
-    /// mechanism — but when an rpath is missing the loader fails with "library not
-    /// loaded", the process dies before it draws a window, and the user sees nothing at
-    /// all. Setting the variable costs nothing and removes that failure mode.
+    /// This is a fallback, not a requirement, and that has been verified rather than
+    /// assumed: the current BGFX build declares every dependency as
+    /// <c>@executable_path/…</c> with an <c>@executable_path/</c> rpath, and launches
+    /// correctly with the variable cleared. It matters only for a build whose rpath is
+    /// incomplete, where the loader would otherwise fail with "library not loaded", the
+    /// process would die before drawing a window, and the user would see nothing at all.
+    /// </para>
+    /// <para>
+    /// It is safe alongside <c>@executable_path</c>: those references are resolved
+    /// directly against the executable's directory and do not consult this variable.
     /// </para>
     /// <para>
     /// Windows resolves DLLs from the executable's own directory already, so nothing is
