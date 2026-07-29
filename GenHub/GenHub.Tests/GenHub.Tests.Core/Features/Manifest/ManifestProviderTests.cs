@@ -86,6 +86,29 @@ public class ManifestProviderTests
     }
 
     /// <summary>
+    /// Cached variant manifests must pass the same fail-closed ingestion gate as newly
+    /// discovered manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithCachedVariantManifest_ThrowsValidationException()
+    {
+        var gameClient = new GameClient { Id = "1.0.genhub.mod.variant" };
+        var manifest = new ContentManifest
+        {
+            Id = gameClient.Id,
+            Variants = [new ArtifactVariant()],
+        };
+
+        _poolMock
+            .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        await Assert.ThrowsAsync<ManifestValidationException>(
+            () => _manifestProvider.GetManifestAsync(gameClient));
+    }
+
+    /// <summary>
     /// Tests that GetManifestAsync builds correct manifest ID for game installation.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -117,6 +140,33 @@ public class ManifestProviderTests
         Assert.NotNull(result);
         Assert.Equal("1.108.eaapp.gameinstallation.generals", result.Id);
         _poolMock.Verify(x => x.GetManifestAsync(ManifestId.Create("1.108.eaapp.gameinstallation.generals"), default), Times.Once);
+    }
+
+    /// <summary>
+    /// The installation overload must not bypass the fail-closed variant gate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithInstallationCachedVariantManifest_ThrowsValidationException()
+    {
+        var installation = new GameInstallation(
+            installationPath: @"C:\TestPath",
+            installationType: GameInstallationType.EaApp,
+            logger: null);
+        installation.SetPaths(@"C:\TestPath\Command and Conquer Generals", null);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.108.eaapp.gameinstallation.generals"),
+            Variants = [new ArtifactVariant()],
+        };
+
+        _poolMock
+            .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        await Assert.ThrowsAsync<ManifestValidationException>(
+            () => _manifestProvider.GetManifestAsync(installation));
     }
 
     /// <summary>

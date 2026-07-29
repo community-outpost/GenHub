@@ -321,6 +321,14 @@ public class ContentManifestPool(
     {
         var errors = new List<string>();
 
+        // Applied here rather than at each caller: both AddManifestAsync overloads run
+        // this, and every deliverer, resolver and detector reaches the pool through them.
+        // Gating the discovery and provider services alone left those paths open.
+        if (!ManifestIngestionGate.TryAccept(manifest, out var variantRejection))
+        {
+            errors.Add(variantRejection!);
+        }
+
         if (string.IsNullOrEmpty(manifest.Id.Value))
             errors.Add("Manifest ID is required");
 

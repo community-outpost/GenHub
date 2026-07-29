@@ -193,12 +193,21 @@ public class ManifestDiscoveryService(
         return true;
     }
 
-    private static async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
+    private async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
         if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
         {
+            if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+            {
+                logger.LogWarning(
+                    "Skipping manifest at {ManifestPath}: {Reason}",
+                    manifestPath,
+                    rejectionReason);
+                return null;
+            }
+
             return manifest;
         }
 
@@ -279,6 +288,15 @@ public class ManifestDiscoveryService(
                     var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
+                        if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+                        {
+                            logger.LogWarning(
+                                "Skipping manifest at {ManifestFile}: {Reason}",
+                                manifestFile,
+                                rejectionReason);
+                            continue;
+                        }
+
                         manifestCache.AddOrUpdateManifest(manifest);
                         logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
                     }
@@ -308,6 +326,15 @@ public class ManifestDiscoveryService(
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
+                    if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+                    {
+                        logger.LogWarning(
+                            "Skipping embedded manifest {ResourceName}: {Reason}",
+                            resourceName,
+                            rejectionReason);
+                        continue;
+                    }
+
                     manifestCache.AddOrUpdateManifest(manifest);
                     logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
                 }

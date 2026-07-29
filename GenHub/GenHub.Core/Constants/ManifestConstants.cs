@@ -16,6 +16,17 @@ public static class ManifestConstants
     public const string DefaultManifestVersion = "1";
 
     /// <summary>
+    /// Manifest format version that introduces artifact variants.
+    /// </summary>
+    /// <remarks>
+    /// Bumped from <see cref="DefaultManifestFormatVersion"/> so that a manifest using
+    /// variants is identifiable as such rather than presenting as a version 1 manifest
+    /// with an unexpected field. Ingestion rejects this version for now — see
+    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// </remarks>
+    public const int VariantsManifestFormatVersion = 2;
+
+    /// <summary>
     /// Prefix for publisher content IDs.
     /// </summary>
     public const string PublisherContentIdPrefix = "publisher";
