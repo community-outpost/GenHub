@@ -5,6 +5,7 @@
       "GenHub.Core/GenHub.Core.csproj",
       "GenHub.MacOS/GenHub.MacOS.csproj",
       "GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj",
+      "GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj",
       "GenHub/GenHub.csproj"
     ]
   }

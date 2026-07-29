@@ -27,4 +27,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Shared composition-root assertions, linked rather than duplicated so every
+       platform host is held to the same contract. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\CompositionRootAssertions.cs" Link="Shared\CompositionRootAssertions.cs" />
+  </ItemGroup>
+
 </Project>

@@ -1644,11 +1644,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 }
                 else
                 {
-                    selectedArtifact = fallbackArtifact;
-                    if (selectedArtifact != null)
-                    {
-                        _logger.LogWarning("Unknown platform, using fallback artifact: {Name} (ID: {Id})", selectedArtifact.ArtifactName, selectedArtifact.ArtifactId);
-                    }
+                    // No artifacts are published for this platform. Installing the
+                    // platform-agnostic fallback here would apply a Windows or Linux
+                    // package on, say, macOS, leaving an install that cannot start and
+                    // cannot be rolled back. Refuse rather than guess.
+                    _logger.LogWarning(
+                        "No update artifacts are published for {Platform}; skipping run {RunId}",
+                        RuntimeInformation.OSDescription,
+                        runId);
+                    continue;
                 }
 
                 if (selectedArtifact != null)

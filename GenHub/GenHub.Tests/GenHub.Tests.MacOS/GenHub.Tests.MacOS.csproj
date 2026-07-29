@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
-    <ProjectReference Include="..\..\GenHub.Linux\GenHub.Linux.csproj" />
+    <ProjectReference Include="..\..\GenHub.MacOS\GenHub.MacOS.csproj" />
   </ItemGroup>
 
   <ItemGroup>
