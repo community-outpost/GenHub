@@ -712,5 +712,4 @@ public abstract class WorkspaceStrategyBase<T>(
             throw;
         }
     }
-
 }
