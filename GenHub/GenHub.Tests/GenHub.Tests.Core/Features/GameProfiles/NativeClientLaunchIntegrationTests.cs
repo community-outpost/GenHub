@@ -25,6 +25,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// is the deploy script's own default location.
 /// </para>
 /// </summary>
+[Collection(NativeClientLaunchCollection.Name)]
 public class NativeClientLaunchIntegrationTests
 {
     private const string EnvironmentOverride = "GENHUB_NATIVE_CLIENT_DIR";
