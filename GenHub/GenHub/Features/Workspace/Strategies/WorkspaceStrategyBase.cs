@@ -500,6 +500,71 @@ public abstract class WorkspaceStrategyBase<T>(
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
         }
+
+        await EnsureExecutableAsync(file, targetPath, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gives a materialised file the Unix execute bit, on a copy that the workspace owns.
+    /// <para>
+    /// The copy is the point. Under the hard-link strategy the workspace file <em>is</em>
+    /// the content-store blob — same inode, and file mode lives in the inode, not the
+    /// directory entry. Calling chmod on it would change permissions for every other
+    /// profile referencing that hash, and the content store keys purely on content hash,
+    /// so it has no way to represent two files with identical bytes and different modes.
+    /// </para>
+    /// <para>
+    /// Breaking the link costs one copy per executable. Manifests contain a handful of
+    /// those and gigabytes of data, so the deduplication that matters is untouched.
+    /// </para>
+    /// <para>
+    /// No-op on Windows, which has no execute bit, and for files that do not need one.
+    /// </para>
+    /// </summary>
+    /// <param name="file">The manifest entry that was just materialised.</param>
+    /// <param name="targetPath">Its absolute path in the workspace.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the operation.</returns>
+    private async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    {
+        if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
+        {
+            return;
+        }
+
+        try
+        {
+            // Replace the entry with a private copy so the mode change cannot reach a
+            // shared blob. Writing through a temporary keeps the workspace consistent if
+            // this is interrupted partway.
+            var temporaryPath = targetPath + ".genhub-exec-tmp";
+
+            await Task.Run(
+                () =>
+                {
+                    File.Copy(targetPath, temporaryPath, overwrite: true);
+                    File.Delete(targetPath);
+                    File.Move(temporaryPath, targetPath);
+
+                    File.SetUnixFileMode(
+                        targetPath,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                },
+                cancellationToken);
+
+            Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
+        }
+        catch (Exception ex)
+        {
+            // A workspace whose entry point lacks the execute bit fails at launch with a
+            // permission error that names the file, so this is reported rather than fatal.
+            Logger.LogWarning(
+                ex,
+                "Could not mark {RelativePath} executable; launching it may fail",
+                file.RelativePath);
+        }
     }
 
     /// <summary>
