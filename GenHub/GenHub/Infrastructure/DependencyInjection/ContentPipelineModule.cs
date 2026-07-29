@@ -27,6 +27,7 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
+using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -99,8 +100,20 @@ public static class ContentPipelineModule
         });
         services.AddScoped<IContentManifestPool, ContentManifestPool>();
 
-        // Register provider definition loader for data-driven provider configuration
-        services.AddSingleton<IProviderDefinitionLoader, ProviderDefinitionLoader>();
+        // Register provider definition loader for data-driven provider configuration.
+        // The user-providers directory is passed in from the configuration provider so a
+        // relocated application data directory is honoured. ProviderDefinitionLoader lives
+        // in GenHub.Core and defaults to a raw SpecialFolder.ApplicationData lookup when no
+        // override is supplied, which would silently keep reading the default tree.
+        services.AddSingleton<IProviderDefinitionLoader>(sp =>
+        {
+            var configurationProvider = sp.GetRequiredService<IConfigurationProviderService>();
+            return new ProviderDefinitionLoader(
+                sp.GetRequiredService<ILogger<ProviderDefinitionLoader>>(),
+                userProvidersDirectory: Path.Combine(
+                    configurationProvider.GetApplicationDataPath(),
+                    ProviderDefinitionLoader.ProvidersDirectoryName));
+        });
 
         // Register catalog parser factory and parsers
         services.AddSingleton<ICatalogParserFactory, CatalogParserFactory>();

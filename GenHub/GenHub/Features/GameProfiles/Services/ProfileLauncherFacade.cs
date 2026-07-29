@@ -156,7 +156,7 @@ public class ProfileLauncherFacade(
 
                     // Define a base path for the workspace - for tools we can use a temp dir or app data
                     // WorkspaceManager requires a BaseInstallationPath, even if empty for tools
-                    var appDataBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
+                    var appDataBase = configurationProvider.GetApplicationDataPath();
                     if (!Directory.Exists(appDataBase)) Directory.CreateDirectory(appDataBase);
 
                     var baseDetails = appDataBase;
