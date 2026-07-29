@@ -303,6 +303,13 @@ public class GameProcessManager(
 
                     logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
+                    // The process has exited, but the async stderr handlers may not have
+                    // delivered their final lines yet — and this is exactly the path where
+                    // that output explains the failure. The parameterless overload is the
+                    // documented way to wait for those handlers; the timed overloads
+                    // return as soon as the process is gone and leave the capture short.
+                    DrainStandardError(process, capturedErrors);
+
                     process.Dispose();
 
                     // If it exits immediately with a non-zero code (like a crash or missing DLL), this is a genuine failure
@@ -335,7 +342,13 @@ public class GameProcessManager(
             if (configuration.WaitForExit)
             {
                 var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
-                process.WaitForExit(timeoutMs);
+                if (process.WaitForExit(timeoutMs))
+                {
+                    // Only once the process is known to have exited: the timed overload
+                    // does not wait for the redirected-output handlers, so the capture
+                    // would otherwise be read while lines are still in flight.
+                    DrainStandardError(process, capturedErrors);
+                }
             }
 
             try
@@ -882,29 +895,117 @@ public class GameProcessManager(
     /// accumulate its entire log in memory for no benefit.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Waits for the asynchronous stderr handlers to finish before the capture is read.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Process.WaitForExit()"/> without a timeout additionally waits for
+    /// redirected-output handlers to complete; the timed overloads do not, so reading the
+    /// buffer straight after the process exits can miss the final lines. Only stderr is
+    /// redirected, so there is no stdout stream to drain.
+    /// </remarks>
+    /// <param name="process">The exited process.</param>
+    /// <param name="capturedErrors">The buffer receiving stderr lines.</param>
+    private void DrainStandardError(Process process, BoundedErrorBuffer capturedErrors)
+    {
+        try
+        {
+            process.WaitForExit();
+        }
+        catch (Exception ex)
+        {
+            // The process may already be disposed or inaccessible; the capture is then
+            // whatever arrived, which is better than propagating from a diagnostics path.
+            logger.LogDebug(ex, "[Process] Could not wait for stderr handlers to complete");
+        }
+
+        if (!capturedErrors.EndOfStreamReached)
+        {
+            logger.LogDebug(
+                "[Process] stderr did not signal end of stream; the captured output may be incomplete");
+        }
+    }
+
+    /// <summary>
+    /// Retains a bounded excerpt of a process's stderr for diagnostics.
+    /// </summary>
+    /// <remarks>
+    /// Keeps the first lines as well as the last. A tail-only buffer loses the startup
+    /// context — the missing library, the rejected argument — which is usually where the
+    /// cause is, while the tail holds the symptom. Both are bounded by line count, by
+    /// individual line length and by total size, so a process writing a pathological
+    /// volume cannot exhaust memory.
+    /// </remarks>
     private sealed class BoundedErrorBuffer
     {
-        private const int MaxLines = 20;
-        private readonly Queue<string> _lines = new();
+        private const int MaxHeadLines = 10;
+        private const int MaxTailLines = 20;
+        private const int MaxLineLength = 2000;
+        private const int MaxTotalChars = 64 * 1024;
+
+        private readonly List<string> _head = [];
+        private readonly Queue<string> _tail = new();
         private readonly object _gate = new();
+        private int _retainedChars;
+        private int _droppedLines;
+        private bool _endOfStream;
 
         /// <summary>
-        /// Appends a line, discarding the oldest once the cap is reached.
+        /// Gets a value indicating whether the stream signalled end of output.
+        /// </summary>
+        /// <remarks>
+        /// The framework raises the handler once with a null <c>Data</c> when the stream
+        /// closes. That, not process exit, is the point at which the capture is known to
+        /// be complete.
+        /// </remarks>
+        internal bool EndOfStreamReached
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _endOfStream;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Appends a line, or records end of stream when <paramref name="line"/> is null.
         /// </summary>
         /// <param name="line">The line received, or null at end of stream.</param>
         internal void Append(string? line)
         {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                return;
-            }
-
             lock (_gate)
             {
-                _lines.Enqueue(line);
-                while (_lines.Count > MaxLines)
+                if (line is null)
                 {
-                    _lines.Dequeue();
+                    _endOfStream = true;
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    return;
+                }
+
+                var trimmed = line.Length > MaxLineLength
+                    ? string.Concat(line.AsSpan(0, MaxLineLength), "…[line truncated]")
+                    : line;
+
+                if (_head.Count < MaxHeadLines)
+                {
+                    _head.Add(trimmed);
+                    _retainedChars += trimmed.Length;
+                    return;
+                }
+
+                _tail.Enqueue(trimmed);
+                _retainedChars += trimmed.Length;
+
+                while (_tail.Count > MaxTailLines || (_retainedChars > MaxTotalChars && _tail.Count > 0))
+                {
+                    _retainedChars -= _tail.Dequeue().Length;
+                    _droppedLines++;
                 }
             }
         }
@@ -914,7 +1015,16 @@ public class GameProcessManager(
         {
             lock (_gate)
             {
-                return string.Join(" | ", _lines);
+                var parts = new List<string>(_head);
+
+                if (_droppedLines > 0)
+                {
+                    parts.Add($"…[{_droppedLines} line(s) omitted]");
+                }
+
+                parts.AddRange(_tail);
+
+                return string.Join(" | ", parts);
             }
         }
     }
