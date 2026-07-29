@@ -52,6 +52,10 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IGameInstallationService>(),
             sp.GetRequiredService<IStorageLocationService>(),
             sp.GetRequiredService<IUserDataTracker>(),
+            // GetService, not GetRequiredService: only Windows registers a token store,
+            // and SettingsViewModel already takes this parameter as optional. Requiring
+            // it here crashed Linux and macOS at startup while MainView was being
+            // constructed, which is well past the point where the error is legible.
             sp.GetService<IGitHubTokenStorage>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 

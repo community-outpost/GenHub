@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using HeyRed.ImageSharp.Heif.Formats.Avif;
@@ -18,9 +19,36 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// </summary>
 public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter> logger)
 {
-    private static readonly string[] SupportedExtensions = [".avif", ".webp"];
+    private const string AvifExtension = ".avif";
+    private const int AvifCapabilityUnknown = 0;
+    private const int AvifCapabilityAvailable = 1;
+    private const int AvifCapabilityUnavailable = 2;
 
-    // Configure ImageSharp to support AVIF decoding (WebP is supported natively)
+    private static readonly string[] SupportedExtensions = [AvifExtension, ".webp"];
+    private static readonly SemaphoreSlim _avifCapabilityGate = new(1, 1);
+
+    /// <summary>
+    /// Remembers the availability discovered by the first AVIF decode.
+    /// <para>
+    /// AVIF decoding P/Invokes into libheif, supplied by LibHeif.Native. That package
+    /// ships native assets for win-x64 and linux-x64 only (see the note on its
+    /// PackageReference in GenHub.csproj); elsewhere it restores as an empty
+    /// placeholder. Nothing detectable happens until the first decode, which then
+    /// throws <see cref="DllNotFoundException"/>: constructing
+    /// <see cref="AvifConfigurationModule"/> succeeds on every platform, so there is
+    /// no meaningful way to probe up front. Attempting the operation and remembering
+    /// the failure is both simpler and accurate — it also means a machine that
+    /// happens to have libheif installed keeps working, which a hardcoded RID
+    /// allowlist would wrongly deny.
+    /// </para>
+    /// <para>
+    /// WebP is decoded by ImageSharp itself and needs no native library, so it keeps
+    /// working everywhere. Only AVIF degrades.
+    /// </para>
+    /// </summary>
+    private static int _avifCapabilityState;
+
+    // Configure ImageSharp to support AVIF decoding (WebP is supported natively).
     private readonly Configuration _avifConfig = new(new AvifConfigurationModule());
 
     /// <summary>
@@ -48,12 +76,24 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
             int converted = 0;
             int totalFound = 0;
 
+            int skippedAvif = 0;
+
             foreach (var imageFile in imageFiles)
             {
                 totalFound++;
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
+                }
+
+                if (IsAvif(imageFile) && IsAvifUnavailable())
+                {
+                    // A previous file already proved libheif is missing. Leaving the
+                    // .avif in place is deliberate: the game cannot read it, but
+                    // deleting it would destroy content the user could still convert
+                    // on a platform that has the native library.
+                    skippedAvif++;
+                    continue;
                 }
 
                 try
@@ -74,6 +114,12 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
                         logger.LogWarning("Conversion produced no output for {SourceFile}", imageFile);
                     }
                 }
+                catch (PlatformNotSupportedException)
+                {
+                    // libheif is missing. The shared capability state is now unavailable,
+                    // so every remaining .avif takes the skip path above instead of throwing.
+                    skippedAvif++;
+                }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to convert {SourceFile}", imageFile);
@@ -85,6 +131,16 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
                 converted,
                 totalFound,
                 directory);
+
+            if (skippedAvif > 0)
+            {
+                logger.LogWarning(
+                    "Skipped {SkippedAvif} AVIF file(s) in {Directory}: AVIF decoding is unavailable on {Platform}. "
+                    + "The textures were left in place and the content will be missing them in-game.",
+                    skippedAvif,
+                    directory,
+                    RuntimeInformation.RuntimeIdentifier);
+            }
 
             return converted;
         }
@@ -113,40 +169,99 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
             () =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using var inputStream = File.OpenRead(sourcePath);
 
-                // AVIF requires a special configuration module; WebP is natively supported
-                var isAvif = Path.GetExtension(sourcePath)
-                    .Equals(".avif", StringComparison.OrdinalIgnoreCase);
-
-                var decoderOptions = new DecoderOptions
+                // AVIF requires a special configuration module; WebP is natively supported.
+                var isAvif = IsAvif(sourcePath);
+                if (isAvif && IsAvifUnavailable())
                 {
-                    Configuration = isAvif ? _avifConfig : Configuration.Default,
-                };
-
-                cancellationToken.ThrowIfCancellationRequested();
-                using var image = Image.Load(decoderOptions, inputStream);
-
-                // Create directory for output if it doesn't exist
-                var destDir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                {
-                    Directory.CreateDirectory(destDir);
+                    throw AvifUnsupported(sourcePath);
                 }
 
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Save as TGA with appropriate settings for Generals
-                // The game expects 32-bit BGRA TGA files without compression (TGA type 2)
-                // GenPatcher uses uncompressed TGA via nconvert.exe -c 1
-                var encoder = new TgaEncoder
+                var ownsCapabilityProbe = false;
+                if (isAvif && Volatile.Read(ref _avifCapabilityState) == AvifCapabilityUnknown)
                 {
-                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                    Compression = TgaCompression.None,
-                };
+                    _avifCapabilityGate.Wait(cancellationToken);
+                    ownsCapabilityProbe = true;
 
-                image.SaveAsTga(destinationPath, encoder);
+                    if (IsAvifUnavailable())
+                    {
+                        _avifCapabilityGate.Release();
+                        ownsCapabilityProbe = false;
+                        throw AvifUnsupported(sourcePath);
+                    }
+
+                    if (Volatile.Read(ref _avifCapabilityState) == AvifCapabilityAvailable)
+                    {
+                        _avifCapabilityGate.Release();
+                        ownsCapabilityProbe = false;
+                    }
+                }
+
+                Image image;
+                try
+                {
+                    using var inputStream = File.OpenRead(sourcePath);
+                    var decoderOptions = new DecoderOptions
+                    {
+                        Configuration = isAvif ? _avifConfig : Configuration.Default,
+                    };
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    image = Image.Load(decoderOptions, inputStream);
+                    if (isAvif)
+                    {
+                        Volatile.Write(ref _avifCapabilityState, AvifCapabilityAvailable);
+                    }
+                }
+                catch (DllNotFoundException)
+                {
+                    // libheif is not present for this runtime. Remember it so the rest
+                    // of the run skips AVIF instead of repeating the failure per file.
+                    Volatile.Write(ref _avifCapabilityState, AvifCapabilityUnavailable);
+                    throw AvifUnsupported(sourcePath);
+                }
+                finally
+                {
+                    if (ownsCapabilityProbe)
+                    {
+                        _avifCapabilityGate.Release();
+                    }
+                }
+
+                using (image)
+                {
+                    // Create directory for output if it doesn't exist
+                    var destDir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    {
+                        Directory.CreateDirectory(destDir);
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // Save as TGA with appropriate settings for Generals
+                    // The game expects 32-bit BGRA TGA files without compression (TGA type 2)
+                    // GenPatcher uses uncompressed TGA via nconvert.exe -c 1
+                    var encoder = new TgaEncoder
+                    {
+                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
+                        Compression = TgaCompression.None,
+                    };
+
+                    image.SaveAsTga(destinationPath, encoder);
+                }
             },
             cancellationToken);
     }
+
+    private static bool IsAvif(string path) =>
+        Path.GetExtension(path).Equals(AvifExtension, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsAvifUnavailable() =>
+        Volatile.Read(ref _avifCapabilityState) == AvifCapabilityUnavailable;
+
+    private static PlatformNotSupportedException AvifUnsupported(string sourcePath) =>
+        new($"Cannot convert '{sourcePath}': AVIF decoding needs the libheif native library, "
+            + $"which is not available for {RuntimeInformation.RuntimeIdentifier}. "
+            + "WebP conversion is unaffected.");
 }

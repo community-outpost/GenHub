@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -53,6 +55,27 @@ public static class CompositionRootAssertions
     private static readonly Type[] RequiredNonEmptyCollections =
     [
         typeof(IGameInstallationDetector),
+    ];
+
+    /// <summary>
+    /// Types that must be constructible, not merely registered.
+    /// <para>
+    /// <c>ValidateOnBuild</c> cannot see inside a factory lambda: a registration like
+    /// <c>AddSingleton&lt;T&gt;(sp =&gt; new T(sp.GetRequiredService&lt;TDep&gt;()))</c>
+    /// validates clean and then throws the first time it is resolved. That is not
+    /// hypothetical — <c>SettingsViewModel</c> is registered exactly that way and
+    /// required a Windows-only service, so Linux and macOS built a valid container and
+    /// then died constructing MainView.
+    /// </para>
+    /// <para>
+    /// Actually resolving these is the only way to execute those lambdas. Add any type
+    /// registered with a factory delegate here.
+    /// </para>
+    /// </summary>
+    private static readonly Type[] RequiredConstructibleTypes =
+    [
+        typeof(SettingsViewModel),
+        typeof(MainViewModel),
     ];
 
     /// <summary>
@@ -115,5 +138,16 @@ public static class CompositionRootAssertions
             + "implementation per platform, even one that legitimately finds nothing.";
 
         Assert.True(empty.Count == 0, emptyMessage);
+
+        foreach (var type in RequiredConstructibleTypes)
+        {
+            var failure = Record.Exception(() => scope.ServiceProvider.GetRequiredService(type));
+
+            Assert.True(
+                failure is null,
+                $"Host container failed to construct {type.Name}: {failure?.Message} "
+                + "This is a factory-lambda dependency, which ValidateOnBuild cannot detect. "
+                + "The application would start and then crash on first use.");
+        }
     }
 }
