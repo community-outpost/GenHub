@@ -1,4 +1,5 @@
 using GenHub.Common.ViewModels;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -33,6 +34,7 @@ public class SharedViewModelModuleTests
         var configProvider = CreateMockConfigProvider();
         services.AddSingleton<IConfigurationProviderService>(configProvider);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
         services.AddSingleton<IUserSettingsService>(CreateMockUserSettingsService());
         services.AddSingleton<IAppConfiguration>(CreateMockAppConfiguration());
 

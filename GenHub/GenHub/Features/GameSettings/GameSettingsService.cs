@@ -18,7 +18,7 @@ namespace GenHub.Features.GameSettings;
 /// <summary>
 /// Service for managing game settings (Options.ini) for Generals and Zero Hour.
 /// </summary>
-public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider? pathProvider = null) : IGameSettingsService
+public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider) : IGameSettingsService
 {
     private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
@@ -34,7 +34,12 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     private static readonly SemaphoreSlim _optionsIniWriteSemaphore = new(1, 1);
 
     private readonly ILogger<GameSettingsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IGamePathProvider _pathProvider = pathProvider ?? new WindowsGamePathProvider();
+    // Required, not optional. This previously defaulted to WindowsGamePathProvider when
+    // nothing was registered — which was every platform, because no DI module registered
+    // an IGamePathProvider at all. macOS and Linux therefore wrote Options.ini via
+    // SpecialFolder.MyDocuments, which .NET maps to $HOME on Unix. An unregistered
+    // dependency must fail at container build, not silently resolve to the wrong OS.
+    private readonly IGamePathProvider _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
 
     /// <inheritdoc/>
     public virtual string GetOptionsFilePath(GameType gameType)
