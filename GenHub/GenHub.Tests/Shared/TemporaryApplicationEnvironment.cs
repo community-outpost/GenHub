@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Storage;
 
 namespace GenHub.Tests.Shared;
 
@@ -11,6 +14,12 @@ namespace GenHub.Tests.Shared;
 /// </summary>
 internal sealed class TemporaryApplicationEnvironment : IDisposable
 {
+    private static readonly JsonSerializerOptions SettingsJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly Dictionary<string, string?> _originalValues = [];
 
     /// <summary>
@@ -23,15 +32,16 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
         CasPath = Path.Combine(RootPath, DirectoryNames.CasPool);
         Directory.CreateDirectory(AppDataPath);
 
-        var settings = JsonSerializer.Serialize(new
+        var settings = new UserSettings
         {
-            casConfiguration = new
+            CasConfiguration = new CasConfiguration
             {
-                casRootPath = CasPath,
+                CasRootPath = CasPath,
             },
-        });
+        };
+        var settingsJson = JsonSerializer.Serialize(settings, SettingsJsonOptions);
 
-        File.WriteAllText(Path.Combine(AppDataPath, FileTypes.SettingsFileName), settings);
+        File.WriteAllText(Path.Combine(AppDataPath, FileTypes.SettingsFileName), settingsJson);
 
         SetEnvironmentVariable("GENHUB_GenHub__AppDataPath", AppDataPath);
         SetEnvironmentVariable("APPDATA", Path.Combine(RootPath, "RoamingAppData"));
