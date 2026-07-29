@@ -284,6 +284,19 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// <returns>The total size in bytes.</returns>
         public long TestCalculateActualTotalSize(WorkspaceConfiguration configuration) => CalculateActualTotalSize(configuration);
 
+        /// <summary>
+        /// Exposes executable materialization for production-path regression tests.
+        /// </summary>
+        /// <param name="file">The manifest file.</param>
+        /// <param name="targetPath">The materialized workspace path.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>A task representing the operation.</returns>
+        public Task TestEnsureExecutableAsync(
+            ManifestFile file,
+            string targetPath,
+            CancellationToken cancellationToken = default) =>
+            EnsureExecutableAsync(file, targetPath, cancellationToken);
+
         /// <inheritdoc/>
         protected override Task CreateCasLinkAsync(string hash, string targetPath, GenHub.Core.Models.Enums.ContentType? contentType, CancellationToken cancellationToken)
         {

@@ -1,9 +1,9 @@
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Manifest;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -29,6 +29,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
         $"genhub-execisolation-{Guid.NewGuid():N}");
 
     private readonly UnixFileOperationsService _service;
+    private readonly WorkspaceStrategyBaseTests.TestWorkspaceStrategy _strategy;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ExecutablePermissionIsolationTests"/> class.
@@ -46,9 +47,8 @@ public class ExecutablePermissionIsolationTests : IDisposable
             baseService,
             new Mock<ICasService>().Object,
             NullLogger<UnixFileOperationsService>.Instance);
+        _strategy = new WorkspaceStrategyBaseTests.TestWorkspaceStrategy(_service);
     }
-
-    private static bool OnUnix => !RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
     /// <summary>
     /// Establishes the hazard: chmod through a hard link changes the target too.
@@ -62,7 +62,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     [Fact]
     public async Task ChmodThroughHardLink_AlsoChangesTheTarget()
     {
-        if (!OnUnix)
+        if (OperatingSystem.IsWindows())
         {
             return;
         }
@@ -92,7 +92,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     [Fact]
     public async Task CopyBeforeChmod_LeavesTheStoredBlobUntouched()
     {
-        if (!OnUnix)
+        if (OperatingSystem.IsWindows())
         {
             return;
         }
@@ -104,22 +104,53 @@ public class ExecutablePermissionIsolationTests : IDisposable
 
         await _service.CreateHardLinkAsync(workspaceFile, casBlob);
 
-        // What WorkspaceStrategyBase.EnsureExecutableAsync does: break the link first.
         var temporaryPath = workspaceFile + ".genhub-exec-tmp";
-        File.Copy(workspaceFile, temporaryPath, overwrite: true);
-        File.Delete(workspaceFile);
-        File.Move(temporaryPath, workspaceFile);
-        File.SetUnixFileMode(
-            workspaceFile,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        await _strategy.TestEnsureExecutableAsync(
+            new ManifestFile { RelativePath = "workspace-file", IsExecutable = true },
+            workspaceFile);
 
         Assert.True(File.GetUnixFileMode(workspaceFile).HasFlag(UnixFileMode.UserExecute));
         Assert.False(
             File.GetUnixFileMode(casBlob).HasFlag(UnixFileMode.UserExecute),
             "The stored blob was modified, so every other profile using this hash is affected.");
 
+        Assert.False(
+            File.Exists(temporaryPath),
+            "The temporary copy must not survive; workspace validation would report it.");
+
         // Content must survive the round trip; a broken link is only acceptable if the
         // bytes are identical.
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(workspaceFile));
+    }
+
+    /// <summary>
+    /// The destination must never be observable as missing or non-executable. Verification
+    /// never mutates, so a workspace left with a non-executable entry point stays broken
+    /// for every later launch — the failure this sequence exists to prevent.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ExecutableMaterialization_ReplacesDestinationAtomically()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var workspaceFile = Path.Combine(_tempDir, "atomic-entry-point");
+        await File.WriteAllTextAsync(workspaceFile, "engine binary");
+        File.SetUnixFileMode(workspaceFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var temporaryPath = workspaceFile + ".genhub-exec-tmp";
+        await _strategy.TestEnsureExecutableAsync(
+            new ManifestFile { RelativePath = "atomic-entry-point", IsExecutable = true },
+            workspaceFile);
+
+        Assert.True(File.Exists(workspaceFile));
+        Assert.True(
+            File.GetUnixFileMode(workspaceFile).HasFlag(UnixFileMode.UserExecute),
+            "The replacement was already executable before it became the destination.");
+        Assert.False(File.Exists(temporaryPath));
         Assert.Equal("engine binary", await File.ReadAllTextAsync(workspaceFile));
     }
 

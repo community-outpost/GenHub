@@ -525,32 +525,40 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="targetPath">Its absolute path in the workspace.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A task representing the operation.</returns>
-    private async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
         {
             return;
         }
 
+        var temporaryPath = targetPath + ".genhub-exec-tmp";
+
         try
         {
             // Replace the entry with a private copy so the mode change cannot reach a
-            // shared blob. Writing through a temporary keeps the workspace consistent if
-            // this is interrupted partway.
-            var temporaryPath = targetPath + ".genhub-exec-tmp";
-
+            // shared blob.
+            //
+            // The copy is made executable *before* it is moved into place, and the move
+            // replaces the destination atomically. There is therefore no observable state
+            // in which the destination is missing or present-but-not-executable: it is
+            // either the original entry or the finished private copy.
+            //
+            // A delete-then-move sequence would expose both of those states, and the
+            // second is unrecoverable — verification never mutates, so a workspace left
+            // with a non-executable entry point stays broken for every later launch.
             await Task.Run(
                 () =>
                 {
                     File.Copy(targetPath, temporaryPath, overwrite: true);
-                    File.Delete(targetPath);
-                    File.Move(temporaryPath, targetPath);
 
                     File.SetUnixFileMode(
-                        targetPath,
+                        temporaryPath,
                         UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                         UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
                         UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+
+                    File.Move(temporaryPath, targetPath, overwrite: true);
                 },
                 cancellationToken);
 
@@ -558,12 +566,26 @@ public abstract class WorkspaceStrategyBase<T>(
         }
         catch (Exception ex)
         {
-            // A workspace whose entry point lacks the execute bit fails at launch with a
-            // permission error that names the file, so this is reported rather than fatal.
-            Logger.LogWarning(
+            // The move is the last step, so a failure here means the temporary copy may
+            // still exist. Remove it: the original entry is untouched and correct, and a
+            // stray .genhub-exec-tmp would otherwise be reported by workspace validation.
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (Exception cleanupEx)
+            {
+                Logger.LogDebug(
+                    cleanupEx,
+                    "Could not remove the temporary executable copy at {TemporaryPath}",
+                    temporaryPath);
+            }
+
+            Logger.LogError(
                 ex,
-                "Could not mark {RelativePath} executable; launching it may fail",
+                "Could not mark {RelativePath} executable",
                 file.RelativePath);
+            throw;
         }
     }
 
