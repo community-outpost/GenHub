@@ -258,42 +258,32 @@ public abstract class WorkspaceStrategyBase<T>(
 
         if (gameClientManifest != null)
         {
-            var executableFile = gameClientManifest.Files?
-                .FirstOrDefault(f => f.IsExecutable);
+            // Resolution order and failure behaviour live in ManifestVariantResolver.
+            // The previous inline logic took the first file marked IsExecutable, which is
+            // enumeration-order dependent as soon as more than one file qualifies — and
+            // several do, once dynamic libraries and native extensionless binaries are in
+            // the same manifest.
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
 
-            if (executableFile != null)
+            if (resolution.Success)
             {
-                // Use the full relative path from the manifest
                 workspaceInfo.ExecutablePath = Path.Combine(
                     workspaceInfo.WorkspacePath,
-                    executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                    resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
 
                 logger.LogInformation(
-                    "Executable resolved from GameClient manifest: {ExecutablePath} (marked as IsExecutable)",
-                    workspaceInfo.ExecutablePath);
+                    "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
+                    workspaceInfo.ExecutablePath,
+                    resolution.Reason);
             }
             else
             {
-                // Fallback: Try finding any .exe file
-                executableFile = gameClientManifest.Files?
-                    .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-
-                if (executableFile != null)
-                {
-                    workspaceInfo.ExecutablePath = Path.Combine(
-                        workspaceInfo.WorkspacePath,
-                        executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-
-                    logger.LogWarning(
-                        "Executable resolved from GameClient manifest by .exe extension (IsExecutable not set): {ExecutablePath}",
-                        workspaceInfo.ExecutablePath);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "GameClient manifest '{ManifestId}' does not contain an executable file",
-                        gameClientManifest.Id);
-                }
+                // Left unset deliberately rather than guessed. Launching the wrong binary
+                // fails somewhere far less diagnosable than here.
+                logger.LogWarning(
+                    "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
+                    gameClientManifest.Id,
+                    resolution);
             }
         }
         else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))

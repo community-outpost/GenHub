@@ -138,6 +138,31 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
+    /// An explicit JSON null must not replace the manifest's non-null variants
+    /// collection and crash the ingestion gate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithNullVariants_PreservesEmptyCollection()
+    {
+        var manifestId = ManifestId.Create("1.0.genhub.mod.nullvariants");
+        var manifestPath = Path.Combine(_tempDirectory, "null-variants.json");
+        await File.WriteAllTextAsync(
+            manifestPath,
+            """{"Id":"1.0.genhub.mod.nullvariants","Variants":null}""");
+
+        _storageServiceMock.Setup(service => service.GetManifestStoragePath(manifestId))
+            .Returns(manifestPath);
+
+        var result = await _manifestPool.GetManifestAsync(manifestId);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Empty(result.Data.Variants);
+        Assert.True(ManifestIngestionGate.TryAccept(result.Data, out _));
+    }
+
+    /// <summary>
     /// Should return null when manifest does not exist.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
