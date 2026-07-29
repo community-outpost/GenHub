@@ -442,7 +442,7 @@ jobs:
           APP_PID=$!
 
           SURVIVED=0
-          for _ in $(seq 1 15); do
+          for _ in $(seq 1 "$MACOS_SMOKE_TEST_SECONDS"); do
             sleep 1
             if ! kill -0 "$APP_PID" 2>/dev/null; then
               break
@@ -477,6 +477,7 @@ jobs:
           # headless backend is configured here; if that changes, set
           # AVALONIA_SCREEN_SCALE_FACTORS or switch to a headless platform.
           DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+          MACOS_SMOKE_TEST_SECONDS: '15'
 
       # Platform test projects are run only on their matching hosts.
       - name: Run Tests
