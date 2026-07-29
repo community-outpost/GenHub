@@ -78,10 +78,13 @@ public class ExecutablePermissionIsolationTests : IDisposable
             workspaceFile,
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
+        const string message =
+            "Expected chmod through a hard link to affect the shared inode. If this now "
+            + "fails, the copy-before-chmod behaviour in WorkspaceStrategyBase can be revisited.";
+
         Assert.True(
             File.GetUnixFileMode(casBlob).HasFlag(UnixFileMode.UserExecute),
-            "Expected chmod through a hard link to affect the shared inode. If this now "
-            + "fails, the copy-before-chmod behaviour in WorkspaceStrategyBase can be revisited.");
+            message);
     }
 
     /// <summary>

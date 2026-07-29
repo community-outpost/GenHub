@@ -85,10 +85,12 @@ public class GitHubInferenceHelperTests
     [Theory]
     [InlineData("program.exe", true)]
     [InlineData("script.sh", true)]
+
     // A native game binary has no extension. This previously returned false here while
     // returning true in ContentManifestBuilder, so the same file was classified
     // differently depending on which factory built the manifest.
     [InlineData("generalszh", true)]
+
     // Changed deliberately: a dynamic library is loadable code, not a runnable file.
     // dyld and ld.so map libraries with read access, so the execute bit is meaningless,
     // and under a hard-link workspace setting it would mutate a shared CAS blob.

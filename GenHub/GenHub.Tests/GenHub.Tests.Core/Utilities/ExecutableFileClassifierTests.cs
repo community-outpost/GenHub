@@ -15,6 +15,7 @@ public class ExecutableFileClassifierTests
     /// <param name="path">The candidate path.</param>
     /// <param name="expected">Whether the execute bit is required.</param>
     [Theory]
+
     // Native binaries have no extension. This is the case the old classifiers disagreed
     // on, and the one a native macOS or Linux game client depends on.
     [InlineData("generalszh", true)]
@@ -22,11 +23,13 @@ public class ExecutableFileClassifierTests
     [InlineData("generals.exe", true)]
     [InlineData("run.sh", true)]
     [InlineData("Launch.command", true)]
+
     // Loadable code, mapped by the loader with read access. Marking these +x is
     // meaningless and, under a hard-link workspace, would mutate a shared CAS blob.
     [InlineData("libSDL3.dylib", false)]
     [InlineData("libbgfx.so", false)]
     [InlineData("d3d8.dll", false)]
+
     // Data, whatever the Steam layout does with it.
     [InlineData("game.dat", false)]
     [InlineData("INIZH.big", false)]
@@ -47,11 +50,13 @@ public class ExecutableFileClassifierTests
     [InlineData("generalszh", true)]
     [InlineData("generals.exe", true)]
     [InlineData("GeneralsOnlineZH_60.exe", true)]
+
     // A library is never launched, so it must not win a FirstOrDefault over the real
     // entry point simply by appearing earlier in the file list.
     [InlineData("libSDL3.dylib", false)]
     [InlineData("libbgfx.so", false)]
     [InlineData("d3d8.dll", false)]
+
     // Shell wrappers are runnable but are not what a profile launches; the engine binary is.
     [InlineData("run.sh", false)]
     [InlineData("game.dat", false)]

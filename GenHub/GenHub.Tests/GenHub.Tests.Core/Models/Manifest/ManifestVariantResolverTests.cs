@@ -10,9 +10,6 @@ namespace GenHub.Tests.Core.Models.Manifest;
 /// </summary>
 public class ManifestVariantResolverTests
 {
-    private static ManifestFile File(string path, bool isExecutable = false) =>
-        new() { RelativePath = path, IsExecutable = isExecutable };
-
     /// <summary>
     /// A manifest with no variants keeps behaving exactly as before. Every manifest
     /// written before variants existed is this shape, including everything already
@@ -235,4 +232,7 @@ public class ManifestVariantResolverTests
         Assert.False(resolution.Success);
         Assert.Contains("no launchable file", resolution.Reason);
     }
+
+    private static ManifestFile File(string path, bool isExecutable = false) =>
+        new() { RelativePath = path, IsExecutable = isExecutable };
 }

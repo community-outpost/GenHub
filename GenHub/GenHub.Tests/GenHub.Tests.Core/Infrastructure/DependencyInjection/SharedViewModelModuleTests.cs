@@ -1,8 +1,9 @@
 using GenHub.Common.ViewModels;
-using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -12,7 +13,6 @@ using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using GenHub.Core.Interfaces.Workspace;
 
 namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 

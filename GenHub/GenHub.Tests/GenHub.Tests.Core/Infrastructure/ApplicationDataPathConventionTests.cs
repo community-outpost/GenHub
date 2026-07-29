@@ -35,8 +35,10 @@ public class ApplicationDataPathConventionTests
         // The implementation of the convention itself has to start somewhere.
         ["ConfigurationProviderService.cs"] = "Defines the canonical path.",
         ["UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
+
         // Displays the built-in default next to the user's override in the UI.
         ["SettingsViewModel.cs"] = "Computes the factory-default path to show on reset.",
+
         // Core-layer fallback, overridden at the composition root by ContentPipelineModule.
         ["ProviderDefinitionLoader.cs"] = "Default only; the DI registration supplies an override.",
     };
