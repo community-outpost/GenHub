@@ -27,7 +27,7 @@ namespace GenHub.Tests.Core.Features.Launching;
 /// <summary>
 /// Tests for <see cref="GameLauncher"/>.
 /// </summary>
-public class GameLauncherTests
+public class GameLauncherTests : IDisposable
 {
     private static readonly string[] TestContentIds = ["1.0.genhub.mod.test"];
     private readonly Mock<IGameProfileManager> _profileManagerMock = new();
@@ -47,6 +47,8 @@ public class GameLauncherTests
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
     private readonly GameLauncher _gameLauncher;
 
+    private readonly string _retailRoot;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="GameLauncherTests"/> class.
     /// </summary>
@@ -57,11 +59,18 @@ public class GameLauncherTests
         _configurationProviderServiceMock.Setup(x => x.GetApplicationDataPath()).Returns(@"C:\Content");
         _configurationProviderServiceMock.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
 
+        // A real directory holding a .big archive. The launcher validates retail archive
+        // roots before spawning, because the engine starts with no content and no error
+        // when they are wrong — so a fixture pointing at a path that does not exist would
+        // be rejected, exactly as a stale installation would be.
+        _retailRoot = Directory.CreateTempSubdirectory("GenHub.GameLauncherTests.").FullName;
+        File.WriteAllText(Path.Combine(_retailRoot, "Generals.big"), "archive");
+
         // Setup game installation service mock
-        var testInstallation = new GameInstallation(@"C:\Games\CommandAndConquer", GameInstallationType.Steam);
+        var testInstallation = new GameInstallation(_retailRoot, GameInstallationType.Steam);
 
         // Ensure Generals path is set so GameLauncher validation passes
-        testInstallation.SetPaths(@"C:\Games\CommandAndConquer", null);
+        testInstallation.SetPaths(_retailRoot, null);
 
         _gameInstallationServiceMock.Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(testInstallation));
@@ -941,5 +950,22 @@ public class GameLauncherTests
             throw new InvalidOperationException("Failed to start junction creation process.");
         process.WaitForExit();
         Assert.Equal(0, process.ExitCode);
+    }
+
+    /// <summary>
+    /// Removes the temporary retail root.
+    /// </summary>
+    public void Dispose()
+    {
+        try
+        {
+            Directory.Delete(_retailRoot, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+
+        GC.SuppressFinalize(this);
     }
 }

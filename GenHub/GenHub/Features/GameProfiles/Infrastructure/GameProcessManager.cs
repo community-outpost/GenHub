@@ -755,6 +755,32 @@ public class GameProcessManager(
         }
     }
 
+    /// <summary>
+    /// Determines whether a file carries the Unix execute bit for the current user.
+    /// </summary>
+    /// <param name="path">The executable path.</param>
+    /// <returns><c>true</c> on Windows, or when any execute bit is set.</returns>
+    private static bool HasExecutePermission(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        try
+        {
+            var mode = File.GetUnixFileMode(path);
+            return mode.HasFlag(UnixFileMode.UserExecute)
+                || mode.HasFlag(UnixFileMode.GroupExecute)
+                || mode.HasFlag(UnixFileMode.OtherExecute);
+        }
+        catch (Exception)
+        {
+            // Unreadable metadata should not block a launch that might otherwise work.
+            return true;
+        }
+    }
+
     private void OnProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
@@ -862,32 +888,6 @@ public class GameProcessManager(
     }
 
     /// <summary>
-    /// Determines whether a file carries the Unix execute bit for the current user.
-    /// </summary>
-    /// <param name="path">The executable path.</param>
-    /// <returns><c>true</c> on Windows, or when any execute bit is set.</returns>
-    private static bool HasExecutePermission(string path)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return true;
-        }
-
-        try
-        {
-            var mode = File.GetUnixFileMode(path);
-            return mode.HasFlag(UnixFileMode.UserExecute)
-                || mode.HasFlag(UnixFileMode.GroupExecute)
-                || mode.HasFlag(UnixFileMode.OtherExecute);
-        }
-        catch (Exception)
-        {
-            // Unreadable metadata should not block a launch that might otherwise work.
-            return true;
-        }
-    }
-
-    /// <summary>
     /// Retains the last few lines written to standard error.
     /// <para>
     /// Bounded on purpose. The interesting output from a process that dies during startup
@@ -950,6 +950,24 @@ public class GameProcessManager(
         private int _droppedLines;
         private bool _endOfStream;
 
+        /// <inheritdoc/>
+        public override string ToString()
+        {
+            lock (_gate)
+            {
+                var parts = new List<string>(_head);
+
+                if (_droppedLines > 0)
+                {
+                    parts.Add($"…[{_droppedLines} line(s) omitted]");
+                }
+
+                parts.AddRange(_tail);
+
+                return string.Join(" | ", parts);
+            }
+        }
+
         /// <summary>
         /// Gets a value indicating whether the stream signalled end of output.
         /// </summary>
@@ -1009,24 +1027,5 @@ public class GameProcessManager(
                 }
             }
         }
-
-        /// <inheritdoc/>
-        public override string ToString()
-        {
-            lock (_gate)
-            {
-                var parts = new List<string>(_head);
-
-                if (_droppedLines > 0)
-                {
-                    parts.Add($"…[{_droppedLines} line(s) omitted]");
-                }
-
-                parts.AddRange(_tail);
-
-                return string.Join(" | ", parts);
-            }
-        }
     }
-
 }

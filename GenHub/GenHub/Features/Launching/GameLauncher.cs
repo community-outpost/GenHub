@@ -979,6 +979,7 @@ public class GameLauncher(
                 logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(archiveRootError, launchId, profile.Id);
             }
+
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
 
@@ -1176,77 +1177,6 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Applies GeneralsOnline-specific settings to the settings.json file.
-    /// </summary>
-    /// <param name="profile">The game profile containing the settings.</param>
-    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
-    {
-        // Only apply if it's Zero Hour (as GO settings only apply there currently)
-        if (profile.GameClient?.GameType != GameType.ZeroHour)
-        {
-            return;
-        }
-
-        try
-        {
-            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
-
-            // Clean Launch Strategy: Create fresh settings object to ensure isolation and prevent pollution
-            var settings = new GeneralsOnlineSettings();
-
-            // Map GO settings from profile using the centralized mapper
-            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
-
-            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
-            if (!saveResult.Success)
-            {
-                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Log and continue
-            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
-        }
-    }
-
-    /// <summary>
-    /// Performs a preflight check to ensure all CAS content required by the manifests is available.
-    /// </summary>
-    /// <param name="manifests">The manifests to check.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A result indicating success or failure.</returns>
-    private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
-    {
-        var missingHashes = new List<string>();
-        foreach (var manifest in manifests)
-        {
-            if (manifest.Files != null)
-            {
-                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
-                {
-                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
-                    if (!existsResult.Success || !existsResult.Data)
-                    {
-                        missingHashes.Add(file.Hash);
-                    }
-                }
-            }
-        }
-
-        if (missingHashes.Count > 0)
-        {
-            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingHashes.Distinct())}");
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    /// <summary>
     /// Builds the child process environment for a game client.
     /// </summary>
     /// <remarks>
@@ -1288,31 +1218,6 @@ public class GameLauncher(
         return environment;
     }
 
-
-    /// <summary>
-    /// Points the engine at the user's retail archives without copying them.
-    /// </summary>
-    /// <remarks>
-    /// A non-Windows engine build reads <c>InstallPath</c> through
-    /// <c>GetStringFromRegistry</c>, which on these platforms checks
-    /// <c>$CNC_ZH_INSTALLPATH</c> and <c>$CNC_GENERALS_INSTALLPATH</c> first. The engine
-    /// then mounts <c>*.big</c> from those roots in addition to the working directory.
-    /// <para>
-    /// That matters a great deal for workspace cost. Zero Hour needs both its own and the
-    /// base Generals archives — roughly 3 GB — and without this the only way to satisfy it
-    /// is to materialise every one of them into each profile's workspace. With it, a
-    /// workspace holds the engine and whatever content actually differs per profile, and
-    /// the bulk retail data stays where the user already has it.
-    /// </para>
-    /// <para>
-    /// The trailing separator is required, not cosmetic. The engine concatenates this
-    /// value with the archive filename directly, so a root without one produces paths like
-    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
-    /// still starts — with no content and no error the user can act on.
-    /// </para>
-    /// </remarks>
-    /// <param name="environment">The environment being built.</param>
-    /// <param name="installation">The installation supplying retail data, if any.</param>
     /// <summary>
     /// Verifies that every configured retail archive root actually contains archives.
     /// </summary>
@@ -1386,6 +1291,30 @@ public class GameLauncher(
         return null;
     }
 
+    /// <summary>
+    /// Points the engine at the user's retail archives without copying them.
+    /// </summary>
+    /// <remarks>
+    /// A non-Windows engine build reads <c>InstallPath</c> through
+    /// <c>GetStringFromRegistry</c>, which on these platforms checks
+    /// <c>$CNC_ZH_INSTALLPATH</c> and <c>$CNC_GENERALS_INSTALLPATH</c> first. The engine
+    /// then mounts <c>*.big</c> from those roots in addition to the working directory.
+    /// <para>
+    /// That matters a great deal for workspace cost. Zero Hour needs both its own and the
+    /// base Generals archives — roughly 3 GB — and without this the only way to satisfy it
+    /// is to materialise every one of them into each profile's workspace. With it, a
+    /// workspace holds the engine and whatever content actually differs per profile, and
+    /// the bulk retail data stays where the user already has it.
+    /// </para>
+    /// <para>
+    /// The trailing separator is required, not cosmetic. The engine concatenates this
+    /// value with the archive filename directly, so a root without one produces paths like
+    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
+    /// still starts — with no content and no error the user can act on.
+    /// </para>
+    /// </remarks>
+    /// <param name="environment">The environment being built.</param>
+    /// <param name="installation">The installation supplying retail data, if any.</param>
     private static void AddRetailArchiveRoots(
         Dictionary<string, string> environment,
         GameInstallation? installation)
@@ -1421,4 +1350,74 @@ public class GameLauncher(
             : path + Path.DirectorySeparatorChar;
     }
 
+    /// <summary>
+    /// Applies GeneralsOnline-specific settings to the settings.json file.
+    /// </summary>
+    /// <param name="profile">The game profile containing the settings.</param>
+    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
+    {
+        // Only apply if it's Zero Hour (as GO settings only apply there currently)
+        if (profile.GameClient?.GameType != GameType.ZeroHour)
+        {
+            return;
+        }
+
+        try
+        {
+            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
+
+            // Clean Launch Strategy: Create fresh settings object to ensure isolation and prevent pollution
+            var settings = new GeneralsOnlineSettings();
+
+            // Map GO settings from profile using the centralized mapper
+            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
+            if (!saveResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
+            }
+            else
+            {
+                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log and continue
+            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
+        }
+    }
+
+    /// <summary>
+    /// Performs a preflight check to ensure all CAS content required by the manifests is available.
+    /// </summary>
+    /// <param name="manifests">The manifests to check.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A result indicating success or failure.</returns>
+    private async Task<OperationResult<bool>> PreflightCasCheckAsync(IEnumerable<ContentManifest> manifests, CancellationToken cancellationToken)
+    {
+        var missingHashes = new List<string>();
+        foreach (var manifest in manifests)
+        {
+            if (manifest.Files != null)
+            {
+                foreach (var file in manifest.Files.Where(f => f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.Hash)))
+                {
+                    var existsResult = await casService.ExistsAsync(file.Hash, manifest.ContentType, cancellationToken);
+                    if (!existsResult.Success || !existsResult.Data)
+                    {
+                        missingHashes.Add(file.Hash);
+                    }
+                }
+            }
+        }
+
+        if (missingHashes.Count > 0)
+        {
+            return OperationResult<bool>.CreateFailure($"Missing CAS objects: {string.Join(", ", missingHashes.Distinct())}");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
 }
