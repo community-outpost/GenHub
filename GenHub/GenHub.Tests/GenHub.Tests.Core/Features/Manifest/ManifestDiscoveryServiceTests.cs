@@ -158,9 +158,16 @@ public class ManifestDiscoveryServiceTests : IDisposable
             Path.Combine(_tempDirectory, "inaccessible")).FullName;
         var removedDirectory = Directory.CreateDirectory(
             Path.Combine(_tempDirectory, "removed")).FullName;
+        var unlistableDirectory = Directory.CreateDirectory(
+            Path.Combine(_tempDirectory, "unlistable")).FullName;
+        var unreachableDirectory = Directory.CreateDirectory(
+            Path.Combine(unlistableDirectory, "unreachable")).FullName;
         await File.WriteAllTextAsync(
             Path.Combine(accessibleDirectory, "accessible.json"),
             SerializeManifest(accessibleManifestId));
+        await File.WriteAllTextAsync(
+            Path.Combine(unreachableDirectory, "unreachable.json"),
+            SerializeManifest("1.0.genhub.mod.unreachable"));
 
         IEnumerable<string> EnumerateFiles(string directory, string pattern)
         {
@@ -177,14 +184,21 @@ public class ManifestDiscoveryServiceTests : IDisposable
             return Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly);
         }
 
+        IEnumerable<string> EnumerateDirectories(string directory)
+        {
+            if (directory == unlistableDirectory)
+            {
+                throw new UnauthorizedAccessException("Injected unlistable directory.");
+            }
+
+            return Directory.EnumerateDirectories(directory, "*", SearchOption.TopDirectoryOnly);
+        }
+
         var discoveryService = new ManifestDiscoveryService(
             _loggerMock.Object,
             _cacheMock.Object,
             EnumerateFiles,
-            directory => Directory.EnumerateDirectories(
-                directory,
-                "*",
-                SearchOption.TopDirectoryOnly));
+            EnumerateDirectories);
 
         // Act
         var manifests = await discoveryService.DiscoverManifestsAsync([_tempDirectory]);
