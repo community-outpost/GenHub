@@ -35,6 +35,9 @@ jobs:
   promote:
     name: Verify Release Promotion
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
       sha: ${{ steps.release.outputs.sha }}
       version: ${{ steps.release.outputs.version }}
@@ -65,7 +68,8 @@ jobs:
             version="$MANUAL_VERSION"
           fi
 
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
+          if [[ ! "$version" =~ $semver ]]; then
             echo "::error::Version must be valid SemVer without a leading v."
             exit 1
           fi
@@ -320,7 +324,7 @@ jobs:
           VERSION="${{ needs.promote.outputs.version }}"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           git fetch --tags --force
-          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]' | grep -vx "v${VERSION}" | head -n 1)
+          PREVIOUS_TAG=$(git tag --merged HEAD --sort=-v:refname | grep -E '^v[0-9]' | grep -vx "v${VERSION}" | head -n 1)
           if [ -z "$PREVIOUS_TAG" ]; then
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" -10)
             COUNT="10"
