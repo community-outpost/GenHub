@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Workspace;
@@ -19,10 +18,33 @@ namespace GenHub.Features.Launching;
 /// </summary>
 public class LaunchRegistry : ILaunchRegistry
 {
+    /// <summary>
+    /// How long an exit event that matched no launch is kept for a late registration.
+    /// </summary>
+    /// <remarks>
+    /// Generous against the actual gap, which is the time between a start operation
+    /// returning and the launcher updating the registry — milliseconds. Bounded because
+    /// PIDs are recycled: an event held indefinitely could be applied to an unrelated
+    /// later launch that happened to receive the same PID.
+    /// </remarks>
+    private static readonly TimeSpan PendingExitRetention = TimeSpan.FromSeconds(30);
+
     private readonly ILogger<LaunchRegistry> _logger;
     private readonly IWorkspaceManager? _workspaceManager;
     private readonly IGameProcessManager? _processManager;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
+
+    /// <summary>
+    /// Exit events whose PID matched no registered launch when they arrived, keyed by PID.
+    /// </summary>
+    /// <remarks>
+    /// The launcher registers a placeholder entry (PID -1) before spawning and records
+    /// the real PID only after the start operation returns. A process that dies inside
+    /// that gap raises its exit event while the registry still cannot match it, so the
+    /// event — including the late-failure evidence — would be silently lost. It is kept
+    /// here briefly instead and applied when a launch is registered with that PID.
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, Core.Models.Events.GameProcessExitedEventArgs> _pendingExits = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
@@ -57,6 +79,22 @@ public class LaunchRegistry : ILaunchRegistry
 
         _activeLaunches[launchInfo.LaunchId] = launchInfo;
         _logger.LogInformation("Registered launch {LaunchId} for profile {ProfileId}", launchInfo.LaunchId, launchInfo.ProfileId);
+
+        // The process may have exited before this registration carried its real PID —
+        // the placeholder-PID gap. Apply the buffered exit now so the failure is
+        // recorded rather than lost to the race.
+        var processId = launchInfo.ProcessInfo.ProcessId;
+        if (processId > 0
+            && _pendingExits.TryRemove(processId, out var pendingExit)
+            && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention)
+        {
+            _logger.LogInformation(
+                "[LaunchRegistry] Applying buffered exit event for PID {ProcessId} to newly registered launch {LaunchId}",
+                processId,
+                launchInfo.LaunchId);
+            ApplyProcessExit(launchInfo, pendingExit);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -110,31 +148,6 @@ public class LaunchRegistry : ILaunchRegistry
     }
 
     /// <summary>
-    /// Composes the recorded reason for a launch that failed after it was reported as
-    /// started.
-    /// </summary>
-    /// <remarks>
-    /// Mirrors the within-window failure messages: the fork engine's advisory mount
-    /// sentinels, when present, name the archive; otherwise the stderr tail stands in.
-    /// Their absence never changes whether the exit counts as a failure — only the
-    /// non-zero exit code decides that.
-    /// </remarks>
-    /// <param name="e">The process exit event.</param>
-    /// <param name="exitCode">The non-zero exit code.</param>
-    /// <returns>The failure description to record on the launch.</returns>
-    private static string ComposeLateFailureReason(Core.Models.Events.GameProcessExitedEventArgs e, int exitCode)
-    {
-        if (e.UnmountableArchives.Count > 0)
-        {
-            return $"The game could not mount required archive(s): {string.Join(", ", e.UnmountableArchives)}. Process exited with code {exitCode} after launch.";
-        }
-
-        return e.StandardErrorTail is null
-            ? $"Process exited with code {exitCode} after launch. No output was captured."
-            : $"Process exited with code {exitCode} after launch. {e.StandardErrorTail}";
-    }
-
-    /// <summary>
     /// Handles the ProcessExited event from the game process manager.
     /// </summary>
     /// <param name="sender">The event sender.</param>
@@ -147,36 +160,81 @@ public class LaunchRegistry : ILaunchRegistry
         var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
         if (launch != null)
         {
-            _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
+            ApplyProcessExit(launch, e);
+            return;
+        }
 
-            // e.ExitTime might be non-nullable DateTime
-            if (e.ExitTime != default)
+        // No launch knows this PID. Registration with the real PID may still be in
+        // flight — the launcher only updates the placeholder entry after the start
+        // operation returns — so keep the event briefly instead of dropping it.
+        if (e.ProcessId > 0)
+        {
+            PruneExpiredPendingExits();
+            _pendingExits[e.ProcessId] = e;
+            _logger.LogDebug(
+                "[LaunchRegistry] No launch matches PID {ProcessId} yet; buffering the exit event in case a registration is in flight",
+                e.ProcessId);
+        }
+    }
+
+    /// <summary>
+    /// Applies an exit event to a launch: termination state, exit code, and — for a
+    /// non-zero exit — the retroactive failure record.
+    /// </summary>
+    /// <remarks>
+    /// Idempotent. The placeholder-PID race means the same exit can be seen twice — once
+    /// buffered and applied at registration, once delivered against the registered PID —
+    /// and the second application must neither duplicate nor contradict the first. An
+    /// exit code already recorded means the event was applied; a termination already
+    /// stamped by the polling path is only kept when the event carries nothing more.
+    /// </remarks>
+    /// <param name="launch">The launch the process belonged to.</param>
+    /// <param name="e">The exit event.</param>
+    private void ApplyProcessExit(GameLaunchInfo launch, Core.Models.Events.GameProcessExitedEventArgs e)
+    {
+        if (launch.ExitCode.HasValue || (launch.TerminatedAt.HasValue && e.ExitCode is null))
+        {
+            return;
+        }
+
+        _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
+
+        // e.ExitTime might be non-nullable DateTime
+        launch.TerminatedAt = e.ExitTime != default ? e.ExitTime : DateTime.UtcNow;
+        launch.ProcessInfo.IsRunning = false;
+        launch.ExitCode = e.ExitCode;
+
+        // The late-failure channel. An initialisation abort slow enough to outlive the
+        // post-spawn detection window was reported as a started launch; its non-zero
+        // exit arriving here is the first evidence to the contrary, so the failure is
+        // recorded retroactively. A clean exit is the user quitting and is never marked
+        // as failed.
+        var failureReason = e.DescribeFailure();
+        if (failureReason != null)
+        {
+            launch.FailureReason = failureReason;
+
+            _logger.LogWarning(
+                "[LaunchRegistry] Launch {LaunchId} (PID {ProcessId}) failed after it was reported as started: exit code {ExitCode}. {Reason}",
+                launch.LaunchId,
+                e.ProcessId,
+                e.ExitCode,
+                failureReason);
+        }
+    }
+
+    /// <summary>
+    /// Drops buffered exit events old enough that applying them would risk matching a
+    /// recycled PID rather than the process that produced them.
+    /// </summary>
+    private void PruneExpiredPendingExits()
+    {
+        var cutoff = DateTime.UtcNow - PendingExitRetention;
+        foreach (var kvp in _pendingExits)
+        {
+            if (kvp.Value.ExitTime < cutoff)
             {
-                launch.TerminatedAt = e.ExitTime;
-            }
-            else
-            {
-                launch.TerminatedAt = DateTime.UtcNow;
-            }
-
-            launch.ProcessInfo.IsRunning = false;
-            launch.ExitCode = e.ExitCode;
-
-            // The late-failure channel. An initialisation abort slow enough to outlive
-            // the post-spawn detection window was reported as a started launch; its
-            // non-zero exit arriving here is the first evidence to the contrary, so the
-            // failure is recorded retroactively. A clean exit is the user quitting and
-            // is never marked as failed.
-            if (e.ExitCode is int exitCode && exitCode != ProcessConstants.ExitCodeSuccess)
-            {
-                launch.FailureReason = ComposeLateFailureReason(e, exitCode);
-
-                _logger.LogWarning(
-                    "[LaunchRegistry] Launch {LaunchId} (PID {ProcessId}) failed after it was reported as started: exit code {ExitCode}. {Reason}",
-                    launch.LaunchId,
-                    e.ProcessId,
-                    exitCode,
-                    launch.FailureReason);
+                _pendingExits.TryRemove(kvp.Key, out _);
             }
         }
     }

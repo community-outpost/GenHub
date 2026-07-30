@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.Events;
 
 /// <summary>
@@ -39,4 +41,32 @@ public class GameProcessExitedEventArgs : EventArgs
     /// nothing about whether archives mounted.
     /// </remarks>
     public IReadOnlyList<string> UnmountableArchives { get; init; } = [];
+
+    /// <summary>
+    /// Describes why this exit is a failure, or returns null for a clean or unknown exit.
+    /// </summary>
+    /// <remarks>
+    /// The single source of the late-failure wording: the launch registry records it and
+    /// the UI surfaces it, so composing it here keeps the two from drifting apart. The
+    /// advisory mount sentinels, when present, name the archive; otherwise the stderr
+    /// tail stands in. Only the non-zero exit code decides that the exit counts as a
+    /// failure — quitting the game cleanly is not one.
+    /// </remarks>
+    /// <returns>The failure description, or null when the exit is not a failure.</returns>
+    public string? DescribeFailure()
+    {
+        if (ExitCode is not int exitCode || exitCode == ProcessConstants.ExitCodeSuccess)
+        {
+            return null;
+        }
+
+        if (UnmountableArchives.Count > 0)
+        {
+            return $"The game could not mount required archive(s): {string.Join(", ", UnmountableArchives)}. Process exited with code {exitCode} after launch.";
+        }
+
+        return StandardErrorTail is null
+            ? $"Process exited with code {exitCode} after launch. No output was captured."
+            : $"Process exited with code {exitCode} after launch. {StandardErrorTail}";
+    }
 }
