@@ -607,24 +607,6 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Strips a leading directory name from a path if present.
-    /// Handles both forward and back slashes.
-    /// </summary>
-    private static string StripLeadingDirectory(string path, string directoryName)
-    {
-        // Handle both forward and back slashes
-        var normalized = path.Replace('\\', '/');
-        var prefix = directoryName + "/";
-
-        if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return normalized[prefix.Length..];
-        }
-
-        return path;
-    }
-
-    /// <summary>
     /// Gives a materialised file the Unix execute bit, on a copy that the workspace owns.
     /// <para>
     /// The copy is the point. Under the hard-link strategy the workspace file <em>is</em>
@@ -711,5 +693,23 @@ public abstract class WorkspaceStrategyBase<T>(
                 file.RelativePath);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Strips a leading directory name from a path if present.
+    /// Handles both forward and back slashes.
+    /// </summary>
+    private static string StripLeadingDirectory(string path, string directoryName)
+    {
+        // Handle both forward and back slashes
+        var normalized = path.Replace('\\', '/');
+        var prefix = directoryName + "/";
+
+        if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized[prefix.Length..];
+        }
+
+        return path;
     }
 }
