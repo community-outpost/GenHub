@@ -43,6 +43,16 @@ public class GameProcessExitedEventArgs : EventArgs
     public IReadOnlyList<string> UnmountableArchives { get; init; } = [];
 
     /// <summary>
+    /// Gets a value indicating whether this exit was requested through the process
+    /// manager's terminate path before the kill was attempted.
+    /// </summary>
+    /// <remarks>
+    /// A killed process exits non-zero, which is otherwise the signature of a crash;
+    /// this flag is what lets consumers tell a deliberate stop apart from one.
+    /// </remarks>
+    public bool TerminationRequested { get; init; }
+
+    /// <summary>
     /// Describes why this exit is a failure, or returns null for a clean or unknown exit.
     /// </summary>
     /// <remarks>
@@ -55,6 +65,16 @@ public class GameProcessExitedEventArgs : EventArgs
     /// <returns>The failure description, or null when the exit is not a failure.</returns>
     public string? DescribeFailure()
     {
+        // A requested termination is never a failure, even though the kill produces a
+        // non-zero exit code. Trade-off, accepted deliberately: an engine that genuinely
+        // crashed moments before the user clicked Stop is suppressed too — a missed
+        // report of an already-dying process is preferred over false-alarming "exited
+        // unexpectedly" on every deliberate stop.
+        if (TerminationRequested)
+        {
+            return null;
+        }
+
         if (ExitCode is not int exitCode || exitCode == ProcessConstants.ExitCodeSuccess)
         {
             return null;
