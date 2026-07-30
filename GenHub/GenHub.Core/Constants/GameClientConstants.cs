@@ -90,6 +90,12 @@ public static class GameClientConstants
     /// <summary>Primary Generals Vanilla Patch archive filename.</summary>
     public const string GeneralsPatchBig = "Patch.big";
 
+    /// <summary>Parent directory of the native engine's default deploy tree, under the user's home.</summary>
+    public const string NativeDeployParentDirectoryName = "TheSuperHackers";
+
+    /// <summary>Directory name of the native engine's default Zero Hour deploy tree.</summary>
+    public const string NativeDeployZeroHourDirectoryName = "GeneralsZH";
+
     // ===== GeneralsOnline Client Detection =====
 
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>

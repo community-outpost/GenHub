@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -120,6 +121,22 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         return Task.FromResult(result);
     }
 
+    /// <summary>
+    /// Determines whether both games are flagged at the same directory.
+    /// </summary>
+    /// <param name="installation">The installation to inspect.</param>
+    /// <returns>True when Generals and Zero Hour share one path.</returns>
+    private static bool IsCombinedDirectory(GameInstallation installation)
+    {
+        return installation.HasGenerals
+            && installation.HasZeroHour
+            && !string.IsNullOrEmpty(installation.GeneralsPath)
+            && !string.IsNullOrEmpty(installation.ZeroHourPath)
+            && Path.GetFullPath(installation.GeneralsPath).Equals(
+                Path.GetFullPath(installation.ZeroHourPath),
+                StringComparison.OrdinalIgnoreCase);
+    }
+
     private List<GameInstallation> DetectRetailInstallations()
     {
         var retailInstalls = new List<GameInstallation>();
@@ -140,16 +157,12 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
             if (Directory.Exists(basePath))
             {
                 // Check if this is a "flat" installation (base path IS the game directory)
-                // This is common for "ZH" folders or custom repacks
-                var zeroHourExecutables = new[]
-                {
-                    GameClientConstants.ZeroHourExecutable,
-                    GameClientConstants.GeneralsExecutable,
-                    GameClientConstants.SuperHackersZeroHourExecutable,
-                };
-
-                // If check for valid ZH executables in the root
-                if (zeroHourExecutables.Any(exe => File.Exists(Path.Combine(basePath, exe))))
+                // This is common for "ZH" folders or custom repacks. Archive classification
+                // identifies which games' retail data the root holds, so a combined flat
+                // directory yields one installation with both paths set while a Zero
+                // Hour-only folder no longer reads as Generals too.
+                var rootClassification = ClassifyArchivesSafely(basePath);
+                if (rootClassification.HasAnyGame)
                 {
                     // Check if standard subdirectories exist. If NOT, then assume flat install.
                     bool hasGeneralsSubdir = Directory.Exists(Path.Combine(basePath, GameClientConstants.GeneralsDirectoryName));
@@ -158,11 +171,9 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
                     if (!hasGeneralsSubdir && !hasZeroHourSubdir)
                     {
                         var installation = new GameInstallation(basePath, GameInstallationType.Retail, null);
-
-                        // For a flat install, both paths point to the base path (assuming merged)
-                        // Or just set ZeroHour if only ZH is present.
-                        // Safe bet: If generals.exe exists, assume base path covers both capabilities in a flat structure.
-                        installation.SetPaths(basePath, basePath);
+                        installation.SetPaths(
+                            rootClassification.HasGeneralsArchives ? basePath : null,
+                            rootClassification.HasZeroHourArchives ? basePath : null);
 
                         retailInstalls.Add(installation);
                         logger.LogInformation("Detected standalone/flat Retail installation at {BasePath}", basePath);
@@ -208,6 +219,28 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
 
         foreach (var installation in orderedInstallations)
         {
+            // A combined directory — both games flagged at the same path — is one unit.
+            // Splitting it across sources by clearing whichever game another source
+            // already claimed would leave the same directory owned by two installations
+            // and scanned twice for clients, so it is kept whole or dropped whole.
+            if (IsCombinedDirectory(installation))
+            {
+                var combinedPath = Path.GetFullPath(installation.GeneralsPath);
+                if (seenGeneralsPaths.Contains(combinedPath) || seenZeroHourPaths.Contains(combinedPath))
+                {
+                    logger.LogWarning(
+                        "Skipping combined {InstallationType} installation at {CombinedPath} (directory already detected from another source)",
+                        installation.InstallationType,
+                        combinedPath);
+                    continue;
+                }
+
+                seenGeneralsPaths.Add(combinedPath);
+                seenZeroHourPaths.Add(combinedPath);
+                deduplicated.Add(installation);
+                continue;
+            }
+
             var hasUniqueGenerals = false;
             var hasUniqueZeroHour = false;
 
@@ -277,5 +310,23 @@ public class WindowsInstallationDetector(ILogger<WindowsInstallationDetector> lo
         }
 
         return deduplicated;
+    }
+
+    /// <summary>
+    /// Classifies a directory's archives without letting a filesystem error abort detection.
+    /// </summary>
+    /// <param name="path">The directory to classify.</param>
+    /// <returns>The classification, or neither game when the directory cannot be read.</returns>
+    private RetailArchiveClassification ClassifyArchivesSafely(string path)
+    {
+        try
+        {
+            return RetailArchiveClassifier.ClassifyArchives(path);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            logger.LogWarning(ex, "Could not read {Path} while classifying retail archives; treating it as holding none", path);
+            return default;
+        }
     }
 }
