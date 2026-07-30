@@ -108,7 +108,6 @@ public class ExecutablePermissionIsolationTests : IDisposable
 
         await _service.CreateHardLinkAsync(workspaceFile, casBlob);
 
-        var temporaryPath = workspaceFile + ".genhub-exec-tmp";
         await _strategy.TestEnsureExecutableAsync(
             new ManifestFile { RelativePath = "workspace-file", IsExecutable = true },
             workspaceFile);
@@ -118,9 +117,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
             File.GetUnixFileMode(casBlob).HasFlag(UnixFileMode.UserExecute),
             "The stored blob was modified, so every other profile using this hash is affected.");
 
-        Assert.False(
-            File.Exists(temporaryPath),
-            "The temporary copy must not survive; workspace validation would report it.");
+        Assert.Empty(Directory.GetFiles(_tempDir, "*.genhub-exec-tmp-*"));
 
         // Content must survive the round trip; a broken link is only acceptable if the
         // bytes are identical.
@@ -145,7 +142,6 @@ public class ExecutablePermissionIsolationTests : IDisposable
         await File.WriteAllTextAsync(workspaceFile, "engine binary");
         File.SetUnixFileMode(workspaceFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
 
-        var temporaryPath = workspaceFile + ".genhub-exec-tmp";
         await _strategy.TestEnsureExecutableAsync(
             new ManifestFile { RelativePath = "atomic-entry-point", IsExecutable = true },
             workspaceFile);
@@ -154,7 +150,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
         Assert.True(
             File.GetUnixFileMode(workspaceFile).HasFlag(UnixFileMode.UserExecute),
             "The replacement was already executable before it became the destination.");
-        Assert.False(File.Exists(temporaryPath));
+        Assert.Empty(Directory.GetFiles(_tempDir, "*.genhub-exec-tmp-*"));
         Assert.Equal("engine binary", await File.ReadAllTextAsync(workspaceFile));
     }
 

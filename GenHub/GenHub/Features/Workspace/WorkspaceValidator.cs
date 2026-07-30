@@ -352,6 +352,12 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             return OperationResult<bool>.CreateSuccess(false);
         }
 
+        if (TryFindLinkedParentDirectory(workspaceInfo.WorkspacePath, executablePath, out var linkedDirectory))
+        {
+            return OperationResult<bool>.CreateFailure(
+                $"Cannot repair workspace entry point '{executablePath}': directory '{linkedDirectory}' is a symlink, so the file may resolve outside the workspace root '{workspaceInfo.WorkspacePath}'");
+        }
+
         try
         {
             await Task.Run(() => ExecutableFileSwap.MakeExecutable(executablePath), cancellationToken);
@@ -419,6 +425,68 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             // An entry point that cannot even be resolved is treated as escaping.
             return false;
         }
+    }
+
+    /// <summary>
+    /// Walks from the workspace root down to the entry point's parent directory looking
+    /// for a symlinked directory.
+    /// <para>
+    /// Lexical containment cannot see through links: a symlinked directory inside the
+    /// workspace can point anywhere, so repairing through one could replace a file
+    /// outside the workspace root. The leaf itself is deliberately not checked —
+    /// replacing a leaf symlink with a private executable copy is the intended,
+    /// store-safe repair. Workspace strategies materialise directories with
+    /// <c>Directory.CreateDirectory</c> and only ever symlink individual files
+    /// (SymlinkOnlyStrategy and HybridCopySymlinkStrategy pass per-file manifest
+    /// targets to <c>CreateSymlinkAsync</c>), so no normally generated workspace is
+    /// refused by this check.
+    /// </para>
+    /// </summary>
+    /// <param name="workspaceRootPath">The workspace root directory.</param>
+    /// <param name="executablePath">The fully resolved, lexically contained entry point path.</param>
+    /// <param name="linkedDirectory">The first symlinked directory found, when any.</param>
+    /// <returns><c>true</c> when the root or an intermediate directory is a symlink.</returns>
+    private static bool TryFindLinkedParentDirectory(string workspaceRootPath, string executablePath, out string linkedDirectory)
+    {
+        linkedDirectory = string.Empty;
+
+        var workspaceRoot = Path.GetFullPath(workspaceRootPath);
+        if (IsLinkedDirectory(workspaceRoot))
+        {
+            linkedDirectory = workspaceRoot;
+            return true;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(executablePath);
+        if (string.IsNullOrEmpty(parentDirectory))
+        {
+            return false;
+        }
+
+        var relative = Path.GetRelativePath(workspaceRoot, parentDirectory);
+        if (relative == ".")
+        {
+            return false;
+        }
+
+        var current = workspaceRoot;
+        foreach (var segment in relative.Split(Path.DirectorySeparatorChar))
+        {
+            current = Path.Combine(current, segment);
+            if (IsLinkedDirectory(current))
+            {
+                linkedDirectory = current;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsLinkedDirectory(string path)
+    {
+        var info = new DirectoryInfo(path);
+        return info.Exists && (info.Attributes & FileAttributes.ReparsePoint) != 0;
     }
 
     private static bool IsRunningAsAdministrator()

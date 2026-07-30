@@ -324,7 +324,7 @@ public partial class WorkspaceValidatorTests : IDisposable
         Assert.True(result.Data);
         Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
         Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
-        Assert.False(File.Exists(executablePath + ".genhub-exec-tmp"));
+        Assert.Empty(Directory.GetFiles(_workspaceDir, "*.genhub-exec-tmp-*"));
     }
 
     /// <summary>
@@ -551,6 +551,119 @@ public partial class WorkspaceValidatorTests : IDisposable
         }
 
         Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// Lexical containment cannot see through links, so a symlinked intermediate
+    /// directory pointing outside the workspace must make the repair refuse without
+    /// touching the outside file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedIntermediateDirectory_RefusesWithoutMutation()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var outsideDir = Path.Combine(_sourceDir, "payload");
+        Directory.CreateDirectory(outsideDir);
+        var outsidePath = Path.Combine(outsideDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        Directory.CreateSymbolicLink(Path.Combine(_workspaceDir, "bin"), outsideDir);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine("bin", "client"),
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("is a symlink", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// A symlinked leaf executable in an ordinary workspace is replaced with a private
+    /// executable copy while the symlink target keeps its bytes and mode — the same
+    /// store-safe behaviour materialisation applies.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedLeafExecutable_RepairsCopyAndLeavesTargetUntouched()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var targetPath = Path.Combine(_sourceDir, "client-target");
+        await File.WriteAllTextAsync(targetPath, "engine binary");
+        var targetMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(targetPath, targetMode);
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        File.CreateSymbolicLink(executablePath, targetPath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Null(new FileInfo(executablePath).LinkTarget);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+        Assert.Equal(targetMode, File.GetUnixFileMode(targetPath));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(targetPath));
+    }
+
+    /// <summary>
+    /// Temporary swap names carry a fresh GUID, so a pre-existing file left at an
+    /// old-style temporary name is never clobbered by a repair.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_PreExistingTemporaryFile_IsNotClobbered()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var stalePath = executablePath + ".genhub-exec-tmp";
+        await File.WriteAllTextAsync(stalePath, "precious leftover");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("precious leftover", await File.ReadAllTextAsync(stalePath));
     }
 
     /// <summary>

@@ -21,9 +21,11 @@ namespace GenHub.Features.Workspace;
 internal static class ExecutableFileSwap
 {
     /// <summary>
-    /// The suffix of the temporary file used while the swap is in flight.
+    /// The recognisable marker in the name of the temporary file used while the swap is
+    /// in flight. A fresh GUID follows it, so concurrent swaps of the same file can
+    /// never collide with each other or with a stale leftover.
     /// </summary>
-    internal const string TemporarySuffix = ".genhub-exec-tmp";
+    internal const string TemporaryMarker = ".genhub-exec-tmp-";
 
     private const UnixFileMode ExecutableMode =
         UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
@@ -36,11 +38,13 @@ internal static class ExecutableFileSwap
     /// <param name="targetPath">The absolute path of the workspace file.</param>
     internal static void MakeExecutable(string targetPath)
     {
-        var temporaryPath = targetPath + TemporarySuffix;
+        var temporaryPath = targetPath + TemporaryMarker + Guid.NewGuid().ToString("N");
 
         try
         {
-            File.Copy(targetPath, temporaryPath, overwrite: true);
+            // The GUID makes the name unique by construction; copying without overwrite
+            // turns the impossible collision into an exception instead of a clobber.
+            File.Copy(targetPath, temporaryPath);
 
             if (!OperatingSystem.IsWindows())
             {
