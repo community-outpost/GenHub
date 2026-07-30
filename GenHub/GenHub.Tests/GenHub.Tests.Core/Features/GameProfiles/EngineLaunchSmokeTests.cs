@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
@@ -63,7 +64,8 @@ public class EngineLaunchSmokeTests : IDisposable
     /// <summary>
     /// Stages the engine binary and its libraries into an empty workspace — no archives,
     /// no retail roots — and launches headless with HOME redirected so the crash report
-    /// lands in the sandbox. The engine must exit, and exit with code 1.
+    /// lands in the sandbox. The engine must exit with code 1 and leave its crash report
+    /// in the redirected HOME — the diagnostic that identifies this as the known abort.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -108,22 +110,25 @@ public class EngineLaunchSmokeTests : IDisposable
                 "exited immediately with code 1",
                 string.Join(" ", result.Errors),
                 StringComparison.OrdinalIgnoreCase);
-            return;
         }
-
-        var completed = await Task.WhenAny(exited.Task, Task.Delay(ExitTimeout));
-        if (completed != exited.Task)
+        else
         {
-            await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
-            Assert.Fail(
-                $"The engine was still running {ExitTimeout.TotalSeconds:F0}s after launch with "
-                + "no game data. The known behaviour is a prompt abort with exit code 1; a hang "
-                + "here means startup no longer fails fast and the launcher could wait forever.");
+            var completed = await Task.WhenAny(exited.Task, Task.Delay(ExitTimeout));
+            if (completed != exited.Task)
+            {
+                await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
+                Assert.Fail(
+                    $"The engine was still running {ExitTimeout.TotalSeconds:F0}s after launch with "
+                    + "no game data. The known behaviour is a prompt abort with exit code 1; a hang "
+                    + "here means startup no longer fails fast and the launcher could wait forever.");
+            }
+
+            var exitCode = await exited.Task;
+            Assert.NotNull(exitCode);
+            Assert.Equal(1, exitCode);
         }
 
-        var exitCode = await exited.Task;
-        Assert.NotNull(exitCode);
-        Assert.Equal(1, exitCode);
+        AssertCrashReportWasWritten(sandboxHome);
     }
 
     /// <summary>
@@ -144,6 +149,29 @@ public class EngineLaunchSmokeTests : IDisposable
         {
             // A leftover temp directory is not worth failing a test over.
         }
+    }
+
+    /// <summary>
+    /// Asserts the abort produced its diagnostic. In this failure mode stderr is empty;
+    /// what the engine leaves behind is a crash report named <c>ReleaseCrashInfo.txt</c>
+    /// under HOME (on macOS beneath <c>Library/Application Support</c>). Searched
+    /// recursively so the intermediate segments — engine behaviour, and platform
+    /// dependent — are not hardcoded. Finding it in the sandbox also proves the HOME
+    /// redirection worked: the report landed here, not in the user's real profile.
+    /// </summary>
+    /// <param name="sandboxHome">The redirected HOME directory.</param>
+    private static void AssertCrashReportWasWritten(string sandboxHome)
+    {
+        var reports = Directory
+            .EnumerateFiles(sandboxHome, "ReleaseCrashInfo.txt", SearchOption.AllDirectories)
+            .ToList();
+
+        var missingReportMessage =
+            "The engine exited with code 1 but wrote no ReleaseCrashInfo.txt under the "
+            + $"redirected HOME '{sandboxHome}'. The known abort writes that report before "
+            + "exiting, so its absence means this was a different failure than the "
+            + "no-game-data INI abort this test pins down.";
+        Assert.True(reports.Count > 0, missingReportMessage);
     }
 
     /// <summary>
