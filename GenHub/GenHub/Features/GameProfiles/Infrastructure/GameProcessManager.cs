@@ -330,9 +330,19 @@ public class GameProcessManager(
                     }
                     else
                     {
-                        // If it exits with 0 and we didn't find a spawned child, still fail the launch
-                        // because we don't have a valid process to track, preventing the UI from getting stuck in a 'running' state
-                        return OperationResult<GameProcessInfo>.CreateFailure("Process exited immediately after launch.");
+                        // A clean exit with no spawned child is still an unexplained failure, and
+                        // stderr was already drained above — reporting it only on a non-zero exit
+                        // discarded the one diagnostic available for this case.
+                        var stderrTail = capturedErrors.ToString();
+                        var suffix = string.IsNullOrWhiteSpace(stderrTail) ? string.Empty : $" {stderrTail}";
+
+                        logger.LogError(
+                            "[Process] Process exited immediately with code 0 and no spawned process was found. Output: {Output}",
+                            string.IsNullOrWhiteSpace(stderrTail) ? "No output was captured." : stderrTail);
+
+                        // Still a failure: without a process to track the UI would sit in 'running'.
+                        return OperationResult<GameProcessInfo>.CreateFailure(
+                            $"Process exited immediately after launch.{suffix}");
                     }
                 }
             }

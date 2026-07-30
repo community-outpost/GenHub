@@ -48,7 +48,10 @@ public class NativeLaunchDiagnosticsTests : IDisposable
 
         var binary = Path.Combine(_tempDir, "generalszh");
         await File.WriteAllTextAsync(binary, "#!/bin/sh\nexit 0\n");
-        File.SetUnixFileMode(binary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(binary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
 
         var result = await _processManager.StartProcessAsync(new GameLaunchConfiguration
         {
@@ -79,9 +82,12 @@ public class NativeLaunchDiagnosticsTests : IDisposable
         await File.WriteAllTextAsync(
             binary,
             "#!/bin/sh\necho \"dyld: Library not loaded: @rpath/libSDL3.dylib\" >&2\nexit 1\n");
-        File.SetUnixFileMode(
-            binary,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                binary,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
 
         var result = await _processManager.StartProcessAsync(new GameLaunchConfiguration
         {
@@ -116,9 +122,12 @@ public class NativeLaunchDiagnosticsTests : IDisposable
         await File.WriteAllTextAsync(
             binary,
             "#!/bin/sh\ni=0\nwhile [ $i -lt 2000 ]; do echo \"log line $i padding padding padding\" >&2; i=$((i+1)); done\nsleep 30\n");
-        File.SetUnixFileMode(
-            binary,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                binary,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
 
         var result = await _processManager.StartProcessAsync(new GameLaunchConfiguration
         {

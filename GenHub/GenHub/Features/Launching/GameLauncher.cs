@@ -527,10 +527,12 @@ public class GameLauncher(
     /// </remarks>
     /// <param name="environment">The environment built for the child process.</param>
     /// <param name="installation">The installation whose declared paths were used.</param>
+    /// <param name="gameType">The game being launched; only its root is checked.</param>
     /// <returns>An error message naming the offending root, or <c>null</c> when valid.</returns>
     private static string? ValidateRetailArchiveRoots(
         Dictionary<string, string> environment,
-        GameInstallation? installation)
+        GameInstallation? installation,
+        GameType gameType)
     {
         // Windows resolves install paths from the registry and never reads these variables,
         // so a Windows layout without loose top-level archives is not a misconfiguration and
@@ -546,48 +548,46 @@ public class GameLauncher(
         // survived into the environment. AddArchiveRoot drops a path that does not exist,
         // so validating the environment alone would silently skip the exact case this
         // exists to catch: a stale installation root reaching spawn unnoticed.
-        var declaredPaths = new (string Variable, string? Path)[]
+        // Only the launching game's root. The other game's path may be stale or absent on
+        // the same installation, and that has no bearing on whether this launch will find
+        // its content — failing on a sibling would block a launch that would have worked.
+        var (variableName, declaredPath) = gameType == GameType.Generals
+            ? (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath)
+            : (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath);
+
+        // A profile override is the root actually used, so it is what gets checked.
+        var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+            ? configured
+            : declaredPath;
+
+        // Nothing configured for this game means it is simply not installed.
+        if (string.IsNullOrWhiteSpace(root))
         {
-            (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath),
-            (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath),
-        };
+            return null;
+        }
 
-        foreach (var (variableName, declaredPath) in declaredPaths)
+        if (!Directory.Exists(root))
         {
-            // A profile override is the root actually used, so it is what gets checked.
-            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
-                ? configured
-                : declaredPath;
+            return $"The retail archive root for {variableName} does not exist: {root}. " +
+                   "The game would start with no content and no error, so the launch was stopped.";
+        }
 
-            // Nothing configured for this game means it is simply not installed.
-            if (string.IsNullOrWhiteSpace(root))
-            {
-                continue;
-            }
+        bool hasArchive;
+        try
+        {
+            hasArchive = Directory
+                .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
+                .Any();
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+        }
 
-            if (!Directory.Exists(root))
-            {
-                return $"The retail archive root for {variableName} does not exist: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
-            }
-
-            bool hasArchive;
-            try
-            {
-                hasArchive = Directory
-                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
-                    .Any();
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-            {
-                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-            }
-
-            if (!hasArchive)
-            {
-                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
-            }
+        if (!hasArchive)
+        {
+            return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                   "The game would start with no content and no error, so the launch was stopped.";
         }
 
         return null;
@@ -1162,7 +1162,8 @@ public class GameLauncher(
             // starts, reaches its main loop and reports nothing — it simply has no content.
             // Launch therefore "succeeds" while the user gets a broken game, and no
             // post-spawn check can tell the difference.
-            var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation);
+            var archiveRootError = ValidateRetailArchiveRoots(
+                launchConfig.EnvironmentVariables, installation, gameClient.GameType);
             if (archiveRootError is not null)
             {
                 logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);

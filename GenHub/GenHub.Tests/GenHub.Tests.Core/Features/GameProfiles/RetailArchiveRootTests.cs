@@ -28,36 +28,11 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 [Collection(NativeClientLaunchCollection.Name)]
 public class RetailArchiveRootTests : IDisposable
 {
-    private const string EnvironmentOverride = "GENHUB_NATIVE_CLIENT_DIR";
-    private const string BinaryName = "generalszh";
-
     private readonly string _engineOnlyWorkspace = Path.Combine(
         Path.GetTempPath(),
         $"genhub-engine-only-{Guid.NewGuid():N}");
 
     private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
-
-    private static string? NativeClientDirectory
-    {
-        get
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return null;
-            }
-
-            var configured = Environment.GetEnvironmentVariable(EnvironmentOverride);
-            if (!string.IsNullOrWhiteSpace(configured))
-            {
-                return Directory.Exists(configured) ? configured : null;
-            }
-
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var directory = Path.Combine(home, "TheSuperHackers", "GeneralsZH");
-
-            return File.Exists(Path.Combine(directory, BinaryName)) ? directory : null;
-        }
-    }
 
     /// <summary>
     /// An engine-only workspace plus environment-supplied archive roots must launch and
@@ -67,7 +42,7 @@ public class RetailArchiveRootTests : IDisposable
     [Fact]
     public async Task EngineOnlyWorkspace_ReachesRetailArchivesThroughEnvironment()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -79,7 +54,7 @@ public class RetailArchiveRootTests : IDisposable
 
         var configuration = new GameLaunchConfiguration
         {
-            ExecutablePath = Path.Combine(_engineOnlyWorkspace, BinaryName),
+            ExecutablePath = Path.Combine(_engineOnlyWorkspace, NativeClientFixture.BinaryName),
             WorkingDirectory = _engineOnlyWorkspace,
             Arguments = new() { ["-win"] = string.Empty },
             EnvironmentVariables = new()
@@ -117,7 +92,7 @@ public class RetailArchiveRootTests : IDisposable
     [Fact]
     public async Task EngineOnlyWorkspace_WithoutArchiveRoots_DoesNotSurvive()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -127,7 +102,7 @@ public class RetailArchiveRootTests : IDisposable
 
         var configuration = new GameLaunchConfiguration
         {
-            ExecutablePath = Path.Combine(_engineOnlyWorkspace, BinaryName),
+            ExecutablePath = Path.Combine(_engineOnlyWorkspace, NativeClientFixture.BinaryName),
             WorkingDirectory = _engineOnlyWorkspace,
             Arguments = new() { ["-win"] = string.Empty },
         };
@@ -188,8 +163,12 @@ public class RetailArchiveRootTests : IDisposable
             .EnumerateFiles(installDirectory, "*", SearchOption.TopDirectoryOnly)
             .Where(path =>
             {
+                // Both Unix shared-library extensions: the engine ships .dylib on macOS and
+                // .so on Linux, and staging only one leaves the workspace incomplete there.
                 var name = Path.GetFileName(path);
-                return name == BinaryName || name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase);
+                return name == NativeClientFixture.BinaryName
+                    || name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith(".so", StringComparison.OrdinalIgnoreCase);
             });
 
         foreach (var source in engineFiles)
@@ -203,6 +182,11 @@ public class RetailArchiveRootTests : IDisposable
             UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
             UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
 
-        File.SetUnixFileMode(Path.Combine(_engineOnlyWorkspace, BinaryName), executableMode);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                Path.Combine(_engineOnlyWorkspace, NativeClientFixture.BinaryName),
+                executableMode);
+        }
     }
 }

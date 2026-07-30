@@ -446,56 +446,6 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
-    /// Creates a test content manifest.
-    /// </summary>
-    /// <param name="id">The manifest ID.</param>
-    /// <param name="name">The manifest name.</param>
-    /// <param name="contentType">The content type.</param>
-    /// <param name="targetGame">The target game.</param>
-    /// <returns>A <see cref="ContentManifest"/> instance.</returns>
-    private static ContentManifest CreateTestManifest(
-        string id = "1.0.genhub.mod.mod",
-        string name = "Test Manifest",
-        ContentType contentType = ContentType.Mod,
-        GameType targetGame = GameType.Generals)
-    {
-        return new ContentManifest
-        {
-            Id = id,
-            Name = name,
-            ContentType = contentType,
-            TargetGame = targetGame,
-            Version = "1.0.0",
-            Metadata = new ContentMetadata
-            {
-                Description = "Test manifest for unit tests",
-            },
-            Files =
-            [
-                new() { RelativePath = "test.txt", Size = 100, SourceType = ContentSourceType.LocalFile, },
-            ],
-        };
-    }
-
-    /// <summary>
-    /// Sets up manifests in storage for testing.
-    /// </summary>
-    /// <param name="manifests">The list of manifests to set up.</param>
-    private void SetupManifestsInStorage(List<ContentManifest> manifests)
-    {
-        var manifestsDir = Path.Combine(_tempDirectory, "Manifests");
-        Directory.CreateDirectory(manifestsDir);
-
-        foreach (var manifest in manifests)
-        {
-            var manifestPath = Path.Combine(manifestsDir, $"{manifest.Id}.manifest.json");
-            File.WriteAllText(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
-        }
-
-        _storageServiceMock.Setup(x => x.GetContentStorageRoot())
-            .Returns(_tempDirectory);
-    }
-    /// <summary>
     /// A variant manifest must be rejected before any content is written.
     /// </summary>
     /// <remarks>
@@ -570,4 +520,54 @@ public class ContentManifestPoolTests : IDisposable
         Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
     }
 
+    /// <summary>
+    /// Creates a test content manifest.
+    /// </summary>
+    /// <param name="id">The manifest ID.</param>
+    /// <param name="name">The manifest name.</param>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="targetGame">The target game.</param>
+    /// <returns>A <see cref="ContentManifest"/> instance.</returns>
+    private static ContentManifest CreateTestManifest(
+        string id = "1.0.genhub.mod.mod",
+        string name = "Test Manifest",
+        ContentType contentType = ContentType.Mod,
+        GameType targetGame = GameType.Generals)
+    {
+        return new ContentManifest
+        {
+            Id = id,
+            Name = name,
+            ContentType = contentType,
+            TargetGame = targetGame,
+            Version = "1.0.0",
+            Metadata = new ContentMetadata
+            {
+                Description = "Test manifest for unit tests",
+            },
+            Files =
+            [
+                new() { RelativePath = "test.txt", Size = 100, SourceType = ContentSourceType.LocalFile, },
+            ],
+        };
+    }
+
+    /// <summary>
+    /// Sets up manifests in storage for testing.
+    /// </summary>
+    /// <param name="manifests">The list of manifests to set up.</param>
+    private void SetupManifestsInStorage(List<ContentManifest> manifests)
+    {
+        var manifestsDir = Path.Combine(_tempDirectory, "Manifests");
+        Directory.CreateDirectory(manifestsDir);
+
+        foreach (var manifest in manifests)
+        {
+            var manifestPath = Path.Combine(manifestsDir, $"{manifest.Id}.manifest.json");
+            File.WriteAllText(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+        }
+
+        _storageServiceMock.Setup(x => x.GetContentStorageRoot())
+            .Returns(_tempDirectory);
+    }
 }

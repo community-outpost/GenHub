@@ -28,35 +28,10 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 [Collection(NativeClientLaunchCollection.Name)]
 public class NativeClientLaunchIntegrationTests
 {
-    private const string EnvironmentOverride = "GENHUB_NATIVE_CLIENT_DIR";
-    private const string BinaryName = "generalszh";
-
     /// <summary>How long the engine must stay up to count as a successful launch.</summary>
     private static readonly TimeSpan LaunchSettleTime = TimeSpan.FromSeconds(12);
 
     private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
-
-    private static string? NativeClientDirectory
-    {
-        get
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return null;
-            }
-
-            var configured = Environment.GetEnvironmentVariable(EnvironmentOverride);
-            if (!string.IsNullOrWhiteSpace(configured))
-            {
-                return Directory.Exists(configured) ? configured : null;
-            }
-
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var defaultDirectory = Path.Combine(home, "TheSuperHackers", "GeneralsZH");
-
-            return File.Exists(Path.Combine(defaultDirectory, BinaryName)) ? defaultDirectory : null;
-        }
-    }
 
     /// <summary>
     /// Launches the engine with the install directory as the working directory, exactly
@@ -69,7 +44,7 @@ public class NativeClientLaunchIntegrationTests
     [Fact]
     public async Task RealNativeClient_LaunchesThroughGameProcessManager()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -77,7 +52,7 @@ public class NativeClientLaunchIntegrationTests
 
         var configuration = new GameLaunchConfiguration
         {
-            ExecutablePath = Path.Combine(installDirectory, BinaryName),
+            ExecutablePath = Path.Combine(installDirectory, NativeClientFixture.BinaryName),
             WorkingDirectory = installDirectory,
             Arguments = new() { ["-win"] = string.Empty },
         };
@@ -121,7 +96,7 @@ public class NativeClientLaunchIntegrationTests
     [Fact]
     public async Task RealNativeClient_RequiresItsInstallDirectoryAsWorkingDirectory()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -136,7 +111,7 @@ public class NativeClientLaunchIntegrationTests
         {
             var configuration = new GameLaunchConfiguration
             {
-                ExecutablePath = Path.Combine(installDirectory, BinaryName),
+                ExecutablePath = Path.Combine(installDirectory, NativeClientFixture.BinaryName),
                 WorkingDirectory = isolatedDirectory,
                 Arguments = new() { ["-win"] = string.Empty },
             };

@@ -29,32 +29,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 [Collection(NativeClientLaunchCollection.Name)]
 public class NativeClientManifestLaunchTests
 {
-    private const string EnvironmentOverride = "GENHUB_NATIVE_CLIENT_DIR";
-    private const string BinaryName = "generalszh";
-
     private readonly GameProcessManager _processManager = new(NullLogger<GameProcessManager>.Instance);
-
-    private static string? NativeClientDirectory
-    {
-        get
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                return null;
-            }
-
-            var configured = Environment.GetEnvironmentVariable(EnvironmentOverride);
-            if (!string.IsNullOrWhiteSpace(configured))
-            {
-                return Directory.Exists(configured) ? configured : null;
-            }
-
-            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var directory = Path.Combine(home, "TheSuperHackers", "GeneralsZH");
-
-            return File.Exists(Path.Combine(directory, BinaryName)) ? directory : null;
-        }
-    }
 
     /// <summary>
     /// Builds a manifest describing a real install and launches the entry point the
@@ -69,7 +44,7 @@ public class NativeClientManifestLaunchTests
     [Fact]
     public async Task ManifestResolvedEntryPoint_LaunchesTheRealEngine()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -86,7 +61,7 @@ public class NativeClientManifestLaunchTests
         var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
 
         Assert.True(resolution.Success, resolution.ToString());
-        Assert.Equal(BinaryName, resolution.RelativePath);
+        Assert.Equal(NativeClientFixture.BinaryName, resolution.RelativePath);
 
         var configuration = new GameLaunchConfiguration
         {
@@ -117,7 +92,7 @@ public class NativeClientManifestLaunchTests
     [Fact]
     public void ManifestForAnotherRuntime_IsNotOfferedHere()
     {
-        var installDirectory = NativeClientDirectory;
+        var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
         {
             return;
@@ -146,7 +121,7 @@ public class NativeClientManifestLaunchTests
 
             // The engine and its bundled libraries; retail archives are the user's own
             // content and belong to the installation, not the client manifest.
-            if (name != BinaryName && !name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase))
+            if (name != NativeClientFixture.BinaryName && !name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -166,7 +141,7 @@ public class NativeClientManifestLaunchTests
                 new ArtifactVariant
                 {
                     RuntimeIdentifiers = [ManifestVariantResolver.CurrentRuntimeIdentifier],
-                    EntryPoint = BinaryName,
+                    EntryPoint = NativeClientFixture.BinaryName,
                     Files = engineFiles,
                 },
             ],

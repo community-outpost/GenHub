@@ -188,10 +188,12 @@ public class RetailArchiveRootValidationTests : IDisposable
         Assert.StartsWith(root, environment[RetailArchiveConstants.ZeroHourInstallPathVariable]);
     }
 
+    // Zero Hour throughout: these fixtures declare only a Zero Hour path, and validation is
+    // scoped to the launching game so the sibling Generals root is deliberately untouched.
     private static string? Validate(GameInstallation installation) =>
         (string?)typeof(GameLauncher)
             .GetMethod("ValidateRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [new Dictionary<string, string>(), installation]);
+            .Invoke(null, [new Dictionary<string, string>(), installation, GameType.ZeroHour]);
 
     private static GameInstallation InstallationWithZeroHour(string? zeroHourPath)
     {
@@ -203,6 +205,11 @@ public class RetailArchiveRootValidationTests : IDisposable
         return installation;
     }
 
+    private static void BuildEnvironment(Dictionary<string, string> environment, GameInstallation installation) =>
+        typeof(GameLauncher)
+            .GetMethod("AddRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [environment, installation]);
+
     private string CreateRoot(string name, bool withArchive)
     {
         var root = Directory.CreateDirectory(Path.Combine(_tempDir, name)).FullName;
@@ -213,9 +220,4 @@ public class RetailArchiveRootValidationTests : IDisposable
 
         return root;
     }
-    private static void BuildEnvironment(Dictionary<string, string> environment, GameInstallation installation) =>
-        typeof(GameLauncher)
-            .GetMethod("AddRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [environment, installation]);
-
 }

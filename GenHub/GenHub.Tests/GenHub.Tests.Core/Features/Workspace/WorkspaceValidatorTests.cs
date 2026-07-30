@@ -24,6 +24,14 @@ public partial class WorkspaceValidatorTests : IDisposable
     private readonly string _workspaceDir;
 
     /// <summary>
+    /// Effective user ID, POSIX <c>geteuid(2)</c>. Declared here because the production
+    /// equivalent is internal to the GenHub assembly.
+    /// </summary>
+    /// <returns>The effective user ID; 0 is root.</returns>
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint GetEffectiveUserId();
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="WorkspaceValidatorTests"/> class.
     /// </summary>
     public WorkspaceValidatorTests()
@@ -365,12 +373,4 @@ public partial class WorkspaceValidatorTests : IDisposable
             Strategy = WorkspaceStrategy.FullCopy,
         };
     }
-
-    /// <summary>
-    /// Effective user ID, POSIX <c>geteuid(2)</c>. Declared here because the production
-    /// equivalent is internal to the GenHub assembly.
-    /// </summary>
-    /// <returns>The effective user ID; 0 is root.</returns>
-    [LibraryImport("libc", EntryPoint = "geteuid")]
-    private static partial uint GetEffectiveUserId();
 }
