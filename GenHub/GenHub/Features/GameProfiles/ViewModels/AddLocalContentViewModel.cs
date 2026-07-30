@@ -376,6 +376,7 @@ public partial class AddLocalContentViewModel(
             CreateMapFoldersIfNeeded();
 
             // Detect and normalize GenLauncher files
+            var normalizationSetStatus = false;
             try
             {
                 if (genLauncherNormalizationService != null && dialogService != null)
@@ -404,12 +405,15 @@ public partial class AddLocalContentViewModel(
 
                             var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
                                 _stagingPath,
-                                CancellationToken.None);
+                                _cts?.Token ?? CancellationToken.None);
 
                             if (normalizationResult.Success)
                             {
                                 var result = normalizationResult.Data;
-                                StatusMessage = $"Normalized {result.NormalizedCount} file(s). Import successful.";
+                                StatusMessage = result.IsFullySuccessful
+                                    ? $"Normalized {result.NormalizedCount} file(s). Import successful."
+                                    : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+                                normalizationSetStatus = true;
                                 logger?.LogInformation(
                                     "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
                                     result.NormalizedCount,
@@ -425,6 +429,7 @@ public partial class AddLocalContentViewModel(
                             else
                             {
                                 StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+                                normalizationSetStatus = true;
                                 logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
                             }
                         }
@@ -432,6 +437,7 @@ public partial class AddLocalContentViewModel(
                         {
                             logger?.LogInformation("User skipped normalization");
                             StatusMessage = "Import successful (GenLauncher files not normalized).";
+                            normalizationSetStatus = true;
                         }
                     }
                 }
@@ -440,12 +446,13 @@ public partial class AddLocalContentViewModel(
             {
                 logger?.LogError(ex, "Error during GenLauncher detection/normalization");
                 StatusMessage = "Import successful (normalization check failed).";
+                normalizationSetStatus = true;
             }
 
             await RefreshStagingTreeAsync();
 
             // Only set generic message if normalization didn't set a specific one
-            if (!StatusMessage.Contains("Normalized") && !StatusMessage.Contains("GenLauncher"))
+            if (!normalizationSetStatus)
             {
                 StatusMessage = "Import successful.";
             }

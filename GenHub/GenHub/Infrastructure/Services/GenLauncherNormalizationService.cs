@@ -84,7 +84,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         try
         {
             // First, detect all files that need normalization
-            var detection = await DetectGenLauncherFilesAsync(directoryPath).ConfigureAwait(false);
+            var detection = await DetectGenLauncherFilesAsync(directoryPath, cancellationToken).ConfigureAwait(false);
 
             if (!detection.HasGenLauncherFiles)
             {
@@ -123,38 +123,8 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 }
             }
 
-            // Convert .gib files to .big
-            foreach (var gibFile in detection.GibFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    var bigFile = Path.ChangeExtension(gibFile, GenLauncherConstants.BigExtension);
-
-                    // Check if destination exists - skip to avoid data loss
-                    if (File.Exists(bigFile))
-                    {
-                        logger.LogWarning(
-                            "Skipping .gib → .big conversion for {GibFile}: target {BigFile} already exists. Manual resolution required.",
-                            gibFile,
-                            bigFile);
-                        result.FailedFiles.Add(gibFile);
-                        continue;
-                    }
-
-                    File.Move(gibFile, bigFile);
-                    result.NormalizedCount++;
-                    logger.LogInformation("Converted {GibFile} to {BigFile}", gibFile, bigFile);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to convert .gib file: {FilePath}", gibFile);
-                    result.FailedFiles.Add(gibFile);
-                }
-            }
-
-            // Remove suffixes from .GLR, .GOF, .GLTC files
+            // Remove suffixes from .GLR, .GOF, .GLTC files before .gib conversion so
+            // files like sound.gib.GLR become sound.big rather than stopping at sound.gib.
             var suffixFiles = detection.GlrFiles
                 .Concat(detection.GofFiles)
                 .Concat(detection.GltcFiles)
@@ -183,6 +153,11 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                         File.Move(suffixFile, normalizedName);
                         result.NormalizedCount++;
                         logger.LogInformation("Normalized {OriginalFile} to {NormalizedFile}", suffixFile, normalizedName);
+
+                        if (Path.GetExtension(normalizedName).Equals(GenLauncherConstants.GibExtension, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TryConvertGibToBig(normalizedName, result);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -190,6 +165,13 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     logger.LogError(ex, "Failed to normalize file: {FilePath}", suffixFile);
                     result.FailedFiles.Add(suffixFile);
                 }
+            }
+
+            // Convert standalone .gib files to .big
+            foreach (var gibFile in detection.GibFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                TryConvertGibToBig(gibFile, result);
             }
 
             logger.LogInformation(
@@ -210,6 +192,23 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             logger.LogError(ex, "Error during GenLauncher file normalization in directory: {DirectoryPath}", directoryPath);
             return OperationResult<GenLauncherNormalizationResult>.CreateFailure($"Normalization failed: {ex.Message}");
         }
+    }
+
+    private static string RemoveSuffix(string filePath)
+    {
+        var fileName = Path.GetFileName(filePath);
+        var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+
+        foreach (var suffix in SuffixesToRemove)
+        {
+            if (fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                var newFileName = fileName[..^suffix.Length];
+                return Path.Combine(directory, newFileName);
+            }
+        }
+
+        return filePath;
     }
 
     private void ScanDirectory(string directoryPath, GenLauncherDetectionResult result, CancellationToken cancellationToken)
@@ -280,20 +279,36 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         }
     }
 
-    private static string RemoveSuffix(string filePath)
+    private void TryConvertGibToBig(string gibFile, GenLauncherNormalizationResult result)
     {
-        var fileName = Path.GetFileName(filePath);
-        var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
-
-        foreach (var suffix in SuffixesToRemove)
+        if (!File.Exists(gibFile))
         {
-            if (fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                var newFileName = fileName[..^suffix.Length];
-                return Path.Combine(directory, newFileName);
-            }
+            return;
         }
 
-        return filePath;
+        try
+        {
+            var bigFile = Path.ChangeExtension(gibFile, GenLauncherConstants.BigExtension);
+
+            // Check if destination exists - skip to avoid data loss
+            if (File.Exists(bigFile))
+            {
+                logger.LogWarning(
+                    "Skipping .gib → .big conversion for {GibFile}: target {BigFile} already exists. Manual resolution required.",
+                    gibFile,
+                    bigFile);
+                result.FailedFiles.Add(gibFile);
+                return;
+            }
+
+            File.Move(gibFile, bigFile);
+            result.NormalizedCount++;
+            logger.LogInformation("Converted {GibFile} to {BigFile}", gibFile, bigFile);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to convert .gib file: {FilePath}", gibFile);
+            result.FailedFiles.Add(gibFile);
+        }
     }
 }
