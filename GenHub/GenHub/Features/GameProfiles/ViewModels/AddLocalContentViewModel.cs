@@ -376,12 +376,20 @@ public partial class AddLocalContentViewModel(
             CreateMapFoldersIfNeeded();
 
             // Detect and normalize GenLauncher files
+            _cts ??= new CancellationTokenSource();
+            if (_cts.IsCancellationRequested)
+            {
+                _cts.Dispose();
+                _cts = new CancellationTokenSource();
+            }
+
+            var cancellationToken = _cts.Token;
             var normalizationSetStatus = false;
             try
             {
                 if (genLauncherNormalizationService != null && dialogService != null)
                 {
-                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, _cts?.Token ?? CancellationToken.None);
+                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
 
                     if (detectionResult.HasGenLauncherFiles)
                     {
@@ -405,7 +413,7 @@ public partial class AddLocalContentViewModel(
 
                             var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
                                 _stagingPath,
-                                _cts?.Token ?? CancellationToken.None);
+                                cancellationToken);
 
                             if (normalizationResult.Success)
                             {
@@ -441,6 +449,12 @@ public partial class AddLocalContentViewModel(
                         }
                     }
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger?.LogInformation("GenLauncher detection/normalization was cancelled");
+                StatusMessage = "Import cancelled.";
+                return;
             }
             catch (Exception ex)
             {

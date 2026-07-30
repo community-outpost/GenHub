@@ -92,24 +92,23 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 return OperationResult<GenLauncherNormalizationResult>.CreateSuccess(result);
             }
 
-            // Remove symbolic links (both files and directories)
+            // Remove symbolic links (both files and directories, including dangling links)
             foreach (var symlink in detection.SymbolicLinks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    var fileInfo = new FileInfo(symlink);
-                    var dirInfo = new DirectoryInfo(symlink);
+                    var attributes = File.GetAttributes(symlink);
 
-                    // Check if it's a directory symlink
-                    if (dirInfo.Exists && dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    // Check if it's a directory symlink using reparse-point metadata rather than target existence
+                    if (attributes.HasFlag(FileAttributes.Directory))
                     {
                         Directory.Delete(symlink);
                         result.SymbolicLinksRemoved++;
                         logger.LogInformation("Removed directory symbolic link: {DirectoryPath}", symlink);
                     }
-                    else if (fileInfo.Exists)
+                    else
                     {
                         File.Delete(symlink);
                         result.SymbolicLinksRemoved++;
@@ -123,12 +122,15 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 }
             }
 
-            // Remove suffixes from .GLR, .GOF, .GLTC files before .gib conversion so
-            // files like sound.gib.GLR become sound.big rather than stopping at sound.gib.
-            var suffixFiles = detection.GlrFiles
+            // Remove suffixes from .GLR, .GOF, .GLTC files and directories.
+            var suffixItems = detection.GlrFiles
                 .Concat(detection.GofFiles)
                 .Concat(detection.GltcFiles)
                 .ToList();
+
+            // Process files first, then directories (deepest path first to handle nested suffix directories cleanly)
+            var suffixFiles = suffixItems.Where(File.Exists).ToList();
+            var suffixDirectories = suffixItems.Where(Directory.Exists).OrderByDescending(d => d.Length).ToList();
 
             foreach (var suffixFile in suffixFiles)
             {
@@ -139,8 +141,8 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                     var normalizedName = RemoveSuffix(suffixFile);
                     if (normalizedName != suffixFile)
                     {
-                        // Check if destination exists - skip to avoid data loss
-                        if (File.Exists(normalizedName))
+                        // Check if destination exists (file or directory) - skip to avoid data loss
+                        if (File.Exists(normalizedName) || Directory.Exists(normalizedName))
                         {
                             logger.LogWarning(
                                 "Skipping suffix removal for {OriginalFile}: target {NormalizedFile} already exists. Manual resolution required.",
@@ -167,11 +169,44 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
                 }
             }
 
-            // Convert standalone .gib files to .big
+            // Convert standalone .gib files to .big before directory moves so file paths remain valid during conversion
             foreach (var gibFile in detection.GibFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 TryConvertGibToBig(gibFile, result);
+            }
+
+            // Normalize matching directories after file conversions
+            foreach (var suffixDir in suffixDirectories)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var normalizedName = RemoveSuffix(suffixDir);
+                    if (normalizedName != suffixDir)
+                    {
+                        // Check if destination exists (directory or file) - skip to avoid data loss
+                        if (Directory.Exists(normalizedName) || File.Exists(normalizedName))
+                        {
+                            logger.LogWarning(
+                                "Skipping suffix removal for directory {OriginalDir}: target {NormalizedDir} already exists. Manual resolution required.",
+                                suffixDir,
+                                normalizedName);
+                            result.FailedFiles.Add(suffixDir);
+                            continue;
+                        }
+
+                        Directory.Move(suffixDir, normalizedName);
+                        result.NormalizedCount++;
+                        logger.LogInformation("Normalized directory {OriginalDir} to {NormalizedDir}", suffixDir, normalizedName);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to normalize directory: {DirectoryPath}", suffixDir);
+                    result.FailedFiles.Add(suffixDir);
+                }
             }
 
             logger.LogInformation(
@@ -270,8 +305,26 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
             {
                 result.SymbolicLinks.Add(directory);
                 logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
+
                 // Don't recurse into symlinked directories
                 continue;
+            }
+
+            var dirName = dirInfo.Name;
+            if (dirName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GlrFiles.Add(directory);
+                logger.LogDebug("Detected .GLR directory: {DirectoryPath}", directory);
+            }
+            else if (dirName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GofFiles.Add(directory);
+                logger.LogDebug("Detected .GOF directory: {DirectoryPath}", directory);
+            }
+            else if (dirName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                result.GltcFiles.Add(directory);
+                logger.LogDebug("Detected .GLTC directory: {DirectoryPath}", directory);
             }
 
             // Recurse into normal directories

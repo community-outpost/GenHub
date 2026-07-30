@@ -127,6 +127,55 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that directory with .GLTC suffix is detected, renamed, and contents preserved.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_DetectsAndRenamesSuffixDirectory_PreservingContents()
+    {
+        var gltcDir = Path.Combine(_tempDir, "Maps.GLTC");
+        Directory.CreateDirectory(gltcDir);
+        var mapPath = Path.Combine(gltcDir, "map1.map");
+        var gibPath = Path.Combine(gltcDir, "map2.gib");
+        await File.WriteAllTextAsync(mapPath, "map-content");
+        await File.WriteAllTextAsync(gibPath, "gib-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data.NormalizedCount);
+        var targetDir = Path.Combine(_tempDir, "Maps");
+        Assert.True(Directory.Exists(targetDir));
+        Assert.False(Directory.Exists(gltcDir));
+        Assert.True(File.Exists(Path.Combine(targetDir, "map1.map")));
+        Assert.True(File.Exists(Path.Combine(targetDir, "map2.big")));
+    }
+
+    /// <summary>
+    /// Tests that directory suffix normalization skips when destination directory already exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_SkipsDirectorySuffixRemoval_WhenDestinationExists()
+    {
+        var gltcDir = Path.Combine(_tempDir, "Maps.GLTC");
+        Directory.CreateDirectory(gltcDir);
+        await File.WriteAllTextAsync(Path.Combine(gltcDir, "map1.map"), "map-content");
+
+        var existingTargetDir = Path.Combine(_tempDir, "Maps");
+        Directory.CreateDirectory(existingTargetDir);
+        await File.WriteAllTextAsync(Path.Combine(existingTargetDir, "existing.txt"), "existing-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data.IsFullySuccessful);
+        Assert.Contains(gltcDir, result.Data.FailedFiles);
+        Assert.True(Directory.Exists(gltcDir));
+        Assert.True(Directory.Exists(existingTargetDir));
+    }
+
+    /// <summary>
     /// Tests that file symbolic links are removed during normalization.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -149,6 +198,52 @@ public class GenLauncherNormalizationServiceTests : IDisposable
         Assert.Equal(1, result.Data.SymbolicLinksRemoved);
         Assert.False(File.Exists(linkPath));
         Assert.True(File.Exists(targetPath));
+    }
+
+    /// <summary>
+    /// Tests that dangling file symbolic links are removed during normalization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_RemovesDanglingFileSymlink()
+    {
+        if (!TryCreateFileSymlink(out var skipReason))
+        {
+            return;
+        }
+
+        var targetPath = Path.Combine(_tempDir, "nonexistent-target.txt");
+        var linkPath = Path.Combine(_tempDir, "dangling-link.txt");
+        File.CreateSymbolicLink(linkPath, targetPath);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.SymbolicLinksRemoved);
+        Assert.False(File.Exists(linkPath));
+    }
+
+    /// <summary>
+    /// Tests that dangling directory symbolic links are removed during normalization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_RemovesDanglingDirectorySymlink()
+    {
+        if (!TryCreateDirectorySymlink(out var skipReason))
+        {
+            return;
+        }
+
+        var targetPath = Path.Combine(_tempDir, "nonexistent-dir-target");
+        var linkPath = Path.Combine(_tempDir, "dangling-dir-link");
+        Directory.CreateSymbolicLink(linkPath, targetPath);
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.SymbolicLinksRemoved);
+        Assert.False(Directory.Exists(linkPath));
     }
 
     /// <summary>
@@ -206,6 +301,43 @@ public class GenLauncherNormalizationServiceTests : IDisposable
             File.CreateSymbolicLink(probeLink, probeTarget);
             File.Delete(probeLink);
             File.Delete(probeTarget);
+            return true;
+        }
+        catch (IOException ex) when (ex.Message.Contains("privilege", StringComparison.OrdinalIgnoreCase))
+        {
+            skipReason = ex.Message;
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            skipReason = ex.Message;
+            return false;
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            skipReason = ex.Message;
+            return false;
+        }
+    }
+
+    private bool TryCreateDirectorySymlink(out string? skipReason)
+    {
+        skipReason = null;
+
+        if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            skipReason = "Unsupported operating system.";
+            return false;
+        }
+
+        try
+        {
+            var probeTarget = Path.Combine(_tempDir, "probe-dir-target");
+            var probeLink = Path.Combine(_tempDir, "probe-dir-link");
+            Directory.CreateDirectory(probeTarget);
+            Directory.CreateSymbolicLink(probeLink, probeTarget);
+            Directory.Delete(probeLink);
+            Directory.Delete(probeTarget);
             return true;
         }
         catch (IOException ex) when (ex.Message.Contains("privilege", StringComparison.OrdinalIgnoreCase))
