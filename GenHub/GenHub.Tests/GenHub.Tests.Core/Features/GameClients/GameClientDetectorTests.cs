@@ -404,6 +404,59 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper ships beside the binary it wraps.
+    /// Detection must yield a single client pointing at the bootstrapper, not one client per
+    /// recognised executable name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_WithEacLauncherBesideSixtyHertz_DetectsOnlyWrapper()
+    {
+        var identifierMock = new Mock<IGameClientIdentifier>();
+        identifierMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
+        identifierMock.Setup(x => x.CanIdentify(It.IsAny<string>())).Returns(false);
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [identifierMock.Object],
+            NullLogger<GameClientDetector>.Instance);
+
+        var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHourEac");
+        Directory.CreateDirectory(zeroHourPath);
+
+        var wrapperPath = Path.Combine(zeroHourPath, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        var sixtyHertzPath = Path.Combine(zeroHourPath, GameClientConstants.GeneralsOnline60HzExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+        await File.WriteAllTextAsync(sixtyHertzPath, "dummy content");
+
+        var installation = new GameInstallation("C:\\TestInstallEac", GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zeroHourPath,
+        };
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("any_hash");
+
+        _contentManifestPoolMock
+            .Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+
+        Assert.True(result.Success);
+        var generalsOnlineClients = result.Items
+            .Where(client => client.Name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var only = Assert.Single(generalsOnlineClients);
+        Assert.Equal(wrapperPath, only.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz client for Zero Hour.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>

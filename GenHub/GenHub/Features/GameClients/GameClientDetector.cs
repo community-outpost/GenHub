@@ -630,6 +630,25 @@ public class GameClientDetector(
     /// which can invalidate hash verification. For now, we detect by filename only
     /// and skip hash validation until a dedicated publisher system is implemented.
     /// </remarks>
+    /// <summary>
+    /// Resolves the single supported Generals Online entry point in a directory. The Easy
+    /// Anti-Cheat bootstrapper takes precedence because it starts the binary named by
+    /// <c>EasyAntiCheat/Settings.json</c>; the bare 60Hz binary is the pre-EAC fallback.
+    /// </summary>
+    /// <param name="directory">The directory to inspect.</param>
+    /// <returns>The entry point file name, or <see langword="null"/> when none is present.</returns>
+    private static string? ResolveGeneralsOnlineEntryPoint(string directory)
+    {
+        if (File.Exists(Path.Combine(directory, GameClientConstants.GeneralsOnlineEacLauncherExecutable)))
+        {
+            return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
+        }
+
+        return File.Exists(Path.Combine(directory, GameClientConstants.GeneralsOnline60HzExecutable))
+            ? GameClientConstants.GeneralsOnline60HzExecutable
+            : null;
+    }
+
     private Task<List<GameClient>> DetectGeneralsOnlineClientsAsync(
         GameInstallation installation,
         GameType gameType)
@@ -645,7 +664,12 @@ public class GameClientDetector(
         // GeneralsOnline clients auto-update, so we use a fixed version string
         const string generalsOnlineVersion = GameClientConstants.UnknownVersion;
 
-        var generalsOnlineExecutables = GameClientConstants.GeneralsOnlineExecutableNames;
+        // Exactly one entry point per installation. Since 060526_QFE1 the Easy Anti-Cheat
+        // bootstrapper wraps the 60Hz binary and both ship side by side, so detecting each
+        // recognised name in turn would surface the same client twice.
+        string[] generalsOnlineExecutables = ResolveGeneralsOnlineEntryPoint(installationPath) is { } entryPoint
+            ? [entryPoint]
+            : [];
 
         foreach (var executableName in generalsOnlineExecutables)
         {
@@ -661,6 +685,7 @@ public class GameClientDetector(
                 // Determine the variant name from the executable
                 var variantName = executableName switch
                 {
+                    GameClientConstants.GeneralsOnlineEacLauncherExecutable => GameClientConstants.GeneralsOnline60HzDisplayName,
                     GameClientConstants.GeneralsOnline60HzExecutable => GameClientConstants.GeneralsOnline60HzDisplayName,
                     _ => null, // Skip unknown variants
                 };
