@@ -16,15 +16,15 @@ namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 /// </summary>
 public class GeneralsOnlineManifestFactoryEacTests : IDisposable
 {
-    private readonly string extractedDirectory;
+    private readonly string _extractedDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GeneralsOnlineManifestFactoryEacTests"/> class.
     /// </summary>
     public GeneralsOnlineManifestFactoryEacTests()
     {
-        extractedDirectory = Path.Combine(Path.GetTempPath(), $"genhub-eac-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(extractedDirectory);
+        _extractedDirectory = Path.Combine(Path.GetTempPath(), $"genhub-eac-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_extractedDirectory);
     }
 
     /// <summary>
@@ -69,6 +69,47 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     }
 
     /// <summary>
+    /// The portable also ships a non-60Hz binary. Easy Anti-Cheat wraps only the binary named
+    /// by its settings file, so the other one stays as plain workspace content.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_RetainsDefaultBinaryAsWorkspaceFile()
+    {
+        WriteEacPortableLayout();
+
+        var gameClient = await CreateGameClientManifestAsync();
+
+        var defaultBinary = gameClient.Files.SingleOrDefault(file =>
+            Path.GetFileName(file.RelativePath)
+                .Equals(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase));
+
+        Assert.NotNull(defaultBinary);
+        Assert.False(defaultBinary!.IsExecutable);
+    }
+
+    /// <summary>
+    /// Only the bootstrapper at the archive root is the supported entry point. A nested file
+    /// that merely shares its name must not divert the launch target away from the real client.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_NestedWrapperName_DoesNotBecomeLaunchTarget()
+    {
+        WriteFile(GameClientConstants.GeneralsOnline60HzExecutable);
+        WriteFile(Path.Combine("tools", GameClientConstants.GeneralsOnlineEacLauncherExecutable));
+
+        var gameClient = await CreateGameClientManifestAsync();
+
+        var executables = gameClient.Files.Where(file => file.IsExecutable).ToList();
+        var executable = Assert.Single(executables);
+        Assert.Equal(
+            GameClientConstants.GeneralsOnline60HzExecutable,
+            executable.RelativePath,
+            ignoreCase: true);
+    }
+
+    /// <summary>
     /// Pre-EAC portables ship no bootstrapper, so the 60Hz binary stays the launch target.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -92,9 +133,9 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     public void Dispose()
     {
         GC.SuppressFinalize(this);
-        if (Directory.Exists(extractedDirectory))
+        if (Directory.Exists(_extractedDirectory))
         {
-            Directory.Delete(extractedDirectory, recursive: true);
+            Directory.Delete(_extractedDirectory, recursive: true);
         }
     }
 
@@ -124,7 +165,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
 
     private void WriteFile(string relativePath)
     {
-        var fullPath = Path.Combine(extractedDirectory, relativePath);
+        var fullPath = Path.Combine(_extractedDirectory, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         File.WriteAllText(fullPath, relativePath);
     }
@@ -138,7 +179,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
 
         var manifests = await factory.CreateManifestsFromExtractedContentAsync(
             CreateOriginalManifest(),
-            extractedDirectory);
+            _extractedDirectory);
 
         return manifests.Single(manifest => manifest.ContentType == ContentType.GameClient);
     }

@@ -197,6 +197,16 @@ public class GeneralsOnlineManifestFactory(
 
     private static int ParseVersionForManifestId(string version) => GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version);
 
+    /// <summary>
+    /// Determines whether a manifest-relative path is the named file at the archive root.
+    /// Nested files that merely share the name are not the published entry point.
+    /// </summary>
+    private static bool IsArchiveRootFile(string relativePath, string fileName) =>
+        string.Equals(
+            relativePath.Replace('\\', '/').TrimStart('/'),
+            fileName,
+            StringComparison.OrdinalIgnoreCase);
+
     private static ManifestFile CreateMapManifestFile(string relativePath, FileInfo fileInfo, string hash)
     {
         // For maps, the relative path should be relative to the Maps directory
@@ -468,11 +478,7 @@ public class GeneralsOnlineManifestFactory(
                 // binary named by EasyAntiCheat/Settings.json. When present it is the only launch target;
                 // the wrapped binary stays in the workspace as ordinary content for EAC to start.
                 var hasEacLauncher = filesWithHashes.Any(file =>
-                    !file.IsMap &&
-                    string.Equals(
-                        Path.GetFileName(file.RelativePath),
-                        GameClientConstants.GeneralsOnlineEacLauncherExecutable,
-                        StringComparison.OrdinalIgnoreCase));
+                    !file.IsMap && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable));
 
                 var targetExecutable = hasEacLauncher
                     ? GameClientConstants.GeneralsOnlineEacLauncherExecutable
@@ -480,7 +486,6 @@ public class GeneralsOnlineManifestFactory(
 
                 foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
                 {
-                    var fileName = Path.GetFileName(relativePath);
                     var isExecutable = false;
 
                     // Skip map files in GameClient manifests - they belong in the MapPack manifest
@@ -489,7 +494,7 @@ public class GeneralsOnlineManifestFactory(
                         continue;
                     }
 
-                    if (string.Equals(fileName, targetExecutable, StringComparison.OrdinalIgnoreCase))
+                    if (IsArchiveRootFile(relativePath, targetExecutable))
                     {
                         isExecutable = true;
                     }
