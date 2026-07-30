@@ -58,22 +58,24 @@ public static class ExecutableFileClassifier
     private static readonly string[] RunnableExtensions = [".exe", ".sh", ".command"];
 
     /// <summary>
-    /// Determines whether a file needs the Unix execute bit to be runnable.
+    /// Determines whether a file needs the Unix execute bit to be runnable, from its
+    /// name alone.
     /// <para>
     /// This is what <c>ManifestFile.IsExecutable</c> means. It is a permission fact, not
     /// a statement about which file the profile launches.
     /// </para>
     /// <para>
-    /// Extensionless files are assumed to be native binaries: that is the shape of a
-    /// Mach-O or ELF game client. This name-only overload exists for callers that hold
-    /// nothing but a relative path (manifest entries, remote release assets); whenever
-    /// the file is on disk, prefer the overload that takes an absolute path so the
-    /// answer comes from the file's magic bytes instead.
+    /// This is a compatibility heuristic for metadata-only contexts — remote release
+    /// asset names, manifests whose content has not been acquired — where extensionless
+    /// is assumed to mean native binary because that is the shape of a Mach-O or ELF
+    /// game client. It is not content classification: whenever the file is on disk,
+    /// call <see cref="RequiresExecutePermission(string, string?)"/> so the answer
+    /// comes from the file's magic bytes instead.
     /// </para>
     /// </summary>
     /// <param name="path">A file name or relative path. Not required to exist on disk.</param>
     /// <returns><c>true</c> when the file should be marked executable.</returns>
-    public static bool RequiresExecutePermission(string path)
+    public static bool RequiresExecutePermissionFromName(string path)
         => RequiresExecutePermission(path, absolutePath: null);
 
     /// <summary>
@@ -119,15 +121,22 @@ public static class ExecutableFileClassifier
 
     /// <summary>
     /// Determines whether a file could be the launch target when a manifest declares no
-    /// explicit entry point.
+    /// explicit entry point, from its name alone.
     /// <para>
     /// This exists only to keep manifests written before entry points were declarable
     /// working. New content should declare its entry point rather than rely on this.
     /// </para>
+    /// <para>
+    /// This is a compatibility heuristic for metadata-only contexts — remote release
+    /// asset names, manifests whose content has not been acquired. It is not content
+    /// classification: whenever the file is on disk, call
+    /// <see cref="IsLegacyLaunchCandidate(string, string?)"/> so extensionless files
+    /// are judged by their magic bytes instead.
+    /// </para>
     /// </summary>
     /// <param name="path">A file name or relative path.</param>
     /// <returns><c>true</c> when the file is a plausible legacy launch target.</returns>
-    public static bool IsLegacyLaunchCandidate(string path)
+    public static bool IsLegacyLaunchCandidateFromName(string path)
         => IsLegacyLaunchCandidate(path, absolutePath: null);
 
     /// <summary>
@@ -224,16 +233,16 @@ public static class ExecutableFileClassifier
             return true;
         }
 
-        // Mach-O universal (fat). Java class files share 0xCAFEBABE, so require the
-        // second word: a fat header's is the architecture count (tiny), a class file's
-        // is the class-file version (>= 45). The byte-swapped magic stores the count
-        // byte-swapped as well.
-        if (magic == 0xCAFEBABE && header.Length >= MagicHeaderLength)
+        // Mach-O universal (fat), 32-bit (FAT_MAGIC) and 64-bit (FAT_MAGIC_64) headers.
+        // Java class files share 0xCAFEBABE, so require the second word: a fat header's
+        // is the architecture count (tiny), a class file's is the class-file version
+        // (>= 45). The byte-swapped magics store the count byte-swapped as well.
+        if (magic is 0xCAFEBABE or 0xCAFEBABF && header.Length >= MagicHeaderLength)
         {
             return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount;
         }
 
-        if (magic == 0xBEBAFECA && header.Length >= MagicHeaderLength)
+        if (magic is 0xBEBAFECA or 0xBFBAFECA && header.Length >= MagicHeaderLength)
         {
             return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount;
         }

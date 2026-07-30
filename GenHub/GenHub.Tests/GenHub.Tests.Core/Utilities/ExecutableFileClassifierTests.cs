@@ -50,7 +50,7 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData("", false)]
     public void RequiresExecutePermission_ClassifiesCorrectly(string path, bool expected)
     {
-        Assert.Equal(expected, ExecutableFileClassifier.RequiresExecutePermission(path));
+        Assert.Equal(expected, ExecutableFileClassifier.RequiresExecutePermissionFromName(path));
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData("", false)]
     public void IsLegacyLaunchCandidate_ClassifiesCorrectly(string path, bool expected)
     {
-        Assert.Equal(expected, ExecutableFileClassifier.IsLegacyLaunchCandidate(path));
+        Assert.Equal(expected, ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(path));
     }
 
     /// <summary>
@@ -86,14 +86,14 @@ public class ExecutableFileClassifierTests : IDisposable
     [Fact]
     public void TheTwoQuestionsAreIndependent()
     {
-        Assert.True(ExecutableFileClassifier.RequiresExecutePermission("run.sh"));
-        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidate("run.sh"));
+        Assert.True(ExecutableFileClassifier.RequiresExecutePermissionFromName("run.sh"));
+        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidateFromName("run.sh"));
 
-        Assert.True(ExecutableFileClassifier.RequiresExecutePermission("generalszh"));
-        Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generalszh"));
+        Assert.True(ExecutableFileClassifier.RequiresExecutePermissionFromName("generalszh"));
+        Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidateFromName("generalszh"));
 
-        Assert.False(ExecutableFileClassifier.RequiresExecutePermission("libSDL3.dylib"));
-        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidate("libSDL3.dylib"));
+        Assert.False(ExecutableFileClassifier.RequiresExecutePermissionFromName("libSDL3.dylib"));
+        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidateFromName("libSDL3.dylib"));
     }
 
     /// <summary>
@@ -114,9 +114,12 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData(new byte[] { 0xCE, 0xFA, 0xED, 0xFE }, true)]
     [InlineData(new byte[] { 0xCF, 0xFA, 0xED, 0xFE }, true)]
 
-    // Mach-O universal (fat): second word is the architecture count.
+    // Mach-O universal (fat), 32- and 64-bit headers: second word is the architecture
+    // count, byte-swapped alongside the swapped magics.
     [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBE, 0x00, 0x00, 0x00, 0x02 }, true)]
     [InlineData(new byte[] { 0xBE, 0xBA, 0xFE, 0xCA, 0x02, 0x00, 0x00, 0x00 }, true)]
+    [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBF, 0x00, 0x00, 0x00, 0x02 }, true)]
+    [InlineData(new byte[] { 0xBF, 0xBA, 0xFE, 0xCA, 0x02, 0x00, 0x00, 0x00 }, true)]
 
     // A Java class file shares the fat magic, but its second word is the class-file
     // version (>= 45); 0x34 is Java 8.
@@ -124,6 +127,7 @@ public class ExecutableFileClassifierTests : IDisposable
 
     // A fat magic with no second word cannot be confirmed as a fat binary.
     [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBE }, false)]
+    [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBF }, false)]
 
     // Text, shebang scripts, truncated headers, and nothing at all.
     [InlineData(new byte[] { 0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73 }, false)]
@@ -179,6 +183,7 @@ public class ExecutableFileClassifierTests : IDisposable
     [InlineData(new byte[] { 0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00 })]
     [InlineData(new byte[] { 0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01 })]
     [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBE, 0x00, 0x00, 0x00, 0x02 })]
+    [InlineData(new byte[] { 0xCA, 0xFE, 0xBA, 0xBF, 0x00, 0x00, 0x00, 0x02 })]
     public void ExtensionlessNativeBinary_IsClassifiedExecutable(byte[] header)
     {
         var path = Path.Combine(_tempDirectory, "generalszh");
