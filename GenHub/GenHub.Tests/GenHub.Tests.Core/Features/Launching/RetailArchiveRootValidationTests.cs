@@ -188,6 +188,62 @@ public class RetailArchiveRootValidationTests : IDisposable
         Assert.StartsWith(root, environment[RetailArchiveConstants.ZeroHourInstallPathVariable]);
     }
 
+    /// <summary>
+    /// Zero Hour is an expansion and mounts the base Generals archives too, so a declared
+    /// Generals root that is broken must fail the launch — otherwise the game runs without
+    /// base content, the same silent failure one directory over.
+    /// </summary>
+    [Fact]
+    public void Validate_LaunchingZeroHour_AlsoRejectsABrokenGeneralsRoot()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = CreateRoot("zh-ok", withArchive: true);
+        var generals = CreateRoot("gen-empty", withArchive: false);
+
+        var error = ValidateFor(GameType.ZeroHour, generals, zeroHour);
+
+        Assert.NotNull(error);
+        Assert.Contains(generals, error);
+    }
+
+    /// <summary>
+    /// A Zero Hour installation carrying the base archives itself declares no separate
+    /// Generals root, and that is not an error.
+    /// </summary>
+    [Fact]
+    public void Validate_LaunchingZeroHour_WithNoGeneralsRootDeclared_Accepts()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zeroHour = CreateRoot("zh-standalone", withArchive: true);
+
+        Assert.Null(ValidateFor(GameType.ZeroHour, null, zeroHour));
+    }
+
+    /// <summary>
+    /// Launching Generals must not fail over a stale Zero Hour root: it does not read it.
+    /// </summary>
+    [Fact]
+    public void Validate_LaunchingGenerals_IgnoresABrokenZeroHourRoot()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var generals = CreateRoot("gen-ok", withArchive: true);
+        var staleZeroHour = Path.Combine(_tempDir, "zh-gone");
+
+        Assert.Null(ValidateFor(GameType.Generals, generals, staleZeroHour));
+    }
+
     // Zero Hour throughout: these fixtures declare only a Zero Hour path, and validation is
     // scoped to the launching game so the sibling Generals root is deliberately untouched.
     private static string? Validate(GameInstallation installation) =>
@@ -209,6 +265,19 @@ public class RetailArchiveRootValidationTests : IDisposable
         typeof(GameLauncher)
             .GetMethod("AddRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [environment, installation]);
+
+    private static string? ValidateFor(GameType gameType, string? generalsPath, string? zeroHourPath)
+    {
+        var installation = new GameInstallation(
+            Path.GetTempPath(),
+            GameInstallationType.Retail,
+            new Mock<ILogger<GameInstallation>>().Object);
+        installation.SetPaths(generalsPath, zeroHourPath);
+
+        return (string?)typeof(GameLauncher)
+            .GetMethod("ValidateRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [new Dictionary<string, string>(), installation, gameType]);
+    }
 
     private string CreateRoot(string name, bool withArchive)
     {

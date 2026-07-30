@@ -548,46 +548,62 @@ public class GameLauncher(
         // survived into the environment. AddArchiveRoot drops a path that does not exist,
         // so validating the environment alone would silently skip the exact case this
         // exists to catch: a stale installation root reaching spawn unnoticed.
-        // Only the launching game's root. The other game's path may be stale or absent on
-        // the same installation, and that has no bearing on whether this launch will find
-        // its content — failing on a sibling would block a launch that would have worked.
-        var (variableName, declaredPath) = gameType == GameType.Generals
-            ? (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath)
-            : (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath);
-
-        // A profile override is the root actually used, so it is what gets checked.
-        var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
-            ? configured
-            : declaredPath;
-
-        // Nothing configured for this game means it is simply not installed.
-        if (string.IsNullOrWhiteSpace(root))
+        // Which roots matter depends on the game. Generals reads only its own. Zero Hour is
+        // an expansion and mounts the base Generals archives as well, so a stale Generals
+        // root would leave it running without base content — the same silent failure, one
+        // directory over. Launching Generals must not fail over a stale Zero Hour root
+        // though: that one has no bearing on it.
+        var roots = new List<(string Variable, string? Path, bool Required)>
         {
-            return null;
+            gameType == GameType.Generals
+                ? (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath, true)
+                : (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath, true),
+        };
+
+        if (gameType == GameType.ZeroHour)
+        {
+            // Checked only when declared. A Zero Hour installation that carries the base
+            // archives itself needs no separate Generals root, so an absent one is not an
+            // error — but a declared one that is broken is.
+            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath, false));
         }
 
-        if (!Directory.Exists(root))
+        foreach (var (variableName, declaredPath, _) in roots)
         {
-            return $"The retail archive root for {variableName} does not exist: {root}. " +
-                   "The game would start with no content and no error, so the launch was stopped.";
-        }
+            // A profile override is the root actually used, so it is what gets checked.
+            var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
+                ? configured
+                : declaredPath;
 
-        bool hasArchive;
-        try
-        {
-            hasArchive = Directory
-                .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
-                .Any();
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-        {
-            return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
-        }
+            // Nothing configured means that game is simply not installed separately.
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
 
-        if (!hasArchive)
-        {
-            return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                   "The game would start with no content and no error, so the launch was stopped.";
+            if (!Directory.Exists(root))
+            {
+                return $"The retail archive root for {variableName} does not exist: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
+
+            bool hasArchive;
+            try
+            {
+                hasArchive = Directory
+                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
+                    .Any();
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+            }
+
+            if (!hasArchive)
+            {
+                return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
+                       "The game would start with no content and no error, so the launch was stopped.";
+            }
         }
 
         return null;
