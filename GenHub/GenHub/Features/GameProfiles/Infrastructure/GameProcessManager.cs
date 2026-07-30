@@ -135,11 +135,11 @@ public class GameProcessManager(
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, launcherStartTime, capturedErrors, cancellationToken);
             }
 
+            // Observe initialization failures before reporting a running process.
             if (!isBatchFile)
             {
-                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken);
 
-                if (process.HasExited)
+                if (await WaitForExitWithinWindowAsync(process, cancellationToken))
                 {
                     return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
                 }
@@ -1263,6 +1263,18 @@ public class GameProcessManager(
         var stderrTail = capturedErrors.ToString();
         if (exitCode != 0)
         {
+            var unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+            if (unmountableArchives.Count > 0)
+            {
+                var archiveNames = string.Join(", ", unmountableArchives);
+                logger.LogError(
+                    "[Process] Process exited during startup with code {ExitCode} after failing to mount archive(s): {Archives}",
+                    exitCode,
+                    archiveNames);
+                return OperationResult<GameProcessInfo>.CreateFailure(
+                    $"The game could not mount required archive(s): {archiveNames}. Process exited during startup with code {exitCode}.");
+            }
+
             var detail = string.IsNullOrWhiteSpace(stderrTail)
                 ? "No output was captured."
                 : stderrTail;
@@ -1283,6 +1295,77 @@ public class GameProcessManager(
 
         return OperationResult<GameProcessInfo>.CreateFailure(
             $"Process exited immediately after launch.{suffix}");
+    }
+
+    /// <summary>
+    /// Waits for the process to exit, up to the post-spawn detection window.
+    /// </summary>
+    /// <remarks>
+    /// The window bounds how long a launch report can be delayed, not how long a failure
+    /// can be detected: a process that outlives it is treated as launched, and any later
+    /// abort surfaces through <see cref="ProcessExited"/>. Cancellation requested by the
+    /// caller propagates; the window elapsing does not.
+    /// </remarks>
+    /// <param name="process">The just-started process.</param>
+    /// <param name="cancellationToken">The caller's cancellation token.</param>
+    /// <returns><c>true</c> when the process exited within the window.</returns>
+    private static async Task<bool> WaitForExitWithinWindowAsync(Process process, CancellationToken cancellationToken)
+    {
+        using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        windowCts.CancelAfter(ProcessConstants.PostSpawnExitDetectionWindowMs);
+
+        try
+        {
+            await process.WaitForExitAsync(windowCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The window elapsed. Re-check rather than assume: the process may have
+            // exited in the race between the timer firing and the wait observing it.
+            return process.HasExited;
+        }
+    }
+
+    /// <summary>
+    /// Extracts the archive paths named by the engine's mount-failure stderr sentinels.
+    /// </summary>
+    /// <remarks>
+    /// Strictly advisory. The sentinels are an external contract with the fork engine
+    /// (see <see cref="RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix"/>)
+    /// and no other build emits them, so an empty result must never influence whether the
+    /// launch is judged to have failed — it only leaves the generic stderr tail in place.
+    /// </remarks>
+    /// <param name="stderrLines">The captured stderr lines.</param>
+    /// <returns>The distinct archives named, in order of first appearance.</returns>
+    private static IReadOnlyList<string> ExtractUnmountableArchives(IReadOnlyList<string> stderrLines)
+    {
+        string[] sentinelPrefixes =
+        [
+            RetailArchiveConstants.ArchiveMountFailedStderrPrefix,
+            RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix,
+        ];
+
+        var archives = new List<string>();
+        foreach (var line in stderrLines)
+        {
+            foreach (var prefix in sentinelPrefixes)
+            {
+                var index = line.IndexOf(prefix, StringComparison.Ordinal);
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                var archive = line[(index + prefix.Length)..].Trim();
+                if (archive.Length > 0 && !archives.Contains(archive))
+                {
+                    archives.Add(archive);
+                }
+            }
+        }
+
+        return archives;
     }
 
     private void OnProcessExited(object? sender, EventArgs e)
@@ -1899,6 +1982,23 @@ public class GameProcessManager(
                 {
                     return _endOfStream;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns the retained lines, head first, for line-oriented matching.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ToString"/> joins lines for display; matching against that joined
+        /// form would let one line's content bleed into the next. Lines dropped by the
+        /// bounds are gone from here too, which is acceptable for an advisory match.
+        /// </remarks>
+        /// <returns>A snapshot of the retained lines.</returns>
+        internal IReadOnlyList<string> Snapshot()
+        {
+            lock (_gate)
+            {
+                return [.. _head, .. _tail];
             }
         }
 

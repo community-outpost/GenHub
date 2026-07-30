@@ -71,7 +71,7 @@ public class NativeClientLaunchIntegrationTests
 
         try
         {
-            // StartProcessAsync only waits out the launcher-detection delay. Give the
+            // StartProcessAsync only waits out the post-spawn detection window. Give the
             // engine long enough to fail the way it fails for real: mounting archives and
             // initialising the renderer, both of which happen after the process exists.
             await Task.Delay(LaunchSettleTime);
@@ -142,7 +142,7 @@ public class NativeClientLaunchIntegrationTests
             // The expected path: it dies during startup and the failure names the reason
             // rather than reporting a bare exit code.
             Assert.False(result.Success);
-            Assert.Contains("exited immediately", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("exited during startup", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
