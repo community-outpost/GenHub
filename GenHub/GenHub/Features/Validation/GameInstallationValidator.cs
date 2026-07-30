@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -113,6 +114,37 @@ public class GameInstallationValidator(
             installation: null,
             progress: progress,
             cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Determines whether an extraneous-file issue actually names a root archive of the
+    /// sibling game in a combined directory.
+    /// </summary>
+    /// <param name="issue">The issue reported by content validation.</param>
+    /// <param name="gameType">The game whose pass produced the issue.</param>
+    /// <returns>True when the issue refers to the other game's known root archive.</returns>
+    /// <remarks>
+    /// Recognition uses the same retail vocabulary that classified the directory in the
+    /// first place: in the Generals pass any root-level <c>*zh.big</c> belongs to Zero
+    /// Hour, and in the Zero Hour pass any canonical Generals archive name belongs to
+    /// Generals. Only the directory root is tolerated — deeper files are outside the
+    /// vocabulary and stay reported.
+    /// </remarks>
+    private static bool IsSiblingGameRootArchive(ValidationIssue issue, GameType gameType)
+    {
+        if (issue.IssueType != ValidationIssueType.UnexpectedFile || string.IsNullOrEmpty(issue.Path))
+        {
+            return false;
+        }
+
+        if (issue.Path.Contains(Path.DirectorySeparatorChar) || issue.Path.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        return gameType == GameType.Generals
+            ? issue.Path.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase)
+            : RetailArchiveConstants.GeneralsArchiveNames.Contains(issue.Path);
     }
 
     private async Task<ValidationResult> ValidateInternalAsync(
@@ -266,7 +298,14 @@ public class GameInstallationValidator(
                 manifest,
                 progress,
                 cancellationToken);
-            issues.AddRange(fullValidation.Issues);
+            var isCombinedDirectory = installation is { HasGenerals: true, HasZeroHour: true }
+                && !string.IsNullOrEmpty(installation.GeneralsPath)
+                && !string.IsNullOrEmpty(installation.ZeroHourPath)
+                && string.Equals(Path.GetFullPath(installation.GeneralsPath), Path.GetFullPath(installation.ZeroHourPath), StringComparison.OrdinalIgnoreCase);
+            var contentIssues = isCombinedDirectory
+                ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType))
+                : fullValidation.Issues;
+            issues.AddRange(contentIssues);
             totalFiles = fullValidation.TotalFilesValidated > 0
                 ? fullValidation.TotalFilesValidated
                 : manifest.Files?.Count ?? 0;
