@@ -167,8 +167,7 @@ public class RetailArchiveRootTests : IDisposable
                 // .so on Linux, and staging only one leaves the workspace incomplete there.
                 var name = Path.GetFileName(path);
                 return name == NativeClientFixture.BinaryName
-                    || name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)
-                    || name.EndsWith(".so", StringComparison.OrdinalIgnoreCase);
+                    || NativeClientFixture.IsDynamicLibrary(name);
             });
 
         foreach (var source in engineFiles)

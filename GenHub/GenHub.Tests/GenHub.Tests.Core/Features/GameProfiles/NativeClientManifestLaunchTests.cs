@@ -58,6 +58,12 @@ public class NativeClientManifestLaunchTests
             manifest.Variants.Single().Files.Count(f => f.IsExecutable) >= 1,
             "Expected the install to contain at least one file requiring execute permission.");
 
+        // Without this the fixture could contain only the binary and still satisfy the
+        // assertions, leaving the library-handling path untested on either platform.
+        Assert.Contains(
+            manifest.Variants.Single().Files,
+            file => NativeClientFixture.IsDynamicLibrary(Path.GetFileName(file.RelativePath)));
+
         var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
 
         Assert.True(resolution.Success, resolution.ToString());
@@ -121,7 +127,7 @@ public class NativeClientManifestLaunchTests
 
             // The engine and its bundled libraries; retail archives are the user's own
             // content and belong to the installation, not the client manifest.
-            if (name != NativeClientFixture.BinaryName && !name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase))
+            if (name != NativeClientFixture.BinaryName && !NativeClientFixture.IsDynamicLibrary(name))
             {
                 continue;
             }
