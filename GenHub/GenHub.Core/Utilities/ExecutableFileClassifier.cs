@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
 
 namespace GenHub.Core.Utilities;
@@ -32,6 +33,19 @@ namespace GenHub.Core.Utilities;
 public static class ExecutableFileClassifier
 {
     /// <summary>
+    /// Bytes needed to recognise every supported magic number, including the second
+    /// 32-bit word used to tell a Mach-O universal binary from a Java class file.
+    /// </summary>
+    private const int MagicHeaderLength = 8;
+
+    /// <summary>
+    /// A Mach-O universal (fat) header's second word is the architecture count, which is
+    /// realistically single-digit. A Java class file shares the 0xCAFEBABE magic, but its
+    /// second word encodes the class-file version, which is at least 45 (Java 1.1).
+    /// </summary>
+    private const uint MaxPlausibleFatArchCount = 30;
+
+    /// <summary>
     /// Extensions for loadable code that is never itself launched and never needs the
     /// execute bit. Dynamic libraries are mapped by the loader, which requires read
     /// access only.
@@ -50,13 +64,36 @@ public static class ExecutableFileClassifier
     /// a statement about which file the profile launches.
     /// </para>
     /// <para>
-    /// Extensionless files count: that is the shape of a native Mach-O or ELF binary,
-    /// and it is the case the previous inconsistency got wrong.
+    /// Extensionless files are assumed to be native binaries: that is the shape of a
+    /// Mach-O or ELF game client. This name-only overload exists for callers that hold
+    /// nothing but a relative path (manifest entries, remote release assets); whenever
+    /// the file is on disk, prefer the overload that takes an absolute path so the
+    /// answer comes from the file's magic bytes instead.
     /// </para>
     /// </summary>
     /// <param name="path">A file name or relative path. Not required to exist on disk.</param>
     /// <returns><c>true</c> when the file should be marked executable.</returns>
     public static bool RequiresExecutePermission(string path)
+        => RequiresExecutePermission(path, absolutePath: null);
+
+    /// <summary>
+    /// Determines whether a file needs the Unix execute bit, sniffing the file's magic
+    /// bytes to classify extensionless files by content rather than by name.
+    /// <para>
+    /// An extensionless <c>README</c> or <c>LICENSE</c> is not a native binary, and only
+    /// the file's first bytes can tell it apart from one. Extension-based classification
+    /// is unchanged: libraries stay non-executable and known runnable extensions stay
+    /// executable, whatever the content says.
+    /// </para>
+    /// </summary>
+    /// <param name="path">A file name or relative path.</param>
+    /// <param name="absolutePath">
+    /// The file's location on disk, when it exists there; <c>null</c> falls back to
+    /// name-only classification. An extensionless file that cannot be read, or whose
+    /// header matches no known executable format, is not executable.
+    /// </param>
+    /// <returns><c>true</c> when the file should be marked executable.</returns>
+    public static bool RequiresExecutePermission(string path, string? absolutePath)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -65,11 +102,11 @@ public static class ExecutableFileClassifier
 
         var extension = Path.GetExtension(path);
 
-        // Extensionless: a native binary. Directories and dotfiles are excluded by the
-        // caller, which only ever passes real file entries.
+        // Extensionless: the shape of a native binary, but also of a README. Content is
+        // the only reliable way to tell them apart, so use it whenever we have it.
         if (string.IsNullOrEmpty(extension))
         {
-            return true;
+            return absolutePath is null || HasExecutableMagicBytes(absolutePath);
         }
 
         if (MatchesAny(extension, LibraryExtensions))
@@ -91,6 +128,20 @@ public static class ExecutableFileClassifier
     /// <param name="path">A file name or relative path.</param>
     /// <returns><c>true</c> when the file is a plausible legacy launch target.</returns>
     public static bool IsLegacyLaunchCandidate(string path)
+        => IsLegacyLaunchCandidate(path, absolutePath: null);
+
+    /// <summary>
+    /// Determines whether a file could be the launch target when a manifest declares no
+    /// explicit entry point, sniffing magic bytes to classify extensionless files by
+    /// content rather than by name.
+    /// </summary>
+    /// <param name="path">A file name or relative path.</param>
+    /// <param name="absolutePath">
+    /// The file's location on disk, when it exists there; <c>null</c> falls back to
+    /// name-only classification.
+    /// </param>
+    /// <returns><c>true</c> when the file is a plausible legacy launch target.</returns>
+    public static bool IsLegacyLaunchCandidate(string path, string? absolutePath)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -102,8 +153,92 @@ public static class ExecutableFileClassifier
         // Extensionless native binaries and Windows executables only. Notably not .dat:
         // the Steam layout launches game.dat through a proxy, but that is a launch
         // *strategy* chosen by the Steam integration, not a property of the file.
-        return string.IsNullOrEmpty(extension)
-            || extension.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(extension))
+        {
+            return absolutePath is null || HasExecutableMagicBytes(absolutePath);
+        }
+
+        return extension.Equals(".exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the file at <paramref name="absolutePath"/> starts with the
+    /// magic bytes of a native executable format. Reads at most
+    /// <see cref="MagicHeaderLength"/> bytes; never loads the file.
+    /// </summary>
+    /// <param name="absolutePath">The file to sniff.</param>
+    /// <returns>
+    /// <c>true</c> when the header matches a known executable format; <c>false</c> for
+    /// any other content and for files that are missing, too short, or unreadable.
+    /// </returns>
+    public static bool HasExecutableMagicBytes(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        try
+        {
+            using var stream = new FileStream(
+                absolutePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var read = stream.ReadAtLeast(header, MagicHeaderLength, throwOnEndOfStream: false);
+            return HasExecutableMagicBytes(header[..read]);
+        }
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether <paramref name="header"/> starts with the magic bytes of a
+    /// native executable format: MZ (Windows PE), ELF (Linux), or Mach-O (macOS), in
+    /// thin and universal flavours and both byte orders.
+    /// </summary>
+    /// <param name="header">The first bytes of a file; <see cref="MagicHeaderLength"/> suffice.</param>
+    /// <returns><c>true</c> when the header matches a known executable format.</returns>
+    public static bool HasExecutableMagicBytes(ReadOnlySpan<byte> header)
+    {
+        if (header.Length < 4)
+        {
+            return false;
+        }
+
+        // MZ: DOS/PE. Two bytes of magic, but anything shorter than four bytes cannot
+        // be a real executable of any kind, which the length gate above enforces.
+        if (header[0] == 0x4D && header[1] == 0x5A)
+        {
+            return true;
+        }
+
+        // ELF: 0x7F 'E' 'L' 'F'.
+        if (header[0] == 0x7F && header[1] == (byte)'E' && header[2] == (byte)'L' && header[3] == (byte)'F')
+        {
+            return true;
+        }
+
+        var magic = BinaryPrimitives.ReadUInt32BigEndian(header);
+
+        // Mach-O thin: MH_MAGIC / MH_MAGIC_64 and their byte-swapped forms.
+        if (magic is 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE)
+        {
+            return true;
+        }
+
+        // Mach-O universal (fat). Java class files share 0xCAFEBABE, so require the
+        // second word: a fat header's is the architecture count (tiny), a class file's
+        // is the class-file version (>= 45). The byte-swapped magic stores the count
+        // byte-swapped as well.
+        if (magic == 0xCAFEBABE && header.Length >= MagicHeaderLength)
+        {
+            return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) < MaxPlausibleFatArchCount;
+        }
+
+        if (magic == 0xBEBAFECA && header.Length >= MagicHeaderLength)
+        {
+            return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) < MaxPlausibleFatArchCount;
+        }
+
+        return false;
     }
 
     private static bool MatchesAny(string extension, string[] candidates)

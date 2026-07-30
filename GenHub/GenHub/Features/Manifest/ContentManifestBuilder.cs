@@ -734,10 +734,10 @@ public partial class ContentManifestBuilder(
 
     private static bool IsExecutableFile(string filePath)
     {
-        // Delegates to the shared classifier. The previous implementation also required
-        // File.Exists, which made classification depend on disk state at build time:
-        // the same manifest could classify differently depending on when it was built.
-        return ExecutableFileClassifier.RequiresExecutePermission(filePath);
+        // Delegates to the shared classifier. The caller has just enumerated filePath
+        // from disk, so the classifier can sniff its magic bytes and an extensionless
+        // README is not mistaken for a native binary.
+        return ExecutableFileClassifier.RequiresExecutePermission(filePath, filePath);
     }
 
     /// <returns>The normalized version string.</returns>
