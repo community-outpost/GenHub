@@ -45,6 +45,7 @@ public class GameLauncherTests : IDisposable
     private readonly Mock<IStorageLocationService> _storageLocationServiceMock = new();
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
+    private readonly Mock<ILaunchReceiptService> _launchReceiptServiceMock = new();
     private readonly GameLauncher _gameLauncher;
 
     private readonly string _retailRoot;
@@ -117,6 +118,12 @@ public class GameLauncherTests : IDisposable
         _profileContentLinkerMock.Setup(x => x.GetActiveProfileId())
             .Returns((string?)null);
 
+        // Setup launch receipt service mock
+        _launchReceiptServiceMock.Setup(x => x.RevalidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceiptDriftReport>.CreateSuccess(new LaunchReceiptDriftReport()));
+        _launchReceiptServiceMock.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceipt>.CreateSuccess(new LaunchReceipt()));
+
         // Setup dependency resolver mock - returns resolved manifests including dependencies
         _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
                 It.IsAny<IEnumerable<string>>(),
@@ -141,7 +148,8 @@ public class GameLauncherTests : IDisposable
             _gameSettingsServiceMock.Object,
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
-            _configurationProviderServiceMock.Object);
+            _configurationProviderServiceMock.Object,
+            _launchReceiptServiceMock.Object);
     }
 
     /// <summary>
@@ -908,6 +916,139 @@ public class GameLauncherTests : IDisposable
         _gameSettingsServiceMock.Verify(
             x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies a successful launch revalidates the previous receipt and records a new one.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithValidProfile_RecordsLaunchReceipt()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspacePath = Path.Combine(_retailRoot, "workspace");
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = workspacePath,
+            ExecutablePath = Path.Combine(workspacePath, "generalszh"),
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content", Version = "1.0" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        _launchReceiptServiceMock.Verify(
+            x => x.RevalidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _launchReceiptServiceMock.Verify(
+            x => x.RecordLaunchAsync(
+                It.Is<LaunchReceiptContext>(c =>
+                    c.ProfileId == profile.Id &&
+                    c.ExecutablePath == workspaceInfo.ExecutablePath &&
+                    c.WorkspacePath == workspaceInfo.WorkspacePath &&
+                    c.GameType == GameType.Generals &&
+                    c.ManifestIds.Contains("1.0.genhub.mod.test")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies receipt drift is surfaced without blocking the launch.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithReceiptDrift_DoesNotBlockLaunch()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspacePath = Path.Combine(_retailRoot, "workspace");
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = workspacePath,
+            ExecutablePath = Path.Combine(workspacePath, "generalszh"),
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+        var driftReport = new LaunchReceiptDriftReport
+        {
+            HasReceipt = true,
+            DriftedFields = ["Executable size changed from 1 to 2 bytes: generals.exe"],
+        };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        _launchReceiptServiceMock.Setup(x => x.RevalidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceiptDriftReport>.CreateSuccess(driftReport));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies a launch that has already started is not failed by a receipt-recording error.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenReceiptRecordingFails_StillSucceeds()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspacePath = Path.Combine(_retailRoot, "workspace");
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = workspacePath,
+            ExecutablePath = Path.Combine(workspacePath, "generalszh"),
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        _launchReceiptServiceMock.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceipt>.CreateFailure("disk full"));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
     }
 
     /// <summary>
