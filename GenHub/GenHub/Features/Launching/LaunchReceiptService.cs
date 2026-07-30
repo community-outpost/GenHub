@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -53,11 +54,17 @@ public class LaunchReceiptService(
                 WorkingDirectory = context.WorkingDirectory,
                 Executable = await FingerprintExecutableAsync(context.ExecutablePath, cancellationToken),
                 ManifestIds = [.. context.ManifestIds],
+                Variant = context.Variant,
             };
 
             foreach (var (manifestId, version) in context.ManifestVersions)
             {
                 receipt.ManifestVersions[manifestId] = version;
+            }
+
+            foreach (var (variableName, value) in context.EnvironmentVariables)
+            {
+                receipt.EnvironmentVariables[variableName] = value;
             }
 
             foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
@@ -155,6 +162,8 @@ public class LaunchReceiptService(
 
         CompareManifests(receipt, upcoming, report);
         CompareArchiveRootConfiguration(receipt, upcoming, report);
+        CompareEnvironment(receipt, upcoming, report);
+        CompareVariant(receipt.Variant, upcoming.Variant, report);
 
         return report;
     }
@@ -262,7 +271,110 @@ public class LaunchReceiptService(
     }
 
     /// <summary>
-    /// Fingerprints one archive root by archive count and total bytes.
+    /// Compares the GenHub-built child environment against the receipt, per variable. The
+    /// retail archive root variables are excluded here because
+    /// <see cref="CompareArchiveRootConfiguration"/> already names their changes.
+    /// </summary>
+    /// <param name="receipt">The receipt from the previous launch.</param>
+    /// <param name="upcoming">The configuration of the launch about to happen.</param>
+    /// <param name="report">The report drifted fields are added to.</param>
+    private static void CompareEnvironment(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
+    {
+        foreach (var (variableName, recordedValue) in receipt.EnvironmentVariables)
+        {
+            if (IsArchiveRootVariable(variableName))
+            {
+                continue;
+            }
+
+            if (!upcoming.EnvironmentVariables.TryGetValue(variableName, out var upcomingValue))
+            {
+                report.DriftedFields.Add($"Environment variable {variableName} no longer set; was {recordedValue}");
+            }
+            else if (!string.Equals(recordedValue, upcomingValue, StringComparison.Ordinal))
+            {
+                report.DriftedFields.Add(
+                    $"Environment variable {variableName} changed from {recordedValue} to {upcomingValue}");
+            }
+        }
+
+        foreach (var (variableName, upcomingValue) in upcoming.EnvironmentVariables)
+        {
+            if (!IsArchiveRootVariable(variableName) &&
+                !receipt.EnvironmentVariables.ContainsKey(variableName))
+            {
+                report.DriftedFields.Add($"Environment variable {variableName} newly set: {upcomingValue}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a variable is one of the retail archive root variables.
+    /// </summary>
+    /// <param name="variableName">The variable name.</param>
+    /// <returns>Whether it carries an archive root.</returns>
+    private static bool IsArchiveRootVariable(string variableName)
+    {
+        foreach (var rootVariable in RetailArchiveConstants.InstallPathVariables)
+        {
+            if (string.Equals(variableName, rootVariable, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Compares the resolved variant and entry-point identity against the receipt.
+    /// </summary>
+    /// <param name="recorded">The identity recorded at the previous launch, if any.</param>
+    /// <param name="upcoming">The identity resolved for the launch about to happen, if any.</param>
+    /// <param name="report">The report drifted fields are added to.</param>
+    private static void CompareVariant(LaunchReceiptVariant? recorded, LaunchReceiptVariant? upcoming, LaunchReceiptDriftReport report)
+    {
+        if (recorded is null && upcoming is null)
+        {
+            return;
+        }
+
+        if (recorded is null)
+        {
+            report.DriftedFields.Add(
+                $"Variant identity newly resolvable; entry point is {upcoming!.EntryPointRelativePath ?? "(unresolved)"}");
+            return;
+        }
+
+        if (upcoming is null)
+        {
+            report.DriftedFields.Add(
+                $"Variant identity no longer resolvable; entry point was {recorded.EntryPointRelativePath ?? "(unresolved)"}");
+            return;
+        }
+
+        if (!string.Equals(recorded.RuntimeIdentifier, upcoming.RuntimeIdentifier, StringComparison.OrdinalIgnoreCase))
+        {
+            report.DriftedFields.Add(
+                $"Host runtime identifier changed from {recorded.RuntimeIdentifier} to {upcoming.RuntimeIdentifier}");
+        }
+
+        if (!recorded.VariantRuntimeIdentifiers.SequenceEqual(upcoming.VariantRuntimeIdentifiers, StringComparer.OrdinalIgnoreCase))
+        {
+            report.DriftedFields.Add(
+                $"Resolved variant changed from [{string.Join(", ", recorded.VariantRuntimeIdentifiers)}] to [{string.Join(", ", upcoming.VariantRuntimeIdentifiers)}]");
+        }
+
+        if (!string.Equals(recorded.EntryPointRelativePath, upcoming.EntryPointRelativePath, StringComparison.Ordinal))
+        {
+            report.DriftedFields.Add(
+                $"Entry point changed from {recorded.EntryPointRelativePath ?? "(unresolved)"} to {upcoming.EntryPointRelativePath ?? "(unresolved)"}");
+        }
+    }
+
+    /// <summary>
+    /// Fingerprints one archive root as a per-archive list of name, size and timestamp
+    /// from a single directory listing, with the count and byte total derived from it.
     /// </summary>
     /// <param name="rootPath">The archive root.</param>
     /// <returns>The fingerprint; a missing root fingerprints as zero archives.</returns>
@@ -277,8 +389,15 @@ public class LaunchReceiptService(
         foreach (var archivePath in Directory.EnumerateFiles(
             rootPath, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch))
         {
+            var info = new FileInfo(archivePath);
+            fingerprint.Archives.Add(new LaunchReceiptArchiveEntry
+            {
+                FileName = info.Name,
+                SizeBytes = info.Length,
+                LastWriteUtc = info.LastWriteTimeUtc,
+            });
             fingerprint.ArchiveCount++;
-            fingerprint.TotalArchiveBytes += new FileInfo(archivePath).Length;
+            fingerprint.TotalArchiveBytes += info.Length;
         }
 
         return fingerprint;
@@ -319,7 +438,9 @@ public class LaunchReceiptService(
     }
 
     /// <summary>
-    /// Compares one recorded archive-root fingerprint against the directory on disk.
+    /// Compares one recorded archive-root fingerprint against the directory on disk,
+    /// naming each added, removed or changed archive. Size and timestamp per archive make
+    /// an equal-size replacement visible, which a count and byte total alone cannot see.
     /// </summary>
     /// <param name="variableName">The environment variable that carried the root.</param>
     /// <param name="recorded">The recorded fingerprint.</param>
@@ -343,17 +464,53 @@ public class LaunchReceiptService(
             return;
         }
 
-        if (current.ArchiveCount != recorded.ArchiveCount)
+        var recordedByName = IndexArchivesByName(recorded.Archives);
+        var currentByName = IndexArchivesByName(current.Archives);
+
+        foreach (var (fileName, recordedArchive) in recordedByName)
         {
-            report.DriftedFields.Add(
-                $"Archive count for {variableName} changed from {recorded.ArchiveCount} to {current.ArchiveCount}: {recorded.Path}");
+            if (!currentByName.TryGetValue(fileName, out var currentArchive))
+            {
+                report.DriftedFields.Add($"Archive removed from root for {variableName}: {recordedArchive.FileName}");
+                continue;
+            }
+
+            if (currentArchive.SizeBytes != recordedArchive.SizeBytes)
+            {
+                report.DriftedFields.Add(
+                    $"Archive {recordedArchive.FileName} in root for {variableName} changed size from {recordedArchive.SizeBytes} to {currentArchive.SizeBytes} bytes");
+            }
+            else if (currentArchive.LastWriteUtc != recordedArchive.LastWriteUtc)
+            {
+                report.DriftedFields.Add(
+                    $"Archive {recordedArchive.FileName} in root for {variableName} changed last-write time from {recordedArchive.LastWriteUtc:O} to {currentArchive.LastWriteUtc:O}");
+            }
         }
 
-        if (current.TotalArchiveBytes != recorded.TotalArchiveBytes)
+        foreach (var (fileName, currentArchive) in currentByName)
         {
-            report.DriftedFields.Add(
-                $"Total archive bytes for {variableName} changed from {recorded.TotalArchiveBytes} to {current.TotalArchiveBytes}: {recorded.Path}");
+            if (!recordedByName.ContainsKey(fileName))
+            {
+                report.DriftedFields.Add($"Archive added to root for {variableName}: {currentArchive.FileName}");
+            }
         }
+    }
+
+    /// <summary>
+    /// Indexes archive fingerprints by file name, case-insensitively to match how the
+    /// archives themselves are enumerated.
+    /// </summary>
+    /// <param name="archives">The fingerprints to index.</param>
+    /// <returns>The index.</returns>
+    private static Dictionary<string, LaunchReceiptArchiveEntry> IndexArchivesByName(IEnumerable<LaunchReceiptArchiveEntry> archives)
+    {
+        var index = new Dictionary<string, LaunchReceiptArchiveEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var archive in archives)
+        {
+            index[archive.FileName] = archive;
+        }
+
+        return index;
     }
 
     /// <summary>

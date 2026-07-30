@@ -32,10 +32,16 @@ public class LaunchReceiptContext
     public string WorkingDirectory { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the environment passed to the child process; the retail archive root
-    /// variables are read from it.
+    /// Gets or sets the environment GenHub built for the child process — retail archive
+    /// roots plus profile-defined variables, never the inherited process environment.
     /// </summary>
     public IReadOnlyDictionary<string, string> EnvironmentVariables { get; set; } = new Dictionary<string, string>();
+
+    /// <summary>
+    /// Gets or sets the resolved variant and entry-point identity, when a game client
+    /// manifest is part of the launch.
+    /// </summary>
+    public LaunchReceiptVariant? Variant { get; set; }
 
     /// <summary>Gets or sets the manifest identifiers resolved for the launch.</summary>
     public IReadOnlyList<string> ManifestIds { get; set; } = [];

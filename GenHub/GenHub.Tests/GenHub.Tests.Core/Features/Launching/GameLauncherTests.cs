@@ -937,10 +937,20 @@ public class GameLauncherTests : IDisposable
             ExecutablePath = Path.Combine(workspacePath, "generalszh"),
         };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
-        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content", Version = "1.0" };
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Content",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+            EntryPoint = "generalszh",
+            Files = [new ManifestFile { RelativePath = "generalszh", IsExecutable = true }],
+        };
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(x => x.GetContentDirectoryAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string?>.CreateSuccess(_retailRoot));
         _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
                 It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
                 It.IsAny<CancellationToken>()))
@@ -965,7 +975,10 @@ public class GameLauncherTests : IDisposable
                     c.ExecutablePath == workspaceInfo.ExecutablePath &&
                     c.WorkspacePath == workspaceInfo.WorkspacePath &&
                     c.GameType == GameType.Generals &&
-                    c.ManifestIds.Contains("1.0.genhub.mod.test")),
+                    c.ManifestIds.Contains("1.0.genhub.mod.test") &&
+                    c.Variant != null &&
+                    c.Variant.GameClientManifestId == "1.0.genhub.mod.test" &&
+                    c.Variant.EntryPointRelativePath == "generalszh"),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -1012,6 +1025,8 @@ public class GameLauncherTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(driftReport.DriftedFields[0], result.Data.ReceiptDriftWarnings);
     }
 
     /// <summary>
@@ -1067,6 +1082,8 @@ public class GameLauncherTests : IDisposable
                     c.GameClientId == "version-1" &&
                     c.ExecutablePath == workspaceInfo.ExecutablePath)),
             Times.Once);
+        Assert.NotNull(result.Data);
+        Assert.Contains("Game client changed from old-client to version-1", result.Data.ReceiptDriftWarnings);
     }
 
     /// <summary>
