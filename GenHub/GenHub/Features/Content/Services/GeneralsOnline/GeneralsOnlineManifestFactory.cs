@@ -464,7 +464,19 @@ public class GeneralsOnlineManifestFactory(
             {
                 // Game client manifest: include executables, shared files, AND map files
                 // Map files are included with UserMapsDirectory install target so they install to Documents
-                var targetExecutable = GameClientConstants.GeneralsOnline60HzExecutable;
+                // Since 060526_QFE1 the portable ships an Easy Anti-Cheat bootstrapper that starts the
+                // binary named by EasyAntiCheat/Settings.json. When present it is the only launch target;
+                // the wrapped binary stays in the workspace as ordinary content for EAC to start.
+                var hasEacLauncher = filesWithHashes.Any(file =>
+                    !file.IsMap &&
+                    string.Equals(
+                        Path.GetFileName(file.RelativePath),
+                        GameClientConstants.GeneralsOnlineEacLauncherExecutable,
+                        StringComparison.OrdinalIgnoreCase));
+
+                var targetExecutable = hasEacLauncher
+                    ? GameClientConstants.GeneralsOnlineEacLauncherExecutable
+                    : GameClientConstants.GeneralsOnline60HzExecutable;
 
                 foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
                 {
@@ -480,10 +492,6 @@ public class GeneralsOnlineManifestFactory(
                     if (string.Equals(fileName, targetExecutable, StringComparison.OrdinalIgnoreCase))
                     {
                         isExecutable = true;
-                    }
-                    else if (string.Equals(fileName, GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
                     }
 
                     manifestFiles.Add(new ManifestFile

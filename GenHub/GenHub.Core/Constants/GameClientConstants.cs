@@ -69,6 +69,15 @@ public static class GameClientConstants
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
 
+    /// <summary>
+    /// Easy Anti-Cheat bootstrapper shipped since GeneralsOnline 060526_QFE1. It launches the
+    /// binary named by <c>EasyAntiCheat/Settings.json</c> and is the supported launch target.
+    /// </summary>
+    public const string GeneralsOnlineEacLauncherExecutable = "EAC_LaunchGeneralsOnline.exe";
+
+    /// <summary>Epic Online Services Easy Anti-Cheat installer shipped in the GeneralsOnline portable.</summary>
+    public const string GeneralsOnlineEacSetupExecutable = "EasyAntiCheat_EOS_Setup.exe";
+
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
 
