@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -30,6 +32,28 @@ public static class RetailArchiveConstants
     /// by localisation and version.
     /// </remarks>
     public const string ArchiveSearchPattern = "*.big";
+
+    /// <summary>
+    /// How <see cref="ArchiveSearchPattern"/> is matched within a retail root.
+    /// </summary>
+    /// <remarks>
+    /// Case-insensitive because retail data copied from a disc or a Windows machine is
+    /// frequently upper-cased, while the default glob is case-sensitive on Linux volumes and on
+    /// case-sensitive APFS. <c>INIZH.BIG</c> would otherwise read as no archives at all and
+    /// block a launch that would have worked — the opposite of what the check exists to do.
+    /// <para>
+    /// <see cref="EnumerationOptions.IgnoreInaccessible"/> is set back to <c>false</c> because
+    /// it defaults to <c>true</c> here, unlike the <see cref="SearchOption"/> overload. Left at
+    /// the default it turns an unreadable root into "no archives found", reporting a permission
+    /// problem as missing content.
+    /// </para>
+    /// </remarks>
+    public static readonly EnumerationOptions ArchiveSearch = new()
+    {
+        MatchCasing = MatchCasing.CaseInsensitive,
+        RecurseSubdirectories = false,
+        IgnoreInaccessible = false,
+    };
 
     /// <summary>
     /// Every retail archive root variable, Zero Hour first.

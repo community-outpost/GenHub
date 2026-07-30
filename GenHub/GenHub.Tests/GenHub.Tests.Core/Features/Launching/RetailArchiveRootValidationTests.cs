@@ -127,6 +127,32 @@ public class RetailArchiveRootValidationTests : IDisposable
     }
 
     /// <summary>
+    /// Retail data copied from a disc or a Windows machine is frequently upper-cased. On a
+    /// case-sensitive volume a case-sensitive glob finds nothing, so a valid root is rejected
+    /// and the launch blocked — the opposite of what this check exists to do.
+    /// </summary>
+    /// <remarks>
+    /// Only exercises the regression on a case-sensitive volume, which in practice means Linux
+    /// CI. The <see cref="SearchOption"/> overload this replaced matches with
+    /// <see cref="MatchCasing.PlatformDefault"/>, and that is already case-insensitive on macOS
+    /// and Windows — so this passes there whether or not the fix is present. Verified by
+    /// reverting the fix locally and watching it still pass.
+    /// </remarks>
+    [Fact]
+    public void Validate_WithUpperCasedArchive_Accepts()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var root = Directory.CreateDirectory(Path.Combine(_tempDir, "uppercased")).FullName;
+        File.WriteAllText(Path.Combine(root, "INIZH.BIG"), "archive");
+
+        Assert.Null(Validate(InstallationWithZeroHour(root)));
+    }
+
+    /// <summary>
     /// Disposes the temporary directory.
     /// </summary>
     public void Dispose()

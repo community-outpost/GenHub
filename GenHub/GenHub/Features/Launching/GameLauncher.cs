@@ -609,7 +609,7 @@ public class GameLauncher(
             try
             {
                 hasArchive = Directory
-                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
+                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
                     .Any();
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
