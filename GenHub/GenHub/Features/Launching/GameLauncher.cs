@@ -561,11 +561,11 @@ public class GameLauncher(
         // root would leave it running without base content — the same silent failure, one
         // directory over. Launching Generals must not fail over a stale Zero Hour root
         // though: that one has no bearing on it.
-        var roots = new List<(string Variable, string? Path, bool Required)>
+        var roots = new List<(string Variable, string? Path)>
         {
             gameType == GameType.Generals
-                ? (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath, true)
-                : (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath, true),
+                ? (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath)
+                : (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath),
         };
 
         if (gameType == GameType.ZeroHour)
@@ -583,10 +583,10 @@ public class GameLauncher(
             // needs the engine to report a failed mount; see the engine-side work tracked
             // for GeneralsGameCode. A workspace "*.big" check was considered and rejected:
             // a Zero Hour workspace always contains archives, so it would always pass.
-            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath, false));
+            roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath));
         }
 
-        foreach (var (variableName, declaredPath, _) in roots)
+        foreach (var (variableName, declaredPath) in roots)
         {
             // A profile override is the root actually used, so it is what gets checked.
             var root = environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured)
@@ -602,7 +602,7 @@ public class GameLauncher(
             if (!Directory.Exists(root))
             {
                 return $"The retail archive root for {variableName} does not exist: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
+                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
             }
 
             bool hasArchive;
@@ -620,7 +620,7 @@ public class GameLauncher(
             if (!hasArchive)
             {
                 return $"The retail archive root for {variableName} contains no .big archives: {root}. " +
-                       "The game would start with no content and no error, so the launch was stopped.";
+                       "The engine would abort during initialisation with a generic crash naming nothing, so the launch was stopped.";
             }
         }
 
@@ -645,8 +645,10 @@ public class GameLauncher(
     /// <para>
     /// The trailing separator is required, not cosmetic. The engine concatenates this
     /// value with the archive filename directly, so a root without one produces paths like
-    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive then fails to open, and the game
-    /// still starts — with no content and no error the user can act on.
+    /// <c>/path/to/GeneralsZHINIZH.big</c>. Every archive from that root then fails to
+    /// open. A workspace carrying its own archives starts without the retail content; one
+    /// that does not aborts during initialisation with a generic crash. Neither failure
+    /// names the root.
     /// </para>
     /// </remarks>
     /// <param name="environment">The environment being built.</param>

@@ -60,9 +60,9 @@ public class GameLauncherTests : IDisposable
         _configurationProviderServiceMock.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
 
         // A real directory holding a .big archive. The launcher validates retail archive
-        // roots before spawning, because the engine starts with no content and no error
-        // when they are wrong — so a fixture pointing at a path that does not exist would
-        // be rejected, exactly as a stale installation would be.
+        // roots before spawning, because a wrong root only surfaces as a generic engine
+        // abort — so a fixture pointing at a path that does not exist would be rejected,
+        // exactly as a stale installation would be.
         _retailRoot = Directory.CreateTempSubdirectory("GenHub.GameLauncherTests.").FullName;
         File.WriteAllText(Path.Combine(_retailRoot, "Generals.big"), "archive");
 

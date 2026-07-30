@@ -14,9 +14,9 @@ namespace GenHub.Tests.Core.Features.Launching;
 /// Tests for the pre-spawn retail archive root check.
 /// </summary>
 /// <remarks>
-/// The engine reaches its main loop with zero content and no error when these roots are
-/// wrong, so a launch that "succeeded" cannot be distinguished from one that produced an
-/// empty game. Everything here is about refusing to spawn in that state.
+/// When these roots are wrong the engine aborts during initialisation with a generic
+/// crash that names nothing the user can act on. Everything here is about refusing to
+/// spawn and naming the offending root instead.
 /// </remarks>
 public class RetailArchiveRootValidationTests : IDisposable
 {
