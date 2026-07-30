@@ -220,14 +220,17 @@ public class GameProcessManager(
                 logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
             }
 
-            // Check if process exited immediately (launcher pattern)
-            // Only apply delay if we need to detect a spawned process
+            // Exit-or-settle: wait on the process itself for up to the detection window
+            // rather than sleeping a fixed delay and sampling once. An initialisation
+            // abort takes the engine roughly a second — beyond the old 500 ms sample —
+            // and under the fixed delay such a process was reported as a successful
+            // launch and then died unobserved. A process still alive at window end is
+            // treated as launched; a later abort is only observable via ProcessExited.
             if (!isBatchFile)
             {
-                // Quick check to see if process exited immediately (launcher pattern)
-                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken); // Reduced from 2000ms - only for launcher detection
+                var spawnStopwatch = Stopwatch.StartNew();
 
-                if (process.HasExited)
+                if (await WaitForExitWithinWindowAsync(process, cancellationToken))
                 {
                     var exitCode = process.ExitCode;
 
@@ -247,6 +250,16 @@ public class GameProcessManager(
                         logger.LogInformation(
                             "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
                             process.Id);
+
+                        // Exit-or-settle can observe a stub exiting well before the old
+                        // fixed delay elapsed. The fixed delay always gave the spawned
+                        // game process that long from launch to register; preserve that
+                        // floor so the search below is not run too early to find it.
+                        var remainingMs = ProcessConstants.LauncherDetectionDelayMs - (int)spawnStopwatch.ElapsedMilliseconds;
+                        if (remainingMs > 0)
+                        {
+                            await Task.Delay(remainingMs, cancellationToken);
+                        }
 
                         var executableName = Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
                         var spawnedProcess = FindSpawnedGameProcess(executableName, configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!);
@@ -301,7 +314,11 @@ public class GameProcessManager(
                         }
                     }
 
-                    logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
+                    logger.LogWarning(
+                        "Process {ProcessId} exited during startup with code {ExitCode} after {ElapsedMs} ms",
+                        process.Id,
+                        exitCode,
+                        spawnStopwatch.ElapsedMilliseconds);
 
                     // The process has exited, but the async stderr handlers may not have
                     // delivered their final lines yet — and this is exactly the path where
@@ -312,21 +329,38 @@ public class GameProcessManager(
 
                     process.Dispose();
 
-                    // If it exits immediately with a non-zero code (like a crash or missing DLL), this is a genuine failure
+                    // If it exits during startup with a non-zero code (like a crash or missing DLL), this is a genuine failure
                     if (exitCode != 0)
                     {
+                        // Advisory only: the [ggc] sentinels are emitted solely by the
+                        // fork engine, so their presence upgrades the message to name the
+                        // archive, but their absence says nothing about the launch.
+                        var unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+                        if (unmountableArchives.Count > 0)
+                        {
+                            var archiveNames = string.Join(", ", unmountableArchives);
+
+                            logger.LogError(
+                                "[Process] Process exited during startup with code {ExitCode} after failing to mount archive(s): {Archives}",
+                                exitCode,
+                                archiveNames);
+
+                            return OperationResult<GameProcessInfo>.CreateFailure(
+                                $"The game could not mount required archive(s): {archiveNames}. Process exited during startup with code {exitCode}.");
+                        }
+
                         var stderrTail = capturedErrors.ToString();
                         var detail = string.IsNullOrWhiteSpace(stderrTail)
                             ? "No output was captured."
                             : stderrTail;
 
                         logger.LogError(
-                            "[Process] Process exited immediately with code {ExitCode}. Output: {Output}",
+                            "[Process] Process exited during startup with code {ExitCode}. Output: {Output}",
                             exitCode,
                             detail);
 
                         return OperationResult<GameProcessInfo>.CreateFailure(
-                            $"Process exited immediately with code {exitCode}. {detail}");
+                            $"Process exited during startup with code {exitCode}. {detail}");
                     }
                     else
                     {
@@ -337,12 +371,12 @@ public class GameProcessManager(
                         var suffix = string.IsNullOrWhiteSpace(stderrTail) ? string.Empty : $" {stderrTail}";
 
                         logger.LogError(
-                            "[Process] Process exited immediately with code 0 and no spawned process was found. Output: {Output}",
+                            "[Process] Process exited during startup with code 0 and no spawned process was found. Output: {Output}",
                             string.IsNullOrWhiteSpace(stderrTail) ? "No output was captured." : stderrTail);
 
                         // Still a failure: without a process to track the UI would sit in 'running'.
                         return OperationResult<GameProcessInfo>.CreateFailure(
-                            $"Process exited immediately after launch.{suffix}");
+                            $"Process exited during startup, shortly after launch.{suffix}");
                     }
                 }
             }
@@ -791,6 +825,77 @@ public class GameProcessManager(
         }
     }
 
+    /// <summary>
+    /// Waits for the process to exit, up to the post-spawn detection window.
+    /// </summary>
+    /// <remarks>
+    /// The window bounds how long a launch report can be delayed, not how long a failure
+    /// can be detected: a process that outlives it is treated as launched, and any later
+    /// abort surfaces through <see cref="ProcessExited"/>. Cancellation requested by the
+    /// caller propagates; the window elapsing does not.
+    /// </remarks>
+    /// <param name="process">The just-started process.</param>
+    /// <param name="cancellationToken">The caller's cancellation token.</param>
+    /// <returns><c>true</c> when the process exited within the window.</returns>
+    private static async Task<bool> WaitForExitWithinWindowAsync(Process process, CancellationToken cancellationToken)
+    {
+        using var windowCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        windowCts.CancelAfter(ProcessConstants.PostSpawnExitDetectionWindowMs);
+
+        try
+        {
+            await process.WaitForExitAsync(windowCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The window elapsed. Re-check rather than assume: the process may have
+            // exited in the race between the timer firing and the wait observing it.
+            return process.HasExited;
+        }
+    }
+
+    /// <summary>
+    /// Extracts the archive paths named by the engine's mount-failure stderr sentinels.
+    /// </summary>
+    /// <remarks>
+    /// Strictly advisory. The sentinels are an external contract with the fork engine
+    /// (see <see cref="RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix"/>)
+    /// and no other build emits them, so an empty result must never influence whether the
+    /// launch is judged to have failed — it only leaves the generic stderr tail in place.
+    /// </remarks>
+    /// <param name="stderrLines">The captured stderr lines.</param>
+    /// <returns>The distinct archives named, in order of first appearance.</returns>
+    private static IReadOnlyList<string> ExtractUnmountableArchives(IReadOnlyList<string> stderrLines)
+    {
+        string[] sentinelPrefixes =
+        [
+            RetailArchiveConstants.ArchiveMountFailedStderrPrefix,
+            RetailArchiveConstants.ArchiveIdentifierMismatchStderrPrefix,
+        ];
+
+        var archives = new List<string>();
+        foreach (var line in stderrLines)
+        {
+            foreach (var prefix in sentinelPrefixes)
+            {
+                var index = line.IndexOf(prefix, StringComparison.Ordinal);
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                var archive = line[(index + prefix.Length)..].Trim();
+                if (archive.Length > 0 && !archives.Contains(archive))
+                {
+                    archives.Add(archive);
+                }
+            }
+        }
+
+        return archives;
+    }
+
     private void OnProcessExited(object? sender, EventArgs e)
     {
         if (sender is not Process process)
@@ -986,6 +1091,23 @@ public class GameProcessManager(
                 {
                     return _endOfStream;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns the retained lines, head first, for line-oriented matching.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ToString"/> joins lines for display; matching against that joined
+        /// form would let one line's content bleed into the next. Lines dropped by the
+        /// bounds are gone from here too, which is acceptable for an advisory match.
+        /// </remarks>
+        /// <returns>A snapshot of the retained lines.</returns>
+        internal IReadOnlyList<string> Snapshot()
+        {
+            lock (_gate)
+            {
+                return [.. _head, .. _tail];
             }
         }
 
