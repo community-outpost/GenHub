@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Models.Enums;
@@ -41,6 +42,5 @@ public class GeneralsOnlineClientIdentifier : IGameClientIdentifier
     /// Easy Anti-Cheat, so it is workspace content rather than an entry point.
     /// </summary>
     private static bool IsSupportedEntryPoint(string fileName) =>
-        fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase)
-        || fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase);
+        GameClientConstants.GeneralsOnlineExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase);
 }

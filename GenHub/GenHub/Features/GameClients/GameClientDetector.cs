@@ -171,6 +171,53 @@ public class GameClientDetector(
     }
 
     /// <summary>
+    /// Resolves the single supported Generals Online entry point among one directory's file names.
+    /// The Easy Anti-Cheat bootstrapper takes precedence because it starts the binary named by
+    /// <c>EasyAntiCheat/Settings.json</c>; the bare 60Hz binary is the pre-EAC fallback.
+    /// </summary>
+    /// <param name="fileNames">The file names present in a single directory.</param>
+    /// <returns>The entry point name as it appears on disk, or <see langword="null"/> when none is present.</returns>
+    private static string? ResolveGeneralsOnlineEntryPoint(IEnumerable<string> fileNames)
+    {
+        string? sixtyHertz = null;
+
+        foreach (var fileName in fileNames)
+        {
+            if (fileName.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName;
+            }
+
+            if (fileName.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase))
+            {
+                sixtyHertz = fileName;
+            }
+        }
+
+        return sixtyHertz;
+    }
+
+    /// <summary>
+    /// Resolves the single supported Generals Online entry point in a directory. Names are matched
+    /// against the directory listing rather than composed from constants, so the package's own
+    /// casing resolves on case-sensitive file systems.
+    /// </summary>
+    /// <param name="directory">The directory to inspect.</param>
+    /// <returns>The entry point name, or <see langword="null"/> when none is present.</returns>
+    private static string? ResolveGeneralsOnlineEntryPoint(string directory)
+    {
+        try
+        {
+            return ResolveGeneralsOnlineEntryPoint(
+                Directory.EnumerateFiles(directory).Select(Path.GetFileName).OfType<string>());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Detects a game client from a specific executable file using hash analysis.
     /// </summary>
     /// <param name="executablePath">The path to the executable file.</param>
@@ -623,32 +670,12 @@ public class GameClientDetector(
     /// </summary>
     /// <param name="installation">The game installation to scan.</param>
     /// <param name="gameType">The type of game (Generals or ZeroHour).</param>
-
     /// <returns>A list of detected GeneralsOnline game clients.</returns>
     /// <remarks>
     /// GeneralsOnline executables are auto-updated by the GeneralsOnline launcher,
     /// which can invalidate hash verification. For now, we detect by filename only
     /// and skip hash validation until a dedicated publisher system is implemented.
     /// </remarks>
-    /// <summary>
-    /// Resolves the single supported Generals Online entry point in a directory. The Easy
-    /// Anti-Cheat bootstrapper takes precedence because it starts the binary named by
-    /// <c>EasyAntiCheat/Settings.json</c>; the bare 60Hz binary is the pre-EAC fallback.
-    /// </summary>
-    /// <param name="directory">The directory to inspect.</param>
-    /// <returns>The entry point file name, or <see langword="null"/> when none is present.</returns>
-    private static string? ResolveGeneralsOnlineEntryPoint(string directory)
-    {
-        if (File.Exists(Path.Combine(directory, GameClientConstants.GeneralsOnlineEacLauncherExecutable)))
-        {
-            return GameClientConstants.GeneralsOnlineEacLauncherExecutable;
-        }
-
-        return File.Exists(Path.Combine(directory, GameClientConstants.GeneralsOnline60HzExecutable))
-            ? GameClientConstants.GeneralsOnline60HzExecutable
-            : null;
-    }
-
     private Task<List<GameClient>> DetectGeneralsOnlineClientsAsync(
         GameInstallation installation,
         GameType gameType)
@@ -667,37 +694,17 @@ public class GameClientDetector(
         // Exactly one entry point per installation. Since 060526_QFE1 the Easy Anti-Cheat
         // bootstrapper wraps the 60Hz binary and both ship side by side, so detecting each
         // recognised name in turn would surface the same client twice.
-        string[] generalsOnlineExecutables = ResolveGeneralsOnlineEntryPoint(installationPath) is { } entryPoint
-            ? [entryPoint]
-            : [];
+        var executableName = ResolveGeneralsOnlineEntryPoint(installationPath);
 
-        foreach (var executableName in generalsOnlineExecutables)
+        if (executableName is not null)
         {
             var executablePath = Path.Combine(installationPath, executableName);
 
-            if (!File.Exists(executablePath))
-            {
-                continue;
-            }
-
             try
             {
-                // Determine the variant name from the executable
-                var variantName = executableName switch
-                {
-                    GameClientConstants.GeneralsOnlineEacLauncherExecutable => GameClientConstants.GeneralsOnline60HzDisplayName,
-                    GameClientConstants.GeneralsOnline60HzExecutable => GameClientConstants.GeneralsOnline60HzDisplayName,
-                    _ => null, // Skip unknown variants
-                };
-
-                // Skip if variant is not recognized
-                if (variantName == null)
-                {
-                    logger.LogDebug(
-                        "Skipping unrecognized GeneralsOnline executable: {ExecutableName}",
-                        executableName);
-                    continue;
-                }
+                // Both supported entry points start the 60Hz client: the bootstrapper launches
+                // the binary named by EasyAntiCheat/Settings.json, and pre-EAC packages run it directly.
+                var variantName = GameClientConstants.GeneralsOnline60HzDisplayName;
 
                 logger.LogInformation(
                     "Detected GeneralsOnline client: {VariantName} at {ExecutablePath}",
