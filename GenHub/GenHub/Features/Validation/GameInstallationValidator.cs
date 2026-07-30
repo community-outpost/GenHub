@@ -7,6 +7,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Validation;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
@@ -50,64 +51,79 @@ public class GameInstallationValidator(
         logger.LogInformation("Starting validation for installation '{Path}'", installation.InstallationPath);
         var issues = new List<ValidationIssue>();
 
-        // Calculate total steps dynamically based on installation
-        int totalSteps = 4; // Base steps: manifest fetch, manifest validation, integrity, extraneous files
-        if (installation.HasGenerals) totalSteps++;
-        if (installation.HasZeroHour) totalSteps++;
+        // Each flagged game is validated as its own pass against its own manifest and
+        // directory. A combined installation carries both games — asking for "the"
+        // manifest of such an installation would surface Zero Hour only and Generals
+        // would silently never be validated.
+        var passes = new List<(GameType? GameType, string SourcePath)>();
+        if (installation.HasGenerals)
+        {
+            passes.Add((GameType.Generals, string.IsNullOrEmpty(installation.GeneralsPath) ? installation.InstallationPath : installation.GeneralsPath));
+        }
 
+        if (installation.HasZeroHour)
+        {
+            passes.Add((GameType.ZeroHour, string.IsNullOrEmpty(installation.ZeroHourPath) ? installation.InstallationPath : installation.ZeroHourPath));
+        }
+
+        if (passes.Count == 0)
+        {
+            // No game flagged: fall back to the installation-level manifest lookup so a
+            // bare registration still gets a definite answer instead of no validation.
+            passes.Add((null, installation.InstallationPath));
+        }
+
+        // Four steps per pass: manifest fetch, manifest validation, content files, directories.
+        int totalSteps = passes.Count * 4;
         int currentStep = 0;
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Fetching manifest"));
-
-        // Fetch manifest for this installation type
-        var manifest = await manifestProvider.GetManifestAsync(installation, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        if (manifest == null)
+        foreach (var (gameType, sourcePath) in passes)
         {
-            issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = installation.InstallationPath, Message = "Manifest not found for installation." });
-            progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
-            return new ValidationResult(installation.InstallationPath, issues);
-        }
+            progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Fetching manifest"));
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
-
-        var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
-        issues.AddRange(manifestValidationResult.Issues);
-
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
-
-        // Use ContentValidator for full content validation (integrity + extraneous files)
-        try
-        {
-            var fullValidation = await contentValidator.ValidateAllAsync(installation.InstallationPath, manifest, progress, cancellationToken);
-            issues.AddRange(fullValidation.Issues);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Content validation failed for installation '{Path}'", installation.InstallationPath);
-            issues.Add(new ValidationIssue
+            var manifest = gameType is null
+                ? await manifestProvider.GetManifestAsync(installation, cancellationToken)
+                : await manifestProvider.GetManifestAsync(installation, gameType.Value, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (manifest == null)
             {
-                IssueType = ValidationIssueType.CorruptedFile,
-                Path = installation.InstallationPath,
-                Message = $"Content validation failed: {ex.Message}",
-                Severity = ValidationSeverity.Error,
-            });
-        }
-
-        // Installation-specific validations (directories, etc.)
-        var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();
-        if (requiredDirs.Any())
-        {
-            if (installation.HasGenerals)
-            {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Generals directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.GeneralsPath, requiredDirs, cancellationToken));
+                issues.Add(new ValidationIssue { IssueType = ValidationIssueType.MissingFile, Path = sourcePath, Message = "Manifest not found for installation." });
+                currentStep += 3;
+                continue;
             }
 
-            if (installation.HasZeroHour)
+            progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
+
+            var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
+            issues.AddRange(manifestValidationResult.Issues);
+
+            progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
+
+            // Use ContentValidator for full content validation (integrity + extraneous files)
+            try
             {
-                progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating Zero Hour directories"));
-                issues.AddRange(await ValidateDirectoriesAsync(installation.ZeroHourPath, requiredDirs, cancellationToken));
+                var fullValidation = await contentValidator.ValidateAllAsync(sourcePath, manifest, progress, cancellationToken);
+                issues.AddRange(fullValidation.Issues);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Content validation failed for installation '{Path}'", sourcePath);
+                issues.Add(new ValidationIssue
+                {
+                    IssueType = ValidationIssueType.CorruptedFile,
+                    Path = sourcePath,
+                    Message = $"Content validation failed: {ex.Message}",
+                    Severity = ValidationSeverity.Error,
+                });
+            }
+
+            // Installation-specific validations (directories, etc.)
+            progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating game directories"));
+
+            var requiredDirs = manifest.RequiredDirectories ?? Enumerable.Empty<string>();
+            if (requiredDirs.Any() && gameType is not null)
+            {
+                issues.AddRange(await ValidateDirectoriesAsync(sourcePath, requiredDirs, cancellationToken));
             }
         }
 

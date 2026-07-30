@@ -391,6 +391,50 @@ public class GameInstallationValidatorTests
     }
 
     /// <summary>
+    /// A combined installation — both games flagged at the same directory — must be
+    /// validated once per game, so a Generals manifest is requested too instead of
+    /// silently never being fetched behind the Zero Hour preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_CombinedInstallation_ValidatesBothGames()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedValidation.");
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir.FullName, "INI.big"), "archive");
+            File.WriteAllText(Path.Combine(tempDir.FullName, "INIZH.big"), "archive");
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Retail,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, tempDir.FullName);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            var manifest = new ContentManifest { Files = new List<ManifestFile>() };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifest);
+
+            var result = await _validator.ValidateAsync(installation, null, default);
+
+            Assert.True(result.IsValid);
+            _manifestProviderMock.Verify(
+                m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.Generals, It.IsAny<CancellationToken>()),
+                Times.Once);
+            _manifestProviderMock.Verify(
+                m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.ZeroHour, It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Custom progress implementation that captures reports synchronously.
     /// </summary>
     private class SynchronousProgress<T> : IProgress<T>

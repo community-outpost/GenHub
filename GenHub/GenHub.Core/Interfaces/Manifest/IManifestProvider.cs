@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
@@ -23,5 +24,20 @@ public interface IManifestProvider
     /// <param name="gameInstallation">The game installation for which to retrieve the manifest.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The ContentManifest, or null if not found.</returns>
+    /// <remarks>
+    /// Surfaces one manifest only, preferring Zero Hour when both games are flagged.
+    /// For a combined installation carrying both games, use
+    /// <see cref="GetManifestAsync(GameInstallation, GameType, CancellationToken)"/>
+    /// per game so Generals is not skipped.
+    /// </remarks>
     Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Asynchronously retrieves the manifest for one game of a game installation.
+    /// </summary>
+    /// <param name="gameInstallation">The game installation for which to retrieve the manifest.</param>
+    /// <param name="gameType">The game whose manifest is requested.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The ContentManifest, or null if not found.</returns>
+    Task<ContentManifest?> GetManifestAsync(GameInstallation gameInstallation, GameType gameType, CancellationToken cancellationToken = default);
 }

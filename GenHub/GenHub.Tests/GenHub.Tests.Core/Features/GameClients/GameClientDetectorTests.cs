@@ -617,6 +617,57 @@ public class GameClientDetectorTests : IDisposable
         // Verify CreateGeneralsOnlineClientManifestAsync was NOT called (no GeneralsOnline files)
     }
 
+    /// <summary>
+    /// A combined directory — both games flagged at the same path — holds one executable
+    /// set and must yield one standard client (Zero Hour), not a duplicate Generals
+    /// client wrapping the same executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsSingleClient()
+    {
+        // Arrange
+        var combinedPath = Path.Combine(_tempDirectory, "Combined");
+        Directory.CreateDirectory(combinedPath);
+        var executablePath = Path.Combine(combinedPath, "generals.exe");
+        await File.WriteAllTextAsync(executablePath, "dummy content");
+
+        var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Retail)
+        {
+            HasGenerals = true,
+            GeneralsPath = combinedPath,
+            HasZeroHour = true,
+            ZeroHourPath = combinedPath,
+        };
+
+        List<GameInstallation> installations = [installation];
+
+        // Setup hash provider to recognise the executable as Zero Hour
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(executablePath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GameClientHashRegistry.ZeroHour105HashPublic);
+
+        // Setup manifest generation
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        var manifest = new ContentManifest { Id = ManifestId.Create("1.105.retail.gameclient.zerohour") };
+        manifestBuilderMock.Setup(x => x.Build()).Returns(manifest);
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _detector.DetectGameClientsFromInstallationsAsync(installations);
+
+        // Assert
+        Assert.True(result.Success);
+        var client = Assert.Single(result.Items);
+        Assert.Equal(GameType.ZeroHour, client.GameType);
+        Assert.Equal(executablePath, client.ExecutablePath);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace GenHub.Core.Constants;
@@ -34,6 +36,19 @@ public static class RetailArchiveConstants
     public const string ArchiveSearchPattern = "*.big";
 
     /// <summary>
+    /// Filename suffix that marks an archive as Zero Hour content.
+    /// </summary>
+    /// <remarks>
+    /// A retail fact, not an engine one: a retail Zero Hour installation ships its
+    /// archives with this suffix (<c>INIZH.big</c>, <c>AudioZH.big</c>, …), verifiable
+    /// against a real installation, so any such archive marks Zero Hour data. Deliberately
+    /// not derived from any engine build's loading code, so the rule stays valid for a
+    /// stock retail install with no community client. Compare case-insensitively — retail
+    /// data copied from a disc or a Windows machine is frequently upper-cased.
+    /// </remarks>
+    public const string ZeroHourArchiveSuffix = "zh.big";
+
+    /// <summary>
     /// How <see cref="ArchiveSearchPattern"/> is matched within a retail root.
     /// </summary>
     /// <remarks>
@@ -63,4 +78,34 @@ public static class RetailArchiveConstants
         ZeroHourInstallPathVariable,
         GeneralsInstallPathVariable,
     ];
+
+    /// <summary>
+    /// The canonical archive filenames of a retail Generals installation.
+    /// </summary>
+    /// <remarks>
+    /// A retail fact: these are the archives present in a retail Generals installation,
+    /// verifiable against a real one. Deliberately not derived from any engine build's
+    /// loading code, so the set stays valid for a stock retail install with no community
+    /// client. Any one of them marks a directory as holding Generals data — localised SKUs
+    /// vary in which language archives they carry, so requiring the full set would reject
+    /// valid installs. The comparer is case-insensitive for the same reason as
+    /// <see cref="ZeroHourArchiveSuffix"/>.
+    /// </remarks>
+    public static readonly IReadOnlySet<string> GeneralsArchiveNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "audio.big",
+        "audioenglish.big",
+        "english.big",
+        "gensec.big",
+        "ini.big",
+        "maps.big",
+        "music.big",
+        "shaders.big",
+        "speech.big",
+        "speechenglish.big",
+        "terrain.big",
+        "textures.big",
+        "w3d.big",
+        "window.big",
+    };
 }
