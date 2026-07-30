@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -14,7 +15,7 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// <summary>
 /// Tests for the WorkspaceValidator class.
 /// </summary>
-public class WorkspaceValidatorTests : IDisposable
+public partial class WorkspaceValidatorTests : IDisposable
 {
     private readonly Mock<ILogger<WorkspaceValidator>> _mockLogger;
     private readonly WorkspaceValidator _validator;
@@ -259,7 +260,11 @@ public class WorkspaceValidatorTests : IDisposable
     [Fact]
     public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_ReturnsAccessWarning()
     {
-        if (OperatingSystem.IsWindows())
+        // Root bypasses the permission bits entirely: faccessat reports execute access for
+        // an other-only bit, so the behaviour under test does not exist for uid 0. Checked
+        // via geteuid rather than the user name, which is wrong under `sudo -E` and for any
+        // uid-0 account named otherwise.
+        if (OperatingSystem.IsWindows() || GetEffectiveUserId() == 0)
         {
             return;
         }
@@ -360,4 +365,12 @@ public class WorkspaceValidatorTests : IDisposable
             Strategy = WorkspaceStrategy.FullCopy,
         };
     }
+
+    /// <summary>
+    /// Effective user ID, POSIX <c>geteuid(2)</c>. Declared here because the production
+    /// equivalent is internal to the GenHub assembly.
+    /// </summary>
+    /// <returns>The effective user ID; 0 is root.</returns>
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint GetEffectiveUserId();
 }

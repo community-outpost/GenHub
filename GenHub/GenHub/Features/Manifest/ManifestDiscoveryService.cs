@@ -193,18 +193,31 @@ public class ManifestDiscoveryService(
         return true;
     }
 
+    /// <summary>
+    /// Applies the variant ingestion gate, logging and rejecting when it does not pass.
+    /// </summary>
+    /// <param name="manifest">The deserialized manifest.</param>
+    /// <param name="source">Where it came from, named in the rejection log.</param>
+    /// <returns><c>true</c> when the manifest may be ingested; otherwise <c>false</c>.</returns>
+    private bool IsManifestAccepted(ContentManifest manifest, string source)
+    {
+        if (ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            return true;
+        }
+
+        logger.LogWarning("Skipping manifest from {Source}: {Reason}", source, rejectionReason);
+        return false;
+    }
+
     private async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
         if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
         {
-            if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+            if (!IsManifestAccepted(manifest, manifestPath))
             {
-                logger.LogWarning(
-                    "Skipping manifest at {ManifestPath}: {Reason}",
-                    manifestPath,
-                    rejectionReason);
                 return null;
             }
 
@@ -288,12 +301,8 @@ public class ManifestDiscoveryService(
                     var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
-                        if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+                        if (!IsManifestAccepted(manifest, manifestFile))
                         {
-                            logger.LogWarning(
-                                "Skipping manifest at {ManifestFile}: {Reason}",
-                                manifestFile,
-                                rejectionReason);
                             continue;
                         }
 
@@ -326,12 +335,8 @@ public class ManifestDiscoveryService(
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
-                    if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+                    if (!IsManifestAccepted(manifest, resourceName))
                     {
-                        logger.LogWarning(
-                            "Skipping embedded manifest {ResourceName}: {Reason}",
-                            resourceName,
-                            rejectionReason);
                         continue;
                     }
 
