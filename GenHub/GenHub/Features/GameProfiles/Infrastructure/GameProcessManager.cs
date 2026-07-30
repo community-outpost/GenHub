@@ -38,6 +38,19 @@ public class GameProcessManager(
     /// attach it to the exit event.
     /// </remarks>
     private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _stderrBuffers = new();
+
+    /// <summary>
+    /// PIDs whose termination was requested through <see cref="TerminateProcessAsync"/>,
+    /// marked before the kill is attempted.
+    /// </summary>
+    /// <remarks>
+    /// A deliberate stop kills the process, and a killed process exits non-zero — which
+    /// is exactly the signature the late-failure channel treats as a crash. Every stop
+    /// path in the application funnels through <see cref="TerminateProcessAsync"/>, so
+    /// marking here lets the exit event distinguish "the user stopped it" from "it
+    /// died", and downstream consumers suppress the failure classification.
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, byte> _requestedTerminations = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -220,6 +233,10 @@ public class GameProcessManager(
             try
             {
                 logger.LogInformation("[Terminate] Force killing process {ProcessId} and its process tree", processId);
+
+                // Marked before the kill so the exit event this triggers is classified
+                // as a requested termination, not a crash.
+                _requestedTerminations[processId] = 1;
 
                 // Run Kill() on a background thread to prevent UI freeze
                 await Task.Run(() => process.Kill(entireProcessTree: true), cancellationToken);
@@ -471,6 +488,7 @@ public class GameProcessManager(
         {
             _managedProcesses.TryRemove(processId, out _);
             _stderrBuffers.TryRemove(processId, out _);
+            _requestedTerminations.TryRemove(processId, out _);
             logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", processId);
         }
 
@@ -510,6 +528,7 @@ public class GameProcessManager(
 
         _managedProcesses.Clear();
         _stderrBuffers.Clear();
+        _requestedTerminations.Clear();
         _terminationSemaphore.Dispose();
         _disposed = true;
 
@@ -1060,6 +1079,8 @@ public class GameProcessManager(
         // Remove from managed processes
         _managedProcesses.TryRemove(processId, out _);
 
+        var terminationRequested = _requestedTerminations.TryRemove(processId, out _);
+
         // Attach the stderr capture, when this manager started the process itself. This
         // is what makes an abort that outlived the detection window explicable: the exit
         // is already after "launched", so the event is the only place the evidence fits.
@@ -1074,7 +1095,7 @@ public class GameProcessManager(
             unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
         }
 
-        if (exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
+        if (!terminationRequested && exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
         {
             logger.LogWarning(
                 "Process {ProcessId} exited with non-zero code {ExitCode} after the launch was reported as started. Archives: {Archives}. Output: {Output}",
@@ -1092,6 +1113,7 @@ public class GameProcessManager(
             ExitTime = DateTime.UtcNow,
             StandardErrorTail = stderrTail,
             UnmountableArchives = unmountableArchives,
+            TerminationRequested = terminationRequested,
         };
 
         ProcessExited?.Invoke(this, args);
