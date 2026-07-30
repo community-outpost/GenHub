@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -116,6 +117,7 @@ public class LaunchReceiptService(
             return OperationResult<LaunchReceiptDriftReport>.CreateSuccess(report);
         }
 
+        report.Receipt = receipt;
         CompareExecutable(receipt.Executable, report);
         foreach (var (variableName, recordedRoot) in receipt.ArchiveRoots)
         {
@@ -125,6 +127,38 @@ public class LaunchReceiptService(
         return OperationResult<LaunchReceiptDriftReport>.CreateSuccess(report);
     }
 
+    /// <inheritdoc/>
+    public LaunchReceiptDriftReport CompareUpcomingLaunch(LaunchReceipt receipt, LaunchReceiptContext upcoming)
+    {
+        ArgumentNullException.ThrowIfNull(receipt);
+        ArgumentNullException.ThrowIfNull(upcoming);
+
+        var report = new LaunchReceiptDriftReport { HasReceipt = true, Receipt = receipt };
+
+        if (!string.Equals(receipt.GameClientId ?? string.Empty, upcoming.GameClientId ?? string.Empty, StringComparison.Ordinal))
+        {
+            report.DriftedFields.Add(
+                $"Game client changed from {receipt.GameClientId ?? "(none)"} to {upcoming.GameClientId ?? "(none)"}");
+        }
+
+        if (receipt.GameType != upcoming.GameType)
+        {
+            report.DriftedFields.Add($"Game type changed from {receipt.GameType} to {upcoming.GameType}");
+        }
+
+        if (!string.IsNullOrEmpty(upcoming.ExecutablePath) &&
+            !PathsEqual(receipt.Executable.Path, upcoming.ExecutablePath))
+        {
+            report.DriftedFields.Add(
+                $"Executable path changed from {receipt.Executable.Path} to {upcoming.ExecutablePath}");
+        }
+
+        CompareManifests(receipt, upcoming, report);
+        CompareArchiveRootConfiguration(receipt, upcoming, report);
+
+        return report;
+    }
+
     /// <summary>
     /// Resolves the receipt path within a workspace.
     /// </summary>
@@ -132,6 +166,100 @@ public class LaunchReceiptService(
     /// <returns>The receipt path.</returns>
     private static string GetReceiptPath(string workspacePath) =>
         Path.Combine(workspacePath, FileTypes.LaunchReceiptFileName);
+
+    /// <summary>
+    /// Compares two paths ignoring a trailing directory separator, which the archive root
+    /// variables carry by engine requirement and other paths do not.
+    /// </summary>
+    /// <param name="left">One path.</param>
+    /// <param name="right">The other path.</param>
+    /// <returns>Whether the paths are equal.</returns>
+    private static bool PathsEqual(string left, string right) =>
+        string.Equals(
+            Path.TrimEndingDirectorySeparator(left),
+            Path.TrimEndingDirectorySeparator(right),
+            StringComparison.Ordinal);
+
+    /// <summary>
+    /// Compares the recorded manifest set and versions against the upcoming launch's.
+    /// </summary>
+    /// <param name="receipt">The receipt from the previous launch.</param>
+    /// <param name="upcoming">The configuration of the launch about to happen.</param>
+    /// <param name="report">The report drifted fields are added to.</param>
+    private static void CompareManifests(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
+    {
+        var recordedIds = new HashSet<string>(receipt.ManifestIds, StringComparer.Ordinal);
+        var upcomingIds = new HashSet<string>(upcoming.ManifestIds, StringComparer.Ordinal);
+
+        foreach (var manifestId in receipt.ManifestIds)
+        {
+            if (!upcomingIds.Contains(manifestId))
+            {
+                report.DriftedFields.Add($"Manifest no longer part of the launch: {manifestId}");
+            }
+        }
+
+        foreach (var manifestId in upcoming.ManifestIds)
+        {
+            if (!recordedIds.Contains(manifestId))
+            {
+                report.DriftedFields.Add($"Manifest added since the last launch: {manifestId}");
+            }
+        }
+
+        foreach (var (manifestId, recordedVersion) in receipt.ManifestVersions)
+        {
+            if (upcoming.ManifestVersions.TryGetValue(manifestId, out var upcomingVersion) &&
+                !string.Equals(recordedVersion, upcomingVersion, StringComparison.Ordinal))
+            {
+                report.DriftedFields.Add(
+                    $"Manifest {manifestId} version changed from {recordedVersion} to {upcomingVersion}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Compares which archive roots are configured, and where they point, against the
+    /// receipt — path changes, not content changes, which the filesystem checks own.
+    /// </summary>
+    /// <param name="receipt">The receipt from the previous launch.</param>
+    /// <param name="upcoming">The configuration of the launch about to happen.</param>
+    /// <param name="report">The report drifted fields are added to.</param>
+    private static void CompareArchiveRootConfiguration(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
+    {
+        foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
+        {
+            receipt.ArchiveRoots.TryGetValue(variableName, out var recordedRoot);
+            var upcomingRoot =
+                upcoming.EnvironmentVariables.TryGetValue(variableName, out var configured) &&
+                !string.IsNullOrWhiteSpace(configured)
+                    ? configured
+                    : null;
+
+            if (recordedRoot is null && upcomingRoot is null)
+            {
+                continue;
+            }
+
+            if (recordedRoot is null)
+            {
+                report.DriftedFields.Add($"Archive root for {variableName} newly configured: {upcomingRoot}");
+                continue;
+            }
+
+            if (upcomingRoot is null)
+            {
+                report.DriftedFields.Add($"Archive root for {variableName} no longer configured; was {recordedRoot.Path}");
+                continue;
+            }
+
+            if (!PathsEqual(recordedRoot.Path, upcomingRoot))
+            {
+                report.DriftedFields.Add(
+                    $"Archive root path for {variableName} changed from {recordedRoot.Path} to {upcomingRoot}");
+            }
+        }
+    }
 
     /// <summary>
     /// Fingerprints one archive root by archive count and total bytes.
