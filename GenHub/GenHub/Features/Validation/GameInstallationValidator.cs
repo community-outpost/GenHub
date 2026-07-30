@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -73,6 +75,18 @@ public class GameInstallationValidator(
             passes.Add((null, installation.InstallationPath));
         }
 
+        // In a combined directory both games' retail archives sit side by side, so each
+        // per-game pass sees the sibling game's root archives as files its manifest never
+        // mentions. Those are not extraneous — they are the other half of the same
+        // installation — and flagging them would indict every combined install.
+        var isCombinedDirectory = installation.HasGenerals
+            && installation.HasZeroHour
+            && !string.IsNullOrEmpty(installation.GeneralsPath)
+            && !string.IsNullOrEmpty(installation.ZeroHourPath)
+            && Path.GetFullPath(installation.GeneralsPath).Equals(
+                Path.GetFullPath(installation.ZeroHourPath),
+                StringComparison.OrdinalIgnoreCase);
+
         // Four steps per pass: manifest fetch, manifest validation, content files, directories.
         int totalSteps = passes.Count * 4;
         int currentStep = 0;
@@ -103,7 +117,10 @@ public class GameInstallationValidator(
             try
             {
                 var fullValidation = await contentValidator.ValidateAllAsync(sourcePath, manifest, progress, cancellationToken);
-                issues.AddRange(fullValidation.Issues);
+                var contentIssues = isCombinedDirectory && gameType is not null
+                    ? fullValidation.Issues.Where(issue => !IsSiblingGameRootArchive(issue, gameType.Value))
+                    : fullValidation.Issues;
+                issues.AddRange(contentIssues);
             }
             catch (Exception ex)
             {
@@ -131,5 +148,36 @@ public class GameInstallationValidator(
 
         logger.LogInformation("Installation validation for '{Path}' completed with {Count} issues.", installation.InstallationPath, issues.Count);
         return new ValidationResult(installation.InstallationPath, issues);
+    }
+
+    /// <summary>
+    /// Determines whether an extraneous-file issue actually names a root archive of the
+    /// sibling game in a combined directory.
+    /// </summary>
+    /// <param name="issue">The issue reported by content validation.</param>
+    /// <param name="gameType">The game whose pass produced the issue.</param>
+    /// <returns>True when the issue refers to the other game's known root archive.</returns>
+    /// <remarks>
+    /// Recognition uses the same retail vocabulary that classified the directory in the
+    /// first place: in the Generals pass any root-level <c>*zh.big</c> belongs to Zero
+    /// Hour, and in the Zero Hour pass any canonical Generals archive name belongs to
+    /// Generals. Only the directory root is tolerated — deeper files are outside the
+    /// vocabulary and stay reported.
+    /// </remarks>
+    private static bool IsSiblingGameRootArchive(ValidationIssue issue, GameType gameType)
+    {
+        if (issue.IssueType != ValidationIssueType.UnexpectedFile || string.IsNullOrEmpty(issue.Path))
+        {
+            return false;
+        }
+
+        if (issue.Path.Contains(Path.DirectorySeparatorChar) || issue.Path.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        return gameType == GameType.Generals
+            ? issue.Path.EndsWith(RetailArchiveConstants.ZeroHourArchiveSuffix, StringComparison.OrdinalIgnoreCase)
+            : RetailArchiveConstants.GeneralsArchiveNames.Contains(issue.Path);
     }
 }

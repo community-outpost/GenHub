@@ -620,17 +620,42 @@ public class GameClientDetectorTests : IDisposable
     /// <summary>
     /// A combined directory — both games flagged at the same path — holds one executable
     /// set and must yield one standard client (Zero Hour), not a duplicate Generals
-    /// client wrapping the same executable.
+    /// client wrapping the same executable. An extensionless native binary sitting
+    /// alongside generals.exe must reach publisher identification: the earlier *.exe
+    /// glob hid it from the scan entirely.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsSingleClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithCombinedDirectory_YieldsSingleStandardClientAndSeesNativeBinary()
     {
         // Arrange
         var combinedPath = Path.Combine(_tempDirectory, "Combined");
         Directory.CreateDirectory(combinedPath);
         var executablePath = Path.Combine(combinedPath, "generals.exe");
         await File.WriteAllTextAsync(executablePath, "dummy content");
+
+        // An extensionless native client binary, the shape a Mach-O or ELF build has.
+        var nativeBinaryPath = Path.Combine(combinedPath, "GeneralsZH");
+        await File.WriteAllTextAsync(nativeBinaryPath, "dummy content");
+
+        var nativeIdentifierMock = new Mock<IGameClientIdentifier>();
+        nativeIdentifierMock.Setup(x => x.PublisherId).Returns("TestNativePublisher");
+        nativeIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => p.EndsWith("GeneralsZH")))).Returns(true);
+        nativeIdentifierMock.Setup(x => x.CanIdentify(It.Is<string>(p => !p.EndsWith("GeneralsZH")))).Returns(false);
+        nativeIdentifierMock.Setup(x => x.Identify(It.IsAny<string>())).Returns(new GameClientIdentification(
+            "TestNativePublisher",
+            "Native",
+            "Native Zero Hour Client",
+            GameType.ZeroHour,
+            GameClientConstants.UnknownVersion));
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [nativeIdentifierMock.Object],
+            NullLogger<GameClientDetector>.Instance);
 
         var installation = new GameInstallation("C:\\TestInstall", GameInstallationType.Retail)
         {
@@ -659,13 +684,19 @@ public class GameClientDetectorTests : IDisposable
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        var result = await _detector.DetectGameClientsFromInstallationsAsync(installations);
+        var result = await detector.DetectGameClientsFromInstallationsAsync(installations);
 
         // Assert
         Assert.True(result.Success);
-        var client = Assert.Single(result.Items);
-        Assert.Equal(GameType.ZeroHour, client.GameType);
-        Assert.Equal(executablePath, client.ExecutablePath);
+        Assert.Equal(2, result.Items.Count);
+
+        var standardClient = Assert.Single(result.Items, c => string.IsNullOrEmpty(c.PublisherType));
+        Assert.Equal(GameType.ZeroHour, standardClient.GameType);
+        Assert.Equal(executablePath, standardClient.ExecutablePath);
+
+        var nativeClient = Assert.Single(result.Items, c => c.PublisherType == "TestNativePublisher");
+        Assert.Equal(GameType.ZeroHour, nativeClient.GameType);
+        Assert.Equal(nativeBinaryPath, nativeClient.ExecutablePath);
     }
 
     /// <inheritdoc/>

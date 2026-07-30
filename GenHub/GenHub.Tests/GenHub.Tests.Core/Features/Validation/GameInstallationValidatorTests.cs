@@ -1,11 +1,14 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Validation;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -427,6 +430,78 @@ public class GameInstallationValidatorTests
             _manifestProviderMock.Verify(
                 m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.ZeroHour, It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
+    /// Validating a combined directory once per game must not report the sibling game's
+    /// retail root archives as extraneous: each per-game manifest lists only its own
+    /// game's files, yet both games legitimately share the directory. Uses the real
+    /// <see cref="ContentValidator"/> so the extraneous-file scan actually runs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_CombinedInstallation_DoesNotReportSiblingArchivesAsExtraneous()
+    {
+        var tempDir = Directory.CreateTempSubdirectory("GenHub.CombinedExtraneous.");
+        try
+        {
+            var generalsArchive = Path.Combine(tempDir.FullName, "INI.big");
+            var zeroHourArchive = Path.Combine(tempDir.FullName, "INIZH.big");
+            await File.WriteAllTextAsync(generalsArchive, "archive");
+            await File.WriteAllTextAsync(zeroHourArchive, "archive");
+
+            var installation = new GameInstallation(
+                tempDir.FullName,
+                GameInstallationType.Retail,
+                new Mock<ILogger<GameInstallation>>().Object);
+            installation.SetPaths(tempDir.FullName, tempDir.FullName);
+            Assert.True(installation.HasGenerals);
+            Assert.True(installation.HasZeroHour);
+
+            // Each per-game manifest lists only that game's archive, as a canonical
+            // (CAS/embedded) manifest would — the other game's files are not in it.
+            var generalsManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.108.retail.gameinstallation.generals"),
+                Name = "Generals",
+                Version = "1.08",
+                Files = new() { new ManifestFile { RelativePath = "INI.big", Hash = string.Empty } },
+            };
+            var zeroHourManifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.104.retail.gameinstallation.zerohour"),
+                Name = "Zero Hour",
+                Version = "1.04",
+                Files = new() { new ManifestFile { RelativePath = "INIZH.big", Hash = string.Empty } },
+            };
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.Generals, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(generalsManifest);
+            _manifestProviderMock
+                .Setup(m => m.GetManifestAsync(It.IsAny<GameInstallation>(), GameType.ZeroHour, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(zeroHourManifest);
+
+            var realContentValidator = new ContentValidator(
+                new Mock<IFileOperationsService>().Object,
+                new Mock<ICasService>().Object,
+                new Mock<ILogger<ContentValidator>>().Object);
+            var validator = new GameInstallationValidator(
+                _loggerMock.Object,
+                _manifestProviderMock.Object,
+                realContentValidator,
+                _hashProviderMock.Object);
+
+            var result = await validator.ValidateAsync(installation, null, default);
+
+            // A retail-consistent combined directory must validate clean: no pass may
+            // flag the other pass's root archives.
+            Assert.Empty(result.Issues);
+            Assert.True(result.IsValid);
         }
         finally
         {

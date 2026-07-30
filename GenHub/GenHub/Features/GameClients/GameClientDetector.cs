@@ -15,6 +15,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameClients;
@@ -189,6 +190,26 @@ public class GameClientDetector(
     {
         var isValid = !string.IsNullOrEmpty(gameClient.ExecutablePath) && File.Exists(gameClient.ExecutablePath);
         return Task.FromResult(isValid);
+    }
+
+    /// <summary>
+    /// Enumerates the top-level files of a directory that could be launched.
+    /// </summary>
+    /// <param name="directoryPath">The directory to scan.</param>
+    /// <returns>Full paths of the launch candidates.</returns>
+    /// <remarks>
+    /// Replaces the old <c>*.exe</c> glob, which hid extensionless binaries — the shape
+    /// of a native Mach-O or ELF game client — from publisher detection entirely.
+    /// Selection goes through <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>,
+    /// today a name-based rule that keeps <c>.exe</c> results identical while admitting
+    /// extensionless files; a content-based (magic-byte) classification slots in at that
+    /// same call without this site changing.
+    /// </remarks>
+    private static string[] GetLaunchCandidateFiles(string directoryPath)
+    {
+        return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(ExecutableFileClassifier.IsLegacyLaunchCandidate)
+            .ToArray();
     }
 
     /// <summary>
@@ -584,7 +605,7 @@ public class GameClientDetector(
         HashSet<string> publishersHandledFromPool,
         List<GameClient> detectedClients)
     {
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
+        var executableFiles = GetLaunchCandidateFiles(installationPath);
 
         foreach (var identifier in gameClientIdentifiers)
         {
@@ -760,7 +781,7 @@ public class GameClientDetector(
             return Task.FromResult(detectedPublishers);
         }
 
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
+        var executableFiles = GetLaunchCandidateFiles(installationPath);
 
         foreach (var executablePath in executableFiles)
         {
