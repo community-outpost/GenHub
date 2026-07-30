@@ -245,7 +245,14 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             {
                 issues.Add(new ValidationIssue(
                     $"Extraneous file detected (not in manifest): {extraneousFile}",
-                    ValidationSeverity.Warning));
+                    ValidationSeverity.Warning)
+                {
+                    // Typed and pathed so consumers can recognise these structurally;
+                    // the untyped form defaulted to MissingFile, the opposite of what
+                    // an extra file is.
+                    IssueType = ValidationIssueType.UnexpectedFile,
+                    Path = extraneousFile,
+                });
             }
 
             _logger.LogDebug("Extraneous file detection for {ManifestId} found {ExtraneousCount} files.", manifest.Id, extraneousFiles.Count);
