@@ -1681,6 +1681,14 @@ public partial class GameProfileLauncherViewModel(
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
                 logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+
+                var failureReason = e.DescribeFailure();
+                if (failureReason != null)
+                {
+                    StatusMessage = $"{profile.Name} exited unexpectedly";
+                    ErrorMessage = failureReason;
+                    notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                }
             }
         }
         catch (Exception ex)
