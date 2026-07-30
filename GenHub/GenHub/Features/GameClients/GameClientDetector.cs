@@ -400,7 +400,7 @@ public class GameClientDetector(
             }
         }
 
-        // Fallback: try to detect version from generals.exe/generalszh.exe file info
+        // Fallback: try to detect version from the default executable's file info
         var defaultExecutableName = gameType == GameType.Generals
             ? GameClientConstants.GeneralsExecutable
             : GameClientConstants.ZeroHourExecutable;

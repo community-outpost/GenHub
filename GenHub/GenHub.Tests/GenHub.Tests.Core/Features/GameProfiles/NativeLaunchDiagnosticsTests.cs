@@ -46,7 +46,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
             return;
         }
 
-        var binary = Path.Combine(_tempDir, "generalszh");
+        var binary = Path.Combine(_tempDir, NativeClientFixture.BinaryName);
         await File.WriteAllTextAsync(binary, "#!/bin/sh\nexit 0\n");
         if (!OperatingSystem.IsWindows())
         {
@@ -61,7 +61,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Contains("execute permission", string.Join(" ", result.Errors), StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("generalszh", string.Join(" ", result.Errors));
+        Assert.Contains(NativeClientFixture.BinaryName, string.Join(" ", result.Errors));
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
             return;
         }
 
-        var binary = Path.Combine(_tempDir, "generalszh");
+        var binary = Path.Combine(_tempDir, NativeClientFixture.BinaryName);
         await File.WriteAllTextAsync(
             binary,
             "#!/bin/sh\necho \"dyld: Library not loaded: @rpath/libSDL3.dylib\" >&2\nexit 1\n");
@@ -116,7 +116,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
             return;
         }
 
-        var binary = Path.Combine(_tempDir, "generalszh");
+        var binary = Path.Combine(_tempDir, NativeClientFixture.BinaryName);
 
         // Writes far more than a pipe buffer holds, then keeps running.
         await File.WriteAllTextAsync(

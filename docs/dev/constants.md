@@ -595,7 +595,7 @@ Constants related to game client detection and management.
 | Constant                         | Value              | Description                                |
 | -------------------------------- | ------------------ | ------------------------------------------ |
 | `SuperHackersGeneralsExecutable` | `"generalsV.exe"`  | SuperHackers Generals executable filename  |
-| `SuperHackersZeroHourExecutable` | `"generalsZH.exe"` | SuperHackers Zero Hour executable filename |
+| `SuperHackersZeroHourExecutable` | `"generalszh.exe"` | SuperHackers Zero Hour executable filename |
 
 ### Game Directory Names
 

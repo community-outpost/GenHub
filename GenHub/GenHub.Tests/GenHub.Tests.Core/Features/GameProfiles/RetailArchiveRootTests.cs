@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -60,8 +61,8 @@ public class RetailArchiveRootTests : IDisposable
             EnvironmentVariables = new()
             {
                 // Trailing separator is required; see AddArchiveRoot in GameLauncher.
-                ["CNC_ZH_INSTALLPATH"] = installDirectory + Path.DirectorySeparatorChar,
-                ["CNC_GENERALS_INSTALLPATH"] = installDirectory + Path.DirectorySeparatorChar,
+                [RetailArchiveConstants.ZeroHourInstallPathVariable] = installDirectory + Path.DirectorySeparatorChar,
+                [RetailArchiveConstants.GeneralsInstallPathVariable] = installDirectory + Path.DirectorySeparatorChar,
             },
         };
 
