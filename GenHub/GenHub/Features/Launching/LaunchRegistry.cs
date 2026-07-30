@@ -47,6 +47,20 @@ public class LaunchRegistry : ILaunchRegistry
     private readonly ConcurrentDictionary<int, Core.Models.Events.GameProcessExitedEventArgs> _pendingExits = new();
 
     /// <summary>
+    /// Makes the two compound sequences around the pending-exit buffer atomic: the exit
+    /// handler's lookup-then-buffer and registration's install-PID-then-drain-buffer.
+    /// </summary>
+    /// <remarks>
+    /// Without it there is a stranding interleaving: the handler's lookup misses, the
+    /// registration installs the real PID and drains a still-empty buffer, and only then
+    /// does the handler's buffer write land — leaving the event to expire unapplied and
+    /// the failure evidence lost. A lock is used rather than a lock-free double-check
+    /// because both sequences are short and run at most a handful of times per launch,
+    /// so contention is irrelevant, and the atomicity is auditable at a glance.
+    /// </remarks>
+    private readonly object _exitSync = new();
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
     /// </summary>
     /// <param name="logger">The logger instance.</param>
@@ -68,6 +82,17 @@ public class LaunchRegistry : ILaunchRegistry
     }
 
     /// <summary>
+    /// Gets or sets a test seam invoked between the exit handler's missed launch lookup
+    /// and its buffer write, inside the synchronization that makes the two atomic.
+    /// </summary>
+    /// <remarks>
+    /// Exists so a test can start a registration in exactly the window where the
+    /// stranding interleaving would occur without the lock, and prove the exit event is
+    /// still applied. Never set in production.
+    /// </remarks>
+    internal Action? PendingExitBufferingHook { get; set; }
+
+    /// <summary>
     /// Registers a new game launch in the registry.
     /// </summary>
     /// <param name="launchInfo">The launch information to register.</param>
@@ -77,22 +102,28 @@ public class LaunchRegistry : ILaunchRegistry
         ArgumentNullException.ThrowIfNull(launchInfo);
         ArgumentException.ThrowIfNullOrWhiteSpace(launchInfo.LaunchId);
 
-        _activeLaunches[launchInfo.LaunchId] = launchInfo;
-        _logger.LogInformation("Registered launch {LaunchId} for profile {ProfileId}", launchInfo.LaunchId, launchInfo.ProfileId);
-
-        // The process may have exited before this registration carried its real PID —
-        // the placeholder-PID gap. Apply the buffered exit now so the failure is
-        // recorded rather than lost to the race.
-        var processId = launchInfo.ProcessInfo.ProcessId;
-        if (processId > 0
-            && _pendingExits.TryRemove(processId, out var pendingExit)
-            && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention)
+        // Install-then-drain must be atomic against the exit handler's lookup-then-
+        // buffer, or an exit landing between the two strands in the buffer while the
+        // launch it belongs to sits registered and running forever.
+        lock (_exitSync)
         {
-            _logger.LogInformation(
-                "[LaunchRegistry] Applying buffered exit event for PID {ProcessId} to newly registered launch {LaunchId}",
-                processId,
-                launchInfo.LaunchId);
-            ApplyProcessExit(launchInfo, pendingExit);
+            _activeLaunches[launchInfo.LaunchId] = launchInfo;
+            _logger.LogInformation("Registered launch {LaunchId} for profile {ProfileId}", launchInfo.LaunchId, launchInfo.ProfileId);
+
+            // The process may have exited before this registration carried its real PID —
+            // the placeholder-PID gap. Apply the buffered exit now so the failure is
+            // recorded rather than lost to the race.
+            var processId = launchInfo.ProcessInfo.ProcessId;
+            if (processId > 0
+                && _pendingExits.TryRemove(processId, out var pendingExit)
+                && DateTime.UtcNow - pendingExit.ExitTime <= PendingExitRetention)
+            {
+                _logger.LogInformation(
+                    "[LaunchRegistry] Applying buffered exit event for PID {ProcessId} to newly registered launch {LaunchId}",
+                    processId,
+                    launchInfo.LaunchId);
+                ApplyProcessExit(launchInfo, pendingExit);
+            }
         }
 
         return Task.CompletedTask;
@@ -156,24 +187,31 @@ public class LaunchRegistry : ILaunchRegistry
     {
         _logger.LogInformation("[LaunchRegistry] Received process exit event for PID {ProcessId}", e.ProcessId);
 
-        // Find launch info by process ID
-        var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
-        if (launch != null)
+        // Lookup-then-buffer must be atomic against registration's install-then-drain:
+        // otherwise a registration slipping between the missed lookup and the buffer
+        // write drains an empty buffer, and this event strands until it expires.
+        lock (_exitSync)
         {
-            ApplyProcessExit(launch, e);
-            return;
-        }
+            // Find launch info by process ID
+            var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
+            if (launch != null)
+            {
+                ApplyProcessExit(launch, e);
+                return;
+            }
 
-        // No launch knows this PID. Registration with the real PID may still be in
-        // flight — the launcher only updates the placeholder entry after the start
-        // operation returns — so keep the event briefly instead of dropping it.
-        if (e.ProcessId > 0)
-        {
-            PruneExpiredPendingExits();
-            _pendingExits[e.ProcessId] = e;
-            _logger.LogDebug(
-                "[LaunchRegistry] No launch matches PID {ProcessId} yet; buffering the exit event in case a registration is in flight",
-                e.ProcessId);
+            // No launch knows this PID. Registration with the real PID may still be in
+            // flight — the launcher only updates the placeholder entry after the start
+            // operation returns — so keep the event briefly instead of dropping it.
+            if (e.ProcessId > 0)
+            {
+                PendingExitBufferingHook?.Invoke();
+                PruneExpiredPendingExits();
+                _pendingExits[e.ProcessId] = e;
+                _logger.LogDebug(
+                    "[LaunchRegistry] No launch matches PID {ProcessId} yet; buffering the exit event in case a registration is in flight",
+                    e.ProcessId);
+            }
         }
     }
 
