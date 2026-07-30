@@ -912,12 +912,27 @@ public class GameClientDetector(
             try
             {
                 // Process files in current directory
-                foreach (var file in Directory.EnumerateFiles(currentDir))
+                var files = Directory.EnumerateFiles(currentDir).ToList();
+                var generalsOnlineEntryPoint = ResolveGeneralsOnlineEntryPoint(
+                    files.Select(Path.GetFileName).OfType<string>());
+
+                foreach (var file in files)
                 {
-                    if (hashRegistry.PossibleExecutableNames.Contains(Path.GetFileName(file), StringComparer.OrdinalIgnoreCase))
+                    var fileName = Path.GetFileName(file);
+                    if (!hashRegistry.PossibleExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase))
                     {
-                        results.Add(file);
+                        continue;
                     }
+
+                    // A GeneralsOnline directory holds several supported entry points but is one
+                    // client, so only the resolved entry point counts.
+                    if (GameClientConstants.GeneralsOnlineExecutableNames.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+                        && !fileName.Equals(generalsOnlineEntryPoint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    results.Add(file);
                 }
 
                 // Enqueue subdirectories if not excluded

@@ -83,6 +83,18 @@ public class GameClientHashRegistryTests
     }
 
     /// <summary>
+    /// Since 060526_QFE1 the GeneralsOnline portable launches through the Easy Anti-Cheat
+    /// bootstrapper, so directory scans have to recognise it as a client executable.
+    /// </summary>
+    [Fact]
+    public void PossibleExecutableNames_IncludeTheGeneralsOnlineAntiCheatBootstrapper()
+    {
+        Assert.Contains(
+            _registry.PossibleExecutableNames,
+            name => name.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Verifies that GameClientInfo.Validate() works correctly.
     /// </summary>
     [Fact]
