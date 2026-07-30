@@ -83,34 +83,27 @@ public static class CompositionRootAssertions
     ];
 
     /// <summary>
-    /// Singletons known to capture a scoped service (captive dependencies), keyed by
-    /// the full name of the singleton service as reported by
-    /// <c>ValidateScopes</c>. See community-outpost/GenHub#320.
+    /// Known captive dependencies as (singleton, scoped service) pairs, using the full
+    /// service names exactly as <c>ValidateScopes</c> reports them.
+    /// See community-outpost/GenHub#320.
     /// <para>
     /// A singleton that consumes a scoped service pins that instance for the process
-    /// lifetime, which defeats the scoping. Every entry here is a real defect that
+    /// lifetime, which defeats the scoping. Every pair here is a real defect that
     /// predates scope validation being turned on. This list is SHRINK-ONLY: never add
-    /// an entry — fix the lifetime instead. When a singleton is fixed the ratchet
-    /// fails with a "remove me" message until its entry is deleted, so the list can
-    /// only get shorter over time.
-    /// </para>
-    /// <para>
-    /// Current captures: <c>IContentValidator</c> takes scoped
-    /// <c>IFileOperationsService</c>; <c>IGameInstallationService</c> takes scoped
-    /// <c>IDownloadService</c> and <c>IManifestGenerationService</c>;
-    /// <c>ILaunchRegistry</c> takes scoped <c>IWorkspaceManager</c>;
-    /// <c>IReplayImportService</c> takes scoped <c>IDownloadService</c>; and the
-    /// <c>IHostedService</c> registration for <c>ManifestDiscoveryService</c> captures
-    /// the scoped <c>ManifestDiscoveryService</c> itself.
+    /// an entry — fix the lifetime instead. When a capture is fixed the ratchet fails
+    /// with a "remove me" message until its pair is deleted, so the list can only get
+    /// shorter over time. Pairs (rather than singleton names) are the key so that an
+    /// already-listed singleton gaining a NEW scoped dependency still fails.
     /// </para>
     /// </summary>
-    private static readonly string[] KnownCaptiveSingletons =
+    private static readonly (string Singleton, string Scoped)[] KnownCaptiveDependencies =
     [
-        "GenHub.Core.Interfaces.Content.IContentValidator",
-        "GenHub.Core.Interfaces.GameInstallations.IGameInstallationService",
-        "GenHub.Core.Interfaces.Launching.ILaunchRegistry",
-        "GenHub.Core.Interfaces.Tools.ReplayManager.IReplayImportService",
-        "Microsoft.Extensions.Hosting.IHostedService",
+        ("GenHub.Core.Interfaces.Content.IContentValidator", "GenHub.Core.Interfaces.Workspace.IFileOperationsService"),
+        ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Common.IDownloadService"),
+        ("GenHub.Core.Interfaces.GameInstallations.IGameInstallationService", "GenHub.Core.Interfaces.Manifest.IManifestGenerationService"),
+        ("GenHub.Core.Interfaces.Launching.ILaunchRegistry", "GenHub.Core.Interfaces.Workspace.IWorkspaceManager"),
+        ("GenHub.Core.Interfaces.Tools.ReplayManager.IReplayImportService", "GenHub.Core.Interfaces.Common.IDownloadService"),
+        ("Microsoft.Extensions.Hosting.IHostedService", "GenHub.Features.Manifest.ManifestDiscoveryService"),
     ];
 
     private static readonly Regex CaptiveDependencyMessage = new(
@@ -135,14 +128,14 @@ public static class CompositionRootAssertions
 
         // Scope validation runs first as a shrink-only ratchet: every captive
         // dependency the container can detect must either be fixed or be a
-        // pre-existing entry in KnownCaptiveSingletons.
+        // pre-existing entry in KnownCaptiveDependencies.
         AssertScopeValidationIsShrinkOnly(services);
 
         // ValidateOnBuild surfaces unresolvable constructor dependencies at build time
         // instead of at first use.
         //
         // ValidateScopes is OFF for THIS provider only because the known captive
-        // dependencies in KnownCaptiveSingletons would make the build throw before the
+        // dependencies in KnownCaptiveDependencies would make the build throw before the
         // resolution assertions below could run. The ratchet above already enforced
         // scope validation against the same registrations; once its allowlist is empty
         // this flag can simply be flipped on and the ratchet deleted.
@@ -198,38 +191,39 @@ public static class CompositionRootAssertions
 
     /// <summary>
     /// Builds the container with <c>ValidateScopes</c> enabled and diffs the captive
-    /// dependencies it reports against <see cref="KnownCaptiveSingletons"/>.
+    /// dependency pairs it reports against <see cref="KnownCaptiveDependencies"/>.
     /// <para>
-    /// Fails when a singleton not on the list captures a scoped service (fix the
-    /// lifetime — do not extend the list), and also fails when a listed singleton no
-    /// longer violates (remove its entry), so the allowlist can only shrink.
+    /// Fails when a (singleton, scoped service) pair is reported that is not on the
+    /// list (fix the lifetime — do not extend the list), and also fails when a listed
+    /// pair is no longer reported (remove its entry), so the allowlist can only
+    /// shrink.
     /// </para>
     /// </summary>
     private static void AssertScopeValidationIsShrinkOnly(IServiceCollection services)
     {
         var violations = MeasureCaptiveDependencies(services);
 
-        var newViolations = violations.Keys
-            .Except(KnownCaptiveSingletons)
-            .OrderBy(name => name, StringComparer.Ordinal)
+        var newViolations = violations
+            .Except(KnownCaptiveDependencies)
+            .OrderBy(pair => pair, Comparer<(string Singleton, string Scoped)>.Default)
             .ToList();
 
         var newViolationsMessage =
-            "ValidateScopes found captive dependencies that are not in KnownCaptiveSingletons:\n"
-            + string.Join("\n", newViolations.Select(s => $"  singleton '{s}' captures scoped: {string.Join(", ", violations[s])}"))
+            "ValidateScopes found captive dependencies that are not in KnownCaptiveDependencies:\n"
+            + string.Join("\n", newViolations.Select(pair => $"  singleton '{pair.Singleton}' captures scoped '{pair.Scoped}'"))
             + "\nA singleton pins any scoped service it consumes for the process lifetime. "
             + "Fix the lifetime instead of extending the allowlist; it is shrink-only (see issue #320).";
 
         Assert.True(newViolations.Count == 0, newViolationsMessage);
 
-        var staleEntries = KnownCaptiveSingletons
-            .Except(violations.Keys)
-            .OrderBy(name => name, StringComparer.Ordinal)
+        var staleEntries = KnownCaptiveDependencies
+            .Except(violations)
+            .OrderBy(pair => pair, Comparer<(string Singleton, string Scoped)>.Default)
             .ToList();
 
         var staleMessage =
-            "These KnownCaptiveSingletons entries no longer capture a scoped service — remove me:\n"
-            + string.Join("\n", staleEntries.Select(s => $"  {s}"))
+            "These KnownCaptiveDependencies entries are no longer reported — remove me:\n"
+            + string.Join("\n", staleEntries.Select(pair => $"  singleton '{pair.Singleton}' captures scoped '{pair.Scoped}'"))
             + "\nDeleting fixed entries is what keeps the allowlist shrink-only (see issue #320).";
 
         Assert.True(staleEntries.Count == 0, staleMessage);
@@ -237,13 +231,12 @@ public static class CompositionRootAssertions
 
     /// <summary>
     /// Runs the container's own build-time scope validation and returns every reported
-    /// captive dependency, keyed by singleton service name with the scoped services it
-    /// captures as values.
+    /// captive dependency as a (singleton, scoped service) pair.
     /// </summary>
-    private static SortedDictionary<string, SortedSet<string>> MeasureCaptiveDependencies(
+    private static HashSet<(string Singleton, string Scoped)> MeasureCaptiveDependencies(
         IServiceCollection services)
     {
-        var violations = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
+        var violations = new HashSet<(string Singleton, string Scoped)>();
 
         try
         {
@@ -267,14 +260,7 @@ public static class CompositionRootAssertions
                     match.Success,
                     $"Container validation failed for a reason other than a captive dependency: {error.Message}");
 
-                var singleton = match.Groups["singleton"].Value;
-                if (!violations.TryGetValue(singleton, out var scopedServices))
-                {
-                    scopedServices = new SortedSet<string>(StringComparer.Ordinal);
-                    violations[singleton] = scopedServices;
-                }
-
-                scopedServices.Add(match.Groups["scoped"].Value);
+                violations.Add((match.Groups["singleton"].Value, match.Groups["scoped"].Value));
             }
         }
 
