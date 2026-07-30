@@ -514,15 +514,23 @@ public class GameLauncher(
     /// Verifies that every configured retail archive root actually contains archives.
     /// </summary>
     /// <remarks>
-    /// The engine mounts its content from these roots, but reaches its main loop with zero
-    /// content and no error when they are wrong — no exit code, no log line, nothing a
-    /// host process can observe. A launch that "succeeded" is therefore indistinguishable
-    /// from one that produced an empty game, so this has to be checked before spawn.
+    /// Checked before spawn so a misconfigured root fails with the path named, rather than
+    /// as a generic engine abort the host has to interpret.
     /// <para>
-    /// Existence of at least one <c>.big</c> archive is used as the sentinel rather than a
-    /// specific filename, which varies by localisation and version. This only catches a
-    /// root that is wrong or empty; an archive that exists but fails to mount still needs
-    /// a machine-readable failure from the engine itself.
+    /// The engine does report these failures: a root holding no archives aborts during
+    /// initialisation with exit code 1 and a <c>ReleaseCrashInfo.txt</c>, and an archive
+    /// that fails to mount also writes <c>[ggc] ARCHIVE MOUNT FAILED</c> to stderr. Neither
+    /// reaches the main loop. Validating first is still worth it — exit 1 is generic, the
+    /// stderr sentinel exists only in the non-Windows filesystem, and on Windows
+    /// <c>ReleaseCrash</c> shows a system-modal dialog before exiting, so a host-launched
+    /// child hangs rather than dying. An earlier check with an actionable message avoids
+    /// depending on any of that.
+    /// </para>
+    /// <para>
+    /// Existence of at least one <c>.big</c> archive is the sentinel rather than a specific
+    /// filename, which varies by localisation, version and installed mods. That bounds what
+    /// this can catch: a root that is absent, unreadable or archive-free. It cannot tell
+    /// whether the archives present are the ones the engine needs.
     /// </para>
     /// </remarks>
     /// <param name="environment">The environment built for the child process.</param>
@@ -1184,10 +1192,10 @@ public class GameLauncher(
                 EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
             };
 
-            // Must happen before spawn. When the archive roots are wrong the engine still
-            // starts, reaches its main loop and reports nothing — it simply has no content.
-            // Launch therefore "succeeds" while the user gets a broken game, and no
-            // post-spawn check can tell the difference.
+            // Before spawn, so a misconfigured root is reported with the path named. The
+            // engine does abort on a bad root, but generically (exit 1 plus a crash file),
+            // and on Windows it blocks on a modal dialog first — so relying on the child's
+            // exit is both less precise and, there, unreliable.
             var archiveRootError = ValidateRetailArchiveRoots(
                 launchConfig.EnvironmentVariables, installation, gameClient.GameType);
             if (archiveRootError is not null)
