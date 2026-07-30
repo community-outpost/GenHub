@@ -220,6 +220,138 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// An upcoming launch identical to the recorded one reports no configuration drift, and
+    /// revalidation hands back the parsed receipt for that comparison.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithIdenticalConfiguration_ReportsNoDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var revalidation = await _service.RevalidateAsync(_workspacePath);
+        Assert.NotNull(revalidation.Data!.Receipt);
+
+        var report = _service.CompareUpcomingLaunch(revalidation.Data.Receipt!, CreateContext(launchId: "launch-2"));
+
+        Assert.True(report.HasReceipt);
+        Assert.False(report.HasDrift);
+    }
+
+    /// <summary>
+    /// A changed manifest version is reported as drift naming the manifest and both versions.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedManifestVersion_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(manifestVersion: "2.0"));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("1.0.genhub.mod.test") && f.Contains("version changed from 1.0 to 2.0"));
+    }
+
+    /// <summary>
+    /// A changed game client is reported as drift naming both clients.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedGameClient_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(gameClientId: "client-2"));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f => f.Contains("Game client changed from client-1 to client-2"));
+    }
+
+    /// <summary>
+    /// A changed game type is reported as drift.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedGameType_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(gameType: GameType.Generals));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f => f.Contains("Game type changed"));
+    }
+
+    /// <summary>
+    /// A changed executable path is reported as drift even when the file itself is fine.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedExecutablePath_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(
+            receipt, CreateContext(executablePath: Path.Combine(_workspacePath, "otherclient")));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f => f.Contains("Executable path changed"));
+    }
+
+    /// <summary>
+    /// A root moved to a different path with identical contents is reported as path drift;
+    /// the filesystem fingerprints alone could not tell the roots apart.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedRootPathAndIdenticalContents_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var relocatedRoot = Directory.CreateDirectory(Path.Combine(_root, "retail-copy")).FullName;
+        foreach (var archivePath in Directory.GetFiles(_archiveRoot, "*.big"))
+        {
+            File.Copy(archivePath, Path.Combine(relocatedRoot, Path.GetFileName(archivePath)));
+        }
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(archiveRoot: relocatedRoot));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("Archive root path") &&
+            f.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable) &&
+            f.Contains(relocatedRoot));
+    }
+
+    /// <summary>
+    /// A changed manifest set is reported per added and removed manifest.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedManifestSet_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var upcoming = CreateContext();
+        upcoming.ManifestIds = ["1.0.genhub.mod.other"];
+
+        var report = _service.CompareUpcomingLaunch(receipt, upcoming);
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("no longer part of the launch") && f.Contains("1.0.genhub.mod.test"));
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("added since the last launch") && f.Contains("1.0.genhub.mod.other"));
+    }
+
+    /// <summary>
     /// Recording into a missing workspace fails without throwing.
     /// </summary>
     /// <returns>The async task.</returns>
@@ -270,25 +402,37 @@ public class LaunchReceiptServiceTests : IDisposable
     /// Creates a context pointing at the fixture workspace, executable and archive root.
     /// </summary>
     /// <param name="launchId">The launch identifier to record.</param>
+    /// <param name="gameClientId">The game client identifier.</param>
+    /// <param name="gameType">The game type.</param>
+    /// <param name="executablePath">The executable path; the fixture executable when null.</param>
+    /// <param name="archiveRoot">The archive root; the fixture root when null.</param>
+    /// <param name="manifestVersion">The version of the single fixture manifest.</param>
     /// <returns>The context.</returns>
-    private LaunchReceiptContext CreateContext(string launchId = "launch-1")
+    private LaunchReceiptContext CreateContext(
+        string launchId = "launch-1",
+        string gameClientId = "client-1",
+        GameType gameType = GameType.ZeroHour,
+        string? executablePath = null,
+        string? archiveRoot = null,
+        string manifestVersion = "1.0")
     {
         return new LaunchReceiptContext
         {
             LaunchId = launchId,
             ProfileId = "profile-1",
-            GameClientId = "client-1",
-            GameType = GameType.ZeroHour,
+            GameClientId = gameClientId,
+            GameType = gameType,
             WorkspaceId = "profile-1",
             WorkspacePath = _workspacePath,
-            ExecutablePath = _executablePath,
+            ExecutablePath = executablePath ?? _executablePath,
             WorkingDirectory = _workspacePath,
             EnvironmentVariables = new Dictionary<string, string>
             {
-                [RetailArchiveConstants.ZeroHourInstallPathVariable] = _archiveRoot + Path.DirectorySeparatorChar,
+                [RetailArchiveConstants.ZeroHourInstallPathVariable] =
+                    (archiveRoot ?? _archiveRoot) + Path.DirectorySeparatorChar,
             },
             ManifestIds = ["1.0.genhub.mod.test"],
-            ManifestVersions = new Dictionary<string, string> { ["1.0.genhub.mod.test"] = "1.0" },
+            ManifestVersions = new Dictionary<string, string> { ["1.0.genhub.mod.test"] = manifestVersion },
         };
     }
 }
