@@ -178,11 +178,14 @@ public class PostSpawnFailureDetectionTests : IDisposable
 
     /// <summary>
     /// A process that outlives the window is a successful launch, and remains manageable
-    /// afterwards: it can be found and terminated through the manager.
+    /// afterwards: it can be found and terminated through the manager. The kill exits
+    /// the process non-zero, so the resulting exit event must carry the
+    /// requested-termination mark and classify as no failure — a deliberate stop must
+    /// never read as a crash.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ProcessOutlivingTheWindow_LaunchesAndIsCleanedUpLater()
+    public async Task ProcessOutlivingTheWindow_LaunchesAndTerminatesWithoutFailureClassification()
     {
         if (!OnUnix)
         {
@@ -190,6 +193,9 @@ public class PostSpawnFailureDetectionTests : IDisposable
         }
 
         var binary = await WriteScriptAsync("#!/bin/sh\nsleep 30\n");
+
+        var exited = new TaskCompletionSource<GameProcessExitedEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _processManager.ProcessExited += (_, e) => exited.TrySetResult(e);
 
         var result = await _processManager.StartProcessAsync(new GameLaunchConfiguration
         {
@@ -205,6 +211,13 @@ public class PostSpawnFailureDetectionTests : IDisposable
 
         var terminated = await _processManager.TerminateProcessAsync(result.Data!.ProcessId);
         Assert.True(terminated.Success);
+
+        var completed = await Task.WhenAny(exited.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+        Assert.True(completed == exited.Task, "The exit event for the terminated process never arrived.");
+
+        var exitEvent = await exited.Task;
+        Assert.True(exitEvent.TerminationRequested);
+        Assert.Null(exitEvent.DescribeFailure());
     }
 
     /// <summary>

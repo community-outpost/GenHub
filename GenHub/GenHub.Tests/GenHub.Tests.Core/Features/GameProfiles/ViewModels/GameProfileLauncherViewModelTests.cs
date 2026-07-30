@@ -385,6 +385,45 @@ public class GameProfileLauncherViewModelTests
             Times.Never);
     }
 
+    /// <summary>
+    /// A stop the user asked for kills the process with a non-zero exit code; that must
+    /// not raise the "exited unexpectedly" alarm — the stop path's own status stands.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ProcessExitedFromARequestedStop_DoesNotRaiseTheFailureAlarm()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Stopped Profile");
+        profile.ProcessId = 4244;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        // The status a completed stop leaves behind; the exit event must not replace it.
+        vm.StatusMessage = "Stopped Profile stopped successfully";
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4244,
+            ExitCode = 137,
+            TerminationRequested = true,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Equal("Stopped Profile stopped successfully", vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
