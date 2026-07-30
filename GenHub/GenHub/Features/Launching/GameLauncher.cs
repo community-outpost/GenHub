@@ -51,16 +51,6 @@ public class GameLauncher(
     ISteamLauncher steamLauncher,
     IConfigurationProviderService configurationProvider) : IGameLauncher
 {
-    /// <summary>
-    /// Environment variables naming the retail directories the engine mounts archives from.
-    /// Ordered Zero Hour first, matching <see cref="AddRetailArchiveRoots"/>.
-    /// </summary>
-    private static readonly string[] RetailArchiveRootVariables =
-    [
-        "CNC_ZH_INSTALLPATH",
-        "CNC_GENERALS_INSTALLPATH",
-    ];
-
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _profileLaunchLocks = new();
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _steamInstallationLaunchLocks =
         new(InstallationPathLockKey.Comparer);
@@ -542,14 +532,24 @@ public class GameLauncher(
         Dictionary<string, string> environment,
         GameInstallation? installation)
     {
+        // Windows resolves install paths from the registry and never reads these variables,
+        // so a Windows layout without loose top-level archives is not a misconfiguration and
+        // must not fail the launch. BuildEnvironmentVariables returns before setting them on
+        // Windows; this validates the installation's declared paths, so it needs the same
+        // guard rather than inheriting it.
+        if (OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
         // Validated against the installation's declared paths, not only the variables that
         // survived into the environment. AddArchiveRoot drops a path that does not exist,
         // so validating the environment alone would silently skip the exact case this
         // exists to catch: a stale installation root reaching spawn unnoticed.
         var declaredPaths = new (string Variable, string? Path)[]
         {
-            (RetailArchiveRootVariables[0], installation?.ZeroHourPath),
-            (RetailArchiveRootVariables[1], installation?.GeneralsPath),
+            (RetailArchiveConstants.ZeroHourInstallPathVariable, installation?.ZeroHourPath),
+            (RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath),
         };
 
         foreach (var (variableName, declaredPath) in declaredPaths)
@@ -575,7 +575,7 @@ public class GameLauncher(
             try
             {
                 hasArchive = Directory
-                    .EnumerateFiles(root, "*.big", SearchOption.TopDirectoryOnly)
+                    .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, SearchOption.TopDirectoryOnly)
                     .Any();
             }
             catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
@@ -626,8 +626,8 @@ public class GameLauncher(
             return;
         }
 
-        AddArchiveRoot(environment, RetailArchiveRootVariables[0], installation.ZeroHourPath);
-        AddArchiveRoot(environment, RetailArchiveRootVariables[1], installation.GeneralsPath);
+        AddArchiveRoot(environment, RetailArchiveConstants.ZeroHourInstallPathVariable, installation.ZeroHourPath);
+        AddArchiveRoot(environment, RetailArchiveConstants.GeneralsInstallPathVariable, installation.GeneralsPath);
     }
 
     /// <summary>
@@ -641,16 +641,31 @@ public class GameLauncher(
         string variableName,
         string? path)
     {
-        // A profile that sets this explicitly wins.
-        if (string.IsNullOrWhiteSpace(path) || environment.ContainsKey(variableName) || !Directory.Exists(path))
+        // A profile that sets this explicitly chooses the directory, but not whether the
+        // trailing separator is applied: the engine concatenates the value with the archive
+        // filename directly, so one without a separator produces paths like
+        // "/path/toINIZH.big" and silently mounts nothing.
+        if (environment.TryGetValue(variableName, out var configured) && !string.IsNullOrWhiteSpace(configured))
+        {
+            environment[variableName] = EnsureTrailingSeparator(configured);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
         {
             return;
         }
 
-        environment[variableName] = path.EndsWith(Path.DirectorySeparatorChar)
-            ? path
-            : path + Path.DirectorySeparatorChar;
+        environment[variableName] = EnsureTrailingSeparator(path);
     }
+
+    /// <summary>
+    /// Appends the directory separator the engine requires, if it is not already present.
+    /// </summary>
+    /// <param name="path">The retail root.</param>
+    /// <returns>The path, guaranteed to end in a directory separator.</returns>
+    private static string EnsureTrailingSeparator(string path) =>
+        path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
 
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {

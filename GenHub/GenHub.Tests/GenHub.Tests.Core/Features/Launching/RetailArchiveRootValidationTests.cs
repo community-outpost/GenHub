@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.Launching;
@@ -126,6 +127,51 @@ public class RetailArchiveRootValidationTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Windows never reads these variables — it resolves install paths from the registry —
+    /// so a layout without loose top-level archives must not fail the launch there.
+    /// </summary>
+    [Fact]
+    public void Validate_OnWindows_SkipsEntirely()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var root = CreateRoot("windows-no-archives", withArchive: false);
+
+        Assert.Null(Validate(InstallationWithZeroHour(root)));
+    }
+
+    /// <summary>
+    /// A profile that sets the root explicitly still gets the trailing separator. The engine
+    /// concatenates this value with the archive filename directly, so without one it builds
+    /// paths like "/path/toINIZH.big" and silently mounts nothing — the failure this whole
+    /// check exists to prevent.
+    /// </summary>
+    [Fact]
+    public void AddArchiveRoot_WithProfileOverrideMissingSeparator_StillNormalizes()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var root = CreateRoot("profile-override", withArchive: true).TrimEnd(Path.DirectorySeparatorChar);
+        var environment = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.ZeroHourInstallPathVariable] = root,
+        };
+
+        BuildEnvironment(environment, InstallationWithZeroHour(root));
+
+        Assert.EndsWith(
+            Path.DirectorySeparatorChar.ToString(),
+            environment[RetailArchiveConstants.ZeroHourInstallPathVariable]);
+        Assert.StartsWith(root, environment[RetailArchiveConstants.ZeroHourInstallPathVariable]);
+    }
+
     private static string? Validate(GameInstallation installation) =>
         (string?)typeof(GameLauncher)
             .GetMethod("ValidateRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
@@ -151,4 +197,9 @@ public class RetailArchiveRootValidationTests : IDisposable
 
         return root;
     }
+    private static void BuildEnvironment(Dictionary<string, string> environment, GameInstallation installation) =>
+        typeof(GameLauncher)
+            .GetMethod("AddRetailArchiveRoots", BindingFlags.NonPublic | BindingFlags.Static)!
+            .Invoke(null, [environment, installation]);
+
 }
