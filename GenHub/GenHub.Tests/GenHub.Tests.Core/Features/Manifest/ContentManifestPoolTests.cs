@@ -495,4 +495,79 @@ public class ContentManifestPoolTests : IDisposable
         _storageServiceMock.Setup(x => x.GetContentStorageRoot())
             .Returns(_tempDirectory);
     }
+    /// <summary>
+    /// A variant manifest must be rejected before any content is written.
+    /// </summary>
+    /// <remarks>
+    /// The pool is the chokepoint every deliverer, resolver and detector reaches, so this
+    /// is where the gate has to hold. Returning a failure is not sufficient on its own:
+    /// what matters is that nothing was stored and no CAS references were tracked, because
+    /// mis-tracked references are what corrupts reference counting and garbage collection.
+    /// </remarks>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithVariants_RejectsBeforeStoringContent()
+    {
+        var manifest = CreateTestManifest();
+        manifest.Variants.Add(new ArtifactVariant());
+
+        var result = await _manifestPool.AddManifestAsync(manifest);
+
+        Assert.False(result.Success);
+        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
+
+        _storageServiceMock.Verify(
+            x => x.IsContentStoredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _referenceTrackerMock.Verify(
+            x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// The source-directory overload must reject a variant manifest without storing content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_RejectsBeforeStoringContent()
+    {
+        var manifest = CreateTestManifest();
+        manifest.Variants.Add(new ArtifactVariant());
+
+        var result = await _manifestPool.AddManifestAsync(manifest, _tempDirectory);
+
+        Assert.False(result.Success);
+        Assert.Contains("variant", result.FirstError, StringComparison.OrdinalIgnoreCase);
+
+        _storageServiceMock.Verify(
+            x => x.StoreContentAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        _referenceTrackerMock.Verify(
+            x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A manifest without variants must not be rejected by the gate; every manifest
+    /// published today is this shape.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithoutVariants_IsNotRejectedByTheGate()
+    {
+        var manifest = CreateTestManifest();
+        _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _storageServiceMock.Setup(x => x.GetManifestStoragePath(manifest.Id))
+            .Returns(Path.Combine(_tempDirectory, $"{manifest.Id}.manifest.json"));
+
+        var result = await _manifestPool.AddManifestAsync(manifest);
+
+        Assert.True(result.Success, $"Expected success but got: {result.FirstError}");
+    }
+
 }

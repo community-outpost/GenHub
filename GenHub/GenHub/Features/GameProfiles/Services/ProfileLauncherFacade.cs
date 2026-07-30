@@ -174,7 +174,7 @@ public class ProfileLauncherFacade(
                     if (effectiveToolStrategy != requestedToolStrategy)
                     {
                         logger.LogInformation(
-                            "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink: this platform cannot create symlinks without elevation",
+                            "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink: symlinks are unavailable in this environment",
                             requestedToolStrategy);
                     }
 
@@ -447,7 +447,7 @@ public class ProfileLauncherFacade(
             logger.LogDebug("[Launch] Step 4: Options.ini will be applied by GameLauncher (delegated)");
 
             var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
-            logger.LogDebug("[Launch] Step 5: Checking workspace strategy and admin rights - Strategy: {Strategy}", effectiveStrategy);
+            logger.LogDebug("[Launch] Step 5: Checking workspace strategy and symlink capability - Strategy: {Strategy}", effectiveStrategy);
 
             // Downgrade symlink strategies only where symlinks genuinely cannot be created.
             // This previously asked whether the process was an administrator and computed
@@ -462,18 +462,18 @@ public class ProfileLauncherFacade(
 
             if (!canCreateSymlinks && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
             {
-                // No admin rights - switch profile to HardLink strategy permanently
+                // Symlinks unavailable here - switch the profile to HardLink
                 var originalStrategy = effectiveStrategy;
                 effectiveStrategy = WorkspaceStrategy.HardLink; // Force HardLink instead of default which might be symlink-based
 
                 logger.LogInformation(
-                    "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink strategy due to missing admin rights",
+                    "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink because symlinks are unavailable in this environment",
                     profileId,
                     originalStrategy);
 
                 notificationService.ShowInfo(
                     "Workspace Strategy Changed",
-                    $"'{profile.Name}' requires admin for {originalStrategy}. Switching to HardLink strategy.",
+                    $"'{profile.Name}' cannot use {originalStrategy} here because symlinks are unavailable. Switching to HardLink.",
                     NotificationDurations.Long);
 
                 // Persist the downgrade only if the profile had an explicit strategy set (not inheriting default)
@@ -487,7 +487,7 @@ public class ProfileLauncherFacade(
                     if (strategyUpdateResult.Success)
                     {
                         logger.LogInformation(
-                            "Updated profile {ProfileId} workspace strategy to {Strategy} due to admin rights requirement",
+                            "Updated profile {ProfileId} workspace strategy to {Strategy} because symlinks are unavailable",
                             profileId,
                             effectiveStrategy);
                     }
