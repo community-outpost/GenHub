@@ -597,7 +597,7 @@ jobs:
 
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux, build-macos]
+    needs: [build-windows, build-linux, build-macos, engine-launch-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -612,3 +612,4 @@ jobs:
           echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
