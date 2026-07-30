@@ -79,20 +79,20 @@ public static class ExecutableFileClassifier
         => RequiresExecutePermission(path, absolutePath: null);
 
     /// <summary>
-    /// Determines whether a file needs the Unix execute bit, sniffing the file's magic
-    /// bytes to classify extensionless files by content rather than by name.
+    /// Determines whether a file needs the Unix execute bit, sniffing the file header
+    /// to classify extensionless files by content rather than by name.
     /// <para>
-    /// An extensionless <c>README</c> or <c>LICENSE</c> is not a native binary, and only
-    /// the file's first bytes can tell it apart from one. Extension-based classification
-    /// is unchanged: libraries stay non-executable and known runnable extensions stay
-    /// executable, whatever the content says.
+    /// An extensionless <c>README</c> or <c>LICENSE</c> is neither a native binary nor a
+    /// shebang script, and only the file's first bytes can tell these cases apart.
+    /// Extension-based classification is unchanged: libraries stay non-executable and
+    /// known runnable extensions stay executable, whatever the content says.
     /// </para>
     /// </summary>
     /// <param name="path">A file name or relative path.</param>
     /// <param name="absolutePath">
     /// The file's location on disk, when it exists there; <c>null</c> falls back to
     /// name-only classification. An extensionless file that cannot be read, or whose
-    /// header matches no known executable format, is not executable.
+    /// header is neither native executable magic nor a shebang, is not executable.
     /// </param>
     /// <returns><c>true</c> when the file should be marked executable.</returns>
     public static bool RequiresExecutePermission(string path, string? absolutePath)
@@ -108,7 +108,7 @@ public static class ExecutableFileClassifier
         // the only reliable way to tell them apart, so use it whenever we have it.
         if (string.IsNullOrEmpty(extension))
         {
-            return absolutePath is null || HasExecutableMagicBytes(absolutePath);
+            return absolutePath is null || HasExecutePermissionHeader(absolutePath);
         }
 
         if (MatchesAny(extension, LibraryExtensions))
@@ -184,18 +184,8 @@ public static class ExecutableFileClassifier
     {
         Span<byte> header = stackalloc byte[MagicHeaderLength];
 
-        try
-        {
-            using var stream = new FileStream(
-                absolutePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            var read = stream.ReadAtLeast(header, MagicHeaderLength, throwOnEndOfStream: false);
-            return HasExecutableMagicBytes(header[..read]);
-        }
-        catch (Exception ex) when (
-            ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
-        {
-            return false;
-        }
+        return TryReadHeader(absolutePath, header, out var read)
+            && HasExecutableMagicBytes(header[..read]);
     }
 
     /// <summary>
@@ -248,6 +238,40 @@ public static class ExecutableFileClassifier
         }
 
         return false;
+    }
+
+    private static bool HasExecutePermissionHeader(string absolutePath)
+    {
+        Span<byte> header = stackalloc byte[MagicHeaderLength];
+
+        if (!TryReadHeader(absolutePath, header, out var read))
+        {
+            return false;
+        }
+
+        var fileHeader = header[..read];
+
+        // A shebang is a Unix permission fact, not native executable magic. Keep it out
+        // of HasExecutableMagicBytes so scripts never become legacy launch candidates.
+        return HasExecutableMagicBytes(fileHeader)
+            || fileHeader is [0x23, 0x21, ..];
+    }
+
+    private static bool TryReadHeader(string absolutePath, Span<byte> header, out int read)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                absolutePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            read = stream.ReadAtLeast(header, MagicHeaderLength, throwOnEndOfStream: false);
+            return true;
+        }
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            read = 0;
+            return false;
+        }
     }
 
     private static bool MatchesAny(string extension, string[] candidates)

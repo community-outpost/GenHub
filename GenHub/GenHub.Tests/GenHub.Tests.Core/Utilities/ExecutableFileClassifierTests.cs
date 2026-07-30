@@ -156,6 +156,21 @@ public class ExecutableFileClassifierTests : IDisposable
     }
 
     /// <summary>
+    /// An extensionless shebang script needs the Unix execute bit, but is not native
+    /// executable code and must not become a legacy inferred game entry point.
+    /// </summary>
+    [Fact]
+    public void ExtensionlessShebangScript_RequiresPermissionButIsNotLaunchCandidate()
+    {
+        var script = Path.Combine(_tempDirectory, "launch");
+        File.WriteAllText(script, "#!/bin/sh\nexec ./generalszh\n", Encoding.ASCII);
+
+        Assert.True(ExecutableFileClassifier.RequiresExecutePermission("launch", script));
+        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidate("launch", script));
+        Assert.False(ExecutableFileClassifier.HasExecutableMagicBytes(script));
+    }
+
+    /// <summary>
     /// Files shorter than any magic number must be rejected without throwing.
     /// </summary>
     /// <param name="content">The whole file content.</param>
