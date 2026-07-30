@@ -49,6 +49,14 @@ public class RetailArchiveRootValidationTests : IDisposable
     [Fact]
     public void Validate_WithNonexistentRoot_RejectsRatherThanSkipping()
     {
+        // Rejection is non-Windows behaviour by design: Windows resolves install paths from
+        // the registry and never reads these variables, so validation skips there. The
+        // Windows side is asserted by Validate_OnWindows_SkipsEntirely.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
         var missing = Path.Combine(_tempDir, "gone");
 
         var error = Validate(InstallationWithZeroHour(missing));
@@ -63,6 +71,14 @@ public class RetailArchiveRootValidationTests : IDisposable
     [Fact]
     public void Validate_WithNoArchives_Rejects()
     {
+        // Rejection is non-Windows behaviour by design: Windows resolves install paths from
+        // the registry and never reads these variables, so validation skips there. The
+        // Windows side is asserted by Validate_OnWindows_SkipsEntirely.
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
         var root = CreateRoot("empty", withArchive: false);
 
         var error = Validate(InstallationWithZeroHour(root));
