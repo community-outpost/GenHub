@@ -41,6 +41,24 @@ public class LaunchReceipt
     /// </summary>
     public Dictionary<string, LaunchReceiptArchiveRoot> ArchiveRoots { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets the environment variables GenHub itself set for the child process: the
+    /// built launch environment — retail archive roots plus any profile-defined variables.
+    /// The inherited process environment is deliberately not recorded; it is large, differs
+    /// between hosts without meaning anything for the launch, and can carry secrets that a
+    /// receipt on disk must never capture.
+    /// </summary>
+    public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the resolved variant and entry-point identity that determined what was
+    /// launched. Null when the profile carried no game client manifest: the legacy fallback
+    /// resolves the executable by filename search and no variant machinery participates, so
+    /// there is no variant identity to record. Populated whenever a game client manifest is
+    /// part of the launch, which is what workspace preparation resolves the entry point from.
+    /// </summary>
+    public LaunchReceiptVariant? Variant { get; set; }
+
     /// <summary>Gets or sets the manifest identifiers resolved for the launch.</summary>
     public List<string> ManifestIds { get; set; } = [];
 

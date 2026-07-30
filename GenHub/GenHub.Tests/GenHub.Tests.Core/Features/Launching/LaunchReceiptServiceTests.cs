@@ -116,11 +116,11 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
-    /// An archive added to a root since the last launch is reported as count drift.
+    /// An archive added to a root since the last launch is reported by name.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task RevalidateAsync_WithChangedArchiveCount_ReportsDrift()
+    public async Task RevalidateAsync_WithAddedArchive_ReportsDrift()
     {
         await _service.RecordLaunchAsync(CreateContext());
         File.WriteAllText(Path.Combine(_archiveRoot, "ModZH.big"), "a third archive");
@@ -130,11 +130,30 @@ public class LaunchReceiptServiceTests : IDisposable
         Assert.True(result.Success);
         Assert.True(result.Data!.HasDrift);
         Assert.Contains(result.Data.DriftedFields, f =>
-            f.Contains("Archive count") && f.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable));
+            f.Contains("Archive added") && f.Contains("ModZH.big") &&
+            f.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable));
     }
 
     /// <summary>
-    /// A mutated archive that keeps the count but changes total bytes is reported as drift.
+    /// A removed archive is reported by name.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RevalidateAsync_WithRemovedArchive_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        File.Delete(Path.Combine(_archiveRoot, "TexturesZH.big"));
+
+        var result = await _service.RevalidateAsync(_workspacePath);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data!.HasDrift);
+        Assert.Contains(result.Data.DriftedFields, f =>
+            f.Contains("Archive removed") && f.Contains("TexturesZH.big"));
+    }
+
+    /// <summary>
+    /// A mutated archive with a different size is reported by name and both sizes.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
@@ -148,7 +167,31 @@ public class LaunchReceiptServiceTests : IDisposable
         Assert.True(result.Success);
         Assert.True(result.Data!.HasDrift);
         Assert.Contains(result.Data.DriftedFields, f =>
-            f.Contains("Total archive bytes") && f.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable));
+            f.Contains("INIZH.big") && f.Contains("changed size") &&
+            f.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable));
+    }
+
+    /// <summary>
+    /// An equal-size archive replacement — invisible to a count and byte total — is
+    /// reported through its changed timestamp.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RevalidateAsync_WithEqualSizeArchiveReplacement_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var archivePath = Path.Combine(_archiveRoot, "INIZH.big");
+        var originalLength = new FileInfo(archivePath).Length;
+        File.WriteAllText(archivePath, "swapped bod");
+        Assert.Equal(originalLength, new FileInfo(archivePath).Length);
+        File.SetLastWriteTimeUtc(archivePath, new FileInfo(archivePath).LastWriteTimeUtc.AddMinutes(1));
+
+        var result = await _service.RevalidateAsync(_workspacePath);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data!.HasDrift);
+        Assert.Contains(result.Data.DriftedFields, f =>
+            f.Contains("INIZH.big") && f.Contains("changed last-write time"));
     }
 
     /// <summary>
@@ -352,6 +395,108 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Recording captures the GenHub-built environment and the variant identity, and both
+    /// round-trip through the receipt.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_CapturesEnvironmentAndVariantIdentity()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+
+        var receipt = await ReadReceiptAsync();
+        Assert.Equal("alpha", receipt.EnvironmentVariables["GENHUB_TEST_VARIABLE"]);
+        Assert.NotNull(receipt.Variant);
+        Assert.Equal("1.0.genhub.mod.test", receipt.Variant.GameClientManifestId);
+        Assert.Equal("generalszh", receipt.Variant.EntryPointRelativePath);
+        Assert.Equal(["osx-arm64"], receipt.Variant.VariantRuntimeIdentifiers);
+
+        var recordedRoot = Assert.Contains(RetailArchiveConstants.ZeroHourInstallPathVariable, receipt.ArchiveRoots);
+        Assert.Equal(2, recordedRoot.Archives.Count);
+        Assert.Contains(recordedRoot.Archives, a => a.FileName == "INIZH.big" && a.SizeBytes > 0);
+    }
+
+    /// <summary>
+    /// A changed profile-defined environment variable is reported as drift naming the
+    /// variable and both values.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedEnvironmentVariable_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(environmentValue: "beta"));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed from alpha to beta"));
+    }
+
+    /// <summary>
+    /// An environment variable that is no longer set, and one newly set, are each named.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedEnvironmentSet_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var upcoming = CreateContext();
+        upcoming.EnvironmentVariables = new Dictionary<string, string>
+        {
+            [RetailArchiveConstants.ZeroHourInstallPathVariable] = _archiveRoot + Path.DirectorySeparatorChar,
+            ["GENHUB_OTHER_VARIABLE"] = "1",
+        };
+
+        var report = _service.CompareUpcomingLaunch(receipt, upcoming);
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("no longer set"));
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("GENHUB_OTHER_VARIABLE") && f.Contains("newly set"));
+    }
+
+    /// <summary>
+    /// A changed resolved entry point is reported as variant drift.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithChangedEntryPoint_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(entryPoint: "otherclient"));
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f =>
+            f.Contains("Entry point changed from generalszh to otherclient"));
+    }
+
+    /// <summary>
+    /// A variant identity that stops being resolvable is reported, not ignored.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompareUpcomingLaunch_WithVariantNoLongerResolvable_ReportsDrift()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var receipt = await ReadReceiptAsync();
+
+        var upcoming = CreateContext();
+        upcoming.Variant = null;
+
+        var report = _service.CompareUpcomingLaunch(receipt, upcoming);
+
+        Assert.True(report.HasDrift);
+        Assert.Contains(report.DriftedFields, f => f.Contains("Variant identity no longer resolvable"));
+    }
+
+    /// <summary>
     /// Recording into a missing workspace fails without throwing.
     /// </summary>
     /// <returns>The async task.</returns>
@@ -407,6 +552,8 @@ public class LaunchReceiptServiceTests : IDisposable
     /// <param name="executablePath">The executable path; the fixture executable when null.</param>
     /// <param name="archiveRoot">The archive root; the fixture root when null.</param>
     /// <param name="manifestVersion">The version of the single fixture manifest.</param>
+    /// <param name="environmentValue">The value of the profile-defined environment variable.</param>
+    /// <param name="entryPoint">The resolved entry point of the variant identity.</param>
     /// <returns>The context.</returns>
     private LaunchReceiptContext CreateContext(
         string launchId = "launch-1",
@@ -414,7 +561,9 @@ public class LaunchReceiptServiceTests : IDisposable
         GameType gameType = GameType.ZeroHour,
         string? executablePath = null,
         string? archiveRoot = null,
-        string manifestVersion = "1.0")
+        string manifestVersion = "1.0",
+        string environmentValue = "alpha",
+        string entryPoint = "generalszh")
     {
         return new LaunchReceiptContext
         {
@@ -430,9 +579,19 @@ public class LaunchReceiptServiceTests : IDisposable
             {
                 [RetailArchiveConstants.ZeroHourInstallPathVariable] =
                     (archiveRoot ?? _archiveRoot) + Path.DirectorySeparatorChar,
+                ["GENHUB_TEST_VARIABLE"] = environmentValue,
             },
             ManifestIds = ["1.0.genhub.mod.test"],
             ManifestVersions = new Dictionary<string, string> { ["1.0.genhub.mod.test"] = manifestVersion },
+            Variant = new LaunchReceiptVariant
+            {
+                GameClientManifestId = "1.0.genhub.mod.test",
+                RuntimeIdentifier = "osx-arm64",
+                HasVariants = true,
+                VariantRuntimeIdentifiers = ["osx-arm64"],
+                EntryPointRelativePath = entryPoint,
+                Resolution = "declared entry point",
+            },
         };
     }
 }

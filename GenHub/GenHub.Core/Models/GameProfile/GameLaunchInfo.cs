@@ -23,6 +23,13 @@ public class GameLaunchInfo
     /// <summary>Gets or sets the termination timestamp.</summary>
     public DateTime? TerminatedAt { get; set; }
 
+    /// <summary>
+    /// Gets or sets the launch receipt drift detected before this launch, one warning per
+    /// drifted field, so a UI can show it. Informational only — drift never blocks a
+    /// launch — and empty when no receipt existed or nothing drifted.
+    /// </summary>
+    public List<string> ReceiptDriftWarnings { get; set; } = [];
+
     /// <summary>Gets a value indicating whether the game is still running.</summary>
     public bool IsRunning => TerminatedAt == null;
 }
